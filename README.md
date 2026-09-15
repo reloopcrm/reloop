@@ -1,4 +1,5 @@
 <p align="center">
+  <img src="apps/app/public/logo.svg" width="96" height="96" alt="Reloop CRM logo"><br>
   <strong>Reloop CRM</strong><br>
   The open source CRM that reads your email history and tells you which past customers are worth winning back.
 </p>

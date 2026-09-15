@@ -14,6 +14,7 @@ import {
 	normalizeHost,
 	normalizePath,
 	originAllowed,
+	pageScripts,
 	stripQuery,
 	type TrackingConfig,
 	trackingReady,
@@ -315,6 +316,39 @@ describe("the submission dedupe key", () => {
 			dedupeKey({ host: "reloop.de", path: "/p", email: "a@b.com", at }),
 		).not.toBe(
 			dedupeKey({ host: "reloop.de", path: "/p", email: "c@d.com", at }),
+		);
+	});
+});
+
+describe("the scripts a page loads from itself", () => {
+	test("resolves same origin sources and keeps their order", () => {
+		const html = [
+			'<script type="module" src="/assets/index-abc.js"></script>',
+			'<script src="boot.js"></script>',
+			'<script src="https://cdn.example.net/other.js"></script>',
+		].join("");
+
+		expect(pageScripts(html, "https://acme.de/")).toEqual([
+			"https://acme.de/assets/index-abc.js",
+			"https://acme.de/boot.js",
+		]);
+	});
+
+	test("stops after three scripts and skips a duplicate", () => {
+		const html = [1, 1, 2, 3, 4]
+			.map((n) => `<script src="/a${n}.js"></script>`)
+			.join("");
+
+		expect(pageScripts(html, "https://acme.de/")).toEqual([
+			"https://acme.de/a1.js",
+			"https://acme.de/a2.js",
+			"https://acme.de/a3.js",
+		]);
+	});
+
+	test("reads nothing from a page address it cannot parse", () => {
+		expect(pageScripts('<script src="/a.js"></script>', "not a url")).toEqual(
+			[],
 		);
 	});
 });

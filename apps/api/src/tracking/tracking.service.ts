@@ -12,6 +12,7 @@ import { SETTINGS_ID } from "@crm/db/settings";
 import {
 	COOKIE_LIFETIMES,
 	gtmContainers,
+	pageScripts,
 	gtmContainerUrl,
 	gtmSnippet,
 	gtmTag,
@@ -272,7 +273,12 @@ export class TrackingService {
 			? null
 			: await this.inContainers(containers, siteId);
 
-		if (!inHtml && !container) {
+		const inScript =
+			inHtml || container
+				? false
+				: await this.inScripts(body, (fetched.url ?? target).toString(), siteId);
+
+		if (!inHtml && !container && !inScript) {
 			return { status: "missing", host, responseMs, containers };
 		}
 
@@ -290,6 +296,22 @@ export class TrackingService {
 			pageView: seen !== null,
 			container,
 		};
+	}
+
+	private async inScripts(
+		html: string,
+		pageUrl: string,
+		siteId: string,
+	): Promise<boolean> {
+		for (const url of pageScripts(html, pageUrl)) {
+			const fetched = await safeFetch(url, { timeoutMs: 8_000 });
+			if (!fetched?.response.ok) continue;
+
+			const source = (await fetched.response.text()).slice(0, MAX_VERIFY_BYTES);
+			if (mentions(source, siteId)) return true;
+		}
+
+		return false;
 	}
 
 	private async inContainers(

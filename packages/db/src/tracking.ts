@@ -36,6 +36,8 @@ export const MAX_VERIFY_BYTES = 2_000_000;
 
 export const MAX_CONTAINERS = 2;
 
+export const MAX_VERIFY_SCRIPTS = 3;
+
 export type GtmTagState = "absent" | "url" | "attribute";
 
 export type DomainScopeValue = "SITE_AND_SUBDOMAINS" | "EXACT_HOST";
@@ -116,6 +118,35 @@ export function gtmContainers(html: string): string[] {
 	const found = html.match(/GTM-[A-Z0-9]{4,10}/g) ?? [];
 
 	return [...new Set(found)].slice(0, MAX_CONTAINERS);
+}
+
+export function pageScripts(html: string, pageUrl: string): string[] {
+	let base: URL;
+	try {
+		base = new URL(pageUrl);
+	} catch {
+		return [];
+	}
+
+	const sources = [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)];
+	const same: string[] = [];
+
+	for (const match of sources) {
+		let resolved: URL;
+		try {
+			resolved = new URL(match[1] ?? "", base);
+		} catch {
+			continue;
+		}
+
+		const href = resolved.toString();
+		if (resolved.origin !== base.origin || same.includes(href)) continue;
+
+		same.push(href);
+		if (same.length === MAX_VERIFY_SCRIPTS) break;
+	}
+
+	return same;
 }
 
 export function gtmTag(source: string, siteId: string): GtmTagState {

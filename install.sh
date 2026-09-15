@@ -104,7 +104,7 @@ EOF
 fi
 
 say "Pulling images. This takes a few minutes the first time."
-docker compose pull
+docker compose pull --ignore-pull-failures
 docker compose up -d --wait
 
 if [ "$CREATE_OWNER" = "1" ]; then

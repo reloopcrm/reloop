@@ -10,7 +10,7 @@ RUN DATABASE_URL=postgresql://build:build@localhost:5432/build bun install --fro
 USER root
 RUN npm install -g @openai/codex@0.154.0 && npm cache clean --force
 USER node
-RUN cd apps/agent && bun run build && mkdir -p .eve/.workflow-data
+RUN cd apps/agent && DATABASE_URL=postgresql://build:build@localhost:5432/build bun run build && mkdir -p .eve/.workflow-data
 ENV NODE_ENV=production PORT=2000 CODEX_HOME=/data/codex
 WORKDIR /app/apps/agent
 EXPOSE 2000

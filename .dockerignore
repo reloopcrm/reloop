@@ -2,6 +2,7 @@
 **/.next
 **/.turbo
 **/.eve
+**/.output
 **/.vercel
 **/dist
 **/*.tsbuildinfo

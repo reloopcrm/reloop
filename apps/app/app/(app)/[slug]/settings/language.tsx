@@ -51,7 +51,9 @@ export function Language() {
 						}}
 					>
 						<SelectTrigger id={fieldId} className="w-60">
-							<SelectValue />
+							<SelectValue placeholder={NAMES[locale]}>
+								{NAMES[locale]}
+							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>
 							{LOCALES.map((value) => (

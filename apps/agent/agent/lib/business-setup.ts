@@ -174,7 +174,7 @@ export async function runBusinessSetup(
 		`unit: the plural word for what minPallets counts, in ${language()}, for example units, projects, licenses or seats.`,
 		`note: one or two ${language()} sentences saying what you concluded and from what.`,
 		"Answer with one JSON object only, no prose, no code fences, matching this JSON schema:",
-		JSON.stringify(z.toJSONSchema(businessProposal)),
+		JSON.stringify(z.toJSONSchema(businessProposal, { io: "input" })),
 	].join("\n");
 
 	const prompt = [

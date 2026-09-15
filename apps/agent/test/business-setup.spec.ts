@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { DEFAULT_WIN_BACK_RULES } from "@crm/db/win-back-rules";
+import { z } from "zod";
 import {
 	alreadyTuned,
 	BUSINESS_SETUP,
@@ -63,6 +64,18 @@ describe("reading a proposal for any business", () => {
 				note: "Nothing.",
 			}).success,
 		).toBe(false);
+	});
+});
+
+describe("the schema the prompt shows the model", () => {
+	it("builds from the proposal shape, transforms and all", () => {
+		const json = z.toJSONSchema(businessProposal, { io: "input" }) as {
+			properties: Record<string, { type?: string }>;
+		};
+
+		expect(json.properties.description?.type).toBe("string");
+		expect(json.properties.products?.type).toBe("array");
+		expect(json.properties.minPallets?.type).toBe("integer");
 	});
 });
 

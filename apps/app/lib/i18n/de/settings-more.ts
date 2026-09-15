@@ -458,4 +458,65 @@ export const settingsMore: Dictionary = {
 	"Export CSV": "Als CSV exportieren",
 	"Only a workspace owner sees the waitlist.":
 		"Nur ein Inhaber des Arbeitsbereichs sieht die Warteliste.",
+
+	Functions: "Funktionen",
+	"Every job the agent does on its own. Switch off what you do not need and it stops costing you.":
+		"Jede Aufgabe, die der Agent von allein erledigt. Schalte ab, was du nicht brauchst, dann kostet es auch nichts mehr.",
+	"Reading your email": "Deine E-Mails lesen",
+	"What the agent reads by itself, every minute.":
+		"Was der Agent von allein liest, jede Minute.",
+	"What the agent looks up about the people and companies you work with.":
+		"Was der Agent über die Menschen und Firmen nachschlägt, mit denen du arbeitest.",
+	"Logos and photos": "Logos und Fotos",
+	"The pictures on a record.": "Die Bilder auf einem Datensatz.",
+	Writing: "Schreiben",
+	"What the agent writes for you.": "Was der Agent für dich schreibt.",
+	"Rules and setup": "Regeln und Einrichtung",
+	"What the agent learns about your own business.":
+		"Was der Agent über dein eigenes Geschäft lernt.",
+
+	"Conversation summaries": "Zusammenfassungen von Gesprächen",
+	"Reads every new email conversation and records what it was about, who asked for what and who owes a reply. This is the biggest model cost.":
+		"Liest jedes neue E-Mail-Gespräch und hält fest, worum es ging, wer was gefragt hat und wer noch antworten muss. Das ist der größte Kostenpunkt beim Modell.",
+	"Conversation digest": "Gesprächsübersicht",
+	"Writes one line per message when somebody opens a long conversation. One model call each time a rep asks.":
+		"Schreibt eine Zeile pro Nachricht, wenn jemand ein langes Gespräch öffnet. Ein Modellaufruf pro Anfrage.",
+	"Contact research": "Kontaktrecherche",
+	"Works out who a new contact is and keeps their role and background current. One research session per contact, so it spends model tokens and lookup credits.":
+		"Findet heraus, wer ein neuer Kontakt ist, und hält Rolle und Hintergrund aktuell. Eine Recherchesitzung pro Kontakt, also Modell-Token und Abfrage-Credits.",
+	"Meeting preparation": "Vorbereitung auf Termine",
+	"Researches the person you meet next before the meeting starts. One research session per meeting.":
+		"Recherchiert die Person deines nächsten Termins, bevor der Termin beginnt. Eine Recherchesitzung pro Termin.",
+	"Fills a new company's industry, city, links and description once. Costs about ten lookup credits per company.":
+		"Füllt Branche, Stadt, Links und Beschreibung einer neuen Firma einmalig. Kostet etwa zehn Abfrage-Credits pro Firma.",
+	"Your own company profile": "Profil deiner eigenen Firma",
+	"Reads your own website so every session knows what you sell. Runs when the website changes, at most once a week.":
+		"Liest deine eigene Webseite, damit jede Sitzung weiß, was du verkaufst. Läuft bei einer Änderung der Webseite, höchstens einmal pro Woche.",
+	"Custom field backfill": "Eigene Felder nachfüllen",
+	"Fills empty custom fields on a record from evidence the agent finds. One research session per record.":
+		"Füllt leere eigene Felder eines Datensatzes mit Belegen, die der Agent findet. Eine Recherchesitzung pro Datensatz.",
+	"Company logos": "Firmenlogos",
+	"Fetches the logo, industry and city of a company from its domain. Costs lookup credits, or one small model call when no research key is set.":
+		"Holt Logo, Branche und Stadt einer Firma über ihre Domain. Kostet Abfrage-Credits, oder einen kleinen Modellaufruf, wenn kein Recherche-Schlüssel gesetzt ist.",
+	"Contact photos": "Fotos von Kontakten",
+	"Looks for a photo on the contact's own profiles and stores a copy. Costs lookup credits, no model tokens.":
+		"Sucht ein Foto auf den eigenen Profilen des Kontakts und speichert eine Kopie. Kostet Abfrage-Credits, keine Modell-Token.",
+	"Email drafts": "E-Mail-Entwürfe",
+	"Writes the email a rep asks for on a contact, and rewrites it on request. One model call per draft.":
+		"Schreibt die E-Mail, die jemand zu einem Kontakt anfordert, und schreibt sie auf Wunsch um. Ein Modellaufruf pro Entwurf.",
+	"Signature cleanup": "Signaturen auswerten",
+	"Reads a few inbound emails for the real name, title and phone number in the signature. One small model call per contact.":
+		"Liest ein paar eingehende E-Mails nach dem echten Namen, der Position und der Telefonnummer in der Signatur. Ein kleiner Modellaufruf pro Kontakt.",
+	"Learning from your sent email": "Aus deinen gesendeten E-Mails lernen",
+	"Reads your newest sent emails and records how you sell, so drafts sound like you. One model call, rarely.":
+		"Liest deine neuesten gesendeten E-Mails und hält fest, wie du verkaufst, damit Entwürfe nach dir klingen. Ein Modellaufruf, selten.",
+	"Win back rule tuning": "Regeln zur Rückgewinnung abstimmen",
+	"Re-tunes the win back ranking after a rep marks records good or bad. One model call per tune.":
+		"Stimmt die Rangfolge zur Rückgewinnung neu ab, nachdem jemand Datensätze als gut oder schlecht markiert hat. Ein Modellaufruf pro Abstimmung.",
+	"Business setup proposal": "Vorschlag zur Einrichtung des Geschäfts",
+	"Reads your website or your recent mail once and proposes what you trade. One model call.":
+		"Liest einmal deine Webseite oder deine letzten E-Mails und schlägt vor, womit du handelst. Ein Modellaufruf.",
+	"Subscription limit check": "Limit des Abonnements prüfen",
+	"Sends one token to the ChatGPT subscription to read how much of your limit is left. Costs almost nothing.":
+		"Sendet ein einziges Token an das ChatGPT-Abonnement, um zu lesen, wie viel von deinem Limit übrig ist. Kostet fast nichts.",
 };

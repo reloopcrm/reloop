@@ -38,6 +38,13 @@ import {
 	writeResearchKeySkipped,
 } from "@crm/db/settings";
 import {
+	AGENT_FUNCTIONS,
+	isAgentFunction,
+	isAgentFunctionEnabled,
+	readAgentFunctions,
+	writeAgentFunction,
+} from "@crm/validation/agent-functions";
+import {
 	DRAFT_STYLE,
 	readDraftStyle,
 	withoutDraftStyleRule,
@@ -61,6 +68,7 @@ import { InjectDatabase } from "../database/database.constants";
 import { ModelCatalogService } from "./model-catalog.service";
 import { SETTINGS } from "./settings.config";
 import type {
+	AgentFunctionsSettings,
 	AgentModelSettings,
 	AgentProviderSettings,
 	ArchiveRetentionSettings,
@@ -70,6 +78,7 @@ import type {
 	PasswordSignInSettings,
 	PlanSettings,
 	ResearchKeySettings,
+	SetAgentFunctionInput,
 	SetAgentProviderInput,
 	SpendSettings,
 } from "./settings.contracts";
@@ -512,6 +521,47 @@ export class SettingsService {
 		});
 
 		return { days: saved };
+	}
+
+	async agentFunctions(userId: string): Promise<AgentFunctionsSettings> {
+		const [settings, role] = await Promise.all([
+			readAgentFunctions(this.db),
+			workspaceRoleOf(userId, this.db),
+		]);
+
+		return {
+			canManage: isWorkspaceAdmin(role),
+			functions: AGENT_FUNCTIONS.map((entry) => ({
+				id: entry.id,
+				group: entry.group,
+				title: entry.title,
+				note: entry.note,
+				enabled: isAgentFunctionEnabled(settings, entry.id),
+			})),
+		};
+	}
+
+	async setAgentFunction(
+		userId: string,
+		input: SetAgentFunctionInput,
+	): Promise<AgentFunctionsSettings> {
+		await this.assertManager(userId);
+
+		if (!isAgentFunction(input.id)) {
+			throw new BadRequestException(
+				`There is no agent function called "${input.id}".`,
+			);
+		}
+
+		await writeAgentFunction(this.db, input.id, input.enabled);
+
+		this.logger.log({
+			message: "Agent function switched",
+			agentFunction: input.id,
+			enabled: input.enabled,
+		});
+
+		return this.agentFunctions(userId);
 	}
 
 	async draftStyle(): Promise<DraftStyleOutput> {

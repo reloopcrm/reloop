@@ -1,5 +1,9 @@
 import { db, type Prisma } from "@crm/db";
 import { MAX_ATTEMPTS, RETIRED_OUTCOME } from "@crm/db/agent-tasks";
+import {
+	isTaskKindEnabled,
+	readAgentFunctions,
+} from "@crm/validation/agent-functions";
 import { DISPATCH } from "./dispatch-config";
 
 export type LeasedTask = {
@@ -27,6 +31,17 @@ export type TaskSubject = {
 const LEASE_MS = DISPATCH.task.leaseMs;
 
 export { DIRECT_KINDS, MAX_ATTEMPTS } from "@crm/db/agent-tasks";
+
+export async function taskKindEnabled(kind: string): Promise<boolean> {
+	try {
+		return isTaskKindEnabled(await readAgentFunctions(db), kind);
+	} catch (error) {
+		console.error(
+			`[agent] Could not read the function switches, so ${kind} stays on: ${error instanceof Error ? error.message : String(error)}`,
+		);
+		return true;
+	}
+}
 
 export async function claimDue(
 	limit: number,
@@ -164,7 +179,9 @@ export async function scheduleTask(input: {
 	dueAt: Date;
 	priority?: number;
 	budget?: number;
-}): Promise<{ id: string }> {
+}): Promise<{ id: string } | null> {
+	if (!(await taskKindEnabled(input.kind))) return null;
+
 	const existing = await db.agentTask.findFirst({
 		where: {
 			kind: input.kind,

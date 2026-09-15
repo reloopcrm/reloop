@@ -20,6 +20,11 @@ describe("workspace settings authorization", () => {
 			() => service.skipResearchKey("member"),
 			() => service.setArchiveRetention("member", 30),
 			() => service.forgetDraftStyleRule("member", "rule"),
+			() =>
+				service.setAgentFunction("member", {
+					id: "thread-insight",
+					enabled: false,
+				}),
 			() => service.refreshUsage("member"),
 			() => service.chatgptLogin("member", "start"),
 			() => service.chatgptLogin("member", "status"),

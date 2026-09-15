@@ -246,6 +246,28 @@ export type DraftStyleOutput = z.infer<typeof draftStyleOutput>;
 
 export const businessProposalOutput = z.object({ queued: z.boolean() });
 
+export const agentFunctionsOutput = z.object({
+	canManage: z.boolean(),
+	functions: z.array(
+		z.object({
+			id: z.string(),
+			group: z.string(),
+			title: z.string(),
+			note: z.string(),
+			enabled: z.boolean(),
+		}),
+	),
+});
+
+export type AgentFunctionsSettings = z.infer<typeof agentFunctionsOutput>;
+
+export const setAgentFunctionInput = z.object({
+	id: z.string().trim().min(1).max(60),
+	enabled: z.boolean(),
+});
+
+export type SetAgentFunctionInput = z.infer<typeof setAgentFunctionInput>;
+
 export const forgetDraftStyleRuleInput = z.object({
 	ruleId: z.string().trim().min(1).max(40),
 });

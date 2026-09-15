@@ -9,6 +9,10 @@ import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { allowsCompanyResearch, INSIGHT_KIND, limitsOf } from "@crm/db/plans";
 import {
+	isTaskKindEnabled,
+	readAgentFunctions,
+} from "@crm/validation/agent-functions";
+import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskDraftPayload,
 	type AgentTaskThreadPayload,
@@ -326,6 +330,8 @@ export class AgentTriggerService {
 			return { queued: 0, merged: 0 };
 		}
 
+		if (!(await this.allows("field-backfill"))) return { queued: 0, merged: 0 };
+
 		const column = RECORD_ID_COLUMNS[entity];
 		let queued = 0;
 		let merged = 0;
@@ -487,6 +493,9 @@ export class AgentTriggerService {
 		const subject = input.contactIds ? "contactId" : "companyId";
 		const ids = [...new Set(input.contactIds ?? input.companyIds ?? [])];
 		if (ids.length === 0) return { queued: 0, alreadyQueued: 0 };
+		if (!(await this.allows(input.kind))) {
+			return { queued: 0, alreadyQueued: 0 };
+		}
 
 		try {
 			const outstanding = await this.db.agentTask.findMany({
@@ -541,6 +550,20 @@ export class AgentTriggerService {
 		}
 	}
 
+	private async allows(kind: string): Promise<boolean> {
+		const functions = await readAgentFunctions(this.db);
+
+		if (!isTaskKindEnabled(functions, kind)) {
+			this.logger.log({
+				message: "Task skipped: the operator switched this function off",
+				kind,
+			});
+			return false;
+		}
+
+		return this.planAllows(kind);
+	}
+
 	private async planAllows(kind: string): Promise<boolean> {
 		const row = await this.db.appSetting.findFirst({ select: { plan: true } });
 		const limits = limitsOf(row?.plan);
@@ -591,7 +614,7 @@ export class AgentTriggerService {
 		required = false,
 		client?: Prisma.TransactionClient,
 	): Promise<boolean> {
-		if (!(await this.planAllows(task.kind))) return false;
+		if (!(await this.allows(task.kind))) return false;
 
 		try {
 			const write = async (tx: Prisma.TransactionClient) => {

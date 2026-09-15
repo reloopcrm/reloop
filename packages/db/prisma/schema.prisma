@@ -1487,6 +1487,7 @@ model AppSetting {
   playbookOutboundCount Int?
   playbookLearnedAt     DateTime?
   draftStyle            Json?
+  agentFunctions        Json?
 
   trackingSiteId           String? @unique
   trackingCrossDomain      Boolean @default(true)

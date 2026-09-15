@@ -12,7 +12,6 @@ import { SETTINGS_ID } from "@crm/db/settings";
 import {
 	COOKIE_LIFETIMES,
 	gtmContainers,
-	pageScripts,
 	gtmContainerUrl,
 	gtmSnippet,
 	gtmTag,
@@ -20,6 +19,7 @@ import {
 	loaderUrl,
 	MAX_VERIFY_BYTES,
 	normalizeHost,
+	pageScripts,
 	trackingReady,
 	trackingSnippet,
 	VERIFY_WINDOW_MS,
@@ -38,7 +38,6 @@ import type {
 	TrackedDomainRow,
 	TrackingSettings,
 	VerifyResult,
-	VisitedPage,
 	WebsiteActivity,
 } from "./tracking.contracts";
 import { TrackingConfigService } from "./tracking-config.service";
@@ -276,7 +275,11 @@ export class TrackingService {
 		const inScript =
 			inHtml || container
 				? false
-				: await this.inScripts(body, (fetched.url ?? target).toString(), siteId);
+				: await this.inScripts(
+						body,
+						(fetched.url ?? target).toString(),
+						siteId,
+					);
 
 		if (!inHtml && !container && !inScript) {
 			return { status: "missing", host, responseMs, containers };

@@ -13,6 +13,7 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
+	agentFunctionsOutput,
 	agentModelOutput,
 	agentProviderOutput,
 	archiveRetentionOutput,
@@ -25,6 +26,7 @@ import {
 	passwordSignInOutput,
 	planOutput,
 	researchKeyOutput,
+	setAgentFunctionInput,
 	setAgentModelInput,
 	setAgentProviderInput,
 	setArchiveRetentionDaysInput,
@@ -233,6 +235,26 @@ export class SettingsRouter {
 		@Input() input: z.infer<typeof setArchiveRetentionDaysInput>,
 	) {
 		return this.settings.setArchiveRetention(ctx.user.id, input.days);
+	}
+
+	@Query({
+		output: agentFunctionsOutput,
+		meta: restMeta("GET", "/settings/agent-functions", ["Settings"]),
+	})
+	async agentFunctions(@Ctx() ctx: AuthedTrpcContext) {
+		return this.settings.agentFunctions(ctx.user.id);
+	}
+
+	@Mutation({
+		input: setAgentFunctionInput,
+		output: agentFunctionsOutput,
+		meta: restMeta("PATCH", "/settings/agent-functions", ["Settings"]),
+	})
+	async setAgentFunction(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setAgentFunctionInput>,
+	) {
+		return this.settings.setAgentFunction(ctx.user.id, input);
 	}
 
 	@Query({

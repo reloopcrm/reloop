@@ -1,4 +1,5 @@
 import { EnrichmentStatus } from "@crm/db";
+import { AGENT_FUNCTION_OFF_OUTCOME } from "@crm/validation/agent-functions";
 import {
 	readAgentTaskInstruction,
 	readAgentTaskThreadId,
@@ -49,6 +50,7 @@ import {
 	type LeasedTask,
 	noteSession,
 	postponeTask,
+	taskKindEnabled,
 } from "./tasks";
 
 export const VISIBLE_BATCH = DISPATCH.visible.batch;
@@ -157,6 +159,11 @@ async function reconcileDirect(
 }
 
 async function handleDirect(task: LeasedTask): Promise<void> {
+	if (!(await taskKindEnabled(task.kind))) {
+		await completeTask(task.id, AGENT_FUNCTION_OFF_OUTCOME);
+		return;
+	}
+
 	if (task.kind === "brand" && task.companyId) {
 		const result = await runBrand({ companyId: task.companyId });
 		if (result.retryable) return;
@@ -347,6 +354,11 @@ async function beginResearch(
 	task: LeasedTask,
 	start: (task: LeasedTask) => Promise<{ id: string }>,
 ): Promise<void> {
+	if (!(await taskKindEnabled(task.kind))) {
+		await completeTask(task.id, AGENT_FUNCTION_OFF_OUTCOME);
+		return;
+	}
+
 	try {
 		await markRunning(task);
 	} catch (error) {

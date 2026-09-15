@@ -7,6 +7,7 @@
 		".": "./src/index.ts",
 		"./activity-meta": "./src/activity-meta.ts",
 		"./agent-events": "./src/agent-events.ts",
+		"./agent-functions": "./src/agent-functions.ts",
 		"./agent-manifest": "./src/agent-manifest.ts",
 		"./agent-task-payload": "./src/agent-task-payload.ts",
 		"./builder-question": "./src/builder-question.ts",

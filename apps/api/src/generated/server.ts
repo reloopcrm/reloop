@@ -33,7 +33,7 @@ import { businessProposalOutput, agentModelOutput, agentProviderOutput, setAgent
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
-import { waitlistJoinInput, waitlistConfirmInput } from "@crm/validation/waitlist";
+import { waitlistJoinInput } from "@crm/validation/waitlist";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
 import type { UsersRouter } from "../users/users.router";
 
@@ -857,26 +857,14 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   waitlist: t.router({
-    status: publicProcedure
-      .output(z.object({ open: z.boolean() }))
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     join: publicProcedure
       .input(waitlistJoinInput)
       .output(z.object({ ok: z.literal(true) }))
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    confirm: publicProcedure
-      .input(waitlistConfirmInput)
-      .output(z.object({ confirmed: z.boolean() }))
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     list: publicProcedure
       .output(z.object({
-			rows: z.array(
-				z.object({
-					email: z.string(),
-					createdAt: z.string(),
-					confirmedAt: z.string().nullable(),
-				}),
-			),
+			rows: z.array(z.object({ email: z.string(), createdAt: z.string() })),
+			csv: z.string(),
 		}))
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),

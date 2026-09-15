@@ -61,27 +61,11 @@ export default async function WaitlistSettingsPage() {
 	);
 }
 
-type Row = { email: string; createdAt: string; confirmedAt: string | null };
-
-function csvField(value: string): string {
-	const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
-	return `"${safe.replaceAll('"', '""')}"`;
-}
-
-function toCsv(rows: Row[]): string {
-	return [
-		"email,created_at,confirmed_at",
-		...rows.map((row) =>
-			[row.email, row.createdAt, row.confirmedAt ?? ""].map(csvField).join(","),
-		),
-	].join("\n");
-}
-
 async function Signups() {
 	const session = await requireSession();
 	if ((await workspaceRoleOf(session.user.id)) !== "owner") notFound();
 
-	const [t, locale, { rows }] = await Promise.all([
+	const [t, locale, { rows, csv }] = await Promise.all([
 		getT(),
 		getLocale(),
 		getServerQueryClient().fetchQuery(
@@ -110,7 +94,7 @@ async function Signups() {
 		<div className="flex flex-col gap-4">
 			<Button variant="outline" asChild className="self-start">
 				<a
-					href={`data:text/csv;charset=utf-8,${encodeURIComponent(toCsv(rows))}`}
+					href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}
 					download="waitlist.csv"
 				>
 					{t("Export CSV")}
@@ -122,7 +106,6 @@ async function Signups() {
 					<TableRow>
 						<TableHead>{t("Email")}</TableHead>
 						<TableHead>{t("Joined")}</TableHead>
-						<TableHead>{t("Status")}</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -130,9 +113,6 @@ async function Signups() {
 						<TableRow key={row.email}>
 							<TableCell>{row.email}</TableCell>
 							<TableCell>{date.format(new Date(row.createdAt))}</TableCell>
-							<TableCell>
-								{row.confirmedAt ? t("Confirmed") : t("Pending")}
-							</TableCell>
 						</TableRow>
 					))}
 				</TableBody>

@@ -1,8 +1,8 @@
 import { Badge } from "@crm/ui/components/badge";
-import type { ReactNode } from "react";
 import { BentoCard, CardBody, CardTitle } from "./bento-card";
+import { WaitlistForm } from "./waitlist-form";
 
-export function CloudCard({ children }: { children?: ReactNode }) {
+export function CloudCard() {
 	return (
 		<BentoCard className="gap-5">
 			<div className="flex items-center gap-2">
@@ -12,7 +12,7 @@ export function CloudCard({ children }: { children?: ReactNode }) {
 			<CardBody>
 				A hosted Reloop CRM, with updates and backups handled for you.
 			</CardBody>
-			{children}
+			<WaitlistForm />
 		</BentoCard>
 	);
 }

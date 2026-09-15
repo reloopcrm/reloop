@@ -22,7 +22,7 @@ export function WaitlistForm() {
 	if (join.isSuccess) {
 		return (
 			<p role="status" className="text-body-foreground text-sm/6">
-				Check your inbox and click the link to confirm.
+				Thanks. We will email you when Cloud opens.
 			</p>
 		);
 	}
@@ -57,7 +57,7 @@ export function WaitlistForm() {
 					</FieldError>
 				) : (
 					<FieldDescription>
-						We send one email to confirm, and one when Cloud opens.
+						We send one email when Cloud opens.
 					</FieldDescription>
 				)}
 			</Field>

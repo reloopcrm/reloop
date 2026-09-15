@@ -431,12 +431,7 @@ describe("the public pages", () => {
 	it("render for a stranger on any install", async () => {
 		marketing(undefined);
 
-		for (const path of [
-			"/get-started",
-			"/docs",
-			"/waitlist/confirm",
-			"/open-source",
-		]) {
+		for (const path of ["/get-started", "/docs", "/open-source"]) {
 			expect(redirectedTo(await proxy(request(path)))).toBeNull();
 		}
 	});

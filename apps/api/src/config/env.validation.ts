@@ -148,14 +148,6 @@ export class EnvironmentVariables {
 	@IsOptional()
 	@IsString()
 	VERCEL?: string;
-
-	@IsOptional()
-	@IsString()
-	RESEND_API_KEY?: string;
-
-	@IsOptional()
-	@IsString()
-	WAITLIST_FROM_EMAIL?: string;
 }
 
 export type RawEnvironment = Record<string, string | undefined>;

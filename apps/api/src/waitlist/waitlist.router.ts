@@ -1,7 +1,5 @@
 import {
-	type WaitlistConfirmInput,
 	type WaitlistJoinInput,
-	waitlistConfirmInput,
 	waitlistJoinInput,
 } from "@crm/validation/waitlist";
 import { Inject } from "@nestjs/common";
@@ -25,16 +23,6 @@ export class WaitlistRouter {
 		@Inject(WaitlistService) private readonly waitlist: WaitlistService,
 	) {}
 
-	@Query({
-		output: z.object({ open: z.boolean() }),
-		meta: restMeta("GET", "/waitlist/status", ["Waitlist"], {
-			protect: false,
-		}),
-	})
-	async status() {
-		return this.waitlist.status();
-	}
-
 	@Mutation({
 		input: waitlistJoinInput,
 		output: z.object({ ok: z.literal(true) }),
@@ -45,26 +33,10 @@ export class WaitlistRouter {
 		return { ok: true as const };
 	}
 
-	@Mutation({
-		input: waitlistConfirmInput,
-		output: z.object({ confirmed: z.boolean() }),
-		meta: restMeta("POST", "/waitlist/confirm", ["Waitlist"], {
-			protect: false,
-		}),
-	})
-	async confirm(@Input() input: WaitlistConfirmInput) {
-		return this.waitlist.confirm(input.token);
-	}
-
 	@Query({
 		output: z.object({
-			rows: z.array(
-				z.object({
-					email: z.string(),
-					createdAt: z.string(),
-					confirmedAt: z.string().nullable(),
-				}),
-			),
+			rows: z.array(z.object({ email: z.string(), createdAt: z.string() })),
+			csv: z.string(),
 		}),
 		meta: restMeta("GET", "/waitlist", ["Waitlist"]),
 	})

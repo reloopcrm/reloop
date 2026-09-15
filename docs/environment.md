@@ -94,11 +94,6 @@ Settings > General offers German and the agent writes German. The app reads it o
 server (`apps/app/lib/i18n/server.ts`), the agent in `agent/lib/language.ts`. A missing
 German key falls back to English, so a new text needs no German translation.
 
-## Waitlist mail
-
-`RESEND_API_KEY` and `WAITLIST_FROM_EMAIL` are both optional. Without both, the Cloud
-card on `/get-started` shows only "Soon" and no form, and `waitlist.join` stores nothing.
-
 ## Typed, validated env
 
 `apps/api/src/config/env.validation.ts` runs via `ConfigModule.forRoot({ validate })`,

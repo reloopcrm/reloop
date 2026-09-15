@@ -1762,11 +1762,9 @@ model Apikey {
 }
 
 model WaitlistSignup {
-  id          String    @id @default(uuid())
-  email       String    @unique
-  tokenHash   String    @unique
-  createdAt   DateTime  @default(now())
-  confirmedAt DateTime?
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
 
   @@map("waitlistSignup")
 }

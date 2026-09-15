@@ -1,16 +1,12 @@
 import GitHubLogo from "@crm/ui/components/brand-logos/github";
 import { Button } from "@crm/ui/components/button";
 import type { Metadata } from "next";
-import { unstable_rethrow } from "next/navigation";
-import { Suspense } from "react";
 import { BentoCard, CardHeading } from "@/components/landing/bento-card";
 import { CloudCard } from "@/components/landing/cloud-card";
 import { CopyCommand } from "@/components/landing/copy-command";
 import { LandingShell } from "@/components/landing/landing-shell";
 import { SectionHeading } from "@/components/landing/section-heading";
 import { INSTALL_COMMAND, REPO_URL } from "@/components/landing/site";
-import { WaitlistForm } from "@/components/landing/waitlist-form";
-import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 
 export const metadata: Metadata = {
 	title: "Get started",
@@ -42,29 +38,9 @@ export default function GetStartedPage() {
 						</Button>
 					</BentoCard>
 
-					<Suspense fallback={<CloudCard />}>
-						<Cloud />
-					</Suspense>
+					<CloudCard />
 				</div>
 			</main>
 		</LandingShell>
 	);
-}
-
-async function Cloud() {
-	return (
-		<CloudCard>{(await waitlistOpen()) ? <WaitlistForm /> : null}</CloudCard>
-	);
-}
-
-async function waitlistOpen(): Promise<boolean> {
-	try {
-		const status = await getServerQueryClient().fetchQuery(
-			getServerTrpc().waitlist.status.queryOptions(),
-		);
-		return status.open;
-	} catch (error) {
-		unstable_rethrow(error);
-		return false;
-	}
 }

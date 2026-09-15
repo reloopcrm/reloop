@@ -456,10 +456,6 @@ export const settingsMore: Dictionary = {
 	"Entries appear here after someone joins on the Get started page.":
 		"Einträge erscheinen hier, sobald sich jemand auf der Seite Get started einträgt.",
 	"Export CSV": "Als CSV exportieren",
-	Confirmed: "Bestätigt",
-	Pending: "Ausstehend",
 	"Only a workspace owner sees the waitlist.":
 		"Nur ein Inhaber des Arbeitsbereichs sieht die Warteliste.",
-	"Too many confirmations right now. Try the link again in a minute.":
-		"Gerade kommen zu viele Bestätigungen an. Öffne den Link in einer Minute noch einmal.",
 };

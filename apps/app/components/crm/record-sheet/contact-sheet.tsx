@@ -129,15 +129,15 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 					content: <ContactOverview contact={contact} />,
 				},
 				{
+					value: "activity",
+					label: t("Activity"),
+					content: <Timeline anchor={{ contactId: contact.id }} />,
+				},
+				{
 					value: "deals",
 					label: t("Deals"),
 					count: contact.deals.length,
 					content: <ContactDeals contact={contact} />,
-				},
-				{
-					value: "activity",
-					label: t("Activity"),
-					content: <Timeline anchor={{ contactId: contact.id }} />,
 				},
 				{
 					value: "agent",

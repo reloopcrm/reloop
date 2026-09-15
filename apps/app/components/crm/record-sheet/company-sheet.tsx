@@ -205,6 +205,11 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 					),
 				},
 				{
+					value: "activity",
+					label: t("Activity"),
+					content: <Timeline anchor={{ companyId: company.id }} />,
+				},
+				{
 					value: "deals",
 					label: t("Deals"),
 					count: company.deals.length,
@@ -216,11 +221,6 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 							onDone={() => setAdding(null)}
 						/>
 					),
-				},
-				{
-					value: "activity",
-					label: t("Activity"),
-					content: <Timeline anchor={{ companyId: company.id }} />,
 				},
 				{
 					value: "agent",

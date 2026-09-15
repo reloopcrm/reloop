@@ -1,0 +1,75 @@
+import type { Dictionary } from "../locale";
+
+export const status: Dictionary = {
+	Queued: "In der Warteschlange",
+	Running: "Läuft",
+	"Waiting for approval": "Wartet auf Freigabe",
+	Succeeded: "Erfolgreich",
+	Failed: "Fehlgeschlagen",
+	Cancelled: "Abgebrochen",
+	Planned: "Geplant",
+	Manual: "Von Hand",
+	Schedule: "Zeitplan",
+	Event: "Ereignis",
+	Webhook: "Webhook",
+	draft: "Entwurf",
+	deploying: "Wird ausgerollt",
+	live: "Aktiv",
+	paused: "Pausiert",
+	archived: "Archiviert",
+	deleted: "Gelöscht",
+
+	"The agent finished without doing what it was built to do. Open the run to see which step it skipped.":
+		"Der Agent ist fertig geworden, ohne das zu tun, wofür er gebaut wurde. Öffne den Lauf und sieh nach, welchen Schritt er übersprungen hat.",
+	"This agent asks for something the CRM cannot do yet. It needs rebuilding.":
+		"Dieser Agent verlangt etwas, das das CRM noch nicht kann. Er muss neu gebaut werden.",
+	"A connection this agent needs is missing. Reconnect it, then run again.":
+		"Eine Verbindung fehlt, die dieser Agent braucht. Stelle sie wieder her und starte den Lauf erneut.",
+	"The connection refused this. Its access may have been revoked or narrowed.":
+		"Die Verbindung hat das abgelehnt. Ihr Zugriff wurde vielleicht entzogen oder eingeschränkt.",
+	"The outside service rejected this. It is usually worth trying again.":
+		"Der externe Dienst hat das abgelehnt. Ein zweiter Versuch lohnt sich meistens.",
+	"The agent stopped without reporting a result. Nothing was left half-done.":
+		"Der Agent hat aufgehört, ohne ein Ergebnis zu melden. Es ist nichts halb fertig geblieben.",
+	"The model failed part-way through this run.":
+		"Das Modell ist mitten im Lauf ausgestiegen.",
+	"The run never reached the agent.": "Der Lauf hat den Agenten nie erreicht.",
+	"This never reached the agent after three attempts. Nothing ran.":
+		"Das hat den Agenten auch nach drei Versuchen nicht erreicht. Es lief nichts.",
+	"The agent tried the action and the CRM refused it. Nothing was written.":
+		"Der Agent hat die Aktion versucht, und das CRM hat sie abgelehnt. Es wurde nichts geschrieben.",
+	"The agent was paused or archived when this run started.":
+		"Der Agent war pausiert oder archiviert, als dieser Lauf begann.",
+	"The agent was deleted before this run finished.":
+		"Der Agent wurde gelöscht, bevor dieser Lauf fertig war.",
+	"Someone stopped this run.": "Jemand hat diesen Lauf gestoppt.",
+	"This run took too long and was stopped so later runs could start.":
+		"Dieser Lauf hat zu lange gedauert und wurde gestoppt, damit spätere Läufe starten können.",
+	"This run failed without saying why.":
+		"Dieser Lauf ist fehlgeschlagen, ohne einen Grund zu nennen.",
+
+	instructions: "Anweisungen",
+	"the manifest": "das Manifest",
+	"the readme": "die Anleitung",
+	"Writing {name}": "Schreibt {name}",
+	"Wrote {name}": "Hat {name} geschrieben",
+	"Saving draft": "Speichert den Entwurf",
+	"Saved draft": "Entwurf gespeichert",
+	"Naming this chat": "Benennt diesen Chat",
+	"Named this chat": "Chat benannt",
+
+	"Budget pulled for the quarter": "Budget für das Quartal gestrichen",
+	"Unable to submit. Check your connection and try again.":
+		"Absenden nicht möglich. Prüfe deine Verbindung und versuche es erneut.",
+	"Choose an answer, then submit.": "Wähle eine Antwort und sende sie ab.",
+	"Add the detail the agent needs to continue.":
+		"Ergänze die Angabe, die der Agent zum Weitermachen braucht.",
+	"Another answer": "Andere Antwort",
+	"Your answer": "Deine Antwort",
+	"Add the detail the agent needs": "Ergänze, was der Agent braucht",
+	Submitting: "Wird gesendet",
+	"Submit answer": "Antwort senden",
+	Back: "Zurück",
+	"Agent is researching": "Der Agent recherchiert",
+	"Not known yet": "Noch nicht bekannt",
+};

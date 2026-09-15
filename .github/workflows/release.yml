@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release pull request, tag and notes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
+          target-branch: main
+          token: ${{ secrets.AUTOMATION_TOKEN || secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Say what happened
+        if: ${{ !steps.release.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          echo "No tag this run — either the release pull request is still open, or nothing releasable landed." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail on a merged release pull request that was never tagged
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          candidates=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --state merged --label "autorelease: pending" --limit 20 --json number --jq '.[].number')
+
+          stuck=""
+
+          for pr in $candidates; do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/issues/$pr/labels" --jq 'map(.name) | if index("autorelease: tagged") then "tagged" elif index("autorelease: pending") then "pending" else "cleared" end')
+
+            if [ "$state" != "pending" ]; then
+              continue
+            fi
+
+            title=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq '.title')
+            stuck="${stuck}#${pr} ${title}"$'\n'
+          done
+
+          if [ -z "$stuck" ]; then
+            exit 0
+          fi
+
+          {
+            echo "**A merged release pull request was never tagged.** release-please aborts on it, so nothing"
+            echo "releases and no release pull request opens until it is cleared: create the tag and GitHub"
+            echo "Release at that pull request's merge commit, then swap its \`autorelease: pending\` label for"
+            echo "\`autorelease: tagged\`."
+            echo
+            echo '```'
+            echo "$stuck"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit 1

@@ -1,0 +1,534 @@
+import {
+	hasPassword,
+	isPasswordSignInConfigured,
+	isWorkspaceAdmin,
+	PASSWORD_RULES,
+	type PasswordRefusal,
+	PasswordRefused,
+	setPasswordFor,
+	workspaceRoleOf,
+} from "@crm/auth";
+import { isFreshPasswordSession } from "@crm/auth/password-rules";
+import type { Db } from "@crm/db";
+import { USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
+import { readModelSpend } from "@crm/db/model-spend";
+import { isPlanId, limitsOf, PLAN_IDS, PLANS } from "@crm/db/plans";
+import { readProviderUsage } from "@crm/db/provider-usage";
+import { openSecret, sealSecret, secretKey } from "@crm/db/secrets";
+import {
+	AGENT_DRAFT_DEFAULT,
+	AGENT_MODEL_OPTIONS,
+	AGENT_PROVIDER_DEFAULTS,
+	AGENT_READING_DEFAULT,
+	AGENT_RESEARCH_PER_HOUR,
+	DEFAULT_AGENT_MODEL,
+	draftModelFor,
+	maskKey,
+	readAgentModel,
+	readAgentProvider,
+	readArchiveRetentionDays,
+	readContextDevKey,
+	readingModelFor,
+	readPlan,
+	readResearchKeySkipped,
+	writeAgentModel,
+	writeAgentProvider,
+	writeArchiveRetentionDays,
+	writeContextDevKey,
+	writeResearchKeySkipped,
+} from "@crm/db/settings";
+import {
+	DRAFT_STYLE,
+	readDraftStyle,
+	withoutDraftStyleRule,
+	writeDraftStyle,
+} from "@crm/validation/draft-style";
+import {
+	BadRequestException,
+	ForbiddenException,
+	Injectable,
+	Logger,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { AgentTriggerService } from "../agent/agent-trigger.service";
+import {
+	type ChatgptLoginAction,
+	ResearchKeyService,
+} from "../agent/research-key.service";
+import { BackfillService } from "../backfill/backfill.service";
+import type { EnvironmentVariables } from "../config/env.validation";
+import { InjectDatabase } from "../database/database.constants";
+import { ModelCatalogService } from "./model-catalog.service";
+import { SETTINGS } from "./settings.config";
+import type {
+	AgentModelSettings,
+	AgentProviderSettings,
+	ArchiveRetentionSettings,
+	ChatgptLoginSettings,
+	DraftStyleOutput,
+	ModelCatalogResult,
+	PasswordSignInSettings,
+	PlanSettings,
+	ResearchKeySettings,
+	SetAgentProviderInput,
+	SpendSettings,
+} from "./settings.contracts";
+
+const PASSWORD_REFUSALS = {
+	"sign-in-off":
+		'Password sign-in is off. Set PASSWORD_SIGN_IN="1" in the root .env file and restart.',
+	"too-short": `The password needs at least ${PASSWORD_RULES.minLength} characters.`,
+	"too-long": `The password takes at most ${PASSWORD_RULES.maxLength} characters.`,
+	"no-user": "That account no longer exists.",
+} satisfies Record<PasswordRefusal, string>;
+
+type ProviderKeyHint = {
+	configured: boolean;
+	hint: string | null;
+};
+
+@Injectable()
+export class SettingsService {
+	private readonly logger = new Logger(SettingsService.name);
+
+	constructor(
+		@InjectDatabase() private readonly db: Db,
+		private readonly catalog: ModelCatalogService,
+		private readonly researchKeys: ResearchKeyService,
+		private readonly backfill: BackfillService,
+		private readonly config: ConfigService<EnvironmentVariables, true>,
+		private readonly agent: AgentTriggerService,
+	) {}
+
+	private async assertManager(userId: string): Promise<void> {
+		if (!isWorkspaceAdmin(await workspaceRoleOf(userId, this.db))) {
+			throw new ForbiddenException(
+				"Only a workspace admin can change these settings.",
+			);
+		}
+	}
+
+	async refreshUsage(userId: string): Promise<AgentProviderSettings> {
+		await this.assertManager(userId);
+		await this.agent.usageProbeRequested();
+		return this.agentProvider();
+	}
+
+	async passwordSignIn(userId: string): Promise<PasswordSignInSettings> {
+		return {
+			enabled: isPasswordSignInConfigured(),
+			set: isPasswordSignInConfigured() ? await hasPassword(userId) : false,
+			minLength: PASSWORD_RULES.minLength,
+			maxLength: PASSWORD_RULES.maxLength,
+		};
+	}
+
+	async setPassword(
+		userId: string,
+		newPassword: string,
+		sessionCreatedAt: Date,
+		sessionId: string,
+	): Promise<PasswordSignInSettings> {
+		if (!isFreshPasswordSession(sessionCreatedAt)) {
+			throw new ForbiddenException(
+				"Sign out and sign in again before changing your password.",
+			);
+		}
+		try {
+			await setPasswordFor(userId, newPassword, sessionId);
+		} catch (error) {
+			if (error instanceof PasswordRefused) {
+				throw new BadRequestException(PASSWORD_REFUSALS[error.reason]);
+			}
+			throw error;
+		}
+
+		this.logger.log({ message: "Password set", userId });
+
+		return this.passwordSignIn(userId);
+	}
+
+	async plan(): Promise<PlanSettings> {
+		const plan = await readPlan(this.db);
+		const limits = limitsOf(plan);
+
+		return {
+			plan: isPlanId(plan) ? plan : null,
+			label: limits.label,
+			limits: {
+				contacts: limits.contacts,
+				mailboxes: limits.mailboxes,
+				importMonths: limits.importMonths,
+				researchPerHour: limits.researchPerHour,
+				companyResearch: limits.companyResearch,
+				insightsPerMonth: limits.insightsPerMonth,
+			},
+			options: PLAN_IDS.map((id) => ({ id, label: PLANS[id].label })),
+		};
+	}
+
+	async spend(): Promise<SpendSettings> {
+		const days = SETTINGS.spend.days;
+		const since = new Date(Date.now() - days * SETTINGS.spend.dayMs);
+		const report = await readModelSpend(this.db, since);
+
+		return {
+			exchangeRate: SETTINGS.spend.dollarsToEuro,
+			days,
+			costUsd: report.costUsd,
+			costEur: report.costUsd * SETTINGS.spend.dollarsToEuro,
+			calls: report.calls,
+			lines: report.lines.map((line) => ({
+				kind: line.kind,
+				model: line.model,
+				calls: line.calls,
+				costEur: line.costUsd * SETTINGS.spend.dollarsToEuro,
+				cacheReadTokens: line.cacheReadTokens,
+				priced: line.priced,
+			})),
+		};
+	}
+
+	async setPlan(userId: string, _plan: string | null): Promise<PlanSettings> {
+		await this.assertManager(userId);
+		throw new ForbiddenException(
+			"Only the server operator can change the plan.",
+		);
+	}
+
+	async agentModel(): Promise<AgentModelSettings> {
+		const [model, row] = await Promise.all([
+			readAgentModel(this.db),
+			this.db.appSetting.findFirst({ select: { updatedAt: true } }),
+		]);
+
+		return {
+			selectedId: model.isDefault ? null : model.id,
+			effectiveId: model.id,
+			defaultId: DEFAULT_AGENT_MODEL.id,
+			effective: await this.catalog.find(model.id),
+			updatedAt: row?.updatedAt.toISOString() ?? null,
+		};
+	}
+
+	private async usageProbe(): Promise<AgentProviderSettings["probe"]> {
+		const [pending, last] = await Promise.all([
+			this.db.agentTask.count({
+				where: { kind: USAGE_PROBE_KIND, finishedAt: null },
+			}),
+			this.db.agentTask.findFirst({
+				where: { kind: USAGE_PROBE_KIND, finishedAt: { not: null } },
+				orderBy: { finishedAt: "desc" },
+				select: { outcome: true, finishedAt: true },
+			}),
+		]);
+
+		if (pending === 0 && !last) return null;
+
+		return {
+			outcome: last?.outcome ?? null,
+			finishedAt: last?.finishedAt?.toISOString() ?? null,
+			pending: pending > 0,
+		};
+	}
+
+	async agentProvider(): Promise<AgentProviderSettings> {
+		const setting = await readAgentProvider(this.db);
+		const [usage, probe] = await Promise.all([
+			setting.provider === "chatgpt"
+				? readProviderUsage(this.db, "chatgpt")
+				: null,
+			setting.provider === "chatgpt" ? this.usageProbe() : null,
+		]);
+
+		return {
+			readingModel: setting.readingModel,
+			effectiveReadingModel: readingModelFor(setting),
+			draftModel: setting.draftModel,
+			effectiveDraftModel: draftModelFor(setting),
+			options: {
+				chatgpt: [...AGENT_MODEL_OPTIONS.chatgpt],
+				openai: [...AGENT_MODEL_OPTIONS.openai],
+				anthropic: [...AGENT_MODEL_OPTIONS.anthropic],
+			},
+			usage: usage
+				? {
+						planType: usage.planType,
+						primaryUsedPercent: usage.primaryUsedPercent,
+						primaryResetAt: usage.primaryResetAt?.toISOString() ?? null,
+						primaryWindowMinutes: usage.primaryWindowMinutes,
+						secondaryUsedPercent: usage.secondaryUsedPercent,
+						secondaryResetAt: usage.secondaryResetAt?.toISOString() ?? null,
+						secondaryWindowMinutes: usage.secondaryWindowMinutes,
+						updatedAt: usage.updatedAt.toISOString(),
+					}
+				: null,
+			probe,
+			provider: setting.provider,
+			chatgptModel: setting.chatgptModel,
+			openaiModel: setting.openaiModel,
+			anthropicModel: setting.anthropicModel,
+			openaiKey: this.keyHint(setting.openaiKey),
+			anthropicKey: this.keyHint(setting.anthropicKey),
+			gatewayConfigured: Boolean(
+				this.config.get("AI_GATEWAY_API_KEY", { infer: true })?.trim(),
+			),
+			researchPerHour: setting.researchPerHour,
+			defaults: {
+				chatgptModel: AGENT_PROVIDER_DEFAULTS.chatgpt.model,
+				openaiModel: AGENT_PROVIDER_DEFAULTS.openai.model,
+				anthropicModel: AGENT_PROVIDER_DEFAULTS.anthropic.model,
+				researchPerHour: AGENT_RESEARCH_PER_HOUR.default,
+				readingModel:
+					setting.provider === "gateway"
+						? ""
+						: AGENT_READING_DEFAULT[setting.provider],
+				draftModel:
+					setting.provider === "gateway"
+						? ""
+						: AGENT_DRAFT_DEFAULT[setting.provider],
+			},
+		};
+	}
+
+	async setAgentProvider(
+		userId: string,
+		input: SetAgentProviderInput,
+	): Promise<AgentProviderSettings> {
+		await this.assertManager(userId);
+		const current = await readAgentProvider(this.db);
+
+		for (const provider of ["openai", "anthropic"] as const) {
+			const candidate = input[`${provider}Key`];
+			if (!candidate) continue;
+			const check = await this.researchKeys.verifyProvider(provider, candidate);
+			if (check.outcome === "invalid") {
+				throw new BadRequestException(check.reason);
+			}
+			this.logger.log({
+				message: "Provider key checked",
+				provider,
+				verified: check.outcome === "valid",
+			});
+		}
+
+		const openaiKey = this.sealed(input.openaiKey, current.openaiKey);
+		const anthropicKey = this.sealed(input.anthropicKey, current.anthropicKey);
+
+		if (input.provider === "openai" && !openaiKey) {
+			throw new BadRequestException("Paste an OpenAI API key first.");
+		}
+		if (input.provider === "anthropic" && !anthropicKey) {
+			throw new BadRequestException("Paste an Anthropic API key first.");
+		}
+
+		await writeAgentProvider(this.db, {
+			provider: input.provider,
+			chatgptModel: input.chatgptModel,
+			openaiModel: input.openaiModel,
+			anthropicModel: input.anthropicModel,
+			openaiKey,
+			anthropicKey,
+			researchPerHour: input.researchPerHour,
+			readingModel: input.readingModel,
+			draftModel: input.draftModel,
+		});
+
+		this.logger.log({
+			message: "Agent model provider changed",
+			provider: input.provider,
+		});
+
+		return this.agentProvider();
+	}
+
+	async chatgptLogin(
+		userId: string,
+		action: ChatgptLoginAction,
+	): Promise<ChatgptLoginSettings> {
+		await this.assertManager(userId);
+		return this.researchKeys.chatgptLogin(action);
+	}
+
+	private sealed(
+		input: string | null | undefined,
+		current: string | null,
+	): string | null {
+		if (input === undefined) return current;
+		if (input === null || input === "") return null;
+
+		return sealSecret(input, this.secretKey());
+	}
+
+	private secretKey(): Buffer {
+		return secretKey(
+			this.config.get("BETTER_AUTH_SECRET", { infer: true }),
+			SETTINGS.providerKeys.purpose,
+		);
+	}
+
+	private keyHint(sealed: string | null): ProviderKeyHint {
+		if (!sealed) return { configured: false, hint: null };
+
+		try {
+			return {
+				configured: true,
+				hint: maskKey(openSecret(sealed, this.secretKey())),
+			};
+		} catch {
+			return { configured: true, hint: null };
+		}
+	}
+
+	async setAgentModel(
+		userId: string,
+		modelId: string | null,
+	): Promise<AgentModelSettings> {
+		await this.assertManager(userId);
+		if (modelId === null) {
+			await writeAgentModel(this.db, null);
+			this.logger.log({ message: "Agent model reset to the default" });
+			return this.agentModel();
+		}
+
+		const models = await this.catalog.models();
+
+		if (!models) {
+			throw new BadRequestException(
+				"Could not reach the AI Gateway to check that model. Try again in a moment.",
+			);
+		}
+
+		const chosen = models.find((model) => model.id === modelId);
+
+		if (!chosen) {
+			throw new BadRequestException(
+				`The AI Gateway does not serve a tool-using model called "${modelId}".`,
+			);
+		}
+
+		await writeAgentModel(this.db, {
+			id: chosen.id,
+			contextWindowTokens: chosen.contextWindowTokens,
+		});
+
+		this.logger.log({ message: "Agent model changed", modelId: chosen.id });
+
+		return this.agentModel();
+	}
+
+	async modelCatalog(): Promise<ModelCatalogResult> {
+		const models = await this.catalog.models();
+		return { models: models ?? [], available: models !== null };
+	}
+
+	async researchKey(): Promise<ResearchKeySettings> {
+		const [key, skipped] = await Promise.all([
+			readContextDevKey(this.db),
+			readResearchKeySkipped(this.db),
+		]);
+
+		return {
+			configured: key !== null,
+			hint: key ? maskKey(key) : null,
+			skipped,
+		};
+	}
+
+	async proposeBusiness(userId: string): Promise<{ queued: boolean }> {
+		await this.assertManager(userId);
+		return { queued: await this.agent.businessSetupRequested(true) };
+	}
+
+	async skipResearchKey(userId: string): Promise<ResearchKeySettings> {
+		await this.assertManager(userId);
+		await writeResearchKeySkipped(this.db);
+		this.logger.log({
+			message: "Context key skipped; the agent reads company websites itself",
+		});
+
+		void this.backfill.run("companies").catch(() => undefined);
+
+		return this.researchKey();
+	}
+
+	async setResearchKey(
+		userId: string,
+		apiKey: string,
+	): Promise<ResearchKeySettings> {
+		await this.assertManager(userId);
+		const check = await this.researchKeys.verify(apiKey);
+
+		if (check.outcome === "invalid") {
+			throw new BadRequestException(check.reason);
+		}
+
+		await writeContextDevKey(this.db, apiKey);
+
+		this.logger.log({
+			message: "Context key saved",
+			verified: check.outcome === "valid",
+		});
+
+		// Every company added while there was no key is still PENDING, because a
+		// brand task with nowhere to look leaves the record alone. The sign-in
+		// sweep would find them, but the person who just fixed it is standing
+		// here — so pick the work up now rather than on their next sign-in.
+		void this.backfill
+			.run("companies")
+			.then(({ queued, remaining }) => {
+				if (queued > 0) {
+					this.logger.log({
+						message: "Queued the research that was waiting on a key",
+						queued,
+						remaining,
+					});
+				}
+			})
+			.catch((cause: unknown) => {
+				this.logger.warn(
+					{ message: "Could not queue the waiting research" },
+					cause instanceof Error ? cause.stack : String(cause),
+				);
+			});
+
+		return this.researchKey();
+	}
+
+	async archiveRetention(): Promise<ArchiveRetentionSettings> {
+		return { days: await readArchiveRetentionDays(this.db) };
+	}
+
+	async setArchiveRetention(
+		userId: string,
+		days: number,
+	): Promise<ArchiveRetentionSettings> {
+		await this.assertManager(userId);
+		const saved = await writeArchiveRetentionDays(this.db, days);
+
+		this.logger.log({
+			message: "Archive retention changed",
+			days: saved,
+		});
+
+		return { days: saved };
+	}
+
+	async draftStyle(): Promise<DraftStyleOutput> {
+		const style = await readDraftStyle(this.db);
+		return { rules: style.rules, max: DRAFT_STYLE.maxRules };
+	}
+
+	async forgetDraftStyleRule(
+		userId: string,
+		ruleId: string,
+	): Promise<DraftStyleOutput> {
+		await this.assertManager(userId);
+		const style = await readDraftStyle(this.db);
+		await writeDraftStyle(this.db, withoutDraftStyleRule(style, ruleId));
+
+		this.logger.log({ message: "Draft style rule removed", ruleId });
+
+		return this.draftStyle();
+	}
+}

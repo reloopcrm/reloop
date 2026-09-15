@@ -1,0 +1,251 @@
+import {
+	MAX_ARCHIVE_RETENTION_DAYS,
+	MIN_ARCHIVE_RETENTION_DAYS,
+} from "@crm/db/settings";
+import { chatgptLoginState } from "@crm/validation/chatgpt-login";
+import { z } from "zod";
+
+export const catalogModelOutput = z.object({
+	id: z.string(),
+	name: z.string(),
+	provider: z.string(),
+	contextWindowTokens: z.number(),
+	pricing: z.object({ input: z.number(), output: z.number() }).nullable(),
+});
+
+export type CatalogModel = z.infer<typeof catalogModelOutput>;
+
+export const agentModelOutput = z.object({
+	selectedId: z.string().nullable(),
+	effectiveId: z.string(),
+	defaultId: z.string(),
+	effective: catalogModelOutput.nullable(),
+	updatedAt: z.string().nullable(),
+});
+
+export type AgentModelSettings = z.infer<typeof agentModelOutput>;
+
+export const modelCatalogOutput = z.object({
+	models: z.array(catalogModelOutput),
+	available: z.boolean(),
+});
+
+export type ModelCatalogResult = z.infer<typeof modelCatalogOutput>;
+
+export const researchKeyOutput = z.object({
+	configured: z.boolean(),
+	hint: z.string().nullable(),
+	skipped: z.boolean(),
+});
+
+export type ResearchKeySettings = z.infer<typeof researchKeyOutput>;
+
+export const archiveRetentionOutput = z.object({
+	days: z.number(),
+});
+
+export type ArchiveRetentionSettings = z.infer<typeof archiveRetentionOutput>;
+
+const agentProvider = z.enum(["gateway", "chatgpt", "openai", "anthropic"]);
+
+const modelName = z
+	.string()
+	.trim()
+	.max(100)
+	.regex(
+		/^[a-z0-9.:-]*$/i,
+		"A model name has only letters, digits, dots, colons and dashes.",
+	)
+	.refine(
+		(value) => !value.includes("/"),
+		"Name the model without a provider prefix, for example gpt-5.5-mini.",
+	);
+
+const apiKeyInput = z
+	.string()
+	.trim()
+	.max(500)
+	.refine((value) => !/\s/.test(value), "An API key has no spaces in it.");
+
+export const agentProviderOutput = z.object({
+	provider: agentProvider,
+	chatgptModel: z.string(),
+	openaiModel: z.string(),
+	anthropicModel: z.string(),
+	openaiKey: z.object({ configured: z.boolean(), hint: z.string().nullable() }),
+	anthropicKey: z.object({
+		configured: z.boolean(),
+		hint: z.string().nullable(),
+	}),
+	gatewayConfigured: z.boolean(),
+	researchPerHour: z.number().nullable(),
+	readingModel: z.string().nullable(),
+	effectiveReadingModel: z.string(),
+	draftModel: z.string().nullable(),
+	effectiveDraftModel: z.string(),
+	defaults: z.object({
+		chatgptModel: z.string(),
+		openaiModel: z.string(),
+		anthropicModel: z.string(),
+		researchPerHour: z.number(),
+		readingModel: z.string(),
+		draftModel: z.string(),
+	}),
+	options: z.record(
+		z.string(),
+		z.array(z.object({ id: z.string(), label: z.string(), note: z.string() })),
+	),
+	usage: z
+		.object({
+			planType: z.string().nullable(),
+			primaryUsedPercent: z.number().nullable(),
+			primaryResetAt: z.string().nullable(),
+			primaryWindowMinutes: z.number().nullable(),
+			secondaryUsedPercent: z.number().nullable(),
+			secondaryResetAt: z.string().nullable(),
+			secondaryWindowMinutes: z.number().nullable(),
+			updatedAt: z.string(),
+		})
+		.nullable(),
+	probe: z
+		.object({
+			outcome: z.string().nullable(),
+			finishedAt: z.string().nullable(),
+			pending: z.boolean(),
+		})
+		.nullable(),
+});
+
+export type AgentProviderSettings = z.infer<typeof agentProviderOutput>;
+
+export const chatgptLoginOutput = chatgptLoginState;
+
+export type ChatgptLoginSettings = z.infer<typeof chatgptLoginOutput>;
+
+export const chatgptLoginInput = z.object({
+	action: z.enum(["start", "cancel"]),
+});
+
+export const planOutput = z.object({
+	plan: z.string().nullable(),
+	label: z.string(),
+	limits: z.object({
+		contacts: z.number().nullable(),
+		mailboxes: z.number().nullable(),
+		importMonths: z.number().nullable(),
+		researchPerHour: z.number().nullable(),
+		companyResearch: z.boolean(),
+		insightsPerMonth: z.number().nullable(),
+	}),
+	options: z.array(z.object({ id: z.string(), label: z.string() })),
+});
+
+export type PlanSettings = z.infer<typeof planOutput>;
+
+export const setPlanInput = z.object({
+	plan: z.string().nullable(),
+});
+
+export const spendOutput = z.object({
+	exchangeRate: z.number(),
+	days: z.number(),
+	costUsd: z.number(),
+	costEur: z.number(),
+	calls: z.number(),
+	lines: z.array(
+		z.object({
+			kind: z.string(),
+			model: z.string(),
+			calls: z.number(),
+			costEur: z.number(),
+			cacheReadTokens: z.number(),
+			priced: z.boolean(),
+		}),
+	),
+});
+
+export type SpendSettings = z.infer<typeof spendOutput>;
+
+export const passwordSignInOutput = z.object({
+	enabled: z.boolean(),
+	set: z.boolean(),
+	minLength: z.number(),
+	maxLength: z.number(),
+});
+
+export type PasswordSignInSettings = z.infer<typeof passwordSignInOutput>;
+
+export const setPasswordInput = z.object({
+	newPassword: z.string().min(1).max(256),
+});
+
+export const setAgentProviderInput = z.object({
+	provider: agentProvider,
+	chatgptModel: modelName.optional(),
+	openaiModel: modelName.optional(),
+	anthropicModel: modelName.optional(),
+	openaiKey: apiKeyInput.nullable().optional(),
+	anthropicKey: apiKeyInput.nullable().optional(),
+	researchPerHour: z.number().int().min(1).max(10_000).nullable().optional(),
+	readingModel: modelName.nullable().optional(),
+	draftModel: modelName.nullable().optional(),
+});
+
+export type SetAgentProviderInput = z.infer<typeof setAgentProviderInput>;
+
+export const setAgentModelInput = z.object({
+	modelId: z.string().trim().min(1).max(200).nullable(),
+});
+
+export type SetAgentModelInput = z.infer<typeof setAgentModelInput>;
+
+export const setResearchKeyInput = z.object({
+	apiKey: z
+		.string()
+		.trim()
+		.min(8, "That does not look like a Context API key. It is too short.")
+		.max(500, "That does not look like a Context API key. It is too long.")
+		.refine(
+			(value) => !/\s/.test(value),
+			"An API key has no spaces in it. Paste the whole key on its own.",
+		),
+});
+
+export type SetResearchKeyInput = z.infer<typeof setResearchKeyInput>;
+
+export const setArchiveRetentionDaysInput = z.object({
+	days: z
+		.number()
+		.int()
+		.min(
+			MIN_ARCHIVE_RETENTION_DAYS,
+			`Retention has to be at least ${MIN_ARCHIVE_RETENTION_DAYS} day.`,
+		)
+		.max(
+			MAX_ARCHIVE_RETENTION_DAYS,
+			`Retention cannot be longer than ${MAX_ARCHIVE_RETENTION_DAYS} days.`,
+		),
+});
+
+export type SetArchiveRetentionDaysInput = z.infer<
+	typeof setArchiveRetentionDaysInput
+>;
+
+export const draftStyleOutput = z.object({
+	rules: z.array(
+		z.object({
+			id: z.string(),
+			text: z.string(),
+			learnedAt: z.string(),
+		}),
+	),
+	max: z.number().int(),
+});
+
+export type DraftStyleOutput = z.infer<typeof draftStyleOutput>;
+
+export const businessProposalOutput = z.object({ queued: z.boolean() });
+
+export const forgetDraftStyleRuleInput = z.object({
+	ruleId: z.string().trim().min(1).max(40),
+});

@@ -1,0 +1,385 @@
+import type { Db } from "./client";
+import {
+	DEFAULT_REPORTING_CURRENCY,
+	isCurrencyCode,
+	normalizeCurrency,
+} from "./currency";
+import type { Prisma } from "./generated/prisma/client";
+import { appSecretKey, openSecret, sealSecret } from "./secrets";
+
+export const SETTINGS_ID = "app";
+
+export const DEFAULT_AGENT_MODEL = {
+	id: "zai/glm-5.2-fast",
+	contextWindowTokens: 1_000_000,
+} as const;
+
+export interface AgentModelSetting {
+	id: string;
+	contextWindowTokens: number;
+	isDefault: boolean;
+}
+
+export async function readAgentModel(db: Db): Promise<AgentModelSetting> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { agentModelId: true, agentModelContextWindow: true },
+	});
+
+	if (!row?.agentModelId) {
+		return { ...DEFAULT_AGENT_MODEL, isDefault: true };
+	}
+
+	return {
+		id: row.agentModelId,
+		contextWindowTokens:
+			row.agentModelContextWindow ?? DEFAULT_AGENT_MODEL.contextWindowTokens,
+		isDefault: false,
+	};
+}
+
+export async function writeAgentModel(
+	db: Db,
+	model: { id: string; contextWindowTokens: number } | null,
+): Promise<void> {
+	const fields = {
+		agentModelId: model?.id ?? null,
+		agentModelContextWindow: model?.contextWindowTokens ?? null,
+	};
+
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, ...fields },
+		update: fields,
+	});
+}
+
+export const AGENT_PROVIDERS = [
+	"gateway",
+	"chatgpt",
+	"openai",
+	"anthropic",
+] as const;
+
+export type AgentProvider = (typeof AGENT_PROVIDERS)[number];
+
+export const AGENT_PROVIDER_DEFAULTS = {
+	chatgpt: { model: "gpt-5.6-terra", contextWindowTokens: 200_000 },
+	openai: { model: "gpt-5.6-terra", contextWindowTokens: 400_000 },
+	anthropic: { model: "claude-haiku-4-5", contextWindowTokens: 200_000 },
+} as const;
+
+export const AGENT_MODEL_OPTIONS = {
+	chatgpt: [
+		{
+			id: "gpt-6-astra",
+			label: "GPT-6 Astra",
+			note: "Strongest, 6 s per read",
+		},
+		{ id: "gpt-5.6-sol", label: "GPT-5.6 Sol", note: "6 s per read" },
+		{ id: "gpt-5.6-terra", label: "GPT-5.6 Terra", note: "Fast, 3 s per read" },
+		{ id: "gpt-5.6-luna", label: "GPT-5.6 Luna", note: "Fast, 3 s per read" },
+	],
+	openai: [
+		{ id: "gpt-5.6-luna", label: "GPT-5.6 Luna", note: "Cheapest" },
+		{ id: "gpt-5.6-terra", label: "GPT-5.6 Terra", note: "Recommended" },
+		{ id: "gpt-5.6-sol", label: "GPT-5.6 Sol", note: "Stronger" },
+		{ id: "gpt-5.5", label: "GPT-5.5", note: "" },
+	],
+	anthropic: [
+		{ id: "claude-haiku-4-5", label: "Claude Haiku 4.5", note: "Cheap" },
+		{ id: "claude-sonnet-5", label: "Claude Sonnet 5", note: "" },
+		{ id: "claude-opus-5", label: "Claude Opus 5", note: "" },
+	],
+} as const;
+
+export const AGENT_READING_DEFAULT = {
+	chatgpt: "gpt-5.6-terra",
+	openai: "gpt-5.6-terra",
+	anthropic: "claude-haiku-4-5",
+} as const;
+
+export const AGENT_DRAFT_DEFAULT = {
+	chatgpt: "gpt-5.6-sol",
+	openai: "gpt-5.6-sol",
+	anthropic: "claude-sonnet-5",
+} as const;
+
+export const CHATGPT_SUBSCRIPTION = {
+	defaultModel: AGENT_PROVIDER_DEFAULTS.chatgpt.model,
+	contextWindowTokens: AGENT_PROVIDER_DEFAULTS.chatgpt.contextWindowTokens,
+} as const;
+
+export const AGENT_RESEARCH_PER_HOUR = {
+	default: 60,
+	min: 1,
+	max: 10_000,
+} as const;
+
+export interface AgentProviderSetting {
+	provider: AgentProvider;
+	chatgptModel: string;
+	openaiModel: string;
+	anthropicModel: string;
+	openaiKey: string | null;
+	anthropicKey: string | null;
+	researchPerHour: number | null;
+	readingModel: string | null;
+	draftModel: string | null;
+}
+
+export function isAgentProvider(value: string): value is AgentProvider {
+	return (AGENT_PROVIDERS as readonly string[]).includes(value);
+}
+
+export async function readAgentProvider(db: Db): Promise<AgentProviderSetting> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: {
+			agentProvider: true,
+			agentChatgptModel: true,
+			agentOpenaiKey: true,
+			agentOpenaiModel: true,
+			agentAnthropicKey: true,
+			agentAnthropicModel: true,
+			agentResearchPerHour: true,
+			agentReadingModel: true,
+			agentDraftModel: true,
+		},
+	});
+
+	const provider =
+		row?.agentProvider && isAgentProvider(row.agentProvider)
+			? row.agentProvider
+			: "gateway";
+
+	return {
+		provider,
+		chatgptModel:
+			row?.agentChatgptModel?.trim() || AGENT_PROVIDER_DEFAULTS.chatgpt.model,
+		openaiModel:
+			row?.agentOpenaiModel?.trim() || AGENT_PROVIDER_DEFAULTS.openai.model,
+		anthropicModel:
+			row?.agentAnthropicModel?.trim() ||
+			AGENT_PROVIDER_DEFAULTS.anthropic.model,
+		openaiKey: row?.agentOpenaiKey?.trim() || null,
+		anthropicKey: row?.agentAnthropicKey?.trim() || null,
+		researchPerHour: row?.agentResearchPerHour ?? null,
+		readingModel: row?.agentReadingModel?.trim() || null,
+		draftModel: row?.agentDraftModel?.trim() || null,
+	};
+}
+
+export function readingModelFor(setting: AgentProviderSetting): string {
+	if (setting.readingModel) return setting.readingModel;
+	if (setting.provider === "gateway") return "";
+	return AGENT_READING_DEFAULT[setting.provider];
+}
+
+export function draftModelFor(setting: AgentProviderSetting): string {
+	if (setting.draftModel) return setting.draftModel;
+	if (setting.provider === "gateway") return "";
+	return AGENT_DRAFT_DEFAULT[setting.provider];
+}
+
+export async function writeAgentProvider(
+	db: Db,
+	setting: Partial<AgentProviderSetting> & { provider: AgentProvider },
+): Promise<void> {
+	const fields: Prisma.AppSettingUpdateInput = {
+		agentProvider: setting.provider,
+	};
+
+	if (setting.chatgptModel !== undefined) {
+		fields.agentChatgptModel = setting.chatgptModel.trim() || null;
+	}
+	if (setting.openaiModel !== undefined) {
+		fields.agentOpenaiModel = setting.openaiModel.trim() || null;
+	}
+	if (setting.anthropicModel !== undefined) {
+		fields.agentAnthropicModel = setting.anthropicModel.trim() || null;
+	}
+	if (setting.openaiKey !== undefined)
+		fields.agentOpenaiKey = setting.openaiKey;
+	if (setting.anthropicKey !== undefined) {
+		fields.agentAnthropicKey = setting.anthropicKey;
+	}
+	if (setting.researchPerHour !== undefined) {
+		fields.agentResearchPerHour = setting.researchPerHour;
+	}
+	if (setting.readingModel !== undefined) {
+		fields.agentReadingModel = setting.readingModel?.trim() || null;
+	}
+	if (setting.draftModel !== undefined) {
+		fields.agentDraftModel = setting.draftModel?.trim() || null;
+	}
+
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: {
+			...(fields as Omit<Prisma.AppSettingCreateInput, "id">),
+			id: SETTINGS_ID,
+		},
+		update: fields,
+	});
+}
+
+export const CONTEXT_DEV_SIGNUP_URL = "https://link.context.dev/crm";
+
+export const CONTEXT_DEV_DISCOUNT_CODE = "CRM";
+
+export async function readContextDevKey(db: Db): Promise<string | null> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { contextDevApiKey: true },
+	});
+
+	const stored = row?.contextDevApiKey?.trim();
+	if (!stored) return null;
+	const key = appSecretKey("context-dev-key");
+	if (/^v\d+(?:\.|$)/.test(stored)) return openSecret(stored, key) || null;
+	await db.appSetting.updateMany({
+		where: { id: SETTINGS_ID, contextDevApiKey: stored },
+		data: { contextDevApiKey: sealSecret(stored, key) },
+	});
+	return stored;
+}
+
+export async function readResearchKeySkipped(db: Db): Promise<boolean> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { researchKeySkippedAt: true },
+	});
+
+	return (
+		row?.researchKeySkippedAt !== null &&
+		row?.researchKeySkippedAt !== undefined
+	);
+}
+
+export async function writeResearchKeySkipped(db: Db): Promise<void> {
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, researchKeySkippedAt: new Date() },
+		update: { researchKeySkippedAt: new Date() },
+	});
+}
+
+export async function writeContextDevKey(db: Db, key: string): Promise<void> {
+	const contextDevApiKey = sealSecret(
+		key.trim(),
+		appSecretKey("context-dev-key"),
+	);
+
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, contextDevApiKey },
+		update: { contextDevApiKey },
+	});
+}
+
+export async function readReportingCurrency(db: Db): Promise<string> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { reportingCurrency: true },
+	});
+
+	const stored = normalizeCurrency(row?.reportingCurrency);
+
+	return isCurrencyCode(stored) ? stored : DEFAULT_REPORTING_CURRENCY;
+}
+
+export async function writeReportingCurrency(
+	db: Db,
+	code: string,
+): Promise<string> {
+	const reportingCurrency = normalizeCurrency(code);
+
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, reportingCurrency },
+		update: { reportingCurrency },
+	});
+
+	return reportingCurrency;
+}
+
+export async function readRatesRefreshedAt(db: Db): Promise<Date | null> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { ratesRefreshedAt: true },
+	});
+
+	return row?.ratesRefreshedAt ?? null;
+}
+
+export async function writeRatesRefreshedAt(
+	db: Db,
+	ratesRefreshedAt: Date,
+): Promise<void> {
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, ratesRefreshedAt },
+		update: { ratesRefreshedAt },
+	});
+}
+
+export const DEFAULT_ARCHIVE_RETENTION_DAYS = 180;
+
+export const MIN_ARCHIVE_RETENTION_DAYS = 1;
+
+export const MAX_ARCHIVE_RETENTION_DAYS = 3650;
+
+export async function readPlan(db: Db): Promise<string | null> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { plan: true },
+	});
+
+	return row?.plan ?? null;
+}
+
+export async function writePlan(
+	db: Db,
+	plan: string | null,
+): Promise<string | null> {
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, plan },
+		update: { plan },
+	});
+
+	return plan;
+}
+
+export async function readArchiveRetentionDays(db: Db): Promise<number> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { archiveRetentionDays: true },
+	});
+
+	return row?.archiveRetentionDays ?? DEFAULT_ARCHIVE_RETENTION_DAYS;
+}
+
+export async function writeArchiveRetentionDays(
+	db: Db,
+	days: number,
+): Promise<number> {
+	const archiveRetentionDays = Math.min(
+		Math.max(Math.round(days), MIN_ARCHIVE_RETENTION_DAYS),
+		MAX_ARCHIVE_RETENTION_DAYS,
+	);
+
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, archiveRetentionDays },
+		update: { archiveRetentionDays },
+	});
+
+	return archiveRetentionDays;
+}
+
+export function maskKey(key: string): string {
+	const trimmed = key.trim();
+	return trimmed.length > 4 ? `••••${trimmed.slice(-4)}` : "••••";
+}

@@ -1,0 +1,84 @@
+name: reloop
+
+x-reloop: &reloop
+  restart: unless-stopped
+  env_file: .env
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reloop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is missing in deploy/.env. Run install.sh.}
+      POSTGRES_DB: reloop
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reloop -d reloop"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  api:
+    <<: *reloop
+    image: ghcr.io/reloopcrm/reloop-api:${RELOOP_VERSION:-latest}
+    environment:
+      DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
+      AGENT_URL: http://agent:2000
+      PORT: "3001"
+      MAILBOX_SYNC_INTERVAL_MS: ${MAILBOX_SYNC_INTERVAL_MS:-300000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    <<: *reloop
+    image: ghcr.io/reloopcrm/reloop-app:${RELOOP_VERSION:-latest}
+    environment:
+      DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
+      AGENT_URL: http://agent:2000
+      PORT: "3000"
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  agent:
+    <<: *reloop
+    image: ghcr.io/reloopcrm/reloop-agent:${RELOOP_VERSION:-latest}
+    environment:
+      DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
+      PORT: "2000"
+      CODEX_HOME: /data/codex
+    volumes:
+      - codex:/data/codex
+      - agent-workflows:/app/apps/agent/.eve/.workflow-data
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    profiles: ["caddy"]
+    environment:
+      RELOOP_DOMAIN: ${RELOOP_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  postgres-data:
+  codex:
+  agent-workflows:
+  caddy-data:
+  caddy-config:

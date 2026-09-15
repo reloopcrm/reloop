@@ -38,7 +38,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 
 			<footer className="relative flex w-full shrink-0 flex-col items-center border-border border-t">
 				<div className="flex w-full max-w-6xl flex-col items-start justify-between gap-12 px-6 py-16 sm:flex-row sm:gap-16">
-					<div className="flex w-[280px] max-w-full shrink-0 flex-col gap-[14px]">
+					<div className="flex w-[280px] max-w-full shrink-0 flex-col items-start gap-[14px]">
 						<Wordmark className="h-5 w-auto" />
 						<p className="text-[13px]/[21px] text-muted-foreground">
 							The open-source, self-hosted CRM.

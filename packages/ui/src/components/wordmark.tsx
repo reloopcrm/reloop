@@ -8,6 +8,8 @@ const Wordmark = (props: React.SVGProps<SVGSVGElement>) => (
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
 		viewBox="0 0 1000 278"
+		width={1000}
+		height={278}
 		fill="none"
 		role="img"
 		aria-label={BRAND.name}

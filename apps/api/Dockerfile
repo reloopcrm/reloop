@@ -5,6 +5,7 @@ WORKDIR /app
 COPY . .
 RUN DATABASE_URL=postgresql://build:build@localhost:5432/build bun install --frozen-lockfile --production --filter api
 RUN bun run --cwd apps/api build
+RUN rm -rf node_modules/.bun/next@* node_modules/.bun/@next+swc-*
 
 FROM node:24-bookworm-slim
 COPY --from=oven/bun:1.3.12 /usr/local/bin/bun /usr/local/bin/bun

@@ -4,6 +4,7 @@ import type {
 	ChatgptLoginState,
 	ChatgptLoginStatus,
 } from "@crm/validation/chatgpt-login";
+import { type CodexBinary, codexBinary } from "./codex-binary";
 import { MODEL } from "./model-config";
 
 export type { ChatgptLoginState, ChatgptLoginStatus };
@@ -12,7 +13,9 @@ type Spawn = (command: string, args: string[]) => ChildProcess;
 
 export type ChatgptLoginDeps = {
 	spawn: Spawn;
+	codex: () => Promise<CodexBinary>;
 	markConnected: () => Promise<void>;
+	replyMs: number;
 	timeoutMs: number;
 	statusTimeoutMs: number;
 	killGraceMs: number;
@@ -46,9 +49,13 @@ export function parseDeviceLogin(output: string) {
 	return { url, code };
 }
 
-function spawnSafely(spawn: Spawn, args: string[]): ChildProcess | null {
+function spawnSafely(
+	spawn: Spawn,
+	command: string,
+	args: string[],
+): ChildProcess | null {
 	try {
-		return spawn(MODEL.chatgptLogin.command, args);
+		return spawn(command, args);
 	} catch {
 		return null;
 	}
@@ -65,9 +72,10 @@ function terminate(child: ChildProcess, graceMs: number): void {
 
 function loginStatus(
 	deps: ChatgptLoginDeps,
+	command: string,
 ): Promise<"chatgpt" | "other" | "missing"> {
 	return new Promise((resolve) => {
-		const child = spawnSafely(deps.spawn, ["login", "status"]);
+		const child = spawnSafely(deps.spawn, command, ["login", "status"]);
 		if (!child) return resolve("missing");
 
 		let output = "";
@@ -131,8 +139,13 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 	}
 
 	async function begin(): Promise<ChatgptLoginState> {
-		cancelledWhileStarting = false;
-		const already = await loginStatus(deps);
+		const codex = await deps.codex();
+		if (cancelledWhileStarting) return current;
+		if (codex.command === null) {
+			current = state("unavailable", { reason: codex.reason });
+			return current;
+		}
+		const already = await loginStatus(deps, codex.command);
 		if (cancelledWhileStarting) return current;
 		if (already === "missing") {
 			current = state("unavailable", { reason: NOT_INSTALLED });
@@ -143,7 +156,10 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 			return current;
 		}
 
-		const proc = spawnSafely(deps.spawn, ["login", "--device-auth"]);
+		const proc = spawnSafely(deps.spawn, codex.command, [
+			"login",
+			"--device-auth",
+		]);
 		if (!proc) {
 			current = state("unavailable", { reason: NOT_INSTALLED });
 			return current;
@@ -199,12 +215,17 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 
 		async start(): Promise<ChatgptLoginState> {
 			if (child) return current;
+			cancelledWhileStarting = false;
+			current = state("waiting");
 			if (!starting) {
 				starting = begin().finally(() => {
 					starting = null;
 				});
 			}
-			return starting;
+			const reply = new Promise<ChatgptLoginState>((resolve) => {
+				setTimeout(() => resolve(current), deps.replyMs).unref?.();
+			});
+			return Promise.race([starting, reply]);
 		},
 
 		cancel(): ChatgptLoginState {
@@ -222,6 +243,7 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 export const chatgptLogin = createChatgptLogin({
 	spawn: (command, args) =>
 		nodeSpawn(command, args, { stdio: ["ignore", "pipe", "pipe"] }),
+	codex: codexBinary,
 	markConnected: async () => {
 		const [{ db }, { writeAgentProvider }, { forgetProviderCache }] =
 			await Promise.all([
@@ -232,6 +254,7 @@ export const chatgptLogin = createChatgptLogin({
 		await writeAgentProvider(db, { provider: "chatgpt" });
 		forgetProviderCache();
 	},
+	replyMs: MODEL.chatgptLogin.replyMs,
 	timeoutMs: MODEL.chatgptLogin.timeoutMs,
 	statusTimeoutMs: MODEL.chatgptLogin.statusTimeoutMs,
 	killGraceMs: MODEL.chatgptLogin.killGraceMs,

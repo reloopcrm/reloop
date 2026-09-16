@@ -22,6 +22,23 @@ agent and the API both need it.
 - **Not a frontier model, deliberately** — refusing wrong answers is enforced by the
   tools and evidence model, not model strength.
 
+## ChatGPT subscription login
+
+`lib/chatgpt-login.ts` runs `codex login --device-auth` for the settings page;
+`lib/codex-binary.ts` finds the binary first. **The image does not ship codex.**
+
+- **Resolution order**: `codex` on `PATH` (a dev machine), then
+  `$CODEX_HOME/cli/node_modules/.bin/codex`, then one `npm install --prefix
+  $CODEX_HOME/cli @openai/codex@<version>`. The version is `MODEL.chatgptLogin.version`.
+- **The download is about 280 MB and needs internet at that moment.** It lands in the
+  `codex` volume, so it happens once per install.
+- **One install at a time** — a second `start()` awaits the same promise.
+- **`start()` answers within `replyMs`** with `waiting`, because the API aborts the
+  bridge call after 20 seconds and the install takes minutes. The page polls its way
+  to the code.
+- **A failed install is `unavailable` with a reason**, never a throw. The reason names
+  the npm error code, so "no internet" reads as `npm ENOTFOUND`.
+
 ## Pictures are copied, never linked
 
 `mirror()` copies bytes to Vercel Blob; the record points at our copy. Lives in

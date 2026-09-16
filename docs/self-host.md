@@ -97,11 +97,15 @@ Open **Settings, General** and add an OpenAI or Anthropic API key. The agent use
 
 The agent can use a ChatGPT subscription through the Codex login. This path is experimental and can stop working when OpenAI changes it.
 
-```sh
-docker compose exec agent codex login --device-auth
-```
+Open **Settings, General** and start the ChatGPT sign-in. The page shows a link and a code. Open the link and enter the code.
 
-Open the link it prints and enter the code. The login is kept in the `codex` volume, so it survives restarts and updates.
+The agent image does not contain the Codex command line. The first sign-in downloads it from npm into the `codex` volume. The download is about 280 MB. The agent needs internet access at that moment. The settings page shows "Starting the ChatGPT sign-in" while the download runs. When the download fails, the page shows the reason. Start the sign-in again when the agent is online.
+
+The login and the Codex command line are kept in the `codex` volume, so they survive restarts and updates. After the first sign-in, the command line is also available in the container:
+
+```sh
+docker compose exec agent /data/codex/cli/node_modules/.bin/codex login status
+```
 
 ## Update
 

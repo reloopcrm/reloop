@@ -6,6 +6,7 @@ import {
 	createChatgptLogin,
 	parseDeviceLogin,
 } from "../agent/lib/chatgpt-login";
+import type { CodexBinary } from "../agent/lib/codex-binary";
 import {
 	classifyProviderKey,
 	verifyProviderKey,
@@ -57,7 +58,11 @@ function fakeChild(options: { ignoreSigterm?: boolean } = {}): FakeChild {
 
 function harness(
 	statusOutput: { code: number; text: string },
-	overrides: { login?: FakeChild; statusDelayMs?: number } = {},
+	overrides: {
+		login?: FakeChild;
+		statusDelayMs?: number;
+		codex?: () => Promise<CodexBinary>;
+	} = {},
 ) {
 	const login = overrides.login ?? fakeChild();
 	const calls: string[][] = [];
@@ -75,7 +80,10 @@ function harness(
 			}
 			return login;
 		},
+		codex:
+			overrides.codex ?? (async () => ({ command: "codex", reason: null })),
 		markConnected,
+		replyMs: 20,
 		timeoutMs: 50,
 		statusTimeoutMs: 1_000,
 		killGraceMs: 30,
@@ -163,6 +171,7 @@ describe("ChatGPT device login", () => {
 		});
 
 		const started = flow.start();
+		await Bun.sleep(5);
 		expect(flow.cancel().status).toBe("cancelled");
 
 		expect((await started).status).toBe("cancelled");
@@ -208,13 +217,43 @@ describe("ChatGPT device login", () => {
 				);
 				return child;
 			},
+			codex: async () => ({ command: "codex", reason: null }),
 			markConnected: async () => {},
+			replyMs: 20,
 			timeoutMs: 50,
 			statusTimeoutMs: 1_000,
 			killGraceMs: 30,
 		});
 
 		expect((await flow.start()).status).toBe("unavailable");
+	});
+
+	it("answers waiting while codex is still being installed", async () => {
+		const { flow, calls } = harness(notLoggedIn, {
+			codex: async () => {
+				await Bun.sleep(60);
+				return { command: "codex", reason: null };
+			},
+		});
+
+		expect((await flow.start()).status).toBe("waiting");
+		expect(calls).toEqual([]);
+
+		await Bun.sleep(70);
+		expect(calls[1]).toEqual(["login", "--device-auth"]);
+		flow.cancel();
+	});
+
+	it("reports a failed codex install as unavailable with its reason", async () => {
+		const { flow, calls } = harness(notLoggedIn, {
+			codex: async () => ({ command: null, reason: "No internet." }),
+		});
+
+		expect(await flow.start()).toMatchObject({
+			status: "unavailable",
+			reason: "No internet.",
+		});
+		expect(calls).toEqual([]);
 	});
 });
 

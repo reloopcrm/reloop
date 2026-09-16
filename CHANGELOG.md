@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.2.0](https://github.com/reloopcrm/reloop/compare/v0.1.0...v0.2.0) (2026-09-16)
+
+
+### Features
+
+* **install:** accept the answers as variables ([91a3615](https://github.com/reloopcrm/reloop/commit/91a3615bc7aef8294100bf83390be828d6e90e42))
+* **install:** set Docker up when it is missing ([b0fa2c0](https://github.com/reloopcrm/reloop/commit/b0fa2c05dabcb2f68bbd46066137790eeb935bea))
+* **settings:** give every provider its own dialog ([b3dce09](https://github.com/reloopcrm/reloop/commit/b3dce09aae29f29539d8e236ae43dadc3f957594))
+* **timeline:** name the real mail source ([ff3a62d](https://github.com/reloopcrm/reloop/commit/ff3a62d0e5a59702fe5822848ab62bc05fcfe4e8))
+* **timeline:** show who wrote each activity ([8730dc4](https://github.com/reloopcrm/reloop/commit/8730dc4b652e33344edceb557e3f6d3ede6cd94f))
+
+
+### Fixes
+
+* **auth:** keep the session cookie readable on http installs ([34e2cdd](https://github.com/reloopcrm/reloop/commit/34e2cddd2b1be6925595f4d772cd8d0d0db04d92))
+* **install:** name the folder fix in the volume error ([4293ed2](https://github.com/reloopcrm/reloop/commit/4293ed25a2184a1a2174877c9ce2fef91f871af2))
+* **landing:** stack the cloud email field and its button ([fbe255c](https://github.com/reloopcrm/reloop/commit/fbe255c927f44be9b64421e9090acbe298921b13))
+* **settings:** show each provider inside the card, no dialogs ([e0141b8](https://github.com/reloopcrm/reloop/commit/e0141b8837d6e02aa5a0c1900aa5d3e307c5fabe))
+
+
+### Performance
+
+* **docker:** ship only what runs in each image ([2630270](https://github.com/reloopcrm/reloop/commit/26302704afeb94477fbae2063c88b4f3bd4f6d33))
+
 ## 0.1.0 (2026-09-16)
 
 

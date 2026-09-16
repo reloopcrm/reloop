@@ -203,9 +203,6 @@ export const settings: Dictionary = {
 	"The agent will use this model from its next session.":
 		"Der Agent nutzt dieses Modell ab seiner nächsten Sitzung.",
 	"Default: {name}": "Standard: {name}",
-	"Research agent": "Recherche-Agent",
-	"The model the agent thinks with, routed through the Vercel AI Gateway.":
-		"Das Modell, mit dem der Agent denkt, über das Vercel AI Gateway.",
 	Model: "Modell",
 	"Search models…": "Modelle suchen…",
 	"No model matches that.": "Kein Modell passt dazu.",
@@ -247,7 +244,5 @@ export const settings: Dictionary = {
 		"Experimentell. OpenAI kann es abschalten.",
 	"Caps how many contacts the agent researches per hour. Empty means {count}.":
 		"Begrenzt, wie viele Kontakte der Agent pro Stunde recherchiert. Leer bedeutet {count}.",
-	"Nothing changes until you save.":
-		"Es ändert sich nichts, bis du speicherst.",
 	"Bill the agent to this account": "Den Agenten über dieses Konto abrechnen",
 };

@@ -18,14 +18,6 @@ import {
 	CommandList,
 } from "@crm/ui/components/command";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@crm/ui/components/dialog";
-import {
 	Field,
 	FieldDescription,
 	FieldGroup,
@@ -46,6 +38,7 @@ import {
 	SelectValue,
 } from "@crm/ui/components/select";
 import { Spinner } from "@crm/ui/components/spinner";
+import { IndicatorDot } from "@crm/ui/components/status-indicator";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
@@ -301,7 +294,7 @@ export function AgentProvider() {
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
-	const [editing, setEditing] = useState<ProviderId | null>(null);
+	const [tab, setTab] = useState<ProviderId | null>(null);
 	const [chatgptModel, setChatgptModel] = useState<string | null>(null);
 	const [openaiModel, setOpenaiModel] = useState<string | null>(null);
 	const [anthropicModel, setAnthropicModel] = useState<string | null>(null);
@@ -327,7 +320,7 @@ export function AgentProvider() {
 				await cache.settings();
 				forget();
 				setPerHour(null);
-				setEditing(null);
+				setTab(null);
 				toast.success(t("Saved. The agent uses it from its next model call."));
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
@@ -338,6 +331,7 @@ export function AgentProvider() {
 
 	const data = settings.data;
 	const provider = data.provider;
+	const shown = tab ?? provider;
 	const models = {
 		chatgpt: chatgptModel ?? data.chatgptModel,
 		openai: openaiModel ?? data.openaiModel,
@@ -531,16 +525,16 @@ export function AgentProvider() {
 
 	const gatewayPanel = (
 		<div className="flex flex-col gap-4">
-			<p className="text-muted-foreground text-xs">
-				{data.gatewayConfigured
-					? t("Billed to AI_GATEWAY_API_KEY in the root .env file.")
-					: t("No AI_GATEWAY_API_KEY in the root .env file yet.")}
-			</p>
+			{provider === "gateway" ? null : (
+				<p className="text-muted-foreground text-xs">
+					{data.gatewayConfigured
+						? t("Billed to AI_GATEWAY_API_KEY in the root .env file.")
+						: t("No AI_GATEWAY_API_KEY in the root .env file yet.")}
+				</p>
+			)}
 			<GatewayModel />
 		</div>
 	);
-
-	const editingLabel = PROVIDERS.find((entry) => entry.id === editing)?.label;
 
 	return (
 		<Card>
@@ -552,103 +546,87 @@ export function AgentProvider() {
 			</CardHeader>
 
 			<CardContent>
-				<form
-					className="flex flex-col gap-4"
-					onSubmit={(event) => {
-						event.preventDefault();
-						submit(provider);
-					}}
-				>
+				<div className="flex flex-col gap-4">
 					<ToggleGroup
 						type="single"
 						wrap
-						value={provider}
+						value={shown}
 						onValueChange={(value) => {
 							const next = PROVIDERS.find((entry) => entry.id === value);
-							setEditing(next ? next.id : provider);
+							if (!next) return;
+							forget();
+							setTab(next.id);
 						}}
 					>
 						{PROVIDERS.map((entry) => (
-							<ToggleGroupItem key={entry.id} value={entry.id}>
+							<ToggleGroupItem
+								key={entry.id}
+								value={entry.id}
+								aria-label={
+									entry.id === provider
+										? `${t(entry.label)}, ${t("Who pays for the agent")}`
+										: undefined
+								}
+							>
+								{entry.id === provider ? (
+									<IndicatorDot tone="primary" aria-hidden="true" />
+								) : null}
 								{t(entry.label)}
 							</ToggleGroupItem>
 						))}
 					</ToggleGroup>
 
-					<p className="text-muted-foreground text-xs">
-						{provider === "gateway"
-							? data.gatewayConfigured
-								? t("Billed to AI_GATEWAY_API_KEY in the root .env file.")
-								: t("No AI_GATEWAY_API_KEY in the root .env file yet.")
-							: fallbacks.length > 0
-								? t(
-										"Falls back to {fallbacks} when this account is at its limit.",
-										{ fallbacks: fallbacks.join(", ") },
-									)
-								: t(
-										"No other account is configured, so a usage limit pauses the agent until it resets.",
-									)}
-					</p>
+					{shown === "chatgpt" ? chatgptPanel : null}
+					{shown === "openai" ? openaiPanel : null}
+					{shown === "anthropic" ? anthropicPanel : null}
+					{shown === "gateway" ? gatewayPanel : null}
 
-					<Field orientation="horizontal">
-						<FieldLabel htmlFor={`${id}-per-hour`}>
-							{t("Research sessions per hour")}
-						</FieldLabel>
-						<Input
-							id={`${id}-per-hour`}
-							inputMode="numeric"
-							className="w-40"
-							value={perHourValue}
-							onChange={(event) => setPerHour(event.target.value)}
-							placeholder={String(data.defaults.researchPerHour)}
-						/>
-					</Field>
+					<form
+						className="flex flex-col gap-4"
+						onSubmit={(event) => {
+							event.preventDefault();
+							submit(shown);
+						}}
+					>
+						<p className="text-muted-foreground text-xs">
+							{provider === "gateway"
+								? data.gatewayConfigured
+									? t("Billed to AI_GATEWAY_API_KEY in the root .env file.")
+									: t("No AI_GATEWAY_API_KEY in the root .env file yet.")
+								: fallbacks.length > 0
+									? t(
+											"Falls back to {fallbacks} when this account is at its limit.",
+											{ fallbacks: fallbacks.join(", ") },
+										)
+									: t(
+											"No other account is configured, so a usage limit pauses the agent until it resets.",
+										)}
+						</p>
 
-					<div>
-						<Button type="submit" variant="outline" disabled={save.isPending}>
-							{save.isPending ? <Spinner /> : null}
-							{t("Save")}
-						</Button>
-					</div>
-				</form>
+						<Field orientation="horizontal">
+							<FieldLabel htmlFor={`${id}-per-hour`}>
+								{t("Research sessions per hour")}
+							</FieldLabel>
+							<Input
+								id={`${id}-per-hour`}
+								inputMode="numeric"
+								className="w-40"
+								value={perHourValue}
+								onChange={(event) => setPerHour(event.target.value)}
+								placeholder={String(data.defaults.researchPerHour)}
+							/>
+						</Field>
 
-				<Dialog
-					open={editing !== null}
-					onOpenChange={(open) => {
-						if (open) return;
-						forget();
-						setEditing(null);
-					}}
-				>
-					<DialogContent className="sm:max-w-(--container-narrow)">
-						<DialogHeader>
-							<DialogTitle>{editingLabel ? t(editingLabel) : ""}</DialogTitle>
-							<DialogDescription>
-								{t("Nothing changes until you save.")}
-							</DialogDescription>
-						</DialogHeader>
-
-						{editing === "chatgpt" ? chatgptPanel : null}
-						{editing === "openai" ? openaiPanel : null}
-						{editing === "anthropic" ? anthropicPanel : null}
-						{editing === "gateway" ? gatewayPanel : null}
-
-						<DialogFooter>
-							<Button
-								type="button"
-								disabled={save.isPending}
-								onClick={() => {
-									if (editing) submit(editing);
-								}}
-							>
+						<div>
+							<Button type="submit" variant="outline" disabled={save.isPending}>
 								{save.isPending ? <Spinner /> : null}
-								{editing === provider
+								{shown === provider
 									? t("Save")
 									: t("Bill the agent to this account")}
 							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+						</div>
+					</form>
+				</div>
 			</CardContent>
 		</Card>
 	);
@@ -770,30 +748,5 @@ function GatewayModel() {
 						: effectiveId}
 			</p>
 		</div>
-	);
-}
-
-export function AgentModel() {
-	const t = useT();
-	const trpc = useTRPC();
-	const settings = useQuery(trpc.settings.agentModel.queryOptions());
-
-	if (!settings.data) return null;
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>{t("Research agent")}</CardTitle>
-				<CardDescription>
-					{t(
-						"The model the agent thinks with, routed through the Vercel AI Gateway.",
-					)}
-				</CardDescription>
-			</CardHeader>
-
-			<CardContent>
-				<GatewayModel />
-			</CardContent>
-		</Card>
 	);
 }

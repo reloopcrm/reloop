@@ -14,7 +14,7 @@ import { germanOffered, getT } from "@/lib/i18n/server";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
-import { AgentModel, AgentProvider } from "./agent-model";
+import { AgentProvider } from "./agent-model";
 import { ArchiveRetention } from "./archive-retention";
 import { Language } from "./language";
 import { PasswordSignIn } from "./password";
@@ -91,9 +91,6 @@ async function Settings() {
 				</fieldset>
 				<fieldset disabled={!canManage} className="contents">
 					<AgentProvider />
-				</fieldset>
-				<fieldset disabled={!canManage} className="contents">
-					<AgentModel />
 				</fieldset>
 			</div>
 		</HydrateClient>

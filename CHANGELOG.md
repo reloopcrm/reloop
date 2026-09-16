@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/reloopcrm/reloop/compare/v0.5.0...v0.6.0) (2026-09-16)
+
+
+### Features
+
+* **demo:** give the first win-back person a full history ([d7d25e9](https://github.com/reloopcrm/reloop/commit/d7d25e9745b9ba4f41e05039228f5fb705f28a2c))
+* **timeline:** read the history as a conversation ([b4b746d](https://github.com/reloopcrm/reloop/commit/b4b746dfb8862dd5a892591d50dd9ffac4657a87))
+
+
+### Fixes
+
+* **demo:** keep every job title in english ([da9a012](https://github.com/reloopcrm/reloop/commit/da9a012338c5040dbca5d6dfe1f0bb418403212b))
+
 ## [0.5.0](https://github.com/reloopcrm/reloop/compare/v0.4.1...v0.5.0) (2026-09-16)
 
 

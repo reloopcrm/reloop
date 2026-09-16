@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0](https://github.com/reloopcrm/reloop/compare/v0.3.0...v0.4.0) (2026-09-16)
+
+
+### Features
+
+* **nav:** open the rail on hover and group its entries ([f9a37b1](https://github.com/reloopcrm/reloop/commit/f9a37b1298c3bbce2b362a63bb7c443b1b2989cf))
+* **settings:** let the version card check again on demand ([cec8c82](https://github.com/reloopcrm/reloop/commit/cec8c82cd82eaaed0828e1d2ac2c0c0cd03536c1))
+* **site:** give shared links a real preview ([5bae945](https://github.com/reloopcrm/reloop/commit/5bae945761b7a10d3fa705a097a7fa9260f0f3e8))
+* **ui:** drop the old mark from every loading state ([2c0b0c2](https://github.com/reloopcrm/reloop/commit/2c0b0c24ce34abaf9bf710da8719d92b0726c903))
+* **ui:** load with the reloop wordmark ([86b3353](https://github.com/reloopcrm/reloop/commit/86b335386aa640a0b762968ab580fbe699b82b31))
+* **ui:** show the wordmark wherever a section loads ([0b5b628](https://github.com/reloopcrm/reloop/commit/0b5b6284e0210d1532cc3fc972989f633cf6a2e5))
+
+
+### Fixes
+
+* **nav:** give chat the same icon size as its neighbours ([1c48483](https://github.com/reloopcrm/reloop/commit/1c484830fa10be3ed3a4a83d5f1c20e8189abcf2))
+* **nav:** open the rail on hover for real ([d19b4f4](https://github.com/reloopcrm/reloop/commit/d19b4f442cf16f118e2b889a0b958042dc1d5b1b))
+* **site:** let link previews read the share image ([0c3e3d4](https://github.com/reloopcrm/reloop/commit/0c3e3d4e87975afc0ba8f421c322a652ef912c17))
+
 ## [0.3.0](https://github.com/reloopcrm/reloop/compare/v0.2.0...v0.3.0) (2026-09-16)
 
 

@@ -1,6 +1,8 @@
 "use client";
 
+import Renew from "@carbon/icons-react/es/Renew";
 import { Badge } from "@crm/ui/components/badge";
+import { Button } from "@crm/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -8,10 +10,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@crm/ui/components/card";
+import { Icon } from "@crm/ui/components/icon";
 import { Link } from "@crm/ui/components/link";
 import { Skeleton } from "@crm/ui/components/skeleton";
+import { Spinner } from "@crm/ui/components/spinner";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CopyCommand } from "@/components/landing/copy-command";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { useT } from "@/lib/i18n/client";
@@ -57,6 +61,15 @@ export function Version() {
 
 function VersionState({ data }: { data: RouterOutputs["system"]["version"] }) {
 	const t = useT();
+	const trpc = useTRPC();
+	const queryClient = useQueryClient();
+
+	const check = useMutation(
+		trpc.system.checkVersion.mutationOptions({
+			onSuccess: (fresh) =>
+				queryClient.setQueryData(trpc.system.version.queryKey(), fresh),
+		}),
+	);
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -93,11 +106,24 @@ function VersionState({ data }: { data: RouterOutputs["system"]["version"] }) {
 				</p>
 			) : null}
 
-			{data.checkedAt ? (
-				<p className="text-muted-foreground text-xs">
-					{t("Last checked")} <LocalRelativeTime date={data.checkedAt} />
-				</p>
-			) : null}
+			{data.checkDisabled ? null : (
+				<div className="flex items-center gap-2">
+					{data.checkedAt ? (
+						<p className="text-muted-foreground text-xs">
+							{t("Last checked")} <LocalRelativeTime date={data.checkedAt} />
+						</p>
+					) : null}
+					<Button
+						variant="ghost"
+						size="icon"
+						aria-label={t("Check again")}
+						disabled={check.isPending}
+						onClick={() => check.mutate()}
+					>
+						{check.isPending ? <Spinner /> : <Icon icon={Renew} />}
+					</Button>
+				</div>
+			)}
 		</div>
 	);
 }

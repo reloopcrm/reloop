@@ -805,7 +805,10 @@ const appRouter = t.router({
   system: t.router({
     version: publicProcedure
       .output(versionOutput)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    checkVersion: publicProcedure
+      .output(versionOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   tracking: t.router({
     settings: publicProcedure

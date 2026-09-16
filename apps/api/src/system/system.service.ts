@@ -21,18 +21,19 @@ export class SystemService {
 	private current: string | null = null;
 	private lastGood: ReleaseCheck | null = null;
 	private nextCheckAt = 0;
+	private lastFetchAt = 0;
 
 	constructor(
 		@Inject(ConfigService)
 		private readonly config: ConfigService<EnvironmentVariables, true>,
 	) {}
 
-	async version(): Promise<VersionInfo> {
+	async version(force = false): Promise<VersionInfo> {
 		const current = this.currentVersion();
 		const checkDisabled =
 			this.config.get("RELOOP_UPDATE_CHECK", { infer: true }) === "false";
 
-		const release = checkDisabled ? null : await this.latestRelease();
+		const release = checkDisabled ? null : await this.latestRelease(force);
 
 		return {
 			current,
@@ -51,10 +52,14 @@ export class SystemService {
 		return this.current;
 	}
 
-	private async latestRelease(): Promise<ReleaseCheck | null> {
+	private async latestRelease(force: boolean): Promise<ReleaseCheck | null> {
 		const now = Date.now();
-		if (now < this.nextCheckAt) return this.lastGood;
+		const wait = force
+			? this.lastFetchAt + SYSTEM.updateCheck.forceMs
+			: this.nextCheckAt;
+		if (now < wait) return this.lastGood;
 
+		this.lastFetchAt = now;
 		const fetched = await this.fetchRelease();
 
 		if (fetched) {

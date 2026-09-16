@@ -81,6 +81,7 @@ export const settingsMore: Dictionary = {
 	"Google needs reconnecting.": "Google muss neu verbunden werden.",
 	"{source} sync failed": "Abgleich von {source} fehlgeschlagen",
 	Resolve: "Beheben",
+	"Check again": "Erneut prüfen",
 	"Last checked": "Zuletzt geprüft",
 	"Waiting for the first check": "Wartet auf die erste Prüfung",
 	"Delete synced data": "Abgeglichene Daten löschen",

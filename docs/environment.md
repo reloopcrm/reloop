@@ -103,6 +103,14 @@ The Plan card in Settings names the limits of a hosted plan. A self-hosted
 install has none, so the card only renders when `RELOOP_PLANS` is the literal
 `"true"`. The operator of a hosted install sets it; nobody else does.
 
+## `RELOOP_DEMO`, off by default
+
+A floating Play demo button drives a scripted tour of the real app with a fake
+cursor, for recording a product video. It only renders when `RELOOP_DEMO` is the
+literal `"true"`. `demoOffered()` (`apps/app/lib/operator.ts`) reads it on the
+server. The steps and timings live in
+`apps/app/components/demo/demo-tour-config.ts`. A normal install leaves it unset.
+
 ## `RELOOP_GERMAN`, off by default
 
 English is the only language unless `RELOOP_GERMAN` is the literal `"true"`. Then

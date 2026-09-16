@@ -28,6 +28,7 @@ import {
 } from "@crm/ui/components/tooltip";
 import { cn } from "@crm/ui/lib/utils";
 import { type ReactNode, useRef, useState } from "react";
+import { DEMO } from "@/components/demo/demo-tour-config";
 import {
 	Sheet,
 	SheetContent,
@@ -139,7 +140,12 @@ export function DetailSheetHeader({
 					{actions ? (
 						<Separator orientation="vertical" className="mx-1 h-5" />
 					) : null}
-					<Button variant="ghost" size="icon-sm" onClick={onClose}>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onClick={onClose}
+						data-demo={DEMO.mark.sheetClose}
+					>
 						<Icon icon={Close} />
 						<span className="sr-only">{t("Close")}</span>
 					</Button>
@@ -203,7 +209,12 @@ export function DetailSheetTabs({
 				className={cn("w-full shrink-0 justify-start gap-6 border-b", GUTTER)}
 			>
 				{tabs.map((tab) => (
-					<TabsTrigger key={tab.value} value={tab.value}>
+					<TabsTrigger
+						key={tab.value}
+						value={tab.value}
+						data-demo={DEMO.mark.sheetTab}
+						data-value={tab.value}
+					>
 						{tab.label}
 						{tab.count ? (
 							<span className="text-muted-foreground tabular-nums">

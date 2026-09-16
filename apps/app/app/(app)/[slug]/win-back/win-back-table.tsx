@@ -18,6 +18,7 @@ import {
 	useLocalizedColumns,
 } from "@/components/data-table/localized-columns";
 import { useTableQuery } from "@/components/data-table/use-table-query";
+import { DEMO } from "@/components/demo/demo-tour-config";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { numberFormat } from "@/lib/i18n/format";
@@ -258,7 +259,11 @@ export function WinBackTable() {
 	];
 
 	return (
-		<div className="flex min-h-0 flex-col gap-4">
+		<div
+			className="flex min-h-0 flex-col gap-4"
+			data-demo={DEMO.mark.winBackTable}
+			data-demo-record={rows[0]?.people[0]?.id}
+		>
 			<ReadingProgress />
 			<DataTable
 				query={table.query}

@@ -1,6 +1,8 @@
 import type { Dictionary } from "../locale";
 
 export const copy: Dictionary = {
+	"Play demo": "Demo abspielen",
+	"Starts in {count}": "Startet in {count}",
 	'Password sign-in is off. Set PASSWORD_SIGN_IN="1" in the root .env file and restart.':
 		"Die Passwortanmeldung ist deaktiviert. Bitte deinen Betreiber, sie zu aktivieren.",
 	"The password needs at least {count} characters.":

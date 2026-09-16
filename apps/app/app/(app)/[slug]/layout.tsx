@@ -6,7 +6,9 @@ import { AppHeader, AppHeaderFallback } from "@/components/app-header";
 import { AppIconRail, AppIconRailFallback } from "@/components/app-icon-rail";
 import { QuickSwitcher } from "@/components/crm/quick-switcher";
 import { RecordSheetHost } from "@/components/crm/record-sheet/record-sheet-host";
+import { DemoTour } from "@/components/demo/demo-tour";
 import { MobileNavProvider } from "@/components/mobile-nav";
+import { demoOffered } from "@/lib/operator";
 import { requireMailboxAccess } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -45,6 +47,12 @@ export default function AppLayout({
 				<Suspense fallback={null}>
 					<QuickSwitcher />
 				</Suspense>
+
+				{demoOffered() ? (
+					<Suspense fallback={null}>
+						<DemoTour />
+					</Suspense>
+				) : null}
 			</div>
 		</MobileNavProvider>
 	);

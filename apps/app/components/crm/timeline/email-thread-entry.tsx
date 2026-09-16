@@ -13,6 +13,7 @@ import { cleanEmailBody } from "@crm/ui/lib/email-text";
 import { cn } from "@crm/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { DEMO } from "@/components/demo/demo-tour-config";
 import { SECTION_TITLE } from "@/components/detail-sheet";
 import { LocalDateTime, LocalDay } from "@/components/local-date-time";
 import { useT } from "@/lib/i18n/client";
@@ -105,7 +106,7 @@ export function EmailThreadEntry({
 			}}
 		>
 			<AccordionItem value={threadId}>
-				<AccordionTrigger variant="subtle">
+				<AccordionTrigger variant="subtle" data-demo={DEMO.mark.emailThread}>
 					{messageCount === 1
 						? t("1 message")
 						: t("{count} messages", { count: messageCount })}

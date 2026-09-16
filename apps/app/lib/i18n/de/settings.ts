@@ -247,4 +247,7 @@ export const settings: Dictionary = {
 		"Experimentell. OpenAI kann es abschalten.",
 	"Caps how many contacts the agent researches per hour. Empty means {count}.":
 		"Begrenzt, wie viele Kontakte der Agent pro Stunde recherchiert. Leer bedeutet {count}.",
+	"Nothing changes until you save.":
+		"Es ändert sich nichts, bis du speicherst.",
+	"Bill the agent to this account": "Den Agenten über dieses Konto abrechnen",
 };

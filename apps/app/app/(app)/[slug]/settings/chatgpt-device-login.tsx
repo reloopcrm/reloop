@@ -24,7 +24,6 @@ export function ChatgptDeviceLogin({
 
 	const status = useQuery({
 		...trpc.settings.chatgptLogin.queryOptions(),
-		enabled: active,
 		refetchInterval: (query) =>
 			query.state.data?.status === "waiting" ? query.state.data.pollMs : false,
 		refetchIntervalInBackground: true,

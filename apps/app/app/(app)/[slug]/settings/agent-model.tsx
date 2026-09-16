@@ -10,11 +10,6 @@ import {
 	CardTitle,
 } from "@crm/ui/components/card";
 import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@crm/ui/components/collapsible";
-import {
 	Command,
 	CommandEmpty,
 	CommandGroup,
@@ -22,6 +17,14 @@ import {
 	CommandItem,
 	CommandList,
 } from "@crm/ui/components/command";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@crm/ui/components/dialog";
 import {
 	Field,
 	FieldDescription,
@@ -298,6 +301,7 @@ export function AgentProvider() {
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
+	const [editing, setEditing] = useState<ProviderId | null>(null);
 	const [chatgptModel, setChatgptModel] = useState<string | null>(null);
 	const [openaiModel, setOpenaiModel] = useState<string | null>(null);
 	const [anthropicModel, setAnthropicModel] = useState<string | null>(null);
@@ -307,17 +311,23 @@ export function AgentProvider() {
 	const [anthropicKey, setAnthropicKey] = useState("");
 	const [perHour, setPerHour] = useState<string | null>(null);
 
+	function forget() {
+		setChatgptModel(null);
+		setOpenaiModel(null);
+		setAnthropicModel(null);
+		setReadingModel(null);
+		setDraftModel(null);
+		setOpenaiKey("");
+		setAnthropicKey("");
+	}
+
 	const save = useMutation(
 		trpc.settings.setAgentProvider.mutationOptions({
 			onSuccess: async () => {
 				await cache.settings();
-				setChatgptModel(null);
-				setOpenaiModel(null);
-				setAnthropicModel(null);
-				setReadingModel(null);
-				setOpenaiKey("");
-				setAnthropicKey("");
+				forget();
 				setPerHour(null);
+				setEditing(null);
 				toast.success(t("Saved. The agent uses it from its next model call."));
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
@@ -366,39 +376,171 @@ export function AgentProvider() {
 		(entry) => entry.id !== provider && configured[entry.id],
 	).map((entry) => t(entry.label));
 
-	const openaiKeyField = (
-		<Field>
-			<FieldLabel htmlFor={`${id}-openai-key`}>
-				{t("OpenAI API key")}
-			</FieldLabel>
-			<Input
-				id={`${id}-openai-key`}
-				type="password"
-				value={openaiKey}
-				onChange={(event) => setOpenaiKey(event.target.value)}
-				placeholder={data.openaiKey.hint ?? t("sk-… from platform.openai.com")}
-				autoComplete="off"
+	const mailModels = (key: ProviderId) => (
+		<>
+			<ModelPicker
+				id={`${id}-reading`}
+				label={t("Model for reading mail")}
+				value={reading}
+				options={options(key)}
+				placeholder={data.defaults.readingModel}
+				onChange={setReadingModel}
 			/>
-		</Field>
+			<ModelPicker
+				id={`${id}-draft`}
+				label={t("Model for email drafts")}
+				value={drafting}
+				options={options(key)}
+				placeholder={data.defaults.draftModel}
+				onChange={setDraftModel}
+			/>
+		</>
 	);
 
-	const anthropicKeyField = (
-		<Field>
-			<FieldLabel htmlFor={`${id}-anthropic-key`}>
-				{t("Anthropic API key")}
-			</FieldLabel>
-			<Input
-				id={`${id}-anthropic-key`}
-				type="password"
-				value={anthropicKey}
-				onChange={(event) => setAnthropicKey(event.target.value)}
-				placeholder={
-					data.anthropicKey.hint ?? t("sk-ant-… from console.anthropic.com")
-				}
-				autoComplete="off"
+	const chatgptPanel = (
+		<FieldGroup>
+			<ChatgptDeviceLogin
+				primary={false}
+				onConnected={() => void cache.settings()}
 			/>
-		</Field>
+
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<span className="font-medium text-sm">{t("ChatGPT usage limit")}</span>
+				<span className="flex items-center gap-2 text-muted-foreground text-xs">
+					{data.usage ? (
+						<span>
+							{data.usage.planType ? `${data.usage.planType} · ` : ""}
+							<LocalComputed
+								text={t("as of {time}", {
+									time: agoLabel(t, data.usage.updatedAt),
+								})}
+							/>
+						</span>
+					) : (
+						t("not read yet")
+					)}
+					<Button
+						type="button"
+						variant="ghost"
+						size="xs"
+						disabled={refresh.isPending || waiting}
+						onClick={() => refresh.mutate()}
+					>
+						{refresh.isPending || waiting ? <Spinner /> : null}
+						{t("Refresh")}
+					</Button>
+				</span>
+			</div>
+
+			{data.usage ? (
+				<>
+					<UsageBar
+						label={windowLabel(t, data.usage.primaryWindowMinutes)}
+						percent={data.usage.primaryUsedPercent}
+						resetAt={data.usage.primaryResetAt}
+					/>
+					{data.usage.secondaryWindowMinutes ? (
+						<UsageBar
+							label={windowLabel(t, data.usage.secondaryWindowMinutes)}
+							percent={data.usage.secondaryUsedPercent}
+							resetAt={data.usage.secondaryResetAt}
+						/>
+					) : null}
+				</>
+			) : null}
+
+			{data.probe?.outcome ? (
+				<p className="text-muted-foreground text-xs">
+					{t("Last check: {outcome}", { outcome: t(data.probe.outcome) })}
+				</p>
+			) : null}
+
+			<ModelPicker
+				id={`${id}-chatgpt`}
+				label={t("ChatGPT model for chat and research")}
+				value={models.chatgpt}
+				options={options("chatgpt")}
+				placeholder={data.defaults.chatgptModel}
+				onChange={setChatgptModel}
+			/>
+			<FieldDescription>
+				{t("Experimental. OpenAI can withdraw it.")}
+			</FieldDescription>
+
+			{mailModels("chatgpt")}
+		</FieldGroup>
 	);
+
+	const openaiPanel = (
+		<FieldGroup>
+			<Field>
+				<FieldLabel htmlFor={`${id}-openai-key`}>
+					{t("OpenAI API key")}
+				</FieldLabel>
+				<Input
+					id={`${id}-openai-key`}
+					type="password"
+					value={openaiKey}
+					onChange={(event) => setOpenaiKey(event.target.value)}
+					placeholder={
+						data.openaiKey.hint ?? t("sk-… from platform.openai.com")
+					}
+					autoComplete="off"
+				/>
+			</Field>
+			<ModelPicker
+				id={`${id}-openai-model`}
+				label={t("OpenAI model")}
+				value={models.openai}
+				options={options("openai")}
+				placeholder={data.defaults.openaiModel}
+				onChange={setOpenaiModel}
+			/>
+			{mailModels("openai")}
+		</FieldGroup>
+	);
+
+	const anthropicPanel = (
+		<FieldGroup>
+			<Field>
+				<FieldLabel htmlFor={`${id}-anthropic-key`}>
+					{t("Anthropic API key")}
+				</FieldLabel>
+				<Input
+					id={`${id}-anthropic-key`}
+					type="password"
+					value={anthropicKey}
+					onChange={(event) => setAnthropicKey(event.target.value)}
+					placeholder={
+						data.anthropicKey.hint ?? t("sk-ant-… from console.anthropic.com")
+					}
+					autoComplete="off"
+				/>
+			</Field>
+			<ModelPicker
+				id={`${id}-anthropic-model`}
+				label={t("Anthropic model")}
+				value={models.anthropic}
+				options={options("anthropic")}
+				placeholder={data.defaults.anthropicModel}
+				onChange={setAnthropicModel}
+			/>
+			{mailModels("anthropic")}
+		</FieldGroup>
+	);
+
+	const gatewayPanel = (
+		<div className="flex flex-col gap-4">
+			<p className="text-muted-foreground text-xs">
+				{data.gatewayConfigured
+					? t("Billed to AI_GATEWAY_API_KEY in the root .env file.")
+					: t("No AI_GATEWAY_API_KEY in the root .env file yet.")}
+			</p>
+			<GatewayModel />
+		</div>
+	);
+
+	const editingLabel = PROVIDERS.find((entry) => entry.id === editing)?.label;
 
 	return (
 		<Card>
@@ -423,7 +565,7 @@ export function AgentProvider() {
 						value={provider}
 						onValueChange={(value) => {
 							const next = PROVIDERS.find((entry) => entry.id === value);
-							if (next) submit(next.id);
+							setEditing(next ? next.id : provider);
 						}}
 					>
 						{PROVIDERS.map((entry) => (
@@ -448,160 +590,19 @@ export function AgentProvider() {
 									)}
 					</p>
 
-					{provider === "chatgpt" ? (
-						<div className="flex flex-col gap-2 rounded-lg border p-3">
-							<ChatgptDeviceLogin
-								primary={false}
-								onConnected={() => void cache.settings()}
-							/>
-							<div className="flex flex-wrap items-center justify-between gap-2">
-								<span className="font-medium text-sm">
-									{t("ChatGPT usage limit")}
-								</span>
-								<span className="flex items-center gap-2 text-muted-foreground text-xs">
-									{data.usage ? (
-										<span>
-											{data.usage.planType ? `${data.usage.planType} · ` : ""}
-											<LocalComputed
-												text={t("as of {time}", {
-													time: agoLabel(t, data.usage.updatedAt),
-												})}
-											/>
-										</span>
-									) : (
-										t("not read yet")
-									)}
-									<Button
-										type="button"
-										variant="ghost"
-										size="xs"
-										disabled={refresh.isPending || waiting}
-										onClick={() => refresh.mutate()}
-									>
-										{refresh.isPending || waiting ? <Spinner /> : null}
-										{t("Refresh")}
-									</Button>
-								</span>
-							</div>
-							{data.usage ? (
-								<>
-									<UsageBar
-										label={windowLabel(t, data.usage.primaryWindowMinutes)}
-										percent={data.usage.primaryUsedPercent}
-										resetAt={data.usage.primaryResetAt}
-									/>
-									{data.usage.secondaryWindowMinutes ? (
-										<UsageBar
-											label={windowLabel(t, data.usage.secondaryWindowMinutes)}
-											percent={data.usage.secondaryUsedPercent}
-											resetAt={data.usage.secondaryResetAt}
-										/>
-									) : null}
-								</>
-							) : null}
-
-							{data.probe?.outcome ? (
-								<p className="text-muted-foreground text-xs">
-									{t("Last check: {outcome}", {
-										outcome: t(data.probe.outcome),
-									})}
-								</p>
-							) : null}
-						</div>
-					) : null}
-
-					{provider === "openai" ? openaiKeyField : null}
-					{provider === "anthropic" ? anthropicKeyField : null}
-
-					<Collapsible>
-						<CollapsibleTrigger asChild>
-							<Button type="button" variant="ghost" size="xs">
-								<Icon icon={ChevronDown} data-icon="inline-start" />
-								{t("More settings")}
-							</Button>
-						</CollapsibleTrigger>
-
-						<CollapsibleContent>
-							<FieldGroup className="pt-4">
-								{provider !== "gateway" ? (
-									<>
-										<ModelPicker
-											id={`${id}-reading`}
-											label={t("Model for reading mail")}
-											value={reading}
-											options={options(provider)}
-											placeholder={data.defaults.readingModel}
-											onChange={setReadingModel}
-										/>
-										<ModelPicker
-											id={`${id}-draft`}
-											label={t("Model for email drafts")}
-											value={drafting}
-											options={options(provider)}
-											placeholder={data.defaults.draftModel}
-											onChange={setDraftModel}
-										/>
-									</>
-								) : null}
-
-								<ModelPicker
-									id={`${id}-chatgpt`}
-									label={t("ChatGPT model for chat and research")}
-									value={models.chatgpt}
-									options={options("chatgpt")}
-									placeholder={data.defaults.chatgptModel}
-									onChange={setChatgptModel}
-								/>
-								<FieldDescription>
-									{t("Experimental. OpenAI can withdraw it.")}
-								</FieldDescription>
-
-								<div className="grid gap-4 sm:grid-cols-2">
-									{provider === "openai" ? null : openaiKeyField}
-									<ModelPicker
-										id={`${id}-openai-model`}
-										label={t("OpenAI model")}
-										value={models.openai}
-										options={options("openai")}
-										placeholder={data.defaults.openaiModel}
-										onChange={setOpenaiModel}
-									/>
-								</div>
-
-								<div className="grid gap-4 sm:grid-cols-2">
-									{provider === "anthropic" ? null : anthropicKeyField}
-									<ModelPicker
-										id={`${id}-anthropic-model`}
-										label={t("Anthropic model")}
-										value={models.anthropic}
-										options={options("anthropic")}
-										placeholder={data.defaults.anthropicModel}
-										onChange={setAnthropicModel}
-									/>
-								</div>
-
-								<Field>
-									<FieldLabel htmlFor={`${id}-per-hour`}>
-										{t("Research sessions per hour")}
-									</FieldLabel>
-									<Input
-										id={`${id}-per-hour`}
-										inputMode="numeric"
-										className="w-40"
-										value={perHourValue}
-										onChange={(event) => setPerHour(event.target.value)}
-										placeholder={String(data.defaults.researchPerHour)}
-									/>
-									<FieldDescription>
-										{t(
-											"Caps how many contacts the agent researches per hour. Empty means {count}.",
-											{ count: data.defaults.researchPerHour },
-										)}
-									</FieldDescription>
-								</Field>
-							</FieldGroup>
-						</CollapsibleContent>
-					</Collapsible>
+					<Field orientation="horizontal">
+						<FieldLabel htmlFor={`${id}-per-hour`}>
+							{t("Research sessions per hour")}
+						</FieldLabel>
+						<Input
+							id={`${id}-per-hour`}
+							inputMode="numeric"
+							className="w-40"
+							value={perHourValue}
+							onChange={(event) => setPerHour(event.target.value)}
+							placeholder={String(data.defaults.researchPerHour)}
+						/>
+					</Field>
 
 					<div>
 						<Button type="submit" variant="outline" disabled={save.isPending}>
@@ -610,12 +611,50 @@ export function AgentProvider() {
 						</Button>
 					</div>
 				</form>
+
+				<Dialog
+					open={editing !== null}
+					onOpenChange={(open) => {
+						if (open) return;
+						forget();
+						setEditing(null);
+					}}
+				>
+					<DialogContent className="sm:max-w-(--container-narrow)">
+						<DialogHeader>
+							<DialogTitle>{editingLabel ? t(editingLabel) : ""}</DialogTitle>
+							<DialogDescription>
+								{t("Nothing changes until you save.")}
+							</DialogDescription>
+						</DialogHeader>
+
+						{editing === "chatgpt" ? chatgptPanel : null}
+						{editing === "openai" ? openaiPanel : null}
+						{editing === "anthropic" ? anthropicPanel : null}
+						{editing === "gateway" ? gatewayPanel : null}
+
+						<DialogFooter>
+							<Button
+								type="button"
+								disabled={save.isPending}
+								onClick={() => {
+									if (editing) submit(editing);
+								}}
+							>
+								{save.isPending ? <Spinner /> : null}
+								{editing === provider
+									? t("Save")
+									: t("Bill the agent to this account")}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			</CardContent>
 		</Card>
 	);
 }
 
-export function AgentModel() {
+function GatewayModel() {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
@@ -659,6 +698,89 @@ export function AgentModel() {
 	};
 
 	return (
+		<div className="flex flex-wrap items-center gap-3">
+			<Popover open={open} onOpenChange={setOpen}>
+				<PopoverTrigger asChild>
+					<Button
+						variant="outline"
+						role="combobox"
+						aria-expanded={open}
+						aria-label={t("Model")}
+						disabled={save.isPending || catalog.isPending || unavailable}
+					>
+						{currentLabel}
+						<Icon icon={ChevronDown} data-icon="inline-end" />
+					</Button>
+				</PopoverTrigger>
+
+				<PopoverContent align="start" size="fit" className="w-96">
+					<Command>
+						<CommandInput placeholder={t("Search models…")} />
+						<CommandList>
+							<CommandEmpty>{t("No model matches that.")}</CommandEmpty>
+
+							<CommandGroup>
+								<CommandItem
+									value={`default ${defaultId}`}
+									data-checked={current === FOLLOW_DEFAULT}
+									onSelect={() => choose(FOLLOW_DEFAULT)}
+								>
+									{t("Default: {name}", {
+										name: defaultModel?.name ?? defaultId,
+									})}
+								</CommandItem>
+							</CommandGroup>
+
+							{byProvider(models).map(([provider, group]) => (
+								<CommandGroup key={provider} heading={provider}>
+									{group.map((model) => {
+										const price = priceHint(t, model);
+
+										return (
+											<CommandItem
+												key={model.id}
+												value={`${model.name} ${model.provider} ${model.id}`}
+												data-checked={current === model.id}
+												onSelect={() => choose(model.id)}
+											>
+												<span>{model.name}</span>
+												<span className="ml-auto text-muted-foreground text-xs">
+													{price ?? contextHint(t, model.contextWindowTokens)}
+												</span>
+											</CommandItem>
+										);
+									})}
+								</CommandGroup>
+							))}
+						</CommandList>
+					</Command>
+				</PopoverContent>
+			</Popover>
+
+			<p className="text-muted-foreground text-xs">
+				{unavailable
+					? t(
+							"Could not reach the AI Gateway to list models. The agent is still running {model}.",
+							{ model: effectiveId },
+						)
+					: effective
+						? `${effectiveId} · ${contextHint(t, effective.contextWindowTokens)}${
+								priceHint(t, effective) ? ` · ${priceHint(t, effective)}` : ""
+							}`
+						: effectiveId}
+			</p>
+		</div>
+	);
+}
+
+export function AgentModel() {
+	const t = useT();
+	const trpc = useTRPC();
+	const settings = useQuery(trpc.settings.agentModel.queryOptions());
+
+	if (!settings.data) return null;
+
+	return (
 		<Card>
 			<CardHeader>
 				<CardTitle>{t("Research agent")}</CardTitle>
@@ -670,81 +792,7 @@ export function AgentModel() {
 			</CardHeader>
 
 			<CardContent>
-				<div className="flex flex-wrap items-center gap-3">
-					<Popover open={open} onOpenChange={setOpen}>
-						<PopoverTrigger asChild>
-							<Button
-								variant="outline"
-								role="combobox"
-								aria-expanded={open}
-								aria-label={t("Model")}
-								disabled={save.isPending || catalog.isPending || unavailable}
-							>
-								{currentLabel}
-								<Icon icon={ChevronDown} data-icon="inline-end" />
-							</Button>
-						</PopoverTrigger>
-
-						<PopoverContent align="start" size="fit" className="w-96">
-							<Command>
-								<CommandInput placeholder={t("Search models…")} />
-								<CommandList>
-									<CommandEmpty>{t("No model matches that.")}</CommandEmpty>
-
-									<CommandGroup>
-										<CommandItem
-											value={`default ${defaultId}`}
-											data-checked={current === FOLLOW_DEFAULT}
-											onSelect={() => choose(FOLLOW_DEFAULT)}
-										>
-											{t("Default: {name}", {
-												name: defaultModel?.name ?? defaultId,
-											})}
-										</CommandItem>
-									</CommandGroup>
-
-									{byProvider(models).map(([provider, group]) => (
-										<CommandGroup key={provider} heading={provider}>
-											{group.map((model) => {
-												const price = priceHint(t, model);
-
-												return (
-													<CommandItem
-														key={model.id}
-														value={`${model.name} ${model.provider} ${model.id}`}
-														data-checked={current === model.id}
-														onSelect={() => choose(model.id)}
-													>
-														<span>{model.name}</span>
-														<span className="ml-auto text-muted-foreground text-xs">
-															{price ??
-																contextHint(t, model.contextWindowTokens)}
-														</span>
-													</CommandItem>
-												);
-											})}
-										</CommandGroup>
-									))}
-								</CommandList>
-							</Command>
-						</PopoverContent>
-					</Popover>
-
-					<p className="text-muted-foreground text-xs">
-						{unavailable
-							? t(
-									"Could not reach the AI Gateway to list models. The agent is still running {model}.",
-									{ model: effectiveId },
-								)
-							: effective
-								? `${effectiveId} · ${contextHint(t, effective.contextWindowTokens)}${
-										priceHint(t, effective)
-											? ` · ${priceHint(t, effective)}`
-											: ""
-									}`
-								: effectiveId}
-					</p>
-				</div>
+				<GatewayModel />
 			</CardContent>
 		</Card>
 	);

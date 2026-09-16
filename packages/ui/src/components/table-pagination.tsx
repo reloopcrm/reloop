@@ -4,7 +4,7 @@ import { useUiLocale, useUiT } from "@crm/ui/lib/i18n";
 import ChevronLeft from "@carbon/icons-react/es/ChevronLeft";
 import ChevronRight from "@carbon/icons-react/es/ChevronRight";
 import { Button } from "@crm/ui/components/button";
-import { Spinner } from "@crm/ui/components/spinner";
+import { Loader } from "@crm/ui/components/loader";
 import type { ReactNode } from "react";
 
 const numberFormats = new Map<string, Intl.NumberFormat>();
@@ -44,7 +44,7 @@ export function TablePagination({
 	return (
 		<div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
 			<span className="flex items-center gap-2 text-muted-foreground text-xs tabular-nums">
-				{loading && <Spinner />}
+				{loading && <Loader className="h-3.5" />}
 				{meta ??
 					(total === 0
 						? t("No results")

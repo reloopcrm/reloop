@@ -4,12 +4,6 @@ import { useUiT } from "@crm/ui/lib/i18n";
 import { cn } from "@crm/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 
-const SILHOUETTE =
-	"M384 99.548 367.934 87.04 256.021 0 0 199.096v113.782L256.021 512 512 312.879V199.096Z";
-
-const MARK =
-	"m384 99.548 -16.066 -12.508L256.021 0 0 199.096v113.782L256.021 512 512 312.879V199.096zm-127.98 -49.419 79.695 61.975 -40.944 31.803 -3.661 2.837 -35.091 -27.287 -102.399 79.638 35.09 27.287 32.218 25.088 35.09 27.288L358.4 199.074l-35.047 -27.288 3.659 -2.837 40.943 -31.803 79.651 61.952 -40.943 31.852 -150.62 117.163 -79.695 -61.974 -32.218 -25.041 -38.752 -30.125 -40.922 -31.849z";
-
 const spinnerVariants = cva("shrink-0", {
 	variants: {
 		size: {
@@ -34,22 +28,29 @@ function Spinner({
 			role="status"
 			aria-label={t("Loading")}
 			xmlns="http://www.w3.org/2000/svg"
-			viewBox="-68 -68 648 648"
+			viewBox="0 0 24 24"
 			fill="none"
 			className={cn(spinnerVariants({ size }), className)}
 			{...props}
 		>
-			<path d={MARK} fill="currentColor" fillOpacity={0.85} />
-			<path
-				d={SILHOUETTE}
-				transform="translate(256 256) scale(1.16) translate(-256 -256)"
-				stroke="var(--ring)"
-				strokeWidth={32}
-				strokeLinejoin="round"
+			<circle
+				cx="12"
+				cy="12"
+				r="9"
+				stroke="currentColor"
+				strokeOpacity={0.25}
+				strokeWidth={3}
+			/>
+			<circle
+				cx="12"
+				cy="12"
+				r="9"
+				stroke="currentColor"
+				strokeWidth={3}
 				strokeLinecap="round"
 				pathLength={100}
-				strokeDasharray="40 60"
-				className="animate-spinner-trace"
+				strokeDasharray="28 72"
+				className="animate-spinner-trace motion-reduce:animate-none"
 			/>
 		</svg>
 	);

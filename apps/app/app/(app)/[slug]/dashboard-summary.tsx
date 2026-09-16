@@ -18,12 +18,12 @@ import {
 	EntityLogo,
 	type EntityLogoTone,
 } from "@crm/ui/components/entity-logo";
+import { Loader } from "@crm/ui/components/loader";
 import {
 	SimpleTable,
 	type SimpleTableColumn,
 	SimpleTableRow,
 } from "@crm/ui/components/simple-table";
-import { Spinner } from "@crm/ui/components/spinner";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { TableCell } from "@crm/ui/components/table";
 import { formatMoneyCompact } from "@crm/ui/lib/format";
@@ -139,7 +139,7 @@ export function DashboardSummary() {
 	if (!summary) {
 		return (
 			<div className="flex flex-1 justify-center py-12">
-				<Spinner />
+				<Loader />
 			</div>
 		);
 	}

@@ -29,8 +29,8 @@ import {
 	EmptyTitle,
 } from "@crm/ui/components/empty";
 import { Icon } from "@crm/ui/components/icon";
+import { Loader } from "@crm/ui/components/loader";
 import { SortableItem, SortableList } from "@crm/ui/components/sortable-list";
-import { Spinner } from "@crm/ui/components/spinner";
 import { FIELD_TEMPLATES } from "@crm/validation/field-templates";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -274,7 +274,7 @@ export function FieldsList({
 
 				{query.isPending ? (
 					<div className="flex flex-1 items-center justify-center">
-						<Spinner />
+						<Loader />
 					</div>
 				) : query.isError ? (
 					<Empty className="flex-1">

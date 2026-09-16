@@ -1,13 +1,13 @@
 "use client";
 
-import { Spinner } from "@crm/ui/components/spinner";
+import { Loader } from "@crm/ui/components/loader";
 import dynamic from "next/dynamic";
 
 const load = () => import("@crm/ui/components/dashboard-chart");
 
 const loading = () => (
 	<div className="flex h-[200px] items-center justify-center">
-		<Spinner />
+		<Loader />
 	</div>
 );
 

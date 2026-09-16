@@ -1,5 +1,5 @@
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
-import { Spinner } from "@crm/ui/components/spinner";
+import { Loader } from "@crm/ui/components/loader";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getT } from "@/lib/i18n/server";
@@ -17,7 +17,7 @@ export default function SlackPeoplePage(props: SlackPeoplePageProps) {
 		<Suspense
 			fallback={
 				<ConnectionPage centered>
-					<Spinner size="lg" />
+					<Loader size="lg" />
 				</ConnectionPage>
 			}
 		>

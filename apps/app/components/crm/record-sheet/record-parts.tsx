@@ -4,8 +4,8 @@ import Add from "@carbon/icons-react/es/Add";
 import { Button } from "@crm/ui/components/button";
 import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import { Icon } from "@crm/ui/components/icon";
+import { Loader } from "@crm/ui/components/loader";
 import { SimpleTableRow } from "@crm/ui/components/simple-table";
-import { Spinner } from "@crm/ui/components/spinner";
 import { TableCell } from "@crm/ui/components/table";
 import { formatMoney } from "@crm/ui/lib/format";
 import type { ReactNode } from "react";
@@ -59,7 +59,7 @@ export function RecordSheetFrame({
 
 			{loading ? (
 				<div className="flex min-h-0 flex-1 items-center justify-center">
-					<Spinner />
+					<Loader />
 				</div>
 			) : error ? (
 				<div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 p-6 text-center">

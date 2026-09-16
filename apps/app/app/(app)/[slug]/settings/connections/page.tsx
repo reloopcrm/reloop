@@ -3,7 +3,7 @@ import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
 import { Button } from "@crm/ui/components/button";
-import { Spinner } from "@crm/ui/components/spinner";
+import { Loader } from "@crm/ui/components/loader";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -197,7 +197,7 @@ async function ConnectionsSettingsPageContent({
 function ConnectionsFallback() {
 	return (
 		<main className="flex min-h-0 min-w-0 flex-1 items-center justify-center px-(--spacing-page-inline) pt-(--spacing-page-top) pb-(--spacing-page-bottom)">
-			<Spinner size="lg" />
+			<Loader size="lg" />
 		</main>
 	);
 }

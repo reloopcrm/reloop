@@ -1,6 +1,6 @@
 "use client";
 
-import { Spinner } from "@crm/ui/components/spinner";
+import { Loader } from "@crm/ui/components/loader";
 import { Tabs, TabsList, TabsTrigger } from "@crm/ui/components/tabs";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -74,7 +74,7 @@ function FieldsSheetBody({
 				/>
 				{editingKey && query.isPending ? (
 					<div className="flex min-h-0 flex-1 items-center justify-center">
-						<Spinner />
+						<Loader />
 					</div>
 				) : (
 					<FieldEditor

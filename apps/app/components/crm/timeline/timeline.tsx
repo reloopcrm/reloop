@@ -8,6 +8,7 @@ import Task from "@carbon/icons-react/es/Task";
 import Time from "@carbon/icons-react/es/Time";
 import { Button } from "@crm/ui/components/button";
 import type { CarbonIcon } from "@crm/ui/components/icon";
+import { Loader } from "@crm/ui/components/loader";
 import { Spinner } from "@crm/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { cn } from "@crm/ui/lib/utils";
@@ -232,7 +233,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 
 			{history.isPending ? (
 				<div className="flex min-h-0 flex-1 items-center justify-center">
-					<Spinner />
+					<Loader />
 				</div>
 			) : entries.length === 0 && pinnedEntries.length === 0 ? (
 				<DetailSheetEmpty

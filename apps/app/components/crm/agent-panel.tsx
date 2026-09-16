@@ -27,6 +27,7 @@ import {
 } from "@crm/ui/components/empty";
 import { type CarbonIcon, Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
+import { Loader } from "@crm/ui/components/loader";
 import { Markdown } from "@crm/ui/components/markdown";
 import { Marker, MarkerContent, MarkerIcon } from "@crm/ui/components/marker";
 import {
@@ -188,7 +189,7 @@ function ThreadWithHistory({
 function Loading() {
 	return (
 		<div className="flex flex-1 items-center justify-center">
-			<Spinner />
+			<Loader />
 		</div>
 	);
 }

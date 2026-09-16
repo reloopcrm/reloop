@@ -1,13 +1,21 @@
+FROM node:24-bookworm-slim AS build
+COPY --from=oven/bun:1.3.12 /usr/local/bin/bun /usr/local/bin/bun
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY . .
+RUN DATABASE_URL=postgresql://build:build@localhost:5432/build bun install --frozen-lockfile --production --filter api
+RUN bun run --cwd apps/api build
+
 FROM node:24-bookworm-slim
 COPY --from=oven/bun:1.3.12 /usr/local/bin/bun /usr/local/bin/bun
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /app /data/codex && chown node:node /app /data/codex
 USER node
 WORKDIR /app
-COPY --chown=node:node . .
-RUN DATABASE_URL=postgresql://build:build@localhost:5432/build bun install --frozen-lockfile && rm -rf /home/node/.bun/install/cache
-
-RUN bun run --cwd apps/api build
+COPY --from=build --chown=node:node /app/package.json ./package.json
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/packages ./packages
+COPY --from=build --chown=node:node /app/apps/api ./apps/api
 ENV NODE_ENV=production PORT=3001
 EXPOSE 3001
 HEALTHCHECK --interval=10s --timeout=5s --start-period=120s --retries=12 \

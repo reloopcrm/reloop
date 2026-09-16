@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { loadRootEnv } from "@crm/env";
 import type { NextConfig } from "next";
 
@@ -20,6 +21,9 @@ const allowedDevOrigins = (process.env.APP_URL ?? "")
 
 const nextConfig: NextConfig = {
 	allowedDevOrigins,
+
+	output: "standalone",
+	outputFileTracingRoot: join(import.meta.dirname, "../.."),
 
 	async redirects() {
 		return [

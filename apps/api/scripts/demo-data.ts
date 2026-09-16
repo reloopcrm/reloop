@@ -128,7 +128,7 @@ const COMPANIES: Company[] = [
 		country: "France",
 		countryCode: "FR",
 		people: [
-			{ first: "Camille", last: "Restany", title: "Directrice Achats" },
+			{ first: "Camille", last: "Restany", title: "Purchasing Director" },
 			{ first: "Mathis", last: "Loubet", title: "Site Manager" },
 			{ first: "Ines", last: "Charrier", title: "Transport Planner" },
 		],
@@ -208,7 +208,7 @@ const COMPANIES: Company[] = [
 		country: "Spain",
 		countryCode: "ES",
 		people: [
-			{ first: "Marta", last: "Escrivan", title: "Compras" },
+			{ first: "Marta", last: "Escrivan", title: "Purchasing Officer" },
 			{ first: "Pau", last: "Ferrandis", title: "Plant Manager" },
 		],
 	},
@@ -302,7 +302,9 @@ const COMPANIES: Company[] = [
 		city: "Duesseldorf",
 		country: "Germany",
 		countryCode: "DE",
-		people: [{ first: "Friederike", last: "Nolting", title: "Einkauf" }],
+		people: [
+			{ first: "Friederike", last: "Nolting", title: "Head of Purchasing" },
+		],
 	},
 	{
 		key: "balticreefer",
@@ -325,7 +327,7 @@ const COMPANIES: Company[] = [
 		country: "Italy",
 		countryCode: "IT",
 		people: [
-			{ first: "Giulia", last: "Bettinardi", title: "Responsabile Acquisti" },
+			{ first: "Giulia", last: "Bettinardi", title: "Procurement Manager" },
 		],
 	},
 	{
@@ -356,7 +358,7 @@ const COMPANIES: Company[] = [
 		city: "Potsdam",
 		country: "Germany",
 		countryCode: "DE",
-		people: [{ first: "Jonas", last: "Priebe", title: "Geschaeftsfuehrer" }],
+		people: [{ first: "Jonas", last: "Priebe", title: "Managing Director" }],
 	},
 	{
 		key: "ardenne",

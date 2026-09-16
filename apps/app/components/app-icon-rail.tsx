@@ -62,7 +62,7 @@ const GROUPS: RailItem[][] = [
 
 const ITEMS: RailItem[] = GROUPS.flat();
 
-const RAIL_WIDTH = "w-14 group-hover/rail:w-52 group-focus-within/rail:w-52";
+const RAIL_WIDTH = "w-14 hover:w-52 focus-within:w-52";
 
 function isActive(item: RailItem, pathname: string): boolean {
 	return (

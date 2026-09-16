@@ -47,12 +47,20 @@ export async function generateMetadata(): Promise<Metadata> {
 	};
 }
 
-const siteUrl = (process.env.APP_URL ?? "http://localhost:3000")
-	.split(",")[0]
-	?.trim();
+function siteAddress(): URL | undefined {
+	const first = (process.env.APP_URL ?? "http://localhost:3000")
+		.split(",")[0]
+		?.trim();
+	if (!first) return undefined;
+	try {
+		return new URL(first);
+	} catch {
+		return undefined;
+	}
+}
 
 const metadata: Metadata = {
-	metadataBase: siteUrl ? new URL(siteUrl) : undefined,
+	metadataBase: siteAddress(),
 	title: {
 		default: BRAND.name,
 		template: `%s · ${BRAND.name}`,

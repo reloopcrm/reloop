@@ -1,4 +1,5 @@
 FROM node:24-bookworm-slim AS build
+ENV NEXT_DIST_DIR=.next
 COPY --from=oven/bun:1.3.12 /usr/local/bin/bun /usr/local/bin/bun
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

@@ -16,6 +16,16 @@ and nothing that is not read. `packages/env` walks up to the workspace root and 
 - **The root marker is a `package.json` declaring `workspaces`** — stopping at the
   first `turbo.json` resolves the API's root to `apps/api`.
 
+## `NEXT_DIST_DIR`, unset by default
+
+The folder `next build` writes into. Unset it and Next.js writes `.next`, which
+is what `next start` and both Docker images read.
+
+Set it only for a deploy that must answer requests while the new build runs:
+build into `.next-build`, rename the folder afterwards, then restart the app.
+Turbo treats the value as part of the build hash, so a relocated build never
+reuses the cache of a normal one.
+
 ## A new variable has three homes, not two
 
 `.env.example` and — if the API reads it — `env.validation.ts` are the two people

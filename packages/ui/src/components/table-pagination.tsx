@@ -44,7 +44,7 @@ export function TablePagination({
 	return (
 		<div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
 			<span className="flex items-center gap-2 text-muted-foreground text-xs tabular-nums">
-				{loading && <Loader className="h-3.5" />}
+				{loading && <Loader size="sm" />}
 				{meta ??
 					(total === 0
 						? t("No results")

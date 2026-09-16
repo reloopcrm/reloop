@@ -10,6 +10,6 @@ export const SYSTEM = {
 		timeoutMs: 5 * SECOND_MS,
 		cacheMs: 6 * HOUR_MS,
 		retryMs: 10 * MINUTE_MS,
-		forceMs: 30 * SECOND_MS,
+		forceMs: 2 * MINUTE_MS,
 	},
 } as const;

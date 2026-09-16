@@ -10,6 +10,7 @@ import { WORDMARK_PATH } from "../lib/wordmark-path";
 const loaderVariants = cva("w-auto shrink-0", {
 	variants: {
 		size: {
+			sm: "h-3.5",
 			default: "h-5",
 			lg: "h-8",
 		},

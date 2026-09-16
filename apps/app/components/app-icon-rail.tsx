@@ -17,6 +17,11 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@crm/ui/components/sheet";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@crm/ui/components/tooltip";
 import { cn } from "@crm/ui/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -62,8 +67,6 @@ const GROUPS: RailItem[][] = [
 
 const ITEMS: RailItem[] = GROUPS.flat();
 
-const RAIL_WIDTH = "w-14 hover:w-52 focus-within:w-52";
-
 function isActive(item: RailItem, pathname: string): boolean {
 	return (
 		pathname === item.href ||
@@ -83,34 +86,38 @@ function RailLink({
 }) {
 	const t = useT();
 	return (
-		<Button
-			asChild
-			variant="ghost"
-			className={cn(
-				"relative h-8 w-full shrink-0 justify-start gap-3 px-2 text-muted-foreground",
-				active && "text-foreground hover:text-foreground",
-			)}
-		>
-			<Link
-				href={item.href}
-				prefetch
-				onMouseEnter={onPrefetch}
-				onFocus={onPrefetch}
-				aria-current={active ? "page" : undefined}
-				transitionTypes={["nav-lateral"]}
-			>
-				{active ? (
-					<span
-						aria-hidden="true"
-						className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary"
-					/>
-				) : null}
-				<Icon icon={item.icon} />
-				<span className="truncate opacity-0 transition-opacity duration-150 group-focus-within/rail:opacity-100 group-hover/rail:opacity-100 motion-reduce:transition-none">
-					{t(item.title)}
-				</span>
-			</Link>
-		</Button>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button
+					asChild
+					variant="ghost"
+					size="icon"
+					className={cn(
+						"relative shrink-0 text-muted-foreground",
+						active && "text-foreground hover:text-foreground",
+					)}
+				>
+					<Link
+						href={item.href}
+						prefetch
+						onMouseEnter={onPrefetch}
+						onFocus={onPrefetch}
+						aria-current={active ? "page" : undefined}
+						transitionTypes={["nav-lateral"]}
+					>
+						{active ? (
+							<span
+								aria-hidden="true"
+								className="absolute inset-y-1 -left-2 w-0.5 rounded-full bg-primary"
+							/>
+						) : null}
+						<Icon icon={item.icon} />
+						<span className="sr-only">{t(item.title)}</span>
+					</Link>
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent side="right">{t(item.title)}</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -195,25 +202,24 @@ function MobileRailIconLink({
 export function AppIconRailFallback() {
 	const t = useT();
 	return (
-		<div className="relative hidden w-14 shrink-0 md:block">
-			<nav
-				aria-label={t("Primary")}
-				aria-busy="true"
-				className="absolute inset-y-0 left-0 flex w-14 flex-col gap-0.5 overflow-hidden border-r bg-background px-3 py-3 [view-transition-name:app-rail]"
-			>
-				{ITEMS.map((item) => (
-					<Button
-						key={item.href}
-						variant="ghost"
-						disabled
-						className="h-8 w-full shrink-0 justify-start gap-3 px-2 text-muted-foreground"
-					>
-						<Icon icon={item.icon} />
-						<span className="sr-only">{t(item.title)}</span>
-					</Button>
-				))}
-			</nav>
-		</div>
+		<nav
+			aria-label={t("Primary")}
+			aria-busy="true"
+			className="hidden w-14 shrink-0 flex-col items-center gap-0.5 border-r bg-background py-3 md:flex [view-transition-name:app-rail]"
+		>
+			{ITEMS.map((item) => (
+				<Button
+					key={item.href}
+					variant="ghost"
+					size="icon"
+					disabled
+					className="shrink-0 text-muted-foreground"
+				>
+					<Icon icon={item.icon} />
+					<span className="sr-only">{t(item.title)}</span>
+				</Button>
+			))}
+		</nav>
 	);
 }
 
@@ -243,33 +249,28 @@ export function AppIconRail() {
 
 	return (
 		<>
-			<div className="relative hidden w-14 shrink-0 md:block">
-				<nav
-					aria-label={t("Primary")}
-					className={cn(
-						"group/rail absolute inset-y-0 left-0 z-30 flex flex-col gap-0.5 overflow-hidden border-r bg-background px-3 py-3 transition-[width] duration-200 ease-out motion-reduce:transition-none [view-transition-name:app-rail]",
-						RAIL_WIDTH,
-					)}
-				>
-					{groups.map((group, index) => (
-						<Fragment key={group.map((item) => item.href).join()}>
-							{index === groups.length - 1 ? (
-								<div className="flex-1" />
-							) : index > 0 ? (
-								<div className="my-2 h-px shrink-0 bg-border" />
-							) : null}
-							{group.map((item) => (
-								<RailLink
-									key={item.href}
-									item={item}
-									active={isActive(item, pathname)}
-									onPrefetch={() => prefetchSection(item.section)}
-								/>
-							))}
-						</Fragment>
-					))}
-				</nav>
-			</div>
+			<nav
+				aria-label={t("Primary")}
+				className="hidden w-14 shrink-0 flex-col items-center gap-0.5 border-r bg-background py-3 md:flex [view-transition-name:app-rail]"
+			>
+				{groups.map((group, index) => (
+					<Fragment key={group.map((item) => item.href).join()}>
+						{index === groups.length - 1 ? (
+							<div className="flex-1" />
+						) : index > 0 ? (
+							<div className="my-2 h-px w-5 shrink-0 bg-border" />
+						) : null}
+						{group.map((item) => (
+							<RailLink
+								key={item.href}
+								item={item}
+								active={isActive(item, pathname)}
+								onPrefetch={() => prefetchSection(item.section)}
+							/>
+						))}
+					</Fragment>
+				))}
+			</nav>
 
 			<Sheet open={open} onOpenChange={setOpen}>
 				{inChat ? (

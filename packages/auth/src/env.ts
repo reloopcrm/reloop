@@ -67,7 +67,7 @@ export const env = {
 	password: optional("PASSWORD_SIGN_IN") === "1",
 	cookieDomain: optional("AUTH_COOKIE_DOMAIN"),
 	trustedOrigins: [...new Set([...appUrls, apiUrl])],
-	isProduction: process.env.NODE_ENV === "production",
+	secureCookies: appUrl.startsWith("https://"),
 } as const;
 
 export function isGoogleConfigured(): boolean {

@@ -23,7 +23,7 @@ The script installs into `~/reloop/deploy`. Set `RELOOP_DIR` to choose another f
 
 ### What install.sh asks
 
-1. **Domain.** A name like `crm.example.com`, or Enter for `localhost`. With `localhost` the app opens at `http://localhost:3000`. Sign-in on plain http localhost does not work in Safari. For a local test use Chrome or Firefox, or use a real https domain.
+1. **Domain.** A name like `crm.example.com`, or Enter for `localhost`. With `localhost` the app opens at `http://localhost:3000`. Sign-in works there because the session cookie drops the `__Secure-` prefix on plain http. A real domain gets HTTPS and the secure cookie.
 2. **Existing reverse proxy.** Asked only for a domain. Answer "no" and the bundled Caddy gets a certificate and serves HTTPS on ports 80 and 443.
 3. **Owner email.** The first account. It is the only address in `ALLOWED_SIGN_IN`.
 4. **Owner password.** 12 to 128 characters. You type it twice. It is never written to disk.

@@ -1,4 +1,4 @@
-import { ActivityType } from "@crm/db";
+import { ActivityType, EmailDirection } from "@crm/db";
 import { activityMeta } from "@crm/validation/activity-meta";
 import { z } from "zod";
 
@@ -123,6 +123,13 @@ const activityEmailThreadOutput = z
 		id: z.string(),
 		messageCount: z.number(),
 		lastMessageAt: z.string(),
+		lastMessage: z
+			.object({
+				direction: z.enum(EmailDirection),
+				fromName: z.string().nullable(),
+				fromEmail: z.string(),
+			})
+			.nullable(),
 	})
 	.nullable();
 

@@ -17,7 +17,7 @@ import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { ActivityIcon } from "./activity-icon";
-import { EmailThreadEntry } from "./email-thread-entry";
+import { EmailThreadEntry, speaker } from "./email-thread-entry";
 import { MeetingEntry } from "./meeting-entry";
 import type { TimelineAnchor } from "./timeline";
 
@@ -78,11 +78,13 @@ export function TimelineEntry({
 				domain: String(entry.meta?.domain ?? ""),
 			})
 		: null;
-	const author = synced
+	const lastMessage = entry.emailThread?.lastMessage ?? null;
+	const author = lastMessage ? speaker(lastMessage, t) : entry.createdBy.name;
+	const hint = synced
 		? entry.emailThread
 			? t("via Gmail")
 			: t("via Calendar")
-		: entry.createdBy.name;
+		: null;
 
 	const headline = change
 		? `${t(dealStageLabel(change.from))} → ${t(dealStageLabel(change.to))}`
@@ -115,50 +117,59 @@ export function TimelineEntry({
 					/>
 				) : (
 					<span role="img" aria-label={t(activityLabel(entry.type))}>
-						<ActivityIcon type={entry.type} />
+						<ActivityIcon
+							type={entry.type}
+							direction={lastMessage?.direction}
+						/>
 					</span>
 				)}
 			</span>
 
 			<div className="flex min-w-0 flex-1 flex-col gap-1">
-				<div className="flex min-w-0 items-baseline gap-3">
-					<div className="min-w-0 flex-1 space-y-0.5">
-						{headline ? (
-							<p
-								className={cn(
-									"wrap-anywhere font-medium",
-									done && "text-muted-foreground line-through",
-								)}
-							>
-								{t(headline)}
-							</p>
+				<div className="flex min-w-0 items-baseline gap-2">
+					<span className="min-w-0 flex-1 truncate">
+						{author}
+						{hint ? (
+							<span className="hidden text-muted-foreground sm:inline">
+								{" "}
+								· {hint}
+							</span>
 						) : null}
-
-						{body ? (
-							<p
-								className={cn(
-									"whitespace-pre-wrap text-pretty wrap-anywhere",
-									headline && "text-muted-foreground",
-								)}
-							>
-								{body}
-							</p>
-						) : null}
-
-						{!headline && !body ? (
-							<p className="text-muted-foreground">
-								{t(activityLabel(entry.type))}
-							</p>
-						) : null}
-					</div>
-
-					<span className="shrink-0 text-muted-foreground">
-						<span className="hidden sm:inline">{author} · </span>
-						<span className="tabular-nums">
-							<LocalDateTime date={when} options={TIME_OPTIONS} />
-						</span>
+					</span>
+					<span className="shrink-0 text-muted-foreground tabular-nums">
+						<LocalDateTime date={when} options={TIME_OPTIONS} />
 					</span>
 				</div>
+
+				{headline ? (
+					<p
+						className={cn(
+							"wrap-anywhere font-medium",
+							done && "text-muted-foreground line-through",
+						)}
+					>
+						{t(headline)}
+					</p>
+				) : null}
+
+				{body ? (
+					<p
+						className={cn(
+							"text-pretty wrap-anywhere",
+							headline
+								? "line-clamp-2 text-muted-foreground"
+								: "whitespace-pre-wrap",
+						)}
+					>
+						{body}
+					</p>
+				) : null}
+
+				{!headline && !body ? (
+					<p className="text-muted-foreground">
+						{t(activityLabel(entry.type))}
+					</p>
+				) : null}
 
 				{entry.calendarEvent ? (
 					<MeetingEntry

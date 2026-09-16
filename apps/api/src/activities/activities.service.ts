@@ -46,6 +46,11 @@ const ENTRY_SELECT = {
 			id: true,
 			messageCount: true,
 			lastMessageAt: true,
+			messages: {
+				orderBy: { sentAt: "desc" },
+				take: 1,
+				select: { direction: true, fromName: true, fromEmail: true },
+			},
 		},
 	},
 	calendarEvent: {
@@ -291,6 +296,7 @@ function serializeEntry(entry: Entry) {
 					id: entry.emailThread.id,
 					messageCount: entry.emailThread.messageCount,
 					lastMessageAt: entry.emailThread.lastMessageAt.toISOString(),
+					lastMessage: entry.emailThread.messages[0] ?? null,
 				}
 			: null,
 

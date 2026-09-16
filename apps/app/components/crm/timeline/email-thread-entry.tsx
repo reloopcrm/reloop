@@ -31,7 +31,10 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 
 const LINE_MAX_CHARS = 180;
 
-function speaker(message: ThreadMessageData, t: Translate): string {
+export function speaker(
+	message: Pick<ThreadMessageData, "direction" | "fromName" | "fromEmail">,
+	t: Translate,
+): string {
 	if (message.direction === "OUTBOUND") return t("You");
 	const name = message.fromName?.trim();
 	return name && name.length > 0 ? name : message.fromEmail;

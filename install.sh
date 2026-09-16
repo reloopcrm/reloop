@@ -103,8 +103,11 @@ else
 	say "Reloop CRM installer"
 	say ""
 
-	ask "Domain for Reloop (for example crm.example.com), or press Enter for localhost: "
-	DOMAIN="${REPLY:-localhost}"
+	DOMAIN="${RELOOP_DOMAIN:-}"
+	if [ -z "$DOMAIN" ]; then
+		ask "Domain for Reloop (for example crm.example.com), or press Enter for localhost: "
+		DOMAIN="${REPLY:-localhost}"
+	fi
 	case "$DOMAIN" in
 		*[!A-Za-z0-9.-]* | "" | .* | *.) fail "\"$DOMAIN\" is not a domain name. Write it without http:// and without a path." ;;
 	esac
@@ -121,7 +124,12 @@ else
 		esac
 	fi
 
-	ask "Owner email address: "
+	if [ -n "${RELOOP_EMAIL:-}" ]; then
+		REPLY="$RELOOP_EMAIL"
+	else
+		say "Tip: on a German Mac keyboard @ is Option+L. If your terminal sends Option as Meta, paste the address instead of typing it."
+		ask "Owner email address: "
+	fi
 	EMAIL="$(printf '%s' "$REPLY" | tr '[:upper:]' '[:lower:]')"
 	case "$EMAIL" in
 		*[[:space:]]* | *@*@* | @* | *@) fail "\"$EMAIL\" is not an email address." ;;
@@ -129,16 +137,21 @@ else
 		*) fail "\"$EMAIL\" is not an email address." ;;
 	esac
 
-	trap restore_tty EXIT INT TERM
-	stty -echo < /dev/tty
-	ask "Owner password (12 to 128 characters): "
-	PASSWORD="$REPLY"
-	printf '\n' > /dev/tty
-	ask "Repeat the password: "
-	REPEAT="$REPLY"
-	printf '\n' > /dev/tty
-	restore_tty
-	trap - EXIT INT TERM
+	if [ -n "${RELOOP_PASSWORD:-}" ]; then
+		PASSWORD="$RELOOP_PASSWORD"
+		REPEAT="$RELOOP_PASSWORD"
+	else
+		trap restore_tty EXIT INT TERM
+		stty -echo < /dev/tty
+		ask "Owner password (12 to 128 characters): "
+		PASSWORD="$REPLY"
+		printf '\n' > /dev/tty
+		ask "Repeat the password: "
+		REPEAT="$REPLY"
+		printf '\n' > /dev/tty
+		restore_tty
+		trap - EXIT INT TERM
+	fi
 
 	[ "$PASSWORD" = "$REPEAT" ] || fail "The passwords do not match. Nothing was written."
 	LENGTH=${#PASSWORD}

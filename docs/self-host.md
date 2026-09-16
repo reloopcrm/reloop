@@ -37,6 +37,17 @@ The script then:
 
 Running the script again keeps an existing `deploy/.env`. It never replaces a secret and never touches the database volume.
 
+### Install without questions
+
+Set the answers as variables and the script asks nothing:
+
+```bash
+curl -fsSL https://reloopcrm.com/install.sh -o install.sh
+RELOOP_DOMAIN=crm.example.com RELOOP_EMAIL=you@example.com RELOOP_PASSWORD='a long password' sh install.sh
+```
+
+This also helps on a keyboard where `@` needs the Option key. Some terminals send Option as Meta, so a typed `@` arrives as `^[`.
+
 ### What runs
 
 | Service | Image | Purpose |

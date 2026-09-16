@@ -23,14 +23,18 @@ export default function GetStartedPage() {
 					lede="Run Reloop CRM on your own server today. A hosted version is on the way."
 				/>
 
-				<div className="grid gap-4 md:grid-cols-2">
-					<BentoCard className="gap-5">
+				<div className="grid gap-4 md:grid-cols-2 md:grid-rows-[auto_auto_auto]">
+					<BentoCard className="gap-5 md:row-span-3 md:grid md:grid-rows-subgrid">
 						<CardHeading
 							title="Self-host"
 							body="One command installs Reloop CRM with Docker. It asks for your domain and your email, then starts everything."
 						/>
 						<CopyCommand command={INSTALL_COMMAND} />
-						<Button variant="outline" asChild className="self-start">
+						<Button
+							variant="outline"
+							asChild
+							className="self-start md:justify-self-start"
+						>
 							<a href={REPO_URL} target="_blank" rel="noreferrer">
 								<GitHubLogo data-icon="inline-start" />
 								View on GitHub

@@ -10,11 +10,14 @@ import { Button } from "@crm/ui/components/button";
 import type { CarbonIcon } from "@crm/ui/components/icon";
 import { Loader } from "@crm/ui/components/loader";
 import { Spinner } from "@crm/ui/components/spinner";
+import { IndicatorDot } from "@crm/ui/components/status-indicator";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
+import { cleanSubject } from "@crm/ui/lib/email-text";
 import { cn } from "@crm/ui/lib/utils";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { DetailSheetEmpty, SECTION_TITLE } from "@/components/detail-sheet";
+import { LocalDateTime } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { dateFormat } from "@/lib/i18n/format";
 import type { Locale, Translate } from "@/lib/i18n/locale";
@@ -22,7 +25,14 @@ import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
 import { useHydrated } from "@/lib/use-hydrated";
 import { ActivityComposer } from "./activity-composer";
-import { TimelineEntry, type TimelineEntryData } from "./timeline-entry";
+import { EmailThreadBlock, speaker } from "./email-thread-entry";
+import { toBlocks } from "./timeline-blocks";
+import { TIMELINE } from "./timeline-config";
+import {
+	contactName,
+	TimelineEntry,
+	type TimelineEntryData,
+} from "./timeline-entry";
 import {
 	historyFilter,
 	TIMELINE_TABS,
@@ -85,29 +95,29 @@ const EMPTY_ICONS = {
 	done: Checkmark,
 } satisfies Record<TimelineTab, CarbonIcon>;
 
-const DAY_OPTIONS: Intl.DateTimeFormatOptions = {
-	weekday: "short",
-	month: "short",
-	day: "numeric",
-	year: "numeric",
-};
-
-function dayLabel(
-	day: string,
-	local: boolean,
-	t: Translate,
-	locale: Locale,
-): string {
+function dayHeading(day: string, local: boolean, t: Translate, locale: Locale) {
 	const now = new Date();
 	const today = dayKey(now.toISOString(), local);
 	const yesterdayDate = local
 		? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
 		: new Date(Date.now() - 86_400_000);
 	const yesterday = dayKey(yesterdayDate.toISOString(), local);
+	const date = new Date(`${day}T00:00:00`);
+	const sameYear = day.slice(0, 4) === today.slice(0, 4);
 
-	if (day === today) return t("Today");
-	if (day === yesterday) return t("Yesterday");
-	return dateFormat(locale, DAY_OPTIONS).format(new Date(`${day}T00:00:00`));
+	if (day === today || day === yesterday) {
+		return {
+			label: day === today ? t("Today") : t("Yesterday"),
+			sub: dateFormat(locale, TIMELINE.format.day).format(date),
+		};
+	}
+	return {
+		label: dateFormat(locale, TIMELINE.format.weekday).format(date),
+		sub: dateFormat(
+			locale,
+			sameYear ? TIMELINE.format.date : TIMELINE.format.dateWithYear,
+		).format(date),
+	};
 }
 
 function byDay(
@@ -118,7 +128,7 @@ function byDay(
 ) {
 	const groups = new Map<
 		string,
-		{ day: string; label: string; entries: TimelineEntryData[] }
+		{ day: string; label: string; sub: string; entries: TimelineEntryData[] }
 	>();
 
 	for (const entry of entries) {
@@ -130,13 +140,19 @@ function byDay(
 		} else {
 			groups.set(day, {
 				day,
-				label: dayLabel(day, local, t, locale),
+				...dayHeading(day, local, t, locale),
 				entries: [entry],
 			});
 		}
 	}
 
 	return [...groups.values()];
+}
+
+function isFuture(entry: TimelineEntryData, now: number): boolean {
+	return (
+		entry.occurredAt !== null && new Date(entry.occurredAt).getTime() > now
+	);
 }
 
 function dayKey(value: string, local: boolean): string {
@@ -151,24 +167,96 @@ function dayKey(value: string, local: boolean): string {
 
 function TimelineDay({
 	label,
+	sub,
 	entries,
 	anchor,
+	waitingId,
+	future = false,
 }: {
 	label: string;
+	sub: string;
 	entries: TimelineEntryData[];
 	anchor: TimelineAnchor;
+	waitingId: string | null;
+	future?: boolean;
 }) {
 	return (
-		<section>
-			<h3 className={cn("sticky top-0 z-10 bg-popover py-2", SECTION_TITLE)}>
+		<section className="pt-3">
+			<h3
+				className={cn(
+					"sticky top-0 z-10 flex items-baseline gap-2 bg-popover py-2",
+					SECTION_TITLE,
+				)}
+			>
 				{label}
+				<span className="font-normal text-faint-foreground normal-case tracking-normal">
+					{sub}
+				</span>
 			</h3>
-			<ul className="divide-y">
-				{entries.map((entry) => (
-					<TimelineEntry key={entry.id} entry={entry} anchor={anchor} />
-				))}
-			</ul>
+			<div
+				className={cn(
+					"relative flex flex-col gap-2 pb-1 before:absolute before:top-1 before:bottom-0 before:left-3 before:border-l before:border-border before:content-['']",
+					future && "before:border-border-strong before:border-dashed",
+				)}
+			>
+				{toBlocks(entries).map((block) =>
+					block.kind === "thread" ? (
+						<EmailThreadBlock
+							key={block.key}
+							entries={block.entries}
+							anchor={anchor}
+							waitingId={waitingId}
+						/>
+					) : (
+						<TimelineEntry
+							key={block.key}
+							entry={block.entry}
+							anchor={anchor}
+						/>
+					),
+				)}
+			</div>
 		</section>
+	);
+}
+
+function WaitingLine({ entry }: { entry: TimelineEntryData }) {
+	const t = useT();
+	const last = entry.emailThread?.lastMessage;
+	if (!last || !entry.emailThread) return null;
+
+	const inbound = last.direction === "INBOUND";
+	const name = inbound ? speaker(last, t) : contactName(entry.contact);
+	const at = entry.emailThread.lastMessageAt;
+	const subject = entry.subject ? cleanSubject(entry.subject) : "";
+	const replyTo = `mailto:${last.fromEmail}?subject=${encodeURIComponent(`Re: ${subject}`)}`;
+
+	return (
+		<div
+			role="status"
+			className="flex shrink-0 flex-wrap items-center gap-3 border-border-strong border-b px-5 py-3"
+		>
+			<IndicatorDot tone="neutral" aria-hidden="true" />
+			<p className="min-w-0 flex-1">
+				<span className="font-medium">
+					{inbound
+						? t("{name} is waiting for your reply.", { name: name ?? "" })
+						: name
+							? t("You are waiting for {name}.", { name })
+							: t("You are waiting for a reply.")}
+				</span>{" "}
+				<span className="text-muted-foreground">
+					{inbound ? t("Since") : t("Your last message was")}{" "}
+					<LocalDateTime date={at} options={TIMELINE.format.day} />,{" "}
+					<LocalDateTime date={at} options={TIMELINE.format.time} />.
+				</span>
+			</p>
+			{inbound ? (
+				<Button asChild size="sm">
+					<a href={replyTo}>{t("Reply")}</a>
+				</Button>
+			) : null}
+		</div>
 	);
 }
 
@@ -189,7 +277,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 		...trpc.activities.timeline.queryOptions({
 			...anchor,
 			filter: "upcoming",
-			limit: 10,
+			limit: TIMELINE.pinned.limit,
 		}),
 		enabled: tab === "all",
 	});
@@ -201,8 +289,19 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 		),
 	});
 
-	const entries = history.data?.pages.flatMap((page) => page.entries) ?? [];
-	const pinnedEntries = tab === "all" ? (pinned.data?.entries ?? []) : [];
+	const now = Date.now();
+	const loaded = history.data?.pages.flatMap((page) => page.entries) ?? [];
+	const entries = loaded.filter((entry) => !isFuture(entry, now));
+	const pinnedEntries = [
+		...(tab === "all" ? (pinned.data?.entries ?? []) : []),
+		...loaded.filter((entry) => isFuture(entry, now)).reverse(),
+	];
+	const newestEmail =
+		entries.find((entry) => entry.emailThread?.lastMessage) ?? null;
+	const waitingId =
+		newestEmail?.emailThread?.lastMessage?.direction === "INBOUND"
+			? newestEmail.id
+			: null;
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
@@ -231,6 +330,8 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 				</ToggleGroup>
 			</div>
 
+			{newestEmail ? <WaitingLine entry={newestEmail} /> : null}
+
 			{history.isPending ? (
 				<div className="flex min-h-0 flex-1 items-center justify-center">
 					<Loader />
@@ -242,12 +343,15 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					description={t(EMPTY_STATES[tab].description)}
 				/>
 			) : (
-				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-4">
+				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-5">
 					{pinnedEntries.length > 0 ? (
 						<TimelineDay
-							label={t("Outstanding")}
+							label={t("Upcoming")}
+							sub={String(pinnedEntries.length)}
 							entries={pinnedEntries}
 							anchor={anchor}
+							waitingId={null}
+							future
 						/>
 					) : null}
 
@@ -255,8 +359,10 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 						<TimelineDay
 							key={group.day}
 							label={group.label}
+							sub={group.sub}
 							entries={group.entries}
 							anchor={anchor}
+							waitingId={waitingId}
 						/>
 					))}
 
@@ -264,7 +370,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 						<Button
 							variant="outline"
 							size="sm"
-							className="mt-4 self-start"
+							className="mt-4 ml-8 self-start"
 							disabled={history.isFetchingNextPage}
 							onClick={() => history.fetchNextPage()}
 						>

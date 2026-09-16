@@ -8,18 +8,7 @@ import {
 } from "@/components/local-date-time";
 import { useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
-
-const RANGE_OPTIONS: Intl.DateTimeFormatOptions = {
-	month: "short",
-	day: "numeric",
-	hour: "numeric",
-	minute: "2-digit",
-};
-
-const DAY_OPTIONS: Intl.DateTimeFormatOptions = {
-	month: "short",
-	day: "numeric",
-};
+import { TIMELINE } from "./timeline-config";
 
 export function MeetingEntry({
 	eventId,
@@ -49,14 +38,14 @@ export function MeetingEntry({
 			<span className="text-muted-foreground text-xs">
 				{isAllDay ? (
 					<>
-						<LocalDateTime date={startsAt} options={DAY_OPTIONS} /> ·{" "}
+						<LocalDateTime date={startsAt} options={TIMELINE.format.date} /> ·{" "}
 						{t("All day")}
 					</>
 				) : (
 					<LocalDateTimeRange
 						start={startsAt}
 						end={endsAt}
-						options={RANGE_OPTIONS}
+						options={TIMELINE.format.range}
 					/>
 				)}
 			</span>

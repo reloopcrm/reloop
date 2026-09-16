@@ -228,6 +228,16 @@ export const winBack: Dictionary = {
 	"1 message": "1 Nachricht",
 	"{count} messages": "{count} Nachrichten",
 	"Open in {mailbox}": "In {mailbox} öffnen",
+	"{name} is waiting for your reply.": "{name} wartet auf deine Antwort.",
+	"You are waiting for {name}.": "Du wartest auf {name}.",
+	"You are waiting for a reply.": "Du wartest auf eine Antwort.",
+	Since: "Seit",
+	"Your last message was": "Deine letzte Nachricht war",
+	Reply: "Antworten",
+	"to you": "an dich",
+	"to {name}": "an {name}",
+	"Unanswered since": "Unbeantwortet seit",
+	"created by {name}": "angelegt von {name}",
 
 	"Still working on the last question. Your next one can go in when it finishes.":
 		"Arbeitet noch an der letzten Frage. Deine nächste kann rein, sobald sie fertig ist.",

@@ -28,13 +28,31 @@ const fontMono = JetBrains_Mono({
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
 
+	const description = `${BRAND.name}: ${t(BRAND.tagline)}`;
+
 	return {
 		...metadata,
-		description: `${BRAND.name}: ${t(BRAND.tagline)}`,
+		description,
+		openGraph: {
+			type: "website",
+			siteName: BRAND.name,
+			title: BRAND.name,
+			description,
+		},
+		twitter: {
+			card: "summary_large_image",
+			title: BRAND.name,
+			description,
+		},
 	};
 }
 
+const siteUrl = (process.env.APP_URL ?? "http://localhost:3000")
+	.split(",")[0]
+	?.trim();
+
 const metadata: Metadata = {
+	metadataBase: siteUrl ? new URL(siteUrl) : undefined,
 	title: {
 		default: BRAND.name,
 		template: `%s · ${BRAND.name}`,

@@ -4,9 +4,11 @@ import Checkmark from "@carbon/icons-react/es/Checkmark";
 import Copy from "@carbon/icons-react/es/Copy";
 import { Button } from "@crm/ui/components/button";
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { COPY_FEEDBACK_MS } from "./site";
 
 export function CopyCommand({ command }: { command: string }) {
+	const t = useT();
 	const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
 	async function copy() {
@@ -31,11 +33,11 @@ export function CopyCommand({ command }: { command: string }) {
 					) : (
 						<Copy data-icon="inline-start" />
 					)}
-					{state === "copied" ? "Copied" : "Copy command"}
+					{state === "copied" ? t("Copied") : t("Copy command")}
 				</Button>
 				{state === "failed" ? (
 					<p role="status" className="text-muted-foreground text-xs">
-						Copying failed. Select the command and copy it by hand.
+						{t("Copying failed. Select the command and copy it by hand.")}
 					</p>
 				) : null}
 			</div>

@@ -94,6 +94,15 @@ Settings > General offers German and the agent writes German. The app reads it o
 server (`apps/app/lib/i18n/server.ts`), the agent in `agent/lib/language.ts`. A missing
 German key falls back to English, so a new text needs no German translation.
 
+## `RELOOP_UPDATE_CHECK`, on by default
+
+`system.version` (`apps/api/src/system`) reports the version from the root
+`package.json` and asks `api.github.com` for the newest release, no token, a short
+timeout, one call per six hours per process. A failed call gives `latest: null`,
+retries after `SYSTEM.updateCheck.retryMs`, and keeps the last good answer. The
+literal `"false"` turns the call off; the procedure then answers `checkDisabled: true`
+and never reaches GitHub. Declared in `env.validation.ts` and the root `turbo.json`.
+
 ## Typed, validated env
 
 `apps/api/src/config/env.validation.ts` runs via `ConfigModule.forRoot({ validate })`,
@@ -116,6 +125,7 @@ single place that knows what is set.
 | `BLOB_READ_WRITE_TOKEN` | Mirrors logos and photos into Blob |
 | `AI_GATEWAY_API_KEY` | The model. Not needed on Vercel (OIDC) |
 | `AGENT_BRIDGE_SECRET` | The rep-facing Agent panel — see `agent.md` |
+| `CODEX_HOME` | Where the Codex login lives and where the agent downloads codex on the first ChatGPT sign-in. Defaults to `~/.codex` |
 
 `BLOB_READ_WRITE_TOKEN` is also in `env.validation.ts` and `apps/api/turbo.json`
 because the API and the seed write pictures too. The Next.js app is deliberately

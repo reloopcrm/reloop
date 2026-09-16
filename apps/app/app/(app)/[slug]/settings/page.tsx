@@ -22,6 +22,7 @@ import { Plan } from "./plan";
 import { ProfileForm } from "./profile-form";
 import { ResearchKey } from "./research-key";
 import { Spend } from "./spend";
+import { Version } from "./version";
 import { WorkspaceForm } from "./workspace-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -92,6 +93,7 @@ async function Settings() {
 				<fieldset disabled={!canManage} className="contents">
 					<AgentProvider />
 				</fieldset>
+				<Version />
 			</div>
 		</HydrateClient>
 	);

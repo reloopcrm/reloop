@@ -32,6 +32,7 @@ import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedVie
 import { businessProposalOutput, agentModelOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, passwordSignInOutput, setPasswordInput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
+import { versionOutput } from "../system/system.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { waitlistJoinInput } from "@crm/validation/waitlist";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
@@ -800,6 +801,11 @@ const appRouter = t.router({
       .input(deleteSsoProviderInput)
       .output(deleteSsoProviderOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  system: t.router({
+    version: publicProcedure
+      .output(versionOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   tracking: t.router({
     settings: publicProcedure

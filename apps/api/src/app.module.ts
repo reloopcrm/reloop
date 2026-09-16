@@ -34,6 +34,7 @@ import { SettingsModule } from "./settings/settings.module";
 import { SlackModule } from "./slack/slack.module";
 import { SsoModule } from "./sso/sso.module";
 import { SyncModule } from "./sync/sync.module";
+import { SystemModule } from "./system/system.module";
 import { TelemetryModule } from "./telemetry/telemetry.module";
 import { TrackingModule } from "./tracking/tracking.module";
 import { TrpcModule } from "./trpc/trpc.module";
@@ -74,6 +75,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		MicrosoftModule,
 		ImapModule,
 		SyncModule,
+		SystemModule,
 		SettingsModule,
 		WorkspaceModule,
 		SsoModule,

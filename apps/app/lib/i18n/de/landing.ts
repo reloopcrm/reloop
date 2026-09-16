@@ -140,4 +140,7 @@ export const landing: Dictionary = {
 	"Continue without a key": "Ohne Schlüssel weiter",
 	"Without a key the agent reads each company's own website for its name, logo, industry and contact details. A Context key adds LinkedIn profiles and cleaner logos, and costs credits per lookup.":
 		"Ohne Schlüssel liest der Agent die Webseite der Firma und holt sich Name, Logo, Branche und Kontaktdaten. Ein Context-Schlüssel bringt zusätzlich LinkedIn-Profile und sauberere Logos und kostet Guthaben je Abfrage.",
+	"Copy command": "Befehl kopieren",
+	"Copying failed. Select the command and copy it by hand.":
+		"Kopieren fehlgeschlagen. Markiere den Befehl und kopiere ihn von Hand.",
 };

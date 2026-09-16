@@ -245,4 +245,15 @@ export const settings: Dictionary = {
 	"Caps how many contacts the agent researches per hour. Empty means {count}.":
 		"Begrenzt, wie viele Kontakte der Agent pro Stunde recherchiert. Leer bedeutet {count}.",
 	"Bill the agent to this account": "Den Agenten über dieses Konto abrechnen",
+	"The release this install runs, and how to move to the next one.":
+		"Die Version, mit der diese Installation läuft, und wie du auf die nächste wechselst.",
+	"The version could not be read. Try again later.":
+		"Die Version konnte nicht gelesen werden. Versuche es später noch einmal.",
+	"Run it in the folder that holds deploy/.env.":
+		"Führe ihn in dem Ordner aus, der deploy/.env enthält.",
+	"Check turned off": "Prüfung ausgeschaltet",
+	"Could not check": "Prüfung nicht möglich",
+	"Update available: {version}": "Update verfügbar: {version}",
+	"Up to date": "Auf dem neuesten Stand",
+	"Release notes": "Versionshinweise",
 };

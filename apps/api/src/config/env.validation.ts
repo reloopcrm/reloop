@@ -146,6 +146,13 @@ export class EnvironmentVariables {
 	CRM_TELEMETRY_DISABLED?: string;
 
 	@IsOptional()
+	@IsIn(["true", "false"], {
+		message:
+			'RELOOP_UPDATE_CHECK takes "false" to stop the API asking GitHub for a newer release, and "true" or nothing to keep the check on.',
+	})
+	RELOOP_UPDATE_CHECK?: string;
+
+	@IsOptional()
 	@IsString()
 	VERCEL?: string;
 }

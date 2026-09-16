@@ -167,6 +167,15 @@ describe("proxy", () => {
 		);
 	});
 
+	it("lets a link preview read the share image without signing in", async () => {
+		marketing("true");
+
+		expect(redirectedTo(await proxy(request("/opengraph-image")))).toBeNull();
+		expect(
+			redirectedTo(await proxy(request("/opengraph-image?4f2a1b"))),
+		).toBeNull();
+	});
+
 	it("sends a stranger to sign in when the install has no landing page", async () => {
 		marketing(undefined);
 

@@ -16,7 +16,14 @@ const SIGN_IN_PATH = "/sign-in";
 
 const UNGATED = ["/grant-access", "/eve"];
 
-export const ANONYMOUS_PATHS = ["/t", "/open-source", "/get-started", "/docs"];
+export const ANONYMOUS_PATHS = [
+	"/t",
+	"/open-source",
+	"/get-started",
+	"/docs",
+	"/opengraph-image",
+	"/twitter-image",
+];
 
 const SECTIONS = [
 	"/companies",

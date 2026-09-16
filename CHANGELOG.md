@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/reloopcrm/reloop/compare/v0.4.1...v0.5.0) (2026-09-16)
+
+
+### Features
+
+* **demo:** let the app show itself ([91990c1](https://github.com/reloopcrm/reloop/commit/91990c16f5291ac82108f9d28d561e52bd30b27d))
+* **demo:** seed a believable workspace for screenshots ([653fd39](https://github.com/reloopcrm/reloop/commit/653fd39da8bec12a9da657df43393493ef278b7b))
+
 ## [0.4.1](https://github.com/reloopcrm/reloop/compare/v0.4.0...v0.4.1) (2026-09-16)
 
 

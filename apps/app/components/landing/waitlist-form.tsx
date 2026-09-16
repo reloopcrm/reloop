@@ -1,12 +1,7 @@
 "use client";
 
 import { Button } from "@crm/ui/components/button";
-import {
-	Field,
-	FieldDescription,
-	FieldError,
-	FieldLabel,
-} from "@crm/ui/components/field";
+import { Field, FieldDescription, FieldError } from "@crm/ui/components/field";
 import { Input } from "@crm/ui/components/input";
 import { Spinner } from "@crm/ui/components/spinner";
 import { useMutation } from "@tanstack/react-query";
@@ -35,12 +30,14 @@ export function WaitlistForm() {
 			}}
 		>
 			<Field data-invalid={join.isError || undefined}>
-				<FieldLabel htmlFor={id}>Email</FieldLabel>
 				<Input
 					id={id}
 					type="email"
+					size="lg"
 					required
 					autoComplete="email"
+					placeholder="you@company.com"
+					aria-label="Email"
 					value={email}
 					onChange={(event) => setEmail(event.target.value)}
 					aria-invalid={join.isError || undefined}

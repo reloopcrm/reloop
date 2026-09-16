@@ -30,6 +30,7 @@ it("rebuilds and restarts after API and shared package changes", async () => {
 		cwd: api,
 		stdout: "pipe",
 		stderr: "pipe",
+		env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
 	});
 	let output = "";
 	const read = async (stream: ReadableStream<Uint8Array>) => {

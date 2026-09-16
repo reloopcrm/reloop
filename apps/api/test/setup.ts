@@ -6,6 +6,7 @@ const test = process.env.TEST_DATABASE_URL;
 if (test) process.env.DATABASE_URL = test;
 
 process.env.PASSWORD_SIGN_IN = "1";
+process.env.ALLOWED_SIGN_IN = "example.com";
 
 afterAll(async () => {
 	if (!process.env.DATABASE_URL) return;

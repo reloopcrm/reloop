@@ -236,4 +236,15 @@ export const settings: Dictionary = {
 	"{minutes}-minute window": "Fenster über {minutes} Minuten",
 	unknown: "unbekannt",
 	"{percent} % used": "{percent} % verbraucht",
+	"The account every model call is billed to.":
+		"Das Konto, über das jeder Modellaufruf abgerechnet wird.",
+	"Billed to AI_GATEWAY_API_KEY in the root .env file.":
+		"Wird über AI_GATEWAY_API_KEY in der .env-Datei im Hauptordner abgerechnet.",
+	"No AI_GATEWAY_API_KEY in the root .env file yet.":
+		"In der .env-Datei im Hauptordner steht noch kein AI_GATEWAY_API_KEY.",
+	"More settings": "Mehr Einstellungen",
+	"Experimental. OpenAI can withdraw it.":
+		"Experimentell. OpenAI kann es abschalten.",
+	"Caps how many contacts the agent researches per hour. Empty means {count}.":
+		"Begrenzt, wie viele Kontakte der Agent pro Stunde recherchiert. Leer bedeutet {count}.",
 };

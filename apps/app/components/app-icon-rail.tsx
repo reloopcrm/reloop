@@ -17,15 +17,10 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@crm/ui/components/sheet";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@crm/ui/components/tooltip";
 import { cn } from "@crm/ui/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-sidebar";
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
 import { useMobileNav } from "@/components/mobile-nav";
@@ -41,27 +36,35 @@ type RailItem = {
 	related?: string[];
 };
 
-const ITEMS: RailItem[] = [
-	{ title: "Overview", href: "/", icon: Dashboard, match: "exact" },
-	{
-		title: "Chat",
-		href: "/chat",
-		icon: Bot,
-		iconClassName: "size-5",
-		match: "prefix",
-		related: ["/agents"],
-	},
-	{ title: "Companies", href: "/companies", icon: Building, match: "prefix" },
-	{
-		title: "Contacts",
-		href: "/contacts",
-		icon: UserMultiple,
-		match: "prefix",
-	},
-	{ title: "Deals", href: "/deals", icon: Partnership, match: "prefix" },
-	{ title: "Win back", href: "/win-back", icon: Renew, match: "prefix" },
-	{ title: "Settings", href: "/settings", icon: Settings, match: "prefix" },
+const GROUPS: RailItem[][] = [
+	[
+		{ title: "Overview", href: "/", icon: Dashboard, match: "exact" },
+		{
+			title: "Chat",
+			href: "/chat",
+			icon: Bot,
+			iconClassName: "size-5",
+			match: "prefix",
+			related: ["/agents"],
+		},
+	],
+	[
+		{ title: "Companies", href: "/companies", icon: Building, match: "prefix" },
+		{
+			title: "Contacts",
+			href: "/contacts",
+			icon: UserMultiple,
+			match: "prefix",
+		},
+		{ title: "Deals", href: "/deals", icon: Partnership, match: "prefix" },
+	],
+	[{ title: "Win back", href: "/win-back", icon: Renew, match: "prefix" }],
+	[{ title: "Settings", href: "/settings", icon: Settings, match: "prefix" }],
 ];
+
+const ITEMS: RailItem[] = GROUPS.flat();
+
+const RAIL_WIDTH = "w-14 group-hover/rail:w-52 group-focus-within/rail:w-52";
 
 function isActive(item: RailItem, pathname: string): boolean {
 	return (
@@ -82,33 +85,34 @@ function RailLink({
 }) {
 	const t = useT();
 	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<Button
-					asChild
-					variant="ghost"
-					size="icon"
-					className={cn(
-						"text-muted-foreground",
-						active &&
-							"bg-muted text-foreground hover:bg-muted hover:text-foreground",
-					)}
-				>
-					<Link
-						href={item.href}
-						prefetch
-						onMouseEnter={onPrefetch}
-						onFocus={onPrefetch}
-						aria-current={active ? "page" : undefined}
-						transitionTypes={["nav-lateral"]}
-					>
-						<Icon icon={item.icon} className={item.iconClassName} />
-						<span className="sr-only">{t(item.title)}</span>
-					</Link>
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent side="right">{t(item.title)}</TooltipContent>
-		</Tooltip>
+		<Button
+			asChild
+			variant="ghost"
+			className={cn(
+				"relative h-8 w-full shrink-0 justify-start gap-3 px-2 text-muted-foreground",
+				active && "text-foreground hover:text-foreground",
+			)}
+		>
+			<Link
+				href={item.href}
+				prefetch
+				onMouseEnter={onPrefetch}
+				onFocus={onPrefetch}
+				aria-current={active ? "page" : undefined}
+				transitionTypes={["nav-lateral"]}
+			>
+				{active ? (
+					<span
+						aria-hidden="true"
+						className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary"
+					/>
+				) : null}
+				<Icon icon={item.icon} className={item.iconClassName} />
+				<span className="truncate opacity-0 transition-opacity duration-150 group-focus-within/rail:opacity-100 group-hover/rail:opacity-100 motion-reduce:transition-none">
+					{t(item.title)}
+				</span>
+			</Link>
+		</Button>
 	);
 }
 
@@ -193,24 +197,25 @@ function MobileRailIconLink({
 export function AppIconRailFallback() {
 	const t = useT();
 	return (
-		<nav
-			aria-label={t("Primary")}
-			aria-busy="true"
-			className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r bg-background py-3 md:flex [view-transition-name:app-rail]"
-		>
-			{ITEMS.map((item) => (
-				<Button
-					key={item.href}
-					variant="ghost"
-					size="icon"
-					disabled
-					className="text-muted-foreground"
-				>
-					<Icon icon={item.icon} className={item.iconClassName} />
-					<span className="sr-only">{t(item.title)}</span>
-				</Button>
-			))}
-		</nav>
+		<div className="relative hidden w-14 shrink-0 md:block">
+			<nav
+				aria-label={t("Primary")}
+				aria-busy="true"
+				className="absolute inset-y-0 left-0 flex w-14 flex-col gap-0.5 overflow-hidden border-r bg-background px-3 py-3 [view-transition-name:app-rail]"
+			>
+				{ITEMS.map((item) => (
+					<Button
+						key={item.href}
+						variant="ghost"
+						disabled
+						className="h-8 w-full shrink-0 justify-start gap-3 px-2 text-muted-foreground"
+					>
+						<Icon icon={item.icon} className={item.iconClassName} />
+						<span className="sr-only">{t(item.title)}</span>
+					</Button>
+				))}
+			</nav>
+		</div>
 	);
 }
 
@@ -221,35 +226,52 @@ export function AppIconRail() {
 	const prefetchSection = usePrefetchSection();
 	const t = useT();
 
-	const items = useMemo(
+	const groups = useMemo(
 		() =>
-			ITEMS.map((item) => ({
-				...item,
-				section: item.href,
-				href: workspaceUrl(item.href),
-				related: item.related?.map((path) => workspaceUrl(path)),
-			})),
+			GROUPS.map((group) =>
+				group.map((item) => ({
+					...item,
+					section: item.href,
+					href: workspaceUrl(item.href),
+					related: item.related?.map((path) => workspaceUrl(path)),
+				})),
+			),
 		[workspaceUrl],
 	);
+	const items = useMemo(() => groups.flat(), [groups]);
 	const inChat = items.some(
 		(item) => item.title === "Chat" && isActive(item, pathname),
 	);
 
 	return (
 		<>
-			<nav
-				aria-label={t("Primary")}
-				className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r bg-background py-3 md:flex [view-transition-name:app-rail]"
-			>
-				{items.map((item) => (
-					<RailLink
-						key={item.href}
-						item={item}
-						active={isActive(item, pathname)}
-						onPrefetch={() => prefetchSection(item.section)}
-					/>
-				))}
-			</nav>
+			<div className="relative hidden w-14 shrink-0 md:block">
+				<nav
+					aria-label={t("Primary")}
+					className={cn(
+						"group/rail absolute inset-y-0 left-0 z-30 flex flex-col gap-0.5 overflow-hidden border-r bg-background px-3 py-3 transition-[width] duration-200 ease-out motion-reduce:transition-none [view-transition-name:app-rail]",
+						RAIL_WIDTH,
+					)}
+				>
+					{groups.map((group, index) => (
+						<Fragment key={group.map((item) => item.href).join()}>
+							{index === groups.length - 1 ? (
+								<div className="flex-1" />
+							) : index > 0 ? (
+								<div className="my-2 h-px shrink-0 bg-border" />
+							) : null}
+							{group.map((item) => (
+								<RailLink
+									key={item.href}
+									item={item}
+									active={isActive(item, pathname)}
+									onPrefetch={() => prefetchSection(item.section)}
+								/>
+							))}
+						</Fragment>
+					))}
+				</nav>
+			</div>
 
 			<Sheet open={open} onOpenChange={setOpen}>
 				{inChat ? (

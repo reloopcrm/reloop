@@ -97,7 +97,7 @@ if [ -f "$ENV_FILE" ]; then
 	say "Found $ENV_FILE. Existing secrets and settings stay as they are."
 else
 	if docker volume inspect reloop_postgres-data > /dev/null 2>&1; then
-		fail "A Reloop database volume exists, but $ENV_FILE is missing. Restore that file from your backup. A new password cannot open the existing database."
+		fail "A Reloop database volume exists on this machine, but $ENV_FILE is missing. Run this script in the folder of that installation, or restore $ENV_FILE from your backup. A new password cannot open the existing database."
 	fi
 
 	say "Reloop CRM installer"

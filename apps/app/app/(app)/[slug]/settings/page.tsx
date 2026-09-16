@@ -11,6 +11,7 @@ import {
 	PageShellTitle,
 } from "@/components/page-shell";
 import { germanOffered, getT } from "@/lib/i18n/server";
+import { plansOffered } from "@/lib/operator";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -83,9 +84,11 @@ async function Settings() {
 					<ResearchKey />
 				</fieldset>
 				<PasswordSignIn />
-				<fieldset disabled className="contents">
-					<Plan />
-				</fieldset>
+				{plansOffered() ? (
+					<fieldset disabled className="contents">
+						<Plan />
+					</fieldset>
+				) : null}
 				<Spend />
 				<fieldset disabled={!canManage} className="contents">
 					<ArchiveRetention />

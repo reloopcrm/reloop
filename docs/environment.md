@@ -97,6 +97,12 @@ list fails closed.** Parsed on demand. `packages/auth/src/workspace.ts`.
 - **`isMarketing()` (`apps/app/lib/env.ts`) reads per request**, so a config change
   needs no rebuild. Declared in `apps/app/turbo.json` `passThroughEnv`.
 
+## `RELOOP_PLANS`, off by default
+
+The Plan card in Settings names the limits of a hosted plan. A self-hosted
+install has none, so the card only renders when `RELOOP_PLANS` is the literal
+`"true"`. The operator of a hosted install sets it; nobody else does.
+
 ## `RELOOP_GERMAN`, off by default
 
 English is the only language unless `RELOOP_GERMAN` is the literal `"true"`. Then

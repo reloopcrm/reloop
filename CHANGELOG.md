@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/reloopcrm/reloop/compare/v0.2.0...v0.3.0) (2026-09-16)
+
+
+### Features
+
+* **agent:** fetch codex on first use ([1e916ec](https://github.com/reloopcrm/reloop/commit/1e916ec99069ce6cadc246a064520a16da3f19ca))
+* **settings:** show the version and the update command ([8ae90cd](https://github.com/reloopcrm/reloop/commit/8ae90cd45181a06e286441f43af58adf80b30bee))
+
+
+### Fixes
+
+* **landing:** line the two get-started cards up row by row ([5fa59b8](https://github.com/reloopcrm/reloop/commit/5fa59b89c7c58ae1f9250e5e823482ab9ed45cb7))
+
 ## [0.2.0](https://github.com/reloopcrm/reloop/compare/v0.1.0...v0.2.0) (2026-09-16)
 
 

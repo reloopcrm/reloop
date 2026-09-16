@@ -228,6 +228,7 @@
 	--color-sidebar-ring: var(--sidebar-ring);
 
 	--animate-spinner-trace: spinner-trace 1.4s linear infinite;
+	--animate-loader-sweep: loader-sweep 1.6s linear infinite;
 
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);
@@ -405,6 +406,14 @@
 @keyframes spinner-trace {
 	to {
 		stroke-dashoffset: -100;
+	}
+}
+@keyframes loader-sweep {
+	from {
+		transform: translateX(-440px);
+	}
+	to {
+		transform: translateX(1000px);
 	}
 }
 @keyframes cds-wiggle {

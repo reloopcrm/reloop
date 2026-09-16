@@ -1,7 +1,7 @@
 "use client";
 
+import { Loader } from "@crm/ui/components/loader";
 import { Skeleton } from "@crm/ui/components/skeleton";
-import { Spinner } from "@crm/ui/components/spinner";
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
 import { useT } from "@/lib/i18n/client";
@@ -135,7 +135,7 @@ function PageShellContent({
 function PageShellLoading() {
 	return (
 		<div aria-busy="true" className="flex justify-center py-12">
-			<Spinner size="lg" />
+			<Loader size="lg" />
 		</div>
 	);
 }

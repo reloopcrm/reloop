@@ -128,6 +128,7 @@ const activityEmailThreadOutput = z
 				direction: z.enum(EmailDirection),
 				fromName: z.string().nullable(),
 				fromEmail: z.string(),
+				source: z.enum(["GMAIL", "OUTLOOK", "IMAP"]).nullable(),
 			})
 			.nullable(),
 	})

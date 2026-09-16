@@ -30,3 +30,15 @@ export function activityLabel(type: ActivityType): string {
 export function activityIcon(type: ActivityType): CarbonIcon {
 	return PRESENTATION[type].icon;
 }
+
+export type MailSource = "GMAIL" | "OUTLOOK" | "IMAP";
+
+const MAIL_SOURCE_LABELS: Record<MailSource, string> = {
+	GMAIL: "via Gmail",
+	OUTLOOK: "via Outlook",
+	IMAP: "via IMAP",
+};
+
+export function mailSourceLabel(source: MailSource | null): string | null {
+	return source ? MAIL_SOURCE_LABELS[source] : null;
+}

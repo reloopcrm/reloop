@@ -49,7 +49,14 @@ const ENTRY_SELECT = {
 			messages: {
 				orderBy: { sentAt: "desc" },
 				take: 1,
-				select: { direction: true, fromName: true, fromEmail: true },
+				select: {
+					direction: true,
+					fromName: true,
+					fromEmail: true,
+					gmailMessageId: true,
+					outlookMessageId: true,
+					imapAccountId: true,
+				},
 			},
 		},
 	},
@@ -282,6 +289,25 @@ function filterClause(filter: TimelineFilter): Prisma.ActivityWhereInput {
 
 type Entry = Prisma.ActivityGetPayload<{ select: typeof ENTRY_SELECT }>;
 
+type ThreadMessage = NonNullable<Entry["emailThread"]>["messages"][number];
+
+function mailSource(message: ThreadMessage) {
+	if (message.gmailMessageId) return "GMAIL" as const;
+	if (message.outlookMessageId) return "OUTLOOK" as const;
+	if (message.imapAccountId) return "IMAP" as const;
+	return null;
+}
+
+function lastMessage(message: ThreadMessage | undefined) {
+	if (!message) return null;
+	return {
+		direction: message.direction,
+		fromName: message.fromName,
+		fromEmail: message.fromEmail,
+		source: mailSource(message),
+	};
+}
+
 function serializeEntry(entry: Entry) {
 	return {
 		...entry,
@@ -296,7 +322,7 @@ function serializeEntry(entry: Entry) {
 					id: entry.emailThread.id,
 					messageCount: entry.emailThread.messageCount,
 					lastMessageAt: entry.emailThread.lastMessageAt.toISOString(),
-					lastMessage: entry.emailThread.messages[0] ?? null,
+					lastMessage: lastMessage(entry.emailThread.messages[0]),
 				}
 			: null,
 

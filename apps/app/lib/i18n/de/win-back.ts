@@ -198,6 +198,8 @@ export const winBack: Dictionary = {
 	Outstanding: "Offen",
 	"Show older": "Ältere anzeigen",
 	"via Gmail": "über Gmail",
+	"via IMAP": "über IMAP",
+	"via Outlook": "über Outlook",
 	"via Calendar": "über Kalender",
 	"Mark as not done": "Als nicht erledigt markieren",
 	"Mark as done": "Als erledigt markieren",

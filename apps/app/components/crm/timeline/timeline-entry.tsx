@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
-import { activityLabel } from "@/lib/activity-presentation";
+import { activityLabel, mailSourceLabel } from "@/lib/activity-presentation";
 import { dealStageLabel } from "@/lib/deal-stage";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
@@ -80,9 +80,10 @@ export function TimelineEntry({
 		: null;
 	const lastMessage = entry.emailThread?.lastMessage ?? null;
 	const author = lastMessage ? speaker(lastMessage, t) : entry.createdBy.name;
+	const source = lastMessage ? mailSourceLabel(lastMessage.source) : null;
 	const hint = synced
 		? entry.emailThread
-			? t("via Gmail")
+			? source && t(source)
 			: t("via Calendar")
 		: null;
 

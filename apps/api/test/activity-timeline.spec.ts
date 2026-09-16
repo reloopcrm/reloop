@@ -54,6 +54,7 @@ beforeAll(async () => {
 					{
 						rfcMessageId: `<in-${suffix}@${domain}>`,
 						direction: EmailDirection.INBOUND,
+						imapAccountId: `imap-${suffix}`,
 						fromEmail: buyer,
 						fromName: "A Buyer",
 						recipients: [],
@@ -94,6 +95,7 @@ describe("timeline email threads", () => {
 				direction: EmailDirection.INBOUND,
 				fromName: "A Buyer",
 				fromEmail: buyer,
+				source: "IMAP",
 			},
 		});
 	});

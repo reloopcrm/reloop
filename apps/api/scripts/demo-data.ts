@@ -26,9 +26,18 @@ export const DEMO = {
 	modelId: "demo-data",
 	snippetChars: 120,
 	message: { gapDays: 1.4, firstHour: 9, hourStep: 3 },
+	showcase: { contact: "nordkap-1", taskDueInDays: 3 },
 } as const;
 
-type ThreadKind = "inquiry" | "deal" | "followup" | "customs";
+type ThreadKind =
+	| "inquiry"
+	| "deal"
+	| "followup"
+	| "customs"
+	| "delivery"
+	| "invoice"
+	| "claim"
+	| "meeting";
 
 type Person = { first: string; last: string; title: string };
 
@@ -49,7 +58,7 @@ type ThreadSpec = {
 	qty: number | null;
 	ref: string;
 	endDaysAgo: number;
-	endsInbound: boolean;
+	take: number;
 };
 
 type Memory = {
@@ -381,33 +390,73 @@ const CANDIDATES: Candidate[] = [
 				product: "Stretch film",
 				qty: 24,
 				ref: "PO 48117",
-				endDaysAgo: 6,
-				endsInbound: true,
+				endDaysAgo: 2,
+				take: 3,
 			},
 			{
-				kind: "deal",
+				kind: "delivery",
+				product: "Stretch film",
+				qty: null,
+				ref: "SHP 21044",
+				endDaysAgo: 9,
+				take: 3,
+			},
+			{
+				kind: "claim",
 				product: "Edge protectors",
-				qty: 8,
-				ref: "PO 47902",
-				endDaysAgo: 41,
-				endsInbound: false,
+				qty: null,
+				ref: "SHP 20988",
+				endDaysAgo: 21,
+				take: 4,
+			},
+			{
+				kind: "invoice",
+				product: "Edge protectors",
+				qty: null,
+				ref: "INV 2026-1187",
+				endDaysAgo: 38,
+				take: 4,
+			},
+			{
+				kind: "meeting",
+				product: "Stretch film",
+				qty: null,
+				ref: "Q4 review",
+				endDaysAgo: 52,
+				take: 2,
 			},
 			{
 				kind: "inquiry",
 				product: "Pallet wrap",
 				qty: 40,
 				ref: "RFQ 1180",
-				endDaysAgo: 88,
-				endsInbound: false,
+				endDaysAgo: 74,
+				take: 4,
+			},
+			{
+				kind: "deal",
+				product: "Edge protectors",
+				qty: 8,
+				ref: "PO 47902",
+				endDaysAgo: 95,
+				take: 4,
+			},
+			{
+				kind: "deal",
+				product: "Strapping tape",
+				qty: 6,
+				ref: "PO 47655",
+				endDaysAgo: 118,
+				take: 3,
 			},
 		],
 		memory: {
 			summary:
-				"Two orders placed this year, stretch film and edge protectors. They call off every quarter and ask for a fixed price.",
-			didBusiness: 2,
-			openInquiries: 0,
+				"Three orders this year: stretch film, edge protectors and strapping tape. One claim about damaged pallets, settled with a replacement. Asks for a fixed price list for next year and calls off every quarter.",
+			didBusiness: 3,
+			openInquiries: 1,
 			maxPallets: 40,
-			products: ["Stretch film", "Edge protectors"],
+			products: ["Stretch film", "Edge protectors", "Strapping tape"],
 			lastOutcome: "DEAL_DONE",
 		},
 	},
@@ -420,7 +469,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "SHP 20931",
 				endDaysAgo: 8,
-				endsInbound: true,
+				take: 3,
 			},
 		],
 		memory: {
@@ -442,7 +491,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 24,
 				ref: "OFR 2207",
 				endDaysAgo: 19,
-				endsInbound: true,
+				take: 2,
 			},
 		],
 		memory: {
@@ -464,7 +513,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 700,
 				ref: "RFQ 1233",
 				endDaysAgo: 12,
-				endsInbound: true,
+				take: 3,
 			},
 			{
 				kind: "followup",
@@ -472,7 +521,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 120,
 				ref: "OFR 2190",
 				endDaysAgo: 64,
-				endsInbound: true,
+				take: 2,
 			},
 		],
 		memory: {
@@ -494,7 +543,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 700,
 				ref: "OFR 2241",
 				endDaysAgo: 14,
-				endsInbound: false,
+				take: 3,
 			},
 		],
 		memory: {
@@ -516,7 +565,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "RFQ 1204",
 				endDaysAgo: 25,
-				endsInbound: true,
+				take: 3,
 			},
 			{
 				kind: "inquiry",
@@ -524,7 +573,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "RFQ 1187",
 				endDaysAgo: 58,
-				endsInbound: true,
+				take: 3,
 			},
 		],
 		memory: {
@@ -546,7 +595,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 18,
 				ref: "PO 47710",
 				endDaysAgo: 40,
-				endsInbound: true,
+				take: 3,
 			},
 			{
 				kind: "inquiry",
@@ -554,7 +603,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 12,
 				ref: "RFQ 1150",
 				endDaysAgo: 102,
-				endsInbound: false,
+				take: 4,
 			},
 		],
 		memory: {
@@ -576,7 +625,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "SHP 20744",
 				endDaysAgo: 44,
-				endsInbound: false,
+				take: 4,
 			},
 		],
 		memory: {
@@ -597,7 +646,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "OFR 2102",
 				endDaysAgo: 70,
-				endsInbound: true,
+				take: 2,
 			},
 		],
 		memory: {
@@ -619,7 +668,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 1200,
 				ref: "RFQ 1228",
 				endDaysAgo: 18,
-				endsInbound: false,
+				take: 4,
 			},
 			{
 				kind: "deal",
@@ -627,7 +676,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 600,
 				ref: "PO 47588",
 				endDaysAgo: 121,
-				endsInbound: true,
+				take: 3,
 			},
 		],
 		memory: {
@@ -649,7 +698,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "RFQ 1211",
 				endDaysAgo: 55,
-				endsInbound: true,
+				take: 3,
 			},
 			{
 				kind: "followup",
@@ -657,7 +706,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "OFR 2160",
 				endDaysAgo: 83,
-				endsInbound: true,
+				take: 2,
 			},
 		],
 		memory: {
@@ -679,7 +728,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "OFR 2088",
 				endDaysAgo: 95,
-				endsInbound: false,
+				take: 3,
 			},
 		],
 		memory: {
@@ -700,7 +749,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 350,
 				ref: "RFQ 1219",
 				endDaysAgo: 33,
-				endsInbound: false,
+				take: 4,
 			},
 		],
 		memory: {
@@ -722,7 +771,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "RFQ 1132",
 				endDaysAgo: 120,
-				endsInbound: true,
+				take: 3,
 			},
 		],
 		memory: {
@@ -744,7 +793,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 260,
 				ref: "PO 48090",
 				endDaysAgo: 9,
-				endsInbound: true,
+				take: 3,
 			},
 			{
 				kind: "inquiry",
@@ -752,7 +801,7 @@ const CANDIDATES: Candidate[] = [
 				qty: 80,
 				ref: "RFQ 1240",
 				endDaysAgo: 15,
-				endsInbound: true,
+				take: 3,
 			},
 		],
 		memory: {
@@ -774,7 +823,7 @@ const CANDIDATES: Candidate[] = [
 				qty: null,
 				ref: "OFR 2051",
 				endDaysAgo: 150,
-				endsInbound: true,
+				take: 2,
 			},
 		],
 		memory: {
@@ -1054,7 +1103,141 @@ const THREADS = {
 			},
 		],
 	},
+	delivery: {
+		subject: (v) => `Delivery note for shipment ${v.ref}`,
+		outcome: "OTHER",
+		lines: [
+			{
+				direction: EmailDirection.INBOUND,
+				text: (v) =>
+					`Hello ${v.owner}, the delivery note for shipment ${v.ref} lists 22 pallets but the truck delivered 24. Can you send a corrected note so we can book the goods in?`,
+			},
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: (v) =>
+					`Hi ${v.contact}, sorry about that. The corrected delivery note with 24 pallets of ${v.product.toLowerCase()} is attached.`,
+			},
+			{
+				direction: EmailDirection.INBOUND,
+				text: () =>
+					`Received, the goods are booked in. Thanks for the quick fix.`,
+			},
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: () =>
+					`Glad it is sorted. The next delivery gets a double check before dispatch.`,
+			},
+		],
+	},
+	invoice: {
+		subject: (v) => `Invoice ${v.ref}`,
+		outcome: "OTHER",
+		lines: [
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: (v) =>
+					`Hi ${v.contact}, invoice ${v.ref} for the last ${v.product.toLowerCase()} delivery is attached. Payment terms are 30 days as agreed.`,
+			},
+			{
+				direction: EmailDirection.INBOUND,
+				text: (v) =>
+					`Thanks ${v.owner}. Accounting needs our purchase order number on the invoice before they can release it.`,
+			},
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: () =>
+					`Understood, the corrected invoice with your order number is attached.`,
+			},
+			{
+				direction: EmailDirection.INBOUND,
+				text: () => `Perfect, it is approved for payment on the next run.`,
+			},
+		],
+	},
+	claim: {
+		subject: (v) => `Claim: damaged pallets in shipment ${v.ref}`,
+		outcome: "OTHER",
+		lines: [
+			{
+				direction: EmailDirection.INBOUND,
+				text: (v) =>
+					`Hello ${v.owner}, 12 pallets of ${v.product.toLowerCase()} from shipment ${v.ref} arrived with torn wrapping and crushed corners. Photos are attached. How do we proceed?`,
+			},
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: (v) =>
+					`Hi ${v.contact}, sorry to see that. We can send a credit note or replace the 12 pallets next week. Which do you prefer?`,
+			},
+			{
+				direction: EmailDirection.INBOUND,
+				text: (v) =>
+					`Replacement please, we need the stock for the ${v.city} site.`,
+			},
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: () =>
+					`Done, the 12 replacement pallets ship on Monday at no charge.`,
+			},
+		],
+	},
+	meeting: {
+		subject: (v) => `Meeting request: ${v.ref}`,
+		outcome: "OTHER",
+		lines: [
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: (v) =>
+					`Hi ${v.contact}, could we meet in ${v.city} in the coming weeks for a review of the Q4 volumes and the price list for next year?`,
+			},
+			{
+				direction: EmailDirection.INBOUND,
+				text: (v) =>
+					`Hi ${v.owner}, Tuesday at 10:00 works for us. Come to the main office, I will book the meeting room.`,
+			},
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: () =>
+					`Tuesday 10:00 is confirmed. I will bring the volume overview and the draft price list.`,
+			},
+		],
+	},
 } satisfies Record<ThreadKind, ThreadTemplate>;
+
+type Note = {
+	key: string;
+	type: ActivityType;
+	subject: string;
+	body: string;
+	daysAgo: number | null;
+	dueInDays: number | null;
+};
+
+const SHOWCASE_NOTES: Note[] = [
+	{
+		key: "note",
+		type: ActivityType.NOTE,
+		subject: "Renewal notes",
+		body: "Henrik prefers calls before 10:00. The annual contract renews in January and he wants the price list two weeks before that.",
+		daysAgo: 30,
+		dueInDays: null,
+	},
+	{
+		key: "call",
+		type: ActivityType.CALL,
+		subject: "Call about the damaged pallets claim",
+		body: "Agreed on a replacement of the 12 pallets instead of a credit note. Henrik is fine with the Monday dispatch.",
+		daysAgo: 20,
+		dueInDays: null,
+	},
+	{
+		key: "task",
+		type: ActivityType.TASK,
+		subject: "Send the Q4 price list to Henrik",
+		body: "Include the fixed price for stretch film and the new edge protector sizes.",
+		daysAgo: null,
+		dueInDays: DEMO.showcase.taskDueInDays,
+	},
+];
 
 const NOW = Date.now();
 
@@ -1090,6 +1273,10 @@ function quantityText(qty: number | null): string {
 		: `${qty.toLocaleString("en-US")} pallets`;
 }
 
+function linesOf(spec: ThreadSpec): Line[] {
+	return THREADS[spec.kind].lines.slice(0, spec.take);
+}
+
 type Owner = { id: string; name: string; email: string };
 
 type ContactRef = { id: string; person: Person; company: Company };
@@ -1111,11 +1298,13 @@ function contactsOf(): Map<string, ContactRef> {
 }
 
 function signalOf(spec: ThreadSpec): ThreadSignal {
+	const lines = linesOf(spec);
 	return {
 		relevant: true,
 		outcome: THREADS[spec.kind].outcome,
-		quantityPallets: spec.kind === "customs" ? null : spec.qty,
-		unansweredByUs: spec.endsInbound,
+		quantityPallets: spec.qty,
+		unansweredByUs:
+			lines[lines.length - 1]?.direction === EmailDirection.INBOUND,
 		products: [spec.product],
 		topics: [spec.product],
 	};
@@ -1347,9 +1536,7 @@ async function writeThread(
 		qty: quantityText(spec.qty),
 		ref: spec.ref,
 	};
-	const lines = spec.endsInbound
-		? template.lines.slice(0, template.lines.length - 1)
-		: template.lines;
+	const lines = linesOf(spec);
 	const subject = template.subject(voice);
 	const contactEmail = emailOf(ref.person, ref.company.domain);
 	const contactName = `${ref.person.first} ${ref.person.last}`;
@@ -1411,6 +1598,16 @@ async function writeThread(
 		});
 	}
 
+	await db.emailMessage.deleteMany({
+		where: {
+			threadId,
+			id: {
+				startsWith: DEMO.prefix,
+				notIn: lines.map((_, index) => id("msg", bare(threadId), index + 1)),
+			},
+		},
+	});
+
 	const signal = signalOf(spec);
 	const insightId = id("ins", bare(threadId));
 	const insight = {
@@ -1458,6 +1655,35 @@ async function writeThread(
 	return last;
 }
 
+async function writeShowcaseNotes(
+	db: Db,
+	owner: Owner,
+	ref: ContactRef,
+): Promise<void> {
+	for (const note of SHOWCASE_NOTES) {
+		const at =
+			note.daysAgo === null ? daysAgo(1, 8) : daysAgo(note.daysAgo, 11);
+		const activityId = id("act", note.key, DEMO.showcase.contact);
+		const data = {
+			type: note.type,
+			subject: note.subject,
+			body: note.body,
+			occurredAt: note.dueInDays === null ? at : null,
+			dueAt: note.dueInDays === null ? null : daysAhead(note.dueInDays),
+			completedAt: null,
+			companyId: id("co", ref.company.key),
+			contactId: ref.id,
+			createdById: owner.id,
+			createdAt: at,
+		};
+		await db.activity.upsert({
+			where: { id: activityId },
+			create: { id: activityId, ...data },
+			update: data,
+		});
+	}
+}
+
 async function writeConversations(
 	db: Db,
 	owner: Owner,
@@ -1476,6 +1702,17 @@ async function writeConversations(
 			threadIds.push(threadId);
 			const at = await writeThread(db, owner, ref, spec, threadId);
 			if (at > lastAt) lastAt = at;
+		}
+
+		await db.emailThread.deleteMany({
+			where: {
+				contactId: ref.id,
+				id: { startsWith: DEMO.prefix, notIn: threadIds },
+			},
+		});
+
+		if (candidate.contact === DEMO.showcase.contact) {
+			await writeShowcaseNotes(db, owner, ref);
 		}
 
 		const memoryId = id("mem", candidate.contact);

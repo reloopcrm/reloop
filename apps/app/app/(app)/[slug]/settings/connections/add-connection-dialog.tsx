@@ -2,11 +2,9 @@
 
 import Email from "@carbon/icons-react/es/Email";
 import Plug from "@carbon/icons-react/es/Plug";
-import DocusignLogo from "@crm/ui/components/brand-logos/docusign";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
-import StripeLogo from "@crm/ui/components/brand-logos/stripe";
 import {
 	Dialog,
 	DialogContent,
@@ -87,16 +85,6 @@ export function AddConnectionDialog({
 							href={`/${slug}/settings/connections/imap`}
 						/>
 					) : null}
-					<CatalogRow
-						logo={StripeLogo}
-						name="Stripe"
-						description={t("Coming soon")}
-					/>
-					<CatalogRow
-						logo={DocusignLogo}
-						name="Docusign"
-						description={t("Coming soon")}
-					/>
 					<CatalogRow
 						logo={Plug}
 						name={t("Anything else")}

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.1](https://github.com/reloopcrm/reloop/compare/v0.4.0...v0.4.1) (2026-09-16)
+
+
+### Fixes
+
+* **connections:** drop the two entries nobody can use ([6770a8a](https://github.com/reloopcrm/reloop/commit/6770a8adb81e1552d9ca63e7633cfce23cde8c60))
+* **nav:** keep the rail narrow and put the names in tooltips ([9ba2323](https://github.com/reloopcrm/reloop/commit/9ba232343a837643f003304dc191b5863c0c6146))
+* **settings:** keep the plan card for the operator only ([01e52c5](https://github.com/reloopcrm/reloop/commit/01e52c51e85b55d520462ace38e4a0dbfa5168b2))
+
+
+### Performance
+
+* **docker:** drop the sandbox the container never uses ([3321e22](https://github.com/reloopcrm/reloop/commit/3321e229d64bb514faf10bbb16204ec636d50267))
+
 ## [0.4.0](https://github.com/reloopcrm/reloop/compare/v0.3.0...v0.4.0) (2026-09-16)
 
 

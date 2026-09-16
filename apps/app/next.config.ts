@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
 	allowedDevOrigins,
 
 	output: "standalone",
+	distDir: process.env.NEXT_DIST_DIR ?? ".next",
 	outputFileTracingRoot: join(import.meta.dirname, "../.."),
 
 	async redirects() {

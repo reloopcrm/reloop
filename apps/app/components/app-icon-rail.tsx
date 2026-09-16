@@ -1,6 +1,7 @@
 "use client";
 
 import Building from "@carbon/icons-react/es/Building";
+import ChatBot from "@carbon/icons-react/es/ChatBot";
 import Close from "@carbon/icons-react/es/Close";
 import Dashboard from "@carbon/icons-react/es/Dashboard";
 import Partnership from "@carbon/icons-react/es/Partnership";
@@ -10,7 +11,6 @@ import UserMultiple from "@carbon/icons-react/es/UserMultiple";
 import { Button } from "@crm/ui/components/button";
 import type { CarbonIcon } from "@crm/ui/components/icon";
 import { Icon } from "@crm/ui/components/icon";
-import Bot from "@crm/ui/components/icons/bot";
 import {
 	Sheet,
 	SheetContent,
@@ -31,7 +31,6 @@ type RailItem = {
 	title: string;
 	href: string;
 	icon: CarbonIcon;
-	iconClassName?: string;
 	match: "exact" | "prefix";
 	related?: string[];
 };
@@ -42,8 +41,7 @@ const GROUPS: RailItem[][] = [
 		{
 			title: "Chat",
 			href: "/chat",
-			icon: Bot,
-			iconClassName: "size-5",
+			icon: ChatBot,
 			match: "prefix",
 			related: ["/agents"],
 		},
@@ -107,7 +105,7 @@ function RailLink({
 						className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary"
 					/>
 				) : null}
-				<Icon icon={item.icon} className={item.iconClassName} />
+				<Icon icon={item.icon} />
 				<span className="truncate opacity-0 transition-opacity duration-150 group-focus-within/rail:opacity-100 group-hover/rail:opacity-100 motion-reduce:transition-none">
 					{t(item.title)}
 				</span>
@@ -149,7 +147,7 @@ function MobileRailLink({
 					item.title === "Chat" ? "nav-forward" : "nav-lateral",
 				]}
 			>
-				<Icon icon={item.icon} className={item.iconClassName} />
+				<Icon icon={item.icon} />
 				<span>{t(item.title)}</span>
 			</Link>
 		</Button>
@@ -187,7 +185,7 @@ function MobileRailIconLink({
 				aria-current={active ? "page" : undefined}
 				onClick={onNavigate}
 			>
-				<Icon icon={item.icon} className={item.iconClassName} />
+				<Icon icon={item.icon} />
 				<span className="sr-only">{t(item.title)}</span>
 			</Link>
 		</Button>
@@ -210,7 +208,7 @@ export function AppIconRailFallback() {
 						disabled
 						className="h-8 w-full shrink-0 justify-start gap-3 px-2 text-muted-foreground"
 					>
-						<Icon icon={item.icon} className={item.iconClassName} />
+						<Icon icon={item.icon} />
 						<span className="sr-only">{t(item.title)}</span>
 					</Button>
 				))}

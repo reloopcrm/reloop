@@ -8,9 +8,71 @@ fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 ask() { printf '%s' "$1" > /dev/tty; IFS= read -r REPLY < /dev/tty || REPLY=""; }
 restore_tty() { stty echo < /dev/tty 2>/dev/null || true; }
 
-command -v docker > /dev/null 2>&1 || fail "Docker is not installed. Install it from https://docs.docker.com/engine/install/ and run this again."
+sudo_if_needed() {
+	if [ "$(id -u)" = "0" ]; then
+		"$@"
+	elif command -v sudo > /dev/null 2>&1; then
+		sudo "$@"
+	else
+		return 1
+	fi
+}
+
+wait_for_docker() {
+	i=0
+	while [ "$i" -lt 60 ]; do
+		docker info > /dev/null 2>&1 && return 0
+		i=$((i + 1))
+		sleep 2
+	done
+	return 1
+}
+
+install_docker_linux() {
+	say "Docker is missing. Installing it now."
+	command -v curl > /dev/null 2>&1 || fail "curl is not installed, so Docker cannot be installed automatically."
+	curl -fsSL https://get.docker.com -o /tmp/reloop-get-docker.sh || fail "Could not download the Docker installer."
+	sudo_if_needed sh /tmp/reloop-get-docker.sh || fail "Docker could not be installed. Run this script as root, or install Docker yourself: https://docs.docker.com/engine/install/"
+	rm -f /tmp/reloop-get-docker.sh
+	sudo_if_needed systemctl enable --now docker > /dev/null 2>&1 || true
+}
+
+start_docker_mac() {
+	if [ -d /Applications/OrbStack.app ]; then
+		say "Starting OrbStack."
+		open -a OrbStack
+	elif [ -d /Applications/Docker.app ]; then
+		say "Starting Docker Desktop."
+		open -a Docker
+	elif command -v brew > /dev/null 2>&1; then
+		say "Docker is missing. Installing OrbStack now."
+		brew install --cask orbstack || fail "OrbStack could not be installed. Install Docker yourself: https://orbstack.dev"
+		open -a OrbStack
+	else
+		fail "Docker is missing. Install OrbStack from https://orbstack.dev or Docker Desktop, then run this again."
+	fi
+}
+
+ensure_docker() {
+	if command -v docker > /dev/null 2>&1 && docker info > /dev/null 2>&1; then
+		return 0
+	fi
+
+	case "$(uname -s)" in
+		Linux)
+			command -v docker > /dev/null 2>&1 || install_docker_linux
+			docker info > /dev/null 2>&1 || sudo_if_needed systemctl start docker > /dev/null 2>&1 || true
+			;;
+		Darwin) start_docker_mac ;;
+		*) fail "This installer supports Linux servers and macOS. Install Docker yourself and run it again." ;;
+	esac
+
+	say "Waiting for Docker to start."
+	wait_for_docker || fail "Docker still does not answer. Start it and run this script again."
+}
+
+ensure_docker
 docker compose version > /dev/null 2>&1 || fail "Docker Compose v2 is missing. Install the docker-compose-plugin package."
-docker info > /dev/null 2>&1 || fail "Docker is not running, or this user cannot use it. Start Docker or run as a user in the docker group."
 command -v openssl > /dev/null 2>&1 || fail "openssl is not installed."
 
 if [ -f ./install.sh ] && [ -f ./deploy/docker-compose.yml ]; then

@@ -4,7 +4,8 @@ Reloop CRM runs on your own server with Docker. One command installs it.
 
 ## Requirements
 
-- A Linux server with Docker Engine and the Docker Compose plugin. Docker Desktop and OrbStack work too.
+- A Linux server. The installer sets Docker up for you when it is missing, using Docker's own install script, and starts it.
+- On macOS the installer starts OrbStack or Docker Desktop, and installs OrbStack through Homebrew when neither is there.
 - 4 GB of RAM. 2 GB works for one user but leaves little room.
 - 20 GB of free disk space for the images, the database and backups.
 - `openssl` and `curl`. Most distributions ship both.

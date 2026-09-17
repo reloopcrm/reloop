@@ -19,6 +19,10 @@ const UNGATED = ["/grant-access", "/eve"];
 export const ANONYMOUS_PATHS = [
 	"/t",
 	"/open-source",
+	"/open-source-crm",
+	"/self-hosted-crm",
+	"/vs/hubspot",
+	"/for/freight-forwarding",
 	"/get-started",
 	"/docs",
 	"/opengraph-image",

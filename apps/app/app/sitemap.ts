@@ -1,7 +1,16 @@
 import type { MetadataRoute } from "next";
 import { siteAddress } from "@/lib/site-address";
 
-const PAGES = ["/", "/get-started", "/docs", "/open-source"] as const;
+const PAGES = [
+	"/",
+	"/get-started",
+	"/docs",
+	"/open-source",
+	"/open-source-crm",
+	"/self-hosted-crm",
+	"/vs/hubspot",
+	"/for/freight-forwarding",
+] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
 	const site = siteAddress();

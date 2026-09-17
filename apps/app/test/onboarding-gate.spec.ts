@@ -440,7 +440,15 @@ describe("the public pages", () => {
 	it("render for a stranger on any install", async () => {
 		marketing(undefined);
 
-		for (const path of ["/get-started", "/docs", "/open-source"]) {
+		for (const path of [
+			"/get-started",
+			"/docs",
+			"/open-source",
+			"/open-source-crm",
+			"/self-hosted-crm",
+			"/vs/hubspot",
+			"/for/freight-forwarding",
+		]) {
 			expect(redirectedTo(await proxy(request(path)))).toBeNull();
 		}
 	});

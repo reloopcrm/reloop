@@ -6,7 +6,20 @@ describe("isDerivedName", () => {
 		expect(isDerivedName("ardit@x.com", "Ardit", null)).toBe(true);
 	});
 
-	it("trusts a contact that carries a surname", () => {
+	it("flags an initial and a surname cut out of the address", () => {
+		expect(isDerivedName("a.mueller@acme.com", "A", "Mueller")).toBe(true);
+		expect(isDerivedName("c.lindner@enofilms.com", "C", "Lindner")).toBe(true);
+		expect(isDerivedName("anna.m@acme.com", "Anna", "M")).toBe(true);
+	});
+
+	it("leaves a full name alone, even when the address spells it out", () => {
+		expect(isDerivedName("anna.mueller@acme.com", "Anna", "Mueller")).toBe(
+			false,
+		);
+		expect(isDerivedName("j.mueller@acme.com", "Anna", "Mueller")).toBe(false);
+	});
+
+	it("trusts a contact whose name says more than the address", () => {
 		expect(isDerivedName("markus.peetz@x.de", "Markus", "Peetz")).toBe(false);
 		expect(isDerivedName("info@x.de", "Klaus", "Berger")).toBe(false);
 		expect(isDerivedName(null, "Klaus", "Berger")).toBe(false);

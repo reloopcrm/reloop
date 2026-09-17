@@ -1,3 +1,51 @@
+const NAME_PARTICLES = new Set([
+	"von",
+	"van",
+	"vom",
+	"zu",
+	"zur",
+	"zum",
+	"de",
+	"del",
+	"della",
+	"der",
+	"den",
+	"di",
+	"da",
+	"do",
+	"dos",
+	"du",
+	"la",
+	"le",
+	"ter",
+	"ten",
+	"af",
+	"av",
+	"of",
+]);
+
+export function properCase(name: string): string {
+	return name
+		.split(/(\s+|-)/)
+		.map(casePart)
+		.join("");
+}
+
+function casePart(part: string): string {
+	const lower = part.toLocaleLowerCase("de-DE");
+	if (NAME_PARTICLES.has(lower)) return lower;
+
+	if (part.length > 2 && part === part.toLocaleUpperCase("de-DE")) {
+		return part.charAt(0) + lower.slice(1);
+	}
+
+	if (part === lower) {
+		return part.charAt(0).toLocaleUpperCase("de-DE") + part.slice(1);
+	}
+
+	return part;
+}
+
 export function searchTerms(local: string): string[] {
 	const handle = local.toLowerCase().replace(/[^a-z0-9._-]/g, "");
 	const terms: string[] = [];
@@ -69,10 +117,16 @@ export function isDerivedName(
 	firstName: string,
 	lastName: string | null,
 ): boolean {
-	if (!email || lastName !== null) return false;
+	if (!email) return false;
 
 	const local = email.split("@")[0] ?? "";
-	return nameMatchesLocalPart({ firstName, lastName: null }, local);
+	if (lastName === null)
+		return nameMatchesLocalPart({ firstName, lastName: null }, local);
+
+	const anInitial =
+		normalise(firstName).length <= 1 || normalise(lastName).length <= 1;
+
+	return anInitial && nameMatchesLocalPart({ firstName, lastName }, local);
 }
 
 export function looksMachineMade(

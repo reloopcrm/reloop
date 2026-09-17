@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	looksLikeSameCompany,
 	nameMatchesLocalPart,
+	properCase,
 	sameDomain,
 	searchTerms,
 } from "../agent/lib/names";
@@ -105,5 +106,28 @@ describe("sameDomain", () => {
 		expect(sameDomain(null, "fernhill.com")).toBe(false);
 		expect(sameDomain("", "fernhill.com")).toBe(false);
 		expect(sameDomain("fernhill.com", "")).toBe(false);
+	});
+});
+
+describe("properCase", () => {
+	it("raises a name a sender typed in lower case", () => {
+		expect(properCase("mueller")).toBe("Mueller");
+		expect(properCase("anna mueller")).toBe("Anna Mueller");
+	});
+
+	it("lowers a name a sender shouted", () => {
+		expect(properCase("MUELLER")).toBe("Mueller");
+		expect(properCase("ANNA MUELLER")).toBe("Anna Mueller");
+	});
+
+	it("keeps a particle small, whatever case it arrived in", () => {
+		expect(properCase("von der leyen")).toBe("von der Leyen");
+		expect(properCase("VON DER LEYEN")).toBe("von der Leyen");
+	});
+
+	it("never touches a name that already carries its own case", () => {
+		expect(properCase("McDonald")).toBe("McDonald");
+		expect(properCase("O'Brien")).toBe("O'Brien");
+		expect(properCase("Anna-Lena Meier")).toBe("Anna-Lena Meier");
 	});
 });

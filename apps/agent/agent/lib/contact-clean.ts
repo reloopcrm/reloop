@@ -5,7 +5,7 @@ import { streamText } from "ai";
 import { z } from "zod";
 import { recordFact } from "./facts";
 import { directModel } from "./model";
-import { looksMachineMade } from "./names";
+import { looksMachineMade, properCase } from "./names";
 import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
 const CLEAN = {
@@ -47,17 +47,6 @@ async function ourIdentity(): Promise<Ours> {
 	};
 }
 
-function properCase(name: string): string {
-	return name
-		.split(/(\s+|-)/)
-		.map((part) =>
-			part.length > 2 && part === part.toUpperCase()
-				? part.charAt(0) + part.slice(1).toLocaleLowerCase("de-DE")
-				: part,
-		)
-		.join("");
-}
-
 function sameName(a: string, b: string): boolean {
 	const clean = (value: string) =>
 		value.toLowerCase().replace(/[^a-zäöüß]/g, "");
@@ -81,6 +70,8 @@ async function extract(input: {
 		abortSignal: AbortSignal.timeout(MEMORY.callTimeoutMs),
 		system: [
 			"You read emails one person sent and report who they are, from their own signature block.",
+			"The signature stands under the sign-off, in whatever language the mail uses. In German that is Mit freundlichen Grüßen, Viele Grüße, Beste Grüße or Liebe Grüße; in English Best regards or Kind regards.",
+			"The name is the first line under the sign-off, and the title, company and phone number follow it.",
 			UNTRUSTED_RULE,
 			"Report only what the signature or the sender line states. Never guess a name from the email address alone.",
 			"fullName is the person's full name as written by them, without titles like Herr, Frau, Dr. or job titles.",

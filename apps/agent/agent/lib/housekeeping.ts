@@ -5,6 +5,7 @@ import {
 	type AgentTaskThreadPayload,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
+import { looksMachineMade } from "./names";
 import { playbookDue } from "./playbook";
 import { scheduleTask } from "./tasks";
 
@@ -92,17 +93,47 @@ export async function queueUnreadThreads(): Promise<number> {
 }
 
 export async function queueContactCleanups(): Promise<number> {
-	const contacts = await db.contact.findMany({
-		where: {
-			cleanedAt: null,
-			archivedAt: null,
-			email: { not: null },
-			emailThreads: { some: { messages: { some: { direction: "INBOUND" } } } },
-		},
-		orderBy: { createdAt: "desc" },
-		take: HOUSEKEEPING.cleanBatch,
-		select: { id: true },
-	});
+	const readable = {
+		archivedAt: null,
+		email: { not: null },
+		emailThreads: { some: { messages: { some: { direction: "INBOUND" } } } },
+	} satisfies Prisma.ContactWhereInput;
+
+	const [never, since] = await Promise.all([
+		db.contact.findMany({
+			where: { ...readable, cleanedAt: null },
+			orderBy: { createdAt: "desc" },
+			take: HOUSEKEEPING.cleanBatch,
+			select: { id: true },
+		}),
+		db.contact.findMany({
+			where: {
+				...readable,
+				cleanedAt: { not: null },
+				lastActivityAt: { gt: db.contact.fields.cleanedAt },
+			},
+			orderBy: { lastActivityAt: "desc" },
+			take: HOUSEKEEPING.cleanBatch,
+			select: { id: true, email: true, firstName: true, lastName: true },
+		}),
+	]);
+
+	const again = since.filter((contact) =>
+		looksMachineMade(contact.email, contact.firstName, contact.lastName),
+	);
+
+	const settled = since
+		.filter((contact) => !again.includes(contact))
+		.map((contact) => contact.id);
+
+	if (settled.length > 0) {
+		await db.contact.updateMany({
+			where: { id: { in: settled } },
+			data: { cleanedAt: new Date() },
+		});
+	}
+
+	const contacts = [...never, ...again];
 
 	for (const contact of contacts) {
 		await scheduleTask({

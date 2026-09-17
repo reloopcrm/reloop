@@ -261,6 +261,23 @@ wrong in the direction that looks useful.
   suggestion queue nobody reads for every new sender, and because a rep sees the
   claim and its source on the record. Treat a name, title or phone number on a
   contact with no outbound history as something the sender told us.
+- **A name the mailbox cut out of the address is not a person's answer.**
+  `participants.ts` splits `a.mueller@acme.com` into "A" and "Mueller", and
+  `humanOwns` for the `name` field is `!isDerivedName(...)`, so for one release
+  every such contact was locked: the signature name was refused with "A person
+  already filled in name" and the record kept the initial forever.
+  `isDerivedName` now also reads a name with both parts, but only when one part
+  is a single letter. `anna.mueller@` with "Anna Mueller" on the record stays a
+  human answer and is never overwritten, which is the false positive that rule
+  exists to avoid. `looksMachineMade` is the wider predicate and decides only
+  what is worth reading again, never what may be written.
+- **A signature that arrives later is still read.** `done()` stamps `cleanedAt`
+  on every outcome, including "no mail" and "no signature", so a single pass used
+  to be the only pass. `queueContactCleanups` now runs two bounded queries: the
+  contacts never cleaned, and the contacts whose `lastActivityAt` is newer than
+  their `cleanedAt`. In the second set only a name that still looks machine-made
+  is queued; the rest have their `cleanedAt` moved forward, which is what keeps
+  the window from filling with contacts nobody needs to read again.
 - **Every field `contact-clean` writes goes through `recordFact`**, the phone
   number included. A direct column write skips the ledger, so the provenance, the
   dismissal memory and the never-overwrite-a-human rule all stop applying to it.

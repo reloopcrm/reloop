@@ -490,7 +490,7 @@ describe("pendingQuestion", () => {
 });
 
 describe("latestTurnFailure", () => {
-	it("recognizes the Vercel Gateway free-tier rate limit", () => {
+	it("recognizes an OpenRouter rate limit", () => {
 		expect(
 			latestTurnFailure([
 				{
@@ -498,7 +498,7 @@ describe("latestTurnFailure", () => {
 					data: {
 						code: "MODEL_CALL_FAILED",
 						message:
-							"GatewayRateLimitError: Free tier requests on this model are rate-limited.",
+							"Rate limit exceeded: free-models-per-day. Add credits to unlock a higher limit.",
 					},
 				},
 			]),
@@ -524,7 +524,7 @@ describe("latestTurnFailure", () => {
 		).toBeNull();
 	});
 
-	it("recognizes a model restricted to paid Gateway credits", () => {
+	it("recognizes a model restricted to paid OpenRouter credits", () => {
 		expect(
 			latestTurnFailure([
 				{

@@ -29,7 +29,7 @@ import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOut
 import { imapStatusOutput, addImapAccountInput, imapAccountIdInput, imapRemoveOutput, imapPurgeOutput, setImapCreateFromInput } from "../imap/imap.contracts";
 import { reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
-import { businessProposalOutput, agentModelOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, passwordSignInOutput, setPasswordInput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput } from "../settings/settings.contracts";
+import { businessProposalOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, passwordSignInOutput, setPasswordInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
 import { versionOutput } from "../system/system.contracts";
@@ -680,9 +680,6 @@ const appRouter = t.router({
     proposeBusiness: publicProcedure
       .output(businessProposalOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    agentModel: publicProcedure
-      .output(agentModelOutput)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     agentProvider: publicProcedure
       .output(agentProviderOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
@@ -716,13 +713,6 @@ const appRouter = t.router({
     setPassword: publicProcedure
       .input(setPasswordInput)
       .output(passwordSignInOutput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    modelCatalog: publicProcedure
-      .output(modelCatalogOutput)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    setAgentModel: publicProcedure
-      .input(setAgentModelInput)
-      .output(agentModelOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     skipResearchKey: publicProcedure
       .output(researchKeyOutput)

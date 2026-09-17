@@ -1,4 +1,5 @@
 import { db } from "@crm/db";
+import { chatModelFor, readAgentProvider } from "@crm/db/settings";
 import { reasonOf, removeAgent } from "./e2e-agents";
 import { E2E } from "./e2e-config";
 
@@ -86,21 +87,12 @@ async function main() {
 		process.exit(1);
 	}
 
-	const settings = await db.appSetting.findUnique({
-		where: { id: "app" },
-		select: { agentModelId: true },
-	});
-	if (!settings?.agentModelId) {
-		console.error(
-			"FAIL  No model is configured. Pick one on the settings page first.",
-		);
-		process.exit(1);
-	}
+	const model = chatModelFor(await readAgentProvider(db));
 
 	const { agentId, versionId, ownerId } = await seedAgent(
 		channel.id,
 		channel.name,
-		settings.agentModelId,
+		model.id,
 	);
 	let ok = false;
 

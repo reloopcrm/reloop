@@ -271,10 +271,7 @@ function ExpandedRun({ run, t }: { run: RunRow; t: Translate }) {
 					label={t("Initiated by")}
 					value={run.initiatedBy?.name ?? t("Eve scheduler")}
 				/>
-				<RunMeta
-					label={t("Model")}
-					value={run.modelId ?? t("Gateway default")}
-				/>
+				<RunMeta label={t("Model")} value={run.modelId ?? t("Default model")} />
 				<RunMeta label={t("Version")} value={String(run.version.number)} last />
 			</div>
 

@@ -36,8 +36,8 @@ export const agentBuilder: Dictionary = {
 		"Der Modellanbieter hat diese Anfrage wegen eines Limits abgewiesen, bevor sie startete. Versuche es gleich nochmal. Welches Konto den Agenten bezahlt, stellst du unter Einstellungen, Allgemein ein.",
 	"The model provider refused this model for the account that pays for the agent. Pick another model or account under Settings, General.":
 		"Der Modellanbieter hat dieses Modell für das zahlende Konto abgelehnt. Wähle unter Einstellungen, Allgemein ein anderes Modell oder Konto.",
-	"The account that pays for the agent has no credits or usage left. On a ChatGPT subscription the limit resets by itself; on the Vercel AI Gateway add credits in Vercel. Then try again.":
-		"Das Konto, das den Agenten bezahlt, hat kein Guthaben und kein Kontingent mehr. Bei einem ChatGPT-Abo setzt sich das Limit von selbst zurück. Beim Vercel AI Gateway lädst du Guthaben in Vercel auf. Danach versuche es nochmal.",
+	"The account that pays for the agent has no credits or usage left. On a ChatGPT subscription the limit resets by itself; on OpenRouter add credits at openrouter.ai. Then try again.":
+		"Das Konto, das den Agenten bezahlt, hat kein Guthaben und kein Kontingent mehr. Bei einem ChatGPT-Abo setzt sich das Limit von selbst zurück. Bei OpenRouter lädst du Guthaben auf openrouter.ai auf. Danach versuche es nochmal.",
 	"The builder could not finish this request. Try again.":
 		"Der Baukasten hat diese Anfrage nicht abgeschlossen. Versuche es nochmal.",
 	"Agent creation stopped": "Erstellung des Agenten gestoppt",
@@ -188,7 +188,7 @@ export const agentBuilder: Dictionary = {
 	"No runs match this outcome.": "Kein Lauf passt zu diesem Ergebnis.",
 	"Initiated by": "Gestartet von",
 	"Eve scheduler": "Eve-Zeitplaner",
-	"Gateway default": "Standard des Gateways",
+	"Default model": "Standardmodell",
 	Version: "Version",
 	event: "Ereignis",
 	"Showing the first {shown} of {total} steps. This run is too long to display in full.":

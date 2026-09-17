@@ -388,9 +388,7 @@ export function latestTurnFailure(
 				message,
 			)
 				? "restricted"
-				: /GatewayRateLimitError|free tier requests.*rate-?limited/i.test(
-							message,
-						)
+				: /rate[ _-]?limit/i.test(message)
 					? "rate-limit"
 					: /credits?|quota|billing|usage limit/i.test(message)
 						? "credits"

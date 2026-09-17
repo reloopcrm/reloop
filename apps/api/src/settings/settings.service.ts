@@ -21,17 +21,14 @@ import {
 	AGENT_PROVIDER_DEFAULTS,
 	AGENT_READING_DEFAULT,
 	AGENT_RESEARCH_PER_HOUR,
-	DEFAULT_AGENT_MODEL,
 	draftModelFor,
 	maskKey,
-	readAgentModel,
 	readAgentProvider,
 	readArchiveRetentionDays,
 	readContextDevKey,
 	readingModelFor,
 	readPlan,
 	readResearchKeySkipped,
-	writeAgentModel,
 	writeAgentProvider,
 	writeArchiveRetentionDays,
 	writeContextDevKey,
@@ -65,16 +62,13 @@ import {
 import { BackfillService } from "../backfill/backfill.service";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
-import { ModelCatalogService } from "./model-catalog.service";
 import { SETTINGS } from "./settings.config";
 import type {
 	AgentFunctionsSettings,
-	AgentModelSettings,
 	AgentProviderSettings,
 	ArchiveRetentionSettings,
 	ChatgptLoginSettings,
 	DraftStyleOutput,
-	ModelCatalogResult,
 	PasswordSignInSettings,
 	PlanSettings,
 	ResearchKeySettings,
@@ -102,7 +96,6 @@ export class SettingsService {
 
 	constructor(
 		@InjectDatabase() private readonly db: Db,
-		private readonly catalog: ModelCatalogService,
 		private readonly researchKeys: ResearchKeyService,
 		private readonly backfill: BackfillService,
 		private readonly config: ConfigService<EnvironmentVariables, true>,
@@ -205,21 +198,6 @@ export class SettingsService {
 		);
 	}
 
-	async agentModel(): Promise<AgentModelSettings> {
-		const [model, row] = await Promise.all([
-			readAgentModel(this.db),
-			this.db.appSetting.findFirst({ select: { updatedAt: true } }),
-		]);
-
-		return {
-			selectedId: model.isDefault ? null : model.id,
-			effectiveId: model.id,
-			defaultId: DEFAULT_AGENT_MODEL.id,
-			effective: await this.catalog.find(model.id),
-			updatedAt: row?.updatedAt.toISOString() ?? null,
-		};
-	}
-
 	private async usageProbe(): Promise<AgentProviderSettings["probe"]> {
 		const [pending, last] = await Promise.all([
 			this.db.agentTask.count({
@@ -256,6 +234,7 @@ export class SettingsService {
 			draftModel: setting.draftModel,
 			effectiveDraftModel: draftModelFor(setting),
 			options: {
+				openrouter: [...AGENT_MODEL_OPTIONS.openrouter],
 				chatgpt: [...AGENT_MODEL_OPTIONS.chatgpt],
 				openai: [...AGENT_MODEL_OPTIONS.openai],
 				anthropic: [...AGENT_MODEL_OPTIONS.anthropic],
@@ -274,28 +253,24 @@ export class SettingsService {
 				: null,
 			probe,
 			provider: setting.provider,
+			openrouterModel: setting.openrouterModel,
 			chatgptModel: setting.chatgptModel,
 			openaiModel: setting.openaiModel,
 			anthropicModel: setting.anthropicModel,
+			openrouterKey: setting.openrouterKey
+				? this.keyHint(setting.openrouterKey)
+				: { configured: this.openrouterEnvKey(), hint: null },
 			openaiKey: this.keyHint(setting.openaiKey),
 			anthropicKey: this.keyHint(setting.anthropicKey),
-			gatewayConfigured: Boolean(
-				this.config.get("AI_GATEWAY_API_KEY", { infer: true })?.trim(),
-			),
 			researchPerHour: setting.researchPerHour,
 			defaults: {
+				openrouterModel: AGENT_PROVIDER_DEFAULTS.openrouter.model,
 				chatgptModel: AGENT_PROVIDER_DEFAULTS.chatgpt.model,
 				openaiModel: AGENT_PROVIDER_DEFAULTS.openai.model,
 				anthropicModel: AGENT_PROVIDER_DEFAULTS.anthropic.model,
 				researchPerHour: AGENT_RESEARCH_PER_HOUR.default,
-				readingModel:
-					setting.provider === "gateway"
-						? ""
-						: AGENT_READING_DEFAULT[setting.provider],
-				draftModel:
-					setting.provider === "gateway"
-						? ""
-						: AGENT_DRAFT_DEFAULT[setting.provider],
+				readingModel: AGENT_READING_DEFAULT[setting.provider],
+				draftModel: AGENT_DRAFT_DEFAULT[setting.provider],
 			},
 		};
 	}
@@ -307,7 +282,7 @@ export class SettingsService {
 		await this.assertManager(userId);
 		const current = await readAgentProvider(this.db);
 
-		for (const provider of ["openai", "anthropic"] as const) {
+		for (const provider of ["openrouter", "openai", "anthropic"] as const) {
 			const candidate = input[`${provider}Key`];
 			if (!candidate) continue;
 			const check = await this.researchKeys.verifyProvider(provider, candidate);
@@ -321,9 +296,20 @@ export class SettingsService {
 			});
 		}
 
+		const openrouterKey = this.sealed(
+			input.openrouterKey,
+			current.openrouterKey,
+		);
 		const openaiKey = this.sealed(input.openaiKey, current.openaiKey);
 		const anthropicKey = this.sealed(input.anthropicKey, current.anthropicKey);
 
+		if (
+			input.provider === "openrouter" &&
+			!openrouterKey &&
+			!this.openrouterEnvKey()
+		) {
+			throw new BadRequestException("Paste an OpenRouter API key first.");
+		}
 		if (input.provider === "openai" && !openaiKey) {
 			throw new BadRequestException("Paste an OpenAI API key first.");
 		}
@@ -333,9 +319,11 @@ export class SettingsService {
 
 		await writeAgentProvider(this.db, {
 			provider: input.provider,
+			openrouterModel: input.openrouterModel,
 			chatgptModel: input.chatgptModel,
 			openaiModel: input.openaiModel,
 			anthropicModel: input.anthropicModel,
+			openrouterKey,
 			openaiKey,
 			anthropicKey,
 			researchPerHour: input.researchPerHour,
@@ -357,6 +345,12 @@ export class SettingsService {
 	): Promise<ChatgptLoginSettings> {
 		await this.assertManager(userId);
 		return this.researchKeys.chatgptLogin(action);
+	}
+
+	private openrouterEnvKey(): boolean {
+		return Boolean(
+			this.config.get("OPENROUTER_API_KEY", { infer: true })?.trim(),
+		);
 	}
 
 	private sealed(
@@ -387,48 +381,6 @@ export class SettingsService {
 		} catch {
 			return { configured: true, hint: null };
 		}
-	}
-
-	async setAgentModel(
-		userId: string,
-		modelId: string | null,
-	): Promise<AgentModelSettings> {
-		await this.assertManager(userId);
-		if (modelId === null) {
-			await writeAgentModel(this.db, null);
-			this.logger.log({ message: "Agent model reset to the default" });
-			return this.agentModel();
-		}
-
-		const models = await this.catalog.models();
-
-		if (!models) {
-			throw new BadRequestException(
-				"Could not reach the AI Gateway to check that model. Try again in a moment.",
-			);
-		}
-
-		const chosen = models.find((model) => model.id === modelId);
-
-		if (!chosen) {
-			throw new BadRequestException(
-				`The AI Gateway does not serve a tool-using model called "${modelId}".`,
-			);
-		}
-
-		await writeAgentModel(this.db, {
-			id: chosen.id,
-			contextWindowTokens: chosen.contextWindowTokens,
-		});
-
-		this.logger.log({ message: "Agent model changed", modelId: chosen.id });
-
-		return this.agentModel();
-	}
-
-	async modelCatalog(): Promise<ModelCatalogResult> {
-		const models = await this.catalog.models();
-		return { models: models ?? [], available: models !== null };
 	}
 
 	async researchKey(): Promise<ResearchKeySettings> {

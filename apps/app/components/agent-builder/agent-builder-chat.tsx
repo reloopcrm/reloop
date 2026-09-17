@@ -1236,7 +1236,7 @@ function BuilderFailureCard({
 					)
 				: failure.kind === "credits"
 					? t(
-							"The account that pays for the agent has no credits or usage left. On a ChatGPT subscription the limit resets by itself; on the Vercel AI Gateway add credits in Vercel. Then try again.",
+							"The account that pays for the agent has no credits or usage left. On a ChatGPT subscription the limit resets by itself; on OpenRouter add credits at openrouter.ai. Then try again.",
 						)
 					: t("The builder could not finish this request. Try again.");
 

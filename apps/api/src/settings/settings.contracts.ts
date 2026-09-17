@@ -5,33 +5,6 @@ import {
 import { chatgptLoginState } from "@crm/validation/chatgpt-login";
 import { z } from "zod";
 
-export const catalogModelOutput = z.object({
-	id: z.string(),
-	name: z.string(),
-	provider: z.string(),
-	contextWindowTokens: z.number(),
-	pricing: z.object({ input: z.number(), output: z.number() }).nullable(),
-});
-
-export type CatalogModel = z.infer<typeof catalogModelOutput>;
-
-export const agentModelOutput = z.object({
-	selectedId: z.string().nullable(),
-	effectiveId: z.string(),
-	defaultId: z.string(),
-	effective: catalogModelOutput.nullable(),
-	updatedAt: z.string().nullable(),
-});
-
-export type AgentModelSettings = z.infer<typeof agentModelOutput>;
-
-export const modelCatalogOutput = z.object({
-	models: z.array(catalogModelOutput),
-	available: z.boolean(),
-});
-
-export type ModelCatalogResult = z.infer<typeof modelCatalogOutput>;
-
 export const researchKeyOutput = z.object({
 	configured: z.boolean(),
 	hint: z.string().nullable(),
@@ -46,20 +19,21 @@ export const archiveRetentionOutput = z.object({
 
 export type ArchiveRetentionSettings = z.infer<typeof archiveRetentionOutput>;
 
-const agentProvider = z.enum(["gateway", "chatgpt", "openai", "anthropic"]);
+const agentProvider = z.enum(["openrouter", "chatgpt", "openai", "anthropic"]);
 
-const modelName = z
+const openrouterModelName = z
 	.string()
 	.trim()
 	.max(100)
 	.regex(
-		/^[a-z0-9.:-]*$/i,
-		"A model name has only letters, digits, dots, colons and dashes.",
-	)
-	.refine(
-		(value) => !value.includes("/"),
-		"Name the model without a provider prefix, for example gpt-5.5-mini.",
+		/^[a-z0-9.:/-]*$/i,
+		"A model name has only letters, digits, dots, colons, slashes and dashes.",
 	);
+
+const modelName = openrouterModelName.refine(
+	(value) => !value.includes("/"),
+	"Name the model without a provider prefix, for example gpt-5.5-mini.",
+);
 
 const apiKeyInput = z
 	.string()
@@ -67,23 +41,27 @@ const apiKeyInput = z
 	.max(500)
 	.refine((value) => !/\s/.test(value), "An API key has no spaces in it.");
 
+const keyHint = z.object({
+	configured: z.boolean(),
+	hint: z.string().nullable(),
+});
+
 export const agentProviderOutput = z.object({
 	provider: agentProvider,
+	openrouterModel: z.string(),
 	chatgptModel: z.string(),
 	openaiModel: z.string(),
 	anthropicModel: z.string(),
-	openaiKey: z.object({ configured: z.boolean(), hint: z.string().nullable() }),
-	anthropicKey: z.object({
-		configured: z.boolean(),
-		hint: z.string().nullable(),
-	}),
-	gatewayConfigured: z.boolean(),
+	openrouterKey: keyHint,
+	openaiKey: keyHint,
+	anthropicKey: keyHint,
 	researchPerHour: z.number().nullable(),
 	readingModel: z.string().nullable(),
 	effectiveReadingModel: z.string(),
 	draftModel: z.string().nullable(),
 	effectiveDraftModel: z.string(),
 	defaults: z.object({
+		openrouterModel: z.string(),
 		chatgptModel: z.string(),
 		openaiModel: z.string(),
 		anthropicModel: z.string(),
@@ -181,23 +159,19 @@ export const setPasswordInput = z.object({
 
 export const setAgentProviderInput = z.object({
 	provider: agentProvider,
+	openrouterModel: openrouterModelName.optional(),
 	chatgptModel: modelName.optional(),
 	openaiModel: modelName.optional(),
 	anthropicModel: modelName.optional(),
+	openrouterKey: apiKeyInput.nullable().optional(),
 	openaiKey: apiKeyInput.nullable().optional(),
 	anthropicKey: apiKeyInput.nullable().optional(),
 	researchPerHour: z.number().int().min(1).max(10_000).nullable().optional(),
-	readingModel: modelName.nullable().optional(),
-	draftModel: modelName.nullable().optional(),
+	readingModel: openrouterModelName.nullable().optional(),
+	draftModel: openrouterModelName.nullable().optional(),
 });
 
 export type SetAgentProviderInput = z.infer<typeof setAgentProviderInput>;
-
-export const setAgentModelInput = z.object({
-	modelId: z.string().trim().min(1).max(200).nullable(),
-});
-
-export type SetAgentModelInput = z.infer<typeof setAgentModelInput>;
 
 export const setResearchKeyInput = z.object({
 	apiKey: z

@@ -6,7 +6,13 @@ export const MODEL = {
 	fallback: { cooldownMs: 15 * MINUTE_MS },
 	secrets: { purpose: "agent-provider-keys" },
 	usage: { minIntervalMs: 10 * SECOND_MS, probeTimeoutMs: 30 * SECOND_MS },
-	gateway: { fallbackModel: "zai/glm-5.2-fast" },
+	openrouter: {
+		baseUrl: "https://openrouter.ai/api/v1",
+		headers: {
+			"HTTP-Referer": "https://reloopcrm.com",
+			"X-Title": "Reloop CRM",
+		},
+	},
 	spend: { defaultKind: "agent", researchKind: "research" },
 	cache: { anthropic: { cacheControl: { type: "ephemeral" } } },
 	chatgptLogin: {

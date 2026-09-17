@@ -7,14 +7,13 @@ function settings(role: string | null) {
 		member: { findUnique: async () => (role ? { role } : null) },
 	} as unknown as Db;
 	const unused = undefined as never;
-	return new SettingsService(db, unused, unused, unused, unused, unused);
+	return new SettingsService(db, unused, unused, unused, unused);
 }
 
 describe("workspace settings authorization", () => {
 	it("rejects member writes before any provider or database mutation", async () => {
 		const service = settings("member");
 		const writes = [
-			() => service.setAgentModel("member", null),
 			() => service.setAgentProvider("member", {} as never),
 			() => service.setResearchKey("member", "test-key"),
 			() => service.skipResearchKey("member"),
@@ -113,14 +112,7 @@ for (const role of ["owner", "admin"]) {
 			},
 		} as unknown as Db;
 		const unused = undefined as never;
-		const service = new SettingsService(
-			db,
-			unused,
-			unused,
-			unused,
-			unused,
-			unused,
-		);
+		const service = new SettingsService(db, unused, unused, unused, unused);
 		expect(await service.setArchiveRetention("test", 30)).toEqual({ days: 30 });
 		expect(written).toBe(true);
 	});

@@ -147,7 +147,7 @@ single place that knows what is set.
 | `PERPLEXITY_API_KEY` | Open-web research with citations; finds a LinkedIn slug |
 | `GITHUB_TOKEN` | Raises the GitHub rate limit from 60/hour |
 | `BLOB_READ_WRITE_TOKEN` | Mirrors logos and photos into Blob |
-| `AI_GATEWAY_API_KEY` | The model. Not needed on Vercel (OIDC) |
+| `OPENROUTER_API_KEY` | The model through OpenRouter, when no key was pasted on Settings → General. A pasted key wins |
 | `AGENT_BRIDGE_SECRET` | The rep-facing Agent panel — see `agent.md` |
 | `CODEX_HOME` | Where the Codex login lives and where the agent downloads codex on the first ChatGPT sign-in. Defaults to `~/.codex` |
 

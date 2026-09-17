@@ -5,7 +5,7 @@ export type ProviderKeyCheck =
 	| { outcome: "invalid"; reason: string }
 	| { outcome: "unknown"; reason: string };
 
-export type KeyProvider = "openai" | "anthropic";
+export type KeyProvider = "openrouter" | "openai" | "anthropic";
 
 type Probe = {
 	label: string;
@@ -14,6 +14,11 @@ type Probe = {
 };
 
 const PROBES = {
+	openrouter: {
+		label: "OpenRouter",
+		url: `${MODEL.openrouter.baseUrl}/key`,
+		headers: (key: string): HeadersInit => ({ authorization: `Bearer ${key}` }),
+	},
 	openai: {
 		label: "OpenAI",
 		url: "https://api.openai.com/v1/models",

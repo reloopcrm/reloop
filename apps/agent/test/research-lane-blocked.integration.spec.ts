@@ -9,37 +9,39 @@ import {
 } from "bun:test";
 import { db, type Prisma } from "@crm/db";
 import { writeProviderUsage } from "@crm/db/provider-usage";
+import { appSecretKey, sealSecret } from "@crm/db/secrets";
 import { SETTINGS_ID, writeAgentProvider } from "@crm/db/settings";
 import { runResearchLane } from "../agent/lib/dispatch";
 import { forgetProviderCache } from "../agent/lib/model";
+import { MODEL } from "../agent/lib/model-config";
 
 const DAY_MS = 86_400_000;
-const GATEWAY_KEYS = ["AI_GATEWAY_API_KEY", "VERCEL_OIDC_TOKEN"] as const;
+const OPENROUTER_KEYS = ["OPENROUTER_API_KEY"] as const;
 
 const suffix = crypto.randomUUID();
 const reason = `research-lane-blocked-${suffix}`;
 
-const savedGateway = new Map<string, string>();
+const savedOpenrouter = new Map<string, string>();
 let savedSetting: Prisma.AppSettingUncheckedCreateInput | null = null;
 let savedUsage: Prisma.ProviderUsageUncheckedCreateInput | null = null;
 let starts = 0;
 
-function hideTheGateway(): void {
-	savedGateway.clear();
-	for (const key of GATEWAY_KEYS) {
+function hideOpenrouter(): void {
+	savedOpenrouter.clear();
+	for (const key of OPENROUTER_KEYS) {
 		const value = process.env[key];
-		if (value !== undefined) savedGateway.set(key, value);
+		if (value !== undefined) savedOpenrouter.set(key, value);
 		delete process.env[key];
 	}
 }
 
-function restoreTheGateway(): void {
-	for (const key of GATEWAY_KEYS) {
-		const value = savedGateway.get(key);
+function restoreOpenrouter(): void {
+	for (const key of OPENROUTER_KEYS) {
+		const value = savedOpenrouter.get(key);
 		if (value === undefined) delete process.env[key];
 		else process.env[key] = value;
 	}
-	savedGateway.clear();
+	savedOpenrouter.clear();
 }
 
 async function spendTheModelWindow(): Promise<void> {
@@ -59,7 +61,13 @@ async function spendTheModelWindow(): Promise<void> {
 }
 
 async function offerAModel(): Promise<void> {
-	await writeAgentProvider(db, { provider: "gateway" });
+	await writeAgentProvider(db, {
+		provider: "openrouter",
+		openrouterKey: sealSecret(
+			"sk-or-test",
+			appSecretKey(MODEL.secrets.purpose),
+		),
+	});
 	forgetProviderCache();
 }
 
@@ -94,7 +102,7 @@ beforeAll(async () => {
 	savedUsage = await db.providerUsage.findUnique({
 		where: { provider: "chatgpt" },
 	});
-	hideTheGateway();
+	hideOpenrouter();
 });
 
 beforeEach(async () => {
@@ -106,7 +114,7 @@ afterEach(clean);
 
 afterAll(async () => {
 	await clean();
-	restoreTheGateway();
+	restoreOpenrouter();
 	forgetProviderCache();
 
 	if (savedSetting) {

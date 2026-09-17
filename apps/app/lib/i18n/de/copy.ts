@@ -153,12 +153,12 @@ export const copy: Dictionary = {
 		"Du hast bereits eine Ansicht mit diesem Namen.",
 	"Pruning is not configured.": "Die Archivbereinigung ist nicht eingerichtet.",
 	"That mailbox is not connected.": "Dieses Postfach ist nicht verbunden.",
+	"Paste an OpenRouter API key first.":
+		"Füge zuerst einen OpenRouter-API-Schlüssel ein.",
 	"Paste an OpenAI API key first.":
 		"Füge zuerst einen OpenAI-API-Schlüssel ein.",
 	"Paste an Anthropic API key first.":
 		"Füge zuerst einen Anthropic-API-Schlüssel ein.",
-	"Could not reach the AI Gateway to check that model. Try again in a moment.":
-		"Das AI Gateway ist zur Modellprüfung nicht erreichbar. Versuche es in einem Moment erneut.",
 
 	"The contact limit is reached. Ask the server operator to change your plan.":
 		"Die Kontaktgrenze ist erreicht. Bitte deinen Betreiber, den Tarif zu ändern.",

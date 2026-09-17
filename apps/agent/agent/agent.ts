@@ -1,10 +1,10 @@
 import "@crm/env/load";
 
-import { DEFAULT_AGENT_MODEL } from "@crm/db/settings";
+import { AGENT_PROVIDER_DEFAULTS } from "@crm/db/settings";
 import { onTelemetryProblem, syncVersion } from "@crm/telemetry";
 import { defineAgent, defineDynamic } from "eve";
 import { logCapabilities } from "./lib/capabilities";
-import { logModelProvider, selectedModel, stepModel } from "./lib/model";
+import { fallbackModel, logModelProvider, stepModel } from "./lib/model";
 
 void logCapabilities();
 void logModelProvider();
@@ -14,10 +14,11 @@ onTelemetryProblem((message) => console.debug(`[telemetry] ${message}`));
 void syncVersion();
 
 export default defineAgent({
+	modelContextWindowTokens:
+		AGENT_PROVIDER_DEFAULTS.openrouter.contextWindowTokens,
 	model: defineDynamic({
-		fallback: DEFAULT_AGENT_MODEL.id,
+		fallback: fallbackModel(),
 		events: {
-			"session.started": () => selectedModel(),
 			"step.started": () => stepModel(),
 		},
 	}),

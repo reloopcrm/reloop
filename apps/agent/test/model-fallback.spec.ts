@@ -20,12 +20,16 @@ const resetTimeFrom = (cause: unknown) => resetFrom(readProviderFailure(cause));
 
 const setting: AgentProviderSetting = {
 	provider: "chatgpt",
+	openrouterModel: "openai/gpt-5.6-luna",
 	chatgptModel: "gpt-5.6-sol",
 	openaiModel: "gpt-5.6-terra",
 	anthropicModel: "claude-haiku-4-5",
+	openrouterKey: null,
 	openaiKey: null,
 	anthropicKey: null,
 	researchPerHour: null,
+	readingModel: null,
+	draftModel: null,
 };
 
 let savedUsage: Prisma.ProviderUsageUncheckedCreateInput | null = null;
@@ -47,30 +51,42 @@ afterAll(async () => {
 describe("provider chain", () => {
 	it("puts the chosen provider first and only lists configured fallbacks", () => {
 		forgetProviderCache();
-		const chain = candidatesFor(setting, { AI_GATEWAY_API_KEY: "gw" });
+		const chain = candidatesFor(setting, { OPENROUTER_API_KEY: "sk-or-test" });
 
 		expect(chain.map((entry) => entry.provider)).toEqual([
 			"chatgpt",
-			"gateway",
+			"openrouter",
 		]);
 
 		const none = candidatesFor(setting, {});
 		expect(none.map((entry) => entry.provider)).toEqual(["chatgpt"]);
 	});
 
+	it("sends OpenRouter through the chat completions endpoint", () => {
+		const chain = candidatesFor(
+			{ ...setting, provider: "openrouter" },
+			{ OPENROUTER_API_KEY: "sk-or-test" },
+		);
+		const first = chain[0];
+
+		expect(first?.provider).toBe("openrouter");
+		expect(first?.model).toBe("openai/gpt-5.6-luna");
+		expect(first?.build().provider).toBe("openrouter.chat");
+	});
+
 	it("skips a provider for the cooldown after it reports a usage limit", () => {
 		forgetProviderCache();
-		const chain = candidatesFor(setting, { AI_GATEWAY_API_KEY: "gw" });
+		const chain = candidatesFor(setting, { OPENROUTER_API_KEY: "sk-or-test" });
 		const now = Date.now();
 
 		markExhausted("chatgpt", now);
 
 		expect(usable(chain, now).map((entry) => entry.provider)).toEqual([
-			"gateway",
+			"openrouter",
 		]);
 		expect(
 			usable(chain, now + 16 * 60_000).map((entry) => entry.provider),
-		).toEqual(["chatgpt", "gateway"]);
+		).toEqual(["chatgpt", "openrouter"]);
 		forgetProviderCache();
 	});
 

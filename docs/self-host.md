@@ -89,6 +89,18 @@ Add the variables to `deploy/.env`, then run `docker compose up -d` in the `depl
 
 Without AI the CRM works as a normal CRM. The agent needs one of these:
 
+### OpenRouter
+
+OpenRouter is one key for every model vendor and the default for a self-hosted install.
+
+1. Create an account at [openrouter.ai](https://openrouter.ai) and buy credits. Credits are prepaid, there is no subscription.
+2. Create a key at [openrouter.ai/keys](https://openrouter.ai/keys).
+3. Open **Settings, General**, choose **OpenRouter**, paste the key and save.
+
+The agent starts on `openai/gpt-5.6-luna`. At the time of writing OpenRouter lists it at 0.20 USD per million input tokens and 1.20 USD per million output tokens. Pick another model in the same panel, any id from [openrouter.ai/models](https://openrouter.ai/models) that supports tools works.
+
+To keep the key out of the database, set `OPENROUTER_API_KEY` in `deploy/.env` instead and run `docker compose up -d`. A key pasted in the settings page wins over the variable.
+
 ### Your own API key
 
 Open **Settings, General** and add an OpenAI or Anthropic API key. The agent uses it from the next task on.

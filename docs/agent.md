@@ -11,14 +11,28 @@ are in `docs/setup.md`.
 
 ## Model
 
-Default `zai/glm-5.2-fast`; `DEFAULT_AGENT_MODEL` in `@crm/db/settings` because the
-agent and the API both need it.
+Four providers pay for the model, and Settings → General picks one: OpenRouter, a
+ChatGPT subscription, an OpenAI key, an Anthropic key. Every provider's default model
+is `AGENT_PROVIDER_DEFAULTS` in `@crm/db/settings`, because the agent and the API both
+need it. OpenRouter is the default provider and `openai/gpt-5.6-luna` its default
+model: cheap, fast, tool-using, and on the local price list so spend rows carry a cost.
 
-- **A row (`AppSetting`), not an env var**, via `defineDynamic` on `session.started`.
-  Open conversations keep their model — prompt caches are per model.
+- **A row (`AppSetting`), not an env var**, via `defineDynamic` on `step.started`.
+  `lib/model.ts` builds the chosen provider's model object and chains the other
+  configured providers behind it as fallbacks for a usage limit.
+- **OpenRouter goes through `@ai-sdk/openai`** with `baseURL`
+  `https://openrouter.ai/api/v1` and `.chat(model)`, never the default call: the
+  default is OpenAI's Responses API, OpenRouter's compatible surface is chat
+  completions. `MODEL.openrouter` in `lib/model-config.ts` holds the URL and the two
+  headers OpenRouter asks for, `HTTP-Referer` and `X-Title`.
+- **The OpenRouter key is pasted on the settings page** and stored sealed like the
+  OpenAI and Anthropic keys. `OPENROUTER_API_KEY` in the environment is the same key
+  for an install that keeps secrets out of the database; a stored key wins.
+- **No key means no candidate, never a throw.** `candidatesFor` lists only providers
+  with a key; the compiled fallback is the OpenRouter default model with whatever
+  `OPENROUTER_API_KEY` holds, and a request on it fails only when nothing is set up.
 - **`lib/model.ts` always sends `modelContextWindowTokens`**; eve never inherits it.
 - **A failed read logs and keeps the compiled fallback.** Never throws.
-- **The chooser offers only `tool-use` models** (`ModelCatalogService`).
 - **Not a frontier model, deliberately** — refusing wrong answers is enforced by the
   tools and evidence model, not model strength.
 

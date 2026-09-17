@@ -39,7 +39,7 @@ export class ResearchKeyService {
 	}
 
 	verifyProvider(
-		provider: "openai" | "anthropic",
+		provider: "openrouter" | "openai" | "anthropic",
 		apiKey: string,
 	): Promise<KeyCheck> {
 		return this.check(

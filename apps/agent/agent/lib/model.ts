@@ -13,13 +13,12 @@ import {
 	AGENT_PROVIDER_DEFAULTS,
 	type AgentProvider,
 	type AgentProviderSetting,
+	chatModelFor,
 	draftModelFor,
-	readAgentModel,
 	readAgentProvider,
 	readingModelFor,
 } from "@crm/db/settings";
 import {
-	gateway,
 	type LanguageModel,
 	type LanguageModelMiddleware,
 	streamText,
@@ -29,11 +28,6 @@ import { experimental_chatgpt } from "eve/models/openai";
 import { z } from "zod";
 import { MODEL } from "./model-config";
 import { withSpendMeter } from "./spend-meter";
-
-export interface ModelSelection {
-	model: string;
-	modelContextWindowTokens: number;
-}
 
 type ModelObject = Exclude<LanguageModel, string>;
 
@@ -84,6 +78,31 @@ function openKey(sealed: string | null): string | null {
 
 export type ModelPurpose = "chat" | "reading" | "draft";
 
+export function openrouterKeyOf(
+	setting: AgentProviderSetting,
+	env: NodeJS.ProcessEnv = process.env,
+): string | null {
+	return (
+		openKey(setting.openrouterKey) ?? env.OPENROUTER_API_KEY?.trim() ?? null
+	);
+}
+
+export function openrouterModel(apiKey: string, model: string): ModelObject {
+	return createOpenAI({
+		name: "openrouter",
+		baseURL: MODEL.openrouter.baseUrl,
+		apiKey,
+		headers: MODEL.openrouter.headers,
+	}).chat(model);
+}
+
+export function fallbackModel(): LanguageModel {
+	return openrouterModel(
+		process.env.OPENROUTER_API_KEY?.trim() || "unset",
+		AGENT_PROVIDER_DEFAULTS.openrouter.model,
+	);
+}
+
 function purposeModel(
 	setting: AgentProviderSetting,
 	purpose: ModelPurpose,
@@ -103,7 +122,7 @@ export function candidatesFor(
 
 	const openaiKey = openKey(setting.openaiKey);
 	const anthropicKey = openKey(setting.anthropicKey);
-	const gatewayKey = env.AI_GATEWAY_API_KEY?.trim() || env.VERCEL_OIDC_TOKEN;
+	const openrouterKey = openrouterKeyOf(setting, env);
 	const wanted = purposeModel(setting, purpose);
 	const modelFor = (provider: AgentProvider, fallback: string) =>
 		wanted && setting.provider === provider ? wanted : fallback;
@@ -155,18 +174,16 @@ export function candidatesFor(
 		});
 	}
 
-	if (gatewayKey) {
+	if (openrouterKey) {
+		const model = modelFor("openrouter", setting.openrouterModel);
 		all.push({
-			provider: "gateway",
-			label: "Vercel AI Gateway",
-			model: MODEL.gateway.fallbackModel,
-			contextWindowTokens: 0,
+			provider: "openrouter",
+			label: `OpenRouter (${model})`,
+			model,
+			contextWindowTokens:
+				AGENT_PROVIDER_DEFAULTS.openrouter.contextWindowTokens,
 			build: () =>
-				withSpendMeter(
-					gateway(MODEL.gateway.fallbackModel) as ModelObject,
-					MODEL.gateway.fallbackModel,
-					kind,
-				),
+				withSpendMeter(openrouterModel(openrouterKey, model), model, kind),
 		});
 	}
 
@@ -285,10 +302,7 @@ export function usable(
 }
 
 export async function providersExhausted(): Promise<boolean> {
-	const setting = await provider();
-	if (setting.provider === "gateway") return false;
-
-	return usable(candidatesFor(setting)).length === 0;
+	return usable(candidatesFor(await provider())).length === 0;
 }
 
 export async function resumeAt(): Promise<Date | null> {
@@ -426,40 +440,16 @@ function withFallback(
 	return wrapLanguageModel({ model: primary, middleware }) as ModelObject;
 }
 
-export async function selectedModel(): Promise<ModelSelection | null> {
-	try {
-		if ((await provider()).provider !== "gateway") return null;
-
-		const setting = await readAgentModel(db);
-
-		if (setting.isDefault) return null;
-
-		return {
-			model: setting.id,
-			modelContextWindowTokens: setting.contextWindowTokens,
-		};
-	} catch (error) {
-		console.error(
-			`[agent] could not read the configured model, falling back: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		);
-		return null;
-	}
-}
-
 export async function stepModel(
 	kind: string = MODEL.spend.researchKind,
 ): Promise<StepModelSelection | null> {
 	try {
 		const setting = await provider();
-		if (setting.provider === "gateway") return null;
-
 		const chain = usable(candidatesFor(setting, process.env, "chat", kind));
 		const first = chain[0];
 		if (!first) {
 			console.error(
-				"[agent] every configured provider is at its usage limit; this call goes to the gateway",
+				"[agent] every configured provider is at its usage limit; this call goes to the compiled fallback",
 			);
 			return null;
 		}
@@ -473,7 +463,7 @@ export async function stepModel(
 		};
 	} catch (error) {
 		console.error(
-			`[agent] could not build the model for the chosen provider, using the gateway: ${
+			`[agent] could not build the model for the chosen provider, using the compiled fallback: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
 		);
@@ -494,11 +484,7 @@ async function chatgptExhausted(): Promise<boolean> {
 export async function modelUnavailable(): Promise<string | null> {
 	try {
 		const setting = await provider();
-		if (setting.provider === "gateway") return null;
-
 		const chain = candidatesFor(setting);
-		if (chain.some((entry) => entry.provider === "gateway")) return null;
-
 		const spent = await chatgptExhausted();
 		const live = usable(chain).filter(
 			(entry) => entry.provider !== "chatgpt" || !spent,
@@ -520,7 +506,7 @@ export async function modelUnavailable(): Promise<string | null> {
 			days === null
 				? "The agent starts again when the limit resets."
 				: `The agent starts again when the limit resets in ${days} ${days === 1 ? "day" : "days"}.`,
-			"Add an OpenAI or Anthropic key under Settings, General to keep working now.",
+			"Add an OpenRouter, OpenAI or Anthropic key under Settings, General to keep working now.",
 		].join(" ");
 	} catch {
 		return null;
@@ -532,33 +518,24 @@ export async function directModel(
 	kind: string = MODEL.spend.defaultKind,
 ): Promise<ModelObject> {
 	const setting = await provider();
-
-	if (setting.provider !== "gateway") {
-		const chain = usable(candidatesFor(setting, process.env, purpose, kind));
-		const built = chain.map((entry) => entry.build());
-		if (built.length > 0) return withFallback(chain, built);
+	const chain = usable(candidatesFor(setting, process.env, purpose, kind));
+	const built = chain.map((entry) => entry.build());
+	if (built.length === 0) {
+		throw new Error(
+			"Every configured model provider is at its usage limit; the call waits for the next reset.",
+		);
 	}
 
-	const model = await readAgentModel(db);
-	return withSpendMeter(gateway(model.id) as ModelObject, model.id, kind);
+	return withFallback(chain, built);
 }
 
 export async function logModelProvider(): Promise<void> {
 	try {
 		const setting = await readAgentProvider(db);
-
-		if (setting.provider === "gateway") {
-			const model = await readAgentModel(db);
-			console.error(
-				`[agent] on   Model: ${model.id} (Vercel AI Gateway, Settings → General)`,
-			);
-			return;
-		}
-
 		const chain = candidatesFor(setting);
 		const labels = chain.map((entry) => entry.label);
 		console.error(
-			`[agent] on   Model: ${labels[0] ?? setting.provider}${
+			`[agent] on   Model: ${labels[0] ?? `${chatModelFor(setting).id} (${setting.provider}, no key yet)`}${
 				labels.length > 1 ? `, falls back to ${labels.slice(1).join(", ")}` : ""
 			}`,
 		);

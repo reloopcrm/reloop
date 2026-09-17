@@ -29,15 +29,15 @@ describe("the price list", () => {
 		}
 	});
 
-	it("reads a gateway name with a vendor in front of it", () => {
+	it("reads an OpenRouter name with a vendor in front of it", () => {
 		expect(priceOf("openai/gpt-5.6-terra")).toEqual(
 			MODEL_PRICES["gpt-5.6-terra"],
 		);
 	});
 
 	it("knows nothing about a model that is not on the list", () => {
-		expect(priceOf("zai/glm-5.2-fast")).toBeNull();
-		expect(costOf("zai/glm-5.2-fast", tokens())).toBeNull();
+		expect(priceOf("z-ai/glm-5.3-flash")).toBeNull();
+		expect(costOf("z-ai/glm-5.3-flash", tokens())).toBeNull();
 	});
 
 	it("charges a cache write more than a plain input token on Astra", () => {
@@ -123,7 +123,7 @@ describe("reading the usage the model reports", () => {
 	});
 
 	it("keeps the entry even when the model has no price", () => {
-		const entry = spendFromUsage("zai/glm-5.2-fast", "research", {
+		const entry = spendFromUsage("z-ai/glm-5.3-flash", "research", {
 			inputTokens: { total: 100, noCache: 100, cacheRead: 0, cacheWrite: 0 },
 			outputTokens: { total: 10 },
 		});

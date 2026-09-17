@@ -64,9 +64,7 @@ async function Settings() {
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.users.me.queryOptions()),
 		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
-		queryClient.prefetchQuery(trpc.settings.agentModel.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.agentProvider.queryOptions()),
-		queryClient.prefetchQuery(trpc.settings.modelCatalog.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.researchKey.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.archiveRetention.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.passwordSignIn.queryOptions()),

@@ -14,7 +14,6 @@ import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middlewa
 import { restMeta } from "../trpc/openapi";
 import {
 	agentFunctionsOutput,
-	agentModelOutput,
 	agentProviderOutput,
 	archiveRetentionOutput,
 	businessProposalOutput,
@@ -22,12 +21,10 @@ import {
 	chatgptLoginOutput,
 	draftStyleOutput,
 	forgetDraftStyleRuleInput,
-	modelCatalogOutput,
 	passwordSignInOutput,
 	planOutput,
 	researchKeyOutput,
 	setAgentFunctionInput,
-	setAgentModelInput,
 	setAgentProviderInput,
 	setArchiveRetentionDaysInput,
 	setPasswordInput,
@@ -50,14 +47,6 @@ export class SettingsRouter {
 	})
 	async proposeBusiness(@Ctx() ctx: AuthedTrpcContext) {
 		return this.settings.proposeBusiness(ctx.user.id);
-	}
-
-	@Query({
-		output: agentModelOutput,
-		meta: restMeta("GET", "/settings/agent-model", ["Settings"]),
-	})
-	async agentModel() {
-		return this.settings.agentModel();
 	}
 
 	@Query({
@@ -167,26 +156,6 @@ export class SettingsRouter {
 			ctx.session.session.createdAt,
 			ctx.session.session.id,
 		);
-	}
-
-	@Query({
-		output: modelCatalogOutput,
-		meta: restMeta("GET", "/settings/model-catalog", ["Settings"]),
-	})
-	async modelCatalog() {
-		return this.settings.modelCatalog();
-	}
-
-	@Mutation({
-		input: setAgentModelInput,
-		output: agentModelOutput,
-		meta: restMeta("PATCH", "/settings/agent-model", ["Settings"]),
-	})
-	async setAgentModel(
-		@Ctx() ctx: AuthedTrpcContext,
-		@Input() input: z.infer<typeof setAgentModelInput>,
-	) {
-		return this.settings.setAgentModel(ctx.user.id, input.modelId);
 	}
 
 	@Mutation({

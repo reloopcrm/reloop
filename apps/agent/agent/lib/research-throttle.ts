@@ -21,7 +21,7 @@ export async function researchAllowance(
 ): Promise<ThrottleDecision> {
 	const setting = await readAgentProvider(db);
 
-	if (setting.provider !== "gateway" && (await providersExhausted())) {
+	if (await providersExhausted()) {
 		return {
 			allowed: 0,
 			reason: "every configured model provider is at its usage limit",
@@ -29,14 +29,6 @@ export async function researchAllowance(
 	}
 
 	const limits = limitsOf(await readPlan(db));
-
-	if (
-		setting.provider === "gateway" &&
-		setting.researchPerHour === null &&
-		limits.researchPerHour === null
-	) {
-		return { allowed: batch, reason: null };
-	}
 
 	const perHour =
 		clampResearchPerHour(setting.researchPerHour, limits) ??

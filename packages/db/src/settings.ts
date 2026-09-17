@@ -9,53 +9,8 @@ import { appSecretKey, openSecret, sealSecret } from "./secrets";
 
 export const SETTINGS_ID = "app";
 
-export const DEFAULT_AGENT_MODEL = {
-	id: "zai/glm-5.2-fast",
-	contextWindowTokens: 1_000_000,
-} as const;
-
-export interface AgentModelSetting {
-	id: string;
-	contextWindowTokens: number;
-	isDefault: boolean;
-}
-
-export async function readAgentModel(db: Db): Promise<AgentModelSetting> {
-	const row = await db.appSetting.findUnique({
-		where: { id: SETTINGS_ID },
-		select: { agentModelId: true, agentModelContextWindow: true },
-	});
-
-	if (!row?.agentModelId) {
-		return { ...DEFAULT_AGENT_MODEL, isDefault: true };
-	}
-
-	return {
-		id: row.agentModelId,
-		contextWindowTokens:
-			row.agentModelContextWindow ?? DEFAULT_AGENT_MODEL.contextWindowTokens,
-		isDefault: false,
-	};
-}
-
-export async function writeAgentModel(
-	db: Db,
-	model: { id: string; contextWindowTokens: number } | null,
-): Promise<void> {
-	const fields = {
-		agentModelId: model?.id ?? null,
-		agentModelContextWindow: model?.contextWindowTokens ?? null,
-	};
-
-	await db.appSetting.upsert({
-		where: { id: SETTINGS_ID },
-		create: { id: SETTINGS_ID, ...fields },
-		update: fields,
-	});
-}
-
 export const AGENT_PROVIDERS = [
-	"gateway",
+	"openrouter",
 	"chatgpt",
 	"openai",
 	"anthropic",
@@ -64,12 +19,19 @@ export const AGENT_PROVIDERS = [
 export type AgentProvider = (typeof AGENT_PROVIDERS)[number];
 
 export const AGENT_PROVIDER_DEFAULTS = {
+	openrouter: { model: "openai/gpt-5.6-luna", contextWindowTokens: 200_000 },
 	chatgpt: { model: "gpt-5.6-terra", contextWindowTokens: 200_000 },
 	openai: { model: "gpt-5.6-terra", contextWindowTokens: 400_000 },
 	anthropic: { model: "claude-haiku-4-5", contextWindowTokens: 200_000 },
 } as const;
 
 export const AGENT_MODEL_OPTIONS = {
+	openrouter: [
+		{ id: "openai/gpt-5.6-luna", label: "GPT-5.6 Luna", note: "Cheapest" },
+		{ id: "openai/gpt-5.6-terra", label: "GPT-5.6 Terra", note: "Recommended" },
+		{ id: "openai/gpt-5.6-sol", label: "GPT-5.6 Sol", note: "Stronger" },
+		{ id: "anthropic/claude-sonnet-5", label: "Claude Sonnet 5", note: "" },
+	],
 	chatgpt: [
 		{
 			id: "gpt-6-astra",
@@ -94,12 +56,14 @@ export const AGENT_MODEL_OPTIONS = {
 } as const;
 
 export const AGENT_READING_DEFAULT = {
+	openrouter: "openai/gpt-5.6-luna",
 	chatgpt: "gpt-5.6-terra",
 	openai: "gpt-5.6-terra",
 	anthropic: "claude-haiku-4-5",
 } as const;
 
 export const AGENT_DRAFT_DEFAULT = {
+	openrouter: "openai/gpt-5.6-terra",
 	chatgpt: "gpt-5.6-sol",
 	openai: "gpt-5.6-sol",
 	anthropic: "claude-sonnet-5",
@@ -118,9 +82,11 @@ export const AGENT_RESEARCH_PER_HOUR = {
 
 export interface AgentProviderSetting {
 	provider: AgentProvider;
+	openrouterModel: string;
 	chatgptModel: string;
 	openaiModel: string;
 	anthropicModel: string;
+	openrouterKey: string | null;
 	openaiKey: string | null;
 	anthropicKey: string | null;
 	researchPerHour: number | null;
@@ -137,6 +103,8 @@ export async function readAgentProvider(db: Db): Promise<AgentProviderSetting> {
 		where: { id: SETTINGS_ID },
 		select: {
 			agentProvider: true,
+			agentOpenrouterKey: true,
+			agentOpenrouterModel: true,
 			agentChatgptModel: true,
 			agentOpenaiKey: true,
 			agentOpenaiModel: true,
@@ -151,10 +119,13 @@ export async function readAgentProvider(db: Db): Promise<AgentProviderSetting> {
 	const provider =
 		row?.agentProvider && isAgentProvider(row.agentProvider)
 			? row.agentProvider
-			: "gateway";
+			: "openrouter";
 
 	return {
 		provider,
+		openrouterModel:
+			row?.agentOpenrouterModel?.trim() ||
+			AGENT_PROVIDER_DEFAULTS.openrouter.model,
 		chatgptModel:
 			row?.agentChatgptModel?.trim() || AGENT_PROVIDER_DEFAULTS.chatgpt.model,
 		openaiModel:
@@ -162,6 +133,7 @@ export async function readAgentProvider(db: Db): Promise<AgentProviderSetting> {
 		anthropicModel:
 			row?.agentAnthropicModel?.trim() ||
 			AGENT_PROVIDER_DEFAULTS.anthropic.model,
+		openrouterKey: row?.agentOpenrouterKey?.trim() || null,
 		openaiKey: row?.agentOpenaiKey?.trim() || null,
 		anthropicKey: row?.agentAnthropicKey?.trim() || null,
 		researchPerHour: row?.agentResearchPerHour ?? null,
@@ -171,15 +143,24 @@ export async function readAgentProvider(db: Db): Promise<AgentProviderSetting> {
 }
 
 export function readingModelFor(setting: AgentProviderSetting): string {
-	if (setting.readingModel) return setting.readingModel;
-	if (setting.provider === "gateway") return "";
-	return AGENT_READING_DEFAULT[setting.provider];
+	return setting.readingModel ?? AGENT_READING_DEFAULT[setting.provider];
 }
 
 export function draftModelFor(setting: AgentProviderSetting): string {
-	if (setting.draftModel) return setting.draftModel;
-	if (setting.provider === "gateway") return "";
-	return AGENT_DRAFT_DEFAULT[setting.provider];
+	return setting.draftModel ?? AGENT_DRAFT_DEFAULT[setting.provider];
+}
+
+export interface AgentChatModel {
+	id: string;
+	contextWindowTokens: number;
+}
+
+export function chatModelFor(setting: AgentProviderSetting): AgentChatModel {
+	return {
+		id: setting[`${setting.provider}Model`],
+		contextWindowTokens:
+			AGENT_PROVIDER_DEFAULTS[setting.provider].contextWindowTokens,
+	};
 }
 
 export async function writeAgentProvider(
@@ -190,6 +171,9 @@ export async function writeAgentProvider(
 		agentProvider: setting.provider,
 	};
 
+	if (setting.openrouterModel !== undefined) {
+		fields.agentOpenrouterModel = setting.openrouterModel.trim() || null;
+	}
 	if (setting.chatgptModel !== undefined) {
 		fields.agentChatgptModel = setting.chatgptModel.trim() || null;
 	}
@@ -198,6 +182,9 @@ export async function writeAgentProvider(
 	}
 	if (setting.anthropicModel !== undefined) {
 		fields.agentAnthropicModel = setting.anthropicModel.trim() || null;
+	}
+	if (setting.openrouterKey !== undefined) {
+		fields.agentOpenrouterKey = setting.openrouterKey;
 	}
 	if (setting.openaiKey !== undefined)
 		fields.agentOpenaiKey = setting.openaiKey;

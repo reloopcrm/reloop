@@ -1462,6 +1462,8 @@ model AppSetting {
 
   agentModelContextWindow Int?
   agentProvider           String?
+  agentOpenrouterKey      String?
+  agentOpenrouterModel    String?
   agentChatgptModel       String?
   agentOpenaiKey          String?
   agentOpenaiModel        String?

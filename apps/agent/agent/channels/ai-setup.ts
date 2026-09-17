@@ -21,7 +21,7 @@ const loginRequest = z
 	.catch({ action: "status" });
 
 const keyRequest = z.object({
-	provider: z.enum(["openai", "anthropic"]),
+	provider: z.enum(["openrouter", "openai", "anthropic"]),
 	apiKey: z.string().trim().min(1).max(500),
 });
 

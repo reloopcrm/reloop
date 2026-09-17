@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { priceOf } from "../src/model-prices";
 import {
 	AGENT_DRAFT_DEFAULT,
 	AGENT_MODEL_OPTIONS,
@@ -50,6 +51,21 @@ describe("every default", () => {
 			expect(offered).toContain(AGENT_DRAFT_DEFAULT[tier]);
 		});
 	}
+
+	it("prices every OpenRouter default so spend rows carry a cost", () => {
+		expect(priceOf(AGENT_PROVIDER_DEFAULTS.openrouter.model)).not.toBeNull();
+		expect(priceOf(AGENT_READING_DEFAULT.openrouter)).not.toBeNull();
+		expect(priceOf(AGENT_DRAFT_DEFAULT.openrouter)).not.toBeNull();
+	});
+
+	it("picks OpenRouter defaults the settings also offer", () => {
+		const offered = AGENT_MODEL_OPTIONS.openrouter.map((option) => option.id);
+		expect(offered.length).toBeGreaterThanOrEqual(2);
+		expect(offered).toContain(AGENT_PROVIDER_DEFAULTS.openrouter.model);
+		expect(offered).toContain(AGENT_READING_DEFAULT.openrouter);
+		expect(offered).toContain(AGENT_DRAFT_DEFAULT.openrouter);
+		for (const id of offered) expect(id).toMatch(/^[a-z0-9-]+\/[a-z0-9.:-]+$/);
+	});
 
 	it("never makes the dearest model the one a new install starts on", () => {
 		expect(AGENT_PROVIDER_DEFAULTS.chatgpt.model).not.toBe("gpt-6-astra");

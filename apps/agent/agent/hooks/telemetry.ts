@@ -1,5 +1,5 @@
 import { db } from "@crm/db";
-import { readAgentModel } from "@crm/db/settings";
+import { chatModelFor, readAgentProvider } from "@crm/db/settings";
 import { agentError, modelError } from "@crm/telemetry";
 import { defineHook } from "eve/hooks";
 import { z } from "zod";
@@ -16,7 +16,7 @@ async function configuredModel(): Promise<string | null> {
 	if (modelId) return modelId;
 
 	try {
-		modelId = (await readAgentModel(db)).id;
+		modelId = chatModelFor(await readAgentProvider(db)).id;
 	} catch {
 		modelId = null;
 	}
@@ -26,7 +26,7 @@ async function configuredModel(): Promise<string | null> {
 
 const MODEL_CODES = [
 	"model",
-	"gateway",
+	"openrouter",
 	"provider",
 	"rate_limit",
 	"context_length",

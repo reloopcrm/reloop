@@ -139,7 +139,7 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
-	AI_GATEWAY_API_KEY?: string;
+	OPENROUTER_API_KEY?: string;
 
 	@IsOptional()
 	@IsString()

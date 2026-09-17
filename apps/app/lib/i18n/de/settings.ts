@@ -101,10 +101,13 @@ export const settings: Dictionary = {
 	"Who pays for the agent": "Wer den Agenten bezahlt",
 	"The account every model call is billed to. When it reports a usage limit, the agent switches to the next configured account for a while and says so in its log.":
 		"Das Konto, über das jeder Modellaufruf abgerechnet wird. Meldet es ein Nutzungslimit, wechselt der Agent für eine Weile zum nächsten eingerichteten Konto und schreibt das in sein Protokoll.",
-	"Billed to the AI_GATEWAY_API_KEY in the root .env file. The model is chosen below.":
-		"Wird über AI_GATEWAY_API_KEY in der .env-Datei im Hauptordner abgerechnet. Das Modell wählst du unten.",
-	"No AI_GATEWAY_API_KEY is set in the root .env file, so this choice cannot answer yet.":
-		"In der .env-Datei im Hauptordner steht kein AI_GATEWAY_API_KEY, deshalb kann diese Wahl noch nicht antworten.",
+	"OpenRouter API key": "OpenRouter-API-Schlüssel",
+	"sk-or-… from openrouter.ai/keys": "sk-or-… von openrouter.ai/keys",
+	"Set by OPENROUTER_API_KEY in the root .env file":
+		"Gesetzt über OPENROUTER_API_KEY in der .env-Datei im Hauptordner",
+	"Billed to your OpenRouter account. You buy credits at openrouter.ai and pay per token, at the price OpenRouter lists for the model.":
+		"Wird über dein OpenRouter-Konto abgerechnet. Du kaufst Guthaben auf openrouter.ai und zahlst pro Token, zum Preis, den OpenRouter für das Modell nennt.",
+	"OpenRouter model": "OpenRouter-Modell",
 	"Falls back to {fallbacks} when this account is at its limit.":
 		"Weicht auf {fallbacks} aus, wenn dieses Konto an seinem Limit ist.",
 	"No other account is configured, so a usage limit pauses the agent until it resets.":
@@ -200,14 +203,7 @@ export const settings: Dictionary = {
 	Save: "Speichern",
 	"Saved. The agent uses it from its next model call.":
 		"Gespeichert. Der Agent nutzt das ab seinem nächsten Modellaufruf.",
-	"The agent will use this model from its next session.":
-		"Der Agent nutzt dieses Modell ab seiner nächsten Sitzung.",
-	"Default: {name}": "Standard: {name}",
 	Model: "Modell",
-	"Search models…": "Modelle suchen…",
-	"No model matches that.": "Kein Modell passt dazu.",
-	"Could not reach the AI Gateway to list models. The agent is still running {model}.":
-		"Das AI Gateway war nicht erreichbar, um die Modelle zu laden. Der Agent läuft weiter mit {model}.",
 	"Other model name…": "Anderer Modellname…",
 	"Strongest, 6 s per read": "Am stärksten, 6 s je Durchgang",
 	"6 s per read": "6 s je Durchgang",
@@ -216,9 +212,6 @@ export const settings: Dictionary = {
 	Cheapest: "Am günstigsten",
 	Recommended: "Empfohlen",
 	Stronger: "Stärker",
-	"{input} in · {output} out per 1M": "{input} rein · {output} raus pro 1 Mio.",
-	"{count}M context": "{count} Mio. Kontext",
-	"{count}K context": "{count} Tsd. Kontext",
 	"resets now": "wird jetzt zurückgesetzt",
 	"resets in {minutes} min": "Zurücksetzen in {minutes} Min.",
 	"resets in {hours} h {minutes} min":
@@ -235,10 +228,6 @@ export const settings: Dictionary = {
 	"{percent} % used": "{percent} % verbraucht",
 	"The account every model call is billed to.":
 		"Das Konto, über das jeder Modellaufruf abgerechnet wird.",
-	"Billed to AI_GATEWAY_API_KEY in the root .env file.":
-		"Wird über AI_GATEWAY_API_KEY in der .env-Datei im Hauptordner abgerechnet.",
-	"No AI_GATEWAY_API_KEY in the root .env file yet.":
-		"In der .env-Datei im Hauptordner steht noch kein AI_GATEWAY_API_KEY.",
 	"More settings": "Mehr Einstellungen",
 	"Experimental. OpenAI can withdraw it.":
 		"Experimentell. OpenAI kann es abschalten.",

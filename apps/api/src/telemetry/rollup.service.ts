@@ -8,7 +8,7 @@ import {
 	RecordSource,
 } from "@crm/db";
 import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
-import { readAgentModel } from "@crm/db/settings";
+import { chatModelFor, readAgentProvider } from "@crm/db/settings";
 import { CONTACT_CAP_REASON } from "@crm/db/tracking";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import {
@@ -134,14 +134,18 @@ export class RollupService {
 	}
 
 	private async shape(): Promise<Properties> {
-		const [model, members, ssoProviders, postgres, contextKey] =
-			await Promise.all([
-				readAgentModel(this.db).catch(() => null),
+		const [provider, members, ssoProviders, postgres, keys] = await Promise.all(
+			[
+				readAgentProvider(this.db).catch(() => null),
 				this.db.member.count({ where: { organizationId: WORKSPACE_ID } }),
 				this.db.ssoProvider.count(),
 				this.postgresMajor(),
-				this.db.appSetting.findFirst({ select: { contextDevApiKey: true } }),
-			]);
+				this.db.appSetting.findFirst({
+					select: { contextDevApiKey: true, agentOpenrouterKey: true },
+				}),
+			],
+		);
+		const model = provider ? chatModelFor(provider) : null;
 
 		return {
 			node_version: process.versions.node.split(".")[0] ?? null,
@@ -149,13 +153,15 @@ export class RollupService {
 			members_bucket: bucket(members),
 
 			cap_perplexity: isSet("PERPLEXITY_API_KEY"),
-			cap_context_dev: Boolean(contextKey?.contextDevApiKey?.trim()),
+			cap_context_dev: Boolean(keys?.contextDevApiKey?.trim()),
 			cap_blob: isSet("BLOB_READ_WRITE_TOKEN"),
 			cap_github: isSet("GITHUB_TOKEN"),
 			cap_redis: isSet("REDIS_URL"),
 			cap_agent_bridge: isSet("AGENT_BRIDGE_SECRET"),
 			cap_cron_secret: isSet("CRON_SECRET"),
-			cap_ai_gateway: isSet("AI_GATEWAY_API_KEY"),
+			cap_openrouter:
+				isSet("OPENROUTER_API_KEY") ||
+				Boolean(keys?.agentOpenrouterKey?.trim()),
 			cap_google_oauth:
 				isSet("GOOGLE_CLIENT_ID") && isSet("GOOGLE_CLIENT_SECRET"),
 			cap_sso_provider: ssoProviders > 0,

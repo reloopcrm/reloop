@@ -1,6 +1,5 @@
 "use client";
 
-import ChevronDown from "@carbon/icons-react/es/ChevronDown";
 import { Button } from "@crm/ui/components/button";
 import {
 	Card,
@@ -10,26 +9,12 @@ import {
 	CardTitle,
 } from "@crm/ui/components/card";
 import {
-	Command,
-	CommandEmpty,
-	CommandGroup,
-	CommandInput,
-	CommandItem,
-	CommandList,
-} from "@crm/ui/components/command";
-import {
 	Field,
 	FieldDescription,
 	FieldGroup,
 	FieldLabel,
 } from "@crm/ui/components/field";
-import { Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@crm/ui/components/popover";
 import {
 	Select,
 	SelectContent,
@@ -50,54 +35,13 @@ import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import { ChatgptDeviceLogin } from "./chatgpt-device-login";
 
-type CatalogModel = {
-	id: string;
-	name: string;
-	provider: string;
-	contextWindowTokens: number;
-	pricing: { input: number; output: number } | null;
-};
-
-const FOLLOW_DEFAULT = "__default__";
-
-function perMillion(rate: number): string {
-	const dollars = rate * 1_000_000;
-	return `$${dollars.toFixed(2).replace(/\.?0+$/, "")}`;
-}
-
-function priceHint(t: Translate, model: CatalogModel): string | null {
-	if (!model.pricing) return null;
-	return t("{input} in · {output} out per 1M", {
-		input: perMillion(model.pricing.input),
-		output: perMillion(model.pricing.output),
-	});
-}
-
-function contextHint(t: Translate, tokens: number): string {
-	return tokens >= 1_000_000
-		? t("{count}M context", { count: Math.round(tokens / 1_000_000) })
-		: t("{count}K context", { count: Math.round(tokens / 1_000) });
-}
-
-function byProvider(models: CatalogModel[]): [string, CatalogModel[]][] {
-	const groups = new Map<string, CatalogModel[]>();
-
-	for (const model of models) {
-		const list = groups.get(model.provider) ?? [];
-		list.push(model);
-		groups.set(model.provider, list);
-	}
-
-	return [...groups];
-}
-
-type ProviderId = "gateway" | "chatgpt" | "openai" | "anthropic";
+type ProviderId = "openrouter" | "chatgpt" | "openai" | "anthropic";
 
 const PROVIDERS: { id: ProviderId; label: string }[] = [
+	{ id: "openrouter", label: "OpenRouter" },
 	{ id: "chatgpt", label: "ChatGPT subscription" },
 	{ id: "openai", label: "OpenAI API key" },
 	{ id: "anthropic", label: "Anthropic API key" },
-	{ id: "gateway", label: "Vercel AI Gateway" },
 ];
 
 const CUSTOM = "__custom__";
@@ -295,21 +239,25 @@ export function AgentProvider() {
 		}),
 	);
 	const [tab, setTab] = useState<ProviderId | null>(null);
+	const [openrouterModel, setOpenrouterModel] = useState<string | null>(null);
 	const [chatgptModel, setChatgptModel] = useState<string | null>(null);
 	const [openaiModel, setOpenaiModel] = useState<string | null>(null);
 	const [anthropicModel, setAnthropicModel] = useState<string | null>(null);
 	const [readingModel, setReadingModel] = useState<string | null>(null);
 	const [draftModel, setDraftModel] = useState<string | null>(null);
+	const [openrouterKey, setOpenrouterKey] = useState("");
 	const [openaiKey, setOpenaiKey] = useState("");
 	const [anthropicKey, setAnthropicKey] = useState("");
 	const [perHour, setPerHour] = useState<string | null>(null);
 
 	function forget() {
+		setOpenrouterModel(null);
 		setChatgptModel(null);
 		setOpenaiModel(null);
 		setAnthropicModel(null);
 		setReadingModel(null);
 		setDraftModel(null);
+		setOpenrouterKey("");
 		setOpenaiKey("");
 		setAnthropicKey("");
 	}
@@ -333,6 +281,7 @@ export function AgentProvider() {
 	const provider = data.provider;
 	const shown = tab ?? provider;
 	const models = {
+		openrouter: openrouterModel ?? data.openrouterModel,
 		chatgpt: chatgptModel ?? data.chatgptModel,
 		openai: openaiModel ?? data.openaiModel,
 		anthropic: anthropicModel ?? data.anthropicModel,
@@ -342,17 +291,18 @@ export function AgentProvider() {
 	const perHourValue =
 		perHour ??
 		(data.researchPerHour === null ? "" : String(data.researchPerHour));
-	const options = (key: ProviderId): ModelOption[] =>
-		key === "gateway" ? [] : (data.options[key] ?? []);
+	const options = (key: ProviderId): ModelOption[] => data.options[key] ?? [];
 
 	function submit(next: ProviderId) {
 		save.mutate({
 			provider: next,
+			openrouterModel: models.openrouter,
 			chatgptModel: models.chatgpt,
 			openaiModel: models.openai,
 			anthropicModel: models.anthropic,
 			readingModel: reading || null,
 			draftModel: drafting || null,
+			openrouterKey: openrouterKey ? openrouterKey : undefined,
 			openaiKey: openaiKey ? openaiKey : undefined,
 			anthropicKey: anthropicKey ? anthropicKey : undefined,
 			researchPerHour: perHourValue === "" ? null : Number(perHourValue),
@@ -360,10 +310,10 @@ export function AgentProvider() {
 	}
 
 	const configured = {
+		openrouter: data.openrouterKey.configured || openrouterKey.length > 0,
 		chatgpt: true,
 		openai: data.openaiKey.configured || openaiKey.length > 0,
 		anthropic: data.anthropicKey.configured || anthropicKey.length > 0,
-		gateway: data.gatewayConfigured,
 	};
 
 	const fallbacks = PROVIDERS.filter(
@@ -389,6 +339,43 @@ export function AgentProvider() {
 				onChange={setDraftModel}
 			/>
 		</>
+	);
+
+	const openrouterPanel = (
+		<FieldGroup>
+			<Field>
+				<FieldLabel htmlFor={`${id}-openrouter-key`}>
+					{t("OpenRouter API key")}
+				</FieldLabel>
+				<Input
+					id={`${id}-openrouter-key`}
+					type="password"
+					value={openrouterKey}
+					onChange={(event) => setOpenrouterKey(event.target.value)}
+					placeholder={
+						data.openrouterKey.hint ??
+						(data.openrouterKey.configured
+							? t("Set by OPENROUTER_API_KEY in the root .env file")
+							: t("sk-or-… from openrouter.ai/keys"))
+					}
+					autoComplete="off"
+				/>
+				<FieldDescription>
+					{t(
+						"Billed to your OpenRouter account. You buy credits at openrouter.ai and pay per token, at the price OpenRouter lists for the model.",
+					)}
+				</FieldDescription>
+			</Field>
+			<ModelPicker
+				id={`${id}-openrouter-model`}
+				label={t("OpenRouter model")}
+				value={models.openrouter}
+				options={options("openrouter")}
+				placeholder={data.defaults.openrouterModel}
+				onChange={setOpenrouterModel}
+			/>
+			{mailModels("openrouter")}
+		</FieldGroup>
 	);
 
 	const chatgptPanel = (
@@ -523,19 +510,6 @@ export function AgentProvider() {
 		</FieldGroup>
 	);
 
-	const gatewayPanel = (
-		<div className="flex flex-col gap-4">
-			{provider === "gateway" ? null : (
-				<p className="text-muted-foreground text-xs">
-					{data.gatewayConfigured
-						? t("Billed to AI_GATEWAY_API_KEY in the root .env file.")
-						: t("No AI_GATEWAY_API_KEY in the root .env file yet.")}
-				</p>
-			)}
-			<GatewayModel />
-		</div>
-	);
-
 	return (
 		<Card>
 			<CardHeader>
@@ -576,10 +550,10 @@ export function AgentProvider() {
 						))}
 					</ToggleGroup>
 
+					{shown === "openrouter" ? openrouterPanel : null}
 					{shown === "chatgpt" ? chatgptPanel : null}
 					{shown === "openai" ? openaiPanel : null}
 					{shown === "anthropic" ? anthropicPanel : null}
-					{shown === "gateway" ? gatewayPanel : null}
 
 					<form
 						className="flex flex-col gap-4"
@@ -589,18 +563,14 @@ export function AgentProvider() {
 						}}
 					>
 						<p className="text-muted-foreground text-xs">
-							{provider === "gateway"
-								? data.gatewayConfigured
-									? t("Billed to AI_GATEWAY_API_KEY in the root .env file.")
-									: t("No AI_GATEWAY_API_KEY in the root .env file yet.")
-								: fallbacks.length > 0
-									? t(
-											"Falls back to {fallbacks} when this account is at its limit.",
-											{ fallbacks: fallbacks.join(", ") },
-										)
-									: t(
-											"No other account is configured, so a usage limit pauses the agent until it resets.",
-										)}
+							{fallbacks.length > 0
+								? t(
+										"Falls back to {fallbacks} when this account is at its limit.",
+										{ fallbacks: fallbacks.join(", ") },
+									)
+								: t(
+										"No other account is configured, so a usage limit pauses the agent until it resets.",
+									)}
 						</p>
 
 						<Field orientation="horizontal">
@@ -629,124 +599,5 @@ export function AgentProvider() {
 				</div>
 			</CardContent>
 		</Card>
-	);
-}
-
-function GatewayModel() {
-	const t = useT();
-	const errorMessage = useErrorMessage();
-	const trpc = useTRPC();
-	const cache = useCrmCache();
-	const [open, setOpen] = useState(false);
-
-	const settings = useQuery(trpc.settings.agentModel.queryOptions());
-	const catalog = useQuery(trpc.settings.modelCatalog.queryOptions());
-
-	const save = useMutation(
-		trpc.settings.setAgentModel.mutationOptions({
-			onSuccess: async () => {
-				await cache.settings();
-				toast.success(
-					t("The agent will use this model from its next session."),
-				);
-			},
-			onError: (error) => toast.error(errorMessage(error.message)),
-		}),
-	);
-
-	if (!settings.data) return null;
-
-	const { selectedId, effectiveId, defaultId, effective } = settings.data;
-	const models = catalog.data?.models ?? [];
-	const unavailable = catalog.data !== undefined && !catalog.data.available;
-
-	const defaultModel = models.find((model) => model.id === defaultId);
-	const current = selectedId ?? FOLLOW_DEFAULT;
-
-	const effectiveName = effective?.name ?? effectiveId;
-
-	const currentLabel = selectedId
-		? effectiveName
-		: t("Default: {name}", { name: effectiveName });
-
-	const choose = (id: string) => {
-		setOpen(false);
-		if (id === current) return;
-		save.mutate({ modelId: id === FOLLOW_DEFAULT ? null : id });
-	};
-
-	return (
-		<div className="flex flex-wrap items-center gap-3">
-			<Popover open={open} onOpenChange={setOpen}>
-				<PopoverTrigger asChild>
-					<Button
-						variant="outline"
-						role="combobox"
-						aria-expanded={open}
-						aria-label={t("Model")}
-						disabled={save.isPending || catalog.isPending || unavailable}
-					>
-						{currentLabel}
-						<Icon icon={ChevronDown} data-icon="inline-end" />
-					</Button>
-				</PopoverTrigger>
-
-				<PopoverContent align="start" size="fit" className="w-96">
-					<Command>
-						<CommandInput placeholder={t("Search models…")} />
-						<CommandList>
-							<CommandEmpty>{t("No model matches that.")}</CommandEmpty>
-
-							<CommandGroup>
-								<CommandItem
-									value={`default ${defaultId}`}
-									data-checked={current === FOLLOW_DEFAULT}
-									onSelect={() => choose(FOLLOW_DEFAULT)}
-								>
-									{t("Default: {name}", {
-										name: defaultModel?.name ?? defaultId,
-									})}
-								</CommandItem>
-							</CommandGroup>
-
-							{byProvider(models).map(([provider, group]) => (
-								<CommandGroup key={provider} heading={provider}>
-									{group.map((model) => {
-										const price = priceHint(t, model);
-
-										return (
-											<CommandItem
-												key={model.id}
-												value={`${model.name} ${model.provider} ${model.id}`}
-												data-checked={current === model.id}
-												onSelect={() => choose(model.id)}
-											>
-												<span>{model.name}</span>
-												<span className="ml-auto text-muted-foreground text-xs">
-													{price ?? contextHint(t, model.contextWindowTokens)}
-												</span>
-											</CommandItem>
-										);
-									})}
-								</CommandGroup>
-							))}
-						</CommandList>
-					</Command>
-				</PopoverContent>
-			</Popover>
-
-			<p className="text-muted-foreground text-xs">
-				{unavailable
-					? t(
-							"Could not reach the AI Gateway to list models. The agent is still running {model}.",
-							{ model: effectiveId },
-						)
-					: effective
-						? `${effectiveId} · ${contextHint(t, effective.contextWindowTokens)}${
-								priceHint(t, effective) ? ` · ${priceHint(t, effective)}` : ""
-							}`
-						: effectiveId}
-			</p>
-		</div>
 	);
 }

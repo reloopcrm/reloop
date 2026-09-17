@@ -9,35 +9,37 @@ import {
 } from "bun:test";
 import { db, type Prisma } from "@crm/db";
 import { writeProviderUsage } from "@crm/db/provider-usage";
+import { appSecretKey, sealSecret } from "@crm/db/secrets";
 import { SETTINGS_ID, writeAgentProvider } from "@crm/db/settings";
 import { pendingAgentRunIds } from "../agent/lib/custom-agent-dispatch";
 import { forgetProviderCache } from "../agent/lib/model";
+import { MODEL } from "../agent/lib/model-config";
 import { MODEL_UNAVAILABLE, runBlocker } from "../agent/lib/run-preflight";
 
 const DAY_MS = 86_400_000;
 
-const GATEWAY_KEYS = ["AI_GATEWAY_API_KEY", "VERCEL_OIDC_TOKEN"] as const;
+const OPENROUTER_KEYS = ["OPENROUTER_API_KEY"] as const;
 
-const savedGateway = new Map<string, string>();
+const savedOpenrouter = new Map<string, string>();
 
-function hideTheGateway(): void {
-	savedGateway.clear();
+function hideOpenrouter(): void {
+	savedOpenrouter.clear();
 
-	for (const key of GATEWAY_KEYS) {
+	for (const key of OPENROUTER_KEYS) {
 		const value = process.env[key];
-		if (value !== undefined) savedGateway.set(key, value);
+		if (value !== undefined) savedOpenrouter.set(key, value);
 		delete process.env[key];
 	}
 }
 
-function restoreTheGateway(): void {
-	for (const key of GATEWAY_KEYS) {
-		const value = savedGateway.get(key);
+function restoreOpenrouter(): void {
+	for (const key of OPENROUTER_KEYS) {
+		const value = savedOpenrouter.get(key);
 		if (value === undefined) delete process.env[key];
 		else process.env[key] = value;
 	}
 
-	savedGateway.clear();
+	savedOpenrouter.clear();
 }
 
 const suffix = crypto.randomUUID();
@@ -69,7 +71,13 @@ async function spendTheModelWindow() {
 }
 
 async function offerAModel() {
-	await writeAgentProvider(db, { provider: "gateway" });
+	await writeAgentProvider(db, {
+		provider: "openrouter",
+		openrouterKey: sealSecret(
+			"sk-or-test",
+			appSecretKey(MODEL.secrets.purpose),
+		),
+	});
 	forgetProviderCache();
 }
 
@@ -150,13 +158,13 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-	hideTheGateway();
+	hideOpenrouter();
 	forgetProviderCache();
 	await clearSettings();
 });
 
 afterEach(async () => {
-	restoreTheGateway();
+	restoreOpenrouter();
 	await db.agentRunEvent.deleteMany({ where: { run: { agentId } } });
 	await db.agentAuditEvent.deleteMany({ where: { agentId } });
 	await db.agentRun.deleteMany({ where: { agentId } });

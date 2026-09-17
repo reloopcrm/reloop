@@ -16,28 +16,28 @@ import { MODEL } from "../agent/lib/model-config";
 
 const DAY_MS = 86_400_000;
 
-const GATEWAY_KEYS = ["AI_GATEWAY_API_KEY", "VERCEL_OIDC_TOKEN"] as const;
+const OPENROUTER_KEYS = ["OPENROUTER_API_KEY"] as const;
 
-const savedGateway = new Map<string, string>();
+const savedOpenrouter = new Map<string, string>();
 
-function hideTheGateway(): void {
-	savedGateway.clear();
+function hideOpenrouter(): void {
+	savedOpenrouter.clear();
 
-	for (const key of GATEWAY_KEYS) {
+	for (const key of OPENROUTER_KEYS) {
 		const value = process.env[key];
-		if (value !== undefined) savedGateway.set(key, value);
+		if (value !== undefined) savedOpenrouter.set(key, value);
 		delete process.env[key];
 	}
 }
 
-function restoreTheGateway(): void {
-	for (const key of GATEWAY_KEYS) {
-		const value = savedGateway.get(key);
+function restoreOpenrouter(): void {
+	for (const key of OPENROUTER_KEYS) {
+		const value = savedOpenrouter.get(key);
 		if (value === undefined) delete process.env[key];
 		else process.env[key] = value;
 	}
 
-	savedGateway.clear();
+	savedOpenrouter.clear();
 }
 
 let savedSetting: Prisma.AppSettingUncheckedCreateInput | null = null;
@@ -70,14 +70,14 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-	hideTheGateway();
+	hideOpenrouter();
 	forgetProviderCache();
 	await clear();
 	await writeAgentProvider(db, { provider: "chatgpt" });
 });
 
 afterEach(async () => {
-	restoreTheGateway();
+	restoreOpenrouter();
 	await clear();
 });
 

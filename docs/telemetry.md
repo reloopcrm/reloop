@@ -90,17 +90,18 @@ whose event never arrived, which cannot be recovered.
 | `node_version` | Major only, e.g. `22` |
 | `postgres_version` | Major only, e.g. `17` |
 | `members_bucket` | How many people work here, in bands |
-| `agent_model_id` | The model chosen on Settings → General, e.g. `zai/glm-5.2-fast` |
+| `agent_model_id` | The chat model of the provider chosen on Settings → General, e.g. `openai/gpt-5.6-luna` |
 | `agent_model_context_window` | Its context window in tokens |
 | `seed_only` | True when every contact came from `bun run db:seed` |
 
 #### Capabilities — booleans, never values
 
 `cap_perplexity`, `cap_context_dev`, `cap_blob`, `cap_github`, `cap_redis`,
-`cap_agent_bridge`, `cap_cron_secret`, `cap_ai_gateway`, `cap_google_oauth`, `cap_sso_provider`,
+`cap_agent_bridge`, `cap_cron_secret`, `cap_openrouter`, `cap_google_oauth`, `cap_sso_provider`,
 `cap_tracking`, `is_marketing`.
 
 Each is only whether the key is set. `cap_context_dev` is whether an `AppSetting` row holds one,
+`cap_openrouter` whether `OPENROUTER_API_KEY` is set or an `AppSetting` row holds a sealed key,
 `cap_sso_provider` whether an `ssoProvider` row exists, `cap_tracking` whether a tracking site id
 has been minted — never the id itself. No key, value or last-four is sent.
 

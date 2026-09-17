@@ -5,7 +5,7 @@ import {
 	CRM_EVENT_TYPES,
 	type CrmEventType,
 } from "@crm/db/crm-events";
-import { readAgentModel } from "@crm/db/settings";
+import { chatModelFor, readAgentProvider } from "@crm/db/settings";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import { AGENT_ACTION_TYPES } from "@crm/validation/agent-manifest";
 import { z } from "zod";
@@ -227,7 +227,7 @@ export async function saveBuilderDraft(
 		};
 	}
 
-	const model = await readAgentModel(db);
+	const model = chatModelFor(await readAgentProvider(db));
 	const now = new Date();
 	const manifestTriggers = input.triggers.map((trigger) => ({
 		type: trigger.type,

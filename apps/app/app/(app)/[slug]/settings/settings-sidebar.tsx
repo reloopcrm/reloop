@@ -11,6 +11,7 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 type SettingsNavItem = {
 	title: string;
 	href: string;
+	cloudOwner?: boolean;
 };
 
 const ROOT = "/settings";
@@ -24,7 +25,12 @@ const ITEMS: SettingsNavItem[] = [
 	{ title: "Members", href: `${ROOT}/members` },
 	{ title: "API Keys", href: `${ROOT}/api-keys` },
 	{ title: "SSO", href: `${ROOT}/sso` },
+	{ title: "Waitlist", href: `${ROOT}/waitlist`, cloudOwner: true },
 ];
+
+export function settingsNavItems(cloudOwner: boolean): SettingsNavItem[] {
+	return ITEMS.filter((item) => cloudOwner || !item.cloudOwner);
+}
 
 function isActive(href: string, root: string, pathname: string): boolean {
 	return href === root ? pathname === href : pathname.startsWith(href);
@@ -73,7 +79,7 @@ export function SettingsSidebarFallback() {
 					aria-busy="true"
 					className="flex flex-col gap-0.5 p-3"
 				>
-					{ITEMS.map((item) => (
+					{settingsNavItems(false).map((item) => (
 						<Button
 							key={item.href}
 							variant="ghost"
@@ -91,7 +97,7 @@ export function SettingsSidebarFallback() {
 				aria-busy="true"
 				className="flex gap-1 overflow-x-auto border-b p-2 md:hidden [view-transition-name:settings-sidebar]"
 			>
-				{ITEMS.map((item) => (
+				{settingsNavItems(false).map((item) => (
 					<Button
 						key={item.href}
 						variant="ghost"
@@ -106,7 +112,7 @@ export function SettingsSidebarFallback() {
 	);
 }
 
-export function SettingsSidebar() {
+export function SettingsSidebar({ cloudOwner }: { cloudOwner: boolean }) {
 	const t = useT();
 	const pathname = usePathname();
 	const workspaceUrl = useWorkspaceUrl();
@@ -114,11 +120,11 @@ export function SettingsSidebar() {
 	const root = workspaceUrl(ROOT);
 	const items = useMemo(
 		() =>
-			ITEMS.map((item) => ({
+			settingsNavItems(cloudOwner).map((item) => ({
 				...item,
 				href: workspaceUrl(item.href),
 			})),
-		[workspaceUrl],
+		[workspaceUrl, cloudOwner],
 	);
 
 	return (

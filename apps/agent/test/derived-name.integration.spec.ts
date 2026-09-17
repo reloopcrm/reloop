@@ -8,6 +8,9 @@ const domain = `acme-${suffix}.test`;
 const initialEmail = `a.mueller@${domain}`;
 const fullEmail = `anna.schmidt@${domain}`;
 const deskEmail = `buero@${domain}`;
+const weakEmail = `b.keller@${domain}`;
+const sweptEmail = `c.weber@${domain}`;
+const primaryEmail = `d.fischer@${domain}`;
 
 const startedAt = new Date();
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000);
@@ -15,6 +18,9 @@ const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000);
 let initialId: string;
 let fullId: string;
 let deskId: string;
+let weakId: string;
+let sweptId: string;
+let primaryId: string;
 
 async function seed(input: {
 	email: string;
@@ -84,13 +90,45 @@ beforeAll(async () => {
 		lastName: "Berger",
 		cleanedAt: daysAgo(2),
 	});
+
+	weakId = await seed({
+		email: weakEmail,
+		firstName: "B",
+		lastName: "Keller",
+		cleanedAt: daysAgo(2),
+	});
+
+	sweptId = await seed({
+		email: sweptEmail,
+		firstName: "C",
+		lastName: "Weber",
+		cleanedAt: daysAgo(2),
+	});
+
+	primaryId = await seed({
+		email: primaryEmail,
+		firstName: "D",
+		lastName: "Fischer",
+		cleanedAt: daysAgo(2),
+	});
 });
 
 afterAll(cleanup);
 
 async function cleanup(): Promise<void> {
 	const contacts = await db.contact.findMany({
-		where: { email: { in: [initialEmail, fullEmail, deskEmail] } },
+		where: {
+			email: {
+				in: [
+					initialEmail,
+					fullEmail,
+					deskEmail,
+					weakEmail,
+					sweptEmail,
+					primaryEmail,
+				],
+			},
+		},
 		select: { id: true },
 	});
 	const ids = contacts.map((contact) => contact.id);
@@ -149,6 +187,52 @@ describe("a name the mailbox cut out of the address is not a person's answer", (
 	});
 });
 
+describe("a name is only written by a source that names the person", () => {
+	it("offers a web claim rather than writing it", async () => {
+		const result = await recordFact({
+			contactId: weakId,
+			field: "name",
+			value: "Bernd Kellermann",
+			evidence: [
+				{ kind: "web.cited-claim", detail: "a directory lists them" },
+				{ kind: "search.cites-profile", detail: "a search returned it" },
+			],
+			method: "web",
+		});
+
+		expect(result.stored).toBe(true);
+		expect(result.applied).toBe(false);
+		expect(result.reason).toContain("identifies this person");
+
+		const contact = await db.contact.findUnique({
+			where: { id: weakId },
+			select: { firstName: true },
+		});
+		expect(contact?.firstName).toBe("B");
+	});
+
+	it("still writes a name a profile carrying that address states", async () => {
+		const result = await recordFact({
+			contactId: primaryId,
+			field: "name",
+			value: "Dora Fischer",
+			evidence: [
+				{ kind: "github.account-identity", detail: "the account names them" },
+			],
+			method: "github.api",
+		});
+
+		expect(result.band).toBe("PROBABLE");
+		expect(result.applied).toBe(true);
+
+		const contact = await db.contact.findUnique({
+			where: { id: primaryId },
+			select: { firstName: true },
+		});
+		expect(contact?.firstName).toBe("Dora");
+	});
+});
+
 describe("a signature that arrives after the first read", () => {
 	it("reads a machine made name again, and settles the rest", async () => {
 		await queueContactCleanups();
@@ -159,8 +243,9 @@ describe("a signature that arrives after the first read", () => {
 		});
 		const waiting = new Set(queued.map((task) => task.contactId));
 
-		expect(waiting.has(initialId)).toBe(true);
+		expect(waiting.has(sweptId)).toBe(true);
 		expect(waiting.has(deskId)).toBe(false);
+		expect(waiting.has(fullId)).toBe(false);
 
 		const settled = await db.contact.findUnique({
 			where: { id: deskId },

@@ -160,10 +160,10 @@ export async function recordFact(
 		};
 	}
 
-	const selfAsserted = selfAssertedOnly(input.evidence);
 	const applies =
 		scored.band === FactBand.VERIFIED ||
-		(!selfAsserted && fillsBlank({ field, contact, hasAgentFact }));
+		(mayFillBlank(field, input.evidence) &&
+			fillsBlank({ field, contact, hasAgentFact }));
 
 	if (
 		!applies &&
@@ -234,13 +234,34 @@ export async function recordFact(
 		...base,
 		stored: true,
 		applied: applies,
-		reason: applies ? undefined : heldReason(selfAsserted),
+		reason: applies
+			? undefined
+			: heldReason({
+					field,
+					evidence: input.evidence,
+					hasPrimary: scored.hasPrimary,
+				}),
 	};
 }
 
-function heldReason(selfAsserted: boolean): string {
-	if (selfAsserted) {
+export function mayFillBlank(field: FactField, evidence: Evidence[]): boolean {
+	if (selfAssertedOnly(evidence)) return false;
+	if (field !== "name") return true;
+
+	return scoreEvidence(evidence).hasPrimary;
+}
+
+function heldReason(input: {
+	field: FactField;
+	evidence: Evidence[];
+	hasPrimary: boolean;
+}): string {
+	if (selfAssertedOnly(input.evidence)) {
 		return "The only source is text the sender wrote about themselves, and that alone never fills a field. Pair it with a reply from that address, a profile that carries it, or leave it as a proposal for a rep.";
+	}
+
+	if (input.field === "name" && !input.hasPrimary) {
+		return "A name is written only from a source that identifies this person: a reply from their own address, a profile carrying that address, a matching LinkedIn or GitHub account, or a meeting they accepted. Nothing here does that, so this is kept as a proposal for a rep.";
 	}
 
 	return "The record already carries a value here, and only VERIFIED evidence may replace one, so this is kept as a proposal for a rep to accept or dismiss. This is a normal outcome, not a failure — do not try to raise the score.";

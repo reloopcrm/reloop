@@ -5,7 +5,7 @@ import {
 	type AgentTaskThreadPayload,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
-import { looksMachineMade } from "./names";
+import { isDerivedName } from "./names";
 import { playbookDue } from "./playbook";
 import { scheduleTask } from "./tasks";
 
@@ -119,7 +119,7 @@ export async function queueContactCleanups(): Promise<number> {
 	]);
 
 	const again = since.filter((contact) =>
-		looksMachineMade(contact.email, contact.firstName, contact.lastName),
+		isDerivedName(contact.email, contact.firstName, contact.lastName),
 	);
 
 	const settled = since

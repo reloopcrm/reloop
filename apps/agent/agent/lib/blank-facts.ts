@@ -1,11 +1,12 @@
 import { db, FactStatus, type Prisma } from "@crm/db";
-import { parseEvidence, selfAssertedOnly } from "./evidence";
+import { parseEvidence } from "./evidence";
 import {
 	canonicalValue,
 	type FactField,
 	type FactSubject,
 	factColumn,
 	fillsBlank,
+	mayFillBlank,
 } from "./facts";
 import { splitName } from "./names";
 
@@ -108,7 +109,7 @@ export async function sweepBlankFacts(
 
 		const candidate = group.find((row) => {
 			const evidence = parseEvidence(row.evidence);
-			return evidence !== null && !selfAssertedOnly(evidence);
+			return evidence !== null && mayFillBlank(field, evidence);
 		});
 
 		if (!candidate) {

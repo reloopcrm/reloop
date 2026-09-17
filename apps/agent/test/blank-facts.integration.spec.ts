@@ -4,6 +4,7 @@ import { sweepBlankFacts } from "../agent/lib/blank-facts";
 
 const suffix = process.env.TEST_RUN_ID ?? "blank-facts-spec";
 const email = `blank.subject.${suffix}@example.test`;
+const strangerEmail = `a.keller.${suffix}@example.test`;
 
 let contactId: string;
 
@@ -39,7 +40,9 @@ function statusOf(id: string) {
 }
 
 beforeEach(async () => {
-	await db.contact.deleteMany({ where: { email } });
+	await db.contact.deleteMany({
+		where: { email: { in: [email, strangerEmail] } },
+	});
 	const contact = await db.contact.create({
 		data: { firstName: "Blank", lastName: "Subject", email },
 		select: { id: true },
@@ -48,7 +51,9 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-	await db.contact.deleteMany({ where: { email } });
+	await db.contact.deleteMany({
+		where: { email: { in: [email, strangerEmail] } },
+	});
 });
 
 describe("sweepBlankFacts", () => {
@@ -96,6 +101,40 @@ describe("sweepBlankFacts", () => {
 			select: { title: true },
 		});
 		expect(contact?.title).toBeNull();
+	});
+
+	it("never fills a name from a source that names nobody", async () => {
+		const stranger = await db.contact.create({
+			data: { firstName: "A", lastName: "Keller", email: strangerEmail },
+			select: { id: true },
+		});
+
+		const offer = await db.contactFact.create({
+			data: {
+				contactId: stranger.id,
+				field: "name",
+				value: "Anders Kellermann",
+				score: 0.61,
+				band: FactBand.PROBABLE,
+				evidence: [
+					{ kind: "web.cited-claim", detail: "a directory lists them" },
+					{ kind: "search.cites-profile", detail: "a search returned it" },
+				],
+				method: "web",
+				status: FactStatus.PROPOSED,
+			},
+			select: { id: true },
+		});
+
+		await sweepBlankFacts();
+
+		expect(await statusOf(offer.id)).toBe("PROPOSED");
+
+		const contact = await db.contact.findUnique({
+			where: { id: stranger.id },
+			select: { firstName: true },
+		});
+		expect(contact?.firstName).toBe("A");
 	});
 
 	it("leaves a suggestion that disagrees with what is already there", async () => {

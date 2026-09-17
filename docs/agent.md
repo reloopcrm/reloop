@@ -269,15 +269,31 @@ wrong in the direction that looks useful.
   `isDerivedName` now also reads a name with both parts, but only when one part
   is a single letter. `anna.mueller@` with "Anna Mueller" on the record stays a
   human answer and is never overwritten, which is the false positive that rule
-  exists to avoid. `looksMachineMade` is the wider predicate and decides only
-  what is worth reading again, never what may be written.
+  exists to avoid. `looksMachineMade` is the wider predicate and answers a
+  different question: whether the name still mirrors the address at all.
+- **A name is written only by a source that identifies the person.**
+  `fillsBlank` treats the `name` field as always empty, so before this rule any
+  kept evidence, down to `POSSIBLE`, could rename a machine-made contact. A web
+  page that merely mentions a name is worse than the initial it replaces, because
+  a wrong person on the record is harder to notice than a missing one.
+  `mayFillBlank` (`lib/facts.ts`) is the single gate, used by `recordFact` and by
+  the minute sweep in `lib/blank-facts.ts`. For `name` it requires a primary
+  source; for every other field it only refuses evidence the sender wrote about
+  themselves. A `VERIFIED` band still applies whatever the gate says, which is
+  why the `contact-clean` pair of `crm.signature-block` and `crm.thread-reply`
+  still writes the real name.
 - **A signature that arrives later is still read.** `done()` stamps `cleanedAt`
   on every outcome, including "no mail" and "no signature", so a single pass used
   to be the only pass. `queueContactCleanups` now runs two bounded queries: the
   contacts never cleaned, and the contacts whose `lastActivityAt` is newer than
-  their `cleanedAt`. In the second set only a name that still looks machine-made
-  is queued; the rest have their `cleanedAt` moved forward, which is what keeps
-  the window from filling with contacts nobody needs to read again.
+  their `cleanedAt`. In the second set only a name `isDerivedName` still flags is
+  queued; the rest have their `cleanedAt` moved forward. The gate is
+  `isDerivedName` and not `looksMachineMade` on purpose: "Anna Schmidt" at
+  `anna.schmidt@` mirrors its address, which is the common shape, and a re-read
+  of it can only ever end in a refusal, because the record already counts as a
+  human answer. That was the whole model budget spent on nothing. The cost of the
+  narrower gate is an occasional second read that would have found a title or a
+  phone number.
 - **Every field `contact-clean` writes goes through `recordFact`**, the phone
   number included. A direct column write skips the ledger, so the provenance, the
   dismissal memory and the never-overwrite-a-human rule all stop applying to it.

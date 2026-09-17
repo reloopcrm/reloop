@@ -4,6 +4,22 @@
   The open source CRM that reads your email history and tells you which past customers are worth winning back.
 </p>
 
+<p align="center">
+  <img src="docs/images/demo.gif" width="900" alt="Reloop CRM: open the win back list, read the conversation behind a company">
+</p>
+
+<p align="center">
+  <img src="docs/images/win-back.png" width="900" alt="The win back list: companies ranked by what happened in your email">
+</p>
+
+<p align="center">
+  <img src="docs/images/activity.png" width="900" alt="A contact timeline: who wrote last, what the thread was about, what is still open">
+</p>
+
+<p align="center">
+  <img src="docs/images/overview.png" width="900" alt="The overview: closed won, open pipeline, win rate and the deals in progress">
+</p>
+
 ## What it does
 
 Reloop CRM connects to your mailbox, reads every conversation and remembers what it was about: closed deals, open inquiries, quantities, products. From that it builds a list of people worth another try, ranked by facts instead of gut feeling.
@@ -13,7 +29,7 @@ Reloop CRM connects to your mailbox, reads every conversation and remembers what
 - **Win back.** Points from real business facts, and rules the agent sharpens from your own verdicts.
 - **Learns your business.** Onboarding asks what you sell, the AI fills in the rest from your website and your mail.
 - **Only contacts that matter.** Out of office replies, newsletter recipients who never answered and your own addresses stay out.
-- **Bring your own AI.** An OpenAI or Anthropic API key, or a ChatGPT subscription (experimental). Without one, the CRM works without AI.
+- **Bring your own AI.** An OpenRouter, OpenAI or Anthropic API key, or a ChatGPT subscription (experimental). Without one, the CRM works without AI.
 
 ## Self-host
 

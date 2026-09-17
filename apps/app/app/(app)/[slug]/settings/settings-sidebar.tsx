@@ -11,7 +11,6 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 type SettingsNavItem = {
 	title: string;
 	href: string;
-	ownerOnly?: boolean;
 };
 
 const ROOT = "/settings";
@@ -25,7 +24,6 @@ const ITEMS: SettingsNavItem[] = [
 	{ title: "Members", href: `${ROOT}/members` },
 	{ title: "API Keys", href: `${ROOT}/api-keys` },
 	{ title: "SSO", href: `${ROOT}/sso` },
-	{ title: "Waitlist", href: `${ROOT}/waitlist`, ownerOnly: true },
 ];
 
 function isActive(href: string, root: string, pathname: string): boolean {
@@ -75,7 +73,7 @@ export function SettingsSidebarFallback() {
 					aria-busy="true"
 					className="flex flex-col gap-0.5 p-3"
 				>
-					{ITEMS.filter((item) => !item.ownerOnly).map((item) => (
+					{ITEMS.map((item) => (
 						<Button
 							key={item.href}
 							variant="ghost"
@@ -93,7 +91,7 @@ export function SettingsSidebarFallback() {
 				aria-busy="true"
 				className="flex gap-1 overflow-x-auto border-b p-2 md:hidden [view-transition-name:settings-sidebar]"
 			>
-				{ITEMS.filter((item) => !item.ownerOnly).map((item) => (
+				{ITEMS.map((item) => (
 					<Button
 						key={item.href}
 						variant="ghost"
@@ -108,7 +106,7 @@ export function SettingsSidebarFallback() {
 	);
 }
 
-export function SettingsSidebar({ owner }: { owner: boolean }) {
+export function SettingsSidebar() {
 	const t = useT();
 	const pathname = usePathname();
 	const workspaceUrl = useWorkspaceUrl();
@@ -116,11 +114,11 @@ export function SettingsSidebar({ owner }: { owner: boolean }) {
 	const root = workspaceUrl(ROOT);
 	const items = useMemo(
 		() =>
-			ITEMS.filter((item) => owner || !item.ownerOnly).map((item) => ({
+			ITEMS.map((item) => ({
 				...item,
 				href: workspaceUrl(item.href),
 			})),
-		[workspaceUrl, owner],
+		[workspaceUrl],
 	);
 
 	return (

@@ -1,6 +1,4 @@
-import { workspaceRoleOf } from "@crm/auth";
 import { Suspense } from "react";
-import { requireSession } from "@/lib/session";
 import { SettingsSidebar, SettingsSidebarFallback } from "./settings-sidebar";
 
 export default function SettingsLayout({
@@ -18,9 +16,6 @@ export default function SettingsLayout({
 	);
 }
 
-async function Sidebar() {
-	const session = await requireSession();
-	const role = await workspaceRoleOf(session.user.id);
-
-	return <SettingsSidebar owner={role === "owner"} />;
+function Sidebar() {
+	return <SettingsSidebar />;
 }

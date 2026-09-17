@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.0](https://github.com/reloopcrm/reloop/compare/v0.7.1...v0.8.0) (2026-09-17)
+
+
+### Features
+
+* **docs:** give every part of the guide its own page ([5f74adf](https://github.com/reloopcrm/reloop/commit/5f74adf67d883768e68409d6252a138663ae0608))
+* **nav:** mark settings when an update waits ([ced4fcb](https://github.com/reloopcrm/reloop/commit/ced4fcb7223b2db090869146f53dc34a6f0aa85d))
+* **seo:** let search engines read the site ([20fe6cd](https://github.com/reloopcrm/reloop/commit/20fe6cdb1c2074da3808a8b55ec987936004e833))
+* **settings:** update the install from the app ([5b8263c](https://github.com/reloopcrm/reloop/commit/5b8263cbfcec1caa097ee41c2a45d73fce1ef6d3))
+* **site:** answer the searches people actually type ([6f2b136](https://github.com/reloopcrm/reloop/commit/6f2b1360efa72fdbf37de28a69df7da86e801280))
+* **site:** split the footer and allow the google tag ([9d227af](https://github.com/reloopcrm/reloop/commit/9d227af53fe8eb13d2dc7ea27ffe0b97f5506f0b))
+
+
+### Fixes
+
+* **build:** pass the google token to the dev task too ([9353c0d](https://github.com/reloopcrm/reloop/commit/9353c0d5f8b3427f38bd89a9924ef8c7a004a274))
+* **site:** keep the marketing pages on the public install ([6a9315e](https://github.com/reloopcrm/reloop/commit/6a9315ea166a19427474ee22b7a305c8c5c1a5e2))
+
 ## [0.7.1](https://github.com/reloopcrm/reloop/compare/v0.7.0...v0.7.1) (2026-09-17)
 
 

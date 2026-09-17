@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.1](https://github.com/reloopcrm/reloop/compare/v0.7.0...v0.7.1) (2026-09-17)
+
+
+### Fixes
+
+* **settings:** take the cloud waitlist out of the app ([855e6ab](https://github.com/reloopcrm/reloop/commit/855e6ab0f932c5540aa5999e4e2c9cd18e5a385c))
+
+
+### Documentation
+
+* link the site from the top of the readme ([5822982](https://github.com/reloopcrm/reloop/commit/582298284b2c0e019a0924719b8785fe846c97fd))
+* show the product in the readme ([c99c1d6](https://github.com/reloopcrm/reloop/commit/c99c1d606da73b05e0bd0dcafd621fb1a027f68d))
+
 ## [0.7.0](https://github.com/reloopcrm/reloop/compare/v0.6.0...v0.7.0) (2026-09-17)
 
 

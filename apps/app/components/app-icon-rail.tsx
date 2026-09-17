@@ -23,6 +23,7 @@ import {
 	TooltipTrigger,
 } from "@crm/ui/components/tooltip";
 import { cn } from "@crm/ui/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useMemo } from "react";
@@ -30,6 +31,7 @@ import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-si
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
 import { useMobileNav } from "@/components/mobile-nav";
 import { useT } from "@/lib/i18n/client";
+import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
 type RailItem = {
@@ -67,6 +69,8 @@ const GROUPS: RailItem[][] = [
 
 const ITEMS: RailItem[] = GROUPS.flat();
 
+const RAIL = { versionStaleMs: 30 * 60 * 1000 } as const;
+
 function isActive(item: RailItem, pathname: string): boolean {
 	return (
 		pathname === item.href ||
@@ -78,10 +82,12 @@ function isActive(item: RailItem, pathname: string): boolean {
 function RailLink({
 	item,
 	active,
+	alert,
 	onPrefetch,
 }: {
 	item: RailItem;
 	active: boolean;
+	alert?: string;
 	onPrefetch: () => void;
 }) {
 	const t = useT();
@@ -112,11 +118,23 @@ function RailLink({
 							/>
 						) : null}
 						<Icon icon={item.icon} />
-						<span className="sr-only">{t(item.title)}</span>
+						{alert ? (
+							<span
+								aria-hidden="true"
+								className="absolute top-1 right-1 size-1.5 rounded-full bg-info"
+							/>
+						) : null}
+						<span className="sr-only">
+							{t(item.title)}
+							{alert ? `, ${alert}` : null}
+						</span>
 					</Link>
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent side="right">{t(item.title)}</TooltipContent>
+			<TooltipContent side="right">
+				{t(item.title)}
+				{alert ? ` · ${alert}` : null}
+			</TooltipContent>
 		</Tooltip>
 	);
 }
@@ -228,6 +246,7 @@ export function AppIconRail() {
 	const workspaceUrl = useWorkspaceUrl();
 	const { open, setOpen } = useMobileNav();
 	const prefetchSection = usePrefetchSection();
+	const trpc = useTRPC();
 	const t = useT();
 
 	const groups = useMemo(
@@ -243,6 +262,11 @@ export function AppIconRail() {
 		[workspaceUrl],
 	);
 	const items = useMemo(() => groups.flat(), [groups]);
+	const version = useQuery({
+		...trpc.system.version.queryOptions(),
+		staleTime: RAIL.versionStaleMs,
+	});
+	const updateReady = version.data?.updateAvailable === true;
 	const inChat = items.some(
 		(item) => item.title === "Chat" && isActive(item, pathname),
 	);
@@ -265,6 +289,11 @@ export function AppIconRail() {
 								key={item.href}
 								item={item}
 								active={isActive(item, pathname)}
+								alert={
+									updateReady && item.title === "Settings"
+										? t("Update available")
+										: undefined
+								}
 								onPrefetch={() => prefetchSection(item.section)}
 							/>
 						))}

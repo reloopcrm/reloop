@@ -11,8 +11,13 @@ import { db, type Prisma } from "@crm/db";
 import { writeProviderUsage } from "@crm/db/provider-usage";
 import { appSecretKey, sealSecret } from "@crm/db/secrets";
 import { SETTINGS_ID, writeAgentProvider } from "@crm/db/settings";
-import { forgetProviderCache, modelUnavailable } from "../agent/lib/model";
+import {
+	forgetProviderCache,
+	modelUnavailable,
+	NO_PROVIDER_MESSAGE,
+} from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
+import { type FakeCodexHome, fakeCodexHome } from "./codex-home";
 
 const DAY_MS = 86_400_000;
 
@@ -42,6 +47,7 @@ function restoreOpenrouter(): void {
 
 let savedSetting: Prisma.AppSettingUncheckedCreateInput | null = null;
 let savedUsage: Prisma.ProviderUsageUncheckedCreateInput | null = null;
+let codexHome: FakeCodexHome | null = null;
 
 async function usage(percent: number, resetAt: Date | null) {
 	await writeProviderUsage(db, {
@@ -71,6 +77,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
 	hideOpenrouter();
+	codexHome = fakeCodexHome(true);
 	forgetProviderCache();
 	await clear();
 	await writeAgentProvider(db, { provider: "chatgpt" });
@@ -78,6 +85,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	restoreOpenrouter();
+	codexHome?.restore();
+	codexHome = null;
 	await clear();
 });
 
@@ -107,6 +116,18 @@ describe("what a run is told when no model can serve it", () => {
 		await usage(100, new Date(Date.now() - DAY_MS));
 
 		expect(await modelUnavailable()).toBeNull();
+	});
+
+	it("names the missing key when no provider is set up at all", async () => {
+		codexHome?.restore();
+		codexHome = fakeCodexHome(false);
+		forgetProviderCache();
+
+		const said = await modelUnavailable();
+
+		expect(said).toBe(NO_PROVIDER_MESSAGE);
+		expect(said).toContain("Settings, General");
+		expect(said).not.toContain("used up its window");
 	});
 
 	it("says nothing when a second provider is set up", async () => {

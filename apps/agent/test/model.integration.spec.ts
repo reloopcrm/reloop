@@ -18,11 +18,13 @@ import {
 } from "@crm/db/settings";
 import { forgetProviderCache, stepModel } from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
+import { type FakeCodexHome, fakeCodexHome } from "./codex-home";
 
 const sealed = (key: string) =>
 	sealSecret(key, appSecretKey(MODEL.secrets.purpose));
 
 let savedOpenrouterKey: string | undefined;
+let codexHome: FakeCodexHome | null = null;
 
 async function clear() {
 	await db.appSetting.deleteMany({ where: { id: SETTINGS_ID } });
@@ -42,12 +44,15 @@ beforeAll(async () => {
 beforeEach(async () => {
 	savedOpenrouterKey = process.env.OPENROUTER_API_KEY;
 	delete process.env.OPENROUTER_API_KEY;
+	codexHome = fakeCodexHome(true);
 	forgetProviderCache();
 	await clear();
 });
 afterEach(async () => {
 	if (savedOpenrouterKey === undefined) delete process.env.OPENROUTER_API_KEY;
 	else process.env.OPENROUTER_API_KEY = savedOpenrouterKey;
+	codexHome?.restore();
+	codexHome = null;
 	await clear();
 });
 

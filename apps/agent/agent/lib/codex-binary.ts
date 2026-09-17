@@ -1,5 +1,5 @@
 import { spawn as nodeSpawn } from "node:child_process";
-import { accessSync, constants } from "node:fs";
+import { accessSync, constants, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 import { MODEL } from "./model-config";
@@ -106,8 +106,18 @@ function installWithNpm(prefix: string, spec: string): Promise<void> {
 	});
 }
 
+export function codexHome(env: NodeJS.ProcessEnv = process.env): string {
+	return env.CODEX_HOME?.trim() || join(homedir(), ".codex");
+}
+
+export function chatgptLoginExists(
+	env: NodeJS.ProcessEnv = process.env,
+): boolean {
+	return existsSync(join(codexHome(env), MODEL.chatgptLogin.authFile));
+}
+
 export const codexBinary = createCodexBinary({
-	home: process.env.CODEX_HOME?.trim() || join(homedir(), ".codex"),
+	home: codexHome(),
 	searchPath: process.env.PATH ?? "",
 	executable: (file) => {
 		try {

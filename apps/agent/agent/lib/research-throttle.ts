@@ -6,7 +6,7 @@ import {
 	readAgentProvider,
 	readPlan,
 } from "@crm/db/settings";
-import { providersExhausted } from "./model";
+import { modelUnavailable, providersExhausted } from "./model";
 
 const HOUR_MS = 3_600_000;
 
@@ -24,7 +24,9 @@ export async function researchAllowance(
 	if (await providersExhausted()) {
 		return {
 			allowed: 0,
-			reason: "every configured model provider is at its usage limit",
+			reason:
+				(await modelUnavailable()) ??
+				"every configured model provider is at its usage limit",
 		};
 	}
 

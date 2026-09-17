@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { passwordFromStdin, planOwner } from "../scripts/create-owner";
+import {
+	OWNER_STATE,
+	ownerState,
+	passwordFromStdin,
+	planOwner,
+} from "../scripts/create-owner";
 import { MAILBOX_SYNC, selfHostTimers } from "../src/sync/sync.config";
 
 const allowed = (email: string) => email === "owner@example.com";
@@ -37,6 +42,12 @@ describe("create-owner", () => {
 				"refuse",
 			);
 		}
+	});
+
+	it("reports whether any account exists, so install.sh can decide", () => {
+		expect(ownerState(0)).toBe(OWNER_STATE.none);
+		expect(ownerState(1)).toBe(OWNER_STATE.exists);
+		expect(OWNER_STATE.none).not.toContain(OWNER_STATE.exists);
 	});
 
 	it("drops one trailing newline from the piped password", () => {

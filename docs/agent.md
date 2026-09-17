@@ -31,6 +31,17 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
 - **No key means no candidate, never a throw.** `candidatesFor` lists only providers
   with a key; the compiled fallback is the OpenRouter default model with whatever
   `OPENROUTER_API_KEY` holds, and a request on it fails only when nothing is set up.
+  ChatGPT counts as a candidate only when `$CODEX_HOME/auth.json` exists
+  (`chatgptLoginExists` in `lib/codex-binary.ts`), the file eve's
+  `experimental_chatgpt` reads. With no candidate at all `modelUnavailable()` answers
+  `NO_PROVIDER_MESSAGE`, which names Settings, General; the research lane postpones
+  its tasks, `runBlocker` blocks the run, and `turn.failed` writes that sentence on
+  the record instead of the vendor's error text.
+- **A provider switch drops the mail models the old provider chose.**
+  `writeAgentProvider` compares against the stored row: a reading or draft model that
+  is unchanged from the old provider goes back to the new provider's default, a model
+  named for the new provider stays. The migration that maps the retired `gateway`
+  value to `openrouter` resets both the same way.
 - **`lib/model.ts` always sends `modelContextWindowTokens`**; eve never inherits it.
 - **A failed read logs and keeps the compiled fallback.** Never throws.
 - **Not a frontier model, deliberately** — refusing wrong answers is enforced by the

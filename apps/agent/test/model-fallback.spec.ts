@@ -12,6 +12,7 @@ import {
 	usable,
 	usageFromError as usageFrom,
 } from "../agent/lib/model";
+import { fakeCodexHome } from "./codex-home";
 
 const isExhaustion = (cause: unknown) => exhausted(readProviderFailure(cause));
 const usageFromError = (cause: unknown) =>
@@ -34,6 +35,11 @@ const setting: AgentProviderSetting = {
 
 let savedUsage: Prisma.ProviderUsageUncheckedCreateInput | null = null;
 
+const signedIn = fakeCodexHome(true);
+const signedOut = fakeCodexHome(false);
+const withLogin = { CODEX_HOME: signedIn.home };
+const withoutLogin = { CODEX_HOME: signedOut.home };
+
 beforeAll(async () => {
 	if (!process.env.DATABASE_URL) return;
 	savedUsage = await db.providerUsage.findUnique({
@@ -42,6 +48,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+	signedOut.restore();
+	signedIn.restore();
 	if (!process.env.DATABASE_URL) return;
 	await new Promise((settle) => setTimeout(settle, 200));
 	await db.providerUsage.deleteMany({ where: { provider: "chatgpt" } });
@@ -51,21 +59,34 @@ afterAll(async () => {
 describe("provider chain", () => {
 	it("puts the chosen provider first and only lists configured fallbacks", () => {
 		forgetProviderCache();
-		const chain = candidatesFor(setting, { OPENROUTER_API_KEY: "sk-or-test" });
+		const chain = candidatesFor(setting, {
+			...withLogin,
+			OPENROUTER_API_KEY: "sk-or-test",
+		});
 
 		expect(chain.map((entry) => entry.provider)).toEqual([
 			"chatgpt",
 			"openrouter",
 		]);
 
-		const none = candidatesFor(setting, {});
+		const none = candidatesFor(setting, withLogin);
 		expect(none.map((entry) => entry.provider)).toEqual(["chatgpt"]);
+	});
+
+	it("lists ChatGPT only when a codex login exists on this machine", () => {
+		expect(candidatesFor(setting, withoutLogin)).toEqual([]);
+		expect(
+			candidatesFor(setting, {
+				...withoutLogin,
+				OPENROUTER_API_KEY: "sk-or-test",
+			}).map((entry) => entry.provider),
+		).toEqual(["openrouter"]);
 	});
 
 	it("sends OpenRouter through the chat completions endpoint", () => {
 		const chain = candidatesFor(
 			{ ...setting, provider: "openrouter" },
-			{ OPENROUTER_API_KEY: "sk-or-test" },
+			{ ...withoutLogin, OPENROUTER_API_KEY: "sk-or-test" },
 		);
 		const first = chain[0];
 
@@ -76,7 +97,10 @@ describe("provider chain", () => {
 
 	it("skips a provider for the cooldown after it reports a usage limit", () => {
 		forgetProviderCache();
-		const chain = candidatesFor(setting, { OPENROUTER_API_KEY: "sk-or-test" });
+		const chain = candidatesFor(setting, {
+			...withLogin,
+			OPENROUTER_API_KEY: "sk-or-test",
+		});
 		const now = Date.now();
 
 		markExhausted("chatgpt", now);

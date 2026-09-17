@@ -71,6 +71,57 @@ ensure_docker() {
 	wait_for_docker || fail "Docker still does not answer. Start it and run this script again."
 }
 
+ask_owner_email() {
+	if [ -n "${RELOOP_EMAIL:-}" ]; then
+		REPLY="$RELOOP_EMAIL"
+	else
+		say "Tip: on a German Mac keyboard @ is Option+L. If your terminal sends Option as Meta, paste the address instead of typing it."
+		if [ -n "$1" ]; then
+			ask "Owner email address [$1]: "
+			REPLY="${REPLY:-$1}"
+		else
+			ask "Owner email address: "
+		fi
+	fi
+	EMAIL="$(printf '%s' "$REPLY" | tr '[:upper:]' '[:lower:]')"
+	case "$EMAIL" in
+		*[[:space:]]* | *@*@* | @* | *@) fail "\"$EMAIL\" is not an email address." ;;
+		*@*) ;;
+		*) fail "\"$EMAIL\" is not an email address." ;;
+	esac
+}
+
+ask_owner_password() {
+	if [ -n "${RELOOP_PASSWORD:-}" ]; then
+		PASSWORD="$RELOOP_PASSWORD"
+		REPEAT="$RELOOP_PASSWORD"
+	else
+		trap restore_tty EXIT INT TERM
+		stty -echo < /dev/tty
+		ask "Owner password (12 to 128 characters): "
+		PASSWORD="$REPLY"
+		printf '\n' > /dev/tty
+		ask "Repeat the password: "
+		REPEAT="$REPLY"
+		printf '\n' > /dev/tty
+		restore_tty
+		trap - EXIT INT TERM
+	fi
+
+	[ "$PASSWORD" = "$REPEAT" ] || fail "The passwords do not match. Nothing was written."
+	LENGTH=${#PASSWORD}
+	[ "$LENGTH" -ge 12 ] || fail "The password needs at least 12 characters. Nothing was written."
+	[ "$LENGTH" -le 128 ] || fail "The password takes at most 128 characters. Nothing was written."
+}
+
+owner_state() {
+	docker compose exec -T api bun apps/api/scripts/create-owner.ts --exists < /dev/null
+}
+
+create_owner() {
+	printf '%s' "$PASSWORD" | docker compose exec -T api bun apps/api/scripts/create-owner.ts "$EMAIL"
+}
+
 ensure_docker
 docker compose version > /dev/null 2>&1 || fail "Docker Compose v2 is missing. Install the docker-compose-plugin package."
 command -v openssl > /dev/null 2>&1 || fail "openssl is not installed."
@@ -91,7 +142,8 @@ fi
 
 cd "$DIR"
 ENV_FILE="$DIR/.env"
-CREATE_OWNER=0
+EMAIL=""
+PASSWORD=""
 
 if [ -f "$ENV_FILE" ]; then
 	say "Found $ENV_FILE. Existing secrets and settings stay as they are."
@@ -124,39 +176,8 @@ else
 		esac
 	fi
 
-	if [ -n "${RELOOP_EMAIL:-}" ]; then
-		REPLY="$RELOOP_EMAIL"
-	else
-		say "Tip: on a German Mac keyboard @ is Option+L. If your terminal sends Option as Meta, paste the address instead of typing it."
-		ask "Owner email address: "
-	fi
-	EMAIL="$(printf '%s' "$REPLY" | tr '[:upper:]' '[:lower:]')"
-	case "$EMAIL" in
-		*[[:space:]]* | *@*@* | @* | *@) fail "\"$EMAIL\" is not an email address." ;;
-		*@*) ;;
-		*) fail "\"$EMAIL\" is not an email address." ;;
-	esac
-
-	if [ -n "${RELOOP_PASSWORD:-}" ]; then
-		PASSWORD="$RELOOP_PASSWORD"
-		REPEAT="$RELOOP_PASSWORD"
-	else
-		trap restore_tty EXIT INT TERM
-		stty -echo < /dev/tty
-		ask "Owner password (12 to 128 characters): "
-		PASSWORD="$REPLY"
-		printf '\n' > /dev/tty
-		ask "Repeat the password: "
-		REPEAT="$REPLY"
-		printf '\n' > /dev/tty
-		restore_tty
-		trap - EXIT INT TERM
-	fi
-
-	[ "$PASSWORD" = "$REPEAT" ] || fail "The passwords do not match. Nothing was written."
-	LENGTH=${#PASSWORD}
-	[ "$LENGTH" -ge 12 ] || fail "The password needs at least 12 characters. Nothing was written."
-	[ "$LENGTH" -le 128 ] || fail "The password takes at most 128 characters. Nothing was written."
+	ask_owner_email ""
+	ask_owner_password
 
 	umask 077
 	cat > "$ENV_FILE.tmp" <<EOF
@@ -176,20 +197,36 @@ EOF
 	chmod 600 "$ENV_FILE.tmp"
 	mv "$ENV_FILE.tmp" "$ENV_FILE"
 	say "Wrote $ENV_FILE."
-	CREATE_OWNER=1
 fi
 
 say "Pulling images. This takes a few minutes the first time."
 docker compose pull --ignore-pull-failures
-docker compose up -d --wait
+docker compose up -d --wait || fail "The stack did not start. Fix the error above and run this script again. It keeps $ENV_FILE and creates the owner account then."
 
-if [ "$CREATE_OWNER" = "1" ]; then
-	if ! printf '%s' "$PASSWORD" | docker compose exec -T api bun apps/api/scripts/create-owner.ts "$EMAIL"; then
-		say "The owner account was not created. Run this command in $DIR to try again:"
-		say "  printf '%s' 'your password' | docker compose exec -T api bun apps/api/scripts/create-owner.ts $EMAIL"
+OWNER_STATE="$(owner_state 2>&1 || true)"
+case "$OWNER_STATE" in
+	*"owner: exists"*)
+		say "The owner account exists. Its password stays as it is."
+		;;
+	*"owner: none"*)
+		if [ -z "$EMAIL" ]; then
+			say "No owner account exists yet."
+			ask_owner_email "$(sed -n 's/^ALLOWED_SIGN_IN=//p' "$ENV_FILE" | head -n 1 | cut -d, -f1 | grep '@' || true)"
+		fi
+		[ -n "$PASSWORD" ] || ask_owner_password
+		if ! create_owner; then
+			say "The owner account was not created. Run this command in $DIR to try again:"
+			say "  printf '%s' 'your password' | docker compose exec -T api bun apps/api/scripts/create-owner.ts $EMAIL"
+			exit 1
+		fi
+		;;
+	*)
+		say "Could not check whether an owner account exists: $OWNER_STATE"
+		say "Run this script again once the api container answers, or create the owner in $DIR with:"
+		say "  printf '%s' 'your password' | docker compose exec -T api bun apps/api/scripts/create-owner.ts you@example.com"
 		exit 1
-	fi
-fi
+		;;
+esac
 
 APP_URL_VALUE="$(sed -n 's/^APP_URL=//p' "$ENV_FILE" | head -n 1)"
 PROFILE_VALUE="$(sed -n 's/^COMPOSE_PROFILES=//p' "$ENV_FILE" | head -n 1)"

@@ -101,7 +101,10 @@ export async function runInsightLane(signal?: AbortSignal): Promise<number> {
 		if (await providersExhausted()) {
 			const until = await resumeAt();
 			console.error(
-				`[agent] reading paused until ${until?.toISOString() ?? "the limit resets"}: every configured model provider is at its usage limit`,
+				`[agent] reading paused until ${until?.toISOString() ?? "the limit resets"}: ${
+					(await modelUnavailable()) ??
+					"every configured model provider is at its usage limit"
+				}`,
 			);
 			break;
 		}

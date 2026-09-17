@@ -163,10 +163,64 @@ export function chatModelFor(setting: AgentProviderSetting): AgentChatModel {
 	};
 }
 
+export interface StoredProviderModels {
+	provider: AgentProvider;
+	readingModel: string | null;
+	draftModel: string | null;
+}
+
+export interface ProviderModelChoice {
+	provider: AgentProvider;
+	readingModel?: string | null;
+	draftModel?: string | null;
+}
+
+function chosenAfresh(
+	chosen: string | null | undefined,
+	stored: string | null,
+): string | null {
+	return chosen === undefined || chosen === stored ? null : chosen;
+}
+
+export function modelsAfterSwitch(
+	current: StoredProviderModels,
+	next: ProviderModelChoice,
+): Pick<ProviderModelChoice, "readingModel" | "draftModel"> {
+	if (current.provider === next.provider) {
+		return { readingModel: next.readingModel, draftModel: next.draftModel };
+	}
+
+	return {
+		readingModel: chosenAfresh(next.readingModel, current.readingModel),
+		draftModel: chosenAfresh(next.draftModel, current.draftModel),
+	};
+}
+
+async function readStoredModels(db: Db): Promise<StoredProviderModels> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: {
+			agentProvider: true,
+			agentReadingModel: true,
+			agentDraftModel: true,
+		},
+	});
+
+	return {
+		provider:
+			row?.agentProvider && isAgentProvider(row.agentProvider)
+				? row.agentProvider
+				: "openrouter",
+		readingModel: row?.agentReadingModel?.trim() || null,
+		draftModel: row?.agentDraftModel?.trim() || null,
+	};
+}
+
 export async function writeAgentProvider(
 	db: Db,
 	setting: Partial<AgentProviderSetting> & { provider: AgentProvider },
 ): Promise<void> {
+	const models = modelsAfterSwitch(await readStoredModels(db), setting);
 	const fields: Prisma.AppSettingUpdateInput = {
 		agentProvider: setting.provider,
 	};
@@ -194,11 +248,11 @@ export async function writeAgentProvider(
 	if (setting.researchPerHour !== undefined) {
 		fields.agentResearchPerHour = setting.researchPerHour;
 	}
-	if (setting.readingModel !== undefined) {
-		fields.agentReadingModel = setting.readingModel?.trim() || null;
+	if (models.readingModel !== undefined) {
+		fields.agentReadingModel = models.readingModel?.trim() || null;
 	}
-	if (setting.draftModel !== undefined) {
-		fields.agentDraftModel = setting.draftModel?.trim() || null;
+	if (models.draftModel !== undefined) {
+		fields.agentDraftModel = models.draftModel?.trim() || null;
 	}
 
 	await db.appSetting.upsert({

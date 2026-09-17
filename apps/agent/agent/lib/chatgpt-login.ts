@@ -4,7 +4,11 @@ import type {
 	ChatgptLoginState,
 	ChatgptLoginStatus,
 } from "@crm/validation/chatgpt-login";
-import { type CodexBinary, codexBinary } from "./codex-binary";
+import {
+	type CodexBinary,
+	chatgptLoginExists,
+	codexBinary,
+} from "./codex-binary";
 import { MODEL } from "./model-config";
 
 export type { ChatgptLoginState, ChatgptLoginStatus };
@@ -14,6 +18,7 @@ type Spawn = (command: string, args: string[]) => ChildProcess;
 export type ChatgptLoginDeps = {
 	spawn: Spawn;
 	codex: () => Promise<CodexBinary>;
+	loginExists: () => boolean;
 	markConnected: () => Promise<void>;
 	replyMs: number;
 	timeoutMs: number;
@@ -210,6 +215,9 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 
 	return {
 		status(): ChatgptLoginState {
+			if (current.status === "idle" && deps.loginExists()) {
+				return state("connected", { alreadyLoggedIn: true });
+			}
 			return current;
 		},
 
@@ -244,6 +252,7 @@ export const chatgptLogin = createChatgptLogin({
 	spawn: (command, args) =>
 		nodeSpawn(command, args, { stdio: ["ignore", "pipe", "pipe"] }),
 	codex: codexBinary,
+	loginExists: chatgptLoginExists,
 	markConnected: async () => {
 		const [{ db }, { writeAgentProvider }, { forgetProviderCache }] =
 			await Promise.all([

@@ -17,6 +17,7 @@ export const MODEL = {
 	cache: { anthropic: { cacheControl: { type: "ephemeral" } } },
 	chatgptLogin: {
 		command: "codex",
+		authFile: "auth.json",
 		version: "0.154.0",
 		pollMs: 3 * SECOND_MS,
 		replyMs: 5 * SECOND_MS,

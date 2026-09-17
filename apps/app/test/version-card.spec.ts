@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { versionCardShape } from "../app/(app)/[slug]/settings/version";
+import {
+	updateNowShape,
+	versionCardShape,
+} from "../app/(app)/[slug]/settings/version";
 import { managedInstall } from "../lib/operator";
 
 describe("the version card", () => {
@@ -35,6 +38,27 @@ describe("the version card", () => {
 				updaterAvailable: true,
 			}),
 		).toBe("managed");
+	});
+
+	it("counts only a started update and a pending call as restarting", () => {
+		expect(
+			updateNowShape({ pending: false, error: false, status: "started" }),
+		).toBe("restarting");
+		expect(updateNowShape({ pending: true, error: false, status: null })).toBe(
+			"restarting",
+		);
+		expect(
+			updateNowShape({ pending: false, error: false, status: "refused" }),
+		).toBe("notStarted");
+		expect(
+			updateNowShape({ pending: false, error: false, status: "unavailable" }),
+		).toBe("notStarted");
+		expect(updateNowShape({ pending: false, error: true, status: null })).toBe(
+			"notStarted",
+		);
+		expect(updateNowShape({ pending: false, error: false, status: null })).toBe(
+			"idle",
+		);
 	});
 
 	it("reads only the literal true", () => {

@@ -14,6 +14,7 @@ import { SETTINGS_ID, writeAgentProvider } from "@crm/db/settings";
 import { runResearchLane } from "../agent/lib/dispatch";
 import { forgetProviderCache } from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
+import { type FakeCodexHome, fakeCodexHome } from "./codex-home";
 
 const DAY_MS = 86_400_000;
 const OPENROUTER_KEYS = ["OPENROUTER_API_KEY"] as const;
@@ -25,6 +26,7 @@ const savedOpenrouter = new Map<string, string>();
 let savedSetting: Prisma.AppSettingUncheckedCreateInput | null = null;
 let savedUsage: Prisma.ProviderUsageUncheckedCreateInput | null = null;
 let starts = 0;
+let codexHome: FakeCodexHome | null = null;
 
 function hideOpenrouter(): void {
 	savedOpenrouter.clear();
@@ -103,6 +105,7 @@ beforeAll(async () => {
 		where: { provider: "chatgpt" },
 	});
 	hideOpenrouter();
+	codexHome = fakeCodexHome(true);
 });
 
 beforeEach(async () => {
@@ -115,6 +118,7 @@ afterEach(clean);
 afterAll(async () => {
 	await clean();
 	restoreOpenrouter();
+	codexHome?.restore();
 	forgetProviderCache();
 
 	if (savedSetting) {

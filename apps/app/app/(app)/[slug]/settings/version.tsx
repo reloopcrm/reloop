@@ -39,6 +39,18 @@ const VERSION = { reloadAfterMs: 45_000 } as const;
 
 export type VersionCardShape = "managed" | "updater" | "command";
 
+export type UpdateNowShape = "restarting" | "notStarted" | "idle";
+
+export function updateNowShape(input: {
+	pending: boolean;
+	error: boolean;
+	status: string | null;
+}): UpdateNowShape {
+	if (input.pending || input.status === "started") return "restarting";
+	if (input.error || input.status !== null) return "notStarted";
+	return "idle";
+}
+
 export function versionCardShape(input: {
 	managed: boolean;
 	updateAvailable: boolean;
@@ -177,15 +189,19 @@ function UpdateNow() {
 
 	const update = useMutation(
 		trpc.system.update.mutationOptions({
-			onSettled: () => {
+			onSuccess: (data) => {
+				if (data.status !== "started") return;
 				setTimeout(() => window.location.reload(), VERSION.reloadAfterMs);
 			},
 		}),
 	);
-	const restarting =
-		update.isPending || update.isError || update.data?.status === "started";
+	const shape = updateNowShape({
+		pending: update.isPending,
+		error: update.isError,
+		status: update.data?.status ?? null,
+	});
 
-	if (restarting) {
+	if (shape === "restarting") {
 		return (
 			<div className="flex items-center gap-2 text-sm">
 				<Spinner />
@@ -226,7 +242,7 @@ function UpdateNow() {
 				</AlertDialogContent>
 			</AlertDialog>
 
-			{update.data && update.data.status !== "started" ? (
+			{shape === "notStarted" ? (
 				<p className="text-muted-foreground text-sm">
 					{t("The update did not start. Use the command below.")}
 				</p>

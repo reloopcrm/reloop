@@ -28,6 +28,7 @@ import {
 } from "../lib/dispatch";
 import { DISPATCH } from "../lib/dispatch-config";
 import { settle } from "../lib/enrichment";
+import { modelUnavailable } from "../lib/model";
 import { finishRun, runResultOf } from "../lib/run-runtime";
 import { attribute } from "../lib/session-purpose";
 import { createSlackChannel } from "../lib/slack-membership";
@@ -281,7 +282,9 @@ export default defineChannel({
 		async "turn.failed"(data, channel) {
 			const taskId = taskFromToken(channel.continuationToken);
 			const reason =
-				eveTurnFailure.parse(data).message ?? "The agent turn failed.";
+				(await modelUnavailable()) ??
+				eveTurnFailure.parse(data).message ??
+				"The agent turn failed.";
 
 			if (taskId) {
 				const subject = await taskSubject(taskId);

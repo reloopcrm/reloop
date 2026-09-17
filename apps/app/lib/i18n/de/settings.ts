@@ -108,6 +108,9 @@ export const settings: Dictionary = {
 	"Billed to your OpenRouter account. You buy credits at openrouter.ai and pay per token, at the price OpenRouter lists for the model.":
 		"Wird über dein OpenRouter-Konto abgerechnet. Du kaufst Guthaben auf openrouter.ai und zahlst pro Token, zum Preis, den OpenRouter für das Modell nennt.",
 	"OpenRouter model": "OpenRouter-Modell",
+	"The agent has nothing to pay with": "Der Agent hat nichts zum Bezahlen",
+	"The agent is billed to {provider}, but no key or sign-in is stored for it. Nothing runs until you add one here.":
+		"Der Agent wird über {provider} abgerechnet, aber dafür ist kein Schlüssel und keine Anmeldung gespeichert. Es läuft nichts, bis du hier eins hinterlegst.",
 	"Falls back to {fallbacks} when this account is at its limit.":
 		"Weicht auf {fallbacks} aus, wenn dieses Konto an seinem Limit ist.",
 	"No other account is configured, so a usage limit pauses the agent until it resets.":

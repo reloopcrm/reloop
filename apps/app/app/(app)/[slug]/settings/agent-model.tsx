@@ -1,5 +1,7 @@
 "use client";
 
+import Warning from "@carbon/icons-react/es/Warning";
+import { Alert, AlertDescription, AlertTitle } from "@crm/ui/components/alert";
 import { Button } from "@crm/ui/components/button";
 import {
 	Card,
@@ -14,6 +16,7 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "@crm/ui/components/field";
+import { Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
 import {
 	Select,
@@ -33,9 +36,8 @@ import { useErrorMessage, useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
+import { configuredProviders, type ProviderId } from "./agent-provider-state";
 import { ChatgptDeviceLogin } from "./chatgpt-device-login";
-
-type ProviderId = "openrouter" | "chatgpt" | "openai" | "anthropic";
 
 const PROVIDERS: { id: ProviderId; label: string }[] = [
 	{ id: "openrouter", label: "OpenRouter" },
@@ -202,6 +204,7 @@ export function AgentProvider() {
 		refetchInterval: waiting ? 3_000 : 30_000,
 		refetchIntervalInBackground: waiting,
 	});
+	const chatgptLogin = useQuery(trpc.settings.chatgptLogin.queryOptions());
 	const usageReadAt = settings.data?.usage?.updatedAt ?? "";
 	const probe = settings.data?.probe ?? null;
 	const probeAt = probe?.finishedAt ?? "";
@@ -286,8 +289,9 @@ export function AgentProvider() {
 		openai: openaiModel ?? data.openaiModel,
 		anthropic: anthropicModel ?? data.anthropicModel,
 	};
-	const reading = readingModel ?? data.readingModel ?? "";
-	const drafting = draftModel ?? data.draftModel ?? "";
+	const stored = shown === provider;
+	const reading = readingModel ?? (stored ? data.readingModel : null) ?? "";
+	const drafting = draftModel ?? (stored ? data.draftModel : null) ?? "";
 	const perHourValue =
 		perHour ??
 		(data.researchPerHour === null ? "" : String(data.researchPerHour));
@@ -309,12 +313,26 @@ export function AgentProvider() {
 		});
 	}
 
-	const configured = {
-		openrouter: data.openrouterKey.configured || openrouterKey.length > 0,
-		chatgpt: true,
-		openai: data.openaiKey.configured || openaiKey.length > 0,
-		anthropic: data.anthropicKey.configured || anthropicKey.length > 0,
-	};
+	const configured = configuredProviders({
+		stored: {
+			openrouter: data.openrouterKey.configured,
+			openai: data.openaiKey.configured,
+			anthropic: data.anthropicKey.configured,
+		},
+		typed: {
+			openrouter: openrouterKey,
+			openai: openaiKey,
+			anthropic: anthropicKey,
+		},
+		chatgptLogin: chatgptLogin.data?.status,
+	});
+	const providerLabel =
+		PROVIDERS.find((entry) => entry.id === provider)?.label ?? provider;
+	const loginKnown =
+		chatgptLogin.data !== undefined &&
+		chatgptLogin.data.status !== "unavailable";
+	const nothingToPayWith =
+		!configured[provider] && (provider !== "chatgpt" || loginKnown);
 
 	const fallbacks = PROVIDERS.filter(
 		(entry) => entry.id !== provider && configured[entry.id],
@@ -521,6 +539,19 @@ export function AgentProvider() {
 
 			<CardContent>
 				<div className="flex flex-col gap-4">
+					{nothingToPayWith ? (
+						<Alert variant="warning">
+							<Icon icon={Warning} />
+							<AlertTitle>{t("The agent has nothing to pay with")}</AlertTitle>
+							<AlertDescription>
+								{t(
+									"The agent is billed to {provider}, but no key or sign-in is stored for it. Nothing runs until you add one here.",
+									{ provider: t(providerLabel) },
+								)}
+							</AlertDescription>
+						</Alert>
+					) : null}
+
 					<ToggleGroup
 						type="single"
 						wrap

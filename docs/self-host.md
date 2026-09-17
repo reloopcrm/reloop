@@ -35,7 +35,7 @@ The script then:
 - pulls the images and starts them with Docker Compose,
 - creates the owner account and prints the address to open.
 
-Running the script again keeps an existing `deploy/.env`. It never replaces a secret and never touches the database volume.
+Running the script again keeps an existing `deploy/.env`. It never replaces a secret and never touches the database volume. After the stack is up it asks the API whether an account exists. When none does, for example because the first run failed after writing `deploy/.env`, it asks for the owner email and password again and creates the account. When one does, it leaves that account and its password alone.
 
 ### Install without questions
 

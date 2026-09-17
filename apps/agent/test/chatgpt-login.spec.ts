@@ -62,6 +62,7 @@ function harness(
 		login?: FakeChild;
 		statusDelayMs?: number;
 		codex?: () => Promise<CodexBinary>;
+		loginExists?: boolean;
 	} = {},
 ) {
 	const login = overrides.login ?? fakeChild();
@@ -82,6 +83,7 @@ function harness(
 		},
 		codex:
 			overrides.codex ?? (async () => ({ command: "codex", reason: null })),
+		loginExists: () => overrides.loginExists ?? false,
 		markConnected,
 		replyMs: 20,
 		timeoutMs: 50,
@@ -205,6 +207,16 @@ describe("ChatGPT device login", () => {
 		flow.cancel();
 	});
 
+	it("reports an existing codex login before any sign-in starts", () => {
+		const { flow } = harness(notLoggedIn, { loginExists: true });
+
+		expect(flow.status()).toMatchObject({
+			status: "connected",
+			alreadyLoggedIn: true,
+		});
+		expect(harness(notLoggedIn).flow.status().status).toBe("idle");
+	});
+
 	it("reports a missing codex binary instead of throwing", async () => {
 		const flow = createChatgptLogin({
 			spawn: () => {
@@ -218,6 +230,7 @@ describe("ChatGPT device login", () => {
 				return child;
 			},
 			codex: async () => ({ command: "codex", reason: null }),
+			loginExists: () => false,
 			markConnected: async () => {},
 			replyMs: 20,
 			timeoutMs: 50,

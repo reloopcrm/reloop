@@ -15,6 +15,7 @@ import { pendingAgentRunIds } from "../agent/lib/custom-agent-dispatch";
 import { forgetProviderCache } from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
 import { MODEL_UNAVAILABLE, runBlocker } from "../agent/lib/run-preflight";
+import { type FakeCodexHome, fakeCodexHome } from "./codex-home";
 
 const DAY_MS = 86_400_000;
 
@@ -48,6 +49,7 @@ let agentId = "";
 let versionId = "";
 let savedSetting: Prisma.AppSettingUncheckedCreateInput | null = null;
 let savedUsage: Prisma.ProviderUsageUncheckedCreateInput | null = null;
+let codexHome: FakeCodexHome | null = null;
 
 async function clearSettings() {
 	await db.appSetting.deleteMany({ where: { id: SETTINGS_ID } });
@@ -159,12 +161,15 @@ beforeAll(async () => {
 
 beforeEach(async () => {
 	hideOpenrouter();
+	codexHome = fakeCodexHome(true);
 	forgetProviderCache();
 	await clearSettings();
 });
 
 afterEach(async () => {
 	restoreOpenrouter();
+	codexHome?.restore();
+	codexHome = null;
 	await db.agentRunEvent.deleteMany({ where: { run: { agentId } } });
 	await db.agentAuditEvent.deleteMany({ where: { agentId } });
 	await db.agentRun.deleteMany({ where: { agentId } });
@@ -230,6 +235,21 @@ describe("a run that cannot get a model", () => {
 		});
 		expect(events).toHaveLength(1);
 		expect(events[0]?.data).toMatchObject({ code: MODEL_UNAVAILABLE });
+	});
+});
+
+describe("a run on an install with no provider at all", () => {
+	it("blocks with the sentence that names what to do", async () => {
+		codexHome?.restore();
+		codexHome = fakeCodexHome(false);
+		await writeAgentProvider(db, { provider: "chatgpt" });
+		forgetProviderCache();
+
+		const blocked = await runBlocker(versionId);
+
+		expect(blocked).toMatchObject({ code: MODEL_UNAVAILABLE });
+		expect(blocked?.message).toContain("Settings, General");
+		expect(blocked?.message).not.toContain("used up its window");
 	});
 });
 

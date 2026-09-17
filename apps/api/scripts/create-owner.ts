@@ -32,11 +32,23 @@ export function passwordFromStdin(raw: string): string {
 	return raw.replace(/\r?\n$/, "");
 }
 
+export const OWNER_STATE = { exists: "owner: exists", none: "owner: none" };
+
+export function ownerState(users: number): string {
+	return users > 0 ? OWNER_STATE.exists : OWNER_STATE.none;
+}
+
 async function main(): Promise<void> {
 	const { auth, PASSWORD_RULES, PasswordRefused, setPasswordFor } =
 		await import("@crm/auth");
 	const { isWorkspaceEmail } = await import("@crm/auth/workspace");
 	const { db } = await import("@crm/db");
+
+	if (process.argv[2] === "--exists") {
+		console.log(ownerState(await db.user.count()));
+		await db.$disconnect();
+		return;
+	}
 
 	const email = process.argv[2]?.trim().toLowerCase();
 	const existing = email

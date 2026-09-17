@@ -26,6 +26,7 @@ import {
 } from "ai";
 import { experimental_chatgpt } from "eve/models/openai";
 import { z } from "zod";
+import { chatgptLoginExists } from "./codex-binary";
 import { MODEL } from "./model-config";
 import { withSpendMeter } from "./spend-meter";
 
@@ -127,19 +128,21 @@ export function candidatesFor(
 	const modelFor = (provider: AgentProvider, fallback: string) =>
 		wanted && setting.provider === provider ? wanted : fallback;
 
-	const chatgptModel = modelFor("chatgpt", setting.chatgptModel);
-	all.push({
-		provider: "chatgpt",
-		label: `ChatGPT subscription (${chatgptModel})`,
-		model: chatgptModel,
-		contextWindowTokens: AGENT_PROVIDER_DEFAULTS.chatgpt.contextWindowTokens,
-		build: () =>
-			withSpendMeter(
-				withUsageCapture(experimental_chatgpt(chatgptModel) as ModelObject),
-				chatgptModel,
-				kind,
-			),
-	});
+	if (chatgptLoginExists(env)) {
+		const chatgptModel = modelFor("chatgpt", setting.chatgptModel);
+		all.push({
+			provider: "chatgpt",
+			label: `ChatGPT subscription (${chatgptModel})`,
+			model: chatgptModel,
+			contextWindowTokens: AGENT_PROVIDER_DEFAULTS.chatgpt.contextWindowTokens,
+			build: () =>
+				withSpendMeter(
+					withUsageCapture(experimental_chatgpt(chatgptModel) as ModelObject),
+					chatgptModel,
+					kind,
+				),
+		});
+	}
 
 	if (openaiKey) {
 		const openaiModel = modelFor("openai", setting.openaiModel);
@@ -481,10 +484,15 @@ async function chatgptExhausted(): Promise<boolean> {
 	return used !== null && used >= 100 && reset !== null && reset > Date.now();
 }
 
+export const NO_PROVIDER_MESSAGE =
+	"No model provider is set up. Add an OpenRouter, OpenAI or Anthropic key under Settings, General, or sign in with ChatGPT there.";
+
 export async function modelUnavailable(): Promise<string | null> {
 	try {
 		const setting = await provider();
 		const chain = candidatesFor(setting);
+		if (chain.length === 0) return NO_PROVIDER_MESSAGE;
+
 		const spent = await chatgptExhausted();
 		const live = usable(chain).filter(
 			(entry) => entry.provider !== "chatgpt" || !spent,
@@ -518,7 +526,10 @@ export async function directModel(
 	kind: string = MODEL.spend.defaultKind,
 ): Promise<ModelObject> {
 	const setting = await provider();
-	const chain = usable(candidatesFor(setting, process.env, purpose, kind));
+	const all = candidatesFor(setting, process.env, purpose, kind);
+	if (all.length === 0) throw new Error(NO_PROVIDER_MESSAGE);
+
+	const chain = usable(all);
 	const built = chain.map((entry) => entry.build());
 	if (built.length === 0) {
 		throw new Error(

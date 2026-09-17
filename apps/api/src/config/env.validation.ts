@@ -153,6 +153,24 @@ export class EnvironmentVariables {
 	RELOOP_UPDATE_CHECK?: string;
 
 	@IsOptional()
+	@IsUrl(
+		{ require_tld: false, require_protocol: true },
+		{
+			message:
+				"UPDATER_URL must be a full URL with a scheme, like http://updater:8080.",
+		},
+	)
+	UPDATER_URL?: string;
+
+	@IsOptional()
+	@IsString()
+	UPDATER_TOKEN?: string;
+
+	@IsOptional()
+	@IsString()
+	RELOOP_MANAGED?: string;
+
+	@IsOptional()
 	@IsString()
 	VERCEL?: string;
 }

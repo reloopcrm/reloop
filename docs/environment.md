@@ -110,6 +110,17 @@ The Plan card in Settings names the limits of a hosted plan. A self-hosted
 install has none, so the card only renders when `RELOOP_PLANS` is the literal
 `"true"`. The operator of a hosted install sets it; nobody else does.
 
+## `RELOOP_MANAGED`, off by default
+
+An install that an operator keeps up to date: the hosted Cloud, or a server that runs
+from source under systemd. When it is the literal `"true"`, the Version card shows the
+version and the state only, with one sentence that the operator updates the install. No
+command, no Update button, no dot on the settings icon. `managedInstall()`
+(`apps/app/lib/operator.ts`) reads it on the server, next to `plansOffered`. The API
+reads it too: `system.update` answers `refused` and `system.version` reports
+`updaterAvailable: false`, even when an updater answers. Declared in
+`env.validation.ts`, the root `turbo.json` and `apps/app/turbo.json`.
+
 ## `RELOOP_DEMO`, off by default
 
 A floating Play demo button drives a scripted tour of the real app with a fake
@@ -133,6 +144,19 @@ timeout, one call per six hours per process. A failed call gives `latest: null`,
 retries after `SYSTEM.updateCheck.retryMs`, and keeps the last good answer. The
 literal `"false"` turns the call off; the procedure then answers `checkDisabled: true`
 and never reaches GitHub. Declared in `env.validation.ts` and the root `turbo.json`.
+
+## `UPDATER_TOKEN` and `UPDATER_URL`, off by default
+
+`system.update` posts to the updater container (watchtower, `deploy/docker-compose.yml`,
+profile `updater`) with `UPDATER_TOKEN` as bearer token and a five second timeout. The
+updater answers only after it finished, and it restarts the API on the way, so a timeout
+counts as `started`. Without the token, or when the updater does not answer, the result
+is `unavailable`. A user who is not the workspace owner gets `refused`. Nothing here
+throws. `system.version` reports `updaterAvailable` for the owner only, and only while an
+update waits: it sends one request without the token and expects `401`. `UPDATER_URL`
+defaults to `http://updater:8080`. `install.sh` writes the token; the operator turns the
+profile on. `docs/self-host.md` names the trade-off. Declared in `env.validation.ts` and
+the root `turbo.json`.
 
 ## Typed, validated env
 

@@ -8,7 +8,7 @@ import { QuickSwitcher } from "@/components/crm/quick-switcher";
 import { RecordSheetHost } from "@/components/crm/record-sheet/record-sheet-host";
 import { DemoTour } from "@/components/demo/demo-tour";
 import { MobileNavProvider } from "@/components/mobile-nav";
-import { demoOffered } from "@/lib/operator";
+import { demoOffered, managedInstall } from "@/lib/operator";
 import { requireMailboxAccess } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -35,7 +35,7 @@ export default function AppLayout({
 
 				<div className="flex min-h-0 flex-1">
 					<Suspense fallback={<AppIconRailFallback />}>
-						<AppIconRail />
+						<AppIconRail managed={managedInstall()} />
 					</Suspense>
 					{children}
 				</div>

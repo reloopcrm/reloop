@@ -1,6 +1,17 @@
 "use client";
 
 import Renew from "@carbon/icons-react/es/Renew";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@crm/ui/components/alert-dialog";
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
@@ -24,7 +35,21 @@ import type { RouterOutputs } from "@/lib/trpc/types";
 
 const UPDATE_COMMAND = "docker compose pull && docker compose up -d";
 
-export function Version() {
+const VERSION = { reloadAfterMs: 45_000 } as const;
+
+export type VersionCardShape = "managed" | "updater" | "command";
+
+export function versionCardShape(input: {
+	managed: boolean;
+	updateAvailable: boolean;
+	updaterAvailable: boolean;
+}): VersionCardShape {
+	if (input.managed) return "managed";
+	if (input.updateAvailable && input.updaterAvailable) return "updater";
+	return "command";
+}
+
+export function Version({ managed }: { managed: boolean }) {
 	const t = useT();
 	const trpc = useTRPC();
 
@@ -47,19 +72,33 @@ export function Version() {
 						{t("The version could not be read. Try again later.")}
 					</p>
 				) : (
-					<VersionState data={version.data} />
+					<VersionState data={version.data} managed={managed} />
 				)}
 
-				<CopyCommand command={UPDATE_COMMAND} />
-				<p className="text-muted-foreground text-xs">
-					{t("Run it in the folder that holds deploy/.env.")}
-				</p>
+				{managed ? (
+					<p className="text-muted-foreground text-sm/6">
+						{t("The operator keeps this install up to date.")}
+					</p>
+				) : (
+					<>
+						<CopyCommand command={UPDATE_COMMAND} />
+						<p className="text-muted-foreground text-xs">
+							{t("Run it in the folder that holds deploy/.env.")}
+						</p>
+					</>
+				)}
 			</CardContent>
 		</Card>
 	);
 }
 
-function VersionState({ data }: { data: RouterOutputs["system"]["version"] }) {
+function VersionState({
+	data,
+	managed,
+}: {
+	data: RouterOutputs["system"]["version"];
+	managed: boolean;
+}) {
 	const t = useT();
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
@@ -106,6 +145,10 @@ function VersionState({ data }: { data: RouterOutputs["system"]["version"] }) {
 				</p>
 			) : null}
 
+			{versionCardShape({ managed, ...data }) === "updater" ? (
+				<UpdateNow />
+			) : null}
+
 			{data.checkDisabled ? null : (
 				<div className="flex items-center gap-2">
 					{data.checkedAt ? (
@@ -124,6 +167,70 @@ function VersionState({ data }: { data: RouterOutputs["system"]["version"] }) {
 					</Button>
 				</div>
 			)}
+		</div>
+	);
+}
+
+function UpdateNow() {
+	const t = useT();
+	const trpc = useTRPC();
+
+	const update = useMutation(
+		trpc.system.update.mutationOptions({
+			onSettled: () => {
+				setTimeout(() => window.location.reload(), VERSION.reloadAfterMs);
+			},
+		}),
+	);
+	const restarting =
+		update.isPending || update.isError || update.data?.status === "started";
+
+	if (restarting) {
+		return (
+			<div className="flex items-center gap-2 text-sm">
+				<Spinner />
+				<span>
+					{t(
+						"The update runs. The app is unreachable for a moment, then this page reloads itself.",
+					)}
+				</span>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex items-center gap-3">
+			<AlertDialog>
+				<AlertDialogTrigger asChild>
+					<Button variant="outline" size="sm">
+						{t("Update now")}
+					</Button>
+				</AlertDialogTrigger>
+
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("Update now?")}</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t(
+								"The updater pulls the new images and restarts the app. The app is unreachable for everyone for a moment. Make a backup first.",
+							)}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+
+					<AlertDialogFooter>
+						<AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+						<AlertDialogAction onClick={() => update.mutate()}>
+							{t("Update now")}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{update.data && update.data.status !== "started" ? (
+				<p className="text-muted-foreground text-sm">
+					{t("The update did not start. Use the command below.")}
+				</p>
+			) : null}
 		</div>
 	);
 }

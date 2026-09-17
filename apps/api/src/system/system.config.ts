@@ -12,4 +12,10 @@ export const SYSTEM = {
 		retryMs: 10 * MINUTE_MS,
 		forceMs: 2 * MINUTE_MS,
 	},
+	updater: {
+		defaultUrl: "http://updater:8080",
+		path: "/v1/update",
+		probeTimeoutMs: 2 * SECOND_MS,
+		triggerTimeoutMs: 5 * SECOND_MS,
+	},
 } as const;

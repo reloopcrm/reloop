@@ -7,9 +7,16 @@ export const versionOutput = z.object({
 	releaseUrl: z.string().nullable(),
 	checkedAt: z.string().nullable(),
 	checkDisabled: z.boolean(),
+	updaterAvailable: z.boolean(),
 });
 
 export type VersionInfo = z.infer<typeof versionOutput>;
+
+export const updateOutput = z.object({
+	status: z.enum(["started", "unavailable", "refused"]),
+});
+
+export type UpdateResult = z.infer<typeof updateOutput>;
 
 export const githubRelease = z.object({
 	tag_name: z.string().trim().min(1),

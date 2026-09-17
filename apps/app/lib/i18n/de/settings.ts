@@ -245,4 +245,14 @@ export const settings: Dictionary = {
 	"Update available: {version}": "Update verfügbar: {version}",
 	"Up to date": "Auf dem neuesten Stand",
 	"Release notes": "Versionshinweise",
+	"The operator keeps this install up to date.":
+		"Der Betreiber hält diese Installation aktuell.",
+	"Update now": "Jetzt aktualisieren",
+	"Update now?": "Jetzt aktualisieren?",
+	"The updater pulls the new images and restarts the app. The app is unreachable for everyone for a moment. Make a backup first.":
+		"Der Updater lädt die neuen Images und startet die App neu. Die App ist für alle kurz nicht erreichbar. Mach vorher ein Backup.",
+	"The update runs. The app is unreachable for a moment, then this page reloads itself.":
+		"Das Update läuft. Die App ist kurz nicht erreichbar. Lade die Seite danach neu.",
+	"The update did not start. Use the command below.":
+		"Das Update ist nicht gestartet. Nutze den Befehl unten.",
 };

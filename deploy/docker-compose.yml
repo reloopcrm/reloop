@@ -8,6 +8,8 @@ services:
   postgres:
     image: postgres:17
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.scope: reloop
     environment:
       POSTGRES_USER: reloop
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is missing in deploy/.env. Run install.sh.}
@@ -23,9 +25,13 @@ services:
   api:
     <<: *reloop
     image: ghcr.io/reloopcrm/reloop-api:${RELOOP_VERSION:-latest}
+    labels:
+      com.centurylinklabs.watchtower.scope: reloop
+      com.centurylinklabs.watchtower.depends-on: reloop-postgres-1
     environment:
       DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
       AGENT_URL: http://agent:2000
+      UPDATER_URL: http://updater:8080
       PORT: "3001"
       MAILBOX_SYNC_INTERVAL_MS: ${MAILBOX_SYNC_INTERVAL_MS:-300000}
     depends_on:
@@ -35,6 +41,9 @@ services:
   app:
     <<: *reloop
     image: ghcr.io/reloopcrm/reloop-app:${RELOOP_VERSION:-latest}
+    labels:
+      com.centurylinklabs.watchtower.scope: reloop
+      com.centurylinklabs.watchtower.depends-on: reloop-api-1
     environment:
       DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
       AGENT_URL: http://agent:2000
@@ -48,6 +57,9 @@ services:
   agent:
     <<: *reloop
     image: ghcr.io/reloopcrm/reloop-agent:${RELOOP_VERSION:-latest}
+    labels:
+      com.centurylinklabs.watchtower.scope: reloop
+      com.centurylinklabs.watchtower.depends-on: reloop-api-1
     environment:
       DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
       PORT: "2000"
@@ -75,6 +87,18 @@ services:
       - caddy-config:/config
     depends_on:
       - app
+
+  updater:
+    image: containrrr/watchtower:1.7.1
+    restart: unless-stopped
+    profiles: ["updater"]
+    command: --http-api-update --scope reloop --cleanup
+    environment:
+      WATCHTOWER_HTTP_API_TOKEN: ${UPDATER_TOKEN:-}
+    labels:
+      com.centurylinklabs.watchtower.scope: reloop
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   postgres-data:

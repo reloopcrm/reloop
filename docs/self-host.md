@@ -57,6 +57,7 @@ This also helps on a keyboard where `@` needs the Option key. Some terminals sen
 | `app` | `ghcr.io/reloopcrm/reloop-app` | The web app, on `127.0.0.1:3000`. |
 | `agent` | `ghcr.io/reloopcrm/reloop-agent` | The AI agent. |
 | `caddy` | `caddy:2` | HTTPS. Runs only with the `caddy` profile. |
+| `updater` | `containrrr/watchtower:1.7.1` | The Update button in Settings. Runs only with the `updater` profile. |
 
 The browser only talks to the app. The app forwards `/api/*` to the API inside the Docker network.
 
@@ -129,6 +130,28 @@ docker compose up -d
 ```
 
 The API applies new database migrations when it starts. To stay on one release, set `RELOOP_VERSION` in `deploy/.env` to a version such as `1.16.0`.
+
+### Update from the app
+
+Settings shows an **Update now** button to the workspace owner when a newer release exists and the updater runs. The button runs the two commands above for you.
+
+The updater is a separate container, [watchtower](https://containrrr.dev/watchtower/). It holds the Docker socket, so it can pull images and restart containers. It touches only the containers with the label `com.centurylinklabs.watchtower.scope=reloop`. The app itself never sees the Docker socket. The API reaches the updater inside the Docker network with the token `UPDATER_TOKEN` from `deploy/.env`.
+
+The trade-off in plain words: whoever reaches the updater with the token can restart Reloop at any time. That is why the updater is off by default and why the token must stay secret. Keep `deploy/.env` at permissions `600` and never publish port 8080 of the updater.
+
+To turn it on, add `updater` to `COMPOSE_PROFILES` in `deploy/.env`:
+
+```
+COMPOSE_PROFILES=updater
+```
+
+With the bundled Caddy the line is `COMPOSE_PROFILES=caddy,updater`. An install made before this feature has no `UPDATER_TOKEN` in `deploy/.env`. Add one with `openssl rand -hex 32`. Then run `docker compose up -d` in the `deploy` folder.
+
+The button does nothing useful when `RELOOP_VERSION` names a fixed version: the updater pulls that version, finds nothing new and stops. Raise the version in `deploy/.env` and run `docker compose up -d` instead.
+
+An operator who does not want this leaves the profile off and uses the two commands. The button then stays hidden.
+
+An install that an operator keeps up to date, such as a server that runs from source, sets `RELOOP_MANAGED=true`. The Version card then shows the version and the state only, without the command and without the button.
 
 ## Back up
 

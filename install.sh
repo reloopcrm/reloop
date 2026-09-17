@@ -169,6 +169,7 @@ API_URL=$URL
 BETTER_AUTH_SECRET=$(openssl rand -hex 32)
 AGENT_BRIDGE_SECRET=$(openssl rand -hex 32)
 CRON_SECRET=$(openssl rand -hex 32)
+UPDATER_TOKEN=$(openssl rand -hex 32)
 ALLOWED_SIGN_IN=$EMAIL
 PASSWORD_SIGN_IN=1
 EOF

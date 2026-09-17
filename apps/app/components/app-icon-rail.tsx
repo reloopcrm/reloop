@@ -241,7 +241,7 @@ export function AppIconRailFallback() {
 	);
 }
 
-export function AppIconRail() {
+export function AppIconRail({ managed }: { managed: boolean }) {
 	const pathname = usePathname();
 	const workspaceUrl = useWorkspaceUrl();
 	const { open, setOpen } = useMobileNav();
@@ -266,7 +266,7 @@ export function AppIconRail() {
 		...trpc.system.version.queryOptions(),
 		staleTime: RAIL.versionStaleMs,
 	});
-	const updateReady = version.data?.updateAvailable === true;
+	const updateReady = !managed && version.data?.updateAvailable === true;
 	const inChat = items.some(
 		(item) => item.title === "Chat" && isActive(item, pathname),
 	);

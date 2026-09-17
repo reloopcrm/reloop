@@ -1,41 +1,10 @@
 import { type Db, db } from "@crm/db";
 import { WORKSPACE_ID, workspaceSlug } from "@crm/db/workspace";
+import { toWorkspaceRole, type WorkspaceRole } from "./roles";
 
 export { WORKSPACE_ID };
 
 export const DEFAULT_WORKSPACE_NAME = "CRM";
-
-export const WORKSPACE_ROLES = ["owner", "admin", "member"] as const;
-
-export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
-
-export function isWorkspaceRole(value: string): value is WorkspaceRole {
-	return (WORKSPACE_ROLES as readonly string[]).includes(value);
-}
-
-export function isWorkspaceAdmin(role: WorkspaceRole | null): boolean {
-	return role === "owner" || role === "admin";
-}
-
-export function canRenameWorkspace(role: WorkspaceRole | null): boolean {
-	return isWorkspaceAdmin(role);
-}
-
-export function canChangeRole(role: WorkspaceRole | null): boolean {
-	return isWorkspaceAdmin(role);
-}
-
-export function canManageCurrency(role: WorkspaceRole | null): boolean {
-	return isWorkspaceAdmin(role);
-}
-
-export function canManageConnections(role: WorkspaceRole | null): boolean {
-	return isWorkspaceAdmin(role);
-}
-
-export function canManageTracking(role: WorkspaceRole | null): boolean {
-	return isWorkspaceAdmin(role);
-}
 
 export async function ensureWorkspaceMembership(
 	userId: string,
@@ -110,10 +79,6 @@ export async function ensureWorkspaceMembership(
 	}
 }
 
-export function toWorkspaceRole(value: string): WorkspaceRole {
-	return isWorkspaceRole(value) ? value : "member";
-}
-
 export type WorkspaceMemberReader = Pick<Db, "member">;
 
 export async function workspaceRoleOf(
@@ -126,4 +91,28 @@ export async function workspaceRoleOf(
 	});
 
 	return member ? toWorkspaceRole(member.role) : null;
+}
+
+export const ORGANIZATION_READ_PATHS: readonly string[] = [
+	"/organization/check-slug",
+	"/organization/get-active-member",
+	"/organization/get-active-member-role",
+	"/organization/get-full-organization",
+	"/organization/get-invitation",
+	"/organization/get-role",
+	"/organization/has-permission",
+	"/organization/list",
+	"/organization/list-invitations",
+	"/organization/list-members",
+	"/organization/list-roles",
+	"/organization/list-team-members",
+	"/organization/list-teams",
+	"/organization/list-user-invitations",
+	"/organization/list-user-teams",
+];
+
+export function isOrganizationWrite(path: string): boolean {
+	return (
+		path.startsWith("/organization/") && !ORGANIZATION_READ_PATHS.includes(path)
+	);
 }

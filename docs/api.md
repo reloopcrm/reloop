@@ -48,11 +48,17 @@ here, what do we sell.
   the session create and locks everyone out. The plugin's `invitation` table is unused.
 - **First account is owner**, and the hook enrols pre-existing users, oldest first.
 - **Permissions come from `@crm/auth`** — `canRenameWorkspace`, `canChangeRole`,
-  `canConfigureSso`, `canManageCurrency` — enforced by the service *and* used to
-  disable the UI control, so the button and the 403 cannot disagree.
-  `WorkspaceService` adds one invariant: **the last owner cannot be demoted**, with
-  `FOR UPDATE` on the owner rows before counting.
-- **Reads and writes go through tRPC**, not `authClient.organization.*`.
+  `canAssignRole`, `canConfigureSso`, `canManageCurrency` — enforced by the service
+  *and* used to disable the UI control, so the button and the 403 cannot disagree.
+  They live in `packages/auth/src/roles.ts`, which imports nothing, so a client
+  component reaches them through `@crm/auth/roles` without pulling Prisma in.
+  `WorkspaceService` adds two invariants: **the last owner cannot be demoted**, with
+  `FOR UPDATE` on the owner rows before counting, and **only an owner grants or
+  changes `owner`** (`canAssignRole`).
+- **Reads and writes go through tRPC**, not `authClient.organization.*`. `accessGuard`
+  refuses every mutating `/api/auth/organization/*` path (`isOrganizationWrite`), so
+  the raw plugin endpoints cannot skip the last-owner count or overwrite the slug and
+  `onboardedAt`. Add a new better-auth read to `ORGANIZATION_READ_PATHS` to open it.
 - **Name and website are required at onboarding and cannot be skipped**, in the form
   *and* in `updateWorkspaceInput`, posting the same `workspace.update` as settings.
 - **Onboarded state is `onboardedAt` inside the plugin's `metadata` blob**, not a
@@ -108,6 +114,9 @@ self-hoster's admin cannot redeploy.
   SAML UI: it needs an X.509 cert and SP signing key we have nowhere to keep.
 - `SsoService` passes `WORKSPACE_ID`, never an input.
 - **Management is tRPC (`sso.*`); signing in is `authClient.signIn.sso()`.**
+  `POST /api/auth/sso/register` only checks the admin role when the body carries an
+  `organizationId`, so `accessGuard` refuses the call unless that id is `WORKSPACE_ID`.
+  Without it a member registers a provider and captures their colleagues' domain.
 - **`sso.signInOptions` is the one public procedure in the app.** Every other `sso.*`
   takes `AuthMiddleware` at the *method*, which is what leaves it open. A client
   secret is never read back out.
@@ -154,6 +163,12 @@ routes synchronously and Nest's own routing would otherwise shadow them. The fac
 form defers building the document to the first request, which is what lets it read
 the tRPC router that only exists after init.
 
+**Neither route exists when `NODE_ENV` is `production`.** The document names every
+procedure and every input shape, which is a map for a stranger who reaches the API
+directly. Swagger UI and `/openapi.json` are a development tool, so `createApp`
+skips the whole `SwaggerModule.setup` call in production. The REST bridge itself
+stays, because it is a transport a client uses, not documentation.
+
 Two rules follow for the serverless build:
 
 - `@nestjs/swagger` stays in `EXTERNALS` in `apps/api/scripts/build-func.mjs`, because
@@ -163,6 +178,24 @@ Two rules follow for the serverless build:
   needs as peers, so following `dependencies` alone ships a function that throws
   `MODULE_NOT_FOUND` on the first request. Adding a name to `EXTERNALS` without
   checking it lands in `.vercel/output` breaks production, and the build stays green.
+
+## A request body has a size
+
+`apps/api/src/http/http-config.ts` holds the numbers and
+`request-size.middleware.ts` holds both guards. `MAX_REQUEST_BYTES`
+(`@crm/db/http`, 16 MB) is the ceiling the whole stack shares, and it sits above
+the largest attachment upload the conversation contracts accept.
+
+- **A declared body over the cap is refused before it arrives.**
+  `requestSizeLimit()` reads `content-length` and answers 413. `/api/auth/*` gets
+  its own smaller cap, because a sign-in body is a few hundred bytes.
+- **tRPC reads a capped body.** `express.text` is mounted on
+  `/api/trpc` with the same limit, so `raw-body` stops reading past it and tRPC
+  gets the string it would have read itself. `nestjs-trpc` does not expose
+  tRPC's own `maxBodySize`, which is why the limit is mounted in front of it.
+- **The stream itself is capped upstream**, in `deploy/Caddyfile` and in the
+  app's `/api/[...path]` proxy. The proxy is where a browser's `content-length`
+  becomes a chunked body, so it carries the cap the API cannot see.
 
 ## Two mail providers, one pipeline
 

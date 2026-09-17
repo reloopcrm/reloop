@@ -22,6 +22,10 @@ export const CONTACTS_PER_HOUR = 50;
 
 export const CONTACT_CAP_REASON = "Hourly contact cap reached — not filed";
 
+export const FORMS_PER_VISITOR_HOUR = 10;
+
+export const FORMS_PER_SITE_HOUR = CONTACTS_PER_HOUR * 2;
+
 export const LOADER_MAX_AGE_SECONDS = 600;
 
 export const CONFIG_MAX_AGE_SECONDS = 300;
@@ -66,6 +70,20 @@ export function rateWindowKey(at: Date = new Date()): string {
 
 export function contactWindowKey(at: Date = new Date()): string {
 	return `contacts:${Math.floor(at.getTime() / 3_600_000)}`;
+}
+
+export function formVisitorWindowKey(
+	visitorId: string,
+	at: Date = new Date(),
+): string {
+	return `form-visitor:${Math.floor(at.getTime() / 3_600_000)}:${visitorId}`;
+}
+
+export function formSiteWindowKey(
+	siteId: string,
+	at: Date = new Date(),
+): string {
+	return `form-site:${Math.floor(at.getTime() / 3_600_000)}:${siteId}`;
 }
 
 export function windowExpiry(key: string, at: Date = new Date()): Date {

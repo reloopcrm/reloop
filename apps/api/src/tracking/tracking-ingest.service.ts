@@ -3,6 +3,10 @@ import { classifyTouch, type RawTouch, type Touch } from "@crm/db/attribution";
 import {
 	dedupeKey,
 	EVENTS_PER_MINUTE,
+	FORMS_PER_SITE_HOUR,
+	FORMS_PER_VISITOR_HOUR,
+	formSiteWindowKey,
+	formVisitorWindowKey,
 	hostAllowed,
 	MAX_EVENTS_PER_BATCH,
 	matchedHost,
@@ -125,8 +129,29 @@ export class TrackingIngestService {
 		}
 
 		for (const form of forms) {
+			if (!(await this.withinFormRate(visitorId, batch.siteId))) break;
+
 			await this.submission(visitorId, form);
 		}
+	}
+
+	private async withinFormRate(
+		visitorId: string,
+		siteId: string,
+	): Promise<boolean> {
+		const at = new Date();
+
+		const perVisitor = await this.counters.take(
+			formVisitorWindowKey(visitorId, at),
+			FORMS_PER_VISITOR_HOUR,
+		);
+
+		if (!perVisitor) return false;
+
+		return this.counters.take(
+			formSiteWindowKey(siteId, at),
+			FORMS_PER_SITE_HOUR,
+		);
 	}
 
 	private async events(

@@ -506,7 +506,11 @@ export class AgentDefinitionsService {
 
 	async deploy(input: AgentDeployInput, userId: string) {
 		return this.db.$transaction(async (tx) => {
-			await this.access.assertCanManageInTransaction(tx, input.id, userId);
+			const { role } = await this.access.assertCanManageInTransaction(
+				tx,
+				input.id,
+				userId,
+			);
 			const agent = await this.lockAgent(tx, input.id);
 			const existing = await tx.agentAuditEvent.findFirst({
 				where: {
@@ -541,6 +545,9 @@ export class AgentDefinitionsService {
 					"Only a validated agent version can be deployed.",
 				);
 			}
+
+			this.access.assertCanDeploy(role, version.manifest);
+
 			const metadata = versionMetadata(version.manifest);
 
 			const now = new Date();

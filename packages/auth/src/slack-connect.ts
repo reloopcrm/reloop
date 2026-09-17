@@ -6,12 +6,8 @@ import {
 	getSessionFromCtx,
 } from "better-auth/api";
 import * as z from "zod";
-import {
-	canManageConnections,
-	WORKSPACE_ID,
-	WORKSPACE_ROLES,
-	workspaceRoleOf,
-} from "./organization";
+import { WORKSPACE_ID, workspaceRoleOf } from "./organization";
+import { canManageConnections, WORKSPACE_ROLES } from "./roles";
 import { SLACK_PROVIDER_ID } from "./scopes";
 
 const CONNECT_MANAGER_ROLES = WORKSPACE_ROLES.filter((role) =>

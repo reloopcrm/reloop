@@ -7,7 +7,13 @@ import {
 	it,
 } from "bun:test";
 import { db } from "@crm/db";
-import { EVENTS_PER_MINUTE, type TrackingConfig } from "@crm/db/tracking";
+import {
+	EVENTS_PER_MINUTE,
+	FORMS_PER_SITE_HOUR,
+	FORMS_PER_VISITOR_HOUR,
+	formSiteWindowKey,
+	type TrackingConfig,
+} from "@crm/db/tracking";
 import type { TrackingConfigService } from "../src/tracking/tracking-config.service";
 import { TrackingCounterService } from "../src/tracking/tracking-counter.service";
 import type { TrackingFilingService } from "../src/tracking/tracking-filing.service";
@@ -307,6 +313,57 @@ describe("a batch delivered twice", () => {
 	});
 });
 
+describe("the form submission cap", () => {
+	it("stops one visitor after the hour's forms are spent", async () => {
+		const id = visitorId();
+		const at = Date.now();
+
+		await accept(
+			Array.from({ length: FORMS_PER_VISITOR_HOUR + 2 }, (_value, index) => ({
+				type: "form_submit",
+				host: parent,
+				path: `/contact-${index}`,
+				at: at - index,
+				fields: { email: `flood-${index}-${suffix}@acme.test` },
+			})),
+			id,
+		);
+
+		expect(await db.formSubmission.count({ where: { host: parent } })).toBe(
+			FORMS_PER_VISITOR_HOUR,
+		);
+	});
+
+	it("stops the whole site once its hour is spent, whoever asks", async () => {
+		for (const key of spendableSiteWindows()) {
+			await counters.take(key, FORMS_PER_SITE_HOUR, FORMS_PER_SITE_HOUR);
+		}
+
+		await accept([
+			{
+				type: "form_submit",
+				host: parent,
+				path: "/contact",
+				at: Date.now(),
+				fields: { email: `capped-${suffix}@acme.test` },
+			},
+		]);
+
+		expect(await db.formSubmission.count({ where: { host: parent } })).toBe(0);
+		expect(filed).toHaveLength(0);
+	});
+
+	it("leaves page views alone when the form cap is spent", async () => {
+		for (const key of spendableSiteWindows()) {
+			await counters.take(key, FORMS_PER_SITE_HOUR, FORMS_PER_SITE_HOUR);
+		}
+
+		await accept([view(parent)]);
+
+		expect(await db.trackedEvent.count({ where: { host: parent } })).toBe(1);
+	});
+});
+
 describe("a batch that looks scripted", () => {
 	it("drops three events that share one timestamp", async () => {
 		const at = Date.now();
@@ -330,6 +387,15 @@ describe("a batch that looks scripted", () => {
 		expect(await db.trackedEvent.count({ where: { host: parent } })).toBe(3);
 	});
 });
+
+function spendableSiteWindows(): string[] {
+	const now = Date.now();
+
+	return [
+		formSiteWindowKey(SITE_ID, new Date(now)),
+		formSiteWindowKey(SITE_ID, new Date(now + 3_600_000)),
+	];
+}
 
 function spendableWindows(): string[] {
 	const bucket = Math.floor(Date.now() / 60_000);

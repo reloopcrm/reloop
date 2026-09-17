@@ -7,7 +7,7 @@ import {
 } from "@crm/auth";
 import { type Db, DomainScope, Prisma } from "@crm/db";
 import { describeTouch } from "@crm/db/attribution";
-import { safeFetch } from "@crm/db/safe-fetch";
+import { readCapped, safeFetch } from "@crm/db/safe-fetch";
 import { SETTINGS_ID } from "@crm/db/settings";
 import {
 	COOKIE_LIFETIMES,
@@ -259,7 +259,7 @@ export class TrackingService {
 			};
 		}
 
-		const body = (await fetched.response.text()).slice(0, MAX_VERIFY_BYTES);
+		const body = await readCapped(fetched.response, MAX_VERIFY_BYTES);
 		const siteId = compiled?.config.siteId;
 
 		if (!siteId) {
@@ -310,7 +310,7 @@ export class TrackingService {
 			const fetched = await safeFetch(url, { timeoutMs: 8_000 });
 			if (!fetched?.response.ok) continue;
 
-			const source = (await fetched.response.text()).slice(0, MAX_VERIFY_BYTES);
+			const source = await readCapped(fetched.response, MAX_VERIFY_BYTES);
 			if (mentions(source, siteId)) return true;
 		}
 
@@ -329,7 +329,7 @@ export class TrackingService {
 			});
 			if (!fetched?.response.ok) continue;
 
-			const source = (await fetched.response.text()).slice(0, MAX_VERIFY_BYTES);
+			const source = await readCapped(fetched.response, MAX_VERIFY_BYTES);
 			const state = gtmTag(source, siteId);
 
 			if (state === "url") return { id, carriesSiteId: true };

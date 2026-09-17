@@ -1,6 +1,7 @@
 "use client";
 
 import OverflowMenuHorizontal from "@carbon/icons-react/es/OverflowMenuHorizontal";
+import { canAssignRole, type WorkspaceRole } from "@crm/auth/roles";
 import { Button } from "@crm/ui/components/button";
 import {
 	DataTable,
@@ -37,9 +38,18 @@ type Role = keyof typeof ROLE_LABEL;
 
 type MemberRow = RouterOutputs["workspace"]["members"]["rows"][number];
 
+function assignableRoles(
+	viewerRole: WorkspaceRole | null,
+	current: Role,
+): Role[] {
+	return (Object.keys(ROLE_LABEL) as Role[]).filter((role) =>
+		canAssignRole(viewerRole, current, role),
+	);
+}
+
 function columns(
 	t: Translate,
-	canChangeRoles: boolean,
+	viewerRole: WorkspaceRole | null,
 	onChangeRole: (member: MemberRow, role: Role) => void,
 	pending: boolean,
 ): DataTableColumn<MemberRow>[] {
@@ -105,8 +115,11 @@ function columns(
 			hideable: false,
 			align: "right",
 			width: "w-[6%]",
-			cell: (row) =>
-				canChangeRoles ? (
+			cell: (row) => {
+				const roles = assignableRoles(viewerRole, row.role);
+				if (roles.length === 0) return null;
+
+				return (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="icon" disabled={pending}>
@@ -118,7 +131,7 @@ function columns(
 						</DropdownMenuTrigger>
 
 						<DropdownMenuContent align="end">
-							{(Object.keys(ROLE_LABEL) as Role[]).map((role) => (
+							{roles.map((role) => (
 								<DropdownMenuItem
 									key={role}
 									data-checked={row.role === role}
@@ -132,7 +145,8 @@ function columns(
 							))}
 						</DropdownMenuContent>
 					</DropdownMenu>
-				) : null,
+				);
+			},
 		},
 	];
 }
@@ -180,7 +194,7 @@ export function MembersTable() {
 			search={<ListSearch placeholder={t("Search by name or email…")} />}
 			columns={columns(
 				t,
-				workspace.data?.canChangeRoles ?? false,
+				workspace.data?.viewerRole ?? null,
 				(member, role) => setRole.mutate({ memberId: member.id, role }),
 				setRole.isPending,
 			)}

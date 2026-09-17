@@ -1,4 +1,5 @@
 import {
+	canAssignRole,
 	canChangeRole,
 	canRenameWorkspace,
 	ensureWorkspaceMembership,
@@ -176,7 +177,7 @@ export class WorkspaceService {
 		userId: string,
 		input: SetMemberRoleInput,
 	): Promise<WorkspaceMember> {
-		const role = await workspaceRoleOf(userId);
+		const role = await workspaceRoleOf(userId, this.db);
 
 		if (!canChangeRole(role)) {
 			throw new ForbiddenException(
@@ -192,6 +193,12 @@ export class WorkspaceService {
 
 			if (!target) {
 				throw new NotFoundException("That person is not in this workspace.");
+			}
+
+			if (!canAssignRole(role, toRole(target.role), input.role)) {
+				throw new ForbiddenException(
+					"Only an owner can make someone an owner, or change an owner's role.",
+				);
 			}
 
 			if (target.role === "owner" && input.role !== "owner") {

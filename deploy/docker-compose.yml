@@ -2,7 +2,28 @@ name: reloop
 
 x-reloop: &reloop
   restart: unless-stopped
-  env_file: .env
+
+x-shared-env: &shared-env
+  CRM_TELEMETRY_DISABLED:
+  POSTHOG_KEY:
+  POSTHOG_HOST:
+  POSTHOG_UI_HOST:
+  PRISMA_LOG_QUERIES:
+
+x-sign-in-env: &sign-in-env
+  ALLOWED_SIGN_IN:
+  BETTER_AUTH_SECRET:
+  API_URL:
+  APP_URL:
+  AUTH_COOKIE_DOMAIN:
+  PASSWORD_SIGN_IN:
+  GOOGLE_CLIENT_ID:
+  GOOGLE_CLIENT_SECRET:
+  MICROSOFT_CLIENT_ID:
+  MICROSOFT_CLIENT_SECRET:
+  MICROSOFT_TENANT_ID:
+  SLACK_CLIENT_ID:
+  SLACK_CLIENT_SECRET:
 
 services:
   postgres:
@@ -29,11 +50,21 @@ services:
       com.centurylinklabs.watchtower.scope: reloop
       com.centurylinklabs.watchtower.depends-on: reloop-postgres-1
     environment:
+      <<: [*sign-in-env, *shared-env]
       DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
       AGENT_URL: http://agent:2000
       UPDATER_URL: http://updater:8080
       PORT: "3001"
       MAILBOX_SYNC_INTERVAL_MS: ${MAILBOX_SYNC_INTERVAL_MS:-300000}
+      AGENT_BRIDGE_SECRET:
+      CRON_SECRET:
+      UPDATER_TOKEN:
+      BLOB_READ_WRITE_TOKEN:
+      OPENROUTER_API_KEY:
+      REDIS_URL:
+      CACHE_TTL_MS:
+      RELOOP_UPDATE_CHECK:
+      RELOOP_MANAGED:
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,9 +76,17 @@ services:
       com.centurylinklabs.watchtower.scope: reloop
       com.centurylinklabs.watchtower.depends-on: reloop-api-1
     environment:
+      <<: [*sign-in-env, *shared-env]
       DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
       AGENT_URL: http://agent:2000
       PORT: "3000"
+      AGENT_BRIDGE_SECRET:
+      IS_MARKETING:
+      RELOOP_MANAGED:
+      RELOOP_DEMO:
+      RELOOP_GERMAN:
+      RELOOP_PLANS:
+      GOOGLE_SITE_VERIFICATION:
     ports:
       - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
     depends_on:
@@ -61,9 +100,17 @@ services:
       com.centurylinklabs.watchtower.scope: reloop
       com.centurylinklabs.watchtower.depends-on: reloop-api-1
     environment:
+      <<: *shared-env
       DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
       PORT: "2000"
       CODEX_HOME: /data/codex
+      AGENT_PORT:
+      AGENT_BRIDGE_SECRET:
+      BETTER_AUTH_SECRET:
+      OPENROUTER_API_KEY:
+      PERPLEXITY_API_KEY:
+      BLOB_READ_WRITE_TOKEN:
+      GITHUB_TOKEN:
     volumes:
       - codex:/data/codex
       - agent-workflows:/app/apps/agent/.eve/.workflow-data

@@ -1,5 +1,5 @@
 import { apiUrl } from "./env";
-import { isWorkspaceAdmin, type WorkspaceRole } from "./organization";
+import { isWorkspaceAdmin, type WorkspaceRole } from "./roles";
 
 export function canConfigureSso(role: WorkspaceRole | null): boolean {
 	return isWorkspaceAdmin(role);

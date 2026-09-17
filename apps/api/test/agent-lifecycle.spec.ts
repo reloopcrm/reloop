@@ -51,7 +51,7 @@ beforeAll(async () => {
 				id: memberId,
 				organizationId: WORKSPACE_ID,
 				userId,
-				role: "member",
+				role: "admin",
 				createdAt: new Date(),
 			},
 			{

@@ -88,6 +88,9 @@ The gauntlet, in order, in `TrackingIngestService.accept`:
    not refused, because one bad host in twenty is a bug in somebody's SPA.
 7. **Rate** — `EVENTS_PER_MINUTE` charged **per accepted event, atomically**,
    through `TrackingCounter`.
+8. **Form rate**, `FORMS_PER_VISITOR_HOUR` and `FORMS_PER_SITE_HOUR`, charged on
+   the same counter before a `form_submit` is written. A page view costs nothing
+   here, so a refused flood of forms still leaves the real traffic recorded.
 
 > **The rate limit counts events, not requests, and it counts them in the
 > database.** A per-request counter with a full batch behind it admits twenty times
@@ -154,6 +157,13 @@ deleted* comes to be true of email and not of forms.
 - **A refusal is a `skipReason`, never a lost row**, and `CONTACT_CAP_REASON` is a
   shared constant because `rollup.service.ts` matches on it. Telemetry that
   substring-matches prose breaks the first time somebody improves the wording.
+- **A form submission is capped before it becomes a row.** `/api/t/e` is
+  anonymous and the `Origin` header is a header, so a script can post forms all
+  day. `FORMS_PER_VISITOR_HOUR` (10) is what one browser may send, and
+  `FORMS_PER_SITE_HOUR` (twice `CONTACTS_PER_HOUR`) is what the whole install
+  may send. Over either one the submission is dropped, with no `formSubmission`
+  row and no filing, because the row itself is the cost. `CONTACTS_PER_HOUR`
+  still bounds what reaches the CRM; these two bound what reaches the database.
 - **`CONTACTS_PER_HOUR` bounds the blast radius** of a scripted form. It is charged
   only when a *new* contact would be created — an existing contact costs nothing,
   because attaching to somebody already in the CRM cannot flood it — and **a create

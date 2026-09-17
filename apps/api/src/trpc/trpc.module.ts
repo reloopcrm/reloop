@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { TRPCModule } from "nestjs-trpc";
+import { REQUEST_SIZE } from "../http/http-config";
 import { ContextLogger } from "../logging/context-logger";
 import { formatTrpcError } from "./error-formatter";
 import { AuthMiddleware } from "./middlewares/auth.middleware";
@@ -12,7 +13,7 @@ import { TrpcErrorHandler } from "./trpc-error.handler";
 @Module({
 	imports: [
 		TRPCModule.forRoot({
-			basePath: "/api/trpc",
+			basePath: REQUEST_SIZE.trpc.path,
 			context: TrpcContext,
 			logger: new ContextLogger(),
 			errorFormatter: formatTrpcError,

@@ -8,6 +8,7 @@ import { NETWORK } from "./network-config";
 
 const MAX_REDIRECTS = NETWORK.maxRedirects;
 const DEFAULT_TIMEOUT_MS = NETWORK.timeoutMs;
+const READ_TIMEOUT_MS = NETWORK.readTimeoutMs;
 
 export function isBlockedAddress(ip: string): boolean {
 	const groups = ip.includes(":") ? expandIPv6(ip) : null;
@@ -245,4 +246,38 @@ export async function safeFetch(
 	}
 
 	return null;
+}
+
+export async function readCapped(
+	response: Response,
+	maxBytes: number,
+	timeoutMs: number = READ_TIMEOUT_MS,
+): Promise<string> {
+	const body = response.body;
+	if (!body) return "";
+
+	const reader = body.getReader();
+	const chunks: Uint8Array[] = [];
+	const cutoff = AbortSignal.timeout(timeoutMs);
+	const stop = () => {
+		void reader.cancel().catch(() => undefined);
+	};
+
+	cutoff.addEventListener("abort", stop, { once: true });
+	let size = 0;
+
+	try {
+		while (size < maxBytes) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			chunks.push(value);
+			size += value.byteLength;
+		}
+	} finally {
+		cutoff.removeEventListener("abort", stop);
+		await reader.cancel().catch(() => undefined);
+	}
+
+	return new TextDecoder().decode(Buffer.concat(chunks).subarray(0, maxBytes));
 }

@@ -111,6 +111,8 @@ export const copy: Dictionary = {
 		"Du bist kein Mitglied dieses Arbeitsbereichs.",
 	"Only the creator or a workspace admin can change this agent.":
 		"Nur der Ersteller und Administratoren dürfen diesen Agenten ändern.",
+	"Only an owner or an admin can deploy an agent that reads the whole workspace.":
+		"Nur Eigentümer und Administratoren dürfen einen Agenten aktivieren, der den gesamten Arbeitsbereich liest.",
 	"This agent is not live yet.": "Dieser Agent ist noch nicht aktiv.",
 	"This agent already has an active run. Stop it or wait for it to finish.":
 		"Dieser Agent läuft bereits. Stoppe den Lauf oder warte auf seinen Abschluss.",
@@ -139,6 +141,8 @@ export const copy: Dictionary = {
 		"Das ist keine gültige Website. Gib die Domain ein, zum Beispiel firma.de.",
 	"Only an owner or an admin can change a member's role.":
 		"Nur Eigentümer und Administratoren dürfen die Rolle eines Mitglieds ändern.",
+	"Only an owner can make someone an owner, or change an owner's role.":
+		"Nur Eigentümer dürfen jemanden zum Eigentümer machen oder die Rolle eines Eigentümers ändern.",
 	"That person is not in this workspace.":
 		"Diese Person gehört nicht zu diesem Arbeitsbereich.",
 	"The workspace needs an owner. Make someone else an owner first.":

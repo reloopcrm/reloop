@@ -30,12 +30,31 @@ The script installs into `~/reloop/deploy`. Set `RELOOP_DIR` to choose another f
 
 The script then:
 
+- reads the newest release from GitHub and writes it to `RELOOP_VERSION`, so the install runs a released version and not a branch build,
+- downloads `docker-compose.yml` and the `Caddyfile` from that release tag,
 - generates `POSTGRES_PASSWORD`, `BETTER_AUTH_SECRET`, `AGENT_BRIDGE_SECRET` and `CRON_SECRET` with `openssl`,
 - writes `deploy/.env` with permissions `600`,
 - pulls the images and starts them with Docker Compose,
 - creates the owner account and prints the address to open.
 
 Running the script again keeps an existing `deploy/.env`. It never replaces a secret and never touches the database volume. After the stack is up it asks the API whether an account exists. When none does, for example because the first run failed after writing `deploy/.env`, it asks for the owner email and password again and creates the account. When one does, it leaves that account and its password alone.
+
+### Which version it installs
+
+`RELOOP_VERSION` in `deploy/.env` decides which images run, and the installer pins
+it to the newest release. A release tag is built from a tag, so nothing that lands
+on `main` reaches your server until it is released.
+
+To pick the version yourself, set it before you run the script:
+
+```bash
+RELOOP_VERSION=1.16.0 sh install.sh
+```
+
+To follow the newest images instead, set `RELOOP_VERSION=latest`. That is the
+setting the Update button needs, and it also takes every build of `main`, so it
+trades the pin for the convenience. The installer never changes an existing
+`deploy/.env`, so an install made before this keeps what it has.
 
 ### Install without questions
 
@@ -129,7 +148,9 @@ docker compose pull
 docker compose up -d
 ```
 
-The API applies new database migrations when it starts. To stay on one release, set `RELOOP_VERSION` in `deploy/.env` to a version such as `1.16.0`.
+The API applies new database migrations when it starts. `RELOOP_VERSION` in
+`deploy/.env` names the release you run, so raise it to the version you want and
+run the two commands. `RELOOP_VERSION=latest` takes the newest images every time.
 
 ### Update from the app
 
@@ -147,7 +168,10 @@ COMPOSE_PROFILES=updater
 
 With the bundled Caddy the line is `COMPOSE_PROFILES=caddy,updater`. An install made before this feature has no `UPDATER_TOKEN` in `deploy/.env`. Add one with `openssl rand -hex 32`. Then run `docker compose up -d` in the `deploy` folder.
 
-The button does nothing useful when `RELOOP_VERSION` names a fixed version: the updater pulls that version, finds nothing new and stops. Raise the version in `deploy/.env` and run `docker compose up -d` instead.
+The button does nothing useful when `RELOOP_VERSION` names a fixed version, which
+is what a new install gets: the updater pulls that version, finds nothing new and
+stops. Either raise the version in `deploy/.env` and run `docker compose up -d`, or
+set `RELOOP_VERSION=latest` and accept that the server then follows every build.
 
 An operator who does not want this leaves the profile off and uses the two commands. The button then stays hidden.
 
@@ -163,6 +187,18 @@ builds the release in a new folder, switches `/opt/reloop/app` to it and checks
 that the app and the API answer. When they do not, it switches back. The
 [README in that folder](../deploy/self-update/README.md) has the install steps,
 the rollback steps and the warning that a health check is not a review.
+
+## Which container sees which secret
+
+`deploy/docker-compose.yml` gives each service only the variables it reads. The
+agent never sees `CRON_SECRET`, `UPDATER_TOKEN` or the Google, Microsoft and Slack
+client secrets; the app never sees `CRON_SECRET`, `UPDATER_TOKEN` or the model
+keys. All three read the database, so all three hold `DATABASE_URL`.
+
+A variable you add to `deploy/.env` only reaches a container that lists it. If you
+set one the list does not name, add it to that service's `environment:` block and
+run `docker compose up -d`. A missing variable removes a capability and never
+stops the container.
 
 ## Back up
 

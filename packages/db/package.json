@@ -17,6 +17,7 @@
 		"./fields": "./src/fields.ts",
 		"./fields-shape": "./src/fields-shape.ts",
 		"./fx": "./src/fx.ts",
+		"./http": "./src/http.ts",
 		"./images": "./src/images.ts",
 		"./insights": "./src/insights.ts",
 		"./idempotency": "./src/idempotency.ts",

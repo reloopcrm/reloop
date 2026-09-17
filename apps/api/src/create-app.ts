@@ -14,6 +14,12 @@ import {
 	generateOpenApiDocument,
 } from "trpc-to-openapi";
 import { AppModule } from "./app.module";
+import { NodeEnv } from "./config/env.validation";
+import { REQUEST_SIZE } from "./http/http-config";
+import {
+	requestSizeLimit,
+	trpcBodyLimit,
+} from "./http/request-size.middleware";
 import { ContextLogger } from "./logging/context-logger";
 import { REST_BRIDGE_PATH } from "./trpc/openapi";
 import { createBaseTrpcContext } from "./trpc/trpc.context";
@@ -25,6 +31,8 @@ export async function createApp(): Promise<NestExpressApplication> {
 		{ bodyParser: false, logger: new ContextLogger() },
 	);
 
+	app.use(requestSizeLimit());
+	app.use(REQUEST_SIZE.trpc.path, trpcBodyLimit());
 	app.use(helmet());
 	app.useGlobalPipes(
 		new ValidationPipe({
@@ -53,55 +61,60 @@ export async function createApp(): Promise<NestExpressApplication> {
 		name: API_KEY_HEADER,
 	} as const;
 
-	// SwaggerModule.setup() registers its Express routes synchronously, so it must
-	// happen before app.init() the same way the REST bridge does — Nest's own
-	// routing (wired up during init) otherwise shadows anything registered after
-	// it. The factory form defers building the document (which needs the tRPC
-	// router, only available post-init) to first request instead.
-	SwaggerModule.setup(
-		"",
-		app,
-		() => {
-			const { appRouter } = app.get(AppRouterHost);
+	if (process.env.NODE_ENV !== NodeEnv.Production) {
+		// SwaggerModule.setup() registers its Express routes synchronously, so it must
+		// happen before app.init() the same way the REST bridge does — Nest's own
+		// routing (wired up during init) otherwise shadows anything registered after
+		// it. The factory form defers building the document (which needs the tRPC
+		// router, only available post-init) to first request instead.
+		SwaggerModule.setup(
+			"",
+			app,
+			() => {
+				const { appRouter } = app.get(AppRouterHost);
 
-			const trpcDocument = generateOpenApiDocument(appRouter, {
-				title: "CRM API — tRPC bridge",
-				description:
-					"Every tRPC procedure, reachable over REST for tooling that cannot speak tRPC. Same validation, same middlewares, same services as the tRPC transport — this only translates the wire format.",
-				version: "1.0",
-				baseUrl: `${apiUrl}${REST_BRIDGE_PATH}`,
-				securitySchemes: { apiKey: apiKeySecurityScheme },
-			});
+				const trpcDocument = generateOpenApiDocument(appRouter, {
+					title: "CRM API — tRPC bridge",
+					description:
+						"Every tRPC procedure, reachable over REST for tooling that cannot speak tRPC. Same validation, same middlewares, same services as the tRPC transport — this only translates the wire format.",
+					version: "1.0",
+					baseUrl: `${apiUrl}${REST_BRIDGE_PATH}`,
+					securitySchemes: { apiKey: apiKeySecurityScheme },
+				});
 
-			const swaggerConfig = new DocumentBuilder()
-				.setTitle("CRM API")
-				.setDescription(
-					`REST surface of the CRM API — auth, health, the internal cron routes, and a generated REST bridge (under ${REST_BRIDGE_PATH}) for every tRPC procedure.`,
-				)
-				.setVersion("1.0")
-				.addCookieAuth(SESSION_COOKIE_NAME)
-				.addApiKey(apiKeySecurityScheme, "apiKey")
-				.build();
-			const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+				const swaggerConfig = new DocumentBuilder()
+					.setTitle("CRM API")
+					.setDescription(
+						`REST surface of the CRM API — auth, health, the internal cron routes, and a generated REST bridge (under ${REST_BRIDGE_PATH}) for every tRPC procedure.`,
+					)
+					.setVersion("1.0")
+					.addCookieAuth(SESSION_COOKIE_NAME)
+					.addApiKey(apiKeySecurityScheme, "apiKey")
+					.build();
+				const swaggerDocument = SwaggerModule.createDocument(
+					app,
+					swaggerConfig,
+				);
 
-			swaggerDocument.paths = {
-				...swaggerDocument.paths,
-				...(trpcDocument.paths as typeof swaggerDocument.paths),
-			};
-			swaggerDocument.components = {
-				...swaggerDocument.components,
-				schemas: {
-					...swaggerDocument.components?.schemas,
-					...(trpcDocument.components?.schemas as NonNullable<
-						typeof swaggerDocument.components
-					>["schemas"]),
-				},
-			};
+				swaggerDocument.paths = {
+					...swaggerDocument.paths,
+					...(trpcDocument.paths as typeof swaggerDocument.paths),
+				};
+				swaggerDocument.components = {
+					...swaggerDocument.components,
+					schemas: {
+						...swaggerDocument.components?.schemas,
+						...(trpcDocument.components?.schemas as NonNullable<
+							typeof swaggerDocument.components
+						>["schemas"]),
+					},
+				};
 
-			return swaggerDocument;
-		},
-		{ jsonDocumentUrl: "openapi.json" },
-	);
+				return swaggerDocument;
+			},
+			{ jsonDocumentUrl: "openapi.json" },
+		);
+	}
 
 	await app.init();
 

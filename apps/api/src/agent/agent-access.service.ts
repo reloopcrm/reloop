@@ -6,6 +6,7 @@ import {
 	workspaceRoleOf,
 } from "@crm/auth";
 import type { Db, Prisma } from "@crm/db";
+import { agentManifest } from "@crm/validation/agent-manifest";
 import {
 	ForbiddenException,
 	Injectable,
@@ -71,7 +72,19 @@ export class AgentAccessService {
 			);
 		}
 
-		return agent;
+		return { ...agent, role };
+	}
+
+	assertCanDeploy(role: WorkspaceRole, manifest: Prisma.JsonValue): void {
+		if (isWorkspaceAdmin(role)) return;
+
+		const parsed = agentManifest.safeParse(manifest);
+
+		if (!parsed.success || parsed.data.dataScope.mode === "WORKSPACE") {
+			throw new ForbiddenException(
+				"Only an owner or an admin can deploy an agent that reads the whole workspace.",
+			);
+		}
 	}
 
 	async assertCanRead(agentId: string, userId: string) {

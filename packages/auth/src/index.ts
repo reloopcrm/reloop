@@ -15,19 +15,9 @@ export {
 	isSlackConfigured,
 } from "./env";
 export {
-	canChangeRole,
-	canManageConnections,
-	canManageCurrency,
-	canManageTracking,
-	canRenameWorkspace,
 	DEFAULT_WORKSPACE_NAME,
 	ensureWorkspaceMembership,
-	isWorkspaceAdmin,
-	isWorkspaceRole,
-	toWorkspaceRole,
 	WORKSPACE_ID,
-	WORKSPACE_ROLES,
-	type WorkspaceRole,
 	workspaceRoleOf,
 } from "./organization";
 export {
@@ -38,6 +28,19 @@ export {
 	setPasswordFor,
 } from "./password";
 export { PASSWORD_RULES } from "./password-rules";
+export {
+	canAssignRole,
+	canChangeRole,
+	canManageConnections,
+	canManageCurrency,
+	canManageTracking,
+	canRenameWorkspace,
+	isWorkspaceAdmin,
+	isWorkspaceRole,
+	toWorkspaceRole,
+	WORKSPACE_ROLES,
+	type WorkspaceRole,
+} from "./roles";
 export {
 	CALENDAR_SCOPE,
 	GMAIL_SCOPE,

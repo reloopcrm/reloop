@@ -14,11 +14,8 @@ import { createAuthEndpoint, createAuthMiddleware } from "better-auth/api";
 import { applySetCookies } from "better-auth/cookies";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import * as z from "zod";
-import {
-	DEFAULT_WORKSPACE_NAME,
-	WORKSPACE_ID,
-	type WorkspaceRole,
-} from "../src/organization";
+import { DEFAULT_WORKSPACE_NAME, WORKSPACE_ID } from "../src/organization";
+import type { WorkspaceRole } from "../src/roles";
 import { GOOGLE_PROVIDER_ID, SLACK_PROVIDER_ID } from "../src/scopes";
 import { slackConnectGuard } from "../src/slack-connect";
 

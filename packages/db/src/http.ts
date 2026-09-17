@@ -1,0 +1,1 @@
+export const MAX_REQUEST_BYTES = 16_000_000;

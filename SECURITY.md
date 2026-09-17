@@ -44,6 +44,18 @@ the mailbox provider you connect. That is the default.
 so it has no session to check; `CRON_SECRET` is the whole guard and the route refuses to run
 without it. Treat it like a password.
 
+**OAuth refresh tokens are stored in plain text.** The `account` table keeps the Google, Microsoft
+and Slack access and refresh tokens as they arrive. IMAP passwords are sealed, these are not.
+Whoever reads the database reads the mailbox. Better Auth can encrypt them with
+`account.encryptOAuthTokens`, and the CRM leaves that option off on purpose: two places read the
+column with Prisma instead of through Better Auth, so the ciphertext would reach the vendor as a
+token. `apps/agent/agent/lib/slack-connection.ts` sends `account.accessToken` to Slack, and
+`revokeWithGoogle` in `apps/api/src/mailbox/mailbox-token.service.ts` sends `account.refreshToken`
+to Google. Turning the option on stops Slack agent actions and stops the Google disconnect button
+after the next token write. Both readers must go through Better Auth before the option is safe.
+Keep the database off the public internet, and treat a database backup as a set of live mailbox
+credentials.
+
 **Session cookies depend on one shared value.** The API and the web app both verify sessions
 against `BETTER_AUTH_SECRET`. Rotating it signs everyone out, which is the intended way to revoke
 every session at once.

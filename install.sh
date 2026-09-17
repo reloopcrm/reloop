@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-RELOOP_RAW="${RELOOP_RAW:-https://raw.githubusercontent.com/reloopcrm/reloop/main}"
+RELOOP_REPO_RAW="${RELOOP_REPO_RAW:-https://raw.githubusercontent.com/reloopcrm/reloop}"
+RELOOP_RELEASE_API="${RELOOP_RELEASE_API:-https://api.github.com/repos/reloopcrm/reloop/releases/latest}"
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
@@ -114,6 +115,32 @@ ask_owner_password() {
 	[ "$LENGTH" -le 128 ] || fail "The password takes at most 128 characters. Nothing was written."
 }
 
+released_version() {
+	command -v curl > /dev/null 2>&1 || fail "curl is not installed."
+	curl -fsSL "$RELOOP_RELEASE_API" 2> /dev/null \
+		| sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([0-9][^"]*\)".*/\1/p' \
+		| head -n 1
+}
+
+pin_version() {
+	[ -z "${RELOOP_REF:-}" ] || return 0
+
+	if [ -n "${RELOOP_VERSION:-}" ]; then
+		say "Using Reloop version $RELOOP_VERSION."
+	else
+		RELOOP_VERSION="$(released_version || true)"
+		[ -n "$RELOOP_VERSION" ] || fail "Could not read the newest Reloop release from GitHub. Set RELOOP_VERSION to a version such as 1.2.3, or to \"latest\" to follow the newest images, and run this again."
+		say "Newest Reloop release: $RELOOP_VERSION."
+	fi
+
+	case "$RELOOP_VERSION" in
+		latest) RELOOP_REF="main" ;;
+		*) RELOOP_REF="v$RELOOP_VERSION" ;;
+	esac
+
+	RELOOP_RAW="${RELOOP_RAW:-$RELOOP_REPO_RAW/$RELOOP_REF}"
+}
+
 owner_state() {
 	docker compose exec -T api bun apps/api/scripts/create-owner.ts --exists < /dev/null
 }
@@ -129,7 +156,7 @@ command -v openssl > /dev/null 2>&1 || fail "openssl is not installed."
 if [ -f ./install.sh ] && [ -f ./deploy/docker-compose.yml ]; then
 	DIR="$(pwd)/deploy"
 else
-	command -v curl > /dev/null 2>&1 || fail "curl is not installed."
+	pin_version
 	DIR="${RELOOP_DIR:-$HOME/reloop}/deploy"
 	mkdir -p "$DIR"
 	for file in docker-compose.yml Caddyfile; do
@@ -154,6 +181,8 @@ else
 
 	say "Reloop CRM installer"
 	say ""
+
+	pin_version
 
 	DOMAIN="${RELOOP_DOMAIN:-}"
 	if [ -z "$DOMAIN" ]; then
@@ -182,7 +211,7 @@ else
 	umask 077
 	cat > "$ENV_FILE.tmp" <<EOF
 RELOOP_DOMAIN=$DOMAIN
-RELOOP_VERSION=latest
+RELOOP_VERSION=$RELOOP_VERSION
 COMPOSE_PROFILES=$PROFILES
 POSTGRES_PASSWORD=$(openssl rand -hex 32)
 APP_URL=$URL

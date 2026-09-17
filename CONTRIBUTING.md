@@ -49,7 +49,7 @@ A few things that trip people up:
 
 - **The tRPC router type is generated, and committed.** If the app can't see a procedure you just added, run `bun run --filter=api trpc:generate` and commit `apps/api/src/generated/server.ts` alongside the router change.
 - **Schema changes need a migration**, not `db:push`. `bun run db:migrate` creates one.
-- **New environment variables need a home.** Add them to `.env.example` and, if the API reads them, to `apps/api/src/config/env.validation.ts`.
+- **New environment variables need a home.** Add them to `.env.example`, to `apps/api/src/config/env.validation.ts` if the API reads them, and to the `environment:` block of every service that reads them in `deploy/docker-compose.yml`. Each container gets only the variables it is given, so a variable nobody lists reaches nobody.
 - **The German dictionary test.** The product is English. German is an optional translation. If `german-dictionary.spec` fails on a new `t()` text, add the key to the matching file in `apps/app/lib/i18n/de/` with the English text as its value.
 
 ## Shipping a change

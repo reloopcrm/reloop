@@ -1,5 +1,8 @@
+import { MAX_REQUEST_BYTES } from "@crm/db/http";
 import { connection } from "next/server";
+import { proxyRequestHeaders } from "@/lib/api-proxy-headers";
 import { bufferedProxyResponse } from "@/lib/api-proxy-response";
+import { cappedBody } from "@/lib/capped-body";
 import { API_URL } from "@/lib/env";
 
 async function handler(request: Request): Promise<Response> {
@@ -8,21 +11,7 @@ async function handler(request: Request): Promise<Response> {
 	const url = new URL(request.url);
 	const target = `${API_URL}${url.pathname}${url.search}`;
 
-	const headers = new Headers(request.headers);
-	for (const header of [
-		"host",
-		"x-forwarded-host",
-		"x-forwarded-proto",
-		"x-forwarded-for",
-		"forwarded",
-		"transfer-encoding",
-		"connection",
-		"keep-alive",
-		"content-length",
-		"expect",
-	]) {
-		headers.delete(header);
-	}
+	const headers = proxyRequestHeaders(request.headers);
 
 	const init: RequestInit & { duplex?: "half" } = {
 		method: request.method,
@@ -30,8 +19,19 @@ async function handler(request: Request): Promise<Response> {
 		redirect: "manual",
 	};
 
+	let tooLarge = false;
+
 	if (request.method !== "GET" && request.method !== "HEAD") {
-		init.body = request.body;
+		const declared = Number(request.headers.get("content-length"));
+		if (Number.isFinite(declared) && declared > MAX_REQUEST_BYTES) {
+			return new Response(null, { status: 413 });
+		}
+
+		init.body = request.body
+			? cappedBody(request.body, MAX_REQUEST_BYTES, () => {
+					tooLarge = true;
+				})
+			: request.body;
 		init.duplex = "half";
 	}
 
@@ -40,6 +40,8 @@ async function handler(request: Request): Promise<Response> {
 	try {
 		upstream = await fetch(target, init);
 	} catch (error) {
+		if (tooLarge) return new Response(null, { status: 413 });
+
 		console.error(
 			`API proxy: ${API_URL} is not reachable for ${request.method} ${url.pathname}.`,
 			error,

@@ -102,7 +102,7 @@ export default function HubSpotComparisonPage() {
 					<p>
 						Reloop CRM is free software under the AGPL. You install it on a
 						server you control with one command. It connects to your mailbox,
-						reads the history, keeps contacts clean and tells you which past
+						reads the mailbox, keeps contacts clean and tells you which past
 						customers are worth a new call. There is no per seat price and no
 						plan to pick.
 					</p>

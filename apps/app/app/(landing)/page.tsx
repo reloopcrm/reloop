@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const FEATURES = [
 	{
 		title: "Your mailbox is the starting point",
-		body: "Connect Gmail, Outlook or any IMAP inbox. Reloop CRM reads the history and files every real conversation under the right contact and company.",
+		body: "Connect Gmail, Outlook or any IMAP inbox. Over IMAP Reloop CRM reads the history, and it files every real conversation under the right contact and company.",
 	},
 	{
 		title: "Contacts stay clean",

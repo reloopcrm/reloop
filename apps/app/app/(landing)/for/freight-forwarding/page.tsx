@@ -61,7 +61,7 @@ const FAQ = [
 	{
 		question: "Does it read every email?",
 		answer:
-			"It reads the mailbox history once and then keeps it in sync. Newsletters, out of office replies and your own addresses stay out of the contact list.",
+			"Over IMAP it reads the mailbox history once and then keeps it in sync. Gmail and Microsoft 365 start at the moment you connect them. Newsletters, out of office replies and your own addresses stay out of the contact list.",
 	},
 	{
 		question: "Is it only for freight forwarding?",
@@ -96,8 +96,8 @@ export default function FreightForwardingPage() {
 					<p>
 						Reloop CRM was built by the owner of a forwarding company for
 						exactly this. It connects to the company mailbox, reads the whole
-						history once, and builds the CRM out of what is already there.
-						Nobody types anything in.
+						history once over IMAP, and builds the CRM out of what is already
+						there. Nobody types anything in.
 					</p>
 				</Prose>
 			</PageSection>

@@ -440,16 +440,29 @@ describe("the public pages", () => {
 	it("render for a stranger on any install", async () => {
 		marketing(undefined);
 
-		for (const path of [
+		for (const path of ["/docs", "/docs/install", "/robots.txt"]) {
+			expect(redirectedTo(await proxy(request(path)))).toBeNull();
+		}
+	});
+
+	it("keep the marketing pages on the public site only", async () => {
+		const marketingPaths = [
 			"/get-started",
-			"/docs",
 			"/open-source",
 			"/open-source-crm",
 			"/self-hosted-crm",
 			"/vs/hubspot",
 			"/for/freight-forwarding",
-		]) {
+		];
+
+		marketing("true");
+		for (const path of marketingPaths) {
 			expect(redirectedTo(await proxy(request(path)))).toBeNull();
+		}
+
+		marketing(undefined);
+		for (const path of marketingPaths) {
+			expect(redirectedTo(await proxy(request(path)))).toBe("/sign-in");
 		}
 	});
 });

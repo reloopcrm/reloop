@@ -18,17 +18,20 @@ const UNGATED = ["/grant-access", "/eve"];
 
 export const ANONYMOUS_PATHS = [
 	"/t",
+	"/docs",
+	"/opengraph-image",
+	"/twitter-image",
+	"/robots.txt",
+	"/sitemap.xml",
+];
+
+export const MARKETING_PATHS = [
 	"/open-source",
 	"/open-source-crm",
 	"/self-hosted-crm",
 	"/vs/hubspot",
 	"/for/freight-forwarding",
 	"/get-started",
-	"/docs",
-	"/opengraph-image",
-	"/twitter-image",
-	"/robots.txt",
-	"/sitemap.xml",
 ];
 
 const SECTIONS = [
@@ -104,7 +107,11 @@ function isUngated(pathname: string): boolean {
 }
 
 function isAnonymous(pathname: string): boolean {
-	return ANONYMOUS_PATHS.some((prefix) => isUnder(pathname, prefix));
+	if (ANONYMOUS_PATHS.some((prefix) => isUnder(pathname, prefix))) return true;
+
+	return (
+		isMarketing() && MARKETING_PATHS.some((prefix) => isUnder(pathname, prefix))
+	);
 }
 
 function isSetup(pathname: string): boolean {

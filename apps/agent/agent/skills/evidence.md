@@ -18,7 +18,6 @@ identifying *this person*, not merely being consistent with them.
 | `profile.email-match` | The profile itself shows the address we hold. Decisive. |
 | `linkedin.employer-and-name` | A LinkedIn profile where the employer matches *and* the name is consistent with the address. Both, or it is not this. |
 | `crm.thread-reply` | They replied, from that address, on a thread we synced. Proof of identity. |
-| `crm.signature-block` | Their own signature states it. The best source there is for a job title. |
 | `github.account-identity` | The GitHub account's own `name` (or name plus company) matches. |
 | `crm.meeting-attendance` | They accepted a calendar invite we have. |
 
@@ -26,6 +25,7 @@ identifying *this person*, not merely being consistent with them.
 
 | Kind | Use it when |
 | --- | --- |
+| `crm.signature-block` | Their own signature states it. They wrote it themselves, and anybody can write a signature, so it never fills a field on its own. Pair it with `crm.thread-reply` from that same address. |
 | `web.cited-claim` | A page states it and you have the URL. |
 | `search.cites-profile` | A search for them by name and employer returned this profile. |
 | `handle.name-form` | The handle is a construction of their name. Weak: `github.com/lewis` is a form of every Lewis's name. |

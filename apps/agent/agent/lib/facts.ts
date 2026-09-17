@@ -1,5 +1,5 @@
 import { db, FactBand, FactStatus, type Prisma } from "@crm/db";
-import { type Evidence, scoreEvidence } from "./evidence";
+import { type Evidence, scoreEvidence, selfAssertedOnly } from "./evidence";
 import { currentFocus } from "./focus";
 import { isDerivedName, splitName } from "./names";
 
@@ -158,9 +158,10 @@ export async function recordFact(
 		};
 	}
 
+	const selfAsserted = selfAssertedOnly(input.evidence);
 	const applies =
 		scored.band === FactBand.VERIFIED ||
-		fillsBlank({ field, contact, hasAgentFact });
+		(!selfAsserted && fillsBlank({ field, contact, hasAgentFact }));
 
 	if (
 		!applies &&
@@ -231,10 +232,16 @@ export async function recordFact(
 		...base,
 		stored: true,
 		applied: applies,
-		reason: applies
-			? undefined
-			: "The record already carries a value here, and only VERIFIED evidence may replace one, so this is kept as a proposal for a rep to accept or dismiss. This is a normal outcome, not a failure — do not try to raise the score.",
+		reason: applies ? undefined : heldReason(selfAsserted),
 	};
+}
+
+function heldReason(selfAsserted: boolean): string {
+	if (selfAsserted) {
+		return "The only source is text the sender wrote about themselves, and that alone never fills a field. Pair it with a reply from that address, a profile that carries it, or leave it as a proposal for a rep.";
+	}
+
+	return "The record already carries a value here, and only VERIFIED evidence may replace one, so this is kept as a proposal for a rep to accept or dismiss. This is a normal outcome, not a failure — do not try to raise the score.";
 }
 
 export async function lastEmployerChange(contactId: string) {

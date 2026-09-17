@@ -239,14 +239,24 @@ describe("readCompanyHistory", () => {
 	it("reads the correspondence and knows they replied", async () => {
 		const history = await readCompanyHistory(companyId);
 
-		expect(history?.threads[0]?.subject).toBe("Re: Contract");
+		expect(history?.threads[0]?.subject).toContain("Re: Contract");
 		expect(history?.threads[0]?.contact?.id).toBe(paulaId);
 		expect(history?.threads[0]?.messages[0]?.body).toContain(
 			"Growth Specialist",
 		);
 		expect(history?.stats.theyReplied).toBe(true);
-		expect(history?.stats.lastReplyFrom).toBe("Paula Marchetti");
+		expect(history?.stats.lastReplyFrom).toContain("Paula Marchetti");
 		expect(history?.stats.nextMeetingAt).not.toBeNull();
+	});
+
+	it("hands a message over as data, not as an instruction", async () => {
+		const history = await readCompanyHistory(companyId);
+		const message = history?.threads[0]?.messages[0];
+
+		expect(message?.body?.startsWith("<untrusted-text>")).toBe(true);
+		expect(message?.body?.endsWith("</untrusted-text>")).toBe(true);
+		expect(history?.threads[0]?.subject).toContain("<untrusted-text>");
+		expect(message?.fromName).toContain("<untrusted-text>");
 	});
 
 	it("leaves email and meeting projections out of the notes", async () => {

@@ -1,6 +1,7 @@
 import { ActivityType, db, EmailDirection } from "@crm/db";
 import { z } from "zod";
 import { isDerivedName } from "./names";
+import { untrusted } from "./untrusted";
 
 const BODY_LIMIT = 4000;
 
@@ -287,7 +288,7 @@ export async function readCompanyHistory(
 			theyReplied: lastInbound !== null,
 			lastReplyAt: lastInbound?.sentAt.toISOString() ?? null,
 			lastReplyFrom: lastInbound
-				? (lastInbound.fromName ?? lastInbound.fromEmail)
+				? untrusted(lastInbound.fromName ?? lastInbound.fromEmail)
 				: null,
 			nextMeetingAt:
 				meetings
@@ -509,7 +510,7 @@ export async function readDealHistory(
 			theyReplied: lastInbound !== null,
 			lastReplyAt: lastInbound?.sentAt.toISOString() ?? null,
 			lastReplyFrom: lastInbound
-				? (lastInbound.fromName ?? lastInbound.fromEmail)
+				? untrusted(lastInbound.fromName ?? lastInbound.fromEmail)
 				: null,
 			nextMeetingAt:
 				meetings
@@ -566,7 +567,7 @@ async function recentNotes(
 	return rows.map((row) => ({
 		type: row.type,
 		subject: row.subject,
-		body: row.body ? row.body.slice(0, BODY_LIMIT) : null,
+		body: untrusted(row.body ? row.body.slice(0, BODY_LIMIT) : null),
 		occurredAt: (row.occurredAt ?? row.createdAt).toISOString(),
 	}));
 }
@@ -586,7 +587,7 @@ function toAccountThread(thread: {
 	}[];
 }): AccountThread {
 	return {
-		subject: thread.subject,
+		subject: untrusted(thread.subject),
 		contact: thread.contact
 			? { id: thread.contact.id, name: fullName(thread.contact) }
 			: null,
@@ -595,9 +596,11 @@ function toAccountThread(thread: {
 		messages: thread.messages.map((message) => ({
 			direction: message.direction,
 			from: message.fromEmail,
-			fromName: message.fromName,
+			fromName: untrusted(message.fromName),
 			sentAt: message.sentAt.toISOString(),
-			body: (message.body ?? message.snippet)?.slice(0, BODY_LIMIT) ?? null,
+			body: untrusted(
+				(message.body ?? message.snippet)?.slice(0, BODY_LIMIT) ?? null,
+			),
 		})),
 	};
 }
@@ -611,7 +614,7 @@ function toAccountMeeting(
 	now: Date,
 ): AccountMeeting {
 	return {
-		title: meeting.title,
+		title: untrusted(meeting.title),
 		startsAt: meeting.startsAt.toISOString(),
 		upcoming: meeting.startsAt > now,
 		attendees: meeting.attendees,

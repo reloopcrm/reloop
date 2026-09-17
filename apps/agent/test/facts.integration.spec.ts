@@ -65,6 +65,26 @@ describe("recordFact", () => {
 		expect(contact?.twitterUrl).toBe("https://x.com/subject");
 	});
 
+	it("refuses to fill a blank field from a signature alone", async () => {
+		const result = await recordFact({
+			contactId,
+			field: "seniority",
+			value: "Chief of Staff",
+			evidence: [seen("crm.signature-block")],
+			method: "crm.thread",
+		});
+
+		expect(result.stored).toBe(true);
+		expect(result.applied).toBe(false);
+		expect(result.reason).toContain("wrote about themselves");
+
+		const contact = await db.contact.findUnique({
+			where: { id: contactId },
+			select: { seniority: true },
+		});
+		expect(contact?.seniority).toBeNull();
+	});
+
 	it("fills a field the record keeps no column for", async () => {
 		const result = await recordFact({
 			contactId,

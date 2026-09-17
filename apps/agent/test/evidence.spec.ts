@@ -4,6 +4,7 @@ import {
 	bandFor,
 	type Evidence,
 	scoreEvidence,
+	selfAssertedOnly,
 } from "../agent/lib/evidence";
 
 const of = (...kinds: Evidence["kind"][]): Evidence[] =>
@@ -25,6 +26,17 @@ describe("scoreEvidence", () => {
 		expect(
 			scoreEvidence(of("crm.thread-reply", "crm.signature-block")).band,
 		).toBe("VERIFIED");
+	});
+
+	it("never lets a signature a stranger typed carry a fact alone", () => {
+		const scored = scoreEvidence(of("crm.signature-block"));
+
+		expect(scored.hasPrimary).toBe(false);
+		expect(selfAssertedOnly(of("crm.signature-block"))).toBe(true);
+		expect(
+			selfAssertedOnly(of("crm.thread-reply", "crm.signature-block")),
+		).toBe(false);
+		expect(selfAssertedOnly([])).toBe(false);
 	});
 
 	it("refuses to write anything without a primary source, however much of it there is", () => {

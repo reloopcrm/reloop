@@ -1,4 +1,5 @@
-import { FactBand } from "@crm/db";
+import { FactBand, type Prisma } from "@crm/db";
+import { z } from "zod";
 
 export type EvidenceKind =
 	| "profile.email-match"
@@ -19,6 +20,8 @@ type Weighting = {
 	label: string;
 };
 
+const SELF_ASSERTED = new Set<EvidenceKind>(["crm.signature-block"]);
+
 export const WEIGHTS = {
 	"profile.email-match": {
 		weight: 0.95,
@@ -37,7 +40,7 @@ export const WEIGHTS = {
 	},
 	"crm.signature-block": {
 		weight: 0.8,
-		primary: true,
+		primary: false,
 		label: "their own email signature says so",
 	},
 	"github.account-identity": {
@@ -95,6 +98,26 @@ const CEILING = 0.99;
 const CONTRADICTED = 0.45;
 
 export const BAND_FLOOR = { VERIFIED: 0.85, PROBABLE: 0.55, POSSIBLE: 0.3 };
+
+const storedEvidence = z.array(
+	z.object({
+		kind: z.enum(Object.keys(WEIGHTS) as [EvidenceKind, ...EvidenceKind[]]),
+		detail: z.string(),
+		sourceUrl: z.string().optional(),
+	}),
+);
+
+export function parseEvidence(value: Prisma.JsonValue): Evidence[] | null {
+	const parsed = storedEvidence.safeParse(value);
+	return parsed.success ? parsed.data : null;
+}
+
+export function selfAssertedOnly(evidence: Evidence[]): boolean {
+	return (
+		evidence.length > 0 &&
+		evidence.every((item) => SELF_ASSERTED.has(item.kind))
+	);
+}
 
 export function scoreEvidence(evidence: Evidence[]): Scored {
 	if (evidence.length === 0) {

@@ -1,6 +1,7 @@
 import { db, EnrichmentStatus, type Prisma } from "@crm/db";
 import { domainOf, isDerivedName } from "./names";
 import type { Person } from "./socials";
+import { untrusted } from "./untrusted";
 
 export type WorkItem = {
 	id: string;
@@ -284,19 +285,19 @@ export async function readCrmHistory(
 			expectedCloseDate: deal.expectedCloseDate?.toISOString() ?? null,
 		})),
 		threads: threads.map((thread) => ({
-			subject: thread.subject,
+			subject: untrusted(thread.subject),
 			messageCount: thread.messageCount,
 			lastMessageAt: thread.lastMessageAt.toISOString(),
 			messages: thread.messages.map((message) => ({
 				direction: message.direction,
 				from: message.fromEmail,
-				fromName: message.fromName,
+				fromName: untrusted(message.fromName),
 				sentAt: message.sentAt.toISOString(),
-				body: message.body ?? message.snippet,
+				body: untrusted(message.body ?? message.snippet),
 			})),
 		})),
 		meetings: meetings.map((meeting) => ({
-			title: meeting.title,
+			title: untrusted(meeting.title),
 			startsAt: meeting.startsAt.toISOString(),
 			attended: meeting.attendees.some(
 				(attendee) =>

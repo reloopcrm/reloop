@@ -77,8 +77,16 @@ function installWithNpm(prefix: string, spec: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const child = nodeSpawn(
 			"npm",
-			["install", "--prefix", prefix, spec, "--no-audit", "--no-fund"],
-			{ stdio: ["ignore", "ignore", "pipe"] },
+			[
+				"install",
+				"--prefix",
+				prefix,
+				spec,
+				"--ignore-scripts",
+				"--no-audit",
+				"--no-fund",
+			],
+			{ env: codexEnv(), stdio: ["ignore", "ignore", "pipe"] },
 		);
 		let stderr = "";
 		child.stderr?.on("data", (chunk: Buffer | string) => {
@@ -104,6 +112,20 @@ function installWithNpm(prefix: string, spec: string): Promise<void> {
 			);
 		});
 	});
+}
+
+export function codexEnv(
+	env: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+	const kept: NodeJS.ProcessEnv = {};
+
+	for (const name of MODEL.chatgptLogin.passThroughEnv) {
+		const value = env[name];
+		if (value !== undefined) kept[name] = value;
+	}
+
+	kept.CODEX_HOME = codexHome(env);
+	return kept;
 }
 
 export function codexHome(env: NodeJS.ProcessEnv = process.env): string {

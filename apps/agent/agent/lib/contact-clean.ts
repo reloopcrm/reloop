@@ -6,6 +6,7 @@ import { z } from "zod";
 import { recordFact } from "./facts";
 import { directModel } from "./model";
 import { looksMachineMade } from "./names";
+import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
 const CLEAN = {
 	messages: 6,
@@ -80,6 +81,7 @@ async function extract(input: {
 		abortSignal: AbortSignal.timeout(MEMORY.callTimeoutMs),
 		system: [
 			"You read emails one person sent and report who they are, from their own signature block.",
+			UNTRUSTED_RULE,
 			"Report only what the signature or the sender line states. Never guess a name from the email address alone.",
 			"fullName is the person's full name as written by them, without titles like Herr, Frau, Dr. or job titles.",
 			"title is their job title, companyName the company they sign for, phone the number in the signature.",
@@ -93,7 +95,8 @@ async function extract(input: {
 			`Email address: ${input.email}`,
 			`Sender names seen: ${input.displayNames.join(" | ") || "(none)"}`,
 			...input.bodies.map(
-				(body, index) => `Email ${index + 1} (end of message):\n${body}`,
+				(body, index) =>
+					`Email ${index + 1} (end of message):\n${untrusted(body)}`,
 			),
 		].join("\n\n"),
 	});

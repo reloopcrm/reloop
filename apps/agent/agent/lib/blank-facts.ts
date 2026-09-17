@@ -1,4 +1,5 @@
-import { db, FactStatus } from "@crm/db";
+import { db, FactStatus, type Prisma } from "@crm/db";
+import { parseEvidence, selfAssertedOnly } from "./evidence";
 import {
 	canonicalValue,
 	type FactField,
@@ -56,6 +57,7 @@ export async function sweepBlankFacts(
 				field: true,
 				value: true,
 				score: true,
+				evidence: true,
 				contact: { select: CONTACT_SELECT },
 			},
 			orderBy: [{ score: "desc" }, { observedAt: "desc" }],
@@ -103,23 +105,39 @@ export async function sweepBlankFacts(
 			continue;
 		}
 
+		const candidate = group.find((row) => {
+			const evidence = parseEvidence(row.evidence);
+			return evidence !== null && !selfAssertedOnly(evidence);
+		});
+
+		if (!candidate) {
+			sweep.waiting += group.length;
+			continue;
+		}
+
 		if (sweep.filled >= MAX_FILLS) {
 			sweep.waiting += group.length;
 			continue;
 		}
 
 		if (!options.dry) {
-			await fill(best.id, best.contactId, field, best.value, column);
+			await fill(
+				candidate.id,
+				candidate.contactId,
+				field,
+				candidate.value,
+				column,
+			);
 		}
 
 		sweep.filled += 1;
 		sweep.settled += group.length - 1;
 		sweep.fills.push({
-			contactId: best.contactId,
+			contactId: candidate.contactId,
 			contact: [contact.firstName, contact.lastName].filter(Boolean).join(" "),
 			field,
-			value: best.value,
-			score: best.score,
+			value: candidate.value,
+			score: candidate.score,
 			dropped: group.length - 1,
 		});
 	}
@@ -133,6 +151,7 @@ type Proposal = {
 	field: string;
 	value: string;
 	score: number;
+	evidence: Prisma.JsonValue;
 	contact: {
 		id: string;
 		email: string | null;

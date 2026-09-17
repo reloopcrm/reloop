@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import {
 	type CodexBinaryDeps,
+	codexEnv,
 	createCodexBinary,
 } from "../agent/lib/codex-binary";
 import { MODEL } from "../agent/lib/model-config";
@@ -83,5 +84,28 @@ describe("finding the codex binary", () => {
 		const { resolve } = harness(new Set(), async () => {});
 
 		expect((await resolve()).reason).toContain(CACHED);
+	});
+});
+
+describe("what the codex install is allowed to read", () => {
+	it("hands over the paths it needs and nothing else", () => {
+		const scrubbed = codexEnv({
+			AGENT_BRIDGE_SECRET: "bridge",
+			CODEX_HOME: HOME,
+			DATABASE_URL: "postgresql://user:pass@postgres:5432/reloop",
+			HOME: "/home/node",
+			OPENROUTER_API_KEY: "sk-secret",
+			PATH: "/usr/local/bin:/usr/bin",
+		});
+
+		expect(scrubbed).toEqual({
+			CODEX_HOME: HOME,
+			HOME: "/home/node",
+			PATH: "/usr/local/bin:/usr/bin",
+		});
+	});
+
+	it("names the codex home even when the container did not", () => {
+		expect(codexEnv({}).CODEX_HOME?.endsWith(".codex")).toBe(true);
 	});
 });

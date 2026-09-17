@@ -116,6 +116,11 @@ export function permitted(
 export const AGENT_TOOLS = [
 	"agent",
 	"archive_field",
+	"bash",
+	"glob",
+	"grep",
+	"read_file",
+	"write_file",
 	"enrich_company",
 	"fetch_contact_photo",
 	"find_contact_socials",

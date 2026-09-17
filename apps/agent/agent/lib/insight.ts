@@ -15,6 +15,7 @@ import { language, say } from "./language";
 import { directModel } from "./model";
 import { MODEL } from "./model-config";
 import { playbookPrompt, readPlaybook } from "./playbook";
+import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
 function clamped(max: number) {
 	return z.string().transform((text) => text.slice(0, max));
@@ -240,6 +241,7 @@ export async function classifyThread(
 		lenientInsightSchema,
 		[
 			"You read one email conversation from a company's mailbox and report facts about it.",
+			UNTRUSTED_RULE,
 			"Report only what the messages say. Never invent quantities, outcomes or intentions.",
 			"Quantities: convert loads to units only when the messages state the conversion; otherwise leave units null and fill loads.",
 			"DEAL_DONE means an order was confirmed, delivered or invoiced in this conversation.",
@@ -251,7 +253,9 @@ export async function classifyThread(
 			`A message line leaves out the greeting, the sign-off and the signature. Write a range as ${say("'800 to 1000'", "'800 bis 1000'")}, never with a dash.`,
 			await businessPrompt(rules),
 		].join("\n"),
-		`Subject: ${thread.subject ?? "(no subject)"}\n\n${transcript(thread)}`,
+		untrusted(
+			`Subject: ${thread.subject ?? "(no subject)"}\n\n${transcript(thread)}`,
+		),
 		threadInsightSchema,
 	);
 
@@ -312,9 +316,12 @@ async function refreshMemory(
 				"You maintain a short running memory about one business contact for a sales rep.",
 				`Keep it under ${MEMORY.summaryMaxChars} characters, in ${language()}, facts only: what they buy or sell, quantities, prices if stated, what was agreed, what is still open, how the relationship ended.`,
 				"Merge the new conversation into the existing memory. Drop nothing that still matters, repeat nothing.",
+				UNTRUSTED_RULE,
 				await businessPrompt(rules),
 			].join("\n"),
-			`Existing memory:\n${summary || "(empty)"}\n\nNew conversation (${added.verdict.outcome}):\n${added.verdict.summary}`,
+			untrusted(
+				`Existing memory:\n${summary || "(empty)"}\n\nNew conversation (${added.verdict.outcome}):\n${added.verdict.summary}`,
+			),
 			memorySchema,
 		);
 		summary = object.summary;
@@ -507,6 +514,7 @@ export async function runThreadDigest(threadId: string): Promise<string> {
 		lenientDigestSchema,
 		[
 			"You read one email conversation and write one short line for each message.",
+			UNTRUSTED_RULE,
 			`Write every line in ${language()}, at most 20 words, in the present tense.`,
 			"A line never names its sender and never starts with WE or THEY. It starts with the verb.",
 			"Say what the message asks, offers, confirms or answers. Name quantities and products when the message names them.",
@@ -514,7 +522,9 @@ export async function runThreadDigest(threadId: string): Promise<string> {
 			`Leave out the greeting, the sign-off and the signature. Write a range as ${say("'800 to 1000'", "'800 bis 1000'")}, never with a dash.`,
 			"Answer with one line for every numbered message, with its number.",
 		].join("\n"),
-		`Subject: ${thread.subject ?? "(no subject)"}\n\n${transcript(thread)}`,
+		untrusted(
+			`Subject: ${thread.subject ?? "(no subject)"}\n\n${transcript(thread)}`,
+		),
 		threadDigestSchema,
 	);
 

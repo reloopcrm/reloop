@@ -8,6 +8,7 @@ import {
 	type CodexBinary,
 	chatgptLoginExists,
 	codexBinary,
+	codexEnv,
 } from "./codex-binary";
 import { MODEL } from "./model-config";
 
@@ -250,7 +251,10 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 
 export const chatgptLogin = createChatgptLogin({
 	spawn: (command, args) =>
-		nodeSpawn(command, args, { stdio: ["ignore", "pipe", "pipe"] }),
+		nodeSpawn(command, args, {
+			env: codexEnv(),
+			stdio: ["ignore", "pipe", "pipe"],
+		}),
 	codex: codexBinary,
 	loginExists: chatgptLoginExists,
 	markConnected: async () => {

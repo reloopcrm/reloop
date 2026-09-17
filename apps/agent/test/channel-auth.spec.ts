@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import type { AuthFn } from "eve/channels/auth";
 import {
 	BRIDGE_AUDIENCE,
 	BRIDGE_ISSUER,
+	eveAuth,
 	repFromCrm,
 } from "../agent/channels/eve";
 import { isAutomated } from "../agent/lib/approval";
@@ -146,5 +148,55 @@ describe("repFromCrm", () => {
 		expect(
 			await auth(request(await mint(claims({ sub: undefined })))),
 		).toBeNull();
+	});
+});
+
+describe("the loopback shortcut belongs to development", () => {
+	const loopback = () =>
+		new Request("http://localhost:2000/eve/v1/session", { method: "POST" });
+
+	async function accepts(
+		chain: AuthFn<Request>[],
+		incoming: Request,
+	): Promise<boolean> {
+		for (const entry of chain) {
+			if (await entry(incoming)) return true;
+		}
+		return false;
+	}
+
+	it("lets a bare loopback call in while developing", async () => {
+		const chain = eveAuth({
+			AGENT_BRIDGE_SECRET: SECRET,
+			NODE_ENV: "development",
+		});
+
+		expect(await accepts(chain, loopback())).toBe(true);
+	});
+
+	it("refuses an unsigned caller in production, whatever host it claims", async () => {
+		const chain = eveAuth({
+			AGENT_BRIDGE_SECRET: SECRET,
+			NODE_ENV: "production",
+		});
+
+		expect(await accepts(chain, loopback())).toBe(false);
+	});
+
+	it("still takes a signed rep in production", async () => {
+		const chain = eveAuth({
+			AGENT_BRIDGE_SECRET: SECRET,
+			NODE_ENV: "production",
+		});
+		const signed = new Request("http://localhost:2000/eve/v1/session", {
+			headers: { authorization: `Bearer ${await mint(claims())}` },
+			method: "POST",
+		});
+
+		expect(await accepts(chain, signed)).toBe(true);
+	});
+
+	it("refuses everybody in production without a bridge secret", () => {
+		expect(eveAuth({ NODE_ENV: "production" })).toHaveLength(0);
 	});
 });

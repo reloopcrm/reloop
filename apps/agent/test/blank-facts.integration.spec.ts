@@ -11,6 +11,7 @@ async function propose(input: {
 	field: string;
 	value: string;
 	score: number;
+	kind?: string;
 }): Promise<string> {
 	const fact = await db.contactFact.create({
 		data: {
@@ -19,7 +20,9 @@ async function propose(input: {
 			value: input.value,
 			score: input.score,
 			band: input.score >= 0.55 ? FactBand.PROBABLE : FactBand.POSSIBLE,
-			evidence: [{ kind: "web.cited-claim", detail: "a page said so" }],
+			evidence: [
+				{ kind: input.kind ?? "web.cited-claim", detail: "a page said so" },
+			],
 			method: "web",
 			status: FactStatus.PROPOSED,
 		},
@@ -72,6 +75,27 @@ describe("sweepBlankFacts", () => {
 			select: { linkedinUrl: true },
 		});
 		expect(contact?.linkedinUrl).toBe("https://www.linkedin.com/in/subject");
+	});
+
+	it("leaves a signature the sender wrote in front of a rep", async () => {
+		const offer = await propose({
+			field: "title",
+			value: "Chief of Staff",
+			score: 0.8,
+			kind: "crm.signature-block",
+		});
+
+		const sweep = await sweepBlankFacts();
+
+		expect(sweep.filled).toBe(0);
+		expect(sweep.waiting).toBe(1);
+		expect(await statusOf(offer)).toBe("PROPOSED");
+
+		const contact = await db.contact.findUnique({
+			where: { id: contactId },
+			select: { title: true },
+		});
+		expect(contact?.title).toBeNull();
 	});
 
 	it("leaves a suggestion that disagrees with what is already there", async () => {

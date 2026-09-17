@@ -2,6 +2,7 @@ import { db } from "@crm/db";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { focusOn } from "../lib/focus";
+import { untrusted } from "../lib/untrusted";
 
 export default defineTool({
 	description:
@@ -44,7 +45,7 @@ export default defineTool({
 			found: true as const,
 			memory: memory
 				? {
-						summary: memory.summary,
+						summary: untrusted(memory.summary),
 						didBusiness: memory.didBusiness,
 						openInquiries: memory.openInquiries,
 						maxPallets: memory.maxPallets,
@@ -59,6 +60,7 @@ export default defineTool({
 				: null,
 			conversations: insights.map((entry) => ({
 				...entry,
+				summary: untrusted(entry.summary),
 				lastMessageAt: entry.lastMessageAt.toISOString(),
 			})),
 		};

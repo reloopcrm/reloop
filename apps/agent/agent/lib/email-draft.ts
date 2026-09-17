@@ -14,6 +14,7 @@ import { askJson } from "./insight";
 import { language } from "./language";
 import { directModel } from "./model";
 import { playbookVoicePrompt, readPlaybook } from "./playbook";
+import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
 export const DRAFT = {
 	threads: 3,
@@ -248,7 +249,7 @@ function facts(person: DraftRecipient): string {
 		person.title ? `Their role: ${person.title}` : "",
 		person.company ? `Their company: ${person.company.name}` : "",
 		person.owner?.name ? `The email comes from: ${person.owner.name}` : "",
-		memory ? `What we know about them: ${memory.summary}` : "",
+		memory ? `What we know about them: ${untrusted(memory.summary)}` : "",
 		memory?.didBusiness ? `Closed deals with them: ${memory.didBusiness}` : "",
 		memory?.openInquiries
 			? `Inquiries of theirs left open: ${memory.openInquiries}`
@@ -271,6 +272,7 @@ function systemPrompt(parts: {
 }): string {
 	return [
 		"You write one short follow up email for a small business to a contact it spoke to a while ago.",
+		UNTRUSTED_RULE,
 		"Write in the language the conversation itself uses. German conversation means a German email.",
 		`Before you write, settle one thing from the conversation: is this contact a SELLER who offered ${parts.product} to us, or a BUYER who bought ${parts.product} from us?`,
 		`A SELLER offered us ${parts.product}, asked what we pay, named a quantity they hold, or arranged a pickup at their own site.`,
@@ -491,7 +493,7 @@ export async function runEmailDraft(
 		model,
 		draftSchema,
 		system,
-		`${facts(person)}\n\nThe conversation so far, oldest message first. Read it only to learn who this is and what they trade. Do not quote it:\n\n${talk}`,
+		`${facts(person)}\n\nThe conversation so far, oldest message first. Read it only to learn who this is and what they trade. Do not quote it:\n\n${untrusted(talk)}`,
 	);
 
 	await store(contactId, person, object, model.modelId);

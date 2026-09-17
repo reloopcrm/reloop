@@ -41,8 +41,15 @@ export function repFromCrm(secret: string): AuthFn<Request> {
 	);
 }
 
-const secret = process.env.AGENT_BRIDGE_SECRET;
+export function eveAuth(
+	env: NodeJS.ProcessEnv = process.env,
+): AuthFn<Request>[] {
+	const secret = env.AGENT_BRIDGE_SECRET;
+	const bridge = secret ? [repFromCrm(secret)] : [];
 
-export default eveChannel({
-	auth: [...(secret ? [repFromCrm(secret)] : []), vercelOidc(), localDev()],
-});
+	if (env.NODE_ENV === "production") return bridge;
+
+	return [...bridge, vercelOidc(), localDev()];
+}
+
+export default eveChannel({ auth: eveAuth() });

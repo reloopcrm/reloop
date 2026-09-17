@@ -5,6 +5,16 @@
 </p>
 
 <p align="center">
+  <a href="https://reloopcrm.com"><strong>reloopcrm.com</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://reloopcrm.com/get-started">Get started</a>
+  &nbsp;·&nbsp;
+  <a href="https://reloopcrm.com/docs">Docs</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/reloopcrm/reloop/releases">Releases</a>
+</p>
+
+<p align="center">
   <img src="docs/images/demo.gif" width="900" alt="Reloop CRM: open the win back list, read the conversation behind a company">
 </p>
 

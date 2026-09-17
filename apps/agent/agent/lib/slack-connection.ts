@@ -1,3 +1,4 @@
+import { openAccountToken } from "@crm/auth/account-token";
 import { db } from "@crm/db";
 
 export async function slackAccessToken(): Promise<string | null> {
@@ -7,7 +8,7 @@ export async function slackAccessToken(): Promise<string | null> {
 		select: { accessToken: true },
 	});
 
-	return account?.accessToken ?? null;
+	return openAccountToken(account?.accessToken);
 }
 
 export async function slackConnected(): Promise<boolean> {

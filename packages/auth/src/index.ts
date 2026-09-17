@@ -1,3 +1,4 @@
+export { openAccountToken } from "./account-token";
 export {
 	API_KEY_EXPIRATION,
 	API_KEY_HEADER,

@@ -1,5 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { auth } from "@crm/auth";
 import { ActivityType, db, EmailDirection, GoogleSyncStatus } from "@crm/db";
+import { symmetricEncrypt } from "better-auth/crypto";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { GoogleConnectionService } from "../src/google/google-connection.service";
 import {
@@ -345,6 +347,12 @@ describe("disconnecting Microsoft", () => {
 describe("disconnecting Google", () => {
 	const realFetch = globalThis.fetch;
 
+	async function seal(token: string): Promise<string> {
+		const { secretConfig } = await auth.$context;
+
+		return symmetricEncrypt({ key: secretConfig, data: token });
+	}
+
 	async function grant(scope: string, refreshToken: string | null) {
 		await db.account.create({
 			data: {
@@ -352,7 +360,7 @@ describe("disconnecting Google", () => {
 				accountId: `goog-account-${suffix}`,
 				providerId: GOOGLE_PROVIDER_ID,
 				userId: gmailRep,
-				refreshToken,
+				refreshToken: refreshToken ? await seal(refreshToken) : null,
 				scope,
 			},
 		});
@@ -424,8 +432,11 @@ describe("disconnecting Google", () => {
 	it("clears once Google accepts the revocation", async () => {
 		await grant(SYNC_SCOPES.join(" "), "refresh-token");
 
-		globalThis.fetch = (async () =>
-			new Response(null, { status: 200 })) as unknown as typeof fetch;
+		const sent: string[] = [];
+		globalThis.fetch = (async (_url: string, init: RequestInit) => {
+			sent.push(String(init.body));
+			return new Response(null, { status: 200 });
+		}) as unknown as typeof fetch;
 
 		try {
 			expect(await google.revoke(gmailRep)).toEqual({ revoked: true });
@@ -433,6 +444,7 @@ describe("disconnecting Google", () => {
 			globalThis.fetch = realFetch;
 		}
 
+		expect(sent).toEqual(["token=refresh-token"]);
 		expect(await scopeOf()).toBeNull();
 	});
 

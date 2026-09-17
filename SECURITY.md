@@ -44,21 +44,32 @@ the mailbox provider you connect. That is the default.
 so it has no session to check; `CRON_SECRET` is the whole guard and the route refuses to run
 without it. Treat it like a password.
 
-**OAuth refresh tokens are stored in plain text.** The `account` table keeps the Google, Microsoft
-and Slack access and refresh tokens as they arrive. IMAP passwords are sealed, these are not.
-Whoever reads the database reads the mailbox. Better Auth can encrypt them with
-`account.encryptOAuthTokens`, and the CRM leaves that option off on purpose: two places read the
-column with Prisma instead of through Better Auth, so the ciphertext would reach the vendor as a
-token. `apps/agent/agent/lib/slack-connection.ts` sends `account.accessToken` to Slack, and
-`revokeWithGoogle` in `apps/api/src/mailbox/mailbox-token.service.ts` sends `account.refreshToken`
-to Google. Turning the option on stops Slack agent actions and stops the Google disconnect button
-after the next token write. Both readers must go through Better Auth before the option is safe.
-Keep the database off the public internet, and treat a database backup as a set of live mailbox
+**OAuth tokens are encrypted at rest.** `account.encryptOAuthTokens` is on, so Better Auth seals
+the Google, Microsoft and Slack access and refresh tokens with `BETTER_AUTH_SECRET` before it
+writes the column. Every reader opens it with Better Auth's own key. The mailbox sync asks
+`auth.api.getAccessToken`. The Slack bot token in `apps/agent/agent/lib/slack-connection.ts` and
+the Google revocation in `apps/api/src/mailbox/mailbox-token.service.ts` go through
+`openAccountToken` (`packages/auth/src/account-token.ts`), which reads the same flag and the same
+secret Better Auth writes with.
+
+A row written before this option was turned on stays readable. `openAccountToken` returns a value
+that is not ciphertext unchanged, so an existing connection keeps working with no reconnect. Such a
+row becomes ciphertext on its next write: a sign-in, a reconnect or an account link seals both
+tokens, and a token refresh seals the new access token. Google does not issue a new refresh token
+on a refresh, and the Slack bot token never rotates, so those two stay in plain text until somebody
+reconnects the provider. Reconnect Google and Slack after the upgrade if you want every token
+sealed.
+
+Two things this does not cover. The Slack user token on `SlackWorkspaceGrant` is written by
+`packages/auth/src/slack-grant.ts` and is still stored in plain text. And encryption protects a
+database dump, not the running deployment, which holds the key. Keep the database off the public
+internet, and treat a database backup taken before the upgrade as a set of live mailbox
 credentials.
 
 **Session cookies depend on one shared value.** The API and the web app both verify sessions
 against `BETTER_AUTH_SECRET`. Rotating it signs everyone out, which is the intended way to revoke
-every session at once.
+every session at once. It also makes every sealed OAuth token and every sealed IMAP password
+unreadable, so a rotation means every connection is reconnected by hand.
 
 ## Deploying it safely
 

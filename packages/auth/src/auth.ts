@@ -92,6 +92,8 @@ export const auth = betterAuth({
 	},
 
 	account: {
+		encryptOAuthTokens: true,
+
 		accountLinking: {
 			enabled: true,
 			trustedProviders: [GOOGLE_PROVIDER_ID, MICROSOFT_PROVIDER_ID],

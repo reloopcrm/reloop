@@ -1,6 +1,7 @@
 import {
 	auth,
 	type MailboxProviderId,
+	openAccountToken,
 	parseScopes,
 	type SignInAccount,
 } from "@crm/auth";
@@ -143,7 +144,9 @@ export class MailboxTokenService {
 			select: { refreshToken: true, accessToken: true },
 		});
 
-		const token = account?.refreshToken ?? account?.accessToken;
+		const token = await openAccountToken(
+			account?.refreshToken ?? account?.accessToken,
+		);
 		if (!token) return true;
 
 		const response = await fetch(GOOGLE_REVOKE_URL, {

@@ -20,6 +20,7 @@
       "dependencies": {
         "@ai-sdk/anthropic": "^4.0.18",
         "@ai-sdk/openai": "^4.0.17",
+        "@crm/auth": "workspace:*",
         "@crm/db": "workspace:*",
         "@crm/env": "workspace:*",
         "@crm/telemetry": "workspace:*",

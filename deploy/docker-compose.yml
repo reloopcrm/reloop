@@ -65,6 +65,7 @@ services:
       CACHE_TTL_MS:
       RELOOP_UPDATE_CHECK:
       RELOOP_MANAGED:
+      IS_MARKETING:
     depends_on:
       postgres:
         condition: service_healthy

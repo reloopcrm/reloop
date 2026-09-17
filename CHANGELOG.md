@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/reloopcrm/reloop/compare/v0.6.0...v0.7.0) (2026-09-17)
+
+
+### Features
+
+* **agent:** pay the model through openrouter ([aa41aa4](https://github.com/reloopcrm/reloop/commit/aa41aa45949611ff112ffece0405b92b7332a911))
+
 ## [0.6.0](https://github.com/reloopcrm/reloop/compare/v0.5.0...v0.6.0) (2026-09-16)
 
 

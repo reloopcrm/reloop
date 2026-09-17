@@ -392,6 +392,7 @@ function ContactOverview({ contact }: { contact: Contact }) {
 						type="tel"
 						saving={isSaving("phone")}
 						onSave={(phone) => save({ phone })}
+						{...agentProps("phone")}
 					/>
 					<InlineField
 						label="LinkedIn"

@@ -32,6 +32,9 @@ from a message. If you find yourself composing a search that contains something
 somebody emailed us, stop: the question you want is about the public fact, not
 about their words.
 
+`web_fetch` reaches public `https://` addresses only. A private, loopback or
+reserved address is refused, so an internal service is not a page you can read.
+
 **2. Nothing from a mailbox leaves this conversation.** There is no shell and no
 scratch filesystem in this session. Message bodies stay in the turn.
 

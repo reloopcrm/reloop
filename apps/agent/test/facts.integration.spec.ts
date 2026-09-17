@@ -85,6 +85,30 @@ describe("recordFact", () => {
 		expect(contact?.seniority).toBeNull();
 	});
 
+	it("writes a phone number through the ledger, not straight to the column", async () => {
+		const result = await recordFact({
+			contactId,
+			field: "phone",
+			value: "+49 30 1234567",
+			evidence: [seen("crm.thread-reply"), seen("crm.signature-block")],
+			method: "contact-clean",
+		});
+
+		expect(result.applied).toBe(true);
+
+		const contact = await db.contact.findUnique({
+			where: { id: contactId },
+			select: { phone: true },
+		});
+		expect(contact?.phone).toBe("+49 30 1234567");
+
+		const fact = await db.contactFact.findFirst({
+			where: { contactId, field: "phone", status: "APPLIED" },
+			select: { method: true },
+		});
+		expect(fact?.method).toBe("contact-clean");
+	});
+
 	it("fills a field the record keeps no column for", async () => {
 		const result = await recordFact({
 			contactId,

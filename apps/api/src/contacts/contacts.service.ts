@@ -75,6 +75,7 @@ type FactColumns = Record<string, string | undefined>;
 
 const FACT_COLUMNS: FactColumns = {
 	title: "title",
+	phone: "phone",
 	seniority: "seniority",
 	function: "function",
 	linkedinUrl: "linkedinUrl",

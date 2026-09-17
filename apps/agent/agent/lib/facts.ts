@@ -6,6 +6,7 @@ import { isDerivedName, splitName } from "./names";
 const FIELDS = {
 	name: { column: null },
 	title: { column: "title" },
+	phone: { column: "phone" },
 	linkedinUrl: { column: "linkedinUrl" },
 	twitterUrl: { column: "twitterUrl" },
 	githubUrl: { column: "githubUrl" },
@@ -96,6 +97,7 @@ export async function recordFact(
 			firstName: true,
 			lastName: true,
 			title: true,
+			phone: true,
 			seniority: true,
 			function: true,
 			linkedinUrl: true,

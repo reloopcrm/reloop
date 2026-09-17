@@ -168,17 +168,19 @@ export async function runContactClean(contactId: string): Promise<string> {
 
 	if (facts.fullName) facts.fullName = properCase(facts.fullName);
 
+	const evidence = [
+		{
+			kind: "crm.signature-block" as const,
+			detail:
+				facts.signatureQuote ?? `Signed as ${facts.fullName ?? contact.email}`,
+		},
+		{
+			kind: "crm.thread-reply" as const,
+			detail: `Sent from ${contact.email}`,
+		},
+	];
+
 	if (facts.fullName && facts.foundInSignature) {
-		const evidence = [
-			{
-				kind: "crm.signature-block" as const,
-				detail: facts.signatureQuote ?? `Signed as ${facts.fullName}`,
-			},
-			{
-				kind: "crm.thread-reply" as const,
-				detail: `Sent from ${contact.email}`,
-			},
-		];
 		const derived = looksMachineMade(
 			contact.email,
 			contact.firstName,
@@ -207,11 +209,15 @@ export async function runContactClean(contactId: string): Promise<string> {
 	}
 
 	if (facts.phone && !contact.phone) {
-		await db.contact.update({
-			where: { id: contactId },
-			data: { phone: facts.phone },
+		const phoneResult = await recordFact({
+			contactId,
+			field: "phone",
+			value: facts.phone,
+			evidence,
+			method: "contact-clean",
 		});
-		changes.push(`phone → ${facts.phone}`);
+		if (phoneResult.applied) changes.push(`phone → ${facts.phone}`);
+		else if (phoneResult.stored) changes.push(`phone proposed: ${facts.phone}`);
 	}
 
 	if (

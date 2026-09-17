@@ -97,6 +97,13 @@ list fails closed.** Parsed on demand. `packages/auth/src/workspace.ts`.
 - **`isMarketing()` (`apps/app/lib/env.ts`) reads per request**, so a config change
   needs no rebuild. Declared in `apps/app/turbo.json` `passThroughEnv`.
 
+## `GOOGLE_SITE_VERIFICATION`, unset by default
+
+Google Search Console proves that the site belongs to you. The DNS method needs
+a TXT record at your domain provider. The HTML tag method needs this variable:
+paste the token Search Console shows for "HTML tag", without the surrounding
+meta tag. The app then writes the tag into every page of the public site.
+
 ## `RELOOP_PLANS`, off by default
 
 The Plan card in Settings names the limits of a hosted plan. A self-hosted

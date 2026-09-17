@@ -45,40 +45,45 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 						</p>
 					</div>
 
-					<nav className="flex w-[180px] shrink-0 flex-col items-start gap-[14px] text-[13px]/6">
-						<Link variant="quiet" href="/docs">
-							Docs
-						</Link>
-						<Link variant="quiet" href="/self-hosted-crm">
-							Self-hosted CRM
-						</Link>
-						<Link variant="quiet" href="/open-source-crm">
-							Open source CRM
-						</Link>
-						<Link variant="quiet" href="/vs/hubspot">
-							Reloop vs HubSpot
-						</Link>
-						<Link variant="quiet" href="/for/freight-forwarding">
-							For freight forwarding
-						</Link>
-						<Link variant="quiet" href="/get-started">
-							Get started
-						</Link>
-						<Link
-							variant="quiet"
-							href={REPO_URL}
-							target="_blank"
-							rel="noreferrer"
-						>
-							GitHub
-						</Link>
-						<Link variant="quiet" href="/open-source">
-							Open source
-						</Link>
-						<Link variant="quiet" href="/sign-in">
-							Sign in
-						</Link>
-					</nav>
+					<div className="flex shrink-0 gap-12">
+						<nav className="flex w-[150px] flex-col items-start gap-[14px] text-[13px]/6">
+							<Link variant="quiet" href="/docs">
+								Docs
+							</Link>
+							<Link variant="quiet" href="/get-started">
+								Get started
+							</Link>
+							<Link
+								variant="quiet"
+								href={REPO_URL}
+								target="_blank"
+								rel="noreferrer"
+							>
+								GitHub
+							</Link>
+							<Link variant="quiet" href="/sign-in">
+								Sign in
+							</Link>
+						</nav>
+
+						<nav className="flex w-[180px] flex-col items-start gap-[14px] text-[13px]/6">
+							<Link variant="quiet" href="/self-hosted-crm">
+								Self-hosted CRM
+							</Link>
+							<Link variant="quiet" href="/open-source-crm">
+								Open source CRM
+							</Link>
+							<Link variant="quiet" href="/vs/hubspot">
+								Reloop vs HubSpot
+							</Link>
+							<Link variant="quiet" href="/for/freight-forwarding">
+								For freight forwarding
+							</Link>
+							<Link variant="quiet" href="/open-source">
+								Open source
+							</Link>
+						</nav>
+					</div>
 				</div>
 			</footer>
 		</div>

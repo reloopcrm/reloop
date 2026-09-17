@@ -29,6 +29,10 @@ export function sealSecret(plain: string, key: Buffer): string {
 	].join(".");
 }
 
+export function isSealedSecret(value: string): boolean {
+	return /^v\d+(?:\.|$)/.test(value);
+}
+
 export function openSecret(sealed: string, key: Buffer): string {
 	const [version, iv, tag, data, extra] = sealed.split(".");
 

@@ -5,7 +5,12 @@ import {
 	normalizeCurrency,
 } from "./currency";
 import type { Prisma } from "./generated/prisma/client";
-import { appSecretKey, openSecret, sealSecret } from "./secrets";
+import {
+	appSecretKey,
+	isSealedSecret,
+	openSecret,
+	sealSecret,
+} from "./secrets";
 
 export const SETTINGS_ID = "app";
 
@@ -278,7 +283,7 @@ export async function readContextDevKey(db: Db): Promise<string | null> {
 	const stored = row?.contextDevApiKey?.trim();
 	if (!stored) return null;
 	const key = appSecretKey("context-dev-key");
-	if (/^v\d+(?:\.|$)/.test(stored)) return openSecret(stored, key) || null;
+	if (isSealedSecret(stored)) return openSecret(stored, key) || null;
 	await db.appSetting.updateMany({
 		where: { id: SETTINGS_ID, contextDevApiKey: stored },
 		data: { contextDevApiKey: sealSecret(stored, key) },

@@ -1,5 +1,6 @@
 import { openAccountToken } from "@crm/auth/account-token";
 import { db } from "@crm/db";
+import { readSlackUserToken } from "@crm/db/slack-inventory";
 
 export async function slackAccessToken(): Promise<string | null> {
 	const account = await db.account.findFirst({
@@ -8,7 +9,17 @@ export async function slackAccessToken(): Promise<string | null> {
 		select: { accessToken: true },
 	});
 
-	return openAccountToken(account?.accessToken);
+	try {
+		return await openAccountToken(account?.accessToken);
+	} catch (error) {
+		console.error(
+			`[agent] the Slack bot token could not be read: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+
+		return null;
+	}
 }
 
 export async function slackConnected(): Promise<boolean> {
@@ -16,12 +27,17 @@ export async function slackConnected(): Promise<boolean> {
 }
 
 export async function slackUserToken(): Promise<string | null> {
-	const grant = await db.slackWorkspaceGrant.findFirst({
-		orderBy: { updatedAt: "desc" },
-		select: { userToken: true },
-	});
+	try {
+		return await readSlackUserToken();
+	} catch (error) {
+		console.error(
+			`[agent] the Slack user token could not be read: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
 
-	return grant?.userToken ?? null;
+		return null;
+	}
 }
 
 export async function slackCanInviteItself(): Promise<boolean> {

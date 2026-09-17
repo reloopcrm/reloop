@@ -60,11 +60,17 @@ on a refresh, and the Slack bot token never rotates, so those two stay in plain 
 reconnects the provider. Reconnect Google and Slack after the upgrade if you want every token
 sealed.
 
-Two things this does not cover. The Slack user token on `SlackWorkspaceGrant` is written by
-`packages/auth/src/slack-grant.ts` and is still stored in plain text. And encryption protects a
-database dump, not the running deployment, which holds the key. Keep the database off the public
-internet, and treat a database backup taken before the upgrade as a set of live mailbox
-credentials.
+**The Slack user token is sealed too.** It lives on `SlackWorkspaceGrant`, not on `account`, so the
+Better Auth option never reaches it. `packages/auth/src/slack-grant.ts` seals it with
+`sealSlackUserToken` (`@crm/db/slack-inventory`), which is the module that already seals the IMAP
+password, keyed on `BETTER_AUTH_SECRET`. A grant written before this shipped keeps working: a
+sealed value starts with a version marker, so `readSlackUserToken` recognises a plain one, returns
+it, and seals it in place on that first read. A token it cannot open removes the capability to
+invite the bot to a private channel and leaves the rest of Slack working.
+
+What encryption does not do is protect the running deployment, which holds the key. Keep the
+database off the public internet, and treat a database backup taken before the upgrade as a set of
+live mailbox credentials.
 
 **Session cookies depend on one shared value.** The API and the web app both verify sessions
 against `BETTER_AUTH_SECRET`. Rotating it signs everyone out, which is the intended way to revoke

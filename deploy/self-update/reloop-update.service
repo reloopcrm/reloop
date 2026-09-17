@@ -1,0 +1,13 @@
+[Unit]
+Description=Update Reloop CRM to the newest release
+Documentation=https://github.com/reloopcrm/reloop/tree/main/deploy/self-update
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/reloop-update
+Environment=HOME=/root
+Environment=PATH=/root/.bun/bin:/usr/local/bin:/usr/bin:/bin
+TimeoutStartSec=2h
+Nice=10

@@ -153,6 +153,17 @@ An operator who does not want this leaves the profile off and uses the two comma
 
 An install that an operator keeps up to date, such as a server that runs from source, sets `RELOOP_MANAGED=true`. The Version card then shows the version and the state only, without the command and without the button.
 
+### Update automatically on a source install
+
+A server that runs from source under systemd, without Docker images, can update
+itself. `deploy/self-update/` holds a shell script, a systemd service and a
+timer. Every 15 minutes the script compares the newest `vX.Y.Z` tag on GitHub
+with the installed version. When a newer one exists it dumps the database,
+builds the release in a new folder, switches `/opt/reloop/app` to it and checks
+that the app and the API answer. When they do not, it switches back. The
+[README in that folder](../deploy/self-update/README.md) has the install steps,
+the rollback steps and the warning that a health check is not a review.
+
 ## Back up
 
 Everything lives in the `postgres-data` volume and in `deploy/.env`. Without that `.env` file the database cannot be opened again.

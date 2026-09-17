@@ -106,11 +106,21 @@ function LocalTime({ date, fallback }: { date: string; fallback: string }) {
 	);
 }
 
+export function daysUntil(date: string, now = new Date()): number {
+	return (calendarDay(new Date(date)) - calendarDay(now)) / DAY_MS;
+}
+
+export function localDayKey(value: string): string {
+	const date = new Date(value);
+	return [
+		date.getFullYear(),
+		String(date.getMonth() + 1).padStart(2, "0"),
+		String(date.getDate()).padStart(2, "0"),
+	].join("-");
+}
+
 function formatRelativeDate(date: string, locale: Locale): string {
-	const now = new Date();
-	const then = new Date(date);
-	const days = (calendarDay(now) - calendarDay(then)) / DAY_MS;
-	return relativeDateFormat(locale).format(-days, "day");
+	return relativeDateFormat(locale).format(daysUntil(date), "day");
 }
 
 function formatRelativeTime(

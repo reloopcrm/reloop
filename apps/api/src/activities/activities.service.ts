@@ -18,6 +18,7 @@ import type {
 	TimelineInput,
 	TimelineResult,
 } from "./activities.contracts";
+import { overdueBefore } from "./due-date";
 
 const AUTHOR_SELECT = {
 	id: true,
@@ -80,6 +81,17 @@ const NOTE_TYPES = [
 	ActivityType.MEETING,
 ];
 
+const HISTORY_ORDER = [
+	{ occurredAt: { sort: "desc", nulls: "last" } },
+	{ id: "desc" },
+] satisfies Prisma.ActivityOrderByWithRelationInput[];
+
+const UPCOMING_ORDER = [
+	{ dueAt: { sort: "asc", nulls: "last" } },
+	{ createdAt: "desc" },
+	{ id: "desc" },
+] satisfies Prisma.ActivityOrderByWithRelationInput[];
+
 @Injectable()
 export class ActivitiesService {
 	private readonly logger = new Logger(ActivitiesService.name);
@@ -98,10 +110,7 @@ export class ActivitiesService {
 			take: input.limit + 1,
 			cursor: input.cursor ? { id: input.cursor } : undefined,
 			skip: input.cursor ? 1 : undefined,
-			orderBy: [
-				{ occurredAt: { sort: "desc", nulls: "last" } },
-				{ id: "desc" },
-			],
+			orderBy: input.filter === "upcoming" ? UPCOMING_ORDER : HISTORY_ORDER,
 			select: ENTRY_SELECT,
 		});
 
@@ -203,15 +212,15 @@ export class ActivitiesService {
 		input: MyTasksInput,
 		actingUserId: string,
 	): Promise<ActivityEntry[]> {
-		const now = new Date();
+		const boundary = overdueBefore(new Date());
 		const where: Prisma.ActivityWhereInput = {
 			type: ActivityType.TASK,
 			completedAt: null,
 			createdById: actingUserId,
 		};
 
-		if (input.window === "overdue") where.dueAt = { lt: now };
-		if (input.window === "upcoming") where.dueAt = { gte: now };
+		if (input.window === "overdue") where.dueAt = { lt: boundary };
+		if (input.window === "upcoming") where.dueAt = { gte: boundary };
 
 		const tasks = await this.db.activity.findMany({
 			where,

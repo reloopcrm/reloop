@@ -17,7 +17,7 @@ import { cn } from "@crm/ui/lib/utils";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { DetailSheetEmpty, SECTION_TITLE } from "@/components/detail-sheet";
-import { LocalDateTime } from "@/components/local-date-time";
+import { LocalDateTime, localDayKey } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { dateFormat } from "@/lib/i18n/format";
 import type { Locale, Translate } from "@/lib/i18n/locale";
@@ -156,13 +156,7 @@ function isFuture(entry: TimelineEntryData, now: number): boolean {
 }
 
 function dayKey(value: string, local: boolean): string {
-	if (!local) return value.slice(0, 10);
-	const date = new Date(value);
-	return [
-		date.getFullYear(),
-		String(date.getMonth() + 1).padStart(2, "0"),
-		String(date.getDate()).padStart(2, "0"),
-	].join("-");
+	return local ? localDayKey(value) : value.slice(0, 10);
 }
 
 function TimelineDay({
@@ -291,11 +285,19 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 
 	const now = Date.now();
 	const loaded = history.data?.pages.flatMap((page) => page.entries) ?? [];
-	const entries = loaded.filter((entry) => !isFuture(entry, now));
-	const pinnedEntries = [
-		...(tab === "all" ? (pinned.data?.entries ?? []) : []),
-		...loaded.filter((entry) => isFuture(entry, now)).reverse(),
-	];
+	const entries =
+		tab === "upcoming" ? [] : loaded.filter((entry) => !isFuture(entry, now));
+	const pinnedEntries =
+		tab === "upcoming"
+			? loaded
+			: [
+					...(tab === "all" ? (pinned.data?.entries ?? []) : []),
+					...loaded.filter((entry) => isFuture(entry, now)).reverse(),
+				];
+	const pinnedCount =
+		tab === "upcoming"
+			? (counts.data?.upcoming ?? loaded.length)
+			: pinnedEntries.length;
 	const newestEmail =
 		entries.find((entry) => entry.emailThread?.lastMessage) ?? null;
 	const waitingId =
@@ -347,7 +349,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					{pinnedEntries.length > 0 ? (
 						<TimelineDay
 							label={t("Upcoming")}
-							sub={String(pinnedEntries.length)}
+							sub={String(pinnedCount)}
 							entries={pinnedEntries}
 							anchor={anchor}
 							waitingId={null}

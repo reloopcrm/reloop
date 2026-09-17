@@ -10,7 +10,7 @@ import { cn } from "@crm/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { DEMO } from "@/components/demo/demo-tour-config";
-import { LocalDateTime } from "@/components/local-date-time";
+import { LocalDateTime, localDayKey } from "@/components/local-date-time";
 import { mailSourceLabel } from "@/lib/activity-presentation";
 import { useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
@@ -102,8 +102,8 @@ function MessageRow({
 	);
 }
 
-function MessageTime({ date, day }: { date: string; day: string }) {
-	const sameDay = date.slice(0, 10) === day.slice(0, 10);
+export function MessageTime({ date, day }: { date: string; day: string }) {
+	const sameDay = localDayKey(date) === localDayKey(day);
 	return (
 		<>
 			{sameDay ? null : (

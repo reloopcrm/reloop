@@ -230,6 +230,34 @@ picker reads.
 - **`role` is blanked to null, never stored as `""`** — `blankToNull`, as everywhere
   else.
 
+## A task is due on a day, not at an instant
+
+`Activity.dueAt` stays a timestamp, but it means a calendar day. The composer sends
+the start of the chosen day in the rep's timezone (the date picker's local midnight,
+as ISO), and that is what is stored. Nothing migrates; the existing rows already hold
+exactly that.
+
+- **A task is due for the whole day and overdue once that day ends.** The API has no
+  timezone, so it uses the stored instant plus one day: `overdueBefore(now)`
+  (`activities/due-date.ts`) is `now - 24h`, and a task is overdue when
+  `dueAt < overdueBefore(now)`. `myTasks`'s `overdue` and `upcoming` windows and the
+  dashboard's overdue list are the only date windows, and all three go through it.
+  On the day daylight saving switches the boundary moves by one hour; that is the
+  cost of not storing a timezone.
+- **The UI counts calendar days, never hours.** `daysUntil(dueAt)`
+  (`components/local-date-time.tsx`) is the difference between the rep's today and
+  the due day; overdue is `daysUntil < 0`. The label is `Due` plus
+  `LocalRelativeDate` (today, tomorrow, in 2 days) or `Overdue by {n} days`. Never
+  `LocalRelativeTime` on a due date: hours off a midnight read as nonsense.
+- **The `upcoming` filter orders by `dueAt` ascending, undated tasks last**, then
+  newest first, so the pinned block at the top of the All tab shows the task due
+  tomorrow before a task with no date. Every other filter keeps `occurredAt` desc.
+  The Upcoming tab renders that same order as one section, not grouped by the day
+  the task was written.
+- **A day marker compares local day keys**, `localDayKey` in
+  `components/local-date-time.tsx`, never `slice(0, 10)` of an ISO string: at 23:30
+  east of UTC the UTC date is already tomorrow.
+
 ## Deleting a record is archive first, purge later
 
 `contacts.archive`, `companies.archive`, `deals.archive` set `archivedAt`. Nothing

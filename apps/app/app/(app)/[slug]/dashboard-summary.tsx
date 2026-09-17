@@ -35,7 +35,10 @@ import { toast } from "sonner";
 import { DealStageIndicator } from "@/components/crm/deal-stage";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
-import { LocalRelativeTime } from "@/components/local-date-time";
+import {
+	LocalRelativeDate,
+	LocalRelativeTime,
+} from "@/components/local-date-time";
 import { activityLabel } from "@/lib/activity-presentation";
 import { dealStageColor } from "@/lib/deal-stage";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
@@ -281,7 +284,7 @@ export function DashboardSummary() {
 												tone="error"
 												label={
 													task.dueAt ? (
-														<LocalRelativeTime date={task.dueAt} />
+														<LocalRelativeDate date={task.dueAt} />
 													) : (
 														t("No due date")
 													)

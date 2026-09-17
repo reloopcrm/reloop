@@ -9,7 +9,11 @@ import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
-import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
+import {
+	daysUntil,
+	LocalDateTime,
+	LocalRelativeDate,
+} from "@/components/local-date-time";
 import { activityLabel } from "@/lib/activity-presentation";
 import { dealStageLabel } from "@/lib/deal-stage";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
@@ -154,7 +158,8 @@ export function TimelineEntry({
 	const isMeeting = entry.type === "MEETING";
 	const done = entry.completedAt !== null;
 	const dueAt = isTask && !done ? entry.dueAt : null;
-	const overdue = dueAt !== null && new Date(dueAt) < new Date();
+	const dueInDays = dueAt === null ? 0 : daysUntil(dueAt);
+	const overdue = dueInDays < 0;
 
 	const change =
 		entry.type === "STAGE_CHANGE" ? stageChange.parse(entry.meta) : null;
@@ -254,10 +259,17 @@ export function TimelineEntry({
 					<StatusIndicator
 						tone={overdue ? "error" : "info"}
 						label={
-							<>
-								{overdue ? t("Overdue") : t("Due")}{" "}
-								<LocalRelativeTime date={dueAt} />
-							</>
+							overdue ? (
+								dueInDays === -1 ? (
+									t("Overdue by 1 day")
+								) : (
+									t("Overdue by {n} days", { n: -dueInDays })
+								)
+							) : (
+								<>
+									{t("Due")} <LocalRelativeDate date={dueAt} />
+								</>
+							)
 						}
 					/>
 				) : null}

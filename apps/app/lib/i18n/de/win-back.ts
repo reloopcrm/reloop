@@ -205,6 +205,8 @@ export const winBack: Dictionary = {
 	"Mark as done": "Als erledigt markieren",
 	Overdue: "Überfällig",
 	Due: "Fällig",
+	"Overdue by 1 day": "1 Tag überfällig",
+	"Overdue by {n} days": "{n} Tage überfällig",
 	Note: "Notiz",
 	Call: "Anruf",
 	Meeting: "Termin",

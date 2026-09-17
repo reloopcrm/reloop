@@ -23,6 +23,8 @@ export const ANONYMOUS_PATHS = [
 	"/docs",
 	"/opengraph-image",
 	"/twitter-image",
+	"/robots.txt",
+	"/sitemap.xml",
 ];
 
 const SECTIONS = [

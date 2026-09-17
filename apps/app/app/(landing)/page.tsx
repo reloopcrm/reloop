@@ -2,10 +2,12 @@ import GitHubLogo from "@crm/ui/components/brand-logos/github";
 import { Button } from "@crm/ui/components/button";
 import type { Metadata } from "next";
 import NextLink from "next/link";
+import Script from "next/script";
 import { BentoCard, CardHeading } from "@/components/landing/bento-card";
 import { LandingShell } from "@/components/landing/landing-shell";
 import { SectionHeading } from "@/components/landing/section-heading";
 import { REPO_URL } from "@/components/landing/site";
+import { siteAddress } from "@/lib/site-address";
 
 export const metadata: Metadata = {
 	title: {
@@ -34,9 +36,31 @@ const FEATURES = [
 	},
 ] as const;
 
+function softwareEntry() {
+	const site = siteAddress();
+
+	return {
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		name: "Reloop CRM",
+		applicationCategory: "BusinessApplication",
+		operatingSystem: "Linux, macOS, Docker",
+		description:
+			"Open-source, self-hosted CRM that reads your mailbox history and tells you which past customers are worth winning back.",
+		url: site?.toString(),
+		license: "https://spdx.org/licenses/AGPL-3.0-only.html",
+		isAccessibleForFree: true,
+		codeRepository: REPO_URL,
+		offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+	};
+}
+
 export default function Home() {
 	return (
 		<LandingShell>
+			<Script id="software-entry" type="application/ld+json">
+				{JSON.stringify(softwareEntry())}
+			</Script>
 			<section className="relative flex w-full shrink-0 flex-col items-center px-6 pt-20 pb-10 md:pt-30">
 				<div className="relative flex w-full max-w-6xl flex-col items-center gap-7">
 					<h1 className="max-w-[900px] text-balance text-center font-semibold text-5xl/[52px] tracking-tight md:text-[72px]/[76px]">

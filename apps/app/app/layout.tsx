@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/lib/i18n/client";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { getLocale, getT } from "@/lib/i18n/server";
+import { siteAddress } from "@/lib/site-address";
 import { TRPCReactProvider } from "@/lib/trpc/client";
 
 const fontSans = Inter({
@@ -45,18 +46,6 @@ export async function generateMetadata(): Promise<Metadata> {
 			description,
 		},
 	};
-}
-
-function siteAddress(): URL | undefined {
-	const first = (process.env.APP_URL ?? "http://localhost:3000")
-		.split(",")[0]
-		?.trim();
-	if (!first) return undefined;
-	try {
-		return new URL(first);
-	} catch {
-		return undefined;
-	}
 }
 
 const metadata: Metadata = {

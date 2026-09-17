@@ -1,52 +1,47 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
-import { cacheLife } from "next/cache";
-import { LandingShell } from "@/components/landing/landing-shell";
-import { Markdown } from "@/components/landing/markdown";
+import { DOCS, docPath } from "@/components/landing/docs-config";
+import { DocsShell, readDoc } from "@/components/landing/docs-shell";
+import { MarkdownBlocks, sliceBlocks } from "@/components/landing/markdown";
 import { REPO_URL } from "@/components/landing/site";
 
 export const metadata: Metadata = {
-	title: "Docs",
-	description: "How to install, update and back up a self-hosted Reloop CRM.",
+	title: DOCS.index.title,
+	description: DOCS.index.description,
 };
 
-async function selfHostGuide(): Promise<string | null> {
-	"use cache";
-	cacheLife("max");
-	try {
-		return await readFile(
-			join(process.cwd(), "..", "..", "docs", "self-host.md"),
-			"utf8",
-		);
-	} catch {
-		return null;
-	}
-}
-
 export default async function DocsPage() {
-	const guide = await selfHostGuide();
+	const { file, from, to } = DOCS.index.lede;
+	const guide = await readDoc(file);
+	const lede = guide ? sliceBlocks(guide, from, to) : [];
 
 	return (
-		<LandingShell>
-			<main className="flex w-full max-w-(--container-page) flex-1 flex-col gap-6 px-6 py-10">
-				{guide ? (
-					<Markdown source={guide} />
-				) : (
-					<>
-						<h1 className="font-medium text-3xl tracking-tight">Docs</h1>
-						<p className="text-body-foreground text-sm/6">
-							The self-host guide is not published yet.
-						</p>
-					</>
-				)}
+		<DocsShell current={DOCS.path}>
+			<h1 className="font-medium text-3xl tracking-tight">
+				{DOCS.index.title}
+			</h1>
 
-				<p className="text-muted-foreground text-sm/6">
-					Everything else lives in the repository on{" "}
-					<Link href={REPO_URL}>GitHub</Link>.
+			{lede.length ? (
+				<MarkdownBlocks blocks={lede} />
+			) : (
+				<p className="text-body-foreground text-sm/6">
+					The self-host guide is not published yet.
 				</p>
-			</main>
-		</LandingShell>
+			)}
+
+			<ul className="flex flex-col gap-4 text-sm/6">
+				{DOCS.pages.map((page) => (
+					<li key={page.slug} className="flex flex-col text-foreground">
+						<Link href={docPath(page.slug)}>{page.title}</Link>
+						<span className="text-muted-foreground">{page.description}</span>
+					</li>
+				))}
+			</ul>
+
+			<p className="text-muted-foreground text-sm/6">
+				Everything else lives in the repository on{" "}
+				<Link href={REPO_URL}>GitHub</Link>.
+			</p>
+		</DocsShell>
 	);
 }

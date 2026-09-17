@@ -3,13 +3,7 @@ import NextLink from "next/link";
 import type * as React from "react";
 import { SectionHeading } from "./section-heading";
 
-export function PageHero({
-	title,
-	lede,
-}: {
-	title: string;
-	lede: string;
-}) {
+export function PageHero({ title, lede }: { title: string; lede: string }) {
 	return (
 		<section className="relative flex w-full shrink-0 flex-col items-center px-6 pt-20 pb-10 md:pt-30">
 			<div className="relative flex w-full max-w-6xl flex-col items-center gap-7">

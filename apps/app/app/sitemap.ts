@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { DOCS, docPath } from "@/components/landing/docs-config";
 import { siteAddress } from "@/lib/site-address";
 
 const PAGES = [
@@ -12,13 +13,15 @@ const PAGES = [
 	"/for/freight-forwarding",
 ] as const;
 
+const DOC_PAGES = DOCS.pages.map((page) => docPath(page.slug));
+
 export default function sitemap(): MetadataRoute.Sitemap {
 	const site = siteAddress();
 	if (!site) return [];
 
 	const now = new Date();
 
-	return PAGES.map((page) => ({
+	return [...PAGES, ...DOC_PAGES].map((page) => ({
 		url: new URL(page, site).toString(),
 		lastModified: now,
 		changeFrequency: page === "/" ? "weekly" : "monthly",

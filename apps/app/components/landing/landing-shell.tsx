@@ -49,6 +49,18 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 						<Link variant="quiet" href="/docs">
 							Docs
 						</Link>
+						<Link variant="quiet" href="/self-hosted-crm">
+							Self-hosted CRM
+						</Link>
+						<Link variant="quiet" href="/open-source-crm">
+							Open source CRM
+						</Link>
+						<Link variant="quiet" href="/vs/hubspot">
+							Reloop vs HubSpot
+						</Link>
+						<Link variant="quiet" href="/for/freight-forwarding">
+							For freight forwarding
+						</Link>
 						<Link variant="quiet" href="/get-started">
 							Get started
 						</Link>

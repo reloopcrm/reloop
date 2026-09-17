@@ -50,6 +50,21 @@ describe("the docs Markdown renderer", () => {
 		expect(render("| A | B |\n| --- | --- |\n| 1 | 2 |")).toContain("<table");
 	});
 
+	it("joins a wrapped list item and renders nested emphasis", () => {
+		expect(
+			parseMarkdown("- **Always win**: the loader\n  never overwrites\n- next"),
+		).toEqual([
+			{
+				kind: "list",
+				ordered: false,
+				items: ["**Always win**: the loader never overwrites", "next"],
+			},
+		]);
+		expect(render("**`KEY` *and* the sync**")).toBe(
+			'<article class="flex flex-col gap-4 text-body-foreground text-sm/6"><p><strong class="font-medium text-foreground"><code class="font-mono text-foreground">KEY</code> <em>and</em> the sync</strong></p></article>',
+		);
+	});
+
 	it("splits paragraphs, lists and inline code", () => {
 		expect(
 			parseMarkdown("One\ntwo\n\n- a `b`\n- c\n\n1. first\n2. second"),

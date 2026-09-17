@@ -9,7 +9,7 @@ import {
 } from "@crm/ui/components/table";
 import type * as React from "react";
 
-type Block =
+export type Block =
 	| { kind: "heading"; level: number; text: string }
 	| { kind: "code"; text: string }
 	| { kind: "list"; ordered: boolean; items: string[] }
@@ -18,11 +18,13 @@ type Block =
 
 const LIST_ITEM = /^\s*(?:([-*])|\d+\.)\s+(.*)$/;
 
+const CONTINUATION = /^\s+\S/;
+
 const BLOCK_START = /^(#{1,6}\s|```|\||\s*(?:[-*]|\d+\.)\s)/;
 
 const TABLE_DIVIDER = /^\|?[\s:|-]+\|?$/;
 
-const INLINE = /`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*/g;
+const INLINE = /`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*|\*([^*]+)\*/g;
 
 export function slugify(text: string): string {
 	return text
@@ -85,8 +87,17 @@ export function parseMarkdown(source: string): Block[] {
 			const items: string[] = [];
 			let item = first;
 			while (item) {
-				items.push(item[2] ?? "");
+				let text = item[2] ?? "";
 				i++;
+				while (
+					i < lines.length &&
+					CONTINUATION.test(lines[i] ?? "") &&
+					!LIST_ITEM.test(lines[i] ?? "")
+				) {
+					text += ` ${(lines[i] ?? "").trim()}`;
+					i++;
+				}
+				items.push(text);
 				item = LIST_ITEM.exec(lines[i] ?? "") as RegExpExecArray;
 			}
 			blocks.push({ kind: "list", ordered: !first[1], items });
@@ -113,6 +124,33 @@ export function parseMarkdown(source: string): Block[] {
 	return blocks;
 }
 
+function headingId(block: Block, id: string): boolean {
+	return block.kind === "heading" && slugify(block.text) === id;
+}
+
+export function sliceBlocks(
+	blocks: Block[],
+	from: string,
+	to?: string,
+): Block[] {
+	const start = blocks.findIndex((block) => headingId(block, from));
+	if (start < 0) return [];
+	const rest = blocks.slice(start + 1);
+	const end = to ? rest.findIndex((block) => headingId(block, to)) : -1;
+	const slice = end < 0 ? rest : rest.slice(0, end);
+	const levels = slice.flatMap((block) =>
+		block.kind === "heading" ? [block.level] : [],
+	);
+	const shift = levels.length ? 2 - Math.min(...levels) : 0;
+	return shift
+		? slice.map((block) =>
+				block.kind === "heading"
+					? { ...block, level: block.level + shift }
+					: block,
+			)
+		: slice;
+}
+
 function safeHref(href: string): string | null {
 	return /^(https?:\/\/|\/|#)/.test(href) ? href : null;
 }
@@ -125,7 +163,7 @@ function inline(text: string): React.ReactNode[] {
 		const at = match.index ?? 0;
 		if (at > last) nodes.push(text.slice(last, at));
 
-		const [whole, code, label, href, bold] = match;
+		const [whole, code, label, href, bold, italic] = match;
 		if (code !== undefined) {
 			nodes.push(
 				<code key={at} className="font-mono text-foreground">
@@ -143,12 +181,14 @@ function inline(text: string): React.ReactNode[] {
 					label
 				),
 			);
-		} else {
+		} else if (bold !== undefined) {
 			nodes.push(
 				<strong key={at} className="font-medium text-foreground">
-					{bold}
+					{inline(bold)}
 				</strong>,
 			);
+		} else {
+			nodes.push(<em key={at}>{italic}</em>);
 		}
 
 		last = at + whole.length;
@@ -160,9 +200,13 @@ function inline(text: string): React.ReactNode[] {
 }
 
 export function Markdown({ source }: { source: string }) {
+	return <MarkdownBlocks blocks={parseMarkdown(source)} />;
+}
+
+export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 	return (
 		<article className="flex flex-col gap-4 text-body-foreground text-sm/6">
-			{parseMarkdown(source).map((block, index) => {
+			{blocks.map((block, index) => {
 				const key = `${block.kind}-${index}`;
 
 				if (block.kind === "heading") {

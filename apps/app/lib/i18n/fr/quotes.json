@@ -1,0 +1,16 @@
+{
+	"Quotes in your mail": "Devis dans ta messagerie",
+	"Offers you already sent by email, at companies with nothing open in the pipeline. One click makes the deal. Nothing happens on its own.": "Des devis que tu as déjà envoyés par e-mail, chez des entreprises sans affaire ouverte dans le pipeline. Un clic crée l'affaire. Rien ne se passe tout seul.",
+	"The offer you sent": "Le devis que tu as envoyé",
+	"Quantity": "Quantité",
+	"Last message": "Dernier message",
+	"Every deal you create here lands on {stage} with no amount.": "Chaque affaire que tu crées ici arrive à l'étape {stage} sans montant.",
+	"{count} {unit}": "{count} {unit}",
+	"No subject": "Sans objet",
+	"Put aside": "Mettre de côté",
+	"Deal created.": "Affaire créée.",
+	"Quote put aside.": "Devis mis de côté.",
+	"No offer in your mail is waiting for a deal. Quotes the agent reads show up here.": "Aucun devis dans ta messagerie n'attend une affaire. Les devis que l'agent lit apparaissent ici.",
+	"More offers are waiting. Handle these first, then the next ones appear.": "D'autres devis attendent. Traite ceux-ci d'abord, puis les suivants apparaissent.",
+	"That quote is no longer waiting.": "Ce devis n'attend plus."
+}

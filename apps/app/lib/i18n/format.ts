@@ -1,3 +1,4 @@
+import { LOCALE } from "@crm/db/locale";
 import type { Locale } from "./locale";
 
 const formats = new Map<string, Intl.DateTimeFormat>();
@@ -11,10 +12,7 @@ export function dateFormat(
 	const cached = formats.get(key);
 	if (cached) return cached;
 
-	const format = new Intl.DateTimeFormat(
-		locale === "de" ? "de-DE" : "en-US",
-		options,
-	);
+	const format = new Intl.DateTimeFormat(LOCALE.tags[locale], options);
 	formats.set(key, format);
 	return format;
 }
@@ -24,7 +22,7 @@ export function numberFormat(locale: Locale): Intl.NumberFormat {
 	const cached = numbers.get(key);
 	if (cached) return cached;
 
-	const format = new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-US");
+	const format = new Intl.NumberFormat(LOCALE.tags[locale]);
 	numbers.set(key, format);
 	return format;
 }

@@ -15,7 +15,7 @@ export function Reasoning({
 	children,
 	className,
 	isStreaming = false,
-	label = "Reasoning",
+	label,
 }: {
 	children: ReactNode;
 	className?: string;
@@ -33,7 +33,11 @@ export function Reasoning({
 		>
 			<AccordionItem value="reasoning">
 				<AccordionTrigger variant="subtle">
-					{isStreaming ? <Shimmer>{t("Thinking…")}</Shimmer> : label}
+					{isStreaming ? (
+						<Shimmer>{t("Thinking…")}</Shimmer>
+					) : (
+						(label ?? t("Reasoning"))
+					)}
 				</AccordionTrigger>
 				<AccordionContent className="text-muted-foreground">
 					{children}

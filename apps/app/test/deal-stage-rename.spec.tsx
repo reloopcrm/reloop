@@ -10,6 +10,7 @@ const { DealStage } = await import("@crm/db/enums");
 type Stage = (typeof DealStage)[keyof typeof DealStage];
 const { DealStageIndicator } = await import("../components/crm/deal-stage");
 const { I18nProvider } = await import("../lib/i18n/client");
+const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
 const { TRPCReactProvider, useTRPC } = await import("../lib/trpc/client");
 
 afterAll(() => GlobalRegistrator.unregister());
@@ -37,6 +38,7 @@ function cellText(
 		createElement(TRPCReactProvider, {
 			children: createElement(I18nProvider, {
 				locale,
+				dictionary: DICTIONARIES[locale],
 				children: createElement(Probe, { stages, stage }),
 			}),
 		}),

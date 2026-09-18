@@ -1,3 +1,5 @@
+import { LOCALE, type Locale } from "@crm/db/locale";
+
 export function formatCount(
 	count: number,
 	noun: string,
@@ -8,12 +10,10 @@ export function formatCount(
 
 const WELL_FORMED_CURRENCY_CODE = /^[A-Za-z]{3}$/;
 
-export type FormatLocale = "de" | "en" | undefined;
+export type FormatLocale = Locale | undefined;
 
 function tag(locale: FormatLocale): string | undefined {
-	if (locale === "de") return "de-DE";
-	if (locale === "en") return "en-US";
-	return undefined;
+	return locale ? LOCALE.tags[locale] : undefined;
 }
 
 function displayCurrencyCode(currency: string): string {

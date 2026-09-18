@@ -1,33 +1,45 @@
 "use client";
 
+import { DEFAULT_LOCALE, type Locale } from "@crm/db/locale";
 import { createContext, useContext, useMemo } from "react";
-import { uiGerman } from "./i18n-de";
 
-export type UiLocale = "de" | "en";
+export type UiLocale = Locale;
+
+export type UiDictionary = Record<string, string>;
 
 export type UiTranslate = (
 	text: string,
 	vars?: Record<string, string | number>,
 ) => string;
 
-const UiLocaleContext = createContext<UiLocale>("en");
+type UiI18n = { locale: UiLocale; dictionary: UiDictionary };
+
+const UiI18nContext = createContext<UiI18n>({
+	locale: DEFAULT_LOCALE,
+	dictionary: {},
+});
 
 export function UiI18nProvider({
 	locale,
+	dictionary = {},
 	children,
 }: {
 	locale: UiLocale;
+	dictionary?: UiDictionary;
 	children: React.ReactNode;
 }) {
+	const value = useMemo<UiI18n>(
+		() => ({ locale, dictionary }),
+		[locale, dictionary],
+	);
+
 	return (
-		<UiLocaleContext.Provider value={locale}>
-			{children}
-		</UiLocaleContext.Provider>
+		<UiI18nContext.Provider value={value}>{children}</UiI18nContext.Provider>
 	);
 }
 
 export function useUiLocale(): UiLocale {
-	return useContext(UiLocaleContext);
+	return useContext(UiI18nContext).locale;
 }
 
 function interpolate(
@@ -41,10 +53,9 @@ function interpolate(
 }
 
 export function useUiT(): UiTranslate {
-	const locale = useUiLocale();
+	const { dictionary } = useContext(UiI18nContext);
 	return useMemo<UiTranslate>(
-		() => (text, vars) =>
-			interpolate(locale === "en" ? text : (uiGerman[text] ?? text), vars),
-		[locale],
+		() => (text, vars) => interpolate(dictionary[text] ?? text, vars),
+		[dictionary],
 	);
 }

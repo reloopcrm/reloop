@@ -11,7 +11,7 @@ import { DocumentLanguage } from "@/components/document-language";
 import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/lib/i18n/client";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
-import { getLocale, getT } from "@/lib/i18n/server";
+import { getDictionary, getLocale, getT } from "@/lib/i18n/server";
 import { siteAddress } from "@/lib/site-address";
 import { TRPCReactProvider } from "@/lib/trpc/client";
 
@@ -91,7 +91,7 @@ async function Localised({ children }: { children: React.ReactNode }) {
 	const locale = await getLocale();
 
 	return (
-		<I18nProvider locale={locale}>
+		<I18nProvider locale={locale} dictionary={getDictionary(locale)}>
 			<DocumentLanguage locale={locale} />
 			<NuqsAdapter>
 				<TRPCReactProvider>

@@ -2,44 +2,58 @@
 
 import { UiI18nProvider } from "@crm/ui/lib/i18n";
 import { createContext, useContext, useMemo } from "react";
-import { de } from "./de";
 import { translateError } from "./errors";
 import {
 	DEFAULT_LOCALE,
+	type Dictionary,
 	LOCALE_COOKIE,
+	LOCALE_COOKIE_MAX_AGE,
 	type Locale,
 	type Translate,
 	translator,
 } from "./locale";
 
-const LocaleContext = createContext<Locale>(DEFAULT_LOCALE);
+type I18n = { locale: Locale; dictionary: Dictionary };
+
+const I18nContext = createContext<I18n>({
+	locale: DEFAULT_LOCALE,
+	dictionary: {},
+});
 
 export function I18nProvider({
 	locale,
+	dictionary = {},
 	children,
 }: {
 	locale: Locale;
+	dictionary?: Dictionary;
 	children: React.ReactNode;
 }) {
+	const value = useMemo<I18n>(
+		() => ({ locale, dictionary }),
+		[locale, dictionary],
+	);
+
 	return (
-		<LocaleContext.Provider value={locale}>
-			<UiI18nProvider locale={locale}>{children}</UiI18nProvider>
-		</LocaleContext.Provider>
+		<I18nContext.Provider value={value}>
+			<UiI18nProvider locale={locale} dictionary={dictionary}>
+				{children}
+			</UiI18nProvider>
+		</I18nContext.Provider>
 	);
 }
 
 export function useLocale(): Locale {
-	return useContext(LocaleContext);
+	return useContext(I18nContext).locale;
 }
 
 export function useT(): Translate {
-	const locale = useLocale();
-	return useMemo(() => translator(locale, de), [locale]);
+	const { dictionary } = useContext(I18nContext);
+	return useMemo(() => translator(dictionary), [dictionary]);
 }
 
 export function writeLocaleCookie(locale: Locale): void {
-	const year = 60 * 60 * 24 * 365;
-	document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${year}; samesite=lax`;
+	document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE}; samesite=lax`;
 }
 
 export function useErrorMessage(): (message: string) => string {

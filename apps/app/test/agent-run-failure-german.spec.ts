@@ -4,13 +4,14 @@ import {
 	RUN_FAILED_WITHOUT_REASON,
 	runFailureReason,
 } from "../lib/agent-run-failure";
-import { de } from "../lib/i18n/de";
+import { DICTIONARIES } from "../lib/i18n/dictionaries";
 import { translator } from "../lib/i18n/locale";
 
 const DASHES = /[—–―‒]/;
 const COVERED_SENTENCES = 16;
 
-const german = translator("de", de);
+const de = DICTIONARIES.de;
+const german = translator(de);
 
 const sentences: Array<[string, string]> = [
 	...Object.entries(REASONS),
@@ -47,7 +48,7 @@ describe("the German explanation for a failed run", () => {
 	});
 
 	it("keeps the English sentence in English", () => {
-		const english = translator("en", de);
+		const english = translator({});
 
 		expect(runFailureReason("MODEL_UNAVAILABLE", null, english)).toBe(
 			REASONS.MODEL_UNAVAILABLE ?? "",

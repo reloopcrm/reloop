@@ -1,5 +1,6 @@
 "use client";
 
+import { LOCALE, type Locale } from "@crm/db/locale";
 import { useUiLocale, useUiT } from "@crm/ui/lib/i18n";
 import ChevronLeft from "@carbon/icons-react/es/ChevronLeft";
 import ChevronRight from "@carbon/icons-react/es/ChevronRight";
@@ -9,11 +10,11 @@ import type { ReactNode } from "react";
 
 const numberFormats = new Map<string, Intl.NumberFormat>();
 
-function numbersFor(locale: string): Intl.NumberFormat {
+function numbersFor(locale: Locale): Intl.NumberFormat {
 	const cached = numberFormats.get(locale);
 	if (cached) return cached;
 
-	const format = new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-US");
+	const format = new Intl.NumberFormat(LOCALE.tags[locale]);
 	numberFormats.set(locale, format);
 	return format;
 }

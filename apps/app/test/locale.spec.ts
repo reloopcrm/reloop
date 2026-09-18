@@ -1,17 +1,17 @@
 import { describe, expect, it } from "bun:test";
+import { LOCALES } from "@crm/db/locale";
 import { parseLocale } from "../lib/i18n/locale";
 
 describe("parseLocale", () => {
-	it("is English without RELOOP_GERMAN, whatever the cookie says", () => {
-		expect(parseLocale("de", false)).toBe("en");
-		expect(parseLocale("en", false)).toBe("en");
-		expect(parseLocale(undefined, false)).toBe("en");
+	it("takes every language the app ships", () => {
+		for (const locale of LOCALES) expect(parseLocale(locale)).toBe(locale);
 	});
 
-	it("honours a German cookie only when German is offered", () => {
-		expect(parseLocale("de", true)).toBe("de");
-		expect(parseLocale("en", true)).toBe("en");
-		expect(parseLocale(null, true)).toBe("en");
-		expect(parseLocale("fr", true)).toBe("en");
+	it("falls back to English on anything else", () => {
+		expect(parseLocale("fr-CA")).toBe("en");
+		expect(parseLocale("klingon")).toBe("en");
+		expect(parseLocale("")).toBe("en");
+		expect(parseLocale(null)).toBe("en");
+		expect(parseLocale(undefined)).toBe("en");
 	});
 });

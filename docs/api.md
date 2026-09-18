@@ -191,12 +191,14 @@ prints `4,91701E+12`, which loses the country code without saying so. A visible
 apostrophe is the smaller harm.
 
 **The language comes from `?locale=`, not from the cookie.** `useLocale()` in the
-browser already holds the gated locale, so the client sends a finished value and
+browser already holds the chosen locale, so the client sends a finished value and
 the API translates the fixed headers and the file stem through
 `exports/exports-copy.ts`: `Vorname;Nachname;E-Mail` in `kontakte-2026-09-18.csv`.
-The cookie is not read in the API because `parseLocale` gates on `RELOOP_GERMAN`,
-and `deploy/docker-compose.yml` passes that variable to the app and the agent but
-not to the api container. A stale cookie would then outrank the flag. **Custom
+The cookie is not read in the API because the API is also called with an API key,
+where no cookie exists, and one source beats two. **`exports-copy.ts` holds German
+only.** The app offers seven languages, so a Turkish, Spanish, French, Portuguese or
+Chinese session downloads a CSV with English headers, an English file stem and
+English enum words. The file stays in one language, it never mixes two. **Custom
 field labels are never translated**, because the workspace wrote them, and neither
 is a custom field's SELECT option. **A stored enum value is translated**: the four
 enum columns, deal stage, status, potential and source, read their words from the

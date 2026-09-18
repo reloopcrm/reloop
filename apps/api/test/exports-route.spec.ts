@@ -132,7 +132,7 @@ describe("the export route", () => {
 
 	it("refuses a language nobody ships", async () => {
 		await request(app.getHttpServer())
-			.get("/api/exports/contacts?locale=fr")
+			.get("/api/exports/contacts?locale=kl")
 			.set(API_KEY_HEADER, apiKey)
 			.expect(400);
 	});

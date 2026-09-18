@@ -363,7 +363,7 @@ export function DataTable<TRow, TSub = unknown>({
 						<span className="font-medium text-foreground tabular-nums">
 							{selection.state.count}
 						</span>{" "}
-						selected
+						{t("selected")}
 					</span>
 					<div className="ml-auto flex items-center gap-2">
 						{selection.actions}
@@ -510,7 +510,7 @@ export function DataTable<TRow, TSub = unknown>({
 									>
 										{anyExpandable && (
 											<DropdownMenuRadioItem value="detail">
-												Detail
+												{t("Detail")}
 											</DropdownMenuRadioItem>
 										)}
 										{sortableColumns.map((column) => (

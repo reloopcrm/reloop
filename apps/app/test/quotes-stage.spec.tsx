@@ -12,6 +12,7 @@ const { QuotesTable } = await import(
 	"../app/(app)/[slug]/deals/from-mail/quotes-table"
 );
 const { I18nProvider } = await import("../lib/i18n/client");
+const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
 const { TRPCReactProvider, useTRPC } = await import("../lib/trpc/client");
 
 afterAll(() => GlobalRegistrator.unregister());
@@ -60,6 +61,7 @@ function pageText(locale: "en" | "de", stages: StageRow[]): string {
 		createElement(TRPCReactProvider, {
 			children: createElement(I18nProvider, {
 				locale,
+				dictionary: DICTIONARIES[locale],
 				children: createElement(Probe, { stages }),
 			}),
 		}),

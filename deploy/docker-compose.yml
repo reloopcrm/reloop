@@ -85,7 +85,6 @@ services:
       IS_MARKETING:
       RELOOP_MANAGED:
       RELOOP_DEMO:
-      RELOOP_GERMAN:
       RELOOP_PLANS:
       GOOGLE_SITE_VERIFICATION:
     ports:

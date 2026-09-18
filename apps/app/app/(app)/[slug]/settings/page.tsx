@@ -10,7 +10,7 @@ import {
 	PageShellLoading,
 	PageShellTitle,
 } from "@/components/page-shell";
-import { germanOffered, getT } from "@/lib/i18n/server";
+import { getT } from "@/lib/i18n/server";
 import { managedInstall, plansOffered } from "@/lib/operator";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
@@ -76,7 +76,7 @@ async function Settings() {
 		<HydrateClient>
 			<div className="flex max-w-3xl flex-col gap-6">
 				<ProfileForm />
-				{germanOffered() ? <Language /> : null}
+				<Language />
 				<WorkspaceForm />
 				<PasswordSignIn />
 				{plansOffered() ? (

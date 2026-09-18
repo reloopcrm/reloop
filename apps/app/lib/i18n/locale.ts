@@ -1,14 +1,27 @@
-import { DEFAULT_LOCALE, LOCALES, type Locale } from "@crm/db/locale";
+import {
+	DEFAULT_LOCALE,
+	isLocale,
+	isMachineTranslated,
+	LOCALE,
+	LOCALES,
+	type Locale,
+} from "@crm/db/locale";
 
-export { DEFAULT_LOCALE, LOCALES, type Locale };
+export {
+	DEFAULT_LOCALE,
+	isLocale,
+	isMachineTranslated,
+	LOCALE,
+	LOCALES,
+	type Locale,
+};
 
 export const LOCALE_COOKIE = "crm.locale";
 
-export function parseLocale(
-	value: string | null | undefined,
-	germanOffered: boolean,
-): Locale {
-	return germanOffered && value === "de" ? "de" : DEFAULT_LOCALE;
+export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+export function parseLocale(value: string | null | undefined): Locale {
+	return isLocale(value) ? value : DEFAULT_LOCALE;
 }
 
 export type Dictionary = Record<string, string>;
@@ -28,7 +41,6 @@ export function interpolate(
 	);
 }
 
-export function translator(locale: Locale, dictionary: Dictionary): Translate {
-	return (text, vars) =>
-		interpolate(locale === "en" ? text : (dictionary[text] ?? text), vars);
+export function translator(dictionary: Dictionary): Translate {
+	return (text, vars) => interpolate(dictionary[text] ?? text, vars);
 }

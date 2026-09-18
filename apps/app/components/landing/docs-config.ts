@@ -2,6 +2,7 @@ const FILES = {
 	selfHost: ["docs", "self-host.md"],
 	environment: ["docs", "environment.md"],
 	restApi: ["docs", "rest-api.md"],
+	languages: ["docs", "languages.md"],
 } as const;
 
 export type DocFile = keyof typeof FILES;
@@ -103,6 +104,14 @@ const PAGES: readonly DocPage[] = [
 			"Call every CRM procedure over REST, where the base address is, and how to make a key.",
 		file: "restApi",
 		from: "rest-api",
+	},
+	{
+		slug: "languages",
+		title: "Languages",
+		description:
+			"The seven languages Reloop CRM speaks, how a person picks one, and how you add your own.",
+		file: "languages",
+		from: "languages",
 	},
 	{
 		slug: "environment",

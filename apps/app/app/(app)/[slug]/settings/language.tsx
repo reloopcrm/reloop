@@ -7,7 +7,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@crm/ui/components/card";
-import { Field, FieldLabel } from "@crm/ui/components/field";
+import { Field, FieldDescription, FieldLabel } from "@crm/ui/components/field";
+import { Link } from "@crm/ui/components/link";
 import {
 	Select,
 	SelectContent,
@@ -17,13 +18,14 @@ import {
 } from "@crm/ui/components/select";
 import { useRouter } from "next/navigation";
 import { useId } from "react";
+import { REPO_URL } from "@/components/landing/site";
 import { useLocale, useT, writeLocaleCookie } from "@/lib/i18n/client";
-import { LOCALES } from "@/lib/i18n/locale";
-
-const NAMES = {
-	de: "Deutsch",
-	en: "English",
-} satisfies Record<(typeof LOCALES)[number], string>;
+import {
+	isLocale,
+	isMachineTranslated,
+	LOCALE,
+	LOCALES,
+} from "@/lib/i18n/locale";
 
 export function Language() {
 	const locale = useLocale();
@@ -45,24 +47,37 @@ export function Language() {
 					<Select
 						value={locale}
 						onValueChange={(value) => {
-							if (value !== "de" && value !== "en") return;
+							if (!isLocale(value)) return;
 							writeLocaleCookie(value);
 							router.refresh();
 						}}
 					>
 						<SelectTrigger id={fieldId} className="w-60">
-							<SelectValue placeholder={NAMES[locale]}>
-								{NAMES[locale]}
+							<SelectValue placeholder={LOCALE.names[locale]}>
+								{LOCALE.names[locale]}
 							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>
 							{LOCALES.map((value) => (
 								<SelectItem key={value} value={value}>
-									{NAMES[value]}
+									{LOCALE.names[value]}
 								</SelectItem>
 							))}
 						</SelectContent>
 					</Select>
+					<FieldDescription>
+						{isMachineTranslated(locale)
+							? t(
+									"{language} is machine translated. English and German are written by people. Tell us a better word and we put it in.",
+									{ language: LOCALE.names[locale] },
+								)
+							: t(
+									"English and German are written by people. The other languages are machine translated. Tell us a better word and we put it in.",
+								)}{" "}
+						<Link href={REPO_URL} target="_blank" rel="noreferrer">
+							{t("Fix a word on GitHub")}
+						</Link>
+					</FieldDescription>
 				</Field>
 			</CardContent>
 		</Card>

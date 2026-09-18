@@ -131,10 +131,15 @@ server. The steps and timings live in
 
 ## `RELOOP_GERMAN`, off by default
 
-English is the only language unless `RELOOP_GERMAN` is the literal `"true"`. Then
-Settings > General offers German and the agent writes German. The app reads it on the
-server (`apps/app/lib/i18n/server.ts`), the agent in `agent/lib/language.ts`. A missing
-German key falls back to English, so a new text needs no German translation.
+**The app ignores this variable.** Every person picks one of seven languages in
+Settings > General and the choice lives in the `crm.locale` cookie. An install that
+still sets `RELOOP_GERMAN` keeps working and loses nothing. `docs/languages.md` says
+how a language is added.
+
+The variable is left for the agent only: with the literal `"true"` the agent writes its
+notes and summaries in German instead of English (`apps/agent/agent/lib/language.ts`).
+It reaches the agent when you run from source. The agent container in
+`deploy/docker-compose.yml` does not receive it.
 
 ## `RELOOP_UPDATE_CHECK`, on by default
 

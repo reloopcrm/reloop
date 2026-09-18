@@ -13,6 +13,10 @@ export const suppressDomainInput = z.object({
 	purge: z.boolean().default(true),
 });
 
+export const setImportSinceInput = z.object({
+	importSince: z.iso.datetime().nullable(),
+});
+
 export const threadInput = z.object({
 	threadId: z.string(),
 });
@@ -22,11 +26,17 @@ export const calendarEventInput = z.object({
 });
 
 export type SetAutoCreateInput = z.infer<typeof setAutoCreateInput>;
+export type SetImportSinceInput = z.infer<typeof setImportSinceInput>;
 export type SuppressDomainInput = z.infer<typeof suppressDomainInput>;
 
 const googleSyncStatusOutput = z.enum(
 	Object.values(GoogleSyncStatus) as [GoogleSyncStatus, ...GoogleSyncStatus[]],
 );
+
+export const backfillProgressOutput = z.object({
+	reached: z.string().nullable(),
+	floor: z.string().nullable(),
+});
 
 export const googleSourceStatusOutput = z.object({
 	source: z.enum(GOOGLE_SYNC_SOURCES),
@@ -35,6 +45,8 @@ export const googleSourceStatusOutput = z.object({
 	lastSyncedAt: z.string().nullable(),
 	lastError: z.string().nullable(),
 	autoCreate: z.boolean(),
+	importSince: z.string().nullable(),
+	backfill: backfillProgressOutput.nullable(),
 });
 
 export const googleConnectionStatusOutput = z.object({

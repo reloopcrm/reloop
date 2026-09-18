@@ -16,6 +16,7 @@ import {
 	purgeSyncedDataOutput,
 	revokeAccessOutput,
 	setOutlookAutoCreateInput,
+	setOutlookImportSinceInput,
 } from "./microsoft.contracts";
 import { MicrosoftConnectionService } from "./microsoft-connection.service";
 import { MicrosoftSyncService } from "./microsoft-sync.service";
@@ -60,6 +61,22 @@ export class MicrosoftRouter {
 	})
 	async syncNow(@Ctx() ctx: AuthedTrpcContext) {
 		await this.sync.runForUser(ctx.user.id);
+		return this.connection.status(ctx.user.id);
+	}
+
+	@Mutation({
+		input: setOutlookImportSinceInput,
+		output: microsoftConnectionStatusOutput,
+		meta: restMeta("PATCH", "/microsoft/import-since", ["Microsoft"]),
+	})
+	async setImportSince(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setOutlookImportSinceInput>,
+	) {
+		await this.connection.setImportSince(
+			ctx.user.id,
+			input.importSince ? new Date(input.importSince) : null,
+		);
 		return this.connection.status(ctx.user.id);
 	}
 

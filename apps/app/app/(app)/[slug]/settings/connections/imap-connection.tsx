@@ -66,6 +66,12 @@ import { isSyncing, SYNC_POLL_MS } from "@/lib/sync-status";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import {
+	DEFAULT_IMPORT_HISTORY,
+	ImportHistoryField,
+	type ImportHistoryValue,
+	importSinceFor,
+} from "./import-history";
 
 type ImapAccount = RouterOutputs["imap"]["status"]["accounts"][number];
 
@@ -120,15 +126,6 @@ const PRESETS = [
 
 type PresetId = (typeof PRESETS)[number]["id"];
 
-const HISTORY = [
-	{ value: "all", label: "Everything in the mailbox" },
-	{ value: "365", label: "The last 12 months" },
-	{ value: "90", label: "The last 90 days" },
-	{ value: "0", label: "Only new mail from now on" },
-] as const;
-
-type HistoryValue = (typeof HISTORY)[number]["value"];
-
 type PresetNotes = Partial<Record<PresetId, string>>;
 
 const PRESET_NOTES: PresetNotes = {
@@ -141,17 +138,6 @@ const PRESET_NOTES: PresetNotes = {
 	gmx: "GMX needs IMAP switched on under Settings, POP3/IMAP.",
 	webde: "WEB.DE needs IMAP switched on under Settings, POP3/IMAP.",
 };
-
-function importSinceFor(history: HistoryValue): string | null {
-	if (history === "all") return null;
-
-	const days = Number(history);
-	const since = new Date();
-	since.setDate(since.getDate() - days);
-	since.setHours(0, 0, 0, 0);
-
-	return since.toISOString();
-}
 
 function AddMailboxButton(props: ComponentProps<typeof Button>) {
 	const t = useT();
@@ -185,7 +171,9 @@ function AddMailboxSheet({ onAdded }: { onAdded: () => Promise<void> }) {
 	const [secure, setSecure] = useState(true);
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
-	const [history, setHistory] = useState<HistoryValue>("all");
+	const [history, setHistory] = useState<ImportHistoryValue>(
+		DEFAULT_IMPORT_HISTORY,
+	);
 	const [createFrom, setCreateFrom] = useState<CreateFrom>("relevant");
 
 	function reset() {
@@ -196,7 +184,7 @@ function AddMailboxSheet({ onAdded }: { onAdded: () => Promise<void> }) {
 		setSecure(true);
 		setUsername("");
 		setPassword("");
-		setHistory("all");
+		setHistory(DEFAULT_IMPORT_HISTORY);
 		setCreateFrom("relevant");
 	}
 
@@ -389,29 +377,11 @@ function AddMailboxSheet({ onAdded }: { onAdded: () => Promise<void> }) {
 							</FieldDescription>
 						</Field>
 
-						<Field>
-							<FieldLabel htmlFor={historyId}>{t("Import history")}</FieldLabel>
-							<Select
-								value={history}
-								onValueChange={(value) => setHistory(value as HistoryValue)}
-							>
-								<SelectTrigger id={historyId} className="w-full">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{HISTORY.map((entry) => (
-										<SelectItem key={entry.value} value={entry.value}>
-											{t(entry.label)}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<FieldDescription>
-								{t(
-									"Sent mail is read first, so every person you ever replied to is found before their replies are filed. A large mailbox takes a few hours in the background.",
-								)}
-							</FieldDescription>
-						</Field>
+						<ImportHistoryField
+							id={historyId}
+							value={history}
+							onChange={setHistory}
+						/>
 
 						<Field>
 							<FieldLabel htmlFor={`${historyId}-create`}>

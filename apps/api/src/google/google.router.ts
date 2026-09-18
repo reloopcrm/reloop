@@ -20,6 +20,7 @@ import {
 	purgeSyncedDataOutput,
 	revokeAccessOutput,
 	setAutoCreateInput,
+	setImportSinceInput,
 	suppressDomainInput,
 	suppressDomainOutput,
 	threadInput,
@@ -84,6 +85,22 @@ export class GoogleRouter {
 			ctx.user.id,
 			input.source,
 			input.enabled,
+		);
+		return this.connection.status(ctx.user.id);
+	}
+
+	@Mutation({
+		input: setImportSinceInput,
+		output: googleConnectionStatusOutput,
+		meta: restMeta("PATCH", "/google/import-since", ["Google"]),
+	})
+	async setImportSince(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setImportSinceInput>,
+	) {
+		await this.connection.setImportSince(
+			ctx.user.id,
+			input.importSince ? new Date(input.importSince) : null,
 		);
 		return this.connection.status(ctx.user.id);
 	}

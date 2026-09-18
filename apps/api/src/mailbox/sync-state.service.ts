@@ -6,6 +6,7 @@ import {
 } from "@crm/db";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
+import { serialiseBackfill, stoppedBackfill } from "./backfill-cursor";
 import type { MailboxSource } from "./mailbox.constants";
 
 export const SYNC_LEASE_MS = 300_000;
@@ -99,6 +100,7 @@ export class SyncStateService {
 		id: string,
 		update: {
 			cursor?: string | null;
+			backfill?: string | null;
 			status: GoogleSyncStatus;
 		},
 	): Promise<void> {
@@ -160,6 +162,24 @@ export class SyncStateService {
 				lastError: reason,
 				retryAfter: null,
 			},
+		});
+	}
+
+	async stopBackfill(userId: string, source: MailboxSource): Promise<void> {
+		await this.db.mailboxSync.updateMany({
+			where: { userId, source },
+			data: { backfill: serialiseBackfill(stoppedBackfill(new Date())) },
+		});
+	}
+
+	async setImportSince(
+		userId: string,
+		source: MailboxSource,
+		importSince: Date | null,
+	): Promise<void> {
+		await this.db.mailboxSync.updateMany({
+			where: { userId, source },
+			data: { importSince, backfill: null },
 		});
 	}
 

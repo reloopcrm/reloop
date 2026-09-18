@@ -60,6 +60,40 @@ sign in on different paths and never reach the guard.
 A workspace with no owner and no admin lets any member connect. There is nobody
 left to ask, and a fresh install must not be locked out of its first connection.
 
+## A mailbox is read backwards as well as forwards
+
+The reason a stranger installs this product is the mail they already have. So
+every mailbox, Gmail and Outlook and IMAP alike, reads its own history from the
+day it is connected, and keeps reading new mail at the same time.
+
+- **The connect flow asks how far back, in the same four words everywhere**:
+  everything in the mailbox, the last 12 months, the last 90 days, only new mail
+  from now on.
+  `apps/app/app/(app)/[slug]/settings/connections/import-history.tsx` owns the
+  list, the label and the note, and the three connection cards import it.
+  Everything in the mailbox is the default.
+- **Sent mail is read first, then everything else.** The backfill runs in two
+  phases (`phase` in `apps/api/src/mailbox/backfill-cursor.ts`): Gmail asks
+  `in:sent`, Outlook asks the `sentitems` folder, then both read the whole
+  mailbox. Newest first inside each phase. Without the sent phase an inbound
+  reply arrives before the outbound message that started the thread, and
+  `ThreadWriterService.store` drops it, because nothing yet says the rep ever
+  answered that person. That is exactly the win back case, so the order is not a
+  preference.
+- **The answer is stored before the OAuth redirect**, through
+  `google.setImportSince` / `microsoft.setImportSince`, which creates the
+  `MailboxSync` row if there is none. A row without a grant is skipped by the
+  sync tick, so it costs nothing.
+- **The card says what is happening while it happens.** The status reads
+  `Reading mail` and the line under it reads `Reading the history, back to
+  <date>`. Never a percentage: the API cannot count a mailbox it has not read.
+- **Changing the answer replans the backfill**, because the floor moved.
+  Everything already filed stays.
+- **Deleting synced data ends the backfill.** Google and Outlook promise that
+  nothing deleted comes back, so `purgeSyncedData` marks the backfill done
+  (`SyncStateService.stopBackfill`). IMAP promises the opposite and is
+  unchanged.
+
 ## Direction is the organising idea
 
 Every connection declares what it **brings in** and what it **sends**. Use those

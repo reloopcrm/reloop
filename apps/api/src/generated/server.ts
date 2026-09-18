@@ -24,8 +24,8 @@ import { dashboardSummaryInput, dashboardSummaryOutput } from "../dashboard/dash
 import { dealListInput, dealListOutput, dealIdInput, dealDetailOutput, dealCreateInput, dealCreateOutput, dealUpdateArgs, dealMutateOutput, setStageInput, dealSetStageOutput, dealContactsInput, dealContactOptionsOutput, dealAttachContactInput, dealContactLinkOutput, dealDetachContactInput, dealContactRoleInput, dealContactRoleOutput, dealBulkOwnerInput, dealBulkResultOutput, dealBulkStageInput, dealBulkInput } from "../deals/deals.contracts";
 import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
 import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput, fieldEntityInput, fieldFiltersOutput, fieldIdInput, fieldCoverageOutput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput, fieldReorderOutput, fieldDeleteOutput, fieldBackfillOutput } from "../fields/fields.contracts";
-import { googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
-import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
+import { googleConnectionStatusOutput, setAutoCreateInput, setImportSinceInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
+import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookImportSinceInput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { imapStatusOutput, addImapAccountInput, imapAccountIdInput, imapRemoveOutput, imapPurgeOutput, setImapCreateFromInput } from "../imap/imap.contracts";
 import { reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
@@ -35,7 +35,7 @@ import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoPro
 import { versionOutput, updateOutput } from "../system/system.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { waitlistJoinInput } from "@crm/validation/waitlist";
-import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
+import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, addPersonInput, addedPersonOutput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
 import type { UsersRouter } from "../users/users.router";
 
 const appRouter = t.router({
@@ -557,6 +557,10 @@ const appRouter = t.router({
       .input(setAutoCreateInput)
       .output(googleConnectionStatusOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setImportSince: publicProcedure
+      .input(setImportSinceInput)
+      .output(googleConnectionStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     suppressDomain: publicProcedure
       .input(suppressDomainInput)
       .output(suppressDomainOutput)
@@ -606,6 +610,10 @@ const appRouter = t.router({
       .output(revokeAccessOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     syncNow: publicProcedure
+      .output(microsoftConnectionStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setImportSince: publicProcedure
+      .input(setOutlookImportSinceInput)
       .output(microsoftConnectionStatusOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     setAutoCreate: publicProcedure
@@ -888,6 +896,10 @@ const appRouter = t.router({
     update: publicProcedure
       .input(updateWorkspaceInput)
       .output(workspaceOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    addPerson: publicProcedure
+      .input(addPersonInput)
+      .output(addedPersonOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     setMemberRole: publicProcedure
       .input(setMemberRoleInput)

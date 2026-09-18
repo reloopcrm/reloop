@@ -83,12 +83,28 @@ export class GraphClient {
 
 	async listMessages(
 		accessToken: string,
-		options: { after: Date; top: number },
+		options: {
+			after: Date;
+			before?: Date;
+			top: number;
+			order?: "asc" | "desc";
+			folder?: string;
+		},
 	): Promise<MailboxResult<MessagePage>> {
-		return this.api.get<MessagePage>(`${BASE}/messages`, accessToken, {
+		const filters = [`receivedDateTime gt ${options.after.toISOString()}`];
+		if (options.before) {
+			filters.push(`receivedDateTime lt ${options.before.toISOString()}`);
+		}
+		filters.push("isDraft eq false");
+
+		const path = options.folder
+			? `${BASE}/mailFolders/${options.folder}/messages`
+			: `${BASE}/messages`;
+
+		return this.api.get<MessagePage>(path, accessToken, {
 			$select: MESSAGE_FIELDS,
-			$filter: `receivedDateTime gt ${options.after.toISOString()} and isDraft eq false`,
-			$orderby: "receivedDateTime asc",
+			$filter: filters.join(" and "),
+			$orderby: `receivedDateTime ${options.order ?? "asc"}`,
 			$top: options.top,
 		});
 	}

@@ -40,6 +40,8 @@ export type Profile = {
 export const WORK_MAIL_QUERY =
 	"-in:chats -category:promotions -category:social -category:forums";
 
+export const SENT_MAIL_QUERY = `${WORK_MAIL_QUERY} in:sent`;
+
 @Injectable()
 export class GmailClient {
 	constructor(private readonly api: MailboxApiClient) {}
@@ -51,17 +53,22 @@ export class GmailClient {
 	async listMessages(
 		accessToken: string,
 		options: {
-			after: Date;
+			after?: Date;
 			before: Date;
 			pageToken?: string;
 			maxResults?: number;
+			query?: string;
 		},
 	): Promise<MailboxResult<MessageList>> {
-		const after = Math.floor(options.after.getTime() / 1000);
-		const before = Math.ceil(options.before.getTime() / 1000);
+		const parts = [options.query ?? WORK_MAIL_QUERY];
+
+		if (options.after) {
+			parts.push(`after:${Math.floor(options.after.getTime() / 1000)}`);
+		}
+		parts.push(`before:${Math.ceil(options.before.getTime() / 1000)}`);
 
 		return this.api.get<MessageList>(`${BASE}/messages`, accessToken, {
-			q: `${WORK_MAIL_QUERY} after:${after} before:${before}`,
+			q: parts.join(" "),
 			maxResults: options.maxResults ?? 100,
 			pageToken: options.pageToken,
 		});

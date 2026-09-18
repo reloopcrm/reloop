@@ -1174,6 +1174,8 @@ model MailboxSync {
 
   status             GoogleSyncStatus @default(IDLE)
   cursor             String?
+  backfill           String?
+  importSince        DateTime?
   lastSyncedAt       DateTime?
   lastError          String?
   retryAfter         DateTime?

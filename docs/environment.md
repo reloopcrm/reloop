@@ -233,8 +233,11 @@ is not asked for Outlook; `mailboxGrantsNeeded` names the ones still outstanding
 canonicaliser and strips that prefix, so the comparison is against the bare permission
 everywhere.
 
-**Sync is forward-only**: Gmail records the current `historyId` on its first pass and
-imports nothing, Calendar reads from `now`, and Outlook records `now` as its cursor.
+**Mail reads both ways, the calendar only forwards**: Gmail records the current
+`historyId` and Outlook records `now`, then each also reads its own history
+backwards from that moment. Calendar reads from `now` and never looks back. How
+far back mail goes is `MailboxSync.importSince`, asked on the connection page and
+clamped by the plan. See `docs/connections.md`.
 
 **`CRON_SECRET`** (min 16 chars) guards `POST /internal/sync/mailboxes` and
 `/internal/sync/rates`; both **fail closed when unset**. `/internal/sync/google` is
@@ -245,7 +248,9 @@ daily. Minute-level schedules need a Pro plan; on Hobby it silently becomes dail
 Deliberate absences: **no `GOOGLE_SYNC_ENABLED`** (a switch that can disable a mandatory
 feature is only ever wrong), **no `GOOGLE_WORKSPACE_DOMAIN`** (`ALLOWED_SIGN_IN` already
 says who is internal: two sources is how a colleague becomes a lead), **no
-`GMAIL_BACKFILL_DAYS`**, **no `OUTLOOK_BACKFILL_DAYS`**, **no rate provider variable**.
+`GMAIL_BACKFILL_DAYS`**, **no `OUTLOOK_BACKFILL_DAYS`** (how far back is a
+question for the person connecting the mailbox, not for the operator), **no rate
+provider variable**.
 
 ## Telemetry is on, and turning it off is one variable
 

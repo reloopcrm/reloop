@@ -34,7 +34,7 @@
 
 Reloop CRM connects to your mailbox, reads every conversation and remembers what it was about: closed deals, open inquiries, quantities, products. From that it builds a list of people worth another try, ranked by facts instead of gut feeling.
 
-- **Any mailbox.** IMAP, Google Workspace or Microsoft 365. Over IMAP the full history is read once, then kept in sync. Gmail and Microsoft 365 start at the moment you connect them, so add the same mailbox over IMAP when you want the history too.
+- **Any mailbox.** IMAP, Google Workspace or Microsoft 365. The full history is read once, then kept in sync. You choose how far back when you connect the mailbox.
 - **An agent reads along.** Every conversation gets a short summary and every message one line, so a thread is readable without opening a single email.
 - **Win back.** Points from real business facts, and rules the agent sharpens from your own verdicts.
 - **Learns your business.** Onboarding asks what you sell, the AI fills in the rest from your website and your mail.

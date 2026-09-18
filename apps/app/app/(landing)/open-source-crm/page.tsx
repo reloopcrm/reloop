@@ -142,7 +142,7 @@ export default function OpenSourceCrmPage() {
 					<p>
 						Reloop CRM is an open source CRM for a small sales team that already
 						has years of email. It connects to Gmail, Microsoft 365 or any IMAP
-						mailbox, reads the history once over IMAP, and builds companies,
+						mailbox, reads the history once, and builds companies,
 						contacts and deals from real conversations. Then it tells you which
 						past customers went quiet and why they are worth a new call. It
 						started inside a{" "}

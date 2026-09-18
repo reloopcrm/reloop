@@ -133,6 +133,9 @@ export const settingsMore: Dictionary = {
 	"Removed {count} synced messages.":
 		"{count} abgeglichene Nachrichten entfernt.",
 	"Reading mail": "Liest Mail",
+	"Reading the history, back to": "Liest die Vorgeschichte, zurück bis",
+	"Reading the history, starting now":
+		"Liest die Vorgeschichte, beginnt gerade",
 	"1 message filed": "1 Nachricht abgelegt",
 	"{count} messages filed": "{count} Nachrichten abgelegt",
 	"The mail server refused the sign-in":

@@ -33,13 +33,22 @@ import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { Switch } from "@crm/ui/components/switch";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { isSyncing, SYNC_POLL_MS } from "@/lib/sync-status";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
+import {
+	DEFAULT_IMPORT_HISTORY,
+	historyOf,
+	ImportHistoryField,
+	ImportHistoryProgress,
+	ImportHistoryRow,
+	type ImportHistoryValue,
+	importSinceFor,
+} from "./import-history";
 
 const AUTO_CREATE = "Add the company and contact when you reply to someone new";
 
@@ -84,7 +93,14 @@ function ConnectMicrosoft({
 	connectError?: string;
 }) {
 	const t = useT();
+	const trpc = useTRPC();
+	const historyId = useId();
 	const [pending, setPending] = useState(false);
+	const [history, setHistory] = useState<ImportHistoryValue>(
+		DEFAULT_IMPORT_HISTORY,
+	);
+
+	const remember = useMutation(trpc.microsoft.setImportSince.mutationOptions());
 
 	function fail(message?: string) {
 		setPending(false);
@@ -93,6 +109,8 @@ function ConnectMicrosoft({
 
 	async function handleConnect() {
 		setPending(true);
+
+		await remember.mutateAsync({ importSince: importSinceFor(history) });
 
 		const origin = window.location.origin;
 
@@ -147,8 +165,8 @@ function ConnectMicrosoft({
 				</CardAction>
 			</CardHeader>
 
-			{connectError ? (
-				<CardContent>
+			<CardContent>
+				{connectError ? (
 					<Alert variant="destructive">
 						<Icon icon={Warning} />
 						<AlertTitle>{t("Microsoft did not finish connecting")}</AlertTitle>
@@ -159,8 +177,15 @@ function ConnectMicrosoft({
 							)}
 						</AlertDescription>
 					</Alert>
-				</CardContent>
-			) : null}
+				) : null}
+
+				<ImportHistoryField
+					id={historyId}
+					value={history}
+					disabled={pending}
+					onChange={setHistory}
+				/>
+			</CardContent>
 		</Card>
 	);
 }
@@ -177,10 +202,14 @@ export function MicrosoftConnection({
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 
+	const historyId = useId();
+
 	const status = useQuery({
 		...trpc.microsoft.status.queryOptions(),
 		refetchInterval: (query) =>
-			query.state.data?.sources.some((source) => isSyncing(source.status))
+			query.state.data?.sources.some(
+				(source) => isSyncing(source.status) || source.backfill !== null,
+			)
 				? SYNC_POLL_MS
 				: false,
 	});
@@ -214,6 +243,13 @@ export function MicrosoftConnection({
 		}),
 	);
 
+	const setImportSince = useMutation(
+		trpc.microsoft.setImportSince.mutationOptions({
+			onSuccess: () => cache.microsoft({ settle: "record" }),
+			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
+
 	const syncNow = useMutation(
 		trpc.microsoft.syncNow.mutationOptions({
 			onSuccess: () => cache.microsoft(),
@@ -241,6 +277,8 @@ export function MicrosoftConnection({
 		.at(-1);
 
 	const healthy = failing.length === 0 && hasRefreshToken;
+	const mail = sources.find((source) => source.source === "outlook");
+	const reading = healthy && mail?.backfill != null;
 
 	return (
 		<Card>
@@ -250,8 +288,14 @@ export function MicrosoftConnection({
 						Microsoft
 						<StatusIndicator
 							size="sm"
-							tone={healthy ? "success" : "warning"}
-							label={healthy ? t("Connected") : t("Needs attention")}
+							tone={!healthy ? "warning" : reading ? "info" : "success"}
+							label={
+								!healthy
+									? t("Needs attention")
+									: reading
+										? t("Reading mail")
+										: t("Connected")
+							}
 						/>
 					</div>
 				</CardTitle>
@@ -299,6 +343,12 @@ export function MicrosoftConnection({
 						) : (
 							t("Waiting for the first check")
 						)}
+						{mail?.backfill ? (
+							<>
+								{" · "}
+								<ImportHistoryProgress reached={mail.backfill.reached} />
+							</>
+						) : null}
 					</p>
 				)}
 
@@ -327,6 +377,15 @@ export function MicrosoftConnection({
 						/>
 					</div>
 				))}
+
+				<ImportHistoryRow
+					id={historyId}
+					value={historyOf(mail?.importSince ?? null)}
+					disabled={setImportSince.isPending}
+					onChange={(value) =>
+						setImportSince.mutate({ importSince: importSinceFor(value) })
+					}
+				/>
 
 				<CardFooter>
 					<div className="-ml-2 flex flex-wrap items-center gap-1 text-muted-foreground">

@@ -1,8 +1,25 @@
 import {
+	type Db,
 	GoogleSyncStatus,
 	type MailboxSyncModel as MailboxSync,
 } from "@crm/db";
+import { clampImportSince, limitsOf } from "@crm/db/plans";
+import { readPlan } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
+import { InjectDatabase } from "../database/database.constants";
+import {
+	advancePhase,
+	backfillBefore,
+	backfillFloor,
+	isBackfillRunning,
+	type MailboxBackfill,
+	planBackfill,
+	reachedBack,
+	readBackfill,
+	restartBackfill,
+	serialiseBackfill,
+} from "../mailbox/backfill-cursor";
+import { MAILBOX } from "../mailbox/mailbox.config";
 import type { MailboxResult } from "../mailbox/mailbox-api.client";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
@@ -25,20 +42,29 @@ import {
 	type GraphMessage,
 } from "./graph.client";
 
-const MAX_MESSAGES_PER_TICK = 120;
-const PAGE_SIZE = 50;
-
-const OVERLAP_MS = 1_000;
-
 const EXCLUDED_FOLDERS = ["junkemail", "deleteditems"] as const;
 
 const CONVERSATION_ROOT_PREFIX = "outlook-conversation:";
+
+const SENT_FOLDER = "sentitems";
 
 type MailboxFailure<T> = Exclude<MailboxResult<T>, { outcome: "ok" }>;
 
 type ExcludedFolders =
 	| { outcome: "ok"; ids: Set<string> }
 	| { outcome: "lookup-failed"; failure: MailboxFailure<GraphFolder> };
+
+type SyncFailure = {
+	outcome: string;
+	reason: string;
+	retryAfterMs?: number;
+};
+
+type Backfilled = {
+	written: number;
+	backfill: string | null;
+	failure?: SyncFailure;
+};
 
 export type OutlookSyncOutcome = {
 	source: "outlook";
@@ -53,6 +79,7 @@ export class OutlookSyncService {
 	private readonly logger = new Logger(OutlookSyncService.name);
 
 	constructor(
+		@InjectDatabase() private readonly db: Db,
 		private readonly graph: GraphClient,
 		private readonly tokens: MailboxTokenService,
 		private readonly state: SyncStateService,
@@ -120,13 +147,19 @@ export class OutlookSyncService {
 		row: MailboxSync,
 		initializedAt: Date,
 	): Promise<OutlookSyncOutcome> {
+		const plan = planBackfill({
+			before: initializedAt,
+			floor: await this.floorFor(row),
+		});
+
 		await this.state.settle(row.id, {
 			cursor: initializedAt.toISOString(),
+			backfill: serialiseBackfill(plan),
 			status: GoogleSyncStatus.RUNNING,
 		});
 
 		this.logger.log({
-			message: "Outlook sync started. Watching for new mail",
+			message: "Outlook sync started. Reading new mail and the history",
 			userId: row.userId,
 		});
 
@@ -158,49 +191,25 @@ export class OutlookSyncService {
 		const excluded = folders.ids;
 
 		let page = await this.graph.listMessages(accessToken, {
-			after: new Date(from.getTime() - OVERLAP_MS),
-			top: PAGE_SIZE,
+			after: new Date(from.getTime() - MAILBOX.sync.forwardOverlapMs),
+			top: MAILBOX.sync.pageSize,
 		});
 
-		let context: MatchContext | null = null;
 		let written = 0;
 		let seen = 0;
 		let furthest = from;
 
 		while (page.outcome === "ok") {
-			const remaining = MAX_MESSAGES_PER_TICK - seen;
+			const remaining = MAILBOX.sync.forwardMax - seen;
 			const messages = (page.data.value ?? []).slice(0, Math.max(remaining, 0));
 
-			for (const message of messages) {
-				seen += 1;
-
-				const receivedAt = message.receivedDateTime
-					? new Date(message.receivedDateTime)
-					: null;
-				if (receivedAt && !Number.isNaN(receivedAt.getTime())) {
-					if (receivedAt > furthest) furthest = receivedAt;
-				}
-
-				if (message.parentFolderId && excluded.has(message.parentFolderId)) {
-					continue;
-				}
-
-				const parsed = this.parse(message);
-				if (!parsed) continue;
-
-				context ??= await this.threads.context();
-
-				const stored = await this.threads.store(
-					row,
-					{ mailbox, origin: "outlook" },
-					parsed,
-					context,
-				);
-				if (stored) written += 1;
-			}
+			const run = await this.file(row, mailbox, messages, excluded);
+			seen += messages.length;
+			written += run.written;
+			if (run.newest && run.newest > furthest) furthest = run.newest;
 
 			const nextLink = page.data["@odata.nextLink"];
-			if (!nextLink || seen >= MAX_MESSAGES_PER_TICK) break;
+			if (!nextLink || seen >= MAILBOX.sync.forwardMax) break;
 
 			page = await this.graph.nextPage(accessToken, nextLink);
 		}
@@ -209,16 +218,30 @@ export class OutlookSyncService {
 			return this.handleFailure(row, page);
 		}
 
+		const back = await this.backfill(
+			row,
+			accessToken,
+			mailbox,
+			excluded,
+			MAILBOX.sync.maxMessagesPerTick - seen,
+		);
+
 		await this.state.settle(row.id, {
 			cursor: furthest.toISOString(),
+			backfill: back.backfill,
 			status: GoogleSyncStatus.RUNNING,
 		});
+
+		if (back.failure) return this.handleFailure(row, back.failure);
+
+		written += back.written;
 
 		if (written > 0) {
 			this.logger.log({
 				message: "Outlook incremental sync",
 				userId: row.userId,
 				messagesWritten: written,
+				messagesBackfilled: back.written,
 				messagesSeen: seen,
 			});
 		}
@@ -229,6 +252,140 @@ export class OutlookSyncService {
 			status: "synced",
 			messagesWritten: written,
 		};
+	}
+
+	private async backfill(
+		row: MailboxSync,
+		accessToken: string,
+		mailbox: string,
+		excluded: Set<string>,
+		budget: number,
+	): Promise<Backfilled> {
+		const read = readBackfill(row.backfill);
+
+		if (read.outcome === "unreadable") {
+			this.logger.warn({
+				message:
+					"The stored Outlook backfill is unreadable. Starting a new one",
+				userId: row.userId,
+				reason: read.reason,
+			});
+		}
+
+		if (read.outcome === "ok" && !isBackfillRunning(read.backfill)) {
+			return { written: 0, backfill: row.backfill };
+		}
+
+		let plan: MailboxBackfill =
+			read.outcome === "ok"
+				? read.backfill
+				: planBackfill({
+						before: new Date(),
+						floor: await this.floorFor(row),
+					});
+
+		let left = budget;
+		let written = 0;
+
+		while (left > 0 && isBackfillRunning(plan)) {
+			const page = plan.position
+				? await this.graph.nextPage(accessToken, plan.position)
+				: await this.graph.listMessages(accessToken, {
+						after: backfillFloor(plan) ?? new Date(0),
+						before: backfillBefore(plan),
+						top: MAILBOX.sync.pageSize,
+						order: "desc",
+						folder: plan.phase === "sent" ? SENT_FOLDER : undefined,
+					});
+
+			if (page.outcome === "cursor-invalid") {
+				plan = restartBackfill(plan);
+				break;
+			}
+
+			if (page.outcome !== "ok") {
+				if (
+					page.outcome === "failed" &&
+					!page.retryable &&
+					plan.position !== null
+				) {
+					plan = restartBackfill(plan);
+					break;
+				}
+
+				return { written, backfill: serialiseBackfill(plan), failure: page };
+			}
+
+			const all = page.data.value ?? [];
+			if (all.length === 0) {
+				plan = advancePhase(plan);
+				continue;
+			}
+
+			const messages = all.slice(0, left);
+			const run = await this.file(row, mailbox, messages, excluded);
+			if (run.oldest) plan = reachedBack(plan, run.oldest);
+
+			written += run.written;
+			left -= Math.max(messages.length, 1);
+
+			if (messages.length < all.length) break;
+
+			const next = page.data["@odata.nextLink"] ?? null;
+			plan = next ? { ...plan, position: next } : advancePhase(plan);
+		}
+
+		return { written, backfill: serialiseBackfill(plan) };
+	}
+
+	private async file(
+		row: MailboxSync,
+		mailbox: string,
+		messages: readonly GraphMessage[],
+		excluded: Set<string>,
+	): Promise<{ written: number; oldest: Date | null; newest: Date | null }> {
+		let context: MatchContext | null = null;
+		let written = 0;
+		let oldest: Date | null = null;
+		let newest: Date | null = null;
+
+		for (const message of messages) {
+			const receivedAt = message.receivedDateTime
+				? new Date(message.receivedDateTime)
+				: null;
+
+			if (receivedAt && !Number.isNaN(receivedAt.getTime())) {
+				if (!oldest || receivedAt < oldest) oldest = receivedAt;
+				if (!newest || receivedAt > newest) newest = receivedAt;
+			}
+
+			if (message.parentFolderId && excluded.has(message.parentFolderId)) {
+				continue;
+			}
+
+			const parsed = this.parse(message);
+			if (!parsed) continue;
+
+			context ??= await this.threads.context();
+
+			const stored = await this.threads.store(
+				row,
+				{ mailbox, origin: "outlook" },
+				parsed,
+				context,
+			);
+			if (stored) written += 1;
+		}
+
+		return { written, oldest, newest };
+	}
+
+	private async floorFor(row: MailboxSync): Promise<Date | null> {
+		return clampImportSince(
+			row.importSince,
+			limitsOf(await readPlan(this.db)),
+			new Date(),
+		);
 	}
 
 	private async excludedFolderIds(

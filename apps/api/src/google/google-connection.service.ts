@@ -14,6 +14,7 @@ import {
 import { normalizeDomain } from "../companies/domain";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
+import { backfillProgress } from "../mailbox/backfill-cursor";
 import { MailboxMatchService } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
@@ -69,6 +70,8 @@ export class GoogleConnectionService {
 				lastSyncedAt: row?.lastSyncedAt?.toISOString() ?? null,
 				lastError: row?.lastError ?? null,
 				autoCreate: row?.autoCreate ?? false,
+				importSince: row?.importSince?.toISOString() ?? null,
+				backfill: source === "gmail" ? backfillProgress(row?.backfill) : null,
 			};
 		});
 
@@ -157,6 +160,7 @@ export class GoogleConnectionService {
 			{ timeout: PURGE_TIMEOUT_MS },
 		);
 
+		await this.state.stopBackfill(userId, "gmail");
 		await this.stamp.recomputeAll();
 
 		this.logger.log({ message: "Google data purged", userId, purged });
@@ -173,6 +177,16 @@ export class GoogleConnectionService {
 		}
 
 		return { revoked };
+	}
+
+	async setImportSince(
+		userId: string,
+		importSince: Date | null,
+	): Promise<void> {
+		const row = await this.state.get(userId, "gmail");
+		if (!row) await this.state.ensure(userId, "gmail", { autoCreate: false });
+
+		await this.state.setImportSince(userId, "gmail", importSince);
 	}
 
 	async setAutoCreate(

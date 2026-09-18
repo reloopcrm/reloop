@@ -272,8 +272,10 @@ the largest attachment upload the conversation contracts accept.
   one-second overlap; `rfcMessageId` is unique, so the overlap costs a duplicate
   fetch and never a duplicate row.
 - **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
-  `mailbox/backfill-cursor.ts`: the opaque page token or `@odata.nextLink`, the
-  `before` anchor, the `floor` date, and how far back it has read. A null column
+  `mailbox/backfill-cursor.ts`: the phase, the opaque page token or
+  `@odata.nextLink`, the `before` anchor, the `floor` date, and how far back it
+  has read. **Sent mail is phase one**, because `ThreadWriterService.store` drops
+  an inbound reply whose thread has no outbound message yet. A null column
   means no backfill is planned yet, so an existing row starts one on its next
   tick. `MailboxSync.importSince` is what the person asked for; the plan clamps it
   through `clampImportSince`. Both directions share one budget per tick

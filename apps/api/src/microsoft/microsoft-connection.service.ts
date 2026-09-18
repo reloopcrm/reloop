@@ -3,6 +3,7 @@ import type { Db, Prisma } from "@crm/db";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
+import { backfillProgress } from "../mailbox/backfill-cursor";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { rebuildThreads } from "../mailbox/thread-rebuild";
@@ -55,6 +56,8 @@ export class MicrosoftConnectionService {
 					lastSyncedAt: row?.lastSyncedAt?.toISOString() ?? null,
 					lastError: row?.lastError ?? null,
 					autoCreate: row?.autoCreate ?? false,
+					importSince: row?.importSince?.toISOString() ?? null,
+					backfill: backfillProgress(row?.backfill),
 				};
 			},
 		);
@@ -143,6 +146,7 @@ export class MicrosoftConnectionService {
 			{ timeout: PURGE_TIMEOUT_MS },
 		);
 
+		await this.state.stopBackfill(userId, "outlook");
 		await this.stamp.recomputeAll();
 
 		this.logger.log({ message: "Outlook data purged", userId, purged });
@@ -159,6 +163,16 @@ export class MicrosoftConnectionService {
 		}
 
 		return { revoked };
+	}
+
+	async setImportSince(
+		userId: string,
+		importSince: Date | null,
+	): Promise<void> {
+		const row = await this.state.get(userId, "outlook");
+		if (!row) await this.state.ensure(userId, "outlook", { autoCreate: false });
+
+		await this.state.setImportSince(userId, "outlook", importSince);
 	}
 
 	async setAutoCreate(

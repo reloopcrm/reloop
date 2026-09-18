@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { MailboxSyncModel as MailboxSync } from "@crm/db";
+import type { Db, MailboxSyncModel as MailboxSync } from "@crm/db";
+import { readBackfill } from "../src/mailbox/backfill-cursor";
 import type { SyncSource } from "../src/mailbox/mailbox.constants";
 import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import type { SyncStateService } from "../src/mailbox/sync-state.service";
@@ -37,7 +38,9 @@ const row = {
 type Harness = {
 	service: OutlookSyncService;
 	stored: IncomingMessage[];
-	settled: { cursor?: string | null }[];
+	listed: { order?: string; folder?: string }[];
+	backfillLinks: (string | null)[];
+	settled: { cursor?: string | null; backfill?: string | null }[];
 	rateLimited: number[];
 	reconnected: string[];
 	failed: string[];
@@ -47,21 +50,32 @@ type Harness = {
 function harness(options: {
 	folder?: (name: string) => Ok<{ id?: string }> | NotOk;
 	pages?: GraphMessage[][];
+	backfillPages?: GraphMessage[][];
+	sentPages?: GraphMessage[][];
+	backfillPage?: (link: string | null) => Ok<GraphPage> | NotOk;
+	plan?: string | null;
 	meDelayMs?: number;
 }): Harness {
 	const stored: IncomingMessage[] = [];
-	const settled: { cursor?: string | null }[] = [];
+	const settled: { cursor?: string | null; backfill?: string | null }[] = [];
 	const rateLimited: number[] = [];
 	const reconnected: string[] = [];
 	const failed: string[] = [];
 	const meResolvedAt = { value: 0 };
 
 	const pages = options.pages ?? [[]];
-	let index = 0;
+	const backfillPages = options.backfillPages ?? [[]];
+	const sentPages = options.sentPages ?? [[]];
+	const listed: { order?: string; folder?: string }[] = [];
+	const backfillLinks: (string | null)[] = [];
 
-	const page = (at: number): GraphPage => {
-		const body: GraphPage = { value: pages[at] ?? [] };
-		if (at + 1 < pages.length) body["@odata.nextLink"] = `next-${at + 1}`;
+	const pageOf = (
+		all: GraphMessage[][],
+		at: number,
+		prefix: string,
+	): GraphPage => {
+		const body: GraphPage = { value: all[at] ?? [] };
+		if (at + 1 < all.length) body["@odata.nextLink"] = `${prefix}-${at + 1}`;
 
 		return body;
 	};
@@ -79,15 +93,41 @@ function harness(options: {
 				? options.folder(name)
 				: ok({ id: `folder-${name}` });
 		},
-		async listMessages() {
-			index = 0;
-			return ok(page(0));
+		async listMessages(
+			_token: string,
+			request: { order?: string; folder?: string },
+		) {
+			listed.push(request);
+			if (request.order !== "desc") return ok(pageOf(pages, 0, "next"));
+
+			backfillLinks.push(null);
+			if (options.backfillPage) return options.backfillPage(null);
+
+			return request.folder
+				? ok(pageOf(sentPages, 0, "sent"))
+				: ok(pageOf(backfillPages, 0, "back"));
 		},
-		async nextPage() {
-			index += 1;
-			return ok(page(index));
+		async nextPage(_token: string, link: string) {
+			if (link.startsWith("next-")) {
+				return ok(pageOf(pages, Number(link.slice("next-".length)), "next"));
+			}
+
+			backfillLinks.push(link);
+			if (options.backfillPage) return options.backfillPage(link);
+
+			return link.startsWith("sent-")
+				? ok(pageOf(sentPages, Number(link.slice("sent-".length)), "sent"))
+				: ok(pageOf(backfillPages, Number(link.slice("back-".length)), "back"));
 		},
 	} as unknown as GraphClient;
+
+	const db = {
+		appSetting: {
+			async findUnique() {
+				return { plan: options.plan ?? null };
+			},
+		},
+	} as unknown as Db;
 
 	const tokens = {
 		async accessTokenFor() {
@@ -97,7 +137,10 @@ function harness(options: {
 
 	const state = {
 		async markRunning() {},
-		async settle(_id: string, update: { cursor?: string | null }) {
+		async settle(
+			_id: string,
+			update: { cursor?: string | null; backfill?: string | null },
+		) {
 			settled.push(update);
 		},
 		async clearCursor() {},
@@ -127,7 +170,9 @@ function harness(options: {
 	} as unknown as ThreadWriterService;
 
 	return {
-		service: new OutlookSyncService(graph, tokens, state, threads),
+		service: new OutlookSyncService(db, graph, tokens, state, threads),
+		listed,
+		backfillLinks,
 		stored,
 		settled,
 		rateLimited,
@@ -355,5 +400,122 @@ describe("OutlookSyncService first run", () => {
 		expect(new Date(String(cursor)).getTime()).toBeLessThan(
 			kit.meResolvedAt.value - 20,
 		);
+	});
+});
+
+describe("OutlookSyncService backfill", () => {
+	const older = (count: number, offset: number): GraphMessage[] =>
+		Array.from({ length: count }, (_, at) => {
+			const n = offset + at;
+			const when = new Date(
+				Date.UTC(2024, 0, 1, 9, 0, 0) - n * 60_000,
+			).toISOString();
+
+			return message({
+				id: `old-${n}`,
+				internetMessageId: `<old-${n}@acme.com>`,
+				conversationId: `old-conv-${n}`,
+				receivedDateTime: when,
+				sentDateTime: when,
+			});
+		});
+
+	const planOf = (raw: string | null | undefined) => {
+		const read = readBackfill(raw);
+		if (read.outcome !== "ok") throw new Error(`no backfill: ${read.outcome}`);
+
+		return read.backfill;
+	};
+
+	it("reads mail older than the cursor and files it", async () => {
+		const kit = harness({ backfillPages: [older(2, 0)] });
+
+		await kit.service.sync(row);
+
+		expect(kit.stored.map((parsed) => parsed.rfcMessageId)).toEqual([
+			"old-0@acme.com",
+			"old-1@acme.com",
+		]);
+		expect(kit.listed.at(-1)?.order).toBe("desc");
+		expect(planOf(kit.settled.at(-1)?.backfill).state).toBe("done");
+	});
+
+	it("reads the sent folder before the rest of the mailbox", async () => {
+		const kit = harness({
+			sentPages: [older(2, 500)],
+			backfillPages: [older(1, 0)],
+		});
+
+		await kit.service.sync(row);
+
+		expect(kit.stored.map((parsed) => parsed.rfcMessageId)).toEqual([
+			"old-500@acme.com",
+			"old-501@acme.com",
+			"old-0@acme.com",
+		]);
+		expect(kit.listed.at(1)?.folder).toBe("sentitems");
+		expect(kit.listed.at(-1)?.folder).toBeUndefined();
+	});
+
+	it("stops on the tick budget and keeps the page it stopped on", async () => {
+		const kit = harness({
+			backfillPages: [older(100, 0), older(100, 100), older(100, 200)],
+		});
+
+		await kit.service.sync(row);
+
+		expect(kit.stored).toHaveLength(250);
+
+		const plan = planOf(kit.settled.at(-1)?.backfill);
+		expect(plan.state).toBe("running");
+		expect(plan.position).toBe("back-2");
+	});
+
+	it("resumes from the stored page on the next tick", async () => {
+		const first = harness({
+			backfillPages: [older(100, 0), older(100, 100), older(100, 200)],
+		});
+		await first.service.sync(row);
+		const carried = first.settled.at(-1)?.backfill ?? null;
+
+		const second = harness({
+			backfillPages: [older(100, 0), older(100, 100), older(100, 200)],
+		});
+		await second.service.sync({ ...row, backfill: carried } as MailboxSync);
+
+		expect(second.backfillLinks).toEqual(["back-2"]);
+		expect(second.stored.at(0)?.rfcMessageId).toBe("old-200@acme.com");
+		expect(planOf(second.settled.at(-1)?.backfill).state).toBe("done");
+	});
+
+	it("never starts again once the backfill is done", async () => {
+		const kit = harness({ backfillPages: [older(1, 0)] });
+		await kit.service.sync(row);
+		const done = kit.settled.at(-1)?.backfill ?? null;
+
+		const again = harness({ backfillPages: [older(1, 0)] });
+		await again.service.sync({ ...row, backfill: done } as MailboxSync);
+
+		expect(again.backfillLinks).toHaveLength(0);
+		expect(again.stored).toHaveLength(0);
+	});
+
+	it("pauses the backfill on a quota error and keeps the position", async () => {
+		const kit = harness({
+			backfillPage: (link) =>
+				link === null
+					? {
+							outcome: "rate-limited",
+							reason: "Too many requests",
+							retryAfterMs: 30_000,
+						}
+					: { outcome: "failed", reason: "unreachable", retryable: true },
+		});
+
+		const outcome = await kit.service.sync(row);
+
+		expect(outcome.status).toBe("rate-limited");
+		expect(kit.rateLimited).toEqual([30_000]);
+		expect(planOf(kit.settled.at(-1)?.backfill).state).toBe("running");
 	});
 });

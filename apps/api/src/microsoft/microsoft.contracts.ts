@@ -7,13 +7,25 @@ export const setOutlookAutoCreateInput = z.object({
 	enabled: z.boolean(),
 });
 
+export const setOutlookImportSinceInput = z.object({
+	importSince: z.iso.datetime().nullable(),
+});
+
 export type SetOutlookAutoCreateInput = z.infer<
 	typeof setOutlookAutoCreateInput
+>;
+export type SetOutlookImportSinceInput = z.infer<
+	typeof setOutlookImportSinceInput
 >;
 
 const microsoftSyncStatusOutput = z.enum(
 	Object.values(GoogleSyncStatus) as [GoogleSyncStatus, ...GoogleSyncStatus[]],
 );
+
+export const backfillProgressOutput = z.object({
+	reached: z.string().nullable(),
+	floor: z.string().nullable(),
+});
 
 export const microsoftSourceStatusOutput = z.object({
 	source: z.enum(MICROSOFT_SYNC_SOURCES),
@@ -22,6 +34,8 @@ export const microsoftSourceStatusOutput = z.object({
 	lastSyncedAt: z.string().nullable(),
 	lastError: z.string().nullable(),
 	autoCreate: z.boolean(),
+	importSince: z.string().nullable(),
+	backfill: backfillProgressOutput.nullable(),
 });
 
 export const microsoftConnectionStatusOutput = z.object({

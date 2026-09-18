@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.10.0](https://github.com/reloopcrm/reloop/compare/v0.9.0...v0.10.0) (2026-09-18)
+
+
+### Features
+
+* **agent:** take the Context integration out ([37d87dc](https://github.com/reloopcrm/reloop/commit/37d87dc12b09d36a6e7e1b977248ac245c7ca98a))
+* **api:** make the REST API reachable and documented ([7dcb41e](https://github.com/reloopcrm/reloop/commit/7dcb41e706291ac656d6a4ba6ffcb6175ece07d1))
+* **app:** send the first run to a mailbox ([0130a9e](https://github.com/reloopcrm/reloop/commit/0130a9e97b52a0b46db7f4ae60524d9133f305f9))
+* **app:** tell the owner that an update is out ([f411dd7](https://github.com/reloopcrm/reloop/commit/f411dd7f5f6eff2599a98b5db14655c480174f5e))
+* **mailbox:** read the Gmail and Outlook history backwards ([d448089](https://github.com/reloopcrm/reloop/commit/d4480894cf76d69971638b6b1675c230f563068f))
+* **records:** export a list as CSV ([3829f79](https://github.com/reloopcrm/reloop/commit/3829f79b68563712e1599964468062cfcd1119fc))
+* **settings:** add a colleague without a shell ([3889eaf](https://github.com/reloopcrm/reloop/commit/3889eaf048f6584fd796eddc8d934dab41201726))
+
+
+### Fixes
+
+* **records:** write the CSV in the reader's language ([a81ae5f](https://github.com/reloopcrm/reloop/commit/a81ae5fbff42077fedae4dc851afc11dca746b69))
+* **records:** write the stored values in the reader's language ([5101d0d](https://github.com/reloopcrm/reloop/commit/5101d0dac04ef78c8de3ef008abd751575d94333))
+
+
+### Documentation
+
+* say that a stored enum value is translated ([b1ea313](https://github.com/reloopcrm/reloop/commit/b1ea313592e8e8980419dfe96392bdc004e269c1))
+
 ## [0.9.0](https://github.com/reloopcrm/reloop/compare/v0.8.0...v0.9.0) (2026-09-17)
 
 

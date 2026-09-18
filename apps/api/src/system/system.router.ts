@@ -2,6 +2,7 @@ import { Inject } from "@nestjs/common";
 import { Ctx, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
+import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middleware";
 import { restMeta } from "../trpc/openapi";
 import { updateOutput, versionOutput } from "./system.contracts";
 import { SystemService } from "./system.service";
@@ -31,6 +32,7 @@ export class SystemRouter {
 		output: updateOutput,
 		meta: restMeta("POST", "/system/update", ["System"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async update(@Ctx() ctx: AuthedTrpcContext) {
 		return this.system.update(ctx.user.id);
 	}

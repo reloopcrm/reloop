@@ -14,8 +14,10 @@ export type EventVoice =
 	| "inbound"
 	| "outbound"
 	| "note"
+	| "call"
 	| "meeting"
 	| "task"
+	| "task-overdue"
 	| "task-done"
 	| "system";
 
@@ -41,6 +43,12 @@ const VOICE_TONE: Record<
 		subject: "font-medium text-body-foreground",
 		preview: "text-body-foreground",
 	},
+	call: {
+		time: "",
+		who: "text-muted-foreground",
+		subject: "font-medium text-body-foreground",
+		preview: "text-body-foreground",
+	},
 	meeting: {
 		time: "",
 		who: "text-muted-foreground",
@@ -52,6 +60,12 @@ const VOICE_TONE: Record<
 		who: "text-muted-foreground",
 		subject: "font-medium text-body-foreground",
 		preview: "",
+	},
+	"task-overdue": {
+		time: "text-destructive",
+		who: "text-muted-foreground",
+		subject: "font-medium text-body-foreground",
+		preview: "font-medium text-destructive",
 	},
 	"task-done": {
 		time: "",
@@ -73,8 +87,10 @@ const markVariants = cva("block shrink-0 justify-self-center rounded-xs", {
 			inbound: "size-2 bg-body-foreground",
 			outbound: "size-2 border border-muted-foreground",
 			note: "h-1 w-2.5 bg-muted-foreground",
+			call: "size-2.5 rounded-full border border-muted-foreground",
 			meeting: "size-2.5 border border-muted-foreground border-t-2",
 			task: "size-2.5 border border-border-strong",
+			"task-overdue": "size-2.5 border border-destructive",
 			system: "size-1 bg-faint-foreground",
 		},
 	},
@@ -209,7 +225,7 @@ function EventRow({
 					<Icon
 						icon={ChevronDown}
 						motion="none"
-						className="size-3 text-faint-foreground opacity-40 transition-transform group-hover/event:opacity-100 group-open/event:rotate-180 group-open/event:opacity-100"
+						className="size-3 text-faint-foreground opacity-40 transition-transform group-hover/event:opacity-100 group-open/event:rotate-180 group-open/event:opacity-100 pointer-coarse:opacity-100"
 					/>
 				) : null}
 			</span>
@@ -223,7 +239,7 @@ function EventRow({
 				data-voice={voice}
 				className={cn(
 					COLUMNS,
-					"h-7 rounded-md text-sm hover:bg-muted",
+					"h-7 rounded-md text-sm hover:bg-muted max-md:h-11",
 					className,
 				)}
 				{...props}
@@ -248,7 +264,7 @@ function EventRow({
 			<summary
 				className={cn(
 					COLUMNS,
-					"h-7 cursor-pointer list-none rounded-md hover:bg-muted group-open/event:hover:bg-transparent [&::-webkit-details-marker]:hidden",
+					"h-7 cursor-pointer list-none rounded-md outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 group-open/event:hover:bg-transparent max-md:h-11 [&::-webkit-details-marker]:hidden",
 				)}
 				{...props}
 			>

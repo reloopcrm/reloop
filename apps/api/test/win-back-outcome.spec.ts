@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { DealStage, db, EmailDirection } from "@crm/db";
-import { readWinBackOutcome, startOfUtcDay } from "@crm/db/win-back-outcome";
+import { readWinBackOutcome } from "@crm/db/win-back-outcome";
+import { dueOnDayOf } from "../src/activities/due-date";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { WIN_BACK } from "../src/reactivation/reactivation.config";
 import {
@@ -265,9 +266,21 @@ describe("the follow-up task", () => {
 		});
 
 		expect(task?.dueAt?.toISOString()).toBe(
-			startOfUtcDay(
+			dueOnDayOf(
 				new Date(contactedAt.getTime() + WIN_BACK.followUp.afterDays * DAY_MS),
 			).toISOString(),
+		);
+		expect(
+			new Intl.DateTimeFormat("sv-SE", {
+				timeZone: "America/Los_Angeles",
+				year: "numeric",
+				month: "2-digit",
+				day: "2-digit",
+			}).format(task?.dueAt ?? new Date(0)),
+		).toBe(
+			new Date(contactedAt.getTime() + WIN_BACK.followUp.afterDays * DAY_MS)
+				.toISOString()
+				.slice(0, 10),
 		);
 		expect(task?.createdById).toBe(userId);
 		expect(task?.companyId).toBe(companyId);

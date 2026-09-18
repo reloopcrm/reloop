@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { ChatgptDeviceLogin } from "@/app/(app)/[slug]/settings/chatgpt-device-login";
-import { useErrorMessage } from "@/lib/i18n/client";
+import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -29,6 +29,7 @@ const CHOICES: { id: Choice; label: string }[] = [
 ];
 
 export function AiForm() {
+	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const router = useRouter();
@@ -60,7 +61,7 @@ export function AiForm() {
 			>
 				{CHOICES.map((entry) => (
 					<ToggleGroupItem key={entry.id} value={entry.id}>
-						{entry.label}
+						{t(entry.label)}
 					</ToggleGroupItem>
 				))}
 			</ToggleGroup>
@@ -68,11 +69,12 @@ export function AiForm() {
 			{choice === "chatgpt" ? (
 				<div className="flex flex-col gap-3">
 					<div>
-						<Badge variant="outline">Experimental</Badge>
+						<Badge variant="outline">{t("Experimental")}</Badge>
 					</div>
 					<p className="text-muted-foreground text-xs">
-						Uses the ChatGPT plan you already pay for. OpenAI can change or
-						withdraw this at any time.
+						{t(
+							"Uses the ChatGPT plan you already pay for. OpenAI can change or withdraw this at any time.",
+						)}
 					</p>
 					<ChatgptDeviceLogin onConnected={next} />
 				</div>
@@ -95,7 +97,9 @@ export function AiForm() {
 					<FieldGroup>
 						<Field>
 							<FieldLabel htmlFor={keyId}>
-								{choice === "openai" ? "OpenAI API key" : "Anthropic API key"}
+								{choice === "openai"
+									? t("OpenAI API key")
+									: t("Anthropic API key")}
 							</FieldLabel>
 							<Input
 								id={keyId}
@@ -103,8 +107,8 @@ export function AiForm() {
 								type="password"
 								placeholder={
 									choice === "openai"
-										? "sk-… from platform.openai.com"
-										: "sk-ant-… from console.anthropic.com"
+										? t("sk-… from platform.openai.com")
+										: t("sk-ant-… from console.anthropic.com")
 								}
 								autoComplete="off"
 								autoCapitalize="off"
@@ -114,14 +118,15 @@ export function AiForm() {
 								autoFocus
 							/>
 							<FieldDescription>
-								The agent checks the key before it is saved. It is stored
-								encrypted and never shown again.
+								{t(
+									"The agent checks the key before it is saved. It is stored encrypted and never shown again.",
+								)}
 							</FieldDescription>
 						</Field>
 					</FieldGroup>
 					<Button type="submit" disabled={save.isPending}>
 						{save.isPending ? <Spinner data-icon="inline-start" /> : null}
-						Continue
+						{t("Continue")}
 					</Button>
 				</form>
 			)}
@@ -132,7 +137,7 @@ export function AiForm() {
 				disabled={save.isPending}
 				onClick={next}
 			>
-				Continue without AI
+				{t("Continue without AI")}
 			</Button>
 		</div>
 	);

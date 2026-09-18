@@ -64,6 +64,7 @@ export function ArchiveRetention() {
 				<CardAction>
 					<Button
 						type="submit"
+						variant="outline"
 						form="archive-retention"
 						disabled={
 							save.isPending ||

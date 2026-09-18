@@ -25,11 +25,34 @@ organizations. If you need someone to see only part of the pipeline, this is the
 An unset `ALLOWED_SIGN_IN` fails closed: nobody can sign in. A list that names a consumer domain
 (`gmail.com`) is an open door, which is why single addresses are supported.
 
+**The owner can widen the allow-list from the app, by one address at a time.** Settings → Members →
+Add person writes that address to `AppSetting.signInAddresses`, and every sign-in check reads
+`isSignInAllowed` (`packages/auth/src/sign-in-grants.ts`), which is `ALLOWED_SIGN_IN` **or** that
+list. The environment variable is the floor and the app never writes it, so no request can remove
+the operator's own rule or lock the operator out. Four things bound the database list. Only an
+owner writes it (`canGrantSignIn`), so a member and an admin both get the old refusal naming the
+value to put in `deploy/.env`. Only a single address is stored: `normalizeSignInAddress` refuses a
+bare domain, a wildcard, a list and anything without exactly one `@`, so nobody can open a whole
+domain. The comparison is exact equality against a lower-cased address, so a row written straight
+into the database as `acme.com` still matches nobody. The list is capped at 200 entries. And
+`SessionOnlyMiddleware` refuses an `x-api-key` header on `workspace.addPerson`, so a leaked key
+cannot grant an address at all.
+
+An attacker holding a **member** session can therefore add no account and grant no address; they
+already read and write every record, which is the limit named above. An attacker holding an
+**owner** session owns the deployment for every other purpose too. Revoking a granted address needs
+the shell: `bun apps/api/scripts/sign-in-grants.ts revoke <address>`. Taking the address off
+`ALLOWED_SIGN_IN` does not reach the database list.
+
 An API key from **Settings → API Keys** is a session in a header, so a leaked key reads and writes
-every record its owner can, and an expiry is optional. It cannot mint another key or change a
-password: `SessionOnlyMiddleware` refuses an `x-api-key` header on `apiKeys.*` and
-`settings.setPassword`, and `accessGuard` refuses it on `/api/auth/api-key/*`, `/change-password`
-and `/set-password`. Revoke a key on the same page.
+every record its owner can, and an expiry is optional. What it cannot do is build access that outlives
+its own revocation. `SessionOnlyMiddleware` refuses an `x-api-key` header on `apiKeys.*`,
+`settings.setPassword`, `settings.setAgentProvider`, `settings.chatgptLoginAction`,
+`workspace.addPerson`, `workspace.setMemberRole`, `sso.register`, `sso.remove`, `imap.add`,
+`webhooks.create`, `webhooks.update` and `system.update`, and `accessGuard` refuses it on
+`/api/auth/api-key/*`, `/api/auth/sso/register`, `/change-password` and `/set-password`. Those are the calls that mint a
+credential, grant a role, register a sign-in provider, point CRM events at an address, or deploy
+new code. Revoke a key on the same page.
 
 **Operators can read everything.** Whoever runs the deployment has the database, the environment
 and the logs. Nothing here protects data from the person hosting it.
@@ -52,8 +75,10 @@ that changed, to an address an owner or an admin entered. Nothing sends until
 somebody adds one. The body carries an HMAC-SHA256 signature over the timestamp
 and the body, keyed on a secret only that webhook holds, so the receiver can tell
 a real delivery from a forged one. The secret is sealed with
-`BETTER_AUTH_SECRET` and is never read back to the browser. **Plain `http` sends
-the payload unencrypted**, so use `https` for anything that leaves the machine.
+`BETTER_AUTH_SECRET` and is never read back to the browser. The address itself is
+read back only to an owner or an admin, because whoever holds it can post forged
+events at that receiver. **Plain `http` sends the payload unencrypted**, so use
+`https` for anything that leaves the machine.
 
 A webhook may also be allowed to reach a private address, which is off by
 default and switched on per webhook. Turned on, an owner or an admin can make the
@@ -64,9 +89,12 @@ member cannot turn it on. Link-local, unspecified and multicast addresses stay
 refused whatever the switch says, so the cloud metadata service (169.254.169.254)
 is never reachable. The address is resolved once and pinned at the socket, so a
 name that answers public and then private cannot rebind between the check and the
-call. And the request is a POST the CRM composed: the response is cancelled, never
-read, never stored and never shown, so an allowed private host is a write
-primitive and not a way to read the network back out.
+call. And the request is a POST the CRM composed: the response body is cancelled
+unread, so no content from the private host reaches the CRM. What the CRM does
+keep is the delivery time, the HTTP status code and one fixed sentence about it,
+and the connection page shows all three. An owner or an admin therefore learns
+whether an address they already chose answered, and with which status. That is a
+liveness probe on the local network, not a way to read its content back out.
 
 **The sync route is guarded by a shared secret.** `POST /internal/sync/google` is called by a cron,
 so it has no session to check; `CRON_SECRET` is the whole guard and the route refuses to run
@@ -108,6 +136,8 @@ unreadable, so a rotation means every connection is reconnected by hand.
 ## Deploying it safely
 
 - Set `ALLOWED_SIGN_IN` to a domain you control. Never a public mail provider.
+- Read `AppSetting.signInAddresses` when you audit who may sign in. `ALLOWED_SIGN_IN` is no longer
+  the whole answer.
 - Generate `BETTER_AUTH_SECRET` yourself (`openssl rand -base64 32`). The value in any example file
   is not a secret.
 - Serve both processes over HTTPS. Secure cookies switch on with `NODE_ENV=production`.

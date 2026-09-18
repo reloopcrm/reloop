@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { API_KEY_PREFIX } from "@crm/auth";
 import type { Db } from "@crm/db";
 import { SettingsService } from "../src/settings/settings.service";
 
@@ -39,11 +40,22 @@ describe("workspace settings authorization", () => {
 			settings("owner").setPassword(
 				"owner",
 				"long-test-password",
-				new Date(0),
+				{ createdAt: new Date(0), token: "browser-session" },
 				"session",
 			),
 		).rejects.toThrow("Sign out and sign in again");
 	});
+});
+
+it("refuses a password change on a session minted from an API key", async () => {
+	await expect(
+		settings("owner").setPassword(
+			"owner",
+			"long-test-password",
+			{ createdAt: new Date(), token: `${API_KEY_PREFIX}live-key` },
+			"session",
+		),
+	).rejects.toThrow("Sign out and sign in again");
 });
 
 for (const createdAt of [new Date(Number.NaN), new Date(Date.now() + 60_000)]) {
@@ -52,7 +64,7 @@ for (const createdAt of [new Date(Number.NaN), new Date(Date.now() + 60_000)]) {
 			settings("owner").setPassword(
 				"owner",
 				"long-test-password",
-				createdAt,
+				{ createdAt, token: "browser-session" },
 				"session",
 			),
 		).rejects.toThrow("Sign out and sign in again");

@@ -1,5 +1,6 @@
 import { db } from "@crm/db";
 import { MEMORY } from "@crm/db/insights";
+import { QUOTE_MARKERS } from "@crm/db/message-text";
 import {
 	DRAFT_STYLE,
 	draftRole,
@@ -42,15 +43,7 @@ const revisedSchema = draftSchema.extend({
 	styleRule: z.string().trim().nullable().catch(null),
 });
 
-const QUOTE_START = [
-	/^\s*>/,
-	/^\s*am .{4,80}\s(schrieb|geschrieben)\b/i,
-	/^\s*on .{4,80}\swrote:/i,
-	/^\s*-{2,}\s*(urspr|original|forwarded|weitergeleitete)/i,
-	/^\s*von:\s/i,
-	/^\s*from:\s/i,
-	/^\s*gesendet:\s/i,
-];
+const QUOTE_START = [/^\s*>/, ...QUOTE_MARKERS];
 
 const SIGNATURE_START = [
 	/^\s*-{2,}\s*$/,

@@ -1487,6 +1487,8 @@ model AppSetting {
 
   ratesRefreshedAt DateTime?
 
+  signInAddresses String[] @default([])
+
   archiveRetentionDays  Int       @default(180)
   winBackRules          Json?
   winBackRulesMode      String?

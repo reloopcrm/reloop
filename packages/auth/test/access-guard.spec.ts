@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from "bun:test";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import { accessGuard } from "../src/access-guard";
-import { API_KEY_HEADER } from "../src/api-keys";
+import { API_KEY_HEADER, API_KEY_PREFIX } from "../src/api-keys";
 import { isFreshPasswordSession, PASSWORD_RULES } from "../src/password-rules";
 
 const original = process.env.ALLOWED_SIGN_IN;
@@ -21,25 +21,51 @@ function context(
 		headers,
 		body,
 		context: {
-			session: { user: { email: "rep@example.com" }, session: { createdAt } },
+			session: {
+				user: { email: "rep@example.com" },
+				session: { createdAt, token: "browser-session-token" },
+			},
 		},
 	} as Parameters<typeof accessGuard>[0];
 }
 
+const cookieSession = (createdAt: Date) => ({
+	createdAt,
+	token: "browser-session-token",
+});
+
 it("checks password freshness at both time boundaries", () => {
 	const now = Date.now();
-	expect(isFreshPasswordSession(new Date(now), now)).toBe(true);
+	expect(isFreshPasswordSession(cookieSession(new Date(now)), now)).toBe(true);
 	expect(
-		isFreshPasswordSession(new Date(now - PASSWORD_RULES.freshSessionMs), now),
+		isFreshPasswordSession(
+			cookieSession(new Date(now - PASSWORD_RULES.freshSessionMs)),
+			now,
+		),
 	).toBe(true);
 	expect(
 		isFreshPasswordSession(
-			new Date(now - PASSWORD_RULES.freshSessionMs - 1),
+			cookieSession(new Date(now - PASSWORD_RULES.freshSessionMs - 1)),
 			now,
 		),
 	).toBe(false);
-	expect(isFreshPasswordSession(new Date(now + 1), now)).toBe(false);
-	expect(isFreshPasswordSession(new Date(Number.NaN), now)).toBe(false);
+	expect(isFreshPasswordSession(cookieSession(new Date(now + 1)), now)).toBe(
+		false,
+	);
+	expect(isFreshPasswordSession(cookieSession(new Date(Number.NaN)), now)).toBe(
+		false,
+	);
+});
+
+it("refuses a session minted from an API key, however new it is", () => {
+	const now = Date.now();
+
+	expect(
+		isFreshPasswordSession(
+			{ createdAt: new Date(now), token: `${API_KEY_PREFIX}live-key` },
+			now,
+		),
+	).toBe(false);
 });
 
 for (const path of ["/change-password", "/set-password"]) {
@@ -77,6 +103,32 @@ it("refuses an SSO provider that names no workspace", async () => {
 			accessGuard(context("/sso/register", new Date(), new Headers(), body)),
 		).rejects.toMatchObject({ status: "FORBIDDEN" });
 	}
+});
+
+it("refuses a key that chooses its own prefix", async () => {
+	process.env.ALLOWED_SIGN_IN = "example.com";
+	await expect(
+		accessGuard(
+			context("/api-key/create", new Date(), new Headers(), {
+				name: "ci",
+				prefix: "plain_",
+			}),
+		),
+	).rejects.toMatchObject({ status: "FORBIDDEN" });
+});
+
+it("refuses an API key at the raw SSO register endpoint", async () => {
+	process.env.ALLOWED_SIGN_IN = "example.com";
+	await expect(
+		accessGuard(
+			context(
+				"/sso/register",
+				new Date(),
+				new Headers({ [API_KEY_HEADER]: "test" }),
+				{ organizationId: WORKSPACE_ID, providerId: "okta" },
+			),
+		),
+	).rejects.toMatchObject({ status: "UNAUTHORIZED" });
 });
 
 it("lets the CRM register an SSO provider for this workspace", async () => {

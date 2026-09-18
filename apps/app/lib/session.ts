@@ -1,6 +1,6 @@
 import {
 	auth,
-	isWorkspaceEmail,
+	isSignInAllowed,
 	needsMailboxGrant,
 	type Session,
 } from "@crm/auth";
@@ -11,7 +11,8 @@ import { cache } from "react";
 
 export const getSession = cache(async (): Promise<Session | null> => {
 	const session = await auth.api.getSession({ headers: await headers() });
-	return session && isWorkspaceEmail(session.user.email) ? session : null;
+	if (!session) return null;
+	return (await isSignInAllowed(session.user.email)) ? session : null;
 });
 
 export async function requireSession(): Promise<Session> {

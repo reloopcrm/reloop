@@ -7,10 +7,9 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from "react";
-import { DocumentLanguage } from "@/components/document-language";
 import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/lib/i18n/client";
-import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
+import { DEFAULT_LOCALE, DOCUMENT_LANGUAGE_SCRIPT } from "@/lib/i18n/locale";
 import { getDictionary, getLocale, getT } from "@/lib/i18n/server";
 import { siteAddress } from "@/lib/site-address";
 import { TRPCReactProvider } from "@/lib/trpc/client";
@@ -78,6 +77,9 @@ export default function RootLayout({
 			suppressHydrationWarning
 			className={cn(fontSans.variable, fontMono.variable, "h-full antialiased")}
 		>
+			<head>
+				<script>{DOCUMENT_LANGUAGE_SCRIPT}</script>
+			</head>
 			<body className="flex min-h-full flex-col font-sans">
 				<Suspense fallback={null}>
 					<Localised>{children}</Localised>
@@ -92,7 +94,6 @@ async function Localised({ children }: { children: React.ReactNode }) {
 
 	return (
 		<I18nProvider locale={locale} dictionary={getDictionary(locale)}>
-			<DocumentLanguage locale={locale} />
 			<NuqsAdapter>
 				<TRPCReactProvider>
 					<ThemeProvider>

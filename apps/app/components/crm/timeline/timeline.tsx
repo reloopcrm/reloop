@@ -141,6 +141,18 @@ export function byDay<
 	return [...groups.values()];
 }
 
+export function openTaskCount(
+	entries: TimelineEntryData[],
+	upcoming: number | undefined,
+): number {
+	return (
+		upcoming ??
+		entries.filter(
+			(entry) => entry.type === "TASK" && entry.completedAt === null,
+		).length
+	);
+}
+
 function isFuture(entry: TimelineEntryData, now: number): boolean {
 	return (
 		entry.occurredAt !== null && new Date(entry.occurredAt).getTime() > now
@@ -203,7 +215,7 @@ function WaitingLine({ entry }: { entry: TimelineEntryData }) {
 				</span>
 			</p>
 			{inbound ? (
-				<Button asChild size="sm">
+				<Button asChild variant="outline" size="sm">
 					<a href={replyTo}>{t("Reply")}</a>
 				</Button>
 			) : null}
@@ -251,10 +263,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					...(tab === "all" ? (pinned.data?.entries ?? []) : []),
 					...loaded.filter((entry) => isFuture(entry, now)).reverse(),
 				];
-	const pinnedCount =
-		tab === "upcoming"
-			? (counts.data?.upcoming ?? loaded.length)
-			: pinnedEntries.length;
+	const openTasks = openTaskCount(pinnedEntries, counts.data?.upcoming);
 	const newestEmail =
 		entries.find((entry) => entry.emailThread?.lastMessage) ?? null;
 
@@ -265,6 +274,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 
 				<ToggleGroup
 					type="single"
+					wrap
 					value={tab}
 					onValueChange={(next) => {
 						if (next) void setTab(next as TimelineTab);
@@ -308,9 +318,11 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 								tone="pending"
 								label={t("Upcoming")}
 								note={
-									pinnedCount === 1
-										? t("1 open task")
-										: t("{count} open tasks", { count: pinnedCount })
+									openTasks === 0
+										? undefined
+										: openTasks === 1
+											? t("1 open task")
+											: t("{count} open tasks", { count: openTasks })
 								}
 							/>
 							<EventGroup pending>

@@ -11,6 +11,7 @@ import type { z } from "zod";
 import { imapSourceFor } from "../mailbox/mailbox.constants";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
+import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
 	addImapAccountInput,
@@ -46,6 +47,7 @@ export class ImapRouter {
 		output: imapStatusOutput,
 		meta: restMeta("POST", "/imap/accounts", ["IMAP"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async add(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof addImapAccountInput>,

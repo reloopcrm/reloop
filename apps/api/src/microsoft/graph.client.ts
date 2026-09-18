@@ -5,6 +5,15 @@ import {
 } from "../mailbox/mailbox-api.client";
 
 const BASE = "https://graph.microsoft.com/v1.0/me";
+const GRAPH_ORIGIN = new URL(BASE).origin;
+
+function isGraphLink(link: string): boolean {
+	try {
+		return new URL(link).origin === GRAPH_ORIGIN;
+	} catch {
+		return false;
+	}
+}
 
 const MESSAGE_FIELDS = [
 	"id",
@@ -113,6 +122,13 @@ export class GraphClient {
 		accessToken: string,
 		nextLink: string,
 	): Promise<MailboxResult<MessagePage>> {
+		if (!isGraphLink(nextLink)) {
+			return {
+				outcome: "cursor-invalid",
+				reason: `A page link outside ${GRAPH_ORIGIN} is refused.`,
+			};
+		}
+
 		return this.api.get<MessagePage>(nextLink, accessToken);
 	}
 }

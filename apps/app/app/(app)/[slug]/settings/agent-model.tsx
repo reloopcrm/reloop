@@ -178,7 +178,7 @@ function UsageBar({
 			<div className="h-2 w-full overflow-hidden rounded-sm bg-muted">
 				<div
 					className={
-						value >= 100 ? "h-full bg-destructive" : "h-full bg-primary"
+						value >= 100 ? "h-full bg-destructive" : "h-full bg-foreground"
 					}
 					style={{ width: `${value}%` }}
 				/>

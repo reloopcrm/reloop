@@ -26,9 +26,15 @@ import type { ExportRequest } from "./exports.contracts";
 import { EXPORTS } from "./exports-config";
 import { exportWord } from "./exports-copy";
 
+export type ExportContext = {
+	locale: Locale;
+	stageNames: DealStageNames;
+	moment: Intl.DateTimeFormat;
+};
+
 type Column<TRow> = {
 	header: string;
-	value: (row: TRow, locale: Locale, stageNames: DealStageNames) => string;
+	value: (row: TRow, context: ExportContext) => string;
 };
 
 function text(value: string | null | undefined): string {
@@ -45,8 +51,11 @@ function stored(locale: Locale, value: string | null | undefined): string {
 	return exportWord(locale, humanize(value));
 }
 
-function moment(value: Date | null | undefined): string {
-	return value ? value.toISOString().slice(0, 16).replace("T", " ") : "";
+function moment(
+	value: Date | null | undefined,
+	format: Intl.DateTimeFormat,
+): string {
+	return value ? format.format(value).replace(",", "") : "";
 }
 
 function day(value: Date | null | undefined): string {
@@ -80,15 +89,30 @@ const CONTACT_COLUMNS: Column<ContactExportRow>[] = [
 	{ header: "LinkedIn", value: (row) => text(row.linkedinUrl) },
 	{ header: "Owner", value: (row) => text(row.owner?.name) },
 	{ header: "Owner email", value: (row) => text(row.owner?.email) },
-	{ header: "Status", value: (row, locale) => stored(locale, row.standing) },
+	{
+		header: "Status",
+		value: (row, context) => stored(context.locale, row.standing),
+	},
 	{
 		header: "Potential",
-		value: (row, locale) => stored(locale, row.potentialBand),
+		value: (row, context) => stored(context.locale, row.potentialBand),
 	},
-	{ header: "Source", value: (row, locale) => stored(locale, row.source) },
-	{ header: "Created", value: (row) => moment(row.createdAt) },
-	{ header: "Last activity", value: (row) => moment(row.lastActivityAt) },
-	{ header: "Archived", value: (row) => moment(row.archivedAt) },
+	{
+		header: "Source",
+		value: (row, context) => stored(context.locale, row.source),
+	},
+	{
+		header: "Created",
+		value: (row, context) => moment(row.createdAt, context.moment),
+	},
+	{
+		header: "Last activity",
+		value: (row, context) => moment(row.lastActivityAt, context.moment),
+	},
+	{
+		header: "Archived",
+		value: (row, context) => moment(row.archivedAt, context.moment),
+	},
 ];
 
 const COMPANY_COLUMNS: Column<CompanyExportRow>[] = [
@@ -103,17 +127,32 @@ const COMPANY_COLUMNS: Column<CompanyExportRow>[] = [
 	{ header: "LinkedIn", value: (row) => text(row.linkedinUrl) },
 	{ header: "Owner", value: (row) => text(row.owner?.name) },
 	{ header: "Owner email", value: (row) => text(row.owner?.email) },
-	{ header: "Status", value: (row, locale) => stored(locale, row.standing) },
+	{
+		header: "Status",
+		value: (row, context) => stored(context.locale, row.standing),
+	},
 	{
 		header: "Potential",
-		value: (row, locale) => stored(locale, row.potentialBand),
+		value: (row, context) => stored(context.locale, row.potentialBand),
 	},
-	{ header: "Source", value: (row, locale) => stored(locale, row.source) },
+	{
+		header: "Source",
+		value: (row, context) => stored(context.locale, row.source),
+	},
 	{ header: "Contacts", value: (row) => String(row._count.contacts) },
 	{ header: "Open deals", value: (row) => String(row._count.deals) },
-	{ header: "Created", value: (row) => moment(row.createdAt) },
-	{ header: "Last activity", value: (row) => moment(row.lastActivityAt) },
-	{ header: "Archived", value: (row) => moment(row.archivedAt) },
+	{
+		header: "Created",
+		value: (row, context) => moment(row.createdAt, context.moment),
+	},
+	{
+		header: "Last activity",
+		value: (row, context) => moment(row.lastActivityAt, context.moment),
+	},
+	{
+		header: "Archived",
+		value: (row, context) => moment(row.archivedAt, context.moment),
+	},
 ];
 
 export const DEAL_COLUMNS: Column<DealExportRow>[] = [
@@ -122,9 +161,9 @@ export const DEAL_COLUMNS: Column<DealExportRow>[] = [
 	{ header: "Company domain", value: (row) => text(row.company.domain) },
 	{
 		header: "Stage",
-		value: (row, locale, stageNames) =>
-			dealStageLabelFrom(stageNames, row.stage, (english) =>
-				exportWord(locale, english),
+		value: (row, context) =>
+			dealStageLabelFrom(context.stageNames, row.stage, (english) =>
+				exportWord(context.locale, english),
 			),
 	},
 	{ header: "Amount", value: (row) => money(row.amount) },
@@ -137,11 +176,23 @@ export const DEAL_COLUMNS: Column<DealExportRow>[] = [
 	{ header: "Owner", value: (row) => text(row.owner.name) },
 	{ header: "Owner email", value: (row) => text(row.owner.email) },
 	{ header: "Expected close", value: (row) => day(row.expectedCloseDate) },
-	{ header: "Closed", value: (row) => moment(row.closedAt) },
+	{
+		header: "Closed",
+		value: (row, context) => moment(row.closedAt, context.moment),
+	},
 	{ header: "Closed reason", value: (row) => text(row.closedReason) },
-	{ header: "Created", value: (row) => moment(row.createdAt) },
-	{ header: "Last activity", value: (row) => moment(row.lastActivityAt) },
-	{ header: "Archived", value: (row) => moment(row.archivedAt) },
+	{
+		header: "Created",
+		value: (row, context) => moment(row.createdAt, context.moment),
+	},
+	{
+		header: "Last activity",
+		value: (row, context) => moment(row.lastActivityAt, context.moment),
+	},
+	{
+		header: "Archived",
+		value: (row, context) => moment(row.archivedAt, context.moment),
+	},
 ];
 
 export const EXPORT_ENUM_WORDS: string[] = [
@@ -175,9 +226,14 @@ export class ExportsService {
 	) {}
 
 	async file(request: ExportRequest): Promise<ExportFile> {
-		const { locale } = request;
+		const { locale, zone } = request;
 		const today = new Date().toISOString().slice(0, 10);
 		const name = (stem: string) => `${exportWord(locale, stem)}-${today}.csv`;
+		const context: ExportContext = {
+			locale,
+			moment: EXPORTS.time.format(zone),
+			stageNames: {},
+		};
 
 		if (request.entity === "contacts") {
 			const fields = await this.fields.definitionsFor("CONTACT");
@@ -187,7 +243,7 @@ export class ExportsService {
 					CONTACT_COLUMNS,
 					fields,
 					this.contacts.exportRows(request.filter),
-					locale,
+					context,
 				),
 			};
 		}
@@ -200,7 +256,7 @@ export class ExportsService {
 					COMPANY_COLUMNS,
 					fields,
 					this.companies.exportRows(request.filter),
-					locale,
+					context,
 				),
 			};
 		}
@@ -216,8 +272,7 @@ export class ExportsService {
 				DEAL_COLUMNS,
 				fields,
 				this.deals.exportRows(request.filter),
-				locale,
-				stageNames,
+				{ ...context, stageNames },
 			),
 		};
 	}
@@ -226,12 +281,11 @@ export class ExportsService {
 		columns: Column<TRow>[],
 		fields: { key: string; label: string }[],
 		pages: AsyncGenerator<TRow[]>,
-		locale: Locale,
-		stageNames: DealStageNames = {},
+		context: ExportContext,
 	): AsyncGenerator<string> {
 		yield EXPORTS.csv.bom +
 			csvLine([
-				...columns.map((column) => exportWord(locale, column.header)),
+				...columns.map((column) => exportWord(context.locale, column.header)),
 				...fields.map((field) => field.label),
 			]);
 
@@ -239,7 +293,7 @@ export class ExportsService {
 			let chunk = "";
 			for (const row of page) {
 				chunk += csvLine([
-					...columns.map((column) => column.value(row, locale, stageNames)),
+					...columns.map((column) => column.value(row, context)),
 					...fields.map((field) => fieldText(row.fields[field.key])),
 				]);
 			}

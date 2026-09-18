@@ -143,33 +143,15 @@ export class QuotesService {
 
 		const company = thread.company;
 
+		let deal: { id: string };
+
 		try {
-			const deal = await this.deals.create({
+			deal = await this.deals.create({
 				name: thread.subject?.trim() || company.name,
 				companyId: company.id,
 				ownerId: userId,
 				stage: QUOTE_DEAL_STAGE,
 			});
-
-			const contact = attachable(thread);
-			if (contact) {
-				await this.deals.attachContact({
-					dealId: deal.id,
-					contactId: contact.id,
-				});
-			}
-
-			this.logger.log({
-				message: "Deal created from a quote in the mail",
-				dealId: deal.id,
-				threadId,
-			});
-
-			return {
-				threadId,
-				dealId: deal.id,
-				contactId: contact?.id ?? null,
-			};
 		} catch (error) {
 			await this.db.emailThread.update({
 				where: { id: threadId },
@@ -177,6 +159,36 @@ export class QuotesService {
 			});
 			throw error;
 		}
+
+		const contact = attachable(thread);
+		let contactId: string | null = null;
+
+		if (contact) {
+			try {
+				await this.deals.attachContact({
+					dealId: deal.id,
+					contactId: contact.id,
+				});
+				contactId = contact.id;
+			} catch (error) {
+				this.logger.error(
+					{
+						message: "The quote deal was made without its contact",
+						dealId: deal.id,
+						contactId: contact.id,
+					},
+					error instanceof Error ? error.stack : undefined,
+				);
+			}
+		}
+
+		this.logger.log({
+			message: "Deal created from a quote in the mail",
+			dealId: deal.id,
+			threadId,
+		});
+
+		return { threadId, dealId: deal.id, contactId };
 	}
 
 	async dismiss(threadId: string) {

@@ -622,7 +622,7 @@ export function DataTable<TRow, TSub = unknown>({
 								<TableHead
 									key={column.id}
 									className={cn(
-										"h-11 overflow-hidden px-3 font-normal text-muted-foreground",
+										"h-11 truncate px-3 font-normal text-muted-foreground",
 										column.width,
 										ALIGN_CLASS[column.align ?? "left"],
 										column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
@@ -642,12 +642,12 @@ export function DataTable<TRow, TSub = unknown>({
 											size="xs"
 											onClick={() => query.toggleSort(column.id)}
 											className={cn(
-												"-ml-2 font-normal text-muted-foreground hover:text-foreground",
+												"-ml-2 max-w-full min-w-0 font-normal text-muted-foreground hover:text-foreground",
 												column.align === "right" && "-mr-2 ml-0 flex-row-reverse",
 												column.align === "center" && "mx-auto",
 											)}
 										>
-											{column.header}
+											<span className="truncate">{column.header}</span>
 											<SortIndicator active={isActive} dir={query.dir} />
 										</Button>
 									) : (
@@ -729,7 +729,7 @@ export function DataTable<TRow, TSub = unknown>({
 										<TableCell
 											key={column.id}
 											className={cn(
-												"overflow-hidden px-3 py-3",
+												"truncate px-3 py-3",
 												column.width,
 												ALIGN_CLASS[column.align ?? "left"],
 												column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
@@ -777,7 +777,7 @@ export function DataTable<TRow, TSub = unknown>({
 													<TableCell
 														key={column.id}
 														className={cn(
-															"overflow-hidden px-3 py-2.5 align-top",
+															"truncate px-3 py-2.5 align-top",
 															column.width,
 															ALIGN_CLASS[column.align ?? "left"],
 															column.hideBelow &&

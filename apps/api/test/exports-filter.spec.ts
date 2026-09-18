@@ -57,6 +57,7 @@ async function read(owner: string[]): Promise<string> {
 		entity: "contacts",
 		filter: contactListInput.parse({ owner }),
 		locale: "en",
+		zone: "UTC",
 	});
 
 	let text = "";

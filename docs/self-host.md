@@ -100,7 +100,7 @@ The owner and every admin add people in the app. Open **Settings, Members** and 
 
 Two rules decide whether the button works:
 
-- `ALLOWED_SIGN_IN` still decides who may sign in, and the app never writes it. An address the list refuses is refused here too, and the message names the exact value to add. Put that value in `deploy/.env`, then run `docker compose up -d` in the `deploy` folder and add the person again.
+- **The owner grants the address as part of adding the person.** A default install writes only your own address into `ALLOWED_SIGN_IN`, so a colleague would be refused. The owner adding them writes the address to a second list in the database, and sign-in then accepts both lists. `ALLOWED_SIGN_IN` stays the floor: the app only adds to the database list and never edits the environment. An admin who is not the owner still gets the old message naming the value to put in `deploy/.env`.
 - `PASSWORD_SIGN_IN="1"` must be set, because the new person signs in with a password. Without it the button stays hidden. With Google, Microsoft or an identity provider a colleague on an allowed domain signs in alone and needs no account from you.
 
 Your own session must be less than five minutes old, the same rule that guards a password change. Sign out and sign in again when the CRM asks for it.
@@ -114,6 +114,15 @@ printf '%s' 'a long password' | docker compose exec -T api bun apps/api/scripts/
 That script creates the account and sets the password. The person becomes a member on the first sign-in. Change the role in **Settings, Members**.
 
 Removing a person is not in the app. Take the address off `ALLOWED_SIGN_IN` in `deploy/.env` and run `docker compose up -d` in the `deploy` folder. The next request locks the person out. The account, the member row and every record stay. For a person on a domain you keep, set a password only you know with the script above; that also ends every session they have.
+
+An address the owner granted in the app sits in the database, not in `deploy/.env`, so the step above does not reach it. List and remove those addresses in the `deploy` folder:
+
+```sh
+docker compose exec -T api bun apps/api/scripts/sign-in-grants.ts list
+docker compose exec -T api bun apps/api/scripts/sign-in-grants.ts revoke colleague@example.com
+```
+
+The next request locks that person out.
 
 ## Connect a mailbox
 

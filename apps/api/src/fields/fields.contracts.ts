@@ -119,6 +119,7 @@ export const fieldProposalOutput = z.array(
 		typeLabel: z.string(),
 		options: z.array(z.string()),
 		reason: z.string(),
+		agentBrief: z.string(),
 	}),
 );
 

@@ -20,7 +20,7 @@ const SIZE_CLASS: Record<StatusSize, string> = {
 
 const TONE_COLOR: Record<StatusTone, string> = {
 	neutral: "var(--color-muted-foreground)",
-	primary: "var(--color-primary)",
+	primary: "var(--color-foreground)",
 	info: "var(--color-info)",
 	success: "var(--color-success)",
 	warning: "var(--color-warning)",

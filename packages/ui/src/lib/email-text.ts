@@ -1,3 +1,5 @@
+import { REPLY_PREFIX as REPLY_MARKER } from "@crm/db/message-text";
+
 const SIGNATURE_MARKERS = [
 	/^\s*--\s*$/,
 	/^\s*mit (freundlichen|besten|herzlichen) gr(ü|ue)(ß|ss)en?\b/i,
@@ -87,14 +89,17 @@ export function emailPreview(body: string, maxChars: number): string | null {
 		flat = flat.slice(opening[0].length).trim();
 	}
 
+	return flatPreview(flat, maxChars);
+}
+
+export function flatPreview(text: string, maxChars: number): string | null {
+	const flat = text.replace(/\s+/g, " ").trim();
 	if (flat.length === 0) return null;
 
 	return flat.length > maxChars
 		? `${flat.slice(0, maxChars).trimEnd()}…`
 		: flat;
 }
-
-const REPLY_MARKER = /^\s*(re|aw|antw|fwd|fw|wg|sv|vs)\s*(\[\d+\])?\s*:\s*/i;
 
 export function cleanSubject(subject: string): string {
 	let rest = subject.replace(/\s+/g, " ").trim();

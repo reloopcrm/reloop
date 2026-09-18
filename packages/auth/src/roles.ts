@@ -30,6 +30,10 @@ export function canManageConnections(role: WorkspaceRole | null): boolean {
 	return isWorkspaceAdmin(role);
 }
 
+export function canManageFields(role: WorkspaceRole | null): boolean {
+	return isWorkspaceAdmin(role);
+}
+
 export function canManageTracking(role: WorkspaceRole | null): boolean {
 	return isWorkspaceAdmin(role);
 }
@@ -46,5 +50,9 @@ export function canAssignRole(
 }
 
 export function canLoadSampleData(role: WorkspaceRole | null): boolean {
+	return role === "owner";
+}
+
+export function canGrantSignIn(role: WorkspaceRole | null): boolean {
 	return role === "owner";
 }

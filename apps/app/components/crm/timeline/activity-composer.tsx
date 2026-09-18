@@ -110,13 +110,13 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 							event.preventDefault();
 							submit();
 						}
-						if (event.key === "Escape") reset();
 					}}
 				/>
 
 				<InputGroupAddon align="block-end" className="gap-2 border-t">
 					<ToggleGroup
 						type="single"
+						wrap
 						value={type}
 						onValueChange={(next) => next && setType(next as ComposableType)}
 						size="sm"

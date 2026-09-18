@@ -11,6 +11,7 @@ import {
 import type { z } from "zod";
 import type { AuthedTrpcContext, BaseTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
+import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
 	deleteSsoProviderInput,
@@ -66,7 +67,7 @@ export class SsoRouter {
 		output: ssoProviderOutput,
 		meta: restMeta("POST", "/sso", ["SSO"]),
 	})
-	@UseMiddlewares(AuthMiddleware)
+	@UseMiddlewares(AuthMiddleware, SessionOnlyMiddleware)
 	async register(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof registerSsoProviderInput>,
@@ -79,7 +80,7 @@ export class SsoRouter {
 		output: deleteSsoProviderOutput,
 		meta: restMeta("DELETE", "/sso/{providerId}", ["SSO"]),
 	})
-	@UseMiddlewares(AuthMiddleware)
+	@UseMiddlewares(AuthMiddleware, SessionOnlyMiddleware)
 	async remove(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof deleteSsoProviderInput>,

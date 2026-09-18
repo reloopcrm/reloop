@@ -1,19 +1,22 @@
 import {
-	auth,
 	canAssignRole,
 	canChangeRole,
 	canRenameWorkspace,
 	ensureWorkspaceMembership,
 	generatePassword,
+	grantSignIn,
+	hashPassword,
 	isPasswordSignInConfigured,
-	isWorkspaceEmail,
 	isWorkspaceRole,
-	setPasswordFor,
 	WORKSPACE_ID,
 	type WorkspaceRole,
 	workspaceRoleOf,
+	writeCredentialAccount,
 } from "@crm/auth";
-import { isFreshPasswordSession } from "@crm/auth/password-rules";
+import {
+	isFreshPasswordSession,
+	type PasswordSession,
+} from "@crm/auth/password-rules";
 import type { Db, Prisma } from "@crm/db";
 import { isOnboarded, markOnboarded, workspaceSlug } from "@crm/db/workspace";
 import {
@@ -244,7 +247,7 @@ export class WorkspaceService {
 	async addPerson(
 		userId: string,
 		input: AddPersonInput,
-		sessionCreatedAt: Date,
+		session: PasswordSession,
 	): Promise<AddedPerson> {
 		const role = await workspaceRoleOf(userId, this.db);
 
@@ -254,7 +257,7 @@ export class WorkspaceService {
 			);
 		}
 
-		if (!isFreshPasswordSession(sessionCreatedAt)) {
+		if (!isFreshPasswordSession(session)) {
 			throw new ForbiddenException(
 				"Sign out and sign in again before you add a person.",
 			);
@@ -270,7 +273,7 @@ export class WorkspaceService {
 			throw new ForbiddenException("Only an owner can make someone an owner.");
 		}
 
-		if (!isWorkspaceEmail(input.email)) {
+		if (!(await grantSignIn(this.db, input.email, role))) {
 			throw new BadRequestException(
 				`${input.email} is not in ALLOWED_SIGN_IN, so this person could not sign in. Add ${input.email} to ALLOWED_SIGN_IN in deploy/.env, then run docker compose up -d in that folder.`,
 			);
@@ -285,17 +288,22 @@ export class WorkspaceService {
 			throw new BadRequestException("That address already has an account.");
 		}
 
-		const context = await auth.$context;
-		const created = await context.internalAdapter.createUser({
-			email: input.email,
-			name: input.name,
-			emailVerified: true,
-		});
-
 		const password = generatePassword();
+		const hash = await hashPassword(password);
 
-		try {
-			const member = await this.db.member.create({
+		const member = await this.db.$transaction(async (tx) => {
+			const created = await tx.user.create({
+				data: {
+					id: crypto.randomUUID(),
+					email: input.email,
+					name: input.name,
+					emailVerified: true,
+					updatedAt: new Date(),
+				},
+				select: { id: true },
+			});
+
+			const row = await tx.member.create({
 				data: {
 					id: crypto.randomUUID(),
 					organizationId: WORKSPACE_ID,
@@ -306,22 +314,19 @@ export class WorkspaceService {
 				select: MEMBER_SELECT,
 			});
 
-			await setPasswordFor(created.id, password);
+			await writeCredentialAccount(tx, created.id, hash);
 
-			this.logger.log({
-				message: "Person added",
-				userId,
-				memberId: member.id,
-				role: input.role,
-			});
+			return row;
+		});
 
-			return { member: this.toMember(member, userId), password };
-		} catch (error) {
-			await this.db.user
-				.delete({ where: { id: created.id } })
-				.catch(() => undefined);
-			throw error;
-		}
+		this.logger.log({
+			message: "Person added",
+			userId,
+			memberId: member.id,
+			role: input.role,
+		});
+
+		return { member: this.toMember(member, userId), password };
 	}
 
 	private toMember(row: MemberRow, userId: string): WorkspaceMember {

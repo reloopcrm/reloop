@@ -1,3 +1,4 @@
+import { canManageFields, workspaceRoleOf } from "@crm/auth";
 import {
 	type Db,
 	type FieldEntity,
@@ -29,6 +30,7 @@ import {
 import {
 	BadRequestException,
 	ConflictException,
+	ForbiddenException,
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
@@ -62,6 +64,16 @@ export class FieldsService {
 		private readonly agent: AgentTriggerService,
 	) {}
 
+	private async assertManagesFields(userId: string): Promise<void> {
+		const role = await workspaceRoleOf(userId, this.db);
+
+		if (!canManageFields(role)) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can change a custom field.",
+			);
+		}
+	}
+
 	async list(
 		entity: FieldEntity,
 		includeArchived: boolean,
@@ -86,7 +98,12 @@ export class FieldsService {
 		return serializeField(definition);
 	}
 
-	async create(input: FieldCreateInput): Promise<SerializedField> {
+	async create(
+		userId: string,
+		input: FieldCreateInput,
+	): Promise<SerializedField> {
+		await this.assertManagesFields(userId);
+
 		const key = fieldKeyFromLabel(input.label);
 
 		if (!key) {
@@ -190,12 +207,16 @@ export class FieldsService {
 				typeLabel: typeLabel(proposal.type),
 				options: proposal.options,
 				reason: proposal.reason,
+				agentBrief: proposal.agentBrief,
 			}));
 	}
 
 	async decideProposal(
+		userId: string,
 		input: FieldProposalDecisionInput,
 	): Promise<{ id: string; accepted: boolean }> {
+		await this.assertManagesFields(userId);
+
 		const row = await this.db.agentTask.findFirst({
 			where: { id: input.id, kind: FIELD_PROPOSAL_KIND, finishedAt: null },
 			select: { id: true, payload: true },
@@ -206,7 +227,7 @@ export class FieldsService {
 		const proposal = parseFieldProposalPayload(row.payload);
 
 		if (input.decision === "accept") {
-			await this.create({
+			await this.create(userId, {
 				entity: proposal.entity,
 				label: proposal.label,
 				type: proposal.type,
@@ -232,7 +253,13 @@ export class FieldsService {
 		return { id: row.id, accepted: input.decision === "accept" };
 	}
 
-	async update(id: string, data: FieldUpdateData): Promise<SerializedField> {
+	async update(
+		userId: string,
+		id: string,
+		data: FieldUpdateData,
+	): Promise<SerializedField> {
+		await this.assertManagesFields(userId);
+
 		const existing = await this.db.fieldDefinition.findUnique({
 			where: { id },
 			include: WITH_OPTIONS,
@@ -329,7 +356,12 @@ export class FieldsService {
 		return serializeField(definition);
 	}
 
-	async reorder(input: FieldReorderInput): Promise<SerializedField[]> {
+	async reorder(
+		userId: string,
+		input: FieldReorderInput,
+	): Promise<SerializedField[]> {
+		await this.assertManagesFields(userId);
+
 		const owned = await this.db.fieldDefinition.findMany({
 			where: { id: { in: input.ids }, entity: input.entity },
 			select: { id: true },
@@ -353,7 +385,9 @@ export class FieldsService {
 		return this.list(input.entity, false);
 	}
 
-	async archive(id: string): Promise<SerializedField> {
+	async archive(userId: string, id: string): Promise<SerializedField> {
+		await this.assertManagesFields(userId);
+
 		try {
 			const definition = await this.db.fieldDefinition.update({
 				where: { id },
@@ -367,7 +401,9 @@ export class FieldsService {
 		}
 	}
 
-	async restore(id: string): Promise<SerializedField> {
+	async restore(userId: string, id: string): Promise<SerializedField> {
+		await this.assertManagesFields(userId);
+
 		try {
 			const definition = await this.db.fieldDefinition.update({
 				where: { id },
@@ -381,7 +417,9 @@ export class FieldsService {
 		}
 	}
 
-	async delete(id: string): Promise<{ id: string }> {
+	async delete(userId: string, id: string): Promise<{ id: string }> {
+		await this.assertManagesFields(userId);
+
 		try {
 			await this.db.fieldDefinition.delete({ where: { id } });
 		} catch (error) {
@@ -391,7 +429,9 @@ export class FieldsService {
 		return { id };
 	}
 
-	async backfill(id: string): Promise<{ queued: boolean }> {
+	async backfill(userId: string, id: string): Promise<{ queued: boolean }> {
+		await this.assertManagesFields(userId);
+
 		const definition = await this.db.fieldDefinition.findUnique({
 			where: { id },
 			select: {

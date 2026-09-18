@@ -6,6 +6,7 @@ import {
 	expect,
 	it,
 } from "bun:test";
+import { WORKSPACE_ID } from "@crm/auth";
 import { db, type FieldEntity } from "@crm/db";
 import { AgentQueueService } from "../src/agent/agent-queue.service";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
@@ -104,6 +105,7 @@ async function clean() {
 		where: { key: { startsWith: "spec_" } },
 	});
 	await db.company.deleteMany({ where: { domain: { endsWith: domain } } });
+	await db.member.deleteMany({ where: { userId: ownerId } });
 	await db.user.deleteMany({ where: { id: ownerId } });
 }
 
@@ -122,8 +124,29 @@ beforeAll(async () => {
 
 	await clean();
 
+	await db.organization.upsert({
+		where: { id: WORKSPACE_ID },
+		update: {},
+		create: {
+			id: WORKSPACE_ID,
+			name: "CRM",
+			slug: "crm",
+			createdAt: new Date(),
+		},
+	});
+
 	await db.user.create({
 		data: { id: ownerId, name: "Fields Rep", email: `rep@${domain}` },
+	});
+
+	await db.member.create({
+		data: {
+			id: `member-${ownerId}`,
+			organizationId: WORKSPACE_ID,
+			userId: ownerId,
+			role: "owner",
+			createdAt: new Date(),
+		},
 	});
 
 	companyId = await makeCompany("fields-co");
@@ -145,7 +168,7 @@ beforeEach(() => {
 
 describe("field definitions", () => {
 	it("derives a key from the label and queues a backfill", async () => {
-		const field = await fields.create({
+		const field = await fields.create(ownerId, {
 			entity: "COMPANY",
 			label: "Spec runs on",
 			type: "SELECT",
@@ -174,7 +197,7 @@ describe("field definitions", () => {
 
 	it("refuses a duplicate key", async () => {
 		await expect(
-			fields.create({
+			fields.create(ownerId, {
 				entity: "COMPANY",
 				label: "Spec runs on",
 				type: "TEXT",
@@ -192,7 +215,9 @@ describe("field definitions", () => {
 	it("keeps the same key when the label is renamed", async () => {
 		const before = await fields.byKey("COMPANY", "spec_runs_on");
 
-		const after = await fields.update(before.id, { label: "Spec cloud" });
+		const after = await fields.update(ownerId, before.id, {
+			label: "Spec cloud",
+		});
 
 		expect(after.key).toBe("spec_runs_on");
 		expect(after.label).toBe("Spec cloud");
@@ -207,7 +232,7 @@ describe("field definitions", () => {
 
 		let refused: Error | null = null;
 		try {
-			await fields.update(field.id, { type: "TEXT" });
+			await fields.update(ownerId, field.id, { type: "TEXT" });
 		} catch (cause) {
 			refused = cause as Error;
 		}
@@ -215,7 +240,7 @@ describe("field definitions", () => {
 	});
 
 	it("will not turn a field into a select with nothing to choose", async () => {
-		const field = await fields.create({
+		const field = await fields.create(ownerId, {
 			entity: "DEAL",
 			label: "Spec plain",
 			type: "TEXT",
@@ -230,7 +255,7 @@ describe("field definitions", () => {
 
 		let refused: Error | null = null;
 		try {
-			await fields.update(field.id, { type: "SELECT" });
+			await fields.update(ownerId, field.id, { type: "SELECT" });
 		} catch (cause) {
 			refused = cause as Error;
 		}
@@ -240,14 +265,14 @@ describe("field definitions", () => {
 	it("archives without losing values, and restores them", async () => {
 		const field = await fields.byKey("COMPANY", "spec_runs_on");
 
-		await fields.archive(field.id);
+		await fields.archive(ownerId, field.id);
 
 		expect(
 			(await fields.valuesFor("COMPANY", companyId)).map((entry) => entry.key),
 		).not.toContain("spec_runs_on");
 		expect(await db.fieldValue.count({ where: { fieldId: field.id } })).toBe(1);
 
-		await fields.restore(field.id);
+		await fields.restore(ownerId, field.id);
 
 		const back = await fields.valuesFor("COMPANY", companyId);
 		expect(back.map((entry) => entry.key)).toContain("spec_runs_on");
@@ -256,13 +281,19 @@ describe("field definitions", () => {
 	it("says a field is missing without swallowing other failures", async () => {
 		const missing = `missing-${suffix}`;
 
-		await expect(fields.archive(missing)).rejects.toThrow(/does not exist/);
-		await expect(fields.restore(missing)).rejects.toThrow(/does not exist/);
-		await expect(fields.delete(missing)).rejects.toThrow(/does not exist/);
+		await expect(fields.archive(ownerId, missing)).rejects.toThrow(
+			/does not exist/,
+		);
+		await expect(fields.restore(ownerId, missing)).rejects.toThrow(
+			/does not exist/,
+		);
+		await expect(fields.delete(ownerId, missing)).rejects.toThrow(
+			/does not exist/,
+		);
 	});
 
 	it("reorders inside one entity only", async () => {
-		const second = await fields.create({
+		const second = await fields.create(ownerId, {
 			entity: "COMPANY",
 			label: "Spec seats",
 			type: "NUMBER",
@@ -277,7 +308,7 @@ describe("field definitions", () => {
 
 		const first = await fields.byKey("COMPANY", "spec_runs_on");
 
-		const reordered = await fields.reorder({
+		const reordered = await fields.reorder(ownerId, {
 			entity: "COMPANY",
 			ids: [second.id, first.id],
 		});
@@ -291,7 +322,7 @@ describe("field definitions", () => {
 
 		let refused: Error | null = null;
 		try {
-			await fields.reorder({ entity: "CONTACT", ids: [first.id] });
+			await fields.reorder(ownerId, { entity: "CONTACT", ids: [first.id] });
 		} catch (cause) {
 			refused = cause as Error;
 		}
@@ -301,7 +332,7 @@ describe("field definitions", () => {
 
 describe("field values", () => {
 	it("round-trips each storage class", async () => {
-		await fields.create({
+		await fields.create(ownerId, {
 			entity: "COMPANY",
 			label: "Spec renewal",
 			type: "DATE",
@@ -386,7 +417,7 @@ describe("field values", () => {
 	it("refuses a user who does not work here, and keeps the batch out", async () => {
 		const record = await makeCompany("people");
 
-		await fields.create({
+		await fields.create(ownerId, {
 			entity: "COMPANY",
 			label: "Spec champion",
 			type: "USER",
@@ -449,7 +480,7 @@ describe("a select option that was taken away", () => {
 	it("still labels what it left behind, but cannot be chosen again", async () => {
 		const record = await makeCompany("retired");
 
-		const field = await fields.create({
+		const field = await fields.create(ownerId, {
 			entity: "COMPANY",
 			label: "Spec tier",
 			type: "SELECT",
@@ -467,7 +498,7 @@ describe("a select option that was taken away", () => {
 
 		await fields.applyValues(db, "COMPANY", record, { spec_tier: "Gold" });
 
-		await fields.update(field.id, {
+		await fields.update(ownerId, field.id, {
 			options: [{ id: silver?.id, label: "Silver" }],
 		});
 
@@ -498,7 +529,7 @@ describe("a select option that was taken away", () => {
 	it("still reads as a label in a table, not as an option id", async () => {
 		const record = await makeCompany("retired-table");
 
-		const field = await fields.create({
+		const field = await fields.create(ownerId, {
 			entity: "COMPANY",
 			label: "Spec plan",
 			type: "SELECT",
@@ -515,7 +546,7 @@ describe("a select option that was taken away", () => {
 
 		await fields.applyValues(db, "COMPANY", record, { spec_plan: "Pilot" });
 
-		await fields.update(field.id, {
+		await fields.update(ownerId, field.id, {
 			options: [{ id: rollout?.id, label: "Rollout" }],
 		});
 
@@ -545,7 +576,7 @@ describe("a record update that fails", () => {
 	});
 
 	it("leaves a contact's field values as they were", async () => {
-		await fields.create({
+		await fields.create(ownerId, {
 			entity: "CONTACT",
 			label: "Spec note",
 			type: "TEXT",
@@ -584,7 +615,7 @@ describe("a record update that fails", () => {
 	});
 
 	it("leaves a deal's field values as they were", async () => {
-		await fields.create({
+		await fields.create(ownerId, {
 			entity: "DEAL",
 			label: "Spec risk",
 			type: "TEXT",

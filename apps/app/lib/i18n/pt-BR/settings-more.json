@@ -426,5 +426,9 @@
 	"An open deal moves to a closed stage": "Um negócio aberto passa para uma etapa fechada",
 	"Only an owner or an admin can change a webhook.": "Só quem é dono ou admin pode mudar um webhook.",
 	"No webhook with that id.": "Nenhum webhook com esse id.",
-	"A webhook address is an http or https address without a user name in it.": "Um endereço de webhook é um endereço http ou https sem nome de usuário dentro."
+	"A webhook address is an http or https address without a user name in it.": "Um endereço de webhook é um endereço http ou https sem nome de usuário dentro.",
+	"Address hidden": "Endereço oculto",
+	"Too many sign-ups from here. Wait a minute and try again.": "Inscrições demais daqui. Espere um minuto e tente de novo.",
+	"The waitlist is taking more sign-ups than it can store. Try again in a minute.": "A lista de espera está recebendo mais inscrições do que consegue guardar. Tente de novo em um minuto.",
+	"Only an owner or an admin can change a custom field.": "Apenas um proprietário ou um administrador pode alterar um campo personalizado."
 }

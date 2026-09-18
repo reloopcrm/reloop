@@ -48,7 +48,7 @@ here, what do we sell.
   the session create and locks everyone out. The plugin's `invitation` table is unused.
 - **First account is owner**, and the hook enrols pre-existing users, oldest first.
 - **Permissions come from `@crm/auth`** — `canRenameWorkspace`, `canChangeRole`,
-  `canAssignRole`, `canConfigureSso`, `canManageCurrency` — enforced by the service
+  `canAssignRole`, `canConfigureSso`, `canManageCurrency`, `canManageFields` — enforced by the service
   *and* used to disable the UI control, so the button and the 403 cannot disagree.
   They live in `packages/auth/src/roles.ts`, which imports nothing, so a client
   component reaches them through `@crm/auth/roles` without pulling Prisma in.
@@ -133,6 +133,14 @@ self-hoster's admin cannot redeploy.
 - `ALLOWED_SIGN_IN` still decides who gets an account, in
   `databaseHooks.user.create.before`, for SSO sign-ups too.
   Session creation, existing auth sessions, app sessions, and tRPC calls also check the current list.
+- **`isSignInAllowed` (`@crm/auth/sign-in-grants`) is that check, and it is async.** It is
+  `ALLOWED_SIGN_IN` **or** an address an owner granted through Settings → Members, stored in
+  `AppSetting.signInAddresses`. The environment variable is the floor; the app only adds. Every
+  gate reads the one function: both `databaseHooks`, `accessGuard`, `AuthMiddleware`,
+  `serveOpenApiDocument` and `apps/app/lib/session.ts`. `isWorkspaceEmail` stays the
+  environment-only half, and `workspaceDomains()` still answers "is this address us" for the
+  mailbox and the tracking filter. The database is read only when the environment already said no.
+  See `SECURITY.md` for what the boundary holds.
 - `organizationProvisioning: { disabled: true }` — `ensureWorkspaceMembership` already
   does the join.
 
@@ -141,6 +149,11 @@ self-hoster's admin cannot redeploy.
 - **One router per module**, `*.router.ts` (the codegen glob), with
   `@Router({ alias })` and `@UseMiddlewares(AuthMiddleware)`. **No `AuthMiddleware`
   means public — there is no other guard.**
+- **A procedure that builds lasting access adds `SessionOnlyMiddleware`.** An API
+  key is a session in a header, so a procedure that mints a credential, grants a
+  role, registers a sign-in provider, stores an outbound address or deploys code
+  must refuse one: revoking the key must undo everything the key did. The list is
+  in `SECURITY.md`. A role gate on top of it is still the service's job.
 - **Routers are thin**: zod in, service call out; Prisma lives in `*.service.ts`.
 - Services throw Nest's `HttpException` family; `DomainErrorMiddleware` maps them.
 - **Filter, sort and paginate in Prisma.** List procedures take `listInput` and return
@@ -195,17 +208,28 @@ browser already holds the chosen locale, so the client sends a finished value an
 the API translates the fixed headers and the file stem through
 `exports/exports-copy.ts`: `Vorname;Nachname;E-Mail` in `kontakte-2026-09-18.csv`.
 The cookie is not read in the API because the API is also called with an API key,
-where no cookie exists, and one source beats two. **`exports-copy.ts` holds German
-only.** The app offers seven languages, so a Turkish, Spanish, French, Portuguese or
-Chinese session downloads a CSV with English headers, an English file stem and
-English enum words. The file stays in one language, it never mixes two. **Custom
+where no cookie exists, and one source beats two. **`exports-copy.ts` holds all
+seven languages.** The file stays in one language, it never mixes two. **Custom
 field labels are never translated**, because the workspace wrote them, and neither
 is a custom field's SELECT option. **A stored enum value is translated**: the four
 enum columns, deal stage, status, potential and source, read their words from the
 same map as the headers, so a cell says what the table says. A value added to one
-of those enums fails `EXPORT_ENUM_WORDS` in the spec until somebody writes the
-German. A caller with no `locale` gets English,
+of those enums fails `EXPORT_ENUM_WORDS` in the spec until somebody writes every
+language. A caller with no `locale` gets English,
 which is what `curl` with an API key gets.
+
+**The file stem is ASCII in every language.** `Content-Disposition` carries the
+name as bare bytes, so a browser reads a non-ASCII name as mojibake. German writes
+`geschaefte`, Turkish writes `firsatlar`, and Simplified Chinese keeps the English
+stem, because Han characters have no ASCII form. The columns inside the file carry
+the full script.
+
+**The date columns come from `?zone=`, an IANA name.** The browser sends
+`Intl.DateTimeFormat().resolvedOptions().timeZone`, and the API writes `Created`,
+`Last activity`, `Closed` and `Archived` in that zone, so the file and the screen
+name the same day. A caller with no `zone` gets UTC, which is what `curl` with an
+API key gets, and an unknown name is a 400. `Expected close` is a calendar date
+already, so it is never shifted.
 
 ## The OpenAPI document is built at runtime, not committed
 
@@ -352,6 +376,11 @@ the start of the chosen day in the rep's timezone (the date picker's local midni
 as ISO), and that is what is stored. Nothing migrates; the existing rows already hold
 exactly that.
 
+- **A task the API writes itself is stored at noon UTC**, `dueOnDayOf`
+  (`activities/due-date.ts`). A sweep has no rep and therefore no timezone, and
+  noon reads as the intended calendar day from UTC-11 to UTC+11. Start of the UTC
+  day does not: a rep west of UTC reads it as the day before. The win back
+  follow-up is the one writer today.
 - **A task is due for the whole day and overdue once that day ends.** The API has no
   timezone, so it uses the stored instant plus one day: `overdueBefore(now)`
   (`activities/due-date.ts`) is `now - 24h`, and a task is overdue when

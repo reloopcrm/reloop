@@ -1,4 +1,4 @@
-import { isWorkspaceEmail } from "@crm/auth";
+import { isSignInAllowed } from "@crm/auth";
 import { Injectable } from "@nestjs/common";
 import { TRPCError } from "@trpc/server";
 import type {
@@ -15,7 +15,7 @@ export class AuthMiddleware implements TRPCMiddleware {
 		const ctx = opts.ctx as BaseTrpcContext;
 		const user = ctx.session?.user;
 
-		if (!user || !isWorkspaceEmail(user.email)) {
+		if (!user || !(await isSignInAllowed(user.email))) {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
 

@@ -103,6 +103,7 @@ export function Plan() {
 				<CardAction>
 					<Button
 						type="button"
+						variant="outline"
 						disabled={save.isPending || unchanged}
 						onClick={() =>
 							save.mutate({ plan: chosen === NONE ? null : chosen })

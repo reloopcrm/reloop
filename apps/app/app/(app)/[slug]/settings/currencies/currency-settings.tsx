@@ -47,7 +47,7 @@ const RATE_COLUMNS: TranslatableColumn[] = [
 	{ id: "currency", header: "Currency" },
 	{ id: "rate", header: "Rate", width: "w-32", align: "right" },
 	{ id: "source", header: "Source", width: "w-28" },
-	{ id: "asOf", header: "As of", width: "w-24", align: "right" },
+	{ id: "asOf", header: "As of", width: "w-32", align: "right" },
 	{ id: "actions", srLabel: "Actions", width: "w-20" },
 ];
 

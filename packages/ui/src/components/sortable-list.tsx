@@ -31,10 +31,12 @@ import { cn } from "@crm/ui/lib/utils";
 export function SortableList({
 	ids,
 	onReorder,
+	disabled = false,
 	children,
 }: {
 	ids: string[];
 	onReorder: (ids: string[]) => void;
+	disabled?: boolean;
 	children: ReactNode;
 }) {
 	const sensors = useSensors(
@@ -62,7 +64,11 @@ export function SortableList({
 			modifiers={[restrictToVerticalAxis, restrictToParentElement]}
 			onDragEnd={onDragEnd}
 		>
-			<SortableContext items={ids} strategy={verticalListSortingStrategy}>
+			<SortableContext
+				items={ids}
+				disabled={disabled}
+				strategy={verticalListSortingStrategy}
+			>
 				{children}
 			</SortableContext>
 		</DndContext>
@@ -101,18 +107,22 @@ export function SortableItem({
 				className,
 			)}
 		>
-			<Button
-				ref={setActivatorNodeRef}
-				type="button"
-				variant="ghost"
-				size="icon-xs"
-				className="cursor-grab text-muted-foreground"
-				{...attributes}
-				{...listeners}
-			>
-				<Icon icon={Draggable} />
-				<span className="sr-only">{t("Reorder {name}", { name: label })}</span>
-			</Button>
+			{listeners ? (
+				<Button
+					ref={setActivatorNodeRef}
+					type="button"
+					variant="ghost"
+					size="icon-xs"
+					className="cursor-grab text-muted-foreground"
+					{...attributes}
+					{...listeners}
+				>
+					<Icon icon={Draggable} />
+					<span className="sr-only">
+						{t("Reorder {name}", { name: label })}
+					</span>
+				</Button>
+			) : null}
 			{children}
 		</div>
 	);

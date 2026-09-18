@@ -4,7 +4,11 @@ import { Button } from "@crm/ui/components/button";
 import { EventMark, EventRow } from "@crm/ui/components/event-row";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { ThreadMessage } from "@crm/ui/components/thread-message";
-import { cleanSubject, emailPreview } from "@crm/ui/lib/email-text";
+import {
+	cleanEmailBody,
+	cleanSubject,
+	emailPreview,
+} from "@crm/ui/lib/email-text";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { DEMO } from "@/components/demo/demo-tour-config";
@@ -93,7 +97,16 @@ export function EmailThreadEntry({
 	const panel = (
 		<div className="flex flex-col gap-3">
 			{thread.isError ? (
-				<p className="text-muted-foreground text-xs">{thread.error.message}</p>
+				<>
+					{entry.body ? (
+						<p className="whitespace-pre-wrap text-pretty wrap-anywhere text-body-foreground">
+							{cleanEmailBody(entry.body).text}
+						</p>
+					) : null}
+					<p className="text-muted-foreground text-xs">
+						{thread.error.message}
+					</p>
+				</>
 			) : thread.isPending ? (
 				<div className="flex flex-col gap-2">
 					<Skeleton className="h-4 w-1/3" />

@@ -36,6 +36,7 @@ export function ExportButton({
 		const query = new URLSearchParams({
 			filter: JSON.stringify(input),
 			locale,
+			zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 		});
 		let response: Response;
 

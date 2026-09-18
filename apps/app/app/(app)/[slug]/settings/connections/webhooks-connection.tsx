@@ -336,7 +336,7 @@ function WebhookCard({
 			<CardHeader>
 				<CardTitle>
 					<div className="flex items-center gap-2">
-						{webhook.url}
+						{webhook.url ?? t("Address hidden")}
 						<StatusIndicator
 							size="sm"
 							tone={
@@ -399,7 +399,9 @@ function WebhookCard({
 					) : (
 						t("Nothing sent yet")
 					)}
-					{` · ${t("Secret {hint}", { hint: webhook.secretHint })}`}
+					{webhook.secretHint
+						? ` · ${t("Secret {hint}", { hint: webhook.secretHint })}`
+						: null}
 				</p>
 
 				<CardFooter>

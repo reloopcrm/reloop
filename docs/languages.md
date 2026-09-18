@@ -113,14 +113,30 @@ and one unfinished language must never hold up a release.
 
 ## What stays English
 
-- **The CSV export.** `apps/api/src/exports/exports-copy.ts` translates the column
-  headers, the file name and the stored enum words into German only. A session in
-  another language downloads an English file. The file is never half English and
-  half something else.
 - **Two labels in `packages/ui`**: the `Loading` label of the dot matrix and the
   `Thinking` label of the thinking indicator. Neither file carries a `"use client"`
   directive, so neither one reaches the translator.
-- **The month names on the dashboard chart.** The API builds them with a fixed
-  `en-US` formatter in `apps/api/src/dashboard/dashboard.service.ts`.
+- **The Simplified Chinese CSV file name.** `Content-Disposition` carries the name
+  as bare bytes, so the stem must be ASCII. Every other language has a Latin stem,
+  Chinese keeps `contacts`, `companies` and `deals`. The columns inside the file
+  are Chinese.
 - **What the agent writes.** The agent writes English, or German with
   `RELOOP_GERMAN`. See `docs/environment.md`.
+
+## Text outside the dictionaries
+
+Two places translate without a dictionary folder, and each has its own test.
+
+- **The CSV export.** `apps/api/src/exports/exports-copy.ts` holds the column
+  headers, the file name and the stored enum words in all seven languages. The API
+  reads `?locale=`, never a cookie, because an API key call carries no cookie.
+  `apps/api/test/exports-csv.spec.ts` fails when a header or an enum word has no
+  word in one of the six languages.
+- **Every fixed API exception message.** The API throws English. The app translates
+  it through `apps/app/lib/i18n/errors.ts`, so the message needs a key in every
+  dictionary. A message with no key falls back to one generic sentence, not to
+  English, which is why `apps/app/test/dictionaries.spec.ts` scans `apps/api/src`
+  and fails for **every** language, machine translated ones included.
+
+The month names on the dashboard chart come from the browser. The API returns
+`2026-04` and `sales-dashboard.tsx` formats it with the reader's locale tag.

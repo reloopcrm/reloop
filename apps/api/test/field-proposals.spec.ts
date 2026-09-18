@@ -1,4 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
+import { WORKSPACE_ID } from "@crm/auth";
 import { db } from "@crm/db";
 import { FIELD_LIMITS } from "@crm/db/fields-shape";
 import {
@@ -15,6 +24,36 @@ const agent = {
 } as unknown as AgentTriggerService;
 
 const fields = new FieldsService(db, agent);
+const suffix = process.env.TEST_RUN_ID ?? "proposal-spec";
+const adminId = `proposals-admin-${suffix}`;
+const memberId = `proposals-member-${suffix}`;
+
+async function seedActor(id: string, role: string) {
+	await db.user.upsert({
+		where: { id },
+		update: {},
+		create: {
+			id,
+			name: id,
+			email: `${id}@proposals.test`,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		},
+	});
+	await db.member.upsert({
+		where: {
+			organizationId_userId: { organizationId: WORKSPACE_ID, userId: id },
+		},
+		update: { role },
+		create: {
+			id: `member-${id}`,
+			organizationId: WORKSPACE_ID,
+			userId: id,
+			role,
+			createdAt: new Date(),
+		},
+	});
+}
 
 const lane: FieldProposalPayload = {
 	entity: "DEAL",
@@ -53,6 +92,28 @@ async function propose(
 	return row.id;
 }
 
+beforeAll(async () => {
+	await db.organization.upsert({
+		where: { id: WORKSPACE_ID },
+		update: {},
+		create: {
+			id: WORKSPACE_ID,
+			name: "CRM",
+			slug: "crm",
+			createdAt: new Date(),
+		},
+	});
+	await seedActor(adminId, "admin");
+	await seedActor(memberId, "member");
+});
+
+afterAll(async () => {
+	await db.member.deleteMany({
+		where: { userId: { in: [adminId, memberId] } },
+	});
+	await db.user.deleteMany({ where: { id: { in: [adminId, memberId] } } });
+});
+
 beforeEach(clear);
 afterEach(clear);
 
@@ -73,7 +134,10 @@ describe("a field proposal a person reads", () => {
 	it("becomes a real field when the person accepts it", async () => {
 		const id = await propose();
 
-		const result = await fields.decideProposal({ id, decision: "accept" });
+		const result = await fields.decideProposal(adminId, {
+			id,
+			decision: "accept",
+		});
 
 		expect(result.accepted).toBe(true);
 
@@ -88,7 +152,10 @@ describe("a field proposal a person reads", () => {
 	it("creates nothing when the person dismisses it", async () => {
 		const id = await propose();
 
-		const result = await fields.decideProposal({ id, decision: "dismiss" });
+		const result = await fields.decideProposal(adminId, {
+			id,
+			decision: "dismiss",
+		});
 
 		expect(result.accepted).toBe(false);
 		expect(await fields.proposals("DEAL")).toHaveLength(0);
@@ -99,11 +166,11 @@ describe("a field proposal a person reads", () => {
 
 	it("cannot be decided twice", async () => {
 		const id = await propose();
-		await fields.decideProposal({ id, decision: "dismiss" });
+		await fields.decideProposal(adminId, { id, decision: "dismiss" });
 
-		expect(fields.decideProposal({ id, decision: "accept" })).rejects.toThrow(
-			"That proposal is already decided.",
-		);
+		expect(
+			fields.decideProposal(adminId, { id, decision: "accept" }),
+		).rejects.toThrow("That proposal is already decided.");
 	});
 
 	it("carries its select options onto the field", async () => {
@@ -115,7 +182,7 @@ describe("a field proposal a person reads", () => {
 			options: ["Pallets", "Container"],
 		});
 
-		await fields.decideProposal({ id, decision: "accept" });
+		await fields.decideProposal(adminId, { id, decision: "accept" });
 
 		const created = await fields.byKey("DEAL", `load_${MARK}`);
 		expect(created.options.map((option) => option.label)).toEqual([
@@ -152,7 +219,7 @@ describe("the cap on how many fields a record type holds", () => {
 		await fill(Math.max(0, FIELD_LIMITS.perEntity - live));
 
 		expect(
-			fields.create({
+			fields.create(adminId, {
 				entity: "DEAL",
 				label: `One too many ${MARK}`,
 				type: "TEXT",
@@ -175,9 +242,49 @@ describe("the cap on how many fields a record type holds", () => {
 		await fill(Math.max(0, FIELD_LIMITS.perEntity - live));
 		const id = await propose();
 
-		expect(fields.decideProposal({ id, decision: "accept" })).rejects.toThrow(
-			"as many fields as a sheet can show",
-		);
+		expect(
+			fields.decideProposal(adminId, { id, decision: "accept" }),
+		).rejects.toThrow("as many fields as a sheet can show");
 		expect(await fields.proposals("DEAL")).toHaveLength(1);
+	});
+});
+
+describe("who may change a field definition", () => {
+	it("refuses a member and accepts an admin", async () => {
+		const id = await propose();
+
+		await expect(
+			fields.decideProposal(memberId, { id, decision: "accept" }),
+		).rejects.toThrow("Only an owner or an admin");
+
+		await expect(
+			fields.create(memberId, {
+				entity: "DEAL",
+				label: `Member field ${MARK}`,
+				type: "TEXT",
+				options: [],
+				agentFilled: false,
+				agentBrief: null,
+				required: false,
+				showOnSheet: true,
+				showOnTable: false,
+				showOnFilter: false,
+			}),
+		).rejects.toThrow("Only an owner or an admin");
+
+		const accepted = await fields.decideProposal(adminId, {
+			id,
+			decision: "accept",
+		});
+
+		expect(accepted.accepted).toBe(true);
+	});
+
+	it("hands the brief the agent wrote to the person who decides", async () => {
+		await propose();
+
+		const [proposal] = await fields.proposals("DEAL");
+
+		expect(proposal?.agentBrief).toBe(lane.agentBrief);
 	});
 });

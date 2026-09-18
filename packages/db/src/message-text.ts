@@ -1,4 +1,4 @@
-const QUOTE_MARKERS: RegExp[] = [
+export const QUOTE_MARKERS: RegExp[] = [
 	/^\s*On .+ wrote:\s*$/m,
 	/^\s*Am .+ schrieb .*:?\s*$/m,
 	/^\s*Am .+ schrieb\s*$/m,
@@ -74,20 +74,9 @@ export function isAutoReply(
 	return text.length > 0 && AUTO_BODY.some((marker) => marker.test(text));
 }
 
-const REPLY_SUBJECT = /^\s*(re|aw|antw|antwoord|sv|vs)\s*(\[\d+\])?\s*:/i;
+export const REPLY_PREFIX =
+	/^\s*(re|aw|antw|antwoord|fwd|fw|wg|sv|vs)\s*(\[\d+\])?\s*:/i;
 
 export function isReplySubject(subject: string | null): boolean {
-	return REPLY_SUBJECT.test((subject ?? "").trim());
-}
-
-export function normalizeSubject(subject: string | null): string {
-	let rest = (subject ?? "").replace(/\s+/g, " ").trim();
-
-	while (REPLY_SUBJECT.test(rest)) {
-		const next = rest.replace(REPLY_SUBJECT, "").trim();
-		if (next.length === 0) break;
-		rest = next;
-	}
-
-	return rest.toLowerCase();
+	return REPLY_PREFIX.test((subject ?? "").trim());
 }

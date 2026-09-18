@@ -1,16 +1,22 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { DICTIONARIES } from "./dictionaries";
 import {
+	DEFAULT_LOCALE,
 	type Dictionary,
+	isLocale,
 	LOCALE_COOKIE,
 	type Locale,
-	parseLocale,
+	matchLocale,
 	type Translate,
 	translator,
 } from "./locale";
 
 export async function getLocale(): Promise<Locale> {
-	return parseLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+	const chosen = (await cookies()).get(LOCALE_COOKIE)?.value;
+	if (isLocale(chosen)) return chosen;
+
+	const header = (await headers()).get("accept-language");
+	return matchLocale(header) ?? DEFAULT_LOCALE;
 }
 
 export function getDictionary(locale: Locale): Dictionary {

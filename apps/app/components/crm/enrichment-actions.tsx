@@ -70,6 +70,7 @@ export function EnrichmentActions({
 			</Button>
 
 			<Button
+				variant="outline"
 				size="sm"
 				disabled={!hasDomain || research.isPending}
 				onClick={() => research.mutate({ id: companyId })}

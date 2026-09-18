@@ -11,6 +11,7 @@ import {
 	WIN_BACK_FOLLOW_UP_FUNCTION,
 } from "@crm/validation/agent-functions";
 import { Injectable, Logger } from "@nestjs/common";
+import { dueOnDayOf } from "../activities/due-date";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import { WIN_BACK } from "./reactivation.config";
@@ -103,7 +104,7 @@ export class WinBackFollowUpService {
 		createdById: string,
 		now: Date,
 	): Promise<boolean> {
-		const dueAt = startOfUtcDay(
+		const dueAt = dueOnDayOf(
 			new Date(
 				candidate.contactedAt.getTime() + WIN_BACK.followUp.afterDays * DAY_MS,
 			),

@@ -7,7 +7,11 @@ import {
 	EventRow,
 	type EventVoice,
 } from "@crm/ui/components/event-row";
-import { emailPreview } from "@crm/ui/lib/email-text";
+import {
+	cleanEmailBody,
+	emailPreview,
+	flatPreview,
+} from "@crm/ui/lib/email-text";
 import { useMutation } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -41,8 +45,10 @@ const MARK_BY_VOICE = {
 	inbound: "inbound",
 	outbound: "outbound",
 	note: "note",
+	call: "call",
 	meeting: "meeting",
 	task: "task",
+	"task-overdue": "task-overdue",
 	"task-done": "task",
 	system: "system",
 } as const satisfies Record<EventVoice, string>;
@@ -102,16 +108,46 @@ export function EventPanelBody({ text }: { text: string }) {
 	);
 }
 
-export function entryVoice(entry: TimelineEntryData): EventVoice {
+export function entryVoice(
+	entry: TimelineEntryData,
+	now = new Date(),
+): EventVoice {
 	if (entry.type === "TASK") {
-		return entry.completedAt === null ? "task" : "task-done";
+		if (entry.completedAt !== null) return "task-done";
+		if (entry.dueAt !== null && daysUntil(entry.dueAt, now) < 0) {
+			return "task-overdue";
+		}
+		return "task";
 	}
 	if (entry.type === "MEETING") return "meeting";
+	if (entry.type === "CALL") return "call";
 	if (entry.type === "STAGE_CHANGE" || entry.type === "ENRICHMENT") {
 		return "system";
 	}
 	if (entry.type === "EMAIL") return "outbound";
 	return "note";
+}
+
+export function entryBody(entry: TimelineEntryData, t: Translate) {
+	if (entry.body === null) return { body: null, preview: null };
+
+	const written = entryVoice(entry) === "system";
+	const isEmail = entry.type === "EMAIL";
+
+	const body = written
+		? t(entry.body, {
+				email: String(entry.meta?.email ?? ""),
+				domain: String(entry.meta?.domain ?? ""),
+			})
+		: isEmail
+			? cleanEmailBody(entry.body).text
+			: entry.body;
+
+	const preview = isEmail
+		? emailPreview(entry.body, TIMELINE.preview.maxChars)
+		: flatPreview(body, TIMELINE.preview.maxChars);
+
+	return { body, preview };
 }
 
 function dueLabel(dueAt: string, t: Translate): ReactNode {
@@ -155,26 +191,20 @@ export function TimelineEntry({
 	const when = entry.occurredAt ?? entry.createdAt;
 	const kind = t(activityLabel(entry.type));
 
-	const body = entry.body
-		? t(entry.body, {
-				email: String(entry.meta?.email ?? ""),
-				domain: String(entry.meta?.domain ?? ""),
-			})
-		: null;
-	const preview = body
-		? (emailPreview(body, TIMELINE.preview.maxChars) ?? body)
-		: null;
+	const written = voice === "system";
+	const { body, preview } = entryBody(entry, t);
 
 	const subject = change
 		? `${stageLabel(change.from)} → ${stageLabel(change.to)}`
 		: entry.subject
-			? t(entry.subject)
+			? written
+				? t(entry.subject)
+				: entry.subject
 			: null;
 
 	const event = entry.calendarEvent;
 	const links = otherRecords(entry, anchor);
 	const hasLinks = links.deal !== null || links.contact !== null;
-	const longer = body !== null && preview !== body;
 
 	let detail: ReactNode = preview;
 	if (isTask) {
@@ -190,9 +220,9 @@ export function TimelineEntry({
 	}
 
 	const panel =
-		event || longer || hasLinks ? (
+		event || body || hasLinks ? (
 			<div className="flex flex-col gap-3">
-				{longer && body ? <EventPanelBody text={body} /> : null}
+				{body ? <EventPanelBody text={body} /> : null}
 				{event ? (
 					<MeetingEntry
 						eventId={event.id}

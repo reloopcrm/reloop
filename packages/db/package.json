@@ -38,6 +38,7 @@
 		"./secrets": "./src/secrets.ts",
 		"./plans": "./src/plans.ts",
 		"./settings": "./src/settings.ts",
+		"./test-database": "./src/test-database.ts",
 		"./slack-inventory": "./src/slack-inventory.ts",
 		"./tracking": "./src/tracking.ts",
 		"./webhooks": "./src/webhooks.ts",

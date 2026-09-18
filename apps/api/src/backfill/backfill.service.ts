@@ -1,6 +1,7 @@
 import { onSignedIn } from "@crm/auth";
 import { type Db, EnrichmentStatus, type Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
+import { NOT_SAMPLE_RECORD } from "@crm/db/sample-data";
 import { readWorkspaceIdentity } from "@crm/db/workspace";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Inject, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
@@ -234,7 +235,7 @@ export class BackfillService implements OnModuleInit {
 
 	private async sweepFavicons(): Promise<number> {
 		const rows = await this.db.company.findMany({
-			where: { domain: { not: null }, iconUrl: null },
+			where: { ...NOT_SAMPLE_RECORD, domain: { not: null }, iconUrl: null },
 			orderBy: { createdAt: "asc" },
 			take: MAX_FAVICONS,
 			select: { id: true, domain: true },
@@ -258,7 +259,11 @@ export class BackfillService implements OnModuleInit {
 	}
 
 	private companiesNeedingBrand(): Prisma.CompanyWhereInput {
-		return { domain: { not: null }, enrichmentStatus: NEVER_SUCCEEDED };
+		return {
+			...NOT_SAMPLE_RECORD,
+			domain: { not: null },
+			enrichmentStatus: NEVER_SUCCEEDED,
+		};
 	}
 
 	private async companiesNeedingArtwork(): Promise<Prisma.CompanyWhereInput> {
@@ -274,11 +279,14 @@ export class BackfillService implements OnModuleInit {
 			.filter((id): id is string => id !== null);
 
 		const where: Prisma.CompanyWhereInput = {
+			...NOT_SAMPLE_RECORD,
 			domain: { not: null },
 			logoUrl: null,
 			iconUrl: null,
 		};
-		if (recentlyChecked.length > 0) where.id = { notIn: recentlyChecked };
+		if (recentlyChecked.length > 0) {
+			where.id = { ...NOT_SAMPLE_RECORD.id, notIn: recentlyChecked };
+		}
 
 		return where;
 	}
@@ -311,15 +319,18 @@ export class BackfillService implements OnModuleInit {
 			.filter((id): id is string => id !== null);
 
 		const where: Prisma.ContactWhereInput = {
+			...NOT_SAMPLE_RECORD,
 			imageUrl: null,
 			githubUrl: { not: null },
 		};
-		if (recentlyChecked.length > 0) where.id = { notIn: recentlyChecked };
+		if (recentlyChecked.length > 0) {
+			where.id = { ...NOT_SAMPLE_RECORD.id, notIn: recentlyChecked };
+		}
 
 		return where;
 	}
 
 	private contactsNeverResearched(): Prisma.ContactWhereInput {
-		return { enrichmentStatus: NEVER_SUCCEEDED };
+		return { ...NOT_SAMPLE_RECORD, enrichmentStatus: NEVER_SUCCEEDED };
 	}
 }

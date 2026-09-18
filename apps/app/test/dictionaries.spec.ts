@@ -218,14 +218,10 @@ describe("the texts that reach t() through a variable", () => {
 	}
 });
 
-it("translates every fixed API exception with a specific German message", async () => {
-	const { translateError } = await import("../lib/i18n/errors");
-	const t = translator(de);
-	const fallback = t(
-		"The request failed. Check your input and connection, then try again.",
-	);
+async function apiExceptionMessages(): Promise<Map<string, string>> {
 	const root = fileURLToPath(new URL("../../api/src/", import.meta.url));
-	const missing: string[] = [];
+	const found = new Map<string, string>();
+
 	for await (const path of new Bun.Glob("**/*.ts").scan(root)) {
 		const source = ts.createSourceFile(
 			path,
@@ -239,25 +235,47 @@ it("translates every fixed API exception with a specific German message", async 
 				/Exception$/.test(node.expression.getText(source))
 			) {
 				const message = node.arguments?.[0];
-				if (
-					message &&
-					ts.isStringLiteral(message) &&
-					translateError(t, "de", message.text) === fallback
-				)
-					missing.push(`${path}: ${message.text}`);
+				if (message && ts.isStringLiteral(message))
+					found.set(message.text, path);
 			}
 			ts.forEachChild(node, visit);
 		};
 		visit(source);
 	}
+
+	return found;
+}
+
+it("translates every fixed API exception in every language", async () => {
+	const { translateError } = await import("../lib/i18n/errors");
+	const messages = await apiExceptionMessages();
+	const missing: string[] = [];
+
+	for (const locale of translated) {
+		const t = translator(DICTIONARIES[locale]);
+		const fallback = t(
+			"The request failed. Check your input and connection, then try again.",
+		);
+
+		for (const [message, path] of messages)
+			if (translateError(t, locale, message) === fallback)
+				missing.push(`${locale} ${path}: ${message}`);
+	}
+
 	expect(missing).toEqual([]);
+
+	const t = translator(de);
+	const german = t(
+		"The request failed. Check your input and connection, then try again.",
+	);
+
 	expect(
 		translateError(t, "de", "The password needs at least 12 characters."),
 	).toBe("Das Passwort benötigt mindestens 12 Zeichen.");
 	expect(
 		translateError(t, "de", "The password takes at most 128 characters."),
 	).toBe("Das Passwort darf höchstens 128 Zeichen enthalten.");
-	expect(translateError(t, "de", "Unknown vendor failure")).toBe(fallback);
+	expect(translateError(t, "de", "Unknown vendor failure")).toBe(german);
 	expect(translateError(translator({}), "en", "Unknown vendor failure")).toBe(
 		"Unknown vendor failure",
 	);

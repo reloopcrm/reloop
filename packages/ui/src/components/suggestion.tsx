@@ -11,12 +11,14 @@ import type * as React from "react";
 export function Suggestion({
 	value,
 	rationale,
+	instruction,
 	pending = false,
 	onAccept,
 	onDismiss,
 }: {
 	value: React.ReactNode;
 	rationale?: React.ReactNode;
+	instruction?: string;
 	pending?: boolean;
 	onAccept: () => void;
 	onDismiss: () => void;
@@ -32,6 +34,9 @@ export function Suggestion({
 					<span className="text-foreground">{value}</span>
 				</p>
 				{rationale ? <p className="text-pretty">{rationale}</p> : null}
+				{instruction ? (
+					<p className="text-pretty text-faint-foreground">{instruction}</p>
+				) : null}
 			</div>
 
 			<div className="flex shrink-0 items-center gap-1">
@@ -43,7 +48,9 @@ export function Suggestion({
 							variant="ghost"
 							size="icon-xs"
 							onClick={onAccept}
-							aria-label={t("Accept")}
+							aria-label={
+								instruction ? `${t("Accept")}: ${instruction}` : t("Accept")
+							}
 						>
 							<Icon icon={Checkmark} />
 						</Button>

@@ -243,6 +243,8 @@
 	--font-weight-black: 590;
 	--tracking-tight: -0.022em;
 
+	--text-md: 0.9375rem;
+
 	--radius-xs: 2px;
 	--radius-sm: 4px;
 	--radius-badge: 4px;

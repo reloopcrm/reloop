@@ -1,7 +1,7 @@
 import {
 	API_KEY_HEADER,
 	apiUrl,
-	isWorkspaceEmail,
+	isSignInAllowed,
 	SESSION_COOKIE_NAME,
 } from "@crm/auth";
 import { ValidationPipe } from "@nestjs/common";
@@ -147,6 +147,7 @@ export async function createApp(): Promise<NestExpressApplication> {
 
 	restBridge = createOpenApiExpressMiddleware({
 		router: appRouter,
+		maxBodySize: REQUEST_SIZE.body.maxBytes,
 		createContext: ({ req }) => createBaseTrpcContext(req),
 	});
 
@@ -170,7 +171,7 @@ async function serveOpenApiDocument(
 ): Promise<void> {
 	const { session } = await createBaseTrpcContext(req);
 
-	if (!session?.user || !isWorkspaceEmail(session.user.email)) {
+	if (!session?.user || !(await isSignInAllowed(session.user.email))) {
 		res.status(401).json({ message: "UNAUTHORIZED" });
 		return;
 	}

@@ -62,6 +62,7 @@ export function ProfileForm() {
 				<CardAction>
 					<Button
 						type="submit"
+						variant="outline"
 						form="profile"
 						disabled={save.isPending || !dirty}
 					>

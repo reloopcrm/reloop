@@ -1,3 +1,3 @@
 export const WAITLIST = {
-	join: { perMinute: 20 },
+	join: { perAddressPerMinute: 5, perMinute: 200 },
 } as const;

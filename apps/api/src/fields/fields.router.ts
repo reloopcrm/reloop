@@ -1,6 +1,14 @@
 import { Inject } from "@nestjs/common";
-import { Input, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
+import {
+	Ctx,
+	Input,
+	Mutation,
+	Query,
+	Router,
+	UseMiddlewares,
+} from "nestjs-trpc";
 import type { z } from "zod";
+import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
@@ -70,8 +78,11 @@ export class FieldsRouter {
 		output: serializedFieldOutput,
 		meta: restMeta("POST", "/fields", ["Fields"]),
 	})
-	async create(@Input() input: z.infer<typeof fieldCreateInput>) {
-		return this.fields.create(input);
+	async create(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof fieldCreateInput>,
+	) {
+		return this.fields.create(ctx.user.id, input);
 	}
 
 	@Query({
@@ -89,9 +100,10 @@ export class FieldsRouter {
 		meta: restMeta("POST", "/fields/proposals/{id}/decide", ["Fields"]),
 	})
 	async decideProposal(
+		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof fieldProposalDecisionInput>,
 	) {
-		return this.fields.decideProposal(input);
+		return this.fields.decideProposal(ctx.user.id, input);
 	}
 
 	@Mutation({
@@ -99,8 +111,11 @@ export class FieldsRouter {
 		output: serializedFieldOutput,
 		meta: restMeta("PATCH", "/fields/{id}", ["Fields"]),
 	})
-	async update(@Input() input: z.infer<typeof fieldUpdateArgs>) {
-		return this.fields.update(input.id, input.data);
+	async update(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof fieldUpdateArgs>,
+	) {
+		return this.fields.update(ctx.user.id, input.id, input.data);
 	}
 
 	@Mutation({
@@ -108,8 +123,11 @@ export class FieldsRouter {
 		output: fieldReorderOutput,
 		meta: restMeta("POST", "/fields/reorder", ["Fields"]),
 	})
-	async reorder(@Input() input: z.infer<typeof fieldReorderInput>) {
-		return this.fields.reorder(input);
+	async reorder(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof fieldReorderInput>,
+	) {
+		return this.fields.reorder(ctx.user.id, input);
 	}
 
 	@Mutation({
@@ -117,8 +135,8 @@ export class FieldsRouter {
 		output: serializedFieldOutput,
 		meta: restMeta("POST", "/fields/{id}/archive", ["Fields"]),
 	})
-	async archive(@Input("id") id: string) {
-		return this.fields.archive(id);
+	async archive(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.fields.archive(ctx.user.id, id);
 	}
 
 	@Mutation({
@@ -126,8 +144,8 @@ export class FieldsRouter {
 		output: serializedFieldOutput,
 		meta: restMeta("POST", "/fields/{id}/restore", ["Fields"]),
 	})
-	async restore(@Input("id") id: string) {
-		return this.fields.restore(id);
+	async restore(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.fields.restore(ctx.user.id, id);
 	}
 
 	@Mutation({
@@ -135,8 +153,8 @@ export class FieldsRouter {
 		output: fieldDeleteOutput,
 		meta: restMeta("DELETE", "/fields/{id}", ["Fields"]),
 	})
-	async delete(@Input("id") id: string) {
-		return this.fields.delete(id);
+	async delete(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.fields.delete(ctx.user.id, id);
 	}
 
 	@Mutation({
@@ -144,7 +162,7 @@ export class FieldsRouter {
 		output: fieldBackfillOutput,
 		meta: restMeta("POST", "/fields/{id}/backfill", ["Fields"]),
 	})
-	async backfill(@Input("id") id: string) {
-		return this.fields.backfill(id);
+	async backfill(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.fields.backfill(ctx.user.id, id);
 	}
 }

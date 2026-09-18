@@ -5,3 +5,5 @@ export const REQUEST_SIZE = {
 	auth: { path: "/api/auth", maxBytes: 1_000_000 },
 	trpc: { path: "/api/trpc" },
 } as const;
+
+export const CLIENT_ADDRESS = { header: "x-forwarded-for" } as const;

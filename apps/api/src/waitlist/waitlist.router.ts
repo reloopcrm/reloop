@@ -12,7 +12,8 @@ import {
 	UseMiddlewares,
 } from "nestjs-trpc";
 import { z } from "zod";
-import type { AuthedTrpcContext } from "../trpc/context.types";
+import { clientAddressOf } from "../http/client-address";
+import type { AuthedTrpcContext, BaseTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import { WaitlistService } from "./waitlist.service";
@@ -28,8 +29,8 @@ export class WaitlistRouter {
 		output: z.object({ ok: z.literal(true) }),
 		meta: restMeta("POST", "/waitlist/join", ["Waitlist"], { protect: false }),
 	})
-	async join(@Input() input: WaitlistJoinInput) {
-		await this.waitlist.join(input.email);
+	async join(@Ctx() ctx: BaseTrpcContext, @Input() input: WaitlistJoinInput) {
+		await this.waitlist.join(input.email, clientAddressOf(ctx.req));
 		return { ok: true as const };
 	}
 

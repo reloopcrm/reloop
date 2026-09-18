@@ -49,11 +49,13 @@ export function LoadSampleData() {
 	const router = useRouter();
 	const errorMessage = useErrorMessage();
 	const status = useSampleDataStatus();
+	const [confirming, setConfirming] = useState(false);
 
 	const load = useMutation(
 		trpc.sampleData.load.mutationOptions({
 			onSuccess: async () => {
 				await cache.everything();
+				setConfirming(false);
 				router.refresh();
 				toast.success(t("The sample data is in. Have a look around."));
 			},
@@ -66,21 +68,53 @@ export function LoadSampleData() {
 	if (!status.data?.loadable) return null;
 
 	return (
-		<Button
-			variant="secondary"
-			disabled={loadAction.pending}
-			aria-busy={loadAction.pending}
-			onClick={() => loadAction.run()}
-		>
-			<AsyncButtonContent
-				status={loadAction.status}
-				pendingLabel={t("Writing the sample data")}
-				successLabel={t("Ready")}
-				errorLabel={t("Try again")}
+		<>
+			<Button
+				variant="secondary"
+				disabled={loadAction.pending}
+				onClick={() => setConfirming(true)}
 			>
 				{t("Look around with sample data")}
-			</AsyncButtonContent>
-		</Button>
+			</Button>
+
+			<AlertDialog
+				open={confirming}
+				onOpenChange={(open) => {
+					if (!loadAction.pending) setConfirming(open);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("Write the sample data?")}</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t(
+								"This writes made up companies, people, deals and mail into this workspace. They count in every total until you remove them again from the banner at the top.",
+							)}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={loadAction.pending}>
+							{t("Cancel")}
+						</AlertDialogCancel>
+						<Button
+							variant="secondary"
+							disabled={loadAction.pending}
+							aria-busy={loadAction.pending}
+							onClick={() => loadAction.run()}
+						>
+							<AsyncButtonContent
+								status={loadAction.status}
+								pendingLabel={t("Writing the sample data")}
+								successLabel={t("Ready")}
+								errorLabel={t("Try again")}
+							>
+								{t("Write the sample data")}
+							</AsyncButtonContent>
+						</Button>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }
 

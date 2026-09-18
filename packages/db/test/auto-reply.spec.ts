@@ -3,7 +3,6 @@ import { DIRECT_KINDS, isDirectKind } from "../src/agent-tasks";
 import {
 	isAutoReply,
 	isReplySubject,
-	normalizeSubject,
 	stripQuotedHistory,
 } from "../src/message-text";
 import { DEFAULT_WIN_BACK_RULES } from "../src/win-back-rules";
@@ -67,24 +66,14 @@ describe("isReplySubject", () => {
 		expect(isReplySubject("Re: Paletten")).toBe(true);
 		expect(isReplySubject("AW: Paletten")).toBe(true);
 		expect(isReplySubject("Re[2]: Paletten")).toBe(true);
+		expect(isReplySubject("Antwoord: Paletten")).toBe(true);
+		expect(isReplySubject("Fwd: Paletten")).toBe(true);
+		expect(isReplySubject("WG: Paletten")).toBe(true);
 	});
 
 	it("leaves a fresh subject alone", () => {
 		expect(isReplySubject("Paletten fair abgeben")).toBe(false);
 		expect(isReplySubject(null)).toBe(false);
-	});
-});
-
-describe("normalizeSubject", () => {
-	it("strips a chain of markers and lowercases", () => {
-		expect(normalizeSubject("Re: AW: AW: Paletten fair abgeben")).toBe(
-			"paletten fair abgeben",
-		);
-	});
-
-	it("keeps a subject that is only a marker", () => {
-		expect(normalizeSubject("AW:")).toBe("aw:");
-		expect(normalizeSubject(null)).toBe("");
 	});
 });
 

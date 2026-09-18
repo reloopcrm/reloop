@@ -86,6 +86,7 @@ export function WorkspaceForm() {
 				<CardAction>
 					<Button
 						type="submit"
+						variant="outline"
 						form="workspace"
 						disabled={
 							!canRename ||

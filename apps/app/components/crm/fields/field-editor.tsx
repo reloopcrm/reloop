@@ -2,6 +2,7 @@
 
 import Add from "@carbon/icons-react/es/Add";
 import Close from "@carbon/icons-react/es/Close";
+import { canManageFields } from "@crm/auth/roles";
 import {
 	FIELD_TYPES,
 	fieldKeyFromLabel,
@@ -128,6 +129,9 @@ function Coverage({ field }: { field: FieldRecord }) {
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
+	const workspace = useQuery(trpc.workspace.get.queryOptions());
+	const canManage = canManageFields(workspace.data?.viewerRole ?? null);
+
 	const coverage = useQuery(
 		trpc.fields.coverage.queryOptions({ id: field.id }),
 	);
@@ -167,14 +171,16 @@ function Coverage({ field }: { field: FieldRecord }) {
 							: t("{count} still to go", { count: total - filled })}
 					</span>
 				</div>
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={backfill.isPending || covered}
-					onClick={() => backfill.mutate({ id: field.id })}
-				>
-					{t(FILL_REST)}
-				</Button>
+				{canManage ? (
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={backfill.isPending || covered}
+						onClick={() => backfill.mutate({ id: field.id })}
+					>
+						{t(FILL_REST)}
+					</Button>
+				) : null}
 			</div>
 		</div>
 	);
@@ -193,6 +199,8 @@ export function FieldEditor({
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
+	const workspace = useQuery(trpc.workspace.get.queryOptions());
+	const canManage = canManageFields(workspace.data?.viewerRole ?? null);
 	const labelId = useId();
 	const briefId = useId();
 	const agentId = useId();
@@ -436,10 +444,12 @@ export function FieldEditor({
 			{field ? <Coverage field={field} /> : null}
 
 			<div className="flex shrink-0 items-center gap-2 border-t px-5 py-3">
-				<Button disabled={saving || draft.label.trim() === ""} onClick={save}>
-					{field ? t(SAVE) : t(ADD_FIELD)}
-				</Button>
-				{field ? (
+				{canManage ? (
+					<Button disabled={saving || draft.label.trim() === ""} onClick={save}>
+						{field ? t(SAVE) : t(ADD_FIELD)}
+					</Button>
+				) : null}
+				{field && canManage ? (
 					<Button variant="outline" onClick={() => setConfirming(true)}>
 						{t(ARCHIVE)}
 					</Button>

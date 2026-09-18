@@ -74,11 +74,7 @@ export class WorkspaceRouter {
 		@Input() input: z.infer<typeof addPersonInput>,
 	) {
 		if (!ctx.session) throw new UnauthorizedException();
-		return this.workspace.addPerson(
-			ctx.user.id,
-			input,
-			ctx.session.session.createdAt,
-		);
+		return this.workspace.addPerson(ctx.user.id, input, ctx.session.session);
 	}
 
 	@Mutation({
@@ -88,6 +84,7 @@ export class WorkspaceRouter {
 			"Workspace",
 		]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async setMemberRole(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof setMemberRoleInput>,

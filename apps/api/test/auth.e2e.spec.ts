@@ -6,6 +6,7 @@ import {
 	expect,
 	it,
 } from "bun:test";
+import { testDatabaseUrl } from "@crm/db/test-database";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
@@ -16,10 +17,7 @@ const fallback = (key: string, value: string) => {
 	}
 };
 
-fallback(
-	"DATABASE_URL",
-	"postgresql://postgres:postgres@localhost:5432/crm?schema=public",
-);
+process.env.DATABASE_URL = testDatabaseUrl(process.env);
 fallback("BETTER_AUTH_SECRET", "test-secret-at-least-32-characters-long");
 fallback("API_URL", "http://localhost:3001");
 fallback("ALLOWED_SIGN_IN", "example.com");

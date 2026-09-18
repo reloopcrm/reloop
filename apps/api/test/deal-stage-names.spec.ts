@@ -4,6 +4,7 @@ import { DealStage } from "@crm/db/enums";
 import type { Locale } from "@crm/db/locale";
 import type { DealExportRow } from "../src/deals/deals.service";
 import { DEAL_COLUMNS } from "../src/exports/exports.service";
+import { EXPORTS } from "../src/exports/exports-config";
 import { SettingsService } from "../src/settings/settings.service";
 
 const stageColumn = DEAL_COLUMNS.find((column) => column.header === "Stage");
@@ -15,11 +16,11 @@ function stageCell(
 ): string {
 	if (!stageColumn) throw new Error("The deal export has no stage column.");
 
-	return stageColumn.value(
-		{ stage } as unknown as DealExportRow,
+	return stageColumn.value({ stage } as unknown as DealExportRow, {
 		locale,
-		names,
-	);
+		moment: EXPORTS.time.format("UTC"),
+		stageNames: names,
+	});
 }
 
 describe("the deal export", () => {

@@ -50,7 +50,9 @@ export function WaitlistForm() {
 				</div>
 				{join.isError ? (
 					<FieldError>
-						That did not work. Check the address and try again.
+						{join.error.data?.code === "TOO_MANY_REQUESTS"
+							? "Too many sign-ups from here. Wait a minute and try again."
+							: "That did not work. Check the address and try again."}
 					</FieldError>
 				) : (
 					<FieldDescription>

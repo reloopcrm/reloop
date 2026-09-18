@@ -426,5 +426,9 @@
 	"An open deal moves to a closed stage": "Açık bir anlaşma kapanış aşamasına geçer",
 	"Only an owner or an admin can change a webhook.": "Bir webhook'u sadece sahip veya yönetici değiştirir.",
 	"No webhook with that id.": "Bu kimliğe sahip webhook yok.",
-	"A webhook address is an http or https address without a user name in it.": "Webhook adresi, içinde kullanıcı adı olmayan bir http veya https adresidir."
+	"A webhook address is an http or https address without a user name in it.": "Webhook adresi, içinde kullanıcı adı olmayan bir http veya https adresidir.",
+	"Address hidden": "Adres gizli",
+	"Too many sign-ups from here. Wait a minute and try again.": "Buradan çok fazla kayıt geldi. Bir dakika bekleyin ve yeniden deneyin.",
+	"The waitlist is taking more sign-ups than it can store. Try again in a minute.": "Bekleme listesi saklayabileceğinden fazla kayıt alıyor. Bir dakika sonra yeniden deneyin.",
+	"Only an owner or an admin can change a custom field.": "Özel bir alanı yalnızca bir sahip veya yönetici değiştirebilir."
 }

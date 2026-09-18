@@ -9,7 +9,7 @@ const buttonVariants = cva(
 		variants: {
 			variant: {
 				default:
-					"bg-primary text-primary-foreground shadow-2xs hover:bg-[color-mix(in_oklch,var(--primary),black_12%)] active:bg-[color-mix(in_oklch,var(--primary),black_22%)] active:shadow-none",
+					"bg-primary text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary),black_12%)] active:bg-[color-mix(in_oklch,var(--primary),black_22%)]",
 				outline:
 					"border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-muted dark:hover:bg-accent",
 				"outline-ghost":
@@ -19,9 +19,9 @@ const buttonVariants = cva(
 				ghost:
 					"hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
 				destructive:
-					"bg-destructive text-destructive-foreground shadow-2xs hover:bg-[color-mix(in_oklch,var(--destructive),black_12%)] active:bg-[color-mix(in_oklch,var(--destructive),black_22%)] active:shadow-none focus-visible:ring-destructive/50",
+					"bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklch,var(--destructive),black_12%)] active:bg-[color-mix(in_oklch,var(--destructive),black_22%)] focus-visible:ring-destructive/50",
 				contrast:
-					"bg-foreground text-background shadow-2xs hover:bg-foreground/90 active:bg-foreground/80 active:shadow-none",
+					"bg-foreground text-background hover:bg-foreground/90 active:bg-foreground/80",
 				link: "text-body-foreground underline-offset-4 hover:text-foreground hover:underline",
 			},
 			size: {
@@ -30,7 +30,7 @@ const buttonVariants = cva(
 				xs: "h-6 gap-1 rounded-sm px-2 text-xs has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
 				sm: "h-7 gap-1 px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
 				lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-				xl: "h-10 gap-2 px-5 text-[15px] has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
+				xl: "h-10 gap-2 px-5 text-md has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
 				icon: "size-8",
 				"icon-xs": "size-6 rounded-sm [&_svg:not([class*='size-'])]:size-3",
 				"icon-sm": "size-7",

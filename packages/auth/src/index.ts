@@ -24,18 +24,22 @@ export {
 export {
 	CREDENTIAL_PROVIDER_ID,
 	generatePassword,
+	hashPassword,
 	hasPassword,
 	type PasswordRefusal,
 	PasswordRefused,
 	setPasswordFor,
+	writeCredentialAccount,
 } from "./password";
 export { PASSWORD_RULES } from "./password-rules";
 export {
 	canAssignRole,
 	canChangeRole,
+	canGrantSignIn,
 	canLoadSampleData,
 	canManageConnections,
 	canManageCurrency,
+	canManageFields,
 	canManageTracking,
 	canRenameWorkspace,
 	isWorkspaceAdmin,
@@ -67,6 +71,14 @@ export {
 	signsInWithGoogle,
 	signsInWithMicrosoft,
 } from "./scopes";
+export {
+	grantSignIn,
+	isSignInAllowed,
+	normalizeSignInAddress,
+	readSignInGrants,
+	revokeSignIn,
+	SIGN_IN_GRANTS,
+} from "./sign-in-grants";
 export { onSignedIn, type SignedInHandler } from "./signed-in";
 export {
 	describeSlackScopes,

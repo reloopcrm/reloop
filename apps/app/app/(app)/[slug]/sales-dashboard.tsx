@@ -20,7 +20,7 @@ import type { ReactNode } from "react";
 import { AreaTrend, DonutStat } from "@/components/dashboard-charts";
 import { dealStageColor } from "@/lib/deal-stage";
 import { useLocale, useT } from "@/lib/i18n/client";
-import { numberFormat } from "@/lib/i18n/format";
+import { dateFormat, numberFormat } from "@/lib/i18n/format";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { useDealStageLabel } from "@/lib/use-deal-stage-label";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
@@ -80,6 +80,13 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 	const tally = (value: number) => numberFormat(locale).format(value);
 
 	const hasTrend = trend.some((point) => point.won > 0 || point.created > 0);
+
+	const trendPoints = trend.map((point) => ({
+		...point,
+		month: dateFormat(locale, { month: "short" }).format(
+			new Date(`${point.month}-01T12:00:00Z`),
+		),
+	}));
 
 	const stageSlices = pipeline.stages.flatMap((stage) =>
 		stage.valueCents > 0
@@ -239,7 +246,7 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 					{hasTrend ? (
 						<div className="flex flex-1 flex-col justify-center py-4">
 							<AreaTrend
-								data={trend}
+								data={trendPoints}
 								config={trendConfig}
 								xKey="month"
 								height={196}

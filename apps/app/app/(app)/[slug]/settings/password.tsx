@@ -83,6 +83,7 @@ export function PasswordSignIn() {
 				<CardAction>
 					<Button
 						type="submit"
+						variant="outline"
 						form="password"
 						disabled={save.isPending || !ready}
 					>

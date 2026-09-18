@@ -62,6 +62,7 @@ export class SettingsRouter {
 		output: agentProviderOutput,
 		meta: restMeta("PATCH", "/settings/agent-provider", ["Settings"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async setAgentProvider(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof setAgentProviderInput>,
@@ -96,6 +97,7 @@ export class SettingsRouter {
 			"Settings",
 		]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async chatgptLoginAction(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof chatgptLoginInput>,
@@ -153,7 +155,7 @@ export class SettingsRouter {
 		return this.settings.setPassword(
 			ctx.user.id,
 			input.newPassword,
-			ctx.session.session.createdAt,
+			ctx.session.session,
 			ctx.session.session.id,
 		);
 	}

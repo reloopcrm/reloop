@@ -20,15 +20,12 @@ import {
 	SLACK_PROVIDER_ID,
 	SYNC_SCOPES,
 } from "./scopes";
+import { isSignInAllowed } from "./sign-in-grants";
 import { notifySignedIn } from "./signed-in";
 import { rememberSlackInstall, replaceSlackConnection } from "./slack-grant";
 import { SLACK_REQUESTED_SCOPES, SLACK_USER_SCOPES } from "./slack-scopes";
 import { queueSlackInventorySync } from "./slack-sync";
-import {
-	hasSignInAllowList,
-	isWorkspaceEmail,
-	primaryWorkspaceDomain,
-} from "./workspace";
+import { hasSignInAllowList, primaryWorkspaceDomain } from "./workspace";
 
 const socialProviders: NonNullable<BetterAuthOptions["socialProviders"]> = {};
 const slackOAuth = env.slack;
@@ -276,7 +273,7 @@ export const auth = betterAuth({
 						});
 					}
 
-					if (!isWorkspaceEmail(user.email)) {
+					if (!(await isSignInAllowed(user.email))) {
 						const domain = primaryWorkspaceDomain();
 						throw new APIError("FORBIDDEN", {
 							message: domain
@@ -297,7 +294,7 @@ export const auth = betterAuth({
 						where: { id: session.userId },
 						select: { email: true },
 					});
-					if (!user || !isWorkspaceEmail(user.email)) {
+					if (!user || !(await isSignInAllowed(user.email))) {
 						throw new APIError("FORBIDDEN", {
 							message: "This account no longer has access to this CRM.",
 						});

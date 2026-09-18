@@ -9,7 +9,10 @@ import {
 	setPasswordFor,
 	workspaceRoleOf,
 } from "@crm/auth";
-import { isFreshPasswordSession } from "@crm/auth/password-rules";
+import {
+	isFreshPasswordSession,
+	type PasswordSession,
+} from "@crm/auth/password-rules";
 import type { Db } from "@crm/db";
 import { USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
 import { DEAL_STAGES } from "@crm/db/deal-stage";
@@ -129,10 +132,10 @@ export class SettingsService {
 	async setPassword(
 		userId: string,
 		newPassword: string,
-		sessionCreatedAt: Date,
+		session: PasswordSession,
 		sessionId: string,
 	): Promise<PasswordSignInSettings> {
-		if (!isFreshPasswordSession(sessionCreatedAt)) {
+		if (!isFreshPasswordSession(session)) {
 			throw new ForbiddenException(
 				"Sign out and sign in again before changing your password.",
 			);

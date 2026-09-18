@@ -5,6 +5,7 @@ import ChevronRight from "@carbon/icons-react/es/ChevronRight";
 import OverflowMenuVertical from "@carbon/icons-react/es/OverflowMenuVertical";
 import Renew from "@carbon/icons-react/es/Renew";
 import Warning from "@carbon/icons-react/es/Warning";
+import { canManageFields } from "@crm/auth/roles";
 import {
 	FIELD_LIMITS,
 	fieldKeyFromLabel,
@@ -163,6 +164,9 @@ export function FieldsList({
 		trpc.fields.list.queryOptions({ entity, includeArchived: true }),
 	);
 
+	const workspace = useQuery(trpc.workspace.get.queryOptions());
+	const canManage = canManageFields(workspace.data?.viewerRole ?? null);
+
 	const reorder = useMutation(
 		trpc.fields.reorder.mutationOptions({
 			onMutate: async ({ ids }) => {
@@ -249,7 +253,7 @@ export function FieldsList({
 					</ul>
 				</DisclosureRow>
 
-				{proposed.length > 0 ? (
+				{canManage && proposed.length > 0 ? (
 					<div className="border-b px-5 py-2">
 						<p className="pb-1 font-medium text-muted-foreground text-xs uppercase tracking-wider">
 							{t(PROPOSED_GROUP)}
@@ -259,6 +263,7 @@ export function FieldsList({
 								key={proposal.id}
 								value={`${proposal.label} · ${t(typeLabel(proposal.type))}`}
 								rationale={proposal.reason}
+								instruction={proposal.agentBrief}
 								pending={decide.isPending}
 								onAccept={() =>
 									decide.mutate({ id: proposal.id, decision: "accept" })
@@ -271,7 +276,7 @@ export function FieldsList({
 					</div>
 				) : null}
 
-				{suggestions.length > 0 && (
+				{canManage && suggestions.length > 0 && (
 					<DisclosureRow
 						title={t(SUGGESTED_ROW)}
 						note={`${suggestions.length} · ${t(SUGGESTED_NOTE)}`}
@@ -332,16 +337,18 @@ export function FieldsList({
 							<EmptyTitle>{t(ERROR_TITLE)}</EmptyTitle>
 							<EmptyDescription>{t(ERROR_BODY)}</EmptyDescription>
 						</EmptyHeader>
-						<EmptyContent>
-							<Button
-								variant="outline"
-								disabled={query.isFetching}
-								onClick={() => query.refetch()}
-							>
-								<Icon icon={Renew} data-icon="inline-start" />
-								{t(RETRY)}
-							</Button>
-						</EmptyContent>
+						{canManage ? (
+							<EmptyContent>
+								<Button
+									variant="outline"
+									disabled={query.isFetching}
+									onClick={() => query.refetch()}
+								>
+									<Icon icon={Renew} data-icon="inline-start" />
+									{t(RETRY)}
+								</Button>
+							</EmptyContent>
+						) : null}
 					</Empty>
 				) : (
 					<>
@@ -403,27 +410,31 @@ export function FieldsList({
 												{t(field.typeLabel)}
 											</Badge>
 
-											<DropdownMenu>
-												<DropdownMenuTrigger asChild>
-													<Button variant="ghost" size="icon-xs">
-														<Icon icon={OverflowMenuVertical} />
-														<span className="sr-only">
-															{t("More for {label}", { label: field.label })}
-														</span>
-													</Button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align="end">
-													<DropdownMenuItem onSelect={() => onEdit(field.key)}>
-														{t("Edit")}
-													</DropdownMenuItem>
-													<DropdownMenuSeparator />
-													<DropdownMenuItem
-														onSelect={() => archive.mutate({ id: field.id })}
-													>
-														{t("Archive")}
-													</DropdownMenuItem>
-												</DropdownMenuContent>
-											</DropdownMenu>
+											{canManage ? (
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button variant="ghost" size="icon-xs">
+															<Icon icon={OverflowMenuVertical} />
+															<span className="sr-only">
+																{t("More for {label}", { label: field.label })}
+															</span>
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														<DropdownMenuItem
+															onSelect={() => onEdit(field.key)}
+														>
+															{t("Edit")}
+														</DropdownMenuItem>
+														<DropdownMenuSeparator />
+														<DropdownMenuItem
+															onSelect={() => archive.mutate({ id: field.id })}
+														>
+															{t("Archive")}
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+											) : null}
 										</SortableItem>
 									))}
 								</SortableList>
@@ -444,13 +455,15 @@ export function FieldsList({
 											<span className="flex-1 truncate text-muted-foreground text-xs">
 												{field.label}
 											</span>
-											<Button
-												variant="outline"
-												size="xs"
-												onClick={() => restore.mutate({ id: field.id })}
-											>
-												{t("Restore")}
-											</Button>
+											{canManage ? (
+												<Button
+													variant="outline"
+													size="xs"
+													onClick={() => restore.mutate({ id: field.id })}
+												>
+													{t("Restore")}
+												</Button>
+											) : null}
 										</li>
 									))}
 								</ul>
@@ -460,7 +473,7 @@ export function FieldsList({
 				)}
 			</div>
 
-			{live.length > 0 ? (
+			{canManage && live.length > 0 ? (
 				<div className="flex shrink-0 items-center justify-between gap-3 border-t px-5 py-3">
 					<Button onClick={onNew} disabled={full}>
 						<Icon icon={Add} data-icon="inline-start" />

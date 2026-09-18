@@ -74,6 +74,7 @@ export function DealStages() {
 				<CardAction>
 					<Button
 						type="submit"
+						variant="outline"
 						form="deal-stages"
 						disabled={
 							save.isPending || changed.length === 0 || !stages.data.canRename

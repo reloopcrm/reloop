@@ -1,3 +1,5 @@
+import { API_KEY_PREFIX } from "./api-keys";
+
 const MINUTE_MS = 60_000;
 
 export const PASSWORD_RULES = {
@@ -7,11 +9,16 @@ export const PASSWORD_RULES = {
 	generatedBytes: 15,
 } as const;
 
+export type PasswordSession = { createdAt: Date; token: string };
+
 export function isFreshPasswordSession(
-	createdAt: Date,
+	session: PasswordSession,
 	now = Date.now(),
 ): boolean {
-	const age = now - createdAt.getTime();
+	if (session.token.startsWith(API_KEY_PREFIX)) return false;
+
+	const age = now - session.createdAt.getTime();
+
 	return (
 		Number.isFinite(age) && age >= 0 && age <= PASSWORD_RULES.freshSessionMs
 	);

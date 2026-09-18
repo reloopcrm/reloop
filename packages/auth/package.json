@@ -11,13 +11,14 @@
 		"./password-rules": "./src/password-rules.ts",
 		"./roles": "./src/roles.ts",
 		"./scopes": "./src/scopes.ts",
+		"./sign-in-grants": "./src/sign-in-grants.ts",
 		"./workspace": "./src/workspace.ts"
 	},
 	"scripts": {
 		"auth:generate": "auth generate --config src/auth.ts --output ../db/prisma/schema.prisma --y",
 		"check-types": "tsc --noEmit",
 		"lint": "biome check .",
-		"test": "PASSWORD_SIGN_IN=1 bun test",
+		"test": "bun test",
 		"clean": "rm -rf .turbo node_modules"
 	},
 	"dependencies": {

@@ -331,7 +331,7 @@ export function DetailSheetPending({
 					aria-hidden
 					className={cn(
 						"size-1.5 shrink-0 rounded-full",
-						running ? "bg-primary" : "bg-muted-foreground",
+						running ? "bg-foreground" : "bg-muted-foreground",
 					)}
 				/>
 				<span className="font-medium text-xs">

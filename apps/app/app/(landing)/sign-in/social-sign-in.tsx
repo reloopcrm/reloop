@@ -22,7 +22,13 @@ const PROVIDERS = {
 	microsoft: { label: "Continue with Microsoft", Logo: MicrosoftLogo },
 } as const satisfies Record<MailboxProviderId, ProviderChoice>;
 
-export function SocialSignIn({ provider }: { provider: MailboxProviderId }) {
+export function SocialSignIn({
+	provider,
+	only = false,
+}: {
+	provider: MailboxProviderId;
+	only?: boolean;
+}) {
 	const t = useT();
 	const [pending, setPending] = useState(false);
 
@@ -57,7 +63,7 @@ export function SocialSignIn({ provider }: { provider: MailboxProviderId }) {
 				handleClick().catch(() => fail());
 			}}
 			type="button"
-			variant="outline"
+			variant={only ? "default" : "outline"}
 		>
 			{pending ? (
 				<Spinner data-icon="inline-start" />

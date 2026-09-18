@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import pg from "pg";
+import { databaseName, isTestDatabaseName } from "../src/test-database";
 
 const SCHEMA = join(dirname(import.meta.dirname), "prisma", "schema.prisma");
 const MIGRATIONS = join(dirname(import.meta.dirname), "prisma", "migrations");
@@ -17,7 +18,7 @@ if (!url) {
 
 const name = databaseName(url);
 
-if (!/^[a-zA-Z0-9_]+_test$/.test(name)) {
+if (!isTestDatabaseName(name)) {
 	fail([
 		`TEST_DATABASE_URL names "${name}", which does not end in _test.`,
 		"The suite refuses anything else, because it deletes rows it expects to",
@@ -187,14 +188,6 @@ function resolve(): string | null {
 		return parsed.toString();
 	} catch {
 		return null;
-	}
-}
-
-function databaseName(value: string): string {
-	try {
-		return new URL(value).pathname.replace(/^\//, "");
-	} catch {
-		return value;
 	}
 }
 

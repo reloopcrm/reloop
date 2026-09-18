@@ -31,9 +31,11 @@ export class WebhooksService {
 			orderBy: { createdAt: "asc" },
 		});
 
+		const canManage = canManageConnections(role);
+
 		return {
-			webhooks: webhooks.map(present),
-			canManage: canManageConnections(role),
+			webhooks: webhooks.map((webhook) => present(webhook, canManage)),
+			canManage,
 		};
 	}
 
@@ -97,14 +99,14 @@ export class WebhooksService {
 	}
 }
 
-function present(webhook: WebhookModel): WebhookOutput {
+function present(webhook: WebhookModel, canManage: boolean): WebhookOutput {
 	return {
 		id: webhook.id,
-		url: webhook.url,
+		url: canManage ? webhook.url : null,
 		events: webhook.events.filter(isCrmEventType),
 		enabled: webhook.enabled,
 		allowPrivateHost: webhook.allowPrivateHost,
-		secretHint: hintOf(webhook.secret),
+		secretHint: canManage ? hintOf(webhook.secret) : null,
 		lastDeliveryAt: webhook.lastDeliveryAt?.toISOString() ?? null,
 		lastStatus: webhook.lastStatus,
 		lastError: webhook.lastError,

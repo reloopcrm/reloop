@@ -1,11 +1,19 @@
 import { describe, expect, it } from "bun:test";
+import { LOCALES } from "@crm/db/locale";
 import { csvField, csvLine, neutralizeFormula } from "../src/exports/csv";
+import { parseExportRequest } from "../src/exports/exports.contracts";
 import {
+	DEAL_COLUMNS,
 	EXPORT_ENUM_WORDS,
 	EXPORT_HEADERS,
+	type ExportContext,
 } from "../src/exports/exports.service";
 import { EXPORTS } from "../src/exports/exports-config";
-import { EXPORT_GERMAN, exportWord } from "../src/exports/exports-copy";
+import { EXPORT_WORDS, exportWord } from "../src/exports/exports-copy";
+
+const TRANSLATED = LOCALES.filter((locale) => locale !== "en");
+
+const FILE_STEMS = ["contacts", "companies", "deals"];
 
 describe("the CSV writer", () => {
 	it("neutralises every value Excel would read as a formula", () => {
@@ -16,20 +24,40 @@ describe("the CSV writer", () => {
 		expect(neutralizeFormula("\tTabbed")).toBe("'\tTabbed");
 	});
 
-	it("has a German word for every fixed header and every file stem", () => {
-		for (const header of EXPORT_HEADERS) {
-			expect(EXPORT_GERMAN.has(header)).toBe(true);
-		}
-		for (const stem of ["contacts", "companies", "deals"]) {
-			expect(EXPORT_GERMAN.has(stem)).toBe(true);
+	it("has a word for every fixed header in every language", () => {
+		for (const locale of TRANSLATED) {
+			const missing = EXPORT_HEADERS.filter(
+				(header) => !(header in EXPORT_WORDS[locale]),
+			);
+
+			expect(`${locale}: ${missing.join(", ")}`).toBe(`${locale}: `);
 		}
 	});
 
-	it("has a German word for every stored value the export writes", () => {
+	it("has a word for every stored value the export writes", () => {
 		expect(EXPORT_ENUM_WORDS.length).toBeGreaterThan(0);
-		for (const word of EXPORT_ENUM_WORDS) {
-			expect(EXPORT_GERMAN.has(word)).toBe(true);
+
+		for (const locale of TRANSLATED) {
+			const missing = EXPORT_ENUM_WORDS.filter(
+				(word) => !(word in EXPORT_WORDS[locale]),
+			);
+
+			expect(`${locale}: ${missing.join(", ")}`).toBe(`${locale}: `);
 		}
+	});
+
+	it("names the file in the reader's language, in ASCII", () => {
+		for (const locale of TRANSLATED) {
+			for (const stem of FILE_STEMS) {
+				const word = exportWord(locale, stem);
+
+				expect(word.length).toBeGreaterThan(0);
+				expect(/^[a-z]+$/.test(word)).toBe(true);
+			}
+		}
+
+		expect(exportWord("de", "deals")).toBe("geschaefte");
+		expect(exportWord("zh-Hans", "deals")).toBe("deals");
 	});
 
 	it("says what the deal table says, stage by stage", () => {
@@ -44,6 +72,38 @@ describe("the CSV writer", () => {
 		expect(exportWord("de", "First name")).toBe("Vorname");
 		expect(exportWord("en", "First name")).toBe("First name");
 		expect(exportWord("de", "Umsatz je Region")).toBe("Umsatz je Region");
+	});
+
+	it("writes a moment on the day the rep reads on screen", () => {
+		const row = {
+			createdAt: new Date("2026-09-17T22:30:00.000Z"),
+		} as never;
+		const context = (zone: string): ExportContext => ({
+			locale: "en",
+			moment: EXPORTS.time.format(zone),
+			stageNames: {},
+		});
+		const created = DEAL_COLUMNS.find((column) => column.header === "Created");
+
+		expect(created?.value(row, context("Europe/Berlin"))).toBe(
+			"2026-09-18 00:30",
+		);
+		expect(created?.value(row, context("America/New_York"))).toBe(
+			"2026-09-17 18:30",
+		);
+		expect(created?.value(row, context("UTC"))).toBe("2026-09-17 22:30");
+	});
+
+	it("takes a time zone from the caller and refuses a made up one", () => {
+		expect(
+			parseExportRequest("deals", undefined, "de", "Europe/Berlin").zone,
+		).toBe("Europe/Berlin");
+		expect(parseExportRequest("deals", undefined, "de", undefined).zone).toBe(
+			"UTC",
+		);
+		expect(() =>
+			parseExportRequest("deals", undefined, "de", "Mars/Olympus"),
+		).toThrow();
 	});
 
 	it("leaves an ordinary value alone", () => {

@@ -146,8 +146,16 @@ never reuse one from an example, a tutorial, or another environment.
 
 ```sh
 bun run --filter=api test
-bun run --filter=agent test    # integration specs need DATABASE_URL + real Postgres
+bun run --filter=agent test    # integration specs need a real Postgres
 ```
+
+**`TEST_DATABASE_URL` is required, and it never falls back.** `apps/api`,
+`apps/agent` and `packages/auth` each preload a `test/setup.ts` that reads it
+through `testDatabaseUrl` (`@crm/db/test-database`) and points `DATABASE_URL` at
+it. An unset variable, or a name that does not end in `_test`, stops the suite
+with a message rather than writing into your live database. The preload is
+declared in each package's `bunfig.toml`, so a bare `bun test` in an editor
+behaves exactly like `bun run test`.
 
 ### Test database preparation preserves existing data
 

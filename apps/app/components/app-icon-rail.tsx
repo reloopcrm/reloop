@@ -114,7 +114,7 @@ function RailLink({
 						{active ? (
 							<span
 								aria-hidden="true"
-								className="absolute inset-y-1 -left-2 w-0.5 rounded-full bg-primary"
+								className="absolute inset-y-1 -left-2 w-0.5 rounded-full bg-foreground"
 							/>
 						) : null}
 						<Icon icon={item.icon} />

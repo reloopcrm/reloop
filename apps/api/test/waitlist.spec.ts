@@ -4,11 +4,13 @@ import { waitlistJoinInput } from "@crm/validation/waitlist";
 import { ForbiddenException } from "@nestjs/common";
 import type { TrackingCounterService } from "../src/tracking/tracking-counter.service";
 import { WaitlistService } from "../src/waitlist/waitlist.service";
+import { WAITLIST } from "../src/waitlist/waitlist-config";
 
 type Row = { id: string; email: string; createdAt: Date };
 
-function service({ allow = true, role = "owner" } = {}) {
+function service({ role = "owner" } = {}) {
 	const rows: Row[] = [];
+	const used = new Map<string, number>();
 
 	const db = {
 		member: { findUnique: async () => ({ role }) },
@@ -35,7 +37,12 @@ function service({ allow = true, role = "owner" } = {}) {
 	} as unknown as Db;
 
 	const counters = {
-		take: async () => allow,
+		take: async (key: string, limit: number) => {
+			const next = (used.get(key) ?? 0) + 1;
+			if (next > limit) return false;
+			used.set(key, next);
+			return true;
+		},
 	} as unknown as TrackingCounterService;
 
 	return { waitlist: new WaitlistService(db, counters), rows };
@@ -45,7 +52,7 @@ describe("joining the waitlist", () => {
 	it("stores the address right away", async () => {
 		const { waitlist, rows } = service();
 
-		await waitlist.join("ada@example.com");
+		await waitlist.join("ada@example.com", "203.0.113.5");
 
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.email).toBe("ada@example.com");
@@ -54,18 +61,40 @@ describe("joining the waitlist", () => {
 	it("keeps one row for the same address", async () => {
 		const { waitlist, rows } = service();
 
-		await waitlist.join("ada@example.com");
-		await waitlist.join("ada@example.com");
+		await waitlist.join("ada@example.com", "203.0.113.5");
+		await waitlist.join("ada@example.com", "203.0.113.5");
 
 		expect(rows).toHaveLength(1);
 	});
 
-	it("stores nothing once the rate limit is reached", async () => {
-		const { waitlist, rows } = service({ allow: false });
+	it("answers a refusal instead of ok once the caller is over the limit", async () => {
+		const { waitlist, rows } = service();
+		const flooder = "198.51.100.7";
 
-		await waitlist.join("ada@example.com");
+		for (let sent = 0; sent < WAITLIST.join.perAddressPerMinute; sent += 1) {
+			await waitlist.join(`spam${sent}@example.com`, flooder);
+		}
 
-		expect(rows).toHaveLength(0);
+		await expect(
+			waitlist.join("one-too-many@example.com", flooder),
+		).rejects.toThrow("Too many sign-ups");
+
+		expect(rows).toHaveLength(WAITLIST.join.perAddressPerMinute);
+	});
+
+	it("keeps taking sign-ups from every other address while one floods", async () => {
+		const { waitlist, rows } = service();
+		const flooder = "198.51.100.7";
+
+		for (let sent = 0; sent <= WAITLIST.join.perAddressPerMinute; sent += 1) {
+			await waitlist
+				.join(`spam${sent}@example.com`, flooder)
+				.catch(() => undefined);
+		}
+
+		await waitlist.join("ada@example.com", "203.0.113.5");
+
+		expect(rows.some((row) => row.email === "ada@example.com")).toBe(true);
 	});
 
 	it("normalises and validates the address at the boundary", () => {
@@ -91,7 +120,7 @@ describe("the list", () => {
 
 	it("shows the address and the signup date", async () => {
 		const { waitlist } = service();
-		await waitlist.join("ada@example.com");
+		await waitlist.join("ada@example.com", "203.0.113.5");
 
 		const { rows } = await waitlist.list("u1");
 
@@ -101,7 +130,7 @@ describe("the list", () => {
 
 	it("blocks a spreadsheet formula in the CSV export", async () => {
 		const { waitlist } = service();
-		await waitlist.join("=cmd@example.com");
+		await waitlist.join("=cmd@example.com", "203.0.113.5");
 
 		const { csv } = await waitlist.list("u1");
 

@@ -122,15 +122,20 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   `x-reloop-timestamp` is what the receiver signs with. The secret is sealed with
   `sealWebhookSecret` the same way the IMAP password is, and the page shows a
   masked hint, never the value.
-- **Only an owner or an admin writes a webhook.** `canManageConnections`, the
-  same predicate Slack uses, in the service and on the button.
+- **Only an owner or an admin writes a webhook, or reads its address.**
+  `canManageConnections`, the same predicate Slack uses, in the service and on
+  the button. `webhooks.status` returns `url` and `secretHint` as null to a
+  member, because a receiver address is itself a bearer credential: anybody who
+  holds it can post forged events at that receiver. A member still sees the
+  events and the liveness, so failure stays on the surface.
 - **A private address is opt-in per webhook.** The default refuses anything that
   does not resolve to a public address, because the CRM would otherwise post to
   whatever the operator's network runs. `allowPrivateHost` lifts that for one
   webhook, and the switch states the risk where it is turned on. Link-local,
   unspecified and multicast addresses stay refused whatever the switch says, so
-  the cloud metadata service is never reachable. The answer is never read back
-  into the CRM.
+  the cloud metadata service is never reachable. The answer's body is never read
+  back into the CRM: the card keeps the delivery time and the status code the
+  receiver returned, and nothing else from it.
 
 ## Direction is the organising idea
 

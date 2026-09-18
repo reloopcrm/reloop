@@ -32,6 +32,13 @@ const deals = new DealsService(
 
 const quotes = new QuotesService(db, deals);
 
+const brokenAttach = new QuotesService(db, {
+	create: deals.create.bind(deals),
+	attachContact: async () => {
+		throw new Error("The contact could not be attached.");
+	},
+} as unknown as DealsService);
+
 const rules = {
 	...DEFAULT_WIN_BACK_RULES,
 	business: {
@@ -233,6 +240,25 @@ describe("quotes waiting for a deal", () => {
 		expect(deal.amount).toBeNull();
 		expect(deal.baseAmount).toBeNull();
 		expect(deal.contacts).toEqual([{ contactId: created.contactId ?? "" }]);
+	});
+
+	it("keeps one deal when the contact cannot be attached", async () => {
+		await make({ key: "flaky", company: "Flaky Co" });
+		const threadId = ids.flaky?.threadId ?? "";
+		const created = await brokenAttach.create(userId, threadId);
+
+		expect(created.contactId).toBeNull();
+
+		const thread = await db.emailThread.findUniqueOrThrow({
+			where: { id: threadId },
+			select: { quoteHandledAt: true },
+		});
+		expect(thread.quoteHandledAt).not.toBeNull();
+
+		const dealCount = await db.deal.count({
+			where: { companyId: ids.flaky?.companyId ?? "" },
+		});
+		expect(dealCount).toBe(1);
 	});
 
 	it("takes the quote off the list once the deal exists", async () => {

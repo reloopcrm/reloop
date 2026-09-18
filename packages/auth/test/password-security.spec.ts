@@ -8,6 +8,7 @@ it("changes a password in memory and preserves only the current session", async 
 	let revoked: Prisma.SessionDeleteManyArgs | undefined;
 	const transaction = {
 		account: {
+			findFirst: async () => ({ id: "test-account" }),
 			update: async ({ data }: { data: { password: string } }) => {
 				password = data.password;
 			},
@@ -20,7 +21,6 @@ it("changes a password in memory and preserves only the current session", async 
 	};
 	const database = {
 		user: { findUnique: async () => ({ id: "test-user" }) },
-		account: { findFirst: async () => ({ id: "test-account" }) },
 		$transaction: async (run: (tx: typeof transaction) => Promise<void>) =>
 			run(transaction),
 	} as unknown as Db;

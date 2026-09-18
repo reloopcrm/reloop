@@ -44,11 +44,11 @@ export const updateWebhookInput = z.object({
 
 export const webhookOutput = z.object({
 	id: z.string(),
-	url: z.string(),
+	url: z.string().nullable(),
 	events: z.array(z.enum(CRM_EVENT_TYPES)),
 	enabled: z.boolean(),
 	allowPrivateHost: z.boolean(),
-	secretHint: z.string(),
+	secretHint: z.string().nullable(),
 	lastDeliveryAt: z.string().nullable(),
 	lastStatus: z.number().nullable(),
 	lastError: z.string().nullable(),

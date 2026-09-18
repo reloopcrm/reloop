@@ -96,17 +96,18 @@ whose event never arrived, which cannot be recovered.
 
 #### Capabilities — booleans, never values
 
-`cap_perplexity`, `cap_context_dev`, `cap_blob`, `cap_github`, `cap_redis`,
+`cap_perplexity`, `cap_blob`, `cap_github`, `cap_redis`,
 `cap_agent_bridge`, `cap_cron_secret`, `cap_openrouter`, `cap_google_oauth`, `cap_sso_provider`,
 `cap_tracking`, `is_marketing`.
 
-Each is only whether the key is set. `cap_context_dev` is whether an `AppSetting` row holds one,
-`cap_openrouter` whether `OPENROUTER_API_KEY` is set or an `AppSetting` row holds a sealed key,
+Each is only whether the key is set.
+`cap_openrouter` is whether `OPENROUTER_API_KEY` is set or an `AppSetting` row holds a sealed key,
 `cap_sso_provider` whether an `ssoProvider` row exists, `cap_tracking` whether a tracking site id
 has been minted — never the id itself. No key, value or last-four is sent.
 
-`cap_context_dev` covers both of the agent's Context capabilities: company brand data by domain,
-and reading a person off a LinkedIn URL. They are one key, so they are one boolean.
+`cap_context_dev` is retired. The Context.dev integration is gone, so the property is out of
+`ALLOWED_PROPERTIES` and is no longer sent. A property that is removed is removed from the
+allowlist as well, or the next writer sends it again.
 
 #### The agent
 
@@ -245,7 +246,7 @@ so is any error class that is not a plain identifier.
 - `EmailThread` and `EmailMessage` subjects or bodies, `CalendarEvent` titles, `CalendarAttendee` rows
 - `Deal` names and amounts. Stage distribution is fine; amounts are not.
 - `AgentEvent.data`, `AgentConversation` content, prompts, completions, reasoning traces
-- `ALLOWED_SIGN_IN`, `AppSetting.contextDevApiKey`, any key, secret, token or connection string
+- `ALLOWED_SIGN_IN`, any key, secret, token or connection string. `AppSetting.contextDevApiKey` is still a column and is still never sent
 - `SuppressedDomain` and `SuppressedContact` values — counts only
 - **IP address.** Set `$ip: null` and disable geoip. n8n collects IP and has to caveat their
   anonymity claim because of it. We do not need it and we would rather the claim be unqualified.

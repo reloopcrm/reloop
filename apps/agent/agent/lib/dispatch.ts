@@ -176,10 +176,7 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	}
 
 	if (task.kind === "portrait" && task.contactId) {
-		const portrait = await runPortrait({
-			contactId: task.contactId,
-			spend: () => ({ ok: true }),
-		});
+		const portrait = await runPortrait({ contactId: task.contactId });
 
 		await completeTask(
 			task.id,

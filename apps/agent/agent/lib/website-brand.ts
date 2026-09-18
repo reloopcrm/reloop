@@ -1,7 +1,7 @@
 import { safeFetch } from "@crm/db/safe-fetch";
 import { streamText } from "ai";
 import { z } from "zod";
-import type { Brand, LookupResult } from "./context-dev";
+import type { Brand, BrandLookup } from "./brand-mapping";
 import { language } from "./language";
 import { directModel } from "./model";
 import { WEBSITE } from "./website-config";
@@ -20,7 +20,7 @@ const extracted = z.object({
 
 type Extracted = z.infer<typeof extracted>;
 
-type Page = {
+export type Page = {
 	url: URL;
 	html: string;
 	text: string;
@@ -147,8 +147,14 @@ function social(links: string[], host: RegExp): string | null {
 	return links.find((href) => host.test(href)) ?? null;
 }
 
-async function extract(page: Page): Promise<Extracted> {
-	const model = await directModel("reading", "brand");
+export async function askPage<Shape extends z.ZodType>(
+	page: Page,
+	shape: Shape,
+	instructions: string[],
+): Promise<z.infer<Shape> | null> {
+	const model = await directModel("reading", "brand").catch(() => null);
+	if (!model) return null;
+
 	const facts = [
 		`URL: ${page.url.toString()}`,
 		`Title: ${page.title ?? ""}`,
@@ -164,14 +170,9 @@ async function extract(page: Page): Promise<Extracted> {
 			model,
 			abortSignal: AbortSignal.timeout(WEBSITE.modelTimeoutMs),
 			system: [
-				"You read a company's homepage and report facts about the company.",
-				"Report only what the page states. Unknown values are null. Never guess a city or country from the language alone.",
-				"name is the company's real name without slogans or legal suffixes like GmbH left as they appear on the page.",
-				`description is one ${language()} sentence about what the company does.`,
-				"industry and subindustry are short English labels, for example Logistics / Pallet trading.",
-				"countryCode is the ISO 3166-1 alpha-2 code.",
+				...instructions,
 				"Answer with one JSON object only, no prose, no code fences, matching this JSON schema:",
-				JSON.stringify(z.toJSONSchema(extracted)),
+				JSON.stringify(z.toJSONSchema(shape)),
 			].join("\n"),
 			prompt: facts,
 		});
@@ -181,17 +182,32 @@ async function extract(page: Page): Promise<Extracted> {
 
 		try {
 			const cleaned = text.replace(/```(?:json)?/gi, "").trim();
-			const parsed = extracted.safeParse(
+			const parsed = shape.safeParse(
 				JSON.parse(
 					cleaned.slice(cleaned.indexOf("{"), cleaned.lastIndexOf("}") + 1),
 				),
 			);
 			if (parsed.success) return parsed.data;
-		} catch {
-			// retry once
-		}
+		} catch {}
 	}
 
+	return null;
+}
+
+async function extract(page: Page): Promise<Extracted> {
+	const facts = await askPage(page, extracted, [
+		"You read a company's homepage and report facts about the company.",
+		"Report only what the page states. Unknown values are null. Never guess a city or country from the language alone.",
+		"name is the company's real name without slogans or legal suffixes like GmbH left as they appear on the page.",
+		`description is one ${language()} sentence about what the company does.`,
+		"industry and subindustry are short English labels, for example Logistics / Pallet trading.",
+		"countryCode is the ISO 3166-1 alpha-2 code.",
+	]);
+
+	return facts ?? fromMetadata(page);
+}
+
+function fromMetadata(page: Page): Extracted {
 	return {
 		name: page.siteName ?? page.title,
 		description: page.metaDescription,
@@ -205,7 +221,7 @@ async function extract(page: Page): Promise<Extracted> {
 	};
 }
 
-export async function brandFromWebsite(domain: string): Promise<LookupResult> {
+export async function brandFromWebsite(domain: string): Promise<BrandLookup> {
 	const page = await fetchPage(domain);
 	if (!page) {
 		return {

@@ -5,14 +5,6 @@ import {
 import { chatgptLoginState } from "@crm/validation/chatgpt-login";
 import { z } from "zod";
 
-export const researchKeyOutput = z.object({
-	configured: z.boolean(),
-	hint: z.string().nullable(),
-	skipped: z.boolean(),
-});
-
-export type ResearchKeySettings = z.infer<typeof researchKeyOutput>;
-
 export const archiveRetentionOutput = z.object({
 	days: z.number(),
 });
@@ -172,20 +164,6 @@ export const setAgentProviderInput = z.object({
 });
 
 export type SetAgentProviderInput = z.infer<typeof setAgentProviderInput>;
-
-export const setResearchKeyInput = z.object({
-	apiKey: z
-		.string()
-		.trim()
-		.min(8, "That does not look like a Context API key. It is too short.")
-		.max(500, "That does not look like a Context API key. It is too long.")
-		.refine(
-			(value) => !/\s/.test(value),
-			"An API key has no spaces in it. Paste the whole key on its own.",
-		),
-});
-
-export type SetResearchKeyInput = z.infer<typeof setResearchKeyInput>;
 
 export const setArchiveRetentionDaysInput = z.object({
 	days: z

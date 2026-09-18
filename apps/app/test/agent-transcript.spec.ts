@@ -90,7 +90,7 @@ describe("toTranscript", () => {
 	it("gives a tool call the same id across its streaming states", () => {
 		const streaming = toTranscript([
 			message([
-				tool("get_linkedin_profile", {
+				tool("find_contact_socials", {
 					state: "input-available",
 					toolCallId: "call_1",
 				}),
@@ -99,7 +99,7 @@ describe("toTranscript", () => {
 		const settled = toTranscript([
 			message([
 				{ type: "text", text: "Checking." },
-				tool("get_linkedin_profile", {
+				tool("find_contact_socials", {
 					state: "output-available",
 					toolCallId: "call_1",
 					output: { found: true },
@@ -121,7 +121,7 @@ describe("toTranscript", () => {
 
 	it("marks a tool that has not returned as pending", () => {
 		const grouped = toTranscript([
-			message([tool("get_linkedin_profile", { state: "input-available" })]),
+			message([tool("find_contact_socials", { state: "input-available" })]),
 		]);
 
 		expect(grouped[0]?.items[0]).toMatchObject({ kind: "did", pending: true });
@@ -393,7 +393,7 @@ describe("outcomeTone", () => {
 describe("sourcesOf", () => {
 	it("offers the page behind a step, labelled by host", () => {
 		const sources = sourcesOf(
-			tool("get_linkedin_profile", {
+			tool("find_contact_socials", {
 				output: { sourceUrl: "https://www.linkedin.com/in/someone" },
 			}) as never,
 		);

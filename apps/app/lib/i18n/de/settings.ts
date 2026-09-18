@@ -109,18 +109,8 @@ export const settings: Dictionary = {
 	"No rate": "Kein Kurs",
 
 	"Company research": "Firmen-Recherche",
-	"Context API key saved.": "Context-API-Schlüssel gespeichert.",
-	"Enter your Context API key so our agents can research every company in the CRM.":
-		"Trage deinen Context-API-Schlüssel ein, damit die Agenten jede Firma im CRM recherchieren können.",
-	"Context API key": "Context-API-Schlüssel",
-	"Replace key": "Schlüssel ersetzen",
-	"Save key": "Schlüssel speichern",
-	"Paste the key": "Schlüssel einfügen",
 	Connected: "Verbunden",
 	"Not connected": "Nicht verbunden",
-	"Reading websites instead": "Liest stattdessen Webseiten",
-	"Don't have a Context API key?": "Keinen Context-API-Schlüssel?",
-	"Sign up here": "Hier anmelden",
 
 	"Who pays for the agent": "Wer den Agenten bezahlt",
 	"The account every model call is billed to. When it reports a usage limit, the agent switches to the next configured account for a while and says so in its log.":

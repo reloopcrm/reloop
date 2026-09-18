@@ -1,6 +1,5 @@
 import { db } from "@crm/db";
 import { blobEnabled, isMirrored, mirror } from "@crm/db/blob";
-import { CONTEXT_DEV_PEOPLE, enabled } from "./capabilities";
 import { findPortrait, type PortraitSource } from "./portrait-sources";
 
 export type PortraitResult = {
@@ -89,11 +88,9 @@ export async function storePortrait({
 
 export async function runPortrait({
 	contactId,
-	spend,
 	force = false,
 }: {
 	contactId: string;
-	spend: (units?: number) => { ok: boolean; reason?: string };
 	force?: boolean;
 }): Promise<PortraitResult> {
 	if (!blobEnabled()) {
@@ -112,9 +109,7 @@ export async function runPortrait({
 			firstName: true,
 			lastName: true,
 			imageUrl: true,
-			linkedinUrl: true,
 			githubUrl: true,
-			company: { select: { name: true, domain: true } },
 		},
 	});
 
@@ -130,29 +125,19 @@ export async function runPortrait({
 		};
 	}
 
-	const found = await findPortrait(
-		{
-			id: contact.id,
-			name:
-				[contact.firstName, contact.lastName].filter(Boolean).join(" ") || null,
-			linkedinUrl: contact.linkedinUrl,
-			githubUrl: contact.githubUrl,
-			companyName: contact.company?.name ?? null,
-			companyDomain: contact.company?.domain ?? null,
-		},
-		spend,
-		await enabled(CONTEXT_DEV_PEOPLE),
-	);
+	const found = findPortrait({
+		id: contact.id,
+		name:
+			[contact.firstName, contact.lastName].filter(Boolean).join(" ") || null,
+		githubUrl: contact.githubUrl,
+	});
 
 	if (!found.found) {
 		return {
 			stored: false,
 			imageUrl: contact.imageUrl,
 			reason:
-				found.reason ??
-				(found.tried.length > 0
-					? `No picture found. Tried: ${found.tried.join("; ")}.`
-					: "Nothing on this contact points at a picture — no LinkedIn or GitHub profile, and no company website."),
+				"Nothing on this contact points at a picture. The record carries no GitHub account.",
 		};
 	}
 

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { z } from "zod";
-import { setResearchKeyInput } from "../src/settings/settings.contracts";
 import { readableInputError } from "../src/trpc/error-formatter";
+
+const apiKeyInput = z.object({
+	apiKey: z
+		.string()
+		.trim()
+		.min(8, "That does not look like an API key. It is too short."),
+});
 
 const causeOf = (schema: z.ZodType, value: z.core.util.JSONType) => {
 	const result = schema.safeParse(value);
@@ -11,15 +17,15 @@ const causeOf = (schema: z.ZodType, value: z.core.util.JSONType) => {
 
 describe("what a rejected form says", () => {
 	it("shows the sentence, not the ZodError", () => {
-		const cause = causeOf(setResearchKeyInput, { apiKey: "short" });
+		const cause = causeOf(apiKeyInput, { apiKey: "short" });
 
 		expect(readableInputError("ignored", cause)).toBe(
-			"That does not look like a Context API key. It is too short.",
+			"That does not look like an API key. It is too short.",
 		);
 	});
 
 	it("never leaks the machinery a reader cannot act on", () => {
-		const cause = causeOf(setResearchKeyInput, { apiKey: "short" });
+		const cause = causeOf(apiKeyInput, { apiKey: "short" });
 		const shown = readableInputError("ignored", cause) ?? "";
 
 		for (const noise of [

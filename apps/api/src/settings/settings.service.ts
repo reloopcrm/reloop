@@ -25,14 +25,10 @@ import {
 	maskKey,
 	readAgentProvider,
 	readArchiveRetentionDays,
-	readContextDevKey,
 	readingModelFor,
 	readPlan,
-	readResearchKeySkipped,
 	writeAgentProvider,
 	writeArchiveRetentionDays,
-	writeContextDevKey,
-	writeResearchKeySkipped,
 } from "@crm/db/settings";
 import {
 	AGENT_FUNCTIONS,
@@ -59,7 +55,6 @@ import {
 	type ChatgptLoginAction,
 	ResearchKeyService,
 } from "../agent/research-key.service";
-import { BackfillService } from "../backfill/backfill.service";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
 import { SETTINGS } from "./settings.config";
@@ -71,7 +66,6 @@ import type {
 	DraftStyleOutput,
 	PasswordSignInSettings,
 	PlanSettings,
-	ResearchKeySettings,
 	SetAgentFunctionInput,
 	SetAgentProviderInput,
 	SpendSettings,
@@ -97,7 +91,6 @@ export class SettingsService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly researchKeys: ResearchKeyService,
-		private readonly backfill: BackfillService,
 		private readonly config: ConfigService<EnvironmentVariables, true>,
 		private readonly agent: AgentTriggerService,
 	) {}
@@ -383,77 +376,9 @@ export class SettingsService {
 		}
 	}
 
-	async researchKey(): Promise<ResearchKeySettings> {
-		const [key, skipped] = await Promise.all([
-			readContextDevKey(this.db),
-			readResearchKeySkipped(this.db),
-		]);
-
-		return {
-			configured: key !== null,
-			hint: key ? maskKey(key) : null,
-			skipped,
-		};
-	}
-
 	async proposeBusiness(userId: string): Promise<{ queued: boolean }> {
 		await this.assertManager(userId);
 		return { queued: await this.agent.businessSetupRequested(true) };
-	}
-
-	async skipResearchKey(userId: string): Promise<ResearchKeySettings> {
-		await this.assertManager(userId);
-		await writeResearchKeySkipped(this.db);
-		this.logger.log({
-			message: "Context key skipped; the agent reads company websites itself",
-		});
-
-		void this.backfill.run("companies").catch(() => undefined);
-
-		return this.researchKey();
-	}
-
-	async setResearchKey(
-		userId: string,
-		apiKey: string,
-	): Promise<ResearchKeySettings> {
-		await this.assertManager(userId);
-		const check = await this.researchKeys.verify(apiKey);
-
-		if (check.outcome === "invalid") {
-			throw new BadRequestException(check.reason);
-		}
-
-		await writeContextDevKey(this.db, apiKey);
-
-		this.logger.log({
-			message: "Context key saved",
-			verified: check.outcome === "valid",
-		});
-
-		// Every company added while there was no key is still PENDING, because a
-		// brand task with nowhere to look leaves the record alone. The sign-in
-		// sweep would find them, but the person who just fixed it is standing
-		// here — so pick the work up now rather than on their next sign-in.
-		void this.backfill
-			.run("companies")
-			.then(({ queued, remaining }) => {
-				if (queued > 0) {
-					this.logger.log({
-						message: "Queued the research that was waiting on a key",
-						queued,
-						remaining,
-					});
-				}
-			})
-			.catch((cause: unknown) => {
-				this.logger.warn(
-					{ message: "Could not queue the waiting research" },
-					cause instanceof Error ? cause.stack : String(cause),
-				);
-			});
-
-		return this.researchKey();
 	}
 
 	async archiveRetention(): Promise<ArchiveRetentionSettings> {

@@ -49,7 +49,9 @@ describe("isOptimizable", () => {
 	});
 
 	it("refuses anything we did not mint, whatever its extension", () => {
-		expect(isOptimizable("https://cdn.context.dev/logo.png")).toBe(false);
+		expect(isOptimizable("https://cdn.somebody-else.example/logo.png")).toBe(
+			false,
+		);
 		expect(isOptimizable("https://lh3.googleusercontent.com/a/x.jpg")).toBe(
 			false,
 		);

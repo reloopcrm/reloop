@@ -1,21 +1,26 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	it,
+	mock,
+} from "bun:test";
 import { db, EnrichmentStatus } from "@crm/db";
-import { readContextDevKey, writeContextDevKey } from "@crm/db/settings";
-import { runBrand } from "../agent/lib/brand";
 import { settle } from "../agent/lib/enrichment";
 
 /**
- * An install with no Context key still creates companies, and a `brand` task
- * with nowhere to look is consumed and marked done. What must survive that is
- * the *record*: the sign-in sweep re-queues companies whose enrichment never
- * succeeded, and it decides that on `enrichmentStatus` being PENDING or FAILED.
+ * A `brand` task with nowhere to look is consumed and marked done. What must
+ * survive that is the *record*: the sign-in sweep re-queues companies whose
+ * enrichment never succeeded, and it decides that on `enrichmentStatus` being
+ * PENDING or FAILED.
  *
  * `runBrand` settles SKIPPED before anything marks the row RUNNING, and
  * `settle` only writes over a RUNNING row — so the row stays PENDING and the
- * sweep picks it up once a key exists. That is load bearing and entirely
+ * sweep picks it up on the next pass. That is load bearing and entirely
  * implicit, which is why it is pinned here: a `settle` that wrote
- * unconditionally would strand every company added before the key, with
- * nothing to say so.
+ * unconditionally would strand every company, with nothing to say so.
  */
 const created: string[] = [];
 const tasks: string[] = [];
@@ -88,7 +93,7 @@ describe("a brand task with no key", () => {
 		await settle(
 			subjectOf(id),
 			EnrichmentStatus.SKIPPED,
-			"Context.dev is not configured, so there is nowhere to look.",
+			"There is no website to read.",
 		);
 
 		expect(await statusOf(id)).toBe(EnrichmentStatus.PENDING);
@@ -148,34 +153,120 @@ async function domainlessCompany(status: EnrichmentStatus) {
 	return row.id;
 }
 
+const PAGE = `<!doctype html><html><head>
+<title>Fernhill Pallets — pooled pallets across Europe</title>
+<meta property="og:site_name" content="Fernhill Pallets">
+<meta name="description" content="Pooled pallets and one-way pallets across Europe.">
+</head><body><a href="mailto:hello@fernhill.test">hello@fernhill.test</a></body></html>`;
+
+const served: string[] = [];
+
+mock.module("@crm/db/safe-fetch", () => ({
+	safeFetch: async (url: string) => {
+		served.push(url);
+
+		return {
+			url: new URL(url),
+			response: new Response(PAGE, {
+				status: 200,
+				headers: { "content-type": "text/html; charset=utf-8" },
+			}),
+		};
+	},
+}));
+
+mock.module("../agent/lib/model", () => ({
+	directModel: async () => {
+		throw new Error("no model provider is configured here");
+	},
+}));
+
+const { runBrand } = await import("../agent/lib/brand");
+
 describe("a brand task on a company with no domain", () => {
-	let key: string | null;
+	it("marks the company skipped, because no sweep will find it again", async () => {
+		const id = await domainlessCompany(EnrichmentStatus.PENDING);
+
+		const result = await runBrand({ companyId: id });
+
+		expect(result.enriched).toBe(false);
+		expect(await statusOf(id)).toBe(EnrichmentStatus.SKIPPED);
+	});
+});
+
+describe("brand data comes from the company's own website, and nowhere else", () => {
+	let storedKey: string | null = null;
 
 	beforeAll(async () => {
-		key = await readContextDevKey(db);
+		storedKey =
+			(
+				await db.appSetting.findUnique({
+					where: { id: "app" },
+					select: { contextDevApiKey: true },
+				})
+			)?.contextDevApiKey ?? null;
 	});
 
 	afterAll(async () => {
-		await writeContextDevKey(db, key ?? "");
+		await db.appSetting.updateMany({
+			where: { id: "app" },
+			data: { contextDevApiKey: storedKey },
+		});
 	});
 
-	it("marks the company skipped, because no sweep will find it again", async () => {
-		await writeContextDevKey(db, "ctx-test-key");
-		const id = await domainlessCompany(EnrichmentStatus.PENDING);
-
-		const result = await runBrand({ companyId: id });
-
-		expect(result.enriched).toBe(false);
-		expect(await statusOf(id)).toBe(EnrichmentStatus.SKIPPED);
+	afterEach(() => {
+		served.length = 0;
 	});
 
-	it("marks a keyless install's company skipped too, because the website reader also needs a domain", async () => {
-		await writeContextDevKey(db, "");
-		const id = await domainlessCompany(EnrichmentStatus.PENDING);
+	async function unnamedCompany() {
+		const domain = `fernhill-${created.length}.test`;
+		const row = await db.company.create({
+			data: {
+				name: domain,
+				domain,
+				enrichmentStatus: EnrichmentStatus.PENDING,
+			},
+			select: { id: true, domain: true },
+		});
 
-		const result = await runBrand({ companyId: id });
+		created.push(row.id);
+		return row;
+	}
 
-		expect(result.enriched).toBe(false);
-		expect(await statusOf(id)).toBe(EnrichmentStatus.SKIPPED);
+	it("reads the site even while the retired vendor key is still in the row", async () => {
+		await db.appSetting.upsert({
+			where: { id: "app" },
+			create: { id: "app", contextDevApiKey: "ctx-a-key-nothing-reads" },
+			update: { contextDevApiKey: "ctx-a-key-nothing-reads" },
+		});
+
+		const row = await unnamedCompany();
+
+		const result = await runBrand({ companyId: row.id });
+
+		expect(result.enriched).toBe(true);
+		expect(served[0]).toBe(`https://${row.domain}/`);
+
+		const enrichment = await db.companyEnrichment.findUniqueOrThrow({
+			where: { companyId: row.id },
+			select: { raw: true },
+		});
+
+		expect((enrichment.raw as { source?: string }).source).toBe("website");
+		expect(await statusOf(row.id)).toBe(EnrichmentStatus.COMPLETE);
+	});
+
+	it("fills the record from what the page itself says", async () => {
+		const row = await unnamedCompany();
+
+		await runBrand({ companyId: row.id });
+
+		const saved = await db.company.findUniqueOrThrow({
+			where: { id: row.id },
+			select: { name: true, email: true },
+		});
+
+		expect(saved.name).toBe("Fernhill Pallets");
+		expect(saved.email).toBe("hello@fernhill.test");
 	});
 });

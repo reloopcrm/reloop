@@ -31,9 +31,9 @@ async function clear() {
 }
 
 /**
- * The row holds the Context key a rep typed and the model they chose, and
+ * The row holds every key a rep typed and the model they chose, and
  * DATABASE_URL is somebody's working database. Deleting it and not putting it
- * back sends them through the research-key gate again with nothing saying why.
+ * back leaves the agent with no provider and nothing saying why.
  */
 let saved: Prisma.AppSettingUncheckedCreateInput | null = null;
 

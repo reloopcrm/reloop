@@ -1,14 +1,5 @@
 import "@crm/env/load";
 
-import { db } from "@crm/db";
-import { readContextDevKey } from "@crm/db/settings";
-
-export const CONTEXT_DEV = "CONTEXT_DEV";
-
-export const CONTEXT_DEV_PEOPLE = "CONTEXT_DEV_PEOPLE";
-
-export const CONTEXT_DEV_SOURCE = "Context.dev key (Settings → General)";
-
 export type Capability = {
 	readonly id: string;
 	readonly label: string;
@@ -17,27 +8,13 @@ export type Capability = {
 	readonly from: string;
 };
 
-export async function contextDevKey(): Promise<string | null> {
-	try {
-		return await readContextDevKey(db);
-	} catch (error) {
-		console.error(
-			`[agent] could not read the Context.dev key from the database: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		);
-
-		return null;
-	}
-}
+export const COMPANY_BRAND = "COMPANY_BRAND";
 
 export async function capabilities(): Promise<readonly Capability[]> {
-	return capabilitiesFrom(await contextDevKey());
+	return capabilitiesFrom();
 }
 
-export function capabilitiesFrom(
-	contextDev: string | null,
-): readonly Capability[] {
+export function capabilitiesFrom(): readonly Capability[] {
 	const fromEnv = (id: string) => ({
 		id,
 		from: id,
@@ -48,24 +25,15 @@ export function capabilitiesFrom(
 		{
 			...fromEnv("PERPLEXITY_API_KEY"),
 			label: "Web research",
-			gives:
-				"open-web context with citations, and the search that finds a LinkedIn slug in the first place",
+			gives: "open-web context with citations",
 		},
 		{
-			id: CONTEXT_DEV,
-			from: "Settings → General",
+			id: COMPANY_BRAND,
+			from: "the company's own website",
 			label: "Company brand data",
 			gives:
-				"a company's logo, industry, location and socials from its domain; without a Context key the agent reads the company's own website instead",
+				"a company's name, logo, industry, location and contact details, read off its own website",
 			enabled: true,
-		},
-		{
-			id: CONTEXT_DEV_PEOPLE,
-			from: "Settings → General",
-			label: "LinkedIn",
-			gives:
-				"a person read back from a LinkedIn URL you already hold — their real name, bio, current title and employer, every earlier role with its dates, their education and their other public profiles, all self-reported and so authoritative on identity",
-			enabled: contextDev !== null,
 		},
 		{
 			...fromEnv("BLOB_READ_WRITE_TOKEN"),

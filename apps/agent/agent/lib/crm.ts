@@ -87,26 +87,6 @@ export async function personForVerification(
 	};
 }
 
-export async function contactProfileSlug(
-	contactId: string,
-): Promise<{ slug: string; profileUrl: string } | null> {
-	const contact = await db.contact.findUnique({
-		where: { id: contactId },
-		select: { linkedinUrl: true },
-	});
-
-	const slug = linkedinSlug(contact?.linkedinUrl ?? null);
-	return slug
-		? { slug, profileUrl: `https://www.linkedin.com/in/${slug}` }
-		: null;
-}
-
-export function linkedinSlug(url: string | null): string | null {
-	if (!url) return null;
-	const match = /linkedin\.com\/in\/([A-Za-z0-9\-_%]+)/.exec(url);
-	return match?.[1] ?? null;
-}
-
 export type CrmHistory = {
 	contact: {
 		fullName: string;

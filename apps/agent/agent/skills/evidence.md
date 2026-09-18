@@ -15,8 +15,8 @@ identifying *this person*, not merely being consistent with them.
 
 | Kind | Use it when |
 | --- | --- |
-| `profile.email-match` | The profile itself shows the address we hold. Decisive. |
-| `linkedin.employer-and-name` | A LinkedIn profile where the employer matches *and* the name is consistent with the address. Both, or it is not this. |
+| `profile.email-match` | **Not available on this install.** Nothing here reads a profile that lists an address, so you cannot observe this. Never file it. |
+| `linkedin.employer-and-name` | **Not available on this install.** There is no LinkedIn reader here, so you cannot observe this. Never file it. |
 | `crm.thread-reply` | They replied, from that address, on a thread we synced. Proof of identity. |
 | `github.account-identity` | The GitHub account's own `name` (or name plus company) matches. |
 | `crm.meeting-attendance` | They accepted a calendar invite we have. |

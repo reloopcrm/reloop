@@ -1,13 +1,12 @@
 import { blobEnabled } from "@crm/db/blob";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { spend } from "../lib/focus";
 import { runPortrait } from "../lib/portrait";
 import { assertResearchPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
-		"Find and store a photograph for a contact, from their LinkedIn profile, their GitHub account, or their employer's own team page — whichever is on the record. Never searches for a face by name. Reports which source it used, or what it tried.",
+		"Find and store a photograph for a contact from the GitHub account on their record. Never searches for a face by name. Reports which source it used, or what it tried.",
 	inputSchema: z.object({
 		contactId: z.string(),
 		force: z
@@ -27,6 +26,6 @@ export default defineTool({
 			};
 		}
 
-		return runPortrait({ contactId, spend, force });
+		return runPortrait({ contactId, force });
 	},
 });

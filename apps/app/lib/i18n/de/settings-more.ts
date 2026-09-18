@@ -487,13 +487,13 @@ export const settingsMore: Dictionary = {
 	"Writes one line per message when somebody opens a long conversation. One model call each time a rep asks.":
 		"Schreibt eine Zeile pro Nachricht, wenn jemand ein langes Gespräch öffnet. Ein Modellaufruf pro Anfrage.",
 	"Contact research": "Kontaktrecherche",
-	"Works out who a new contact is and keeps their role and background current. One research session per contact, so it spends model tokens and lookup credits.":
-		"Findet heraus, wer ein neuer Kontakt ist, und hält Rolle und Hintergrund aktuell. Eine Recherchesitzung pro Kontakt, also Modell-Token und Abfrage-Credits.",
+	"Works out who a new contact is and keeps their role and background current. One research session per contact, so it spends model tokens.":
+		"Findet heraus, wer ein neuer Kontakt ist, und hält Rolle und Hintergrund aktuell. Eine Recherchesitzung pro Kontakt, also Modell-Token.",
 	"Meeting preparation": "Vorbereitung auf Termine",
 	"Researches the person you meet next before the meeting starts. One research session per meeting.":
 		"Recherchiert die Person deines nächsten Termins, bevor der Termin beginnt. Eine Recherchesitzung pro Termin.",
-	"Fills a new company's industry, city, links and description once. Costs about ten lookup credits per company.":
-		"Füllt Branche, Stadt, Links und Beschreibung einer neuen Firma einmalig. Kostet etwa zehn Abfrage-Credits pro Firma.",
+	"Fills a new company's industry, city, links and description once, from the company's own website.":
+		"Füllt Branche, Stadt, Links und Beschreibung einer neuen Firma einmalig, von der eigenen Webseite der Firma.",
 	"Your own company profile": "Profil deiner eigenen Firma",
 	"Reads your own website so every session knows what you sell. Runs when the website changes, at most once a week.":
 		"Liest deine eigene Webseite, damit jede Sitzung weiß, was du verkaufst. Läuft bei einer Änderung der Webseite, höchstens einmal pro Woche.",
@@ -501,11 +501,11 @@ export const settingsMore: Dictionary = {
 	"Fills empty custom fields on a record from evidence the agent finds. One research session per record.":
 		"Füllt leere eigene Felder eines Datensatzes mit Belegen, die der Agent findet. Eine Recherchesitzung pro Datensatz.",
 	"Company logos": "Firmenlogos",
-	"Fetches the logo, industry and city of a company from its domain. Costs lookup credits, or one small model call when no research key is set.":
-		"Holt Logo, Branche und Stadt einer Firma über ihre Domain. Kostet Abfrage-Credits, oder einen kleinen Modellaufruf, wenn kein Recherche-Schlüssel gesetzt ist.",
+	"Reads the company's own website for its logo, industry and city. One small model call, no lookup credits.":
+		"Liest die eigene Webseite der Firma und holt Logo, Branche und Stadt. Ein kleiner Modellaufruf, keine Abfrage-Credits.",
 	"Contact photos": "Fotos von Kontakten",
-	"Looks for a photo on the contact's own profiles and stores a copy. Costs lookup credits, no model tokens.":
-		"Sucht ein Foto auf den eigenen Profilen des Kontakts und speichert eine Kopie. Kostet Abfrage-Credits, keine Modell-Token.",
+	"Copies a photo from the GitHub account on the contact. No lookup credits, no model tokens.":
+		"Kopiert ein Foto vom GitHub-Konto des Kontakts. Keine Abfrage-Credits, keine Modell-Token.",
 	"Email drafts": "E-Mail-Entwürfe",
 	"Writes the email a rep asks for on a contact, and rewrites it on request. One model call per draft.":
 		"Schreibt die E-Mail, die jemand zu einem Kontakt anfordert, und schreibt sie auf Wunsch um. Ein Modellaufruf pro Entwurf.",

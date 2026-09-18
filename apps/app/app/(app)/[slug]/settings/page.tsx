@@ -21,7 +21,6 @@ import { Language } from "./language";
 import { PasswordSignIn } from "./password";
 import { Plan } from "./plan";
 import { ProfileForm } from "./profile-form";
-import { ResearchKey } from "./research-key";
 import { Spend } from "./spend";
 import { Version } from "./version";
 import { WorkspaceForm } from "./workspace-form";
@@ -65,7 +64,6 @@ async function Settings() {
 		queryClient.prefetchQuery(trpc.users.me.queryOptions()),
 		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.agentProvider.queryOptions()),
-		queryClient.prefetchQuery(trpc.settings.researchKey.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.archiveRetention.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.passwordSignIn.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.plan.queryOptions()),
@@ -78,9 +76,6 @@ async function Settings() {
 				<ProfileForm />
 				{germanOffered() ? <Language /> : null}
 				<WorkspaceForm />
-				<fieldset disabled={!canManage} className="contents">
-					<ResearchKey />
-				</fieldset>
 				<PasswordSignIn />
 				{plansOffered() ? (
 					<fieldset disabled className="contents">

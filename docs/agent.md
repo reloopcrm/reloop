@@ -80,8 +80,9 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
 - **Faces are not optimized** — `AvatarImage` skips `<Image>` because Radix probes the
   URL itself, doubling fetches.
 - **A photograph only comes from a source already tied to this person** —
-  `lib/portrait-sources.ts`: their LinkedIn, their GitHub, their employer's team page,
-  each keyed on an identifier already on the record.
+  `lib/portrait-sources.ts`: the GitHub account on the record, and nothing else.
+  LinkedIn and the employer's team page went with the Context.dev key; a contact with
+  no GitHub account gets no photograph.
 - **There is no image search by name, and there must never be.** Nobody audits a face.
   **Guess where to look, never what you will find.**
 
@@ -91,12 +92,15 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
 
 | | Kinds | How | Per tick |
 | --- | --- | --- | --- |
-| **Visible** | `brand`, `portrait` | Directly — no `receive`, no model | 60, six at a time |
+| **Visible** | `brand`, `portrait` | Directly — no `receive`, no eve session | 60, six at a time |
 | **Research** | everything else | One eve session per row | 12 |
 
 **Neither visible kind has anything to decide**, and through a session they queued
 behind sixty LLM runs for 25 minutes (`test/lanes.integration.spec.ts`). **The row says
-what the work is; the lane only says whether it needs a conversation.**
+what the work is; the lane only says whether it needs a conversation.** `brand` does
+make one direct model call to read the homepage it fetched, which is not a session and
+not a conversation; with no provider it falls back to the page's own metadata rather
+than failing.
 
 **Priority**: `brand` 900 · `portrait` 800 · `workspace` 500 · `requested` 300 ·
 `meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 · `recheck` 0. The
@@ -132,16 +136,6 @@ it after writing any `AgentTask`.
   reaches the row after `research.link.attempts` raises `unlinkedSessions` in
   health, so a task running under a session nobody recorded is visible.
 - **`AGENT_BRIDGE_SECRET` unset refuses rather than opens.**
-
-### `POST /internal/crm/verify-key`
-
-Probes a candidate Context key → `valid`/`invalid`/`unknown`. No session, no model, no
-task row; exists because the API may not call Context.
-
-- **The probe is free and chosen to be** — a free-provider address gets a `422` before
-  billable resolution. **Do not point it at a real domain**: ten credits per typo.
-- **`classifyKey` rejects on `401` and nothing else.**
-- **The candidate key, never the stored one.**
 
 ### Blank fields are filled on the dispatch tick
 
@@ -192,7 +186,8 @@ underlying bug getting worse.
 
 ### Backfills
 
-Sign-in sweep covers records never looked up (10 credits/company);
+Sign-in sweep covers records never looked up (one homepage fetch and one small model
+call per company, no vendor credits);
 `ImageMirrorService` in the same sweep re-hosts off-site pictures (free);
 `backfill:images` fixes enriched records missing only pictures (free);
 `backfill:facts` is the blank-field sweep above run by hand, with `--dry` to read it
@@ -204,8 +199,10 @@ first — the cron covers it, so this is for a machine pointed at another databa
   path, so no queue forms; the sweep is for rows written before it existed and for the
   field a rep clears while a suggestion is pending. **An unreachable agent leaves the
   suggestions where they are** — the API cannot apply one itself.
-- **A finished `portrait` task stands that contact down for thirty days** — that third
-  source costs credits and usually finds nothing.
+- **A finished `portrait` task stands that contact down for thirty days**, and only a
+  contact with a GitHub URL is queued at all. A LinkedIn URL or an employer domain is
+  no longer a door: both readers went with the Context.dev key, so booking on them
+  would only ever report that it found nothing.
 - **No button, deliberately** — a rep cannot know which records predate a resolver.
 - **The trigger is signing in**, via `databaseHooks.session.create.after` in
   `packages/auth`; `BackfillService` subscribes with `onSignedIn` and has no router
@@ -307,17 +304,29 @@ states it in the session instructions, and gives tools a shared "not configured,
 retrying will not help" result — **checked before the research budget is charged**. A
 missing key removes a place to look. **Never an error, never throws.**
 
-**`capabilities()` is async** because the Context key is a row;
-`capabilitiesFrom()`/`markdownFor()` are the pure halves. `contextDevKey()` is the only
-resolver, and `lib/context-dev.ts` memoises its client on the key string.
+`capabilitiesFrom()`/`markdownFor()` are the pure halves; `capabilities()` stays async
+so a source that has to be read rather than looked up in the environment can be added
+without changing every caller.
+
+**Two evidence kinds have no producer left.** `profile.email-match` and
+`linkedin.employer-and-name` were both filed from a Context person lookup. Nothing
+observes them now, `agent/skills/evidence.md` says so, and they stay in `WEIGHTS` so
+the rows already on records still read back. A machine-made name is therefore written
+only by `crm.thread-reply` or `github.account-identity`; everything else is a proposal
+for a rep.
+
+**Company brand data has no key and cannot be turned off.** It reads the company's own
+website (`lib/website-brand.ts`) through `@crm/db/safe-fetch` and asks the configured
+model for the facts on the page. `askPage()` is the one reader; `tools/research_company.ts`
+uses it too. **There is no LinkedIn reader**, so nothing on this install can observe
+`linkedin.employer-and-name`.
 
 ## Budget and scheduling
 
 - `lib/focus.ts` — per-session budget in `defineState`; running out is a normal ending.
-  **A unit is one metered vendor call, not one credit.** `spend(2)` is what a
-  billable lookup costs: a brand lookup is 10 Context credits, a person enrich is
-  20. Both charge 2, because the budget rations calls per contact and a session
-  with a budget of 4 must still be able to make two of them.
+  **A unit is one outside call, not one credit.** `spend(2)` is what a Perplexity or
+  social lookup costs. A brand read is free and charges nothing; reading a marketing
+  site for a brief charges 1, because it is a model call and not a vendor one.
 - `lib/tasks.ts` — `claimDue` leases with `FOR UPDATE SKIP LOCKED`.
 - **`schedules/dispatch.ts` is the only schedule and decides nothing.** "Every N
   minutes, the oldest ten contacts" belongs in a `dueAt`.
@@ -780,8 +789,8 @@ It drains **both lanes**, exactly as the cron does: up to `VISIBLE_BATCH` (60)
 `brand` and `portrait` rows six at a time, handled in the process with no session
 at all, and `RESEARCH_BATCH` (12) research rows, one session each. So the
 `sessionIds` it prints are the research rows only — a run that resolved forty
-logos prints an empty list and was not idle. Either way it spends real credits, a
-vendor call per visible row and a model session per research one; that is the
+logos prints an empty list and was not idle. Either way it spends real money, a
+small model call per `brand` row and a model session per research one; that is the
 point of it, and the reason it is a command you run rather than a ticker somebody
 leaves on. Watch the agent pane; the session ids it returns are also streamable at
 `GET /eve/v1/session/:id/stream`.

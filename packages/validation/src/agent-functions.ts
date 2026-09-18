@@ -40,7 +40,7 @@ export const AGENT_FUNCTIONS = [
 		id: "contact-research",
 		group: "research",
 		title: "Contact research",
-		note: "Works out who a new contact is and keeps their role and background current. One research session per contact, so it spends model tokens and lookup credits.",
+		note: "Works out who a new contact is and keeps their role and background current. One research session per contact, so it spends model tokens.",
 		kinds: ["identify", "profile", "recheck"],
 	},
 	{
@@ -54,7 +54,7 @@ export const AGENT_FUNCTIONS = [
 		id: "company-research",
 		group: "research",
 		title: "Company research",
-		note: "Fills a new company's industry, city, links and description once. Costs about ten lookup credits per company.",
+		note: "Fills a new company's industry, city, links and description once, from the company's own website.",
 		kinds: ["company-profile"],
 	},
 	{
@@ -75,14 +75,14 @@ export const AGENT_FUNCTIONS = [
 		id: "brand",
 		group: "pictures",
 		title: "Company logos",
-		note: "Fetches the logo, industry and city of a company from its domain. Costs lookup credits, or one small model call when no research key is set.",
+		note: "Reads the company's own website for its logo, industry and city. One small model call, no lookup credits.",
 		kinds: ["brand"],
 	},
 	{
 		id: "portrait",
 		group: "pictures",
 		title: "Contact photos",
-		note: "Looks for a photo on the contact's own profiles and stores a copy. Costs lookup credits, no model tokens.",
+		note: "Copies a photo from the GitHub account on the contact. No lookup credits, no model tokens.",
 		kinds: ["portrait"],
 	},
 	{

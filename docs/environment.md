@@ -175,7 +175,7 @@ single place that knows what is set.
 
 | Variable | What it adds |
 | --- | --- |
-| `PERPLEXITY_API_KEY` | Open-web research with citations; finds a LinkedIn slug |
+| `PERPLEXITY_API_KEY` | Open-web research with citations |
 | `GITHUB_TOKEN` | Raises the GitHub rate limit from 60/hour |
 | `BLOB_READ_WRITE_TOKEN` | Mirrors logos and photos into Blob |
 | `OPENROUTER_API_KEY` | The model through OpenRouter, when no key was pasted on Settings → General. A pasted key wins |
@@ -186,30 +186,25 @@ single place that knows what is set.
 because the API and the seed write pictures too. The Next.js app is deliberately
 excluded: recognising our URL for the image optimizer needs no token.
 
-### The Context key is asked for, not configured
+### There is no research vendor key
 
-**`CONTEXT_DEV_API_KEY` is not a variable here and must not become one.** The key lives
-in `AppSetting`, is asked for at `/onboarding/research`, and changes on Settings →
-General: an admin who cannot redeploy cannot set a variable.
+**Context.dev is gone, and `CONTEXT_DEV_API_KEY` must not come back.** The key bought
+two places to look and returned almost nothing: on the reference install 2528 of 2537
+companies carried a `401 USAGE_EXCEEDED`, three had a logo, and no contact had a
+LinkedIn URL. It cost a paid key, an onboarding step and a settings card.
 
-- **It buys two places to look, not one.** Company brand data by domain, and a person
-  read back from a LinkedIn URL already on their record. Both capabilities in
-  `agent/lib/capabilities.ts` turn on and off with this one key.
-- **An install that had the variable is asked again**: no migration, no fallback, and
-  **the gate cannot be dismissed**.
-- **Nothing is lost while waiting.** A keyless `brand` task settles `SKIPPED` *before*
-  anything marks the row `RUNNING`, and `settle` only overwrites `RUNNING`, so the
-  company stays `PENDING`, which the sweep re-queues
-  (`test/keyless-brand.integration.spec.ts`).
-- **Saving the key runs the company sweep immediately** (fire-and-forget).
-- **`readContextDevKey` (`@crm/db/settings`) is the only reader**, read live with no
-  cache. An unreadable database is a capability that is off, not an exception.
-- **The key is never read back**: only whether one is set, and its last four.
-- **The agent checks it, not the API** (a vendor client in the API is a bug):
-  `settings.setResearchKey` calls `POST /internal/crm/verify-key` and writes unless the
-  answer is *invalid*. **`401` is the only answer meaning the key is wrong**, and **a
-  check that cannot be made is not a failed check**: `unknown` saves anyway and logs it
-  unverified.
+- **Company brand data now reads the company's own website.** `lib/website-brand.ts`
+  fetches the homepage through `@crm/db/safe-fetch` and asks the configured model for
+  the facts on it. It is the only brand path
+  (`apps/agent/test/website-brand.integration.spec.ts`).
+- **With no model provider it still answers.** `directModel` throwing falls back to the
+  page's own metadata, so a `brand` task never throws.
+- **Nothing is lost while a page cannot be read.** A `brand` task settles `SKIPPED`
+  *before* anything marks the row `RUNNING`, and `settle` only overwrites `RUNNING`, so
+  the company stays `PENDING`, which the sweep re-queues.
+- **`AppSetting.contextDevApiKey` is still a column and still holds whatever an
+  operator saved.** Nothing reads it. It is left alone on purpose: dropping it would
+  destroy a secret somebody pasted, and an empty column costs nothing.
 
 ## Mailbox sync
 

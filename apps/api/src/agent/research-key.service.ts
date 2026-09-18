@@ -30,14 +30,6 @@ const NO_BRIDGE =
 export class ResearchKeyService {
 	private readonly logger = new Logger(ResearchKeyService.name);
 
-	verify(apiKey: string): Promise<KeyCheck> {
-		return this.check(
-			"/internal/crm/verify-key",
-			{ apiKey },
-			"Context did not recognise that API key.",
-		);
-	}
-
 	verifyProvider(
 		provider: "openrouter" | "openai" | "anthropic",
 		apiKey: string,

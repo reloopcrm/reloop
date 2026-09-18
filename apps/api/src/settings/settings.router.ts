@@ -23,13 +23,11 @@ import {
 	forgetDraftStyleRuleInput,
 	passwordSignInOutput,
 	planOutput,
-	researchKeyOutput,
 	setAgentFunctionInput,
 	setAgentProviderInput,
 	setArchiveRetentionDaysInput,
 	setPasswordInput,
 	setPlanInput,
-	setResearchKeyInput,
 	spendOutput,
 } from "./settings.contracts";
 import { SettingsService } from "./settings.service";
@@ -156,34 +154,6 @@ export class SettingsRouter {
 			ctx.session.session.createdAt,
 			ctx.session.session.id,
 		);
-	}
-
-	@Mutation({
-		output: researchKeyOutput,
-		meta: restMeta("POST", "/settings/research-key/skip", ["Settings"]),
-	})
-	async skipResearchKey(@Ctx() ctx: AuthedTrpcContext) {
-		return this.settings.skipResearchKey(ctx.user.id);
-	}
-
-	@Query({
-		output: researchKeyOutput,
-		meta: restMeta("GET", "/settings/research-key", ["Settings"]),
-	})
-	async researchKey() {
-		return this.settings.researchKey();
-	}
-
-	@Mutation({
-		input: setResearchKeyInput,
-		output: researchKeyOutput,
-		meta: restMeta("PATCH", "/settings/research-key", ["Settings"]),
-	})
-	async setResearchKey(
-		@Ctx() ctx: AuthedTrpcContext,
-		@Input() input: z.infer<typeof setResearchKeyInput>,
-	) {
-		return this.settings.setResearchKey(ctx.user.id, input.apiKey);
 	}
 
 	@Query({

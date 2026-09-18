@@ -6,7 +6,7 @@ import { ask } from "../lib/perplexity";
 
 export default defineTool({
 	description:
-		"Research a person or company on the open web for sales context — recent news, funding, launches, public statements. Returns cited claims. NOT a source of truth for someone's identity or job title; use get_linkedin_profile for that.",
+		"Research a person or company on the open web for sales context — recent news, funding, launches, public statements. Returns cited claims. NOT a source of truth for someone's identity or job title.",
 	inputSchema: z.object({
 		question: z
 			.string()

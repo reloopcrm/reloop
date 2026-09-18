@@ -132,14 +132,6 @@ export const landing: Dictionary = {
 		"Über diese Adresse öffnet dein Team das CRM.",
 	"Read once, so every answer afterwards knows what you sell.":
 		"Wird einmal gelesen, damit jede spätere Antwort weiß, was du verkaufst.",
-	"Research key": "Recherche-Schlüssel",
-	"Level up your CRM data": "Hol mehr aus deinen CRM-Daten",
-	"Power your research agent with Context to research every company added to your CRM.":
-		"Gib deinem Recherche-Agenten Context, damit er jede neue Firma im CRM recherchiert.",
-	"Context API key (optional)": "Context-API-Schlüssel (optional)",
-	"Continue without a key": "Ohne Schlüssel weiter",
-	"Without a key the agent reads each company's own website for its name, logo, industry and contact details. A Context key adds LinkedIn profiles and cleaner logos, and costs credits per lookup.":
-		"Ohne Schlüssel liest der Agent die Webseite der Firma und holt sich Name, Logo, Branche und Kontaktdaten. Ein Context-Schlüssel bringt zusätzlich LinkedIn-Profile und sauberere Logos und kostet Guthaben je Abfrage.",
 	"Copy command": "Befehl kopieren",
 	"Copying failed. Select the command and copy it by hand.":
 		"Kopieren fehlgeschlagen. Markiere den Befehl und kopiere ihn von Hand.",

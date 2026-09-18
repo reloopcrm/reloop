@@ -286,17 +286,14 @@ export class BackfillService implements OnModuleInit {
 	/**
 	 * Contacts with a face to fetch and nowhere it has been put yet.
 	 *
-	 * Three doors qualify, matching the agent's chain: a LinkedIn URL, a GitHub
-	 * URL, or an employer with a website. The third is the expensive one — it
-	 * spends Context.dev credits reading the company's team page — and it is in
-	 * here because it works, which is the only reason worth having.
+	 * One door qualifies, matching the agent's chain: a GitHub URL. Reading a
+	 * LinkedIn profile and reading an employer's team page both went with the
+	 * Context.dev key, so queueing a contact on either would book work that can
+	 * only report that it found nothing.
 	 *
-	 * Which makes the exclusion below load-bearing rather than an optimisation.
-	 * Most people are not on their employer's team page and never will be, so
-	 * without it every sweep would pay to re-read the same forty sites and find
-	 * the same nothing, for as long as the install runs. A finished `portrait`
-	 * task is the record that we looked; a month is long enough that a rebuilt
-	 * team page or a new LinkedIn account is still picked up eventually.
+	 * The exclusion below stays load-bearing. A finished `portrait` task is the
+	 * record that we looked; a month is long enough that a new GitHub account is
+	 * still picked up eventually.
 	 */
 	private async contactsNeedingPhoto(): Promise<Prisma.ContactWhereInput> {
 		const since = new Date(Date.now() - RECHECK_PHOTO_AFTER_MS);
@@ -315,11 +312,7 @@ export class BackfillService implements OnModuleInit {
 
 		const where: Prisma.ContactWhereInput = {
 			imageUrl: null,
-			OR: [
-				{ linkedinUrl: { not: null } },
-				{ githubUrl: { not: null } },
-				{ company: { domain: { not: null } } },
-			],
+			githubUrl: { not: null },
 		};
 		if (recentlyChecked.length > 0) where.id = { notIn: recentlyChecked };
 

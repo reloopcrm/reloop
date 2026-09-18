@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
-	CONTEXT_DEV,
-	CONTEXT_DEV_PEOPLE,
-	CONTEXT_DEV_SOURCE,
+	COMPANY_BRAND,
 	capabilitiesFrom,
 	enabled,
 	markdownFor,
@@ -29,15 +27,15 @@ afterEach(() => {
 
 describe("capabilities", () => {
 	it("reports every key-bound source off on a bare install", async () => {
-		const keyless = capabilitiesFrom(null).filter((c) => c.id !== CONTEXT_DEV);
+		const keyless = capabilitiesFrom().filter((c) => c.id !== COMPANY_BRAND);
 
 		expect(keyless.every((c) => !c.enabled)).toBe(true);
 		expect(await enabled("PERPLEXITY_API_KEY")).toBe(false);
 	});
 
-	it("keeps company brand data on without a key, because it reads the website", () => {
+	it("keeps company brand data on, because it reads the website", () => {
 		expect(
-			capabilitiesFrom(null).find((c) => c.id === CONTEXT_DEV)?.enabled,
+			capabilitiesFrom().find((c) => c.id === COMPANY_BRAND)?.enabled,
 		).toBe(true);
 	});
 
@@ -66,63 +64,40 @@ describe("capabilities", () => {
 	});
 });
 
-describe("the Context key is a setting, never a variable", () => {
-	const contextDev = (stored: string | null) =>
-		capabilitiesFrom(stored).find((c) => c.id === CONTEXT_DEV);
-
-	const people = (stored: string | null) =>
-		capabilitiesFrom(stored).find((c) => c.id === CONTEXT_DEV_PEOPLE);
-
-	it("is on when a key is stored", () => {
-		expect(contextDev("ctx-from-the-settings-page")?.enabled).toBe(true);
+describe("no capability asks for a paid research key any more", () => {
+	it("names no vendor key and no settings page", () => {
+		for (const capability of capabilitiesFrom()) {
+			expect(capability.id).not.toContain("CONTEXT");
+			expect(capability.from).not.toContain("Settings");
+		}
 	});
 
-	it("leaves LinkedIn off when nothing has been stored", () => {
-		expect(people(null)?.enabled).toBe(false);
+	it("offers no LinkedIn source", () => {
+		expect(capabilitiesFrom().some((c) => c.label.includes("LinkedIn"))).toBe(
+			false,
+		);
+		expect(markdownFor(capabilitiesFrom())).not.toContain("LinkedIn");
 	});
 
-	it("is not turned on by an environment variable", () => {
+	it("reads no environment variable for it either", async () => {
 		process.env.CONTEXT_DEV_API_KEY = "a-variable-nothing-reads";
 
-		expect(people(null)?.enabled).toBe(false);
+		expect(capabilitiesFrom().some((c) => c.id === "CONTEXT_DEV_PEOPLE")).toBe(
+			false,
+		);
 
 		delete process.env.CONTEXT_DEV_API_KEY;
-	});
-
-	it("points at the settings page rather than a variable name", () => {
-		expect(contextDev(null)?.from).toBe("Settings → General");
-	});
-});
-
-describe("reading a person comes from the same Context key", () => {
-	const people = (stored: string | null) =>
-		capabilitiesFrom(stored).find((c) => c.id === CONTEXT_DEV_PEOPLE);
-
-	it("is on when a key is stored and off when it is not", () => {
-		expect(people("ctx")?.enabled).toBe(true);
-		expect(people(null)?.enabled).toBe(false);
-	});
-
-	it("points at the settings page rather than a variable name", () => {
-		expect(people(null)?.from).toBe("Settings → General");
-	});
-
-	it("stays off while the brand lookup reads the website instead", () => {
-		expect(people(null)?.enabled).toBe(false);
-		expect(
-			capabilitiesFrom(null).find((c) => c.id === CONTEXT_DEV)?.enabled,
-		).toBe(true);
 	});
 });
 
 describe("the unavailable result", () => {
 	it("says retrying will not help", () => {
-		const result = unavailable(CONTEXT_DEV_SOURCE);
+		const result = unavailable("PERPLEXITY_API_KEY");
 
 		expect(result.ok).toBe(false);
 		expect(result.configured).toBe(false);
 		expect(result.reason).toContain("retrying will not help");
-		expect(result.reason).toContain(CONTEXT_DEV_SOURCE);
+		expect(result.reason).toContain("PERPLEXITY_API_KEY");
 	});
 });
 
@@ -135,37 +110,25 @@ describe("the capability briefing", () => {
 	});
 
 	it("offers the website reader to a bare install", () => {
-		const markdown = markdownFor(capabilitiesFrom(null));
+		const markdown = markdownFor(capabilitiesFrom());
 
 		expect(markdown).toContain("Available:");
 		expect(markdown).toContain("Company brand data");
-		expect(markdown).toContain("reads the company's own website");
+		expect(markdown).toContain("its own website");
 	});
 
 	it("lists what is on and what is off, separately", () => {
-		const markdown = markdownFor(capabilitiesFrom("ctx"));
+		const markdown = markdownFor(capabilitiesFrom());
 
 		expect(markdown).toContain("Available:");
-		expect(markdown).toContain("LinkedIn");
 		expect(markdown).toContain("Not configured here");
 		expect(markdown).toContain("Web research");
-	});
-
-	it("counts a stored Context key as configured", () => {
-		process.env.PERPLEXITY_API_KEY = "key";
-
-		const markdown = markdownFor(capabilitiesFrom("ctx"));
-
-		expect(markdown).toContain("Company brand data");
-		expect(markdown.indexOf("Company brand data")).toBeLessThan(
-			markdown.indexOf("Not configured here"),
-		);
 	});
 
 	it("does not warn about missing sources when everything is on", () => {
 		for (const key of KEYS) process.env[key] = "key";
 
-		expect(markdownFor(capabilitiesFrom("ctx"))).not.toContain(
+		expect(markdownFor(capabilitiesFrom())).not.toContain(
 			"Not configured here",
 		);
 	});

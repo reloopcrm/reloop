@@ -96,8 +96,8 @@ export default function FreightForwardingPage() {
 					<p>
 						Reloop CRM was built by the owner of a forwarding company for
 						exactly this. It connects to the company mailbox, reads the whole
-						history once, and builds the CRM out of what is already
-						there. Nobody types anything in.
+						history once, and builds the CRM out of what is already there.
+						Nobody types anything in.
 					</p>
 				</Prose>
 			</PageSection>

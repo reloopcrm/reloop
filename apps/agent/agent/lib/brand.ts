@@ -1,7 +1,6 @@
 import { db, EnrichmentStatus } from "@crm/db";
 import { mirrorBrandImages } from "./brand-images";
 import { brandToUpdate, filledFields, stillFillable } from "./brand-mapping";
-import { brandByDomain, contextDevEnabled } from "./context-dev";
 import { UNLESS_COMPLETE } from "./enrichment";
 import { brandFromWebsite } from "./website-brand";
 
@@ -12,10 +11,6 @@ export type BrandResult = {
 	reason?: string;
 	retryable?: boolean;
 };
-
-export type Spend = (units?: number) => { ok: boolean; reason?: string };
-
-export const FREE: Spend = () => ({ ok: true });
 
 const COMPANY_FIELDS = {
 	id: true,
@@ -45,12 +40,8 @@ const COMPANY_FIELDS = {
 
 export async function runBrand({
 	companyId,
-	fresh = false,
-	spend = FREE,
 }: {
 	companyId: string;
-	fresh?: boolean;
-	spend?: Spend;
 }): Promise<BrandResult> {
 	const company = await db.company.findUnique({
 		where: { id: companyId },
@@ -58,8 +49,6 @@ export async function runBrand({
 	});
 
 	if (!company) return { enriched: false, reason: "No such company." };
-
-	const viaContext = await contextDevEnabled();
 
 	if (!company.domain) {
 		await settle(
@@ -71,9 +60,6 @@ export async function runBrand({
 		return { enriched: false, reason: "No domain on this company." };
 	}
 
-	const charge = viaContext ? spend(2) : { ok: true as const };
-	if (!charge.ok) return { enriched: false, reason: charge.reason };
-
 	await db.company.updateMany({
 		where: { id: companyId, ...UNLESS_COMPLETE },
 		data: {
@@ -82,9 +68,7 @@ export async function runBrand({
 		},
 	});
 
-	const result = viaContext
-		? await brandByDomain(company.domain, fresh ? 0 : undefined)
-		: await brandFromWebsite(company.domain);
+	const result = await brandFromWebsite(company.domain);
 
 	if (result.outcome === "skipped") {
 		await settle(companyId, EnrichmentStatus.SKIPPED, result.reason);
@@ -126,8 +110,12 @@ export async function runBrand({
 
 		await tx.companyEnrichment.upsert({
 			where: { companyId },
-			create: { companyId, raw: result.raw as object },
-			update: { raw: result.raw as object, fetchedAt: new Date() },
+			create: { companyId, source: "website", raw: result.raw as object },
+			update: {
+				source: "website",
+				raw: result.raw as object,
+				fetchedAt: new Date(),
+			},
 		});
 
 		return filledFields(data);

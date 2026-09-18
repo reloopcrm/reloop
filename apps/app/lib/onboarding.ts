@@ -4,8 +4,6 @@ import { API_URL } from "@/lib/env";
 
 export const ONBOARDING_PATH = "/onboarding";
 
-export const RESEARCH_PATH = "/onboarding/research";
-
 export const CONNECTIONS_PATH = "/settings/connections";
 
 const GATE_TIMEOUT_MS = 2_000;
@@ -23,13 +21,6 @@ const workspaceAnswer = z
 		slug: z.string().min(1).nullable().catch(null),
 	})
 	.catch({ onboarded: null, canRename: null, slug: null });
-
-const researchKeyAnswer = z
-	.object({
-		configured: z.boolean().nullable().catch(null),
-		skipped: z.boolean().nullable().catch(null),
-	})
-	.catch({ configured: null, skipped: null });
 
 async function read(request: NextRequest, procedure: string) {
 	const cookie = request.headers.get("cookie");
@@ -71,14 +62,4 @@ export async function readWorkspaceGate(
 				: "required",
 		slug,
 	};
-}
-
-export async function readResearchGate(request: NextRequest): Promise<Gate> {
-	const { configured, skipped } = researchKeyAnswer.parse(
-		await read(request, "settings.researchKey"),
-	);
-
-	if (configured === null) return "unknown";
-
-	return configured || skipped === true ? "settled" : "required";
 }

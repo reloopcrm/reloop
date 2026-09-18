@@ -17,9 +17,8 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 import { ChatgptDeviceLogin } from "@/app/(app)/[slug]/settings/chatgpt-device-login";
 import { useErrorMessage } from "@/lib/i18n/client";
+import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { useTRPC } from "@/lib/trpc/client";
-
-const RESEARCH_PATH = "/onboarding/research";
 
 type Choice = "openai" | "anthropic" | "chatgpt";
 
@@ -38,7 +37,7 @@ export function AiForm() {
 
 	const next = () => {
 		router.refresh();
-		router.replace(RESEARCH_PATH);
+		router.replace(CONNECTIONS_PATH);
 	};
 
 	const save = useMutation(

@@ -10,7 +10,11 @@ const MAX_REDIRECTS = NETWORK.maxRedirects;
 const DEFAULT_TIMEOUT_MS = NETWORK.timeoutMs;
 const READ_TIMEOUT_MS = NETWORK.readTimeoutMs;
 
-export function isBlockedAddress(ip: string): boolean {
+type RequestMethod = "GET" | "HEAD" | "POST";
+
+type RequestHeaders = Record<string, string>;
+
+export function isBlockedAddress(ip: string, allowPrivate = false): boolean {
 	const groups = ip.includes(":") ? expandIPv6(ip) : null;
 
 	if (groups) {
@@ -20,10 +24,17 @@ export function isBlockedAddress(ip: string): boolean {
 			(marker === 0xffff || marker === 0)
 		) {
 			const high = groups[6] ?? 0;
-			return isBlockedIPv4(high >> 8, high & 0xff);
+			const low = groups[7] ?? 0;
+			const loopbackV6 =
+				marker === 0 && high === 0 && low === 1 && !ip.includes(".");
+			if (loopbackV6) return !allowPrivate;
+
+			return isBlockedIPv4(high >> 8, high & 0xff, allowPrivate);
 		}
 
 		const first = groups[0] ?? 0;
+		if (allowPrivate && (first & 0xfe00) === 0xfc00) return false;
+
 		return (
 			(first & 0xfe00) === 0xfc00 ||
 			(first & 0xffc0) === 0xfe80 ||
@@ -33,23 +44,30 @@ export function isBlockedAddress(ip: string): boolean {
 
 	if (net.isIPv4(ip)) {
 		const [a = 0, b = 0] = ip.split(".").map(Number);
-		return isBlockedIPv4(a, b);
+		return isBlockedIPv4(a, b, allowPrivate);
 	}
 
 	return true;
 }
 
-function isBlockedIPv4(a: number, b: number): boolean {
+function isBlockedIPv4(a: number, b: number, allowPrivate = false): boolean {
+	if (isNeverAllowedIPv4(a, b)) return true;
+
+	return !allowPrivate && isPrivateIPv4(a, b);
+}
+
+function isNeverAllowedIPv4(a: number, b: number): boolean {
+	return a === 0 || (a === 169 && b === 254) || a >= 224;
+}
+
+function isPrivateIPv4(a: number, b: number): boolean {
 	return (
-		a === 0 ||
 		a === 10 ||
 		a === 127 ||
-		(a === 169 && b === 254) ||
 		(a === 172 && b >= 16 && b <= 31) ||
 		(a === 192 && b === 168) ||
 		(a === 100 && b >= 64 && b <= 127) ||
-		(a === 198 && (b === 18 || b === 19)) ||
-		a >= 224
+		(a === 198 && (b === 18 || b === 19))
 	);
 }
 
@@ -93,10 +111,11 @@ function expandIPv6(ip: string): number[] | null {
 export async function resolvePublicHost(
 	hostname: string,
 	timeoutMs: number = DEFAULT_TIMEOUT_MS,
+	allowPrivate = false,
 ): Promise<LookupAddress | null> {
 	const literal = hostname.replace(/^\[|\]$/g, "");
 	if (net.isIP(literal))
-		return isBlockedAddress(literal)
+		return isBlockedAddress(literal, allowPrivate)
 			? null
 			: { address: literal, family: net.isIP(literal) };
 
@@ -113,7 +132,9 @@ export async function resolvePublicHost(
 		]);
 
 		return addresses.length > 0 &&
-			addresses.every((address) => !isBlockedAddress(address.address))
+			addresses.every(
+				(address) => !isBlockedAddress(address.address, allowPrivate),
+			)
 			? (addresses[0] ?? null)
 			: null;
 	} catch {
@@ -133,12 +154,23 @@ export async function resolvesToPublicHost(
 function pinnedFetch(
 	target: URL,
 	address: LookupAddress,
-	method: "GET" | "HEAD",
+	method: RequestMethod,
 	timeoutMs: number,
-	headers?: Record<string, string>,
+	headers?: RequestHeaders,
+	body?: string,
 ): Promise<Response> {
+	const requestHeaders: RequestHeaders = {
+		"user-agent": "Mozilla/5.0 (compatible; CRM/1.0)",
+		"accept-encoding": "identity",
+		...headers,
+	};
+	if (body !== undefined) {
+		requestHeaders["content-length"] = String(Buffer.byteLength(body));
+	}
+
 	return new Promise((resolve, reject) => {
 		const transport = target.protocol === "https:" ? https : http;
+		let timer: ReturnType<typeof setTimeout> | undefined;
 		const request = transport.request(
 			target,
 			{
@@ -149,13 +181,10 @@ function pinnedFetch(
 					if (options.all) callback(null, [address]);
 					else callback(null, address.address, address.family);
 				},
-				headers: {
-					"user-agent": "Mozilla/5.0 (compatible; CRM/1.0)",
-					"accept-encoding": "identity",
-					...headers,
-				},
+				headers: requestHeaders,
 			},
 			(incoming) => {
+				clearTimeout(timer);
 				incoming.on("error", reject);
 				try {
 					const responseHeaders = new Headers();
@@ -183,8 +212,15 @@ function pinnedFetch(
 				}
 			},
 		);
-		request.on("error", reject);
-		request.end();
+		request.on("error", (error) => {
+			clearTimeout(timer);
+			reject(error);
+		});
+		timer = setTimeout(() => {
+			request.destroy();
+			reject(new Error(`${target.hostname} did not answer in time`));
+		}, timeoutMs);
+		request.end(body);
 	});
 }
 
@@ -194,10 +230,14 @@ export async function safeFetch(
 		method = "GET",
 		timeoutMs = DEFAULT_TIMEOUT_MS,
 		headers,
+		body,
+		allowPrivateHost = false,
 	}: {
-		method?: "GET" | "HEAD";
+		method?: RequestMethod;
 		timeoutMs?: number;
-		headers?: Record<string, string>;
+		headers?: RequestHeaders;
+		body?: string;
+		allowPrivateHost?: boolean;
 	} = {},
 ): Promise<{ response: Response; url: URL } | null> {
 	let target: URL;
@@ -211,7 +251,11 @@ export async function safeFetch(
 	for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
 		if (target.protocol !== "https:" && target.protocol !== "http:")
 			return null;
-		const address = await resolvePublicHost(target.hostname, timeoutMs);
+		const address = await resolvePublicHost(
+			target.hostname,
+			timeoutMs,
+			allowPrivateHost,
+		);
 		if (!address || target.username || target.password) return null;
 
 		let response: Response;
@@ -222,13 +266,19 @@ export async function safeFetch(
 				method,
 				timeoutMs,
 				requestHeaders,
+				body,
 			);
 		} catch {
 			return null;
 		}
 
 		const location = response.headers.get("location");
-		if (response.status >= 300 && response.status < 400 && location) {
+		if (
+			method !== "POST" &&
+			response.status >= 300 &&
+			response.status < 400 &&
+			location
+		) {
 			try {
 				await response.body?.cancel();
 				const next = new URL(location, target);

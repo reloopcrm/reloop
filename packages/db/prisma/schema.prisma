@@ -1775,3 +1775,21 @@ model WaitlistSignup {
 
   @@map("waitlistSignup")
 }
+
+model Webhook {
+  id               String   @id @default(cuid())
+  url              String
+  secret           String
+  events           String[]
+  enabled          Boolean  @default(true)
+  allowPrivateHost Boolean  @default(false)
+
+  lastDeliveryAt DateTime?
+  lastStatus     Int?
+  lastError      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("webhook")
+}

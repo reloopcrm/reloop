@@ -44,6 +44,7 @@ export type CrmCache = {
 	sso(options?: Options): Promise<void>;
 	apiKeys(options?: Options): Promise<void>;
 	tracking(options?: Options): Promise<void>;
+	webhooks(options?: Options): Promise<void>;
 	everything(): Promise<void>;
 };
 
@@ -366,6 +367,8 @@ export function useCrmCache(): CrmCache {
 				[trpc.tracking.sources.queryKey()],
 				options,
 			),
+
+		webhooks: (options) => run([trpc.webhooks.status.queryKey()], [], options),
 
 		everything: () => queryClient.invalidateQueries(),
 	};

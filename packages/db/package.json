@@ -33,11 +33,13 @@
 		"./win-back-outcome": "./src/win-back-outcome.ts",
 		"./win-back-rules": "./src/win-back-rules.ts",
 		"./safe-fetch": "./src/safe-fetch.ts",
+		"./sample-data": "./src/sample-data.ts",
 		"./secrets": "./src/secrets.ts",
 		"./plans": "./src/plans.ts",
 		"./settings": "./src/settings.ts",
 		"./slack-inventory": "./src/slack-inventory.ts",
 		"./tracking": "./src/tracking.ts",
+		"./webhooks": "./src/webhooks.ts",
 		"./workspace": "./src/workspace.ts"
 	},
 	"scripts": {

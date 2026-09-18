@@ -46,6 +46,28 @@ vendor the agent can query, and a query carries whatever it needs to ask the que
 name, an email domain and an employer. With no keys set, nothing leaves your infrastructure except
 the mailbox provider you connect. That is the default.
 
+**A webhook sends CRM data to an address the operator chose.** Settings →
+Connections → Webhooks posts the six CRM events, with the record id and the data
+that changed, to an address an owner or an admin entered. Nothing sends until
+somebody adds one. The body carries an HMAC-SHA256 signature over the timestamp
+and the body, keyed on a secret only that webhook holds, so the receiver can tell
+a real delivery from a forged one. The secret is sealed with
+`BETTER_AUTH_SECRET` and is never read back to the browser. **Plain `http` sends
+the payload unencrypted**, so use `https` for anything that leaves the machine.
+
+A webhook may also be allowed to reach a private address, which is off by
+default and switched on per webhook. Turned on, an owner or an admin can make the
+CRM post fixed JSON to a service on the same machine or on the office network:
+a database admin panel, a router, a printer, an internal API. Four things bound
+it. Only an owner or an admin writes a webhook (`canManageConnections`), so a
+member cannot turn it on. Link-local, unspecified and multicast addresses stay
+refused whatever the switch says, so the cloud metadata service (169.254.169.254)
+is never reachable. The address is resolved once and pinned at the socket, so a
+name that answers public and then private cannot rebind between the check and the
+call. And the request is a POST the CRM composed: the response is cancelled, never
+read, never stored and never shown, so an allowed private host is a write
+primitive and not a way to read the network back out.
+
 **The sync route is guarded by a shared secret.** `POST /internal/sync/google` is called by a cron,
 so it has no session to check; `CRON_SECRET` is the whole guard and the route refuses to run
 without it. Treat it like a password.
@@ -91,6 +113,8 @@ unreadable, so a rotation means every connection is reconnected by hand.
 - Serve both processes over HTTPS. Secure cookies switch on with `NODE_ENV=production`.
 - Set `CRON_SECRET` if you expose the sync route at all.
 - Keep the database off the public internet.
+- Leave a webhook's private-address switch off unless the receiver really runs on
+  your own machine or network, and send to `https` wherever you can.
 - Start with no optional API keys and add them one at a time, so you know what is leaving.
 
 ## Supported versions

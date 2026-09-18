@@ -1,3 +1,4 @@
+import ConnectionSend from "@carbon/icons-react/es/ConnectionSend";
 import Email from "@carbon/icons-react/es/Email";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
@@ -7,6 +8,7 @@ import { Loader } from "@crm/ui/components/loader";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import type { Translate } from "@/lib/i18n/locale";
 import { getT } from "@/lib/i18n/server";
 import { requireSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -39,11 +41,12 @@ async function ConnectionsSettingsPageContent({
 	]);
 	const queryClient = getServerQueryClient();
 	const trpc = getServerTrpc();
-	const [google, microsoft, slack, imap] = await Promise.all([
+	const [google, microsoft, slack, imap, webhooks] = await Promise.all([
 		queryClient.fetchQuery(trpc.google.status.queryOptions()),
 		queryClient.fetchQuery(trpc.microsoft.status.queryOptions()),
 		queryClient.fetchQuery(trpc.slack.status.queryOptions()),
 		queryClient.fetchQuery(trpc.imap.status.queryOptions()),
+		queryClient.fetchQuery(trpc.webhooks.status.queryOptions()),
 	]);
 	const rows = [
 		...(google.linked
@@ -100,6 +103,18 @@ async function ConnectionsSettingsPageContent({
 						sends: t("Nothing, so nothing here can change your mailbox"),
 						href: `/${slug}/settings/connections/imap`,
 						logo: Email,
+					},
+				]
+			: []),
+		...(webhooks.webhooks.length > 0
+			? [
+					{
+						name: "Webhooks",
+						status: webhookStatus(webhooks.webhooks, t),
+						bringsIn: t("Nothing, so nothing here reads your other tools"),
+						sends: t("Every event you pick, as signed JSON"),
+						href: `/${slug}/settings/connections/webhooks`,
+						logo: ConnectionSend,
 					},
 				]
 			: []),
@@ -172,6 +187,14 @@ async function ConnectionsSettingsPageContent({
 							name="Mailbox (IMAP)"
 							description={t("Any other mailbox, with its full history")}
 							href={`/${slug}/settings/connections/imap`}
+						/>
+						<StarterRow
+							logo={ConnectionSend}
+							name="Webhooks"
+							description={t(
+								"Drive n8n, Zapier or your own script from CRM events",
+							)}
+							href={`/${slug}/settings/connections/webhooks`}
 						/>
 					</div>
 					<p className="px-(--spacing-block-inline) text-muted-foreground text-sm">
@@ -273,6 +296,29 @@ async function StarterRow({
 			</Button>
 		</div>
 	);
+}
+
+function webhookStatus(
+	webhooks: {
+		enabled: boolean;
+		lastStatus: number | null;
+		lastError: string | null;
+	}[],
+	t: Translate,
+): string {
+	const failing = webhooks.find(
+		(webhook) => webhook.enabled && webhook.lastError,
+	);
+	if (failing) {
+		return t("The last delivery failed");
+	}
+
+	const sending = webhooks.filter((webhook) => webhook.enabled).length;
+	if (sending === 0) return t("Switched off");
+
+	return sending === 1
+		? t("1 address is listening")
+		: t("{count} addresses are listening", { count: sending });
 }
 
 function first(value: string | string[] | undefined) {

@@ -527,4 +527,80 @@ export const settingsMore: Dictionary = {
 	"Subscription limit check": "Limit des Abonnements prüfen",
 	"Sends one token to the ChatGPT subscription to read how much of your limit is left. Costs almost nothing.":
 		"Sendet ein einziges Token an das ChatGPT-Abonnement, um zu lesen, wie viel von deinem Limit übrig ist. Kostet fast nichts.",
+
+	Webhooks: "Webhooks",
+	"Add webhook": "Webhook hinzufügen",
+	"Add a webhook": "Einen Webhook hinzufügen",
+	"Save webhook": "Webhook speichern",
+	"Remove webhook": "Webhook entfernen",
+	"Remove this webhook?": "Diesen Webhook entfernen?",
+	"The webhook is saved. The next event goes to it.":
+		"Der Webhook ist gespeichert. Das nächste Ereignis geht an ihn.",
+	"The CRM posts the event to your address as JSON. Everything on the record that changed goes with it, so send it only to a service you run or trust.":
+		"Das CRM sendet das Ereignis als JSON an deine Adresse. Alles vom geänderten Datensatz geht mit, schicke es also nur an einen Dienst, den du betreibst oder dem du vertraust.",
+	Address: "Adresse",
+	"The CRM sends one POST per event to this address.":
+		"Das CRM sendet pro Ereignis ein POST an diese Adresse.",
+	"Signing secret": "Signaturgeheimnis",
+	"At least 16 characters. Stored encrypted and never shown again. Your receiver computes the same signature with it and refuses anything else.":
+		"Mindestens 16 Zeichen. Verschlüsselt gespeichert und nie wieder angezeigt. Dein Empfänger berechnet damit dieselbe Signatur und lehnt alles andere ab.",
+	"Generate a secret": "Geheimnis erzeugen",
+	"Copy it now: {secret}": "Kopiere es jetzt: {secret}",
+	Events: "Ereignisse",
+	"Allow an address on your own network":
+		"Eine Adresse im eigenen Netz erlauben",
+	Allowed: "Erlaubt",
+	"Public addresses only": "Nur öffentliche Adressen",
+	"Turn this on for n8n on the same machine or on your office network. Leave it off for anything on the internet.":
+		"Schalte das ein für n8n auf derselben Maschine oder in deinem Büronetz. Lasse es aus für alles im Internet.",
+	"This webhook can reach your own network":
+		"Dieser Webhook erreicht dein eigenes Netz",
+	"The CRM posts to the address you type, even a service on this machine or behind your firewall. Anybody who can change this webhook can make the CRM post to any of them. Cloud metadata addresses stay blocked, and the answer is never read back.":
+		"Das CRM sendet an die Adresse, die du eingibst, auch an einen Dienst auf dieser Maschine oder hinter deiner Firewall. Wer diesen Webhook ändern darf, kann das CRM an jeden davon senden lassen. Metadaten-Adressen der Cloud bleiben gesperrt, und die Antwort wird nie gelesen.",
+	"Addresses on your own network allowed":
+		"Adressen im eigenen Netz sind erlaubt",
+	"Switched off": "Ausgeschaltet",
+	"Last delivery failed": "Letzte Zustellung fehlgeschlagen",
+	"The last delivery failed": "Die letzte Zustellung ist fehlgeschlagen",
+	"Last delivery": "Letzte Zustellung",
+	"The receiver answered {status}": "Der Empfänger antwortete {status}",
+	"Nothing sent yet": "Noch nichts gesendet",
+	"Secret {hint}": "Geheimnis {hint}",
+	"Nothing is sent to this address again, and the stored secret is deleted. Everything in the CRM stays as it is.":
+		"An diese Adresse geht nichts mehr, und das gespeicherte Geheimnis wird gelöscht. Alles im CRM bleibt, wie es ist.",
+	"Sends every event you pick to an address you run, as signed JSON. Point it at n8n, Zapier or your own script and the CRM drives whatever you build there.":
+		"Sendet jedes Ereignis, das du auswählst, als signiertes JSON an eine Adresse, die du betreibst. Richte es auf n8n, Zapier oder dein eigenes Skript, und das CRM steuert, was du dort baust.",
+	"No webhook yet": "Noch kein Webhook",
+	"Brings in nothing. Sends the events you pick, with a signature your receiver checks.":
+		"Bringt nichts herein. Sendet die Ereignisse, die du auswählst, mit einer Signatur, die dein Empfänger prüft.",
+	"Send every event you pick to n8n, Zapier or your own script":
+		"Sende jedes Ereignis, das du auswählst, an n8n, Zapier oder dein eigenes Skript",
+	"Drive n8n, Zapier or your own script from CRM events":
+		"Steuere n8n, Zapier oder dein eigenes Skript mit Ereignissen aus dem CRM",
+	"Nothing, so nothing here reads your other tools":
+		"Nichts, hier liest also nichts deine anderen Werkzeuge",
+	"Every event you pick, as signed JSON":
+		"Jedes Ereignis, das du auswählst, als signiertes JSON",
+	"1 address is listening": "1 Adresse hört zu",
+	"{count} addresses are listening": "{count} Adressen hören zu",
+	"Company created": "Firma angelegt",
+	"A company is added to the CRM": "Eine Firma kommt ins CRM",
+	"Contact created": "Kontakt angelegt",
+	"A contact is added to the CRM": "Ein Kontakt kommt ins CRM",
+	"Deal created": "Deal angelegt",
+	"A deal is added to the CRM": "Ein Deal kommt ins CRM",
+	"Deal stage changed": "Deal-Phase geändert",
+	"A deal moves from one pipeline stage to another":
+		"Ein Deal wechselt von einer Phase in eine andere",
+	"Deal opened": "Deal wieder geöffnet",
+	"A closed deal returns to the open pipeline":
+		"Ein abgeschlossener Deal kommt zurück in die offene Pipeline",
+	"Deal closed": "Deal abgeschlossen",
+	"An open deal moves to a closed stage":
+		"Ein offener Deal wechselt in eine abgeschlossene Phase",
+	"Only an owner or an admin can change a webhook.":
+		"Nur Eigentümer oder Administratoren können einen Webhook ändern.",
+	"No webhook with that id.": "Kein Webhook mit dieser Kennung.",
+	"A webhook address is an http or https address without a user name in it.":
+		"Eine Webhook-Adresse ist eine http- oder https-Adresse ohne Benutzernamen darin.",
 };

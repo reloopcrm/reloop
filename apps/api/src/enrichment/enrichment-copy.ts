@@ -15,6 +15,7 @@ const STEPS = {
 	"slack-people-match": "Matching people in Slack",
 	"slack-channel-join": "Joining a Slack channel",
 	"agent-event": "Reacting to a change",
+	"webhook-delivery": "Sending a change to a webhook",
 	"thread-insight": "Reading the conversation",
 	"thread-digest": "Summarising every message",
 	"email-draft": "Writing an email draft",

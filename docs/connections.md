@@ -94,6 +94,44 @@ day it is connected, and keeps reading new mail at the same time.
   (`SyncStateService.stopBackfill`). IMAP promises the opposite and is
   unchanged.
 
+## A webhook is the connection with no vendor
+
+Settings → Connections → Webhooks sends the six events in `@crm/db/crm-events`
+to an address the operator runs. It brings in nothing, which is the whole
+guarantee: nothing here reads another tool and nothing here writes to the CRM.
+It is the answer to "can you integrate with X" when X is not worth a module.
+
+- **The event path is the one that already exists.** The API writes the durable
+  `agent-event` task, and the agent worker fans it out. `queueWebhookDeliveries`
+  (`apps/agent/agent/lib/webhooks.ts`) writes one `webhook-delivery` task per
+  matching enabled webhook, keyed `webhook:<taskId>:<webhookId>` so a re-read of
+  the event queues nothing twice. There is no second delivery path and no
+  outbound call in Nest.
+- **Delivery has its own lane.** `runWebhookLane` runs beside the visible,
+  insight and research lanes, and `webhook-delivery` is filtered out of
+  `VISIBLE_KINDS`. A receiver that never answers therefore delays no agent work,
+  and the event task is already finished before the first POST goes out.
+- **Three attempts, then it stops.** A failed attempt leaves the task open, the
+  lease expires, and the next tick claims it again. `claimDue` refuses a fourth
+  attempt because of `MAX_ATTEMPTS`, and the third failure completes the task
+  with what the receiver said. The card reads the last status, never a log.
+- **Ten seconds per call**, `WEBHOOKS.deliver.timeoutMs` in
+  `packages/db/src/webhooks.ts`, which holds every webhook constant.
+- **The body is signed, not authenticated.** `x-reloop-signature` is
+  `v1=HMAC-SHA256(timestamp + "." + body)` with the webhook's own secret, and
+  `x-reloop-timestamp` is what the receiver signs with. The secret is sealed with
+  `sealWebhookSecret` the same way the IMAP password is, and the page shows a
+  masked hint, never the value.
+- **Only an owner or an admin writes a webhook.** `canManageConnections`, the
+  same predicate Slack uses, in the service and on the button.
+- **A private address is opt-in per webhook.** The default refuses anything that
+  does not resolve to a public address, because the CRM would otherwise post to
+  whatever the operator's network runs. `allowPrivateHost` lifts that for one
+  webhook, and the switch states the risk where it is turned on. Link-local,
+  unspecified and multicast addresses stay refused whatever the switch says, so
+  the cloud metadata service is never reachable. The answer is never read back
+  into the CRM.
+
 ## Direction is the organising idea
 
 Every connection declares what it **brings in** and what it **sends**. Use those

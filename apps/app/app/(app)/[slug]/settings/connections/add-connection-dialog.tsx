@@ -1,5 +1,6 @@
 "use client";
 
+import ConnectionSend from "@carbon/icons-react/es/ConnectionSend";
 import Email from "@carbon/icons-react/es/Email";
 import Plug from "@carbon/icons-react/es/Plug";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
@@ -83,6 +84,16 @@ export function AddConnectionDialog({
 								"Bring in email from any IMAP mailbox, including its history",
 							)}
 							href={`/${slug}/settings/connections/imap`}
+						/>
+					) : null}
+					{!connected.includes("Webhooks") ? (
+						<CatalogRow
+							logo={ConnectionSend}
+							name="Webhooks"
+							description={t(
+								"Send every event you pick to n8n, Zapier or your own script",
+							)}
+							href={`/${slug}/settings/connections/webhooks`}
 						/>
 					) : null}
 					<CatalogRow

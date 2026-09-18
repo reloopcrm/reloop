@@ -198,7 +198,11 @@ The cookie is not read in the API because `parseLocale` gates on `RELOOP_GERMAN`
 and `deploy/docker-compose.yml` passes that variable to the app and the agent but
 not to the api container. A stale cookie would then outrank the flag. **Custom
 field labels are never translated**, because the workspace wrote them, and neither
-are stored enum values such as `Manual`. A caller with no `locale` gets English,
+is a custom field's SELECT option. **A stored enum value is translated**: the four
+enum columns, deal stage, status, potential and source, read their words from the
+same map as the headers, so a cell says what the table says. A value added to one
+of those enums fails `EXPORT_ENUM_WORDS` in the spec until somebody writes the
+German. A caller with no `locale` gets English,
 which is what `curl` with an API key gets.
 
 ## The OpenAPI document is built at runtime, not committed

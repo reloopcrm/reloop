@@ -311,6 +311,8 @@ export const winBack: Dictionary = {
 		"Hat gelesen, was dieser Workspace erfasst",
 	"Filled in a custom field": "Hat ein eigenes Feld ausgefüllt",
 	"Changed what the CRM tracks": "Hat geändert, was das CRM erfasst",
+	"Proposed what the CRM should track":
+		"Hat vorgeschlagen, was das CRM erfassen sollte",
 	"Asked to retire a field": "Hat gebeten, ein Feld stillzulegen",
 	"Read its instructions for this": "Hat seine Anleitung dafür gelesen",
 	"Searched the web": "Hat im Web gesucht",
@@ -369,4 +371,21 @@ export const winBack: Dictionary = {
 	"{n}d": "{n} Tg.",
 	"in {distance}": "in {distance}",
 	"{distance} ago": "vor {distance}",
+	"Won back this month": "Diesen Monat zur\u00fcckgewonnen",
+	"People you marked worth it in Win back, written to from a connected mailbox this month.":
+		"Personen, die du in Zur\u00fcckgewinnen als lohnend markiert hast und diesen Monat aus einem verbundenen Postfach angeschrieben hast.",
+	Contacted: "Angeschrieben",
+	Replied: "Geantwortet",
+	"Became a deal": "Wurde ein Gesch\u00e4ft",
+	"You wrote to them": "Du hast geschrieben",
+	"They wrote back": "Sie haben geantwortet",
+	"No deal yet": "Noch kein Gesch\u00e4ft",
+	"{amount} in new deals": "{amount} in neuen Gesch\u00e4ften",
+	"{amount} in {currency} \u00b7 {count} in another currency":
+		"{amount} in {currency} \u00b7 {count} in einer anderen W\u00e4hrung",
+	"Follow up on the win back": "Beim Zur\u00fcckgewinnen nachfassen",
+	"You wrote to them after the win back verdict and nobody answered.":
+		"Du hast nach der Bewertung geschrieben und niemand hat geantwortet.",
+	"Only mail from a mailbox connected here comes back into the CRM. Sent from another mailbox, this reach-out is not counted.":
+		"Nur Mail aus einem hier verbundenen Postfach kommt zur\u00fcck ins CRM. Aus einem anderen Postfach gesendet, z\u00e4hlt dieser Anlauf nicht.",
 };

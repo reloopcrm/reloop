@@ -1,5 +1,6 @@
 import { ActivityType, type Db, DealStage } from "@crm/db";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
+import { readWinBackOutcome } from "@crm/db/win-back-outcome";
 import { activityMeta } from "@crm/validation/activity-meta";
 import { Injectable } from "@nestjs/common";
 import { overdueBefore } from "../activities/due-date";
@@ -61,6 +62,7 @@ export class DashboardService {
 			overdueTasks,
 			recentActivity,
 			unconverted,
+			winBack,
 		] = await Promise.all([
 			this.db.deal.groupBy({
 				by: ["stage"],
@@ -167,6 +169,11 @@ export class DashboardService {
 				},
 			}),
 			this.conversion.unconverted(owned),
+			readWinBackOutcome(this.db, {
+				since: startOfMonth,
+				baseCurrency: base,
+				ownerId: mine ? actingUserId : null,
+			}),
 		]);
 
 		const stages = OPEN_DEAL_STAGES.map((stage) => {
@@ -286,6 +293,16 @@ export class DashboardService {
 				createdAt: createdAt.toISOString(),
 				meta: activityMeta.parse(meta),
 			})),
+			winBack:
+				winBack.verdicts === 0
+					? null
+					: {
+							contacted: winBack.contacted,
+							answered: winBack.answered,
+							deals: winBack.deals,
+							dealValueCents: toCents(winBack.dealAmount) ?? 0,
+							unconvertedDeals: winBack.unconvertedDeals,
+						},
 		};
 	}
 }

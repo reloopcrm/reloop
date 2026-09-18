@@ -5,6 +5,7 @@ import {
 	isAgentFunctionEnabled,
 	isTaskKindEnabled,
 	parseAgentFunctions,
+	WIN_BACK_FOLLOW_UP_FUNCTION,
 } from "../src/agent-functions";
 
 describe("the switches for the agent's own functions", () => {
@@ -66,7 +67,26 @@ describe("the switches for the agent's own functions", () => {
 		for (const entry of AGENT_FUNCTIONS) {
 			expect(entry.title.length).toBeGreaterThan(0);
 			expect(entry.note.length).toBeGreaterThan(20);
+		}
+
+		for (const entry of AGENT_FUNCTIONS) {
+			if (entry.id === WIN_BACK_FOLLOW_UP_FUNCTION) continue;
 			expect(entry.kinds.length).toBeGreaterThan(0);
 		}
+	});
+
+	it("carries the win back follow-up switch, which the API runs itself", () => {
+		const entry = AGENT_FUNCTIONS.find(
+			(row) => row.id === WIN_BACK_FOLLOW_UP_FUNCTION,
+		);
+
+		expect(entry?.kinds).toEqual([]);
+		expect(isAgentFunction(WIN_BACK_FOLLOW_UP_FUNCTION)).toBe(true);
+		expect(
+			isAgentFunctionEnabled(
+				parseAgentFunctions({ [WIN_BACK_FOLLOW_UP_FUNCTION]: false }),
+				WIN_BACK_FOLLOW_UP_FUNCTION,
+			),
+		).toBe(false);
 	});
 });

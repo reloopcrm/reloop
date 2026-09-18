@@ -20,6 +20,10 @@
 		{
 			"path": "/internal/archive/prune",
 			"schedule": "0 5 * * *"
+		},
+		{
+			"path": "/internal/win-back/follow-ups",
+			"schedule": "0 8 * * *"
 		}
 	]
 }

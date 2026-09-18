@@ -265,7 +265,9 @@ export function DashboardSummary() {
 										</TableCell>
 										<TableCell className={CELL}>
 											<span className="flex min-w-0 flex-col">
-												<span className="truncate">{task.subject}</span>
+												<span className="truncate">
+													{task.subject ? t(task.subject) : null}
+												</span>
 												<span className="flex min-w-0 text-muted-foreground">
 													{task.deal ? (
 														<RecordLink kind="deal" id={task.deal.id}>

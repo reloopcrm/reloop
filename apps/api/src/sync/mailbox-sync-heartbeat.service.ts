@@ -8,6 +8,7 @@ import { ConfigService } from "@nestjs/config";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { ConversionService } from "../currency/conversion.service";
 import { RatesService } from "../currency/rates.service";
+import { WinBackFollowUpService } from "../reactivation/win-back-follow-up.service";
 import { MailboxSyncService } from "./mailbox-sync.service";
 import { selfHostTimers } from "./sync.config";
 
@@ -24,6 +25,7 @@ export class MailboxSyncHeartbeatService
 		private readonly sync: MailboxSyncService,
 		private readonly rates: RatesService,
 		private readonly conversion: ConversionService,
+		private readonly winBack: WinBackFollowUpService,
 		config: ConfigService<EnvironmentVariables, true>,
 	) {
 		this.timers = selfHostTimers({
@@ -36,7 +38,7 @@ export class MailboxSyncHeartbeatService
 	}
 
 	onApplicationBootstrap(): void {
-		const { mailboxEveryMs, ratesEveryMs } = this.timers;
+		const { mailboxEveryMs, ratesEveryMs, winBackEveryMs } = this.timers;
 
 		if (mailboxEveryMs !== null) {
 			this.logger.log({
@@ -52,6 +54,14 @@ export class MailboxSyncHeartbeatService
 				everyMs: ratesEveryMs,
 			});
 			this.every(ratesEveryMs, () => this.refreshRates());
+		}
+
+		if (winBackEveryMs !== null) {
+			this.logger.log({
+				message: "Win back follow-ups are written in-process on a timer",
+				everyMs: winBackEveryMs,
+			});
+			this.every(winBackEveryMs, () => this.writeFollowUps());
 		}
 	}
 
@@ -80,6 +90,17 @@ export class MailboxSyncHeartbeatService
 			);
 		} finally {
 			this.running = false;
+		}
+	}
+
+	private async writeFollowUps(): Promise<void> {
+		try {
+			await this.winBack.sweep();
+		} catch (error) {
+			this.logger.error(
+				{ message: "Win back follow-up sweep failed" },
+				error instanceof Error ? error.stack : String(error),
+			);
 		}
 	}
 

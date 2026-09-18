@@ -297,6 +297,12 @@ export function EmailDraftDialog({
 					</Collapsible>
 				) : null}
 
+				<p className="text-muted-foreground text-xs">
+					{t(
+						"Only mail from a mailbox connected here comes back into the CRM. Sent from another mailbox, this reach-out is not counted.",
+					)}
+				</p>
+
 				<DialogFooter>
 					<Button
 						variant="outline"

@@ -21,6 +21,8 @@ export type AgentFunction = {
 	kinds: readonly TaskKind[];
 };
 
+export const WIN_BACK_FOLLOW_UP_FUNCTION = "win-back-follow-up";
+
 export const AGENT_FUNCTIONS = [
 	{
 		id: "thread-insight",
@@ -119,6 +121,13 @@ export const AGENT_FUNCTIONS = [
 		title: "Business setup proposal",
 		note: "Reads your website or your recent mail once and proposes what you trade. One model call.",
 		kinds: ["business-setup"],
+	},
+	{
+		id: WIN_BACK_FOLLOW_UP_FUNCTION,
+		group: "rules",
+		title: "Win back follow-up tasks",
+		note: "Writes one task 14 days after you reached out to somebody from Win back and nobody answered. The API counts what already happened, so this costs nothing.",
+		kinds: [],
 	},
 	{
 		id: "usage-probe",

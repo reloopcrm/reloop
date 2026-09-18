@@ -30,6 +30,7 @@
 		"./model-spend": "./src/model-spend.ts",
 		"./provider-usage": "./src/provider-usage.ts",
 		"./reactivation": "./src/reactivation.ts",
+		"./win-back-outcome": "./src/win-back-outcome.ts",
 		"./win-back-rules": "./src/win-back-rules.ts",
 		"./safe-fetch": "./src/safe-fetch.ts",
 		"./secrets": "./src/secrets.ts",

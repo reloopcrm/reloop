@@ -1,3 +1,5 @@
+import { WIN_BACK } from "../reactivation/reactivation.config";
+
 const SECOND_MS = 1_000;
 const HOUR_MS = 3_600 * SECOND_MS;
 
@@ -13,7 +15,9 @@ export type TimerEnvironment = {
 };
 
 export function selfHostTimers(environment: TimerEnvironment) {
-	if (environment.vercel) return { mailboxEveryMs: null, ratesEveryMs: null };
+	if (environment.vercel) {
+		return { mailboxEveryMs: null, ratesEveryMs: null, winBackEveryMs: null };
+	}
 
 	const mailbox = environment.mailboxIntervalMs ?? 0;
 
@@ -24,5 +28,7 @@ export function selfHostTimers(environment: TimerEnvironment) {
 				: null,
 		ratesEveryMs:
 			environment.nodeEnv === "production" ? MAILBOX_SYNC.rates.everyMs : null,
+		winBackEveryMs:
+			environment.nodeEnv === "production" ? WIN_BACK.followUp.everyMs : null,
 	};
 }

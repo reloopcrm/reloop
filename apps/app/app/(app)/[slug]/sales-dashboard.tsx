@@ -2,6 +2,7 @@
 
 import {
 	Card,
+	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
@@ -17,9 +18,11 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AreaTrend, DonutStat } from "@/components/dashboard-charts";
-import { dealStageColor, dealStageLabel } from "@/lib/deal-stage";
+import { dealStageColor } from "@/lib/deal-stage";
 import { useLocale, useT } from "@/lib/i18n/client";
+import { numberFormat } from "@/lib/i18n/format";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { useDealStageLabel } from "@/lib/use-deal-stage-label";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
 type Summary = RouterOutputs["dashboard"]["summary"];
@@ -46,6 +49,7 @@ function changeDelta(
 export function SalesDashboard({ summary }: { summary: Summary }) {
 	const workspaceUrl = useWorkspaceUrl();
 	const t = useT();
+	const stageLabel = useDealStageLabel();
 	const locale = useLocale();
 	const trendConfig: ChartConfig = {
 		won: { label: t(TREND_CONFIG.won.label), color: TREND_CONFIG.won.color },
@@ -64,6 +68,7 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 		closingThisMonthTotal,
 		reportingCurrency,
 		unconverted,
+		winBack,
 	} = summary;
 
 	const money = (cents: number) =>
@@ -72,6 +77,7 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 		formatMoney(Number(value), reportingCurrency, locale);
 	const deals = (count: number) =>
 		count === 1 ? t("{count} deal", { count }) : t("{count} deals", { count });
+	const tally = (value: number) => numberFormat(locale).format(value);
 
 	const hasTrend = trend.some((point) => point.won > 0 || point.created > 0);
 
@@ -80,7 +86,7 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 			? [
 					{
 						key: stage.stage,
-						label: dealStageLabel(stage.stage),
+						label: stageLabel(stage.stage),
 						value: stage.valueCents,
 						color: dealStageColor(stage.stage),
 						count: stage.count,
@@ -176,6 +182,53 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 				</p>
 			) : null}
 
+			{winBack ? (
+				<Card>
+					<CardHeader>
+						<CardTitle>{t("Won back this month")}</CardTitle>
+						<CardDescription>
+							{t(
+								"People you marked worth it in Win back, written to from a connected mailbox this month.",
+							)}
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="grid grid-cols-3 gap-6">
+							<WinBackFigure
+								label={t("Contacted")}
+								value={tally(winBack.contacted)}
+								note={t("You wrote to them")}
+							/>
+							<WinBackFigure
+								label={t("Replied")}
+								value={tally(winBack.answered)}
+								note={t("They wrote back")}
+							/>
+							<WinBackFigure
+								label={t("Became a deal")}
+								value={tally(winBack.deals)}
+								note={
+									winBack.deals === 0
+										? t("No deal yet")
+										: winBack.unconvertedDeals > 0
+											? t(
+													"{amount} in {currency} · {count} in another currency",
+													{
+														amount: money(winBack.dealValueCents),
+														currency: reportingCurrency,
+														count: tally(winBack.unconvertedDeals),
+													},
+												)
+											: t("{amount} in new deals", {
+													amount: money(winBack.dealValueCents),
+												})
+								}
+							/>
+						</div>
+					</CardContent>
+				</Card>
+			) : null}
+
 			<DashboardRow split="hero">
 				<ChartPanel
 					title={t("Closed won vs. new pipeline")}
@@ -245,6 +298,24 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 					)}
 				</ChartPanel>
 			</DashboardRow>
+		</div>
+	);
+}
+
+function WinBackFigure({
+	label,
+	value,
+	note,
+}: {
+	label: string;
+	value: string;
+	note: string;
+}) {
+	return (
+		<div className="flex flex-col gap-1">
+			<span className="text-muted-foreground text-xs">{label}</span>
+			<span className="font-medium text-2xl tabular-nums">{value}</span>
+			<span className="text-muted-foreground text-xs">{note}</span>
 		</div>
 	);
 }

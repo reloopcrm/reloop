@@ -6,6 +6,7 @@ import { GoogleModule } from "../google/google.module";
 import { ImapModule } from "../imap/imap.module";
 import { MailboxModule } from "../mailbox/mailbox.module";
 import { MicrosoftModule } from "../microsoft/microsoft.module";
+import { ReactivationModule } from "../reactivation/reactivation.module";
 import { MailboxSyncService } from "./mailbox-sync.service";
 import { MailboxSyncHeartbeatService } from "./mailbox-sync-heartbeat.service";
 import { SyncController } from "./sync.controller";
@@ -17,6 +18,7 @@ import { SyncController } from "./sync.controller";
 		MicrosoftModule,
 		ImapModule,
 		AgentModule,
+		ReactivationModule,
 	],
 	controllers: [SyncController],
 	providers: [

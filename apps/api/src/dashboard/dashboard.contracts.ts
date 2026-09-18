@@ -86,6 +86,14 @@ const recentActivityOutput = z.object({
 	meta: activityMeta,
 });
 
+const winBackOutcomeOutput = z.object({
+	contacted: z.number(),
+	answered: z.number(),
+	deals: z.number(),
+	dealValueCents: z.number(),
+	unconvertedDeals: z.number(),
+});
+
 export const dashboardSummaryOutput = z.object({
 	scope: z.enum(DASHBOARD_SCOPES),
 	reportingCurrency: z.string(),
@@ -110,4 +118,5 @@ export const dashboardSummaryOutput = z.object({
 	biggestOpen: z.array(biggestOpenDealOutput),
 	overdueTasks: z.array(overdueTaskOutput),
 	recentActivity: z.array(recentActivityOutput),
+	winBack: winBackOutcomeOutput.nullable(),
 });

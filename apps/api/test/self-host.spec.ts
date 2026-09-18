@@ -5,6 +5,7 @@ import {
 	passwordFromStdin,
 	planOwner,
 } from "../scripts/create-owner";
+import { WIN_BACK } from "../src/reactivation/reactivation.config";
 import { MAILBOX_SYNC, selfHostTimers } from "../src/sync/sync.config";
 
 const allowed = (email: string) => email === "owner@example.com";
@@ -65,7 +66,11 @@ describe("self-host timers", () => {
 				nodeEnv: "production",
 				mailboxIntervalMs: 60_000,
 			}),
-		).toEqual({ mailboxEveryMs: null, ratesEveryMs: null });
+		).toEqual({
+			mailboxEveryMs: null,
+			ratesEveryMs: null,
+			winBackEveryMs: null,
+		});
 	});
 
 	it("runs both timers in production off Vercel", () => {
@@ -78,6 +83,7 @@ describe("self-host timers", () => {
 		).toEqual({
 			mailboxEveryMs: 300_000,
 			ratesEveryMs: MAILBOX_SYNC.rates.everyMs,
+			winBackEveryMs: WIN_BACK.followUp.everyMs,
 		});
 	});
 
@@ -103,6 +109,7 @@ describe("self-host timers", () => {
 		).toEqual({
 			mailboxEveryMs: MAILBOX_SYNC.heartbeat.minIntervalMs,
 			ratesEveryMs: null,
+			winBackEveryMs: null,
 		});
 	});
 });

@@ -1351,6 +1351,8 @@ model PotentialFeedback {
   note      String?
   userId    String?
 
+  followUpTaskAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

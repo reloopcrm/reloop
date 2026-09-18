@@ -518,6 +518,9 @@ export const settingsMore: Dictionary = {
 	"Win back rule tuning": "Regeln zur Rückgewinnung abstimmen",
 	"Re-tunes the win back ranking after a rep marks records good or bad. One model call per tune.":
 		"Stimmt die Rangfolge zur Rückgewinnung neu ab, nachdem jemand Datensätze als gut oder schlecht markiert hat. Ein Modellaufruf pro Abstimmung.",
+	"Win back follow-up tasks": "Aufgaben zum Nachfassen beim Zurückgewinnen",
+	"Writes one task 14 days after you reached out to somebody from Win back and nobody answered. The API counts what already happened, so this costs nothing.":
+		"Schreibt eine Aufgabe 14 Tage nachdem du jemanden aus Zurückgewinnen angeschrieben hast und niemand geantwortet hat. Die API zählt nur, was schon passiert ist, das kostet nichts.",
 	"Business setup proposal": "Vorschlag zur Einrichtung des Geschäfts",
 	"Reads your website or your recent mail once and proposes what you trade. One model call.":
 		"Liest einmal deine Webseite oder deine letzten E-Mails und schlägt vor, womit du handelst. Ein Modellaufruf.",

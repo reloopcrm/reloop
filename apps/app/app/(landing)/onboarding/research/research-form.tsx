@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useId } from "react";
 import { toast } from "sonner";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
+import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { useTRPC } from "@/lib/trpc/client";
 
 export function ResearchForm() {
@@ -29,7 +30,7 @@ export function ResearchForm() {
 		trpc.settings.setResearchKey.mutationOptions({
 			onSuccess: () => {
 				router.refresh();
-				router.replace("/");
+				router.replace(CONNECTIONS_PATH);
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
@@ -39,7 +40,7 @@ export function ResearchForm() {
 		trpc.settings.skipResearchKey.mutationOptions({
 			onSuccess: () => {
 				router.refresh();
-				router.replace("/");
+				router.replace(CONNECTIONS_PATH);
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),

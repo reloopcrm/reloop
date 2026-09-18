@@ -6,6 +6,8 @@ export const ONBOARDING_PATH = "/onboarding";
 
 export const RESEARCH_PATH = "/onboarding/research";
 
+export const CONNECTIONS_PATH = "/settings/connections";
+
 const GATE_TIMEOUT_MS = 2_000;
 
 export type Gate = "settled" | "required" | "unknown";

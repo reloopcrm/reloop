@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { NextRequest } from "next/server";
-import { readResearchGate, readWorkspaceGate } from "../lib/onboarding";
+import {
+	CONNECTIONS_PATH,
+	ONBOARDING_PATH,
+	RESEARCH_PATH,
+	readResearchGate,
+	readWorkspaceGate,
+} from "../lib/onboarding";
 import { proxy } from "../proxy";
 
 const SESSION_COOKIE = `${AUTH_COOKIE_PREFIX}.session_token=abc.def`;
@@ -464,5 +470,54 @@ describe("the public pages", () => {
 		for (const path of marketingPaths) {
 			expect(redirectedTo(await proxy(request(path)))).toBe("/sign-in");
 		}
+	});
+});
+
+describe("where the last setup step sends a stranger", () => {
+	async function settle(start: string): Promise<string> {
+		const seen: string[] = [];
+		let path = start;
+
+		for (let hop = 0; hop < 10; hop += 1) {
+			if (seen.includes(path)) {
+				throw new Error(`Loop: ${seen.join(" -> ")} -> ${path}`);
+			}
+
+			seen.push(path);
+
+			const next = redirectedTo(await proxy(request(path, [SESSION_COOKIE])));
+
+			if (next === null) return path;
+
+			path = next;
+		}
+
+		throw new Error(`Never settles: ${seen.join(" -> ")}`);
+	}
+
+	it("lands on the connections page under the slug", async () => {
+		setup();
+
+		expect(await settle(CONNECTIONS_PATH)).toBe(`/${SLUG}${CONNECTIONS_PATH}`);
+	});
+
+	it("stays there once the slug is on", async () => {
+		setup();
+
+		expect(await settle(`/${SLUG}${CONNECTIONS_PATH}`)).toBe(
+			`/${SLUG}${CONNECTIONS_PATH}`,
+		);
+	});
+
+	it("holds the research step until it is answered, and does not loop", async () => {
+		setup({ configured: false });
+
+		expect(await settle(CONNECTIONS_PATH)).toBe(RESEARCH_PATH);
+	});
+
+	it("holds the workspace form first, and does not loop", async () => {
+		setup({ onboarded: false, configured: false });
+
+		expect(await settle(CONNECTIONS_PATH)).toBe(ONBOARDING_PATH);
 	});
 });

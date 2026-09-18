@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ConnectMailbox } from "@/components/connect-mailbox";
 import {
 	PageShell,
 	PageShellActions,
@@ -7,9 +8,12 @@ import {
 	PageShellHeading,
 	PageShellLoading,
 } from "@/components/page-shell";
+import { hasMailboxConnection } from "@/lib/mailbox-connection";
+import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceUrl } from "@/lib/workspace-url";
 import { DashboardSummary } from "./dashboard-summary";
 import {
 	OverviewGreeting,
@@ -21,26 +25,46 @@ import {
 } from "./overview-scope";
 import { loadOverviewSearchParams } from "./overview-search-params";
 
-export default function OverviewPage({ searchParams }: PageProps<"/[slug]">) {
+export default async function OverviewPage({
+	params,
+	searchParams,
+}: PageProps<"/[slug]">) {
+	await requireSession();
+
+	const [{ slug }, connected] = await Promise.all([
+		params,
+		hasMailboxConnection(),
+	]);
+
 	return (
 		<PageShell>
 			<PageShellHeader>
 				<PageShellHeading>
-					<Suspense fallback={<OverviewGreetingFallback />}>
-						<OverviewGreeting />
+					<Suspense
+						fallback={<OverviewGreetingFallback connected={connected} />}
+					>
+						<OverviewGreeting connected={connected} />
 					</Suspense>
 				</PageShellHeading>
-				<PageShellActions>
-					<Suspense fallback={<OverviewScopeToggleFallback />}>
-						<OverviewScopeToggle />
-					</Suspense>
-				</PageShellActions>
+				{connected ? (
+					<PageShellActions>
+						<Suspense fallback={<OverviewScopeToggleFallback />}>
+							<OverviewScopeToggle />
+						</Suspense>
+					</PageShellActions>
+				) : null}
 			</PageShellHeader>
 
 			<PageShellContent>
-				<Suspense fallback={<PageShellLoading />}>
-					<Summary searchParams={searchParams} />
-				</Suspense>
+				<ConnectMailbox
+					connected={connected}
+					href={workspaceUrl(slug, CONNECTIONS_PATH)}
+				/>
+				{connected ? (
+					<Suspense fallback={<PageShellLoading />}>
+						<Summary searchParams={searchParams} />
+					</Suspense>
+				) : null}
 			</PageShellContent>
 		</PageShell>
 	);

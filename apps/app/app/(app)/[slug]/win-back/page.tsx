@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { ConnectMailbox } from "@/components/connect-mailbox";
 import {
 	PageShell,
 	PageShellContent,
@@ -10,9 +11,12 @@ import {
 	PageShellTitle,
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
+import { hasMailboxConnection } from "@/lib/mailbox-connection";
+import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceUrl } from "@/lib/workspace-url";
 import {
 	winBackInput,
 	winBackSearchParams,
@@ -26,9 +30,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function WinBackPage({
+	params,
 	searchParams,
 }: PageProps<"/[slug]/win-back">) {
-	const t = await getT();
+	await requireSession();
+
+	const [t, { slug }, connected] = await Promise.all([
+		getT(),
+		params,
+		hasMailboxConnection(),
+	]);
+
 	return (
 		<PageShell className="min-h-0">
 			<PageShellHeader>
@@ -43,9 +55,15 @@ export default async function WinBackPage({
 			</PageShellHeader>
 
 			<PageShellContent className="min-h-0">
-				<Suspense fallback={<PageShellLoading />}>
-					<WinBack searchParams={searchParams} />
-				</Suspense>
+				<ConnectMailbox
+					connected={connected}
+					href={workspaceUrl(slug, CONNECTIONS_PATH)}
+				/>
+				{connected ? (
+					<Suspense fallback={<PageShellLoading />}>
+						<WinBack searchParams={searchParams} />
+					</Suspense>
+				) : null}
 			</PageShellContent>
 		</PageShell>
 	);

@@ -329,4 +329,12 @@ export const copy: Dictionary = {
 		"Setzt das Cookie genau auf dem Host, der die Seite ausgeliefert hat, nie auf der übergeordneten Domain",
 	"Exact host": "Genauer Host",
 	"Site + subdomains": "Seite und Unterdomains",
+
+	Welcome: "Willkommen",
+	"This page shows what you have closed, what is still in play, and what needs you today. It needs your email first.":
+		"Diese Seite zeigt, was du abgeschlossen hast, was noch offen ist und was heute auf dich wartet. Dafür braucht sie zuerst deine E-Mails.",
+	"Your CRM is waiting for your email": "Dein CRM wartet auf deine E-Mails",
+	"Companies, people and deals appear here once this CRM can read the mail you already send. Nothing here has to be typed in by hand.":
+		"Firmen, Personen und Deals erscheinen hier, sobald dieses CRM die Mails lesen kann, die du ohnehin schreibst. Nichts davon musst du von Hand eintippen.",
+	"Connect a mailbox": "Postfach verbinden",
 };

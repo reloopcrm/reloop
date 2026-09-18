@@ -2,8 +2,12 @@
 
 import { DealStage } from "@crm/db/enums";
 import { Checkbox } from "@crm/ui/components/checkbox";
-import { StatusIndicator } from "@crm/ui/components/status-indicator";
-import { cn } from "@crm/ui/lib/utils";
+import {
+	EventMark,
+	EventRow,
+	type EventVoice,
+} from "@crm/ui/components/event-row";
+import { emailPreview } from "@crm/ui/lib/email-text";
 import { useMutation } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -16,12 +20,12 @@ import {
 } from "@/components/local-date-time";
 import { activityLabel } from "@/lib/activity-presentation";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
+import type { Translate } from "@/lib/i18n/locale";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { useDealStageLabel } from "@/lib/use-deal-stage-label";
-import { ActivityIcon } from "./activity-icon";
-import { MeetingEntry } from "./meeting-entry";
+import { MeetingEntry, MeetingWhen } from "./meeting-entry";
 import type { TimelineAnchor } from "./timeline";
 import { TIMELINE } from "./timeline-config";
 
@@ -32,6 +36,16 @@ const stageChange = z
 	.object({ from: z.enum(DealStage), to: z.enum(DealStage) })
 	.nullable()
 	.catch(null);
+
+const MARK_BY_VOICE = {
+	inbound: "inbound",
+	outbound: "outbound",
+	note: "note",
+	meeting: "meeting",
+	task: "task",
+	"task-done": "task",
+	system: "system",
+} as const satisfies Record<EventVoice, string>;
 
 function anchorId(anchor: TimelineAnchor): string {
 	if ("companyId" in anchor) return anchor.companyId;
@@ -47,64 +61,12 @@ export function contactName(
 	return name.length > 0 ? name : null;
 }
 
-export function Row({
-	marker,
-	indent = false,
-	className,
-	children,
-}: {
-	marker: ReactNode;
-	indent?: boolean;
-	className?: string;
-	children: ReactNode;
-}) {
-	return (
-		<article
-			className={cn(
-				"relative flex flex-col gap-1 py-1",
-				indent ? "pl-12" : "pl-8",
-				className,
-			)}
-		>
-			<span className="absolute top-1.5 left-1 flex size-4 items-center justify-center bg-popover text-muted-foreground">
-				{marker}
-			</span>
-			{children}
-		</article>
-	);
-}
-
-export function Meta({
-	lead,
-	tone = "who",
-	detail,
-	time,
-}: {
-	lead: ReactNode;
-	tone?: "who" | "kind";
-	detail?: ReactNode;
-	time: ReactNode;
-}) {
-	return (
-		<div className="flex min-w-0 items-baseline gap-2">
-			<span
-				className={cn(
-					"shrink-0",
-					tone === "who" ? "font-medium" : "text-muted-foreground",
-				)}
-			>
-				{lead}
-			</span>
-			{detail ? (
-				<span className="min-w-0 flex-1 truncate text-muted-foreground">
-					{detail}
-				</span>
-			) : null}
-			<span className="ml-auto shrink-0 text-muted-foreground tabular-nums">
-				{time}
-			</span>
-		</div>
-	);
+export function otherRecords(entry: TimelineEntryData, anchor: TimelineAnchor) {
+	const here = anchorId(anchor);
+	return {
+		deal: entry.deal && entry.deal.id !== here ? entry.deal : null,
+		contact: entry.contact && entry.contact.id !== here ? entry.contact : null,
+	};
 }
 
 export function RecordLinks({
@@ -114,13 +76,10 @@ export function RecordLinks({
 	entry: TimelineEntryData;
 	anchor: TimelineAnchor;
 }) {
-	const here = anchorId(anchor);
-	const deal = entry.deal && entry.deal.id !== here ? entry.deal : null;
-	const contact =
-		entry.contact && entry.contact.id !== here ? entry.contact : null;
+	const { deal, contact } = otherRecords(entry, anchor);
 
 	return (
-		<>
+		<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs empty:hidden">
 			{deal ? (
 				<RecordLink kind="deal" id={deal.id}>
 					{deal.name}
@@ -131,6 +90,37 @@ export function RecordLinks({
 					{contactName(contact)}
 				</RecordLink>
 			) : null}
+		</div>
+	);
+}
+
+export function EventPanelBody({ text }: { text: string }) {
+	return (
+		<p className="whitespace-pre-wrap text-pretty wrap-anywhere text-body-foreground">
+			{text}
+		</p>
+	);
+}
+
+export function entryVoice(entry: TimelineEntryData): EventVoice {
+	if (entry.type === "TASK") {
+		return entry.completedAt === null ? "task" : "task-done";
+	}
+	if (entry.type === "MEETING") return "meeting";
+	if (entry.type === "STAGE_CHANGE" || entry.type === "ENRICHMENT") {
+		return "system";
+	}
+	if (entry.type === "EMAIL") return "outbound";
+	return "note";
+}
+
+function dueLabel(dueAt: string, t: Translate): ReactNode {
+	const days = daysUntil(dueAt);
+	if (days === -1) return t("Overdue by 1 day");
+	if (days < 0) return t("Overdue by {n} days", { n: -days });
+	return (
+		<>
+			{t("Due")} <LocalRelativeDate date={dueAt} />
 		</>
 	);
 }
@@ -155,17 +145,15 @@ export function TimelineEntry({
 		}),
 	);
 
+	const voice = entryVoice(entry);
 	const isTask = entry.type === "TASK";
-	const isMeeting = entry.type === "MEETING";
 	const done = entry.completedAt !== null;
 	const dueAt = isTask && !done ? entry.dueAt : null;
-	const dueInDays = dueAt === null ? 0 : daysUntil(dueAt);
-	const overdue = dueInDays < 0;
 
 	const change =
 		entry.type === "STAGE_CHANGE" ? stageChange.parse(entry.meta) : null;
 	const when = entry.occurredAt ?? entry.createdAt;
-	const synced = entry.meta?.synced === true;
+	const kind = t(activityLabel(entry.type));
 
 	const body = entry.body
 		? t(entry.body, {
@@ -173,111 +161,82 @@ export function TimelineEntry({
 				domain: String(entry.meta?.domain ?? ""),
 			})
 		: null;
+	const preview = body
+		? (emailPreview(body, TIMELINE.preview.maxChars) ?? body)
+		: null;
 
-	const headline = change
+	const subject = change
 		? `${stageLabel(change.from)} → ${stageLabel(change.to)}`
 		: entry.subject
 			? t(entry.subject)
-			: entry.subject;
+			: null;
 
-	const kind = t(activityLabel(entry.type));
-	const byKind = isTask || isMeeting;
-	const detail = isTask
-		? t("created by {name}", { name: entry.createdBy.name })
-		: isMeeting
-			? synced
-				? t("via Calendar")
-				: entry.createdBy.name
-			: kind;
+	const event = entry.calendarEvent;
+	const links = otherRecords(entry, anchor);
+	const hasLinks = links.deal !== null || links.contact !== null;
+	const longer = body !== null && preview !== body;
+
+	let detail: ReactNode = preview;
+	if (isTask) {
+		detail = done ? t("Done") : dueAt ? dueLabel(dueAt, t) : null;
+	} else if (event) {
+		detail = (
+			<MeetingWhen
+				startsAt={event.startsAt}
+				endsAt={event.endsAt}
+				isAllDay={event.isAllDay}
+			/>
+		);
+	}
+
+	const panel =
+		event || longer || hasLinks ? (
+			<div className="flex flex-col gap-3">
+				{longer && body ? <EventPanelBody text={body} /> : null}
+				{event ? (
+					<MeetingEntry
+						eventId={event.id}
+						startsAt={event.startsAt}
+						endsAt={event.endsAt}
+						isAllDay={event.isAllDay}
+						attendeeCount={event.attendeeCount}
+						conferenceUrl={event.conferenceUrl}
+					/>
+				) : null}
+				<RecordLinks entry={entry} anchor={anchor} />
+			</div>
+		) : null;
 
 	return (
-		<Row
-			marker={
+		<EventRow
+			voice={voice}
+			time={
+				dueAt ? (
+					<LocalDateTime date={dueAt} options={TIMELINE.format.dayShort} />
+				) : (
+					<LocalDateTime date={when} options={TIMELINE.format.time} />
+				)
+			}
+			mark={
 				isTask ? (
 					<Checkbox
+						tone="quiet"
 						checked={done}
 						disabled={complete.isPending}
 						aria-label={done ? t("Mark as not done") : t("Mark as done")}
+						onClick={(clicked) => clicked.stopPropagation()}
 						onCheckedChange={(checked) =>
 							complete.mutate({ id: entry.id, completed: checked === true })
 						}
 					/>
 				) : (
-					<span role="img" aria-label={kind}>
-						<ActivityIcon type={entry.type} />
-					</span>
+					<EventMark kind={MARK_BY_VOICE[voice]} />
 				)
 			}
-		>
-			<Meta
-				lead={byKind ? kind : entry.createdBy.name}
-				tone={byKind ? "kind" : "who"}
-				detail={detail}
-				time={
-					dueAt ? (
-						<LocalDateTime date={dueAt} options={TIMELINE.format.day} />
-					) : (
-						<LocalDateTime date={when} options={TIMELINE.format.time} />
-					)
-				}
-			/>
-
-			{headline ? (
-				<p
-					className={cn(
-						"wrap-anywhere font-medium",
-						done && "text-muted-foreground line-through",
-					)}
-				>
-					{t(headline)}
-				</p>
-			) : null}
-
-			{body ? (
-				<p
-					className={cn(
-						"text-pretty wrap-anywhere",
-						headline
-							? "line-clamp-2 text-muted-foreground"
-							: "whitespace-pre-wrap text-body-foreground",
-					)}
-				>
-					{body}
-				</p>
-			) : null}
-
-			{entry.calendarEvent ? (
-				<MeetingEntry
-					eventId={entry.calendarEvent.id}
-					startsAt={entry.calendarEvent.startsAt}
-					endsAt={entry.calendarEvent.endsAt}
-					isAllDay={entry.calendarEvent.isAllDay}
-					attendeeCount={entry.calendarEvent.attendeeCount}
-					conferenceUrl={entry.calendarEvent.conferenceUrl}
-				/>
-			) : null}
-
-			<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs empty:hidden">
-				{dueAt ? (
-					<StatusIndicator
-						tone={overdue ? "error" : "info"}
-						label={
-							overdue ? (
-								dueInDays === -1 ? (
-									t("Overdue by 1 day")
-								) : (
-									t("Overdue by {n} days", { n: -dueInDays })
-								)
-							) : (
-								<>
-									{t("Due")} <LocalRelativeDate date={dueAt} />
-								</>
-							)
-						}
-					/>
-				) : null}
-				<RecordLinks entry={entry} anchor={anchor} />
-			</div>
-		</Row>
+			who={voice === "system" ? kind : entry.createdBy.name}
+			subject={subject}
+			preview={detail}
+			panel={panel}
+		/>
 	);
 }

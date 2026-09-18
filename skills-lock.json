@@ -103,6 +103,12 @@
       "skillPath": "prisma-database-setup/SKILL.md",
       "computedHash": "6a991a2530a6da7131e3fc71c353e8278702d0146b8b6e1d2fdfc2d3d0a21bd2"
     },
+    "security-review": {
+      "source": "getsentry/skills",
+      "sourceType": "github",
+      "skillPath": "skills/security-review/SKILL.md",
+      "computedHash": "ec9792f5fd065e020c48ab5a57707c83435c286c449ba98dfa726d7b1842c868"
+    },
     "seo-audit": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
@@ -150,6 +156,12 @@
       "sourceType": "github",
       "skillPath": "skills/web-design-guidelines/SKILL.md",
       "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
+    },
+    "web-security-review": {
+      "source": "owasp/secure-agent-playbook",
+      "sourceType": "github",
+      "skillPath": "plugins/code-security-skills/skills/web-security-review/SKILL.md",
+      "computedHash": "95f1ab16aef9b038e3fca40076a2d4d2e8da9541dae661973d5b9204a2ff4f32"
     }
   }
 }

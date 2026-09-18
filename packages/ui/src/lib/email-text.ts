@@ -63,6 +63,37 @@ export function cleanEmailBody(body: string): CleanedEmail {
 	};
 }
 
+const SIGNATURE_PHRASES = [
+	/\s--\s/,
+	/\bmit (freundlichen|besten|herzlichen) gr(ü|ue)(ß|ss)en?\b/i,
+	/\b(viele|beste|liebe|freundliche|sch(ö|oe)ne|herzliche) gr(ü|ue)(ß|ss)e\b/i,
+	/\b(kind|best|warm) regards\b/i,
+	/\bmfg\b/i,
+];
+
+const GREETING =
+	/^(hallo|hi|hey|hello|moin|servus|guten (tag|morgen|abend)|sehr geehrte(r|s)?|liebe(r)?|dear)\b[^,;:!?]{0,48}[,;:!]\s*/i;
+
+export function emailPreview(body: string, maxChars: number): string | null {
+	let flat = cleanEmailBody(body).text.replace(/\s+/g, " ").trim();
+
+	for (const phrase of SIGNATURE_PHRASES) {
+		const found = phrase.exec(flat);
+		if (found && found.index > 0) flat = flat.slice(0, found.index).trim();
+	}
+
+	const opening = GREETING.exec(flat);
+	if (opening && flat.length > opening[0].length) {
+		flat = flat.slice(opening[0].length).trim();
+	}
+
+	if (flat.length === 0) return null;
+
+	return flat.length > maxChars
+		? `${flat.slice(0, maxChars).trimEnd()}…`
+		: flat;
+}
+
 const REPLY_MARKER = /^\s*(re|aw|antw|fwd|fw|wg|sv|vs)\s*(\[\d+\])?\s*:\s*/i;
 
 export function cleanSubject(subject: string): string {

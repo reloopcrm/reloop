@@ -7,16 +7,21 @@ import Events from "@carbon/icons-react/es/Events";
 import Task from "@carbon/icons-react/es/Task";
 import Time from "@carbon/icons-react/es/Time";
 import { Button } from "@crm/ui/components/button";
+import {
+	EventDayStrip,
+	EventGroup,
+	EventList,
+} from "@crm/ui/components/event-row";
 import type { CarbonIcon } from "@crm/ui/components/icon";
 import { Loader } from "@crm/ui/components/loader";
 import { Spinner } from "@crm/ui/components/spinner";
 import { IndicatorDot } from "@crm/ui/components/status-indicator";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { cleanSubject } from "@crm/ui/lib/email-text";
-import { cn } from "@crm/ui/lib/utils";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
-import { DetailSheetEmpty, SECTION_TITLE } from "@/components/detail-sheet";
+import { Fragment } from "react";
+import { DetailSheetEmpty } from "@/components/detail-sheet";
 import { LocalDateTime, localDayKey } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { dateFormat } from "@/lib/i18n/format";
@@ -25,9 +30,8 @@ import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
 import { useHydrated } from "@/lib/use-hydrated";
 import { ActivityComposer } from "./activity-composer";
-import { EmailThreadBlock, speaker } from "./email-thread-entry";
-import { toBlocks } from "./timeline-blocks";
-import { TIMELINE } from "./timeline-config";
+import { EmailThreadEntry, speaker } from "./email-thread-entry";
+import { TIMELINE, tabCount } from "./timeline-config";
 import {
 	contactName,
 	TimelineEntry,
@@ -95,54 +99,42 @@ const EMPTY_ICONS = {
 	done: Checkmark,
 } satisfies Record<TimelineTab, CarbonIcon>;
 
-function dayHeading(day: string, local: boolean, t: Translate, locale: Locale) {
+export function dayLabel(
+	day: string,
+	local: boolean,
+	t: Translate,
+	locale: Locale,
+): string {
 	const now = new Date();
 	const today = dayKey(now.toISOString(), local);
 	const yesterdayDate = local
 		? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
 		: new Date(Date.now() - 86_400_000);
 	const yesterday = dayKey(yesterdayDate.toISOString(), local);
+
+	if (day === today) return t("Today");
+	if (day === yesterday) return t("Yesterday");
+
 	const date = new Date(`${day}T00:00:00`);
 	const sameYear = day.slice(0, 4) === today.slice(0, 4);
-
-	if (day === today || day === yesterday) {
-		return {
-			label: day === today ? t("Today") : t("Yesterday"),
-			sub: dateFormat(locale, TIMELINE.format.day).format(date),
-		};
-	}
-	return {
-		label: dateFormat(locale, TIMELINE.format.weekday).format(date),
-		sub: dateFormat(
-			locale,
-			sameYear ? TIMELINE.format.date : TIMELINE.format.dateWithYear,
-		).format(date),
-	};
+	return dateFormat(
+		locale,
+		sameYear ? TIMELINE.format.day : TIMELINE.format.dateWithYear,
+	).format(date);
 }
 
-function byDay(
-	entries: TimelineEntryData[],
-	local: boolean,
-	t: Translate,
-	locale: Locale,
-) {
-	const groups = new Map<
-		string,
-		{ day: string; label: string; sub: string; entries: TimelineEntryData[] }
-	>();
+export function byDay<
+	E extends { occurredAt: string | null; createdAt: string },
+>(entries: E[], local: boolean): { day: string; entries: E[] }[] {
+	const groups = new Map<string, { day: string; entries: E[] }>();
 
 	for (const entry of entries) {
 		const day = dayKey(entry.occurredAt ?? entry.createdAt, local);
-
 		const group = groups.get(day);
 		if (group) {
 			group.entries.push(entry);
 		} else {
-			groups.set(day, {
-				day,
-				...dayHeading(day, local, t, locale),
-				entries: [entry],
-			});
+			groups.set(day, { day, entries: [entry] });
 		}
 	}
 
@@ -159,58 +151,23 @@ function dayKey(value: string, local: boolean): string {
 	return local ? localDayKey(value) : value.slice(0, 10);
 }
 
-function TimelineDay({
-	label,
-	sub,
+function TimelineRows({
 	entries,
 	anchor,
-	waitingId,
-	future = false,
 }: {
-	label: string;
-	sub: string;
 	entries: TimelineEntryData[];
 	anchor: TimelineAnchor;
-	waitingId: string | null;
-	future?: boolean;
 }) {
 	return (
-		<section className="pt-3">
-			<h3
-				className={cn(
-					"sticky top-0 z-10 flex items-baseline gap-2 bg-popover py-2",
-					SECTION_TITLE,
-				)}
-			>
-				{label}
-				<span className="font-normal text-faint-foreground normal-case tracking-normal">
-					{sub}
-				</span>
-			</h3>
-			<div
-				className={cn(
-					"relative flex flex-col gap-2 pb-1 before:absolute before:top-1 before:bottom-0 before:left-3 before:border-l before:border-border before:content-['']",
-					future && "before:border-border-strong before:border-dashed",
-				)}
-			>
-				{toBlocks(entries).map((block) =>
-					block.kind === "thread" ? (
-						<EmailThreadBlock
-							key={block.key}
-							entries={block.entries}
-							anchor={anchor}
-							waitingId={waitingId}
-						/>
-					) : (
-						<TimelineEntry
-							key={block.key}
-							entry={block.entry}
-							anchor={anchor}
-						/>
-					),
-				)}
-			</div>
-		</section>
+		<>
+			{entries.map((entry) =>
+				entry.emailThread?.lastMessage ? (
+					<EmailThreadEntry key={entry.id} entry={entry} anchor={anchor} />
+				) : (
+					<TimelineEntry key={entry.id} entry={entry} anchor={anchor} />
+				),
+			)}
+		</>
 	);
 }
 
@@ -300,10 +257,6 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 			: pinnedEntries.length;
 	const newestEmail =
 		entries.find((entry) => entry.emailThread?.lastMessage) ?? null;
-	const waitingId =
-		newestEmail?.emailThread?.lastMessage?.direction === "INBOUND"
-			? newestEmail.id
-			: null;
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
@@ -319,16 +272,19 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					size="sm"
 					spacing={0}
 				>
-					{TIMELINE_TABS.map((option) => (
-						<ToggleGroupItem key={option} value={option}>
-							{t(TAB_LABELS[option])}
-							{counts.data?.[option] ? (
-								<span className="tabular-nums opacity-60">
-									{counts.data[option]}
-								</span>
-							) : null}
-						</ToggleGroupItem>
-					))}
+					{TIMELINE_TABS.map((option) => {
+						const count = tabCount(option, counts.data);
+						return (
+							<ToggleGroupItem key={option} value={option}>
+								{t(TAB_LABELS[option])}
+								{count === null ? null : (
+									<span className="font-mono text-faint-foreground text-xs tabular-nums">
+										{count}
+									</span>
+								)}
+							</ToggleGroupItem>
+						);
+					})}
 				</ToggleGroup>
 			</div>
 
@@ -345,42 +301,47 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					description={t(EMPTY_STATES[tab].description)}
 				/>
 			) : (
-				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-5">
+				<EventList>
 					{pinnedEntries.length > 0 ? (
-						<TimelineDay
-							label={t("Upcoming")}
-							sub={String(pinnedCount)}
-							entries={pinnedEntries}
-							anchor={anchor}
-							waitingId={null}
-							future
-						/>
+						<>
+							<EventDayStrip
+								tone="pending"
+								label={t("Upcoming")}
+								note={
+									pinnedCount === 1
+										? t("1 open task")
+										: t("{count} open tasks", { count: pinnedCount })
+								}
+							/>
+							<EventGroup pending>
+								<TimelineRows entries={pinnedEntries} anchor={anchor} />
+							</EventGroup>
+						</>
 					) : null}
 
-					{byDay(entries, hydrated, t, locale).map((group) => (
-						<TimelineDay
-							key={group.day}
-							label={group.label}
-							sub={group.sub}
-							entries={group.entries}
-							anchor={anchor}
-							waitingId={waitingId}
-						/>
+					{byDay(entries, hydrated).map((group) => (
+						<Fragment key={group.day}>
+							<EventDayStrip label={dayLabel(group.day, hydrated, t, locale)} />
+							<EventGroup>
+								<TimelineRows entries={group.entries} anchor={anchor} />
+							</EventGroup>
+						</Fragment>
 					))}
 
 					{history.hasNextPage ? (
-						<Button
-							variant="outline"
-							size="sm"
-							className="mt-4 ml-8 self-start"
-							disabled={history.isFetchingNextPage}
-							onClick={() => history.fetchNextPage()}
-						>
-							{history.isFetchingNextPage ? <Spinner /> : null}
-							{t("Show older")}
-						</Button>
+						<div className="pt-4">
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={history.isFetchingNextPage}
+								onClick={() => history.fetchNextPage()}
+							>
+								{history.isFetchingNextPage ? <Spinner /> : null}
+								{t("Show older")}
+							</Button>
+						</div>
 					) : null}
-				</div>
+				</EventList>
 			)}
 		</div>
 	);

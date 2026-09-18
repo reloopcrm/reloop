@@ -1,6 +1,7 @@
 "use client";
 
 import { AttendeeList } from "@crm/ui/components/attendee-list";
+import { Link } from "@crm/ui/components/link";
 import { useQuery } from "@tanstack/react-query";
 import {
 	LocalDateTime,
@@ -9,6 +10,31 @@ import {
 import { useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
 import { TIMELINE } from "./timeline-config";
+
+export function MeetingWhen({
+	startsAt,
+	endsAt,
+	isAllDay,
+}: {
+	startsAt: string;
+	endsAt: string;
+	isAllDay: boolean;
+}) {
+	const t = useT();
+
+	return isAllDay ? (
+		<>
+			<LocalDateTime date={startsAt} options={TIMELINE.format.date} /> ·{" "}
+			{t("All day")}
+		</>
+	) : (
+		<LocalDateTimeRange
+			start={startsAt}
+			end={endsAt}
+			options={TIMELINE.format.range}
+		/>
+	);
+}
 
 export function MeetingEntry({
 	eventId,
@@ -34,20 +60,9 @@ export function MeetingEntry({
 	});
 
 	return (
-		<div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-			<span className="text-muted-foreground text-xs">
-				{isAllDay ? (
-					<>
-						<LocalDateTime date={startsAt} options={TIMELINE.format.date} /> ·{" "}
-						{t("All day")}
-					</>
-				) : (
-					<LocalDateTimeRange
-						start={startsAt}
-						end={endsAt}
-						options={TIMELINE.format.range}
-					/>
-				)}
+		<div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground text-xs">
+			<span>
+				<MeetingWhen startsAt={startsAt} endsAt={endsAt} isAllDay={isAllDay} />
 			</span>
 
 			{event.data?.attendees && event.data.attendees.length > 0 ? (
@@ -55,14 +70,9 @@ export function MeetingEntry({
 			) : null}
 
 			{conferenceUrl ? (
-				<a
-					href={conferenceUrl}
-					target="_blank"
-					rel="noreferrer"
-					className="text-muted-foreground text-xs underline underline-offset-3 hover:text-foreground"
-				>
+				<Link href={conferenceUrl} target="_blank" rel="noreferrer">
 					{t("Join call")}
-				</a>
+				</Link>
 			) : null}
 		</div>
 	);

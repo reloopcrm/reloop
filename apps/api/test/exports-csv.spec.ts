@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { csvField, csvLine, neutralizeFormula } from "../src/exports/csv";
-import { EXPORT_HEADERS } from "../src/exports/exports.service";
+import {
+	EXPORT_ENUM_WORDS,
+	EXPORT_HEADERS,
+} from "../src/exports/exports.service";
 import { EXPORTS } from "../src/exports/exports-config";
 import { EXPORT_GERMAN, exportWord } from "../src/exports/exports-copy";
 
@@ -20,6 +23,21 @@ describe("the CSV writer", () => {
 		for (const stem of ["contacts", "companies", "deals"]) {
 			expect(EXPORT_GERMAN.has(stem)).toBe(true);
 		}
+	});
+
+	it("has a German word for every stored value the export writes", () => {
+		expect(EXPORT_ENUM_WORDS.length).toBeGreaterThan(0);
+		for (const word of EXPORT_ENUM_WORDS) {
+			expect(EXPORT_GERMAN.has(word)).toBe(true);
+		}
+	});
+
+	it("says what the deal table says, stage by stage", () => {
+		expect(exportWord("en", "Decision maker in")).toBe("Decision maker in");
+		expect(exportWord("de", "Decision maker in")).toBe("Entscheider überzeugt");
+		expect(exportWord("de", "Closed won")).toBe("Gewonnen");
+		expect(exportWord("de", "Customer")).toBe("Kunde");
+		expect(exportWord("de", "Manual")).toBe("Manuell");
 	});
 
 	it("reads a header back in German, and leaves English alone", () => {

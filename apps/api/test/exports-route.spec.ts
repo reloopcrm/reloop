@@ -25,6 +25,7 @@ const email = `${userId}@example.com`;
 describe("the export route", () => {
 	let app: INestApplication;
 	let apiKey = "";
+	let companyId = "";
 
 	beforeAll(async () => {
 		const { AppModule } = await import("../src/app.module");
@@ -48,6 +49,20 @@ describe("the export route", () => {
 			},
 		});
 
+		const company = await db.company.create({
+			data: { name: `Export Route ${suffix}`, domain: `route-${suffix}.test` },
+		});
+		companyId = company.id;
+
+		await db.deal.create({
+			data: {
+				name: `Gewonnenes Geschäft ${suffix}`,
+				companyId,
+				ownerId: userId,
+				stage: "CLOSED_WON",
+			},
+		});
+
 		const created = await auth.api.createApiKey({
 			body: { name: `export-route-${suffix}`, userId },
 		});
@@ -57,6 +72,8 @@ describe("the export route", () => {
 
 	afterAll(async () => {
 		const { db } = await import("@crm/db");
+		await db.deal.deleteMany({ where: { companyId } });
+		await db.company.deleteMany({ where: { id: companyId } });
 		await db.apikey.deleteMany({ where: { referenceId: userId } });
 		await db.session.deleteMany({ where: { userId } });
 		await db.account.deleteMany({ where: { userId } });
@@ -97,6 +114,20 @@ describe("the export route", () => {
 		expect(response.text.startsWith("\ufeffVorname;Nachname;E-Mail;")).toBe(
 			true,
 		);
+	});
+
+	it("writes a German stage in the cell, not only in the header", async () => {
+		const response = await request(app.getHttpServer())
+			.get("/api/exports/deals?locale=de")
+			.set(API_KEY_HEADER, apiKey)
+			.expect(200);
+
+		const [header] = response.text.split("\r\n");
+
+		expect(header).toContain("Phase");
+		expect(header).not.toContain("Stage");
+		expect(response.text).toContain("Gewonnen");
+		expect(response.text).not.toContain("Closed won");
 	});
 
 	it("refuses a language nobody ships", async () => {

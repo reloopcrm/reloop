@@ -1,3 +1,4 @@
+import { DEAL_STAGE_LABEL } from "@crm/db/deal-stage";
 import { DealStage } from "@crm/db/enums";
 import type { StatusTone } from "@crm/ui/components/status-indicator";
 
@@ -18,37 +19,37 @@ type DealStagePresentation = Record<
 
 const PRESENTATION: DealStagePresentation = {
 	DEMO_BOOKED: {
-		label: "Demo booked",
+		label: DEAL_STAGE_LABEL.DEMO_BOOKED,
 		tone: "neutral",
 		color: "var(--chart-2)",
 	},
 	QUALIFIED_TO_BUY: {
-		label: "Qualified to buy",
+		label: DEAL_STAGE_LABEL.QUALIFIED_TO_BUY,
 		tone: "info",
 		color: "var(--chart-3)",
 	},
 	DECISION_MAKER_BOUGHT_IN: {
-		label: "Decision maker in",
+		label: DEAL_STAGE_LABEL.DECISION_MAKER_BOUGHT_IN,
 		tone: "info",
 		color: "var(--chart-1)",
 	},
 	CONTRACT_SENT: {
-		label: "Contract sent",
+		label: DEAL_STAGE_LABEL.CONTRACT_SENT,
 		tone: "warning",
 		color: "var(--chart-4)",
 	},
 	CLOSED_WON: {
-		label: "Closed won",
+		label: DEAL_STAGE_LABEL.CLOSED_WON,
 		tone: "success",
 		color: "var(--chart-5)",
 	},
 	CLOSED_LOST: {
-		label: "Closed lost",
+		label: DEAL_STAGE_LABEL.CLOSED_LOST,
 		tone: "error",
 		color: "var(--chart-5)",
 	},
 	UNQUALIFIED_TO_BUY: {
-		label: "Unqualified",
+		label: DEAL_STAGE_LABEL.UNQUALIFIED_TO_BUY,
 		tone: "neutral",
 		color: "var(--chart-5)",
 	},

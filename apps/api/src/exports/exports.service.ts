@@ -1,4 +1,6 @@
-import type { Prisma } from "@crm/db";
+import { type Prisma, RecordSource } from "@crm/db";
+import { CONTACT_POTENTIAL, CONTACT_STANDING } from "@crm/db/contact-standing";
+import { DEAL_STAGE_LABEL } from "@crm/db/deal-stage";
 import type { FieldValueJson } from "@crm/db/fields";
 import type { Locale } from "@crm/db/locale";
 import { Injectable } from "@nestjs/common";
@@ -20,7 +22,7 @@ import { exportWord } from "./exports-copy";
 
 type Column<TRow> = {
 	header: string;
-	value: (row: TRow) => string;
+	value: (row: TRow, locale: Locale) => string;
 };
 
 function text(value: string | null | undefined): string {
@@ -31,6 +33,10 @@ function humanize(value: string | null | undefined): string {
 	if (!value) return "";
 	const words = value.replaceAll("_", " ").toLowerCase();
 	return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function stored(locale: Locale, value: string | null | undefined): string {
+	return exportWord(locale, humanize(value));
 }
 
 function moment(value: Date | null | undefined): string {
@@ -68,9 +74,12 @@ const CONTACT_COLUMNS: Column<ContactExportRow>[] = [
 	{ header: "LinkedIn", value: (row) => text(row.linkedinUrl) },
 	{ header: "Owner", value: (row) => text(row.owner?.name) },
 	{ header: "Owner email", value: (row) => text(row.owner?.email) },
-	{ header: "Status", value: (row) => humanize(row.standing) },
-	{ header: "Potential", value: (row) => humanize(row.potentialBand) },
-	{ header: "Source", value: (row) => humanize(row.source) },
+	{ header: "Status", value: (row, locale) => stored(locale, row.standing) },
+	{
+		header: "Potential",
+		value: (row, locale) => stored(locale, row.potentialBand),
+	},
+	{ header: "Source", value: (row, locale) => stored(locale, row.source) },
 	{ header: "Created", value: (row) => moment(row.createdAt) },
 	{ header: "Last activity", value: (row) => moment(row.lastActivityAt) },
 	{ header: "Archived", value: (row) => moment(row.archivedAt) },
@@ -88,9 +97,12 @@ const COMPANY_COLUMNS: Column<CompanyExportRow>[] = [
 	{ header: "LinkedIn", value: (row) => text(row.linkedinUrl) },
 	{ header: "Owner", value: (row) => text(row.owner?.name) },
 	{ header: "Owner email", value: (row) => text(row.owner?.email) },
-	{ header: "Status", value: (row) => humanize(row.standing) },
-	{ header: "Potential", value: (row) => humanize(row.potentialBand) },
-	{ header: "Source", value: (row) => humanize(row.source) },
+	{ header: "Status", value: (row, locale) => stored(locale, row.standing) },
+	{
+		header: "Potential",
+		value: (row, locale) => stored(locale, row.potentialBand),
+	},
+	{ header: "Source", value: (row, locale) => stored(locale, row.source) },
 	{ header: "Contacts", value: (row) => String(row._count.contacts) },
 	{ header: "Open deals", value: (row) => String(row._count.deals) },
 	{ header: "Created", value: (row) => moment(row.createdAt) },
@@ -102,7 +114,10 @@ const DEAL_COLUMNS: Column<DealExportRow>[] = [
 	{ header: "Name", value: (row) => text(row.name) },
 	{ header: "Company", value: (row) => text(row.company.name) },
 	{ header: "Company domain", value: (row) => text(row.company.domain) },
-	{ header: "Stage", value: (row) => humanize(row.stage) },
+	{
+		header: "Stage",
+		value: (row, locale) => exportWord(locale, DEAL_STAGE_LABEL[row.stage]),
+	},
 	{ header: "Amount", value: (row) => money(row.amount) },
 	{ header: "Currency", value: (row) => text(row.currency) },
 	{
@@ -118,6 +133,13 @@ const DEAL_COLUMNS: Column<DealExportRow>[] = [
 	{ header: "Created", value: (row) => moment(row.createdAt) },
 	{ header: "Last activity", value: (row) => moment(row.lastActivityAt) },
 	{ header: "Archived", value: (row) => moment(row.archivedAt) },
+];
+
+export const EXPORT_ENUM_WORDS: string[] = [
+	...Object.values(DEAL_STAGE_LABEL),
+	...Object.values(CONTACT_STANDING).map(humanize),
+	...Object.values(CONTACT_POTENTIAL).map(humanize),
+	...Object.values(RecordSource).map(humanize),
 ];
 
 export const EXPORT_HEADERS: string[] = [
@@ -201,7 +223,7 @@ export class ExportsService {
 			let chunk = "";
 			for (const row of page) {
 				chunk += csvLine([
-					...columns.map((column) => column.value(row)),
+					...columns.map((column) => column.value(row, locale)),
 					...fields.map((field) => fieldText(row.fields[field.key])),
 				]);
 			}

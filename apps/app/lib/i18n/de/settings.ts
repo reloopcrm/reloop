@@ -251,6 +251,10 @@ export const settings: Dictionary = {
 	"The operator keeps this install up to date.":
 		"Der Betreiber hält diese Installation aktuell.",
 	"Update now": "Jetzt aktualisieren",
+	"Version {version} is out": "Version {version} ist da",
+	Dismiss: "Verwerfen",
+	"This install runs an older version. Update it to get the fixes.":
+		"Diese Installation läuft auf einer älteren Version. Aktualisiere sie, um die Fehlerbehebungen zu bekommen.",
 	"Update now?": "Jetzt aktualisieren?",
 	"The updater pulls the new images and restarts the app. The app is unreachable for everyone for a moment. Make a backup first.":
 		"Der Updater lädt die neuen Images und startet die App neu. Die App ist für alle kurz nicht erreichbar. Mach vorher ein Backup.",

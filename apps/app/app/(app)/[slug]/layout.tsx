@@ -1,3 +1,4 @@
+import { workspaceRoleOf } from "@crm/auth";
 import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
@@ -8,8 +9,9 @@ import { QuickSwitcher } from "@/components/crm/quick-switcher";
 import { RecordSheetHost } from "@/components/crm/record-sheet/record-sheet-host";
 import { DemoTour } from "@/components/demo/demo-tour";
 import { MobileNavProvider } from "@/components/mobile-nav";
+import { UpdateBanner } from "@/components/update-banner";
 import { demoOffered, managedInstall } from "@/lib/operator";
-import { requireMailboxAccess } from "@/lib/session";
+import { requireMailboxAccess, requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { workspaceLabel } from "@/lib/workspace-label";
@@ -31,6 +33,10 @@ export default function AppLayout({
 			<div className="isolate flex h-svh flex-col">
 				<Suspense fallback={<AppHeaderFallback />}>
 					<WorkspaceHeader params={params} />
+				</Suspense>
+
+				<Suspense fallback={null}>
+					<UpdateNotice />
 				</Suspense>
 
 				<div className="flex min-h-0 flex-1">
@@ -56,6 +62,17 @@ export default function AppLayout({
 			</div>
 		</MobileNavProvider>
 	);
+}
+
+async function UpdateNotice() {
+	if (managedInstall()) return null;
+
+	await connection();
+	const session = await requireSession();
+
+	if ((await workspaceRoleOf(session.user.id)) !== "owner") return null;
+
+	return <UpdateBanner />;
 }
 
 async function loadWorkspace() {

@@ -68,7 +68,7 @@ export function Version({ managed }: { managed: boolean }) {
 	const version = useQuery(trpc.system.version.queryOptions());
 
 	return (
-		<Card>
+		<Card id="version">
 			<CardHeader>
 				<CardTitle>{t("Version")}</CardTitle>
 				<CardDescription>

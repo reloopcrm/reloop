@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.0](https://github.com/reloopcrm/reloop/compare/v0.10.0...v0.11.0) (2026-09-18)
+
+
+### Features
+
+* **connections:** send CRM events to a webhook ([fc9c372](https://github.com/reloopcrm/reloop/commit/fc9c3724bf4dbb32a82fbc4b73d48805f940e895))
+* **deals:** turn the quotes in your mail into deals ([5aff4ad](https://github.com/reloopcrm/reloop/commit/5aff4ad640b3e18cf2fa3ea80edbda4aefa89f28))
+* **demo:** load sample data into an empty install ([ce106dd](https://github.com/reloopcrm/reloop/commit/ce106ddd8754b7601a84425f6f48b7fabcc2dde1))
+* **i18n:** speak seven languages, picked in settings ([261a9c4](https://github.com/reloopcrm/reloop/commit/261a9c44e130c0cabea8e7abee178e5278198f11))
+* **timeline:** one line per event, opened on demand ([69b0c10](https://github.com/reloopcrm/reloop/commit/69b0c1026fb90766197d24fa28a34454de706487))
+
+
+### Fixes
+
+* **demo:** keep the agent away from sample records ([ebcfe8c](https://github.com/reloopcrm/reloop/commit/ebcfe8c0b86612ef37190063dad7cdfd95caca0e))
+
 ## [0.10.0](https://github.com/reloopcrm/reloop/compare/v0.9.0...v0.10.0) (2026-09-18)
 
 

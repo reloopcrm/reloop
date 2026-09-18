@@ -464,6 +464,33 @@ functions behind a CLI, so the script and the button cannot drift.
   five minutes. The agent's own guards are in *Sample data is never researched* in
   `docs/agent.md`.
 
+## A quote in the mailbox becomes a deal, one click at a time
+
+`apps/api/src/quotes` reads what the agent already decided. `ThreadInsight.outcome`
+of `QUOTED` or `OPEN_OFFER_OURS` means an offer went out, so `quotes.list` is every
+such thread that still has no deal. **It classifies nothing and queues no
+`AgentTask`** — the reading happened in `apps/agent` long before.
+
+- **The stage comes from the enum, never from a label.** `QUOTE_DEAL_STAGE`
+  (`@crm/db/quote-deals`) is `CONTRACT_SENT`, and the list and the table read the
+  operator's own wording through `dealStageLabelFrom`.
+- **Nothing is created on its own.** `quotes.createDeal` takes the caller as
+  `Deal.ownerId`; there is no guess and no sweep. `quotes.dismiss` is the other
+  half, and both write `EmailThread.quoteHandledAt`, so a handled thread never
+  returns. The write is an `updateMany` guarded on `quoteHandledAt: null`, which
+  is what stops two clicks making two deals.
+- **The deal is created with no amount.** The agent extracts no figures from a
+  quote, so `amount`, `baseAmount` and the rate stay null and the rep types the
+  number. See `docs/currency.md`.
+- **The quantity rule is the win back list's rule**, `minimumFor`
+  (`@crm/db/contact-worth`) over `AppSetting.winBackRules`. A quote with no
+  quantity, or below the minimum, is not on the list. `QUOTE_DEALS`
+  (`@crm/db/quote-deals`) holds the rest: a 120 day window, one row per company,
+  50 rows, a 500 row scan.
+- **Sample data is excluded** (`NOT_SAMPLE_RECORD` on the thread). A deal made
+  from a `demo-` thread carries a real id, so every `demo-` guard in
+  `AgentTriggerService` stops seeing it.
+
 ## Money
 
 A deal is sold in one currency and reported in another, and **only `baseAmount` may

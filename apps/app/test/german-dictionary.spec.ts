@@ -140,6 +140,7 @@ describe("the dictionary modules together", () => {
 			["crmRecords", (await import("../lib/i18n/de/crm-records")).crmRecords],
 			["landing", (await import("../lib/i18n/de/landing")).landing],
 			["navigation", (await import("../lib/i18n/de/navigation")).navigation],
+			["quotes", (await import("../lib/i18n/de/quotes")).quotes],
 			["records", (await import("../lib/i18n/de/records")).records],
 			["serverCopy", (await import("../lib/i18n/de/server-copy")).serverCopy],
 			["settings", (await import("../lib/i18n/de/settings")).settings],

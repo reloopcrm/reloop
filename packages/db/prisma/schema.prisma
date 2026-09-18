@@ -1228,6 +1228,8 @@ model EmailThread {
   lastMessageAt  DateTime
   messageCount   Int      @default(0)
 
+  quoteHandledAt DateTime?
+
   messages EmailMessage[]
   activity Activity?
 
@@ -1237,6 +1239,7 @@ model EmailThread {
   @@index([companyId, lastMessageAt])
   @@index([contactId, lastMessageAt])
   @@index([classification])
+  @@index([quoteHandledAt])
   @@map("emailThread")
 }
 

@@ -28,6 +28,7 @@ import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput
 import { googleConnectionStatusOutput, setAutoCreateInput, setImportSinceInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
 import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookImportSinceInput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { imapStatusOutput, addImapAccountInput, imapAccountIdInput, imapRemoveOutput, imapPurgeOutput, setImapCreateFromInput } from "../imap/imap.contracts";
+import { quoteListOutput, quoteThreadInput, quoteCreatedOutput, quoteDismissedOutput } from "../quotes/quotes.contracts";
 import { reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
 import { businessProposalOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, passwordSignInOutput, setPasswordInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput, dealStagesOutput, setDealStageNameInput } from "../settings/settings.contracts";
@@ -640,6 +641,19 @@ const appRouter = t.router({
     setAutoCreate: publicProcedure
       .input(setOutlookAutoCreateInput)
       .output(microsoftConnectionStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  quotes: t.router({
+    list: publicProcedure
+      .output(quoteListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    createDeal: publicProcedure
+      .input(quoteThreadInput)
+      .output(quoteCreatedOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    dismiss: publicProcedure
+      .input(quoteThreadInput)
+      .output(quoteDismissedOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   reactivation: t.router({

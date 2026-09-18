@@ -36,6 +36,7 @@ export type CrmCache = {
 	microsoft(options?: Options): Promise<void>;
 	imap(options?: Options): Promise<void>;
 	winBack(options?: Options): Promise<void>;
+	quotes(options?: Options): Promise<void>;
 	settings(options?: Options): Promise<void>;
 	currency(options?: Options): Promise<void>;
 	workspace(options?: Options): Promise<void>;
@@ -209,6 +210,7 @@ export function useCrmCache(): CrmCache {
 				[id ? trpc.deals.byId.queryKey({ id }) : trpc.deals.byId.queryKey()],
 				[
 					...listKeys(),
+					trpc.quotes.list.queryKey(),
 					trpc.deals.contactOptions.queryKey(),
 					trpc.companies.byId.queryKey(),
 					trpc.contacts.byId.queryKey(),
@@ -289,6 +291,8 @@ export function useCrmCache(): CrmCache {
 				[],
 				options,
 			),
+
+		quotes: (options) => run([trpc.quotes.list.queryKey()], [], options),
 
 		imap: (options) =>
 			run(

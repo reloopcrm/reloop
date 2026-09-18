@@ -1,4 +1,6 @@
+import { Button } from "@crm/ui/components/button";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import {
 	PageShell,
@@ -14,6 +16,7 @@ import { getT } from "@/lib/i18n/server";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceUrl } from "@/lib/workspace-url";
 import { CreateDealSheet } from "./create-deal-sheet";
 import { dealsSearchParams } from "./deals-search-params";
 import { DealsTable } from "./deals-table";
@@ -24,9 +27,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DealsPage({
+	params,
 	searchParams,
 }: PageProps<"/[slug]/deals">) {
-	const t = await getT();
+	const [t, { slug }] = await Promise.all([getT(), params]);
 	return (
 		<PageShell className="min-h-0">
 			<PageShellHeader>
@@ -37,6 +41,11 @@ export default async function DealsPage({
 					</PageShellDescription>
 				</PageShellHeading>
 				<PageShellActions>
+					<Button asChild variant="outline">
+						<Link href={workspaceUrl(slug, "/deals/from-mail")}>
+							{t("Quotes in your mail")}
+						</Link>
+					</Button>
 					<CreateDealSheet />
 				</PageShellActions>
 			</PageShellHeader>

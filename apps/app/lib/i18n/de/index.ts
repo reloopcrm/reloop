@@ -4,6 +4,7 @@ import { copy } from "./copy";
 import { crmRecords } from "./crm-records";
 import { landing } from "./landing";
 import { navigation } from "./navigation";
+import { quotes } from "./quotes";
 import { records } from "./records";
 import { serverCopy } from "./server-copy";
 import { settings } from "./settings";
@@ -17,6 +18,7 @@ export const de: Dictionary = {
 	...crmRecords,
 	...landing,
 	...navigation,
+	...quotes,
 	...records,
 	...serverCopy,
 	...settings,

@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.9.0](https://github.com/reloopcrm/reloop/compare/v0.8.0...v0.9.0) (2026-09-17)
+
+
+### Features
+
+* **deploy:** update a source install by itself ([fe24caf](https://github.com/reloopcrm/reloop/commit/fe24caf64c6b3d2020aa87e03114fd2109700a48))
+* **settings:** show the waitlist to the cloud owner only ([78bfb74](https://github.com/reloopcrm/reloop/commit/78bfb7448175ad94dabbf6c2ad4aea394ffdd161))
+
+
+### Fixes
+
+* **agent:** ledger the phone number from a signature ([d0c6d6f](https://github.com/reloopcrm/reloop/commit/d0c6d6f8f349d88cd1aaa690f473558a1738679a))
+* **agent:** only a source that identifies the person writes a name ([e3bafed](https://github.com/reloopcrm/reloop/commit/e3bafedf292aa1240dc859866e495bb83d194f42))
+* **agent:** seal the Slack user token and survive a lost key ([08bb1f4](https://github.com/reloopcrm/reloop/commit/08bb1f403bb845d26ab186cd24762772108db9af))
+* **agent:** take the real name from the signature, not the address ([035c679](https://github.com/reloopcrm/reloop/commit/035c679e06cfd4e4f20d11dc2b51bfde7f69567c))
+* **agent:** take the shell away and mark mail text as data ([059a699](https://github.com/reloopcrm/reloop/commit/059a699e507ae46b96a890fbe0162bdf025d31ed))
+* **auth:** seal the OAuth tokens in the database ([6407230](https://github.com/reloopcrm/reloop/commit/64072306d46110509a5333ec37320988fa1260b5))
+* **deploy:** give the api its marketing flag ([96ed303](https://github.com/reloopcrm/reloop/commit/96ed30313cf9b8ecaad4c1eb281b3aadaddae961))
+* **security:** limit sign-in tries, request size and who may change a role ([3440692](https://github.com/reloopcrm/reloop/commit/34406926c4566766d548394919e87bfacbee2f8e))
+* **setup:** recover the owner account and name the missing model provider ([1cad18c](https://github.com/reloopcrm/reloop/commit/1cad18c87e2b3a7114f7fce266b9bf95febfaa7c))
+* **tasks:** treat a due date as a calendar day ([2d1e40a](https://github.com/reloopcrm/reloop/commit/2d1e40ae2518aa266ba717ae38bacb38741c8a48))
+
+
+### Documentation
+
+* say which mailbox really brings its history ([2f22860](https://github.com/reloopcrm/reloop/commit/2f228600b8144e7efbe8e54314d5bfa6d90ee6d3))
+
 ## [0.8.0](https://github.com/reloopcrm/reloop/compare/v0.7.1...v0.8.0) (2026-09-17)
 
 

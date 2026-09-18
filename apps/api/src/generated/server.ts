@@ -22,6 +22,7 @@ import { conversationListInput, conversationListOutput, builderListOutput, build
 import { currencySettingsOutput, setReportingCurrencyInput, setManualRateInput, removeManualRateInput } from "../currency/currency.contracts";
 import { dashboardSummaryInput, dashboardSummaryOutput } from "../dashboard/dashboard.contracts";
 import { dealListInput, dealListOutput, dealIdInput, dealDetailOutput, dealCreateInput, dealCreateOutput, dealUpdateArgs, dealMutateOutput, setStageInput, dealSetStageOutput, dealContactsInput, dealContactOptionsOutput, dealAttachContactInput, dealContactLinkOutput, dealDetachContactInput, dealContactRoleInput, dealContactRoleOutput, dealBulkOwnerInput, dealBulkResultOutput, dealBulkStageInput, dealBulkInput } from "../deals/deals.contracts";
+import { sampleDataStatusOutput, sampleDataResultOutput } from "../demo/demo.contracts";
 import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
 import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput, fieldEntityInput, fieldFiltersOutput, fieldIdInput, fieldCoverageOutput, fieldCreateInput, fieldProposalOutput, fieldProposalDecisionInput, fieldProposalDecisionOutput, fieldUpdateArgs, fieldReorderInput, fieldReorderOutput, fieldDeleteOutput, fieldBackfillOutput } from "../fields/fields.contracts";
 import { googleConnectionStatusOutput, setAutoCreateInput, setImportSinceInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
@@ -35,6 +36,7 @@ import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoPro
 import { versionOutput, updateOutput } from "../system/system.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { waitlistJoinInput } from "@crm/validation/waitlist";
+import { webhooksStatusOutput, createWebhookInput, updateWebhookInput, webhookIdInput, webhookRemoveOutput } from "../webhooks/webhooks.contracts";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, addPersonInput, addedPersonOutput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
 import type { UsersRouter } from "../users/users.router";
 
@@ -439,6 +441,17 @@ const appRouter = t.router({
     bulkPurge: publicProcedure
       .input(dealBulkInput)
       .output(dealBulkResultOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  sampleData: t.router({
+    status: publicProcedure
+      .output(sampleDataStatusOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    load: publicProcedure
+      .output(sampleDataResultOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .output(sampleDataResultOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   enrichment: t.router({
@@ -889,6 +902,23 @@ const appRouter = t.router({
 			csv: z.string(),
 		}))
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  webhooks: t.router({
+    status: publicProcedure
+      .output(webhooksStatusOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    create: publicProcedure
+      .input(createWebhookInput)
+      .output(webhooksStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    update: publicProcedure
+      .input(updateWebhookInput)
+      .output(webhooksStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .input(webhookIdInput)
+      .output(webhookRemoveOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   workspace: t.router({
     get: publicProcedure

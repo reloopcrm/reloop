@@ -1,5 +1,6 @@
 import { db, Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
+import { NOT_SAMPLE_RECORD, SAMPLE_DATA } from "@crm/db/sample-data";
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskThreadPayload,
@@ -48,9 +49,27 @@ export async function cancelArchivedWork(): Promise<number> {
 	return gone.count;
 }
 
+export async function cancelSampleWork(): Promise<number> {
+	const prefix = { startsWith: SAMPLE_DATA.prefix };
+
+	const gone = await db.agentTask.updateMany({
+		where: {
+			finishedAt: null,
+			OR: [{ contactId: prefix }, { companyId: prefix }, { dealId: prefix }],
+		},
+		data: {
+			finishedAt: new Date(),
+			outcome:
+				"Dropped: this record is sample data, so nothing was researched and nothing was spent.",
+		},
+	});
+
+	return gone.count;
+}
+
 export async function queueUnreadThreads(): Promise<number> {
 	const threads = await db.emailThread.findMany({
-		where: { insight: null, messages: { some: {} } },
+		where: { ...NOT_SAMPLE_RECORD, insight: null, messages: { some: {} } },
 		orderBy: { lastMessageAt: "desc" },
 		take: HOUSEKEEPING.readBatch,
 		select: { id: true },
@@ -94,6 +113,7 @@ export async function queueUnreadThreads(): Promise<number> {
 
 export async function queueContactCleanups(): Promise<number> {
 	const readable = {
+		...NOT_SAMPLE_RECORD,
 		archivedAt: null,
 		email: { not: null },
 		emailThreads: { some: { messages: { some: { direction: "INBOUND" } } } },

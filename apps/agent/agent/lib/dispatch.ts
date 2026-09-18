@@ -1,5 +1,6 @@
 import { EnrichmentStatus } from "@crm/db";
 import { waitsForPerson } from "@crm/db/agent-tasks";
+import { WEBHOOKS } from "@crm/db/webhooks";
 import { AGENT_FUNCTION_OFF_OUTCOME } from "@crm/validation/agent-functions";
 import {
 	readAgentTaskInstruction,
@@ -23,6 +24,7 @@ import { runEmailDraft } from "./email-draft";
 import { markRunning, settle } from "./enrichment";
 import {
 	cancelArchivedWork,
+	cancelSampleWork,
 	queueContactCleanups,
 	queuePlaybookLearn,
 	queueUnreadThreads,
@@ -53,6 +55,7 @@ import {
 	postponeTask,
 	taskKindEnabled,
 } from "./tasks";
+import { queueWebhookDeliveries, runWebhookLane } from "./webhooks";
 
 export const VISIBLE_BATCH = DISPATCH.visible.batch;
 export const VISIBLE_CONCURRENCY = DISPATCH.visible.concurrency;
@@ -71,7 +74,8 @@ const MODEL_KINDS = new Set([
 	"business-setup",
 ]);
 const VISIBLE_KINDS = DIRECT_KINDS.filter(
-	(kind) => !MODEL_KINDS.has(kind) && !waitsForPerson(kind),
+	(kind) =>
+		!MODEL_KINDS.has(kind) && !waitsForPerson(kind) && kind !== WEBHOOKS.kind,
 );
 
 export async function runVisibleLane(signal?: AbortSignal): Promise<number> {
@@ -290,11 +294,16 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 
 	if (task.kind === "agent-event") {
 		const queued = await queueEventAgentRuns(task);
+		const webhooks = await queueWebhookDeliveries(task);
 		await completeTask(
 			task.id,
-			queued === 1
-				? "Queued 1 matching agent run."
-				: `Queued ${queued} matching agent runs.`,
+			`${
+				queued === 1
+					? "Queued 1 matching agent run."
+					: `Queued ${queued} matching agent runs.`
+			} ${
+				webhooks === 1 ? "Queued 1 webhook." : `Queued ${webhooks} webhooks.`
+			}`,
 		);
 		return;
 	}
@@ -550,11 +559,13 @@ export const drainAll = collapsing(
 				runSweep("contact standing sweep failed", sweepContactStanding),
 				runSweep("reading sweep failed", queueUnreadThreads),
 				runSweep("archived-work sweep failed", cancelArchivedWork),
+				runSweep("sample-data sweep failed", cancelSampleWork),
 			]);
 			await Promise.all([
 				runVisibleLane(signal),
 				runInsightLane(signal),
 				runResearchLane(start, signal),
+				runWebhookLane(signal),
 			]);
 		})();
 

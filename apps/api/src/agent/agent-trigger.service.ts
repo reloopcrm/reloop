@@ -8,6 +8,7 @@ import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { allowsCompanyResearch, INSIGHT_KIND, limitsOf } from "@crm/db/plans";
+import { isSampleRecordId } from "@crm/db/sample-data";
 import {
 	isTaskKindEnabled,
 	readAgentFunctions,
@@ -333,6 +334,7 @@ export class AgentTriggerService {
 		if (!(await this.allows("field-backfill"))) return { queued: 0, merged: 0 };
 
 		const column = RECORD_ID_COLUMNS[entity];
+		const records = ids.filter((id) => !isSampleRecordId(id));
 		let queued = 0;
 		let merged = 0;
 
@@ -402,7 +404,7 @@ export class AgentTriggerService {
 		};
 
 		await runWithConcurrency(
-			ids,
+			records,
 			AGENT_DISPATCH.fieldBackfill.concurrency,
 			queueOne,
 		);
@@ -491,7 +493,9 @@ export class AgentTriggerService {
 		priority?: number;
 	}): Promise<{ queued: number; alreadyQueued: number }> {
 		const subject = input.contactIds ? "contactId" : "companyId";
-		const ids = [...new Set(input.contactIds ?? input.companyIds ?? [])];
+		const ids = [...new Set(input.contactIds ?? input.companyIds ?? [])].filter(
+			(id) => !isSampleRecordId(id),
+		);
 		if (ids.length === 0) return { queued: 0, alreadyQueued: 0 };
 		if (!(await this.allows(input.kind))) {
 			return { queued: 0, alreadyQueued: 0 };
@@ -614,6 +618,10 @@ export class AgentTriggerService {
 		required = false,
 		client?: Prisma.TransactionClient,
 	): Promise<boolean> {
+		if (isSampleRecordId(task.contactId) || isSampleRecordId(task.companyId)) {
+			return false;
+		}
+
 		if (!(await this.allows(task.kind))) return false;
 
 		try {
@@ -680,6 +688,8 @@ export class AgentTriggerService {
 		tx: Prisma.TransactionClient,
 		input: CrmEventInput,
 	): Promise<void> {
+		if (isSampleRecordId(input.record.id)) return;
+
 		const recordIds = {
 			contactId: input.record.kind === "contact" ? input.record.id : null,
 			companyId: input.record.kind === "company" ? input.record.id : null,

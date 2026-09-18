@@ -14,6 +14,7 @@ import {
 } from "@crm/db/contact-standing";
 import type { QuantityRule, ThreadSignal } from "@crm/db/contact-worth";
 import { convertToBase } from "@crm/db/fx";
+import { SAMPLE_DATA } from "@crm/db/sample-data";
 import { readReportingCurrency } from "@crm/db/settings";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
@@ -21,7 +22,7 @@ import { readWinBackRules } from "@crm/validation/win-back-rules";
 const DAY_MS = 86_400_000;
 
 export const DEMO = {
-	prefix: "demo-",
+	prefix: SAMPLE_DATA.prefix,
 	currency: "EUR",
 	modelId: "demo-data",
 	snippetChars: 120,

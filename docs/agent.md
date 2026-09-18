@@ -158,6 +158,34 @@ to ration and nobody to scope it to.
   chain is not guaranteed to run at all. A cron in the agent is the only trigger here
   that is a fact rather than a hope.
 
+### Sample data is never researched
+
+A row whose id starts with `demo-` is sample data (`@crm/db/sample-data`), loaded from
+Settings by a stranger with no mailbox. It looks real to every sweep, so without a guard
+25 invented companies and 40 invented people would be enriched with real credits, and on
+a subscription with a usage limit that also starves the real work.
+
+- **`claimDue` never claims a task on a sample row.** That is the one place every lane
+  and every kind passes before anything is spent, whoever wrote the row, including a
+  writer that does not exist yet.
+- **`scheduleTask` never writes one.** This is what keeps the queue empty rather than
+  churning: the seven sweeps and the lanes run in one tick, so a pass that closed rows
+  would race a pass that writes them. Nothing is written, so there is no race.
+- **The batch sweeps do not select sample rows.** `queueContactCleanups` takes 20
+  contacts a pass and `queueUnreadThreads` 40 threads; sample rows carry a recent
+  `lastActivityAt` and would fill both batches ahead of real records.
+- **`AgentTriggerService` writes none either** (`docs/api.md`), so the sign-in backfill
+  and the research button on a sample record leave no row to drop every five minutes.
+- **`cancelSampleWork` closes a task already queued on a sample row**, with an outcome
+  that says nothing was researched and nothing was spent. It runs beside
+  `cancelArchivedWork` on the dispatch tick and covers what the guards above cannot: a
+  row written before this rule existed, and a row from a writer that skips both
+  funnels. A live lease is closed too, exactly as `cancelArchivedWork` does; `closeTask`
+  reads `null` from `completeTask` and settles through `taskSubject`.
+- **The operator's tour is not affected.** `RELOOP_DEMO` drives a scripted walk through
+  the app and is not passed to the agent container at all. The tour films what the seed
+  wrote: the thread summaries and the win back ranking. It never waits for a task.
+
 ### Stale rows are closed on the dispatch tick
 
 `reconcileStaleTasks` (`lib/stale-tasks.ts`) runs before `drainAll`, every minute. Like

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { WORKSPACE_ID } from "@crm/auth";
 import { db } from "@crm/db";
+import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { DEMO_DATA } from "../src/demo/demo.config";
 import { DemoService } from "../src/demo/demo.service";
 import {
@@ -19,6 +20,8 @@ const memberId = `${suffix}-member`;
 const realCompanyId = `${suffix}-real-company`;
 
 const service = new DemoService(db);
+const trigger = new AgentTriggerService(db);
+const sampleCompanyId = `${DEMO.prefix}co-${suffix}`;
 
 const owner = {
 	id: ownerId,
@@ -49,6 +52,10 @@ async function seedActor(id: string, role: string) {
 
 async function clear() {
 	await removeDemoData(db);
+	await db.agentTask.deleteMany({
+		where: { companyId: { in: [sampleCompanyId, realCompanyId] } },
+	});
+	await db.company.deleteMany({ where: { id: sampleCompanyId } });
 	await db.company.deleteMany({ where: { id: realCompanyId } });
 	await db.user.deleteMany({ where: { email: { endsWith: `@${domain}` } } });
 }
@@ -127,6 +134,32 @@ describe("the sample data", () => {
 		expect(await hasDemoData(db)).toBe(false);
 
 		await db.company.deleteMany({ where: { id: realCompanyId } });
+	});
+
+	it("queues no agent work on a sample record, and still queues on a real one", async () => {
+		await db.company.create({
+			data: { id: sampleCompanyId, name: "A sample customer" },
+		});
+		await db.company.create({
+			data: { id: realCompanyId, name: "A real customer" },
+		});
+
+		await trigger.companyCreated(sampleCompanyId, "spec");
+		await trigger.companyCreated(realCompanyId, "spec");
+
+		expect(
+			await db.agentTask.count({ where: { companyId: sampleCompanyId } }),
+		).toBe(0);
+		expect(
+			await db.agentTask.count({ where: { companyId: realCompanyId } }),
+		).toBeGreaterThan(0);
+
+		await db.agentTask.deleteMany({
+			where: { companyId: { in: [sampleCompanyId, realCompanyId] } },
+		});
+		await db.company.deleteMany({
+			where: { id: { in: [sampleCompanyId, realCompanyId] } },
+		});
 	});
 
 	it("refuses to load a second time while a load holds the lock", async () => {

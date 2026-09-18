@@ -455,6 +455,14 @@ functions behind a CLI, so the script and the button cannot drift.
   `proxy.ts`*: the fact reverts on a database reset while the marker insists.
 - **Removing deletes exactly the prefixed rows** and the `AgentTask` and
   `AgentEvent` rows that point at them. Nothing a person brought here is touched.
+- **No agent work is ever queued or run on a `demo-` row**, so a stranger's model
+  budget is not spent inventing facts about companies that do not exist. The prefix and
+  the predicates are `@crm/db/sample-data`. `AgentTriggerService` refuses one at every
+  write it makes: `enqueue`, `backfill`, `fieldBackfillRecords` and `createEventTask`.
+  Without that, `BackfillService.companiesNeedingArtwork` matches on `logoUrl: null`
+  alone, so the sign-in sweep books a `brand` task for all 25 sample companies, every
+  five minutes. The agent's own guards are in *Sample data is never researched* in
+  `docs/agent.md`.
 
 ## Money
 

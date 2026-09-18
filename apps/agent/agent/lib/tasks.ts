@@ -1,5 +1,6 @@
 import { db, type Prisma } from "@crm/db";
 import { MAX_ATTEMPTS, RETIRED_OUTCOME } from "@crm/db/agent-tasks";
+import { isSampleRecordId, SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
 import {
 	isTaskKindEnabled,
 	readAgentFunctions,
@@ -71,6 +72,9 @@ export async function claimDue(
 					WHEN ${onlyMode}::boolean THEN t2.kind = ANY(${list}::text[])
 					ELSE t2.kind <> ALL(${list}::text[])
 				END
+				AND COALESCE(t2."contactId", '') NOT LIKE ${SAMPLE_ID_PATTERN}
+				AND COALESCE(t2."companyId", '') NOT LIKE ${SAMPLE_ID_PATTERN}
+				AND COALESCE(t2."dealId", '') NOT LIKE ${SAMPLE_ID_PATTERN}
 			ORDER BY t2."priority" DESC, t2."dueAt" ASC
 			LIMIT ${limit}
 			FOR UPDATE SKIP LOCKED
@@ -180,6 +184,14 @@ export async function scheduleTask(input: {
 	priority?: number;
 	budget?: number;
 }): Promise<{ id: string } | null> {
+	if (
+		isSampleRecordId(input.contactId) ||
+		isSampleRecordId(input.companyId) ||
+		isSampleRecordId(input.dealId)
+	) {
+		return null;
+	}
+
 	if (!(await taskKindEnabled(input.kind))) return null;
 
 	const existing = await db.agentTask.findFirst({

@@ -25,6 +25,12 @@ organizations. If you need someone to see only part of the pipeline, this is the
 An unset `ALLOWED_SIGN_IN` fails closed: nobody can sign in. A list that names a consumer domain
 (`gmail.com`) is an open door, which is why single addresses are supported.
 
+An API key from **Settings → API Keys** is a session in a header, so a leaked key reads and writes
+every record its owner can, and an expiry is optional. It cannot mint another key or change a
+password: `SessionOnlyMiddleware` refuses an `x-api-key` header on `apiKeys.*` and
+`settings.setPassword`, and `accessGuard` refuses it on `/api/auth/api-key/*`, `/change-password`
+and `/set-password`. Revoke a key on the same page.
+
 **Operators can read everything.** Whoever runs the deployment has the database, the environment
 and the logs. Nothing here protects data from the person hosting it.
 

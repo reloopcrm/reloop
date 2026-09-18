@@ -1,4 +1,9 @@
-import { API_KEY_HEADER, apiUrl, SESSION_COOKIE_NAME } from "@crm/auth";
+import {
+	API_KEY_HEADER,
+	apiUrl,
+	isWorkspaceEmail,
+	SESSION_COOKIE_NAME,
+} from "@crm/auth";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import {
@@ -21,8 +26,15 @@ import {
 	trpcBodyLimit,
 } from "./http/request-size.middleware";
 import { ContextLogger } from "./logging/context-logger";
-import { REST_BRIDGE_PATH } from "./trpc/openapi";
+import { REST } from "./trpc/openapi";
 import { createBaseTrpcContext } from "./trpc/trpc.context";
+
+type OpenApiDocument = ReturnType<typeof generateOpenApiDocument>;
+
+type OpenApiDocumentFactory = () => OpenApiDocument;
+
+const REST_DESCRIPTION =
+	"Every tRPC procedure, reachable over REST for tooling that cannot speak tRPC. Same validation, same middlewares, same services as the tRPC transport. Send an API key in the x-api-key header, or a session cookie.";
 
 export async function createApp(): Promise<NestExpressApplication> {
 	const app = await NestFactory.create<NestExpressApplication>(
@@ -44,14 +56,27 @@ export async function createApp(): Promise<NestExpressApplication> {
 	);
 
 	let restBridge: ((req: Request, res: Response) => Promise<void>) | undefined;
-	app.use(
-		REST_BRIDGE_PATH,
-		(req: Request, res: Response, next: NextFunction) => {
+	for (const mount of REST.bridge.mounts) {
+		app.use(mount, (req: Request, res: Response, next: NextFunction) => {
 			if (!restBridge) {
 				next();
 				return;
 			}
 			void restBridge(req, res);
+		});
+	}
+
+	let openApiDocument: OpenApiDocumentFactory | undefined;
+	app.use(
+		REST.document.path,
+		(req: Request, res: Response, next: NextFunction) => {
+			if (!openApiDocument) {
+				next();
+				return;
+			}
+			void serveOpenApiDocument(req, res, openApiDocument).catch(() => {
+				res.status(500).json({ message: "INTERNAL_SERVER_ERROR" });
+			});
 		},
 	);
 
@@ -78,14 +103,14 @@ export async function createApp(): Promise<NestExpressApplication> {
 					description:
 						"Every tRPC procedure, reachable over REST for tooling that cannot speak tRPC. Same validation, same middlewares, same services as the tRPC transport — this only translates the wire format.",
 					version: "1.0",
-					baseUrl: `${apiUrl}${REST_BRIDGE_PATH}`,
+					baseUrl: `${apiUrl}${REST.bridge.baseUrl}`,
 					securitySchemes: { apiKey: apiKeySecurityScheme },
 				});
 
 				const swaggerConfig = new DocumentBuilder()
 					.setTitle("CRM API")
 					.setDescription(
-						`REST surface of the CRM API — auth, health, the internal cron routes, and a generated REST bridge (under ${REST_BRIDGE_PATH}) for every tRPC procedure.`,
+						`REST surface of the CRM API: auth, health, the internal cron routes, and a generated REST bridge (under ${REST.bridge.baseUrl}) for every tRPC procedure.`,
 					)
 					.setVersion("1.0")
 					.addCookieAuth(SESSION_COOKIE_NAME)
@@ -125,5 +150,30 @@ export async function createApp(): Promise<NestExpressApplication> {
 		createContext: ({ req }) => createBaseTrpcContext(req),
 	});
 
+	let built: OpenApiDocument | undefined;
+	openApiDocument = () =>
+		(built ??= generateOpenApiDocument(appRouter, {
+			title: "CRM REST API",
+			description: REST_DESCRIPTION,
+			version: "1.0",
+			baseUrl: `${apiUrl}${REST.bridge.baseUrl}`,
+			securitySchemes: { apiKey: apiKeySecurityScheme },
+		}));
+
 	return app;
+}
+
+async function serveOpenApiDocument(
+	req: Request,
+	res: Response,
+	document: OpenApiDocumentFactory,
+): Promise<void> {
+	const { session } = await createBaseTrpcContext(req);
+
+	if (!session?.user || !isWorkspaceEmail(session.user.email)) {
+		res.status(401).json({ message: "UNAUTHORIZED" });
+		return;
+	}
+
+	res.json(document());
 }

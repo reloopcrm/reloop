@@ -151,23 +151,68 @@ self-hoster's admin cannot redeploy.
   Only `check-types` and `dev` run it. If the app cannot see a new procedure, it has
   not run.
 
+### A file download is a controller, not a procedure
+
+tRPC answers with JSON, so a CSV is a Nest controller:
+`GET /api/exports/:entity` (`contacts`, `companies`, `deals`), in
+`apps/api/src/exports`. Three rules make it work.
+
+- **Same guard as the attachment controller**, which is to say no decorator at
+  all. `AuthModule.forRoot`
+  registers the Better Auth guard globally, and the route carries no
+  `@AllowAnonymous`/`@OptionalAuth`, so it needs a session. The guard hands every
+  request header to `auth.api.getSession`, and `enableSessionForAPIKeys` is on, so
+  an `x-api-key` works too. A caller with neither gets 401 **before** the route
+  says which lists exist.
+- **The filter is the list's own filter.** `?filter=` carries the list input as
+  JSON, parsed by `contactListInput` / `companyListInput` / `dealListInput` and
+  handed to each service's `exportRows`, which calls the same private `buildWhere`
+  the list calls. A filtered list exports filtered. There is no second filter.
+- **`content-disposition` is what makes it stream.** The app's `/api/[...path]`
+  proxy buffers a response unless it carries that header or an event-stream
+  content type. Without it a 50,000 row file is held in the proxy's memory.
+
+`exportRows` is an async generator that pages by `id` cursor
+(`EXPORTS.page.size`, `exports/exports-config.ts`), so nothing builds the file in
+memory. **The page order is `id` ascending, not the list's sort.** A cursor is
+stable, and the sort is not worth an offset scan per page.
+
+The file is UTF-8 with a byte order mark, `;` separated, CRLF, amounts with a
+decimal comma: what German Excel opens without an import dialog. A value that
+starts with `=`, `+`, `-`, `@` or a tab gets a leading `'` (`neutralizeFormula`),
+so a contact called `=SUM(A1:A9)` stays text. Only values a person typed are
+guarded; dates and amounts the exporter formats are not.
+
 ## The OpenAPI document is built at runtime, not committed
 
 `GET /openapi.json` serves one document: Nest's own controllers plus a REST bridge
-under `/rest` generated from every tRPC procedure. Swagger UI renders it at `/`.
+generated from every tRPC procedure. Swagger UI renders it at `/`.
 `createApp` builds both halves and merges them, so nothing is generated at build
 time and no file is checked in — the document is whatever the routers are.
+
+**The bridge is mounted twice**, on `/rest` and on `/api/rest`, from `REST.bridge.mounts`
+in `trpc/openapi.ts`. A Docker install publishes only the app, and the app forwards
+`/api/*` to the API, so `/api/rest` is the one address a caller on the internet can
+reach. `/rest` stays because a Vercel deployment uses it. Both mounts are the same
+middleware, so neither opens anything the other does not.
+
+**`GET /api/openapi.json` is the document a self-hoster reads**, and it is the tRPC
+bridge half only, with `baseUrl` pointing at `/api/rest`. It answers 401 without a
+session or an API key, in development and in production alike. It runs the same check
+`AuthMiddleware` makes. It is built on the first request that passes that check and
+cached, so a cold start never pays for it.
 
 `SwaggerModule.setup` runs **before** `app.init()`, because it registers its Express
 routes synchronously and Nest's own routing would otherwise shadow them. The factory
 form defers building the document to the first request, which is what lets it read
 the tRPC router that only exists after init.
 
-**Neither route exists when `NODE_ENV` is `production`.** The document names every
-procedure and every input shape, which is a map for a stranger who reaches the API
-directly. Swagger UI and `/openapi.json` are a development tool, so `createApp`
-skips the whole `SwaggerModule.setup` call in production. The REST bridge itself
-stays, because it is a transport a client uses, not documentation.
+**Swagger UI and `/openapi.json` do not exist when `NODE_ENV` is `production`.** The
+document names every procedure and every input shape, which is a map for a stranger
+who reaches the API directly. Both are a development tool, so `createApp` skips the
+whole `SwaggerModule.setup` call in production. `/api/openapi.json` replaces them
+there, behind the credential check. The REST bridge itself stays, because it is a
+transport a client uses, not documentation.
 
 Two rules follow for the serverless build:
 
@@ -221,10 +266,21 @@ the largest attachment upload the conversation contracts accept.
   one place that dispatches. One cron, one budget:
   `POST /internal/sync/mailboxes` (`/google` is kept as an alias so an existing
   deployment's cron keeps working).
-- **Gmail is forward-only from a `historyId`, Outlook from a timestamp.** Graph has no
-  mailbox-wide delta, so the Outlook cursor is the last `receivedDateTime` seen,
-  re-read with a one-second overlap; `rfcMessageId` is unique, so the overlap costs a
-  duplicate fetch and never a duplicate row.
+- **Every mailbox reads in two directions.** `MailboxSync.cursor` is the forward
+  position, a `historyId` for Gmail and the last `receivedDateTime` for Outlook.
+  Graph has no mailbox-wide delta, so the Outlook cursor is re-read with a
+  one-second overlap; `rfcMessageId` is unique, so the overlap costs a duplicate
+  fetch and never a duplicate row.
+- **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
+  `mailbox/backfill-cursor.ts`: the opaque page token or `@odata.nextLink`, the
+  `before` anchor, the `floor` date, and how far back it has read. A null column
+  means no backfill is planned yet, so an existing row starts one on its next
+  tick. `MailboxSync.importSince` is what the person asked for; the plan clamps it
+  through `clampImportSince`. Both directions share one budget per tick
+  (`MAILBOX.sync` in `mailbox/mailbox.config.ts`), and **the forward read takes
+  its share first**, so new mail is filed within one tick of arriving however long
+  the backfill runs. A rate limit persists the position and pauses, it never
+  resets it.
 - **Microsoft has no token-revocation endpoint.** `revoke` clears the columns and the
   UI says the consent itself is removed in the user's Microsoft account. Google's still
   posts to `oauth2.googleapis.com/revoke` and refuses to clear if that fails.

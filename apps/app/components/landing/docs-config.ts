@@ -1,6 +1,7 @@
 const FILES = {
 	selfHost: ["docs", "self-host.md"],
 	environment: ["docs", "environment.md"],
+	restApi: ["docs", "rest-api.md"],
 } as const;
 
 export type DocFile = keyof typeof FILES;
@@ -94,6 +95,14 @@ const PAGES: readonly DocPage[] = [
 			"Stop Reloop CRM, keep or delete its data, and remove the install folder.",
 		file: "selfHost",
 		from: "uninstall",
+	},
+	{
+		slug: "rest-api",
+		title: "REST API",
+		description:
+			"Call every CRM procedure over REST, where the base address is, and how to make a key.",
+		file: "restApi",
+		from: "rest-api",
 	},
 	{
 		slug: "environment",

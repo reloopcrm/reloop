@@ -1,6 +1,14 @@
 import type { OpenApiMeta } from "trpc-to-openapi";
 
-export const REST_BRIDGE_PATH = "/rest";
+const PROXIED_BRIDGE_PATH = "/api/rest";
+
+export const REST = {
+	bridge: {
+		mounts: ["/rest", PROXIED_BRIDGE_PATH],
+		baseUrl: PROXIED_BRIDGE_PATH,
+	},
+	document: { path: "/api/openapi.json" },
+} as const;
 
 export type RestMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 

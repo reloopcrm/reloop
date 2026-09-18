@@ -176,7 +176,9 @@ export function TimelineEntry({
 
 	const headline = change
 		? `${stageLabel(change.from)} → ${stageLabel(change.to)}`
-		: entry.subject;
+		: entry.subject
+			? t(entry.subject)
+			: entry.subject;
 
 	const kind = t(activityLabel(entry.type));
 	const byKind = isTask || isMeeting;

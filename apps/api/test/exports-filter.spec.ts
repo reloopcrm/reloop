@@ -48,7 +48,7 @@ const companies = new CompaniesService(
 	fields,
 );
 const deals = new DealsService(db, agent, stamp, conversion, fields);
-const exports = new ExportsService(contacts, companies, deals, fields);
+const exports = new ExportsService(db, contacts, companies, deals, fields);
 
 let companyId = "";
 

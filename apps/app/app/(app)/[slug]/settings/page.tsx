@@ -17,6 +17,7 @@ import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AgentProvider } from "./agent-model";
 import { ArchiveRetention } from "./archive-retention";
+import { DealStages } from "./deal-stages";
 import { Language } from "./language";
 import { PasswordSignIn } from "./password";
 import { Plan } from "./plan";
@@ -65,6 +66,7 @@ async function Settings() {
 		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.agentProvider.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.archiveRetention.queryOptions()),
+		queryClient.prefetchQuery(trpc.settings.dealStages.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.passwordSignIn.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.plan.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.spend.queryOptions()),
@@ -83,6 +85,9 @@ async function Settings() {
 					</fieldset>
 				) : null}
 				<Spend />
+				<fieldset disabled={!canManage} className="contents">
+					<DealStages />
+				</fieldset>
 				<fieldset disabled={!canManage} className="contents">
 					<ArchiveRetention />
 				</fieldset>

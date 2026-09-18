@@ -15,11 +15,11 @@ import {
 	LocalRelativeDate,
 } from "@/components/local-date-time";
 import { activityLabel } from "@/lib/activity-presentation";
-import { dealStageLabel } from "@/lib/deal-stage";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { useDealStageLabel } from "@/lib/use-deal-stage-label";
 import { ActivityIcon } from "./activity-icon";
 import { MeetingEntry } from "./meeting-entry";
 import type { TimelineAnchor } from "./timeline";
@@ -143,6 +143,7 @@ export function TimelineEntry({
 	anchor: TimelineAnchor;
 }) {
 	const t = useT();
+	const stageLabel = useDealStageLabel();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
@@ -174,7 +175,7 @@ export function TimelineEntry({
 		: null;
 
 	const headline = change
-		? `${t(dealStageLabel(change.from))} → ${t(dealStageLabel(change.to))}`
+		? `${stageLabel(change.from)} → ${stageLabel(change.to)}`
 		: entry.subject;
 
 	const kind = t(activityLabel(entry.type));

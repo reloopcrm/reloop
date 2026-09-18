@@ -33,3 +33,18 @@ const CLOSED = new Set<DealStage>(CLOSED_DEAL_STAGES);
 export function isClosedStage(stage: DealStage): boolean {
 	return CLOSED.has(stage);
 }
+
+export const DEAL_STAGES = [
+	...OPEN_DEAL_STAGES,
+	...CLOSED_DEAL_STAGES,
+] as const;
+
+export type DealStageNames = Partial<Record<DealStage, string>>;
+
+export function dealStageLabelFrom(
+	names: DealStageNames,
+	stage: DealStage,
+	translate: (english: string) => string,
+): string {
+	return names[stage] ?? translate(DEAL_STAGE_LABEL[stage]);
+}

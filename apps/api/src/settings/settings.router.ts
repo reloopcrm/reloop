@@ -19,6 +19,7 @@ import {
 	businessProposalOutput,
 	chatgptLoginInput,
 	chatgptLoginOutput,
+	dealStagesOutput,
 	draftStyleOutput,
 	forgetDraftStyleRuleInput,
 	passwordSignInOutput,
@@ -26,6 +27,7 @@ import {
 	setAgentFunctionInput,
 	setAgentProviderInput,
 	setArchiveRetentionDaysInput,
+	setDealStageNameInput,
 	setPasswordInput,
 	setPlanInput,
 	spendOutput,
@@ -214,5 +216,25 @@ export class SettingsRouter {
 		@Input() input: z.infer<typeof forgetDraftStyleRuleInput>,
 	) {
 		return this.settings.forgetDraftStyleRule(ctx.user.id, input.ruleId);
+	}
+
+	@Query({
+		output: dealStagesOutput,
+		meta: restMeta("GET", "/settings/deal-stages", ["Settings"]),
+	})
+	async dealStages(@Ctx() ctx: AuthedTrpcContext) {
+		return this.settings.dealStages(ctx.user.id);
+	}
+
+	@Mutation({
+		input: setDealStageNameInput,
+		output: dealStagesOutput,
+		meta: restMeta("PATCH", "/settings/deal-stages", ["Settings"]),
+	})
+	async setDealStageName(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setDealStageNameInput>,
+	) {
+		return this.settings.setDealStageName(ctx.user.id, input);
 	}
 }

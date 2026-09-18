@@ -5,10 +5,11 @@ import { cn } from "@crm/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { DealStageIndicator } from "@/components/crm/deal-stage";
-import { dealStageLabel, isClosedStage, OPEN_STAGES } from "@/lib/deal-stage";
+import { isClosedStage, OPEN_STAGES } from "@/lib/deal-stage";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
+import { useDealStageLabel } from "@/lib/use-deal-stage-label";
 
 const RAIL = [...OPEN_STAGES, DealStage.CLOSED_WON] as readonly DealStage[];
 
@@ -20,6 +21,7 @@ export function StageStepper({
 	stage: DealStage;
 }) {
 	const t = useT();
+	const stageLabel = useDealStageLabel();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
@@ -62,7 +64,7 @@ export function StageStepper({
 								{current && option === DealStage.CLOSED_WON ? (
 									<DealStageIndicator stage={stage} className="text-xs" />
 								) : (
-									t(dealStageLabel(option))
+									stageLabel(option)
 								)}
 							</span>
 						</button>

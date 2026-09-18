@@ -276,4 +276,11 @@ export const settings: Dictionary = {
 		"Das Update läuft. Die App ist kurz nicht erreichbar. Lade die Seite danach neu.",
 	"The update did not start. Use the command below.":
 		"Das Update ist nicht gestartet. Nutze den Befehl unten.",
+
+	"Pipeline stages": "Phasen der Pipeline",
+	"What your team calls each stage of a deal. Renaming a stage moves no deal.":
+		"Wie dein Team jede Phase eines Geschäfts nennt. Ein neuer Name verschiebt kein Geschäft.",
+	"An empty field keeps the built-in name. Your own wording is shown exactly as you type it, in every language.":
+		"Ein leeres Feld behält den eingebauten Namen. Deine eigene Bezeichnung erscheint genau so, wie du sie eingibst, in jeder Sprache.",
+	"Stage names saved.": "Namen der Phasen gespeichert.",
 };

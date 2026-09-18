@@ -17,7 +17,6 @@ import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { LocalDay } from "@/components/local-date-time";
 import type { DealListItem, DealListResult } from "@/lib/agent-transcript";
-import { DEAL_STAGE_OPTIONS, dealStageLabel } from "@/lib/deal-stage";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { Locale, Translate } from "@/lib/i18n/locale";
 
@@ -137,13 +136,10 @@ export function DealListResultTable({ result }: { result: DealListResult }) {
 }
 
 function Stage({ stage }: { stage: string }) {
-	const option = DEAL_STAGE_OPTIONS.find(
-		(candidate) => candidate.value === stage,
-	);
-	return option ? (
-		<DealStageIndicator stage={option.value} />
+	return isDealStage(stage) ? (
+		<DealStageIndicator stage={stage} />
 	) : (
-		<span className="text-muted-foreground">{stageLabel(stage)}</span>
+		<span className="text-muted-foreground">{stage}</span>
 	);
 }
 
@@ -207,10 +203,6 @@ function pipelineTotal(
 	return t("{amount} pipeline", {
 		amount: formatMoney(Math.round(amount * 100), currency, locale),
 	});
-}
-
-function stageLabel(stage: string): string {
-	return isDealStage(stage) ? dealStageLabel(stage) : stage;
 }
 
 function isDealStage(value: string): value is DealStage {

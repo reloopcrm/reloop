@@ -1,8 +1,13 @@
-import { type Prisma, RecordSource } from "@crm/db";
+import { type Db, type Prisma, RecordSource } from "@crm/db";
 import { CONTACT_POTENTIAL, CONTACT_STANDING } from "@crm/db/contact-standing";
-import { DEAL_STAGE_LABEL } from "@crm/db/deal-stage";
+import {
+	DEAL_STAGE_LABEL,
+	type DealStageNames,
+	dealStageLabelFrom,
+} from "@crm/db/deal-stage";
 import type { FieldValueJson } from "@crm/db/fields";
 import type { Locale } from "@crm/db/locale";
+import { readDealStageNames } from "@crm/validation/deal-stage-names";
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 import {
@@ -13,6 +18,7 @@ import {
 	type ContactExportRow,
 	ContactsService,
 } from "../contacts/contacts.service";
+import { InjectDatabase } from "../database/database.constants";
 import { type DealExportRow, DealsService } from "../deals/deals.service";
 import { FieldsService } from "../fields/fields.service";
 import { csvLine, neutralizeFormula } from "./csv";
@@ -22,7 +28,7 @@ import { exportWord } from "./exports-copy";
 
 type Column<TRow> = {
 	header: string;
-	value: (row: TRow, locale: Locale) => string;
+	value: (row: TRow, locale: Locale, stageNames: DealStageNames) => string;
 };
 
 function text(value: string | null | undefined): string {
@@ -110,13 +116,16 @@ const COMPANY_COLUMNS: Column<CompanyExportRow>[] = [
 	{ header: "Archived", value: (row) => moment(row.archivedAt) },
 ];
 
-const DEAL_COLUMNS: Column<DealExportRow>[] = [
+export const DEAL_COLUMNS: Column<DealExportRow>[] = [
 	{ header: "Name", value: (row) => text(row.name) },
 	{ header: "Company", value: (row) => text(row.company.name) },
 	{ header: "Company domain", value: (row) => text(row.company.domain) },
 	{
 		header: "Stage",
-		value: (row, locale) => exportWord(locale, DEAL_STAGE_LABEL[row.stage]),
+		value: (row, locale, stageNames) =>
+			dealStageLabelFrom(stageNames, row.stage, (english) =>
+				exportWord(locale, english),
+			),
 	},
 	{ header: "Amount", value: (row) => money(row.amount) },
 	{ header: "Currency", value: (row) => text(row.currency) },
@@ -158,6 +167,7 @@ export type ExportFile = {
 @Injectable()
 export class ExportsService {
 	constructor(
+		@InjectDatabase() private readonly db: Db,
 		private readonly contacts: ContactsService,
 		private readonly companies: CompaniesService,
 		private readonly deals: DealsService,
@@ -195,7 +205,11 @@ export class ExportsService {
 			};
 		}
 
-		const fields = await this.fields.definitionsFor("DEAL");
+		const [fields, stageNames] = await Promise.all([
+			this.fields.definitionsFor("DEAL"),
+			readDealStageNames(this.db),
+		]);
+
 		return {
 			filename: name("deals"),
 			lines: this.write(
@@ -203,6 +217,7 @@ export class ExportsService {
 				fields,
 				this.deals.exportRows(request.filter),
 				locale,
+				stageNames,
 			),
 		};
 	}
@@ -212,6 +227,7 @@ export class ExportsService {
 		fields: { key: string; label: string }[],
 		pages: AsyncGenerator<TRow[]>,
 		locale: Locale,
+		stageNames: DealStageNames = {},
 	): AsyncGenerator<string> {
 		yield EXPORTS.csv.bom +
 			csvLine([
@@ -223,7 +239,7 @@ export class ExportsService {
 			let chunk = "";
 			for (const row of page) {
 				chunk += csvLine([
-					...columns.map((column) => column.value(row, locale)),
+					...columns.map((column) => column.value(row, locale, stageNames)),
 					...fields.map((field) => fieldText(row.fields[field.key])),
 				]);
 			}

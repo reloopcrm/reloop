@@ -25,10 +25,10 @@ import {
 } from "@/components/data-table/localized-columns";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalDay, LocalRelativeTime } from "@/components/local-date-time";
-import { DEAL_STAGE_OPTIONS } from "@/lib/deal-stage";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { useDealStageOptions } from "@/lib/use-deal-stage-label";
 import { DealsBulkActions } from "./deals-bulk-actions";
 import { dealsSearchParams } from "./deals-search-params";
 
@@ -184,6 +184,7 @@ export function DealsTable() {
 
 	const facetCounts = deals.data?.facetCounts;
 	const fieldFacets = useFieldFacets("DEAL", facetCounts);
+	const stageOptions = useDealStageOptions();
 
 	const facets: DataTableFacet[] = [
 		{
@@ -198,9 +199,9 @@ export function DealsTable() {
 		{
 			id: "stage",
 			label: t("Stage"),
-			options: DEAL_STAGE_OPTIONS.filter(
+			options: stageOptions.filter(
 				(option) => (facetCounts?.stage?.[option.value] ?? 0) > 0,
-			).map((option) => ({ value: option.value, label: t(option.label) })),
+			),
 		},
 		{
 			id: "closing",

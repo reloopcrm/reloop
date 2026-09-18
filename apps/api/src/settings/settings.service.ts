@@ -1,4 +1,5 @@
 import {
+	canRenameWorkspace,
 	hasPassword,
 	isPasswordSignInConfigured,
 	isWorkspaceAdmin,
@@ -11,6 +12,7 @@ import {
 import { isFreshPasswordSession } from "@crm/auth/password-rules";
 import type { Db } from "@crm/db";
 import { USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
+import { DEAL_STAGES } from "@crm/db/deal-stage";
 import { readModelSpend } from "@crm/db/model-spend";
 import { isPlanId, limitsOf, PLAN_IDS, PLANS } from "@crm/db/plans";
 import { readProviderUsage } from "@crm/db/provider-usage";
@@ -38,6 +40,10 @@ import {
 	writeAgentFunction,
 } from "@crm/validation/agent-functions";
 import {
+	readDealStageNames,
+	writeDealStageNames,
+} from "@crm/validation/deal-stage-names";
+import {
 	DRAFT_STYLE,
 	readDraftStyle,
 	withoutDraftStyleRule,
@@ -63,11 +69,13 @@ import type {
 	AgentProviderSettings,
 	ArchiveRetentionSettings,
 	ChatgptLoginSettings,
+	DealStagesSettings,
 	DraftStyleOutput,
 	PasswordSignInSettings,
 	PlanSettings,
 	SetAgentFunctionInput,
 	SetAgentProviderInput,
+	SetDealStageNameInput,
 	SpendSettings,
 } from "./settings.contracts";
 
@@ -457,5 +465,47 @@ export class SettingsService {
 		this.logger.log({ message: "Draft style rule removed", ruleId });
 
 		return this.draftStyle();
+	}
+
+	async dealStages(userId: string): Promise<DealStagesSettings> {
+		const [names, role] = await Promise.all([
+			readDealStageNames(this.db),
+			workspaceRoleOf(userId, this.db),
+		]);
+
+		return {
+			canRename: canRenameWorkspace(role),
+			stages: DEAL_STAGES.map((stage) => ({
+				stage,
+				name: names[stage] ?? null,
+			})),
+		};
+	}
+
+	async setDealStageName(
+		userId: string,
+		input: SetDealStageNameInput,
+	): Promise<DealStagesSettings> {
+		if (!canRenameWorkspace(await workspaceRoleOf(userId, this.db))) {
+			throw new ForbiddenException(
+				"Only a workspace admin can rename a pipeline stage.",
+			);
+		}
+
+		const names = await readDealStageNames(this.db);
+		const name = input.name?.trim();
+
+		await writeDealStageNames(this.db, {
+			...names,
+			[input.stage]: name || undefined,
+		});
+
+		this.logger.log({
+			message: "Deal stage renamed",
+			stage: input.stage,
+			named: Boolean(name),
+		});
+
+		return this.dealStages(userId);
 	}
 }

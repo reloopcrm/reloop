@@ -26,11 +26,12 @@ import { useMutation } from "@tanstack/react-query";
 import { parseAsString, useQueryStates } from "nuqs";
 import { useId, useState } from "react";
 import { toast } from "sonner";
-import { DEAL_STAGE_OPTIONS, LOSING_STAGES } from "@/lib/deal-stage";
+import { LOSING_STAGES } from "@/lib/deal-stage";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
+import { useDealStageOptions } from "@/lib/use-deal-stage-label";
 import { DealStageIndicator } from "./deal-stage";
 
 const closeReasonParams = {
@@ -63,7 +64,7 @@ export function DealStageMenu({
 	stage: DealStage;
 	variant?: "inline" | "control";
 }) {
-	const t = useT();
+	const options = useDealStageOptions();
 	const [, setCloseParams] = useQueryStates(closeReasonParams);
 	const setStage = useStageMutation();
 
@@ -111,9 +112,9 @@ export function DealStageMenu({
 						setStage.mutate({ id: dealId, stage: chosen });
 					}}
 				>
-					{DEAL_STAGE_OPTIONS.map((option) => (
+					{options.map((option) => (
 						<DropdownMenuRadioItem key={option.value} value={option.value}>
-							{t(option.label)}
+							{option.label}
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>

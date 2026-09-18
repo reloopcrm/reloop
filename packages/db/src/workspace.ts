@@ -61,6 +61,28 @@ export function markOnboarded(metadata: string | null, at: Date): string {
 	);
 }
 
+export function readMetadataValue(
+	metadata: string | null,
+	key: string,
+): JsonValue | undefined {
+	return readMetadata(metadata)[key];
+}
+
+export function writeMetadataValue(
+	metadata: string | null,
+	key: string,
+	value: JsonValue | undefined,
+): string {
+	const current = readMetadata(metadata);
+
+	if (value === undefined) {
+		delete current[key];
+		return JSON.stringify(current);
+	}
+
+	return JSON.stringify({ ...current, [key]: value });
+}
+
 function readMetadata(metadata: string | null): JsonObject {
 	if (!metadata) return {};
 

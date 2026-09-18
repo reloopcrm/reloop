@@ -1,8 +1,10 @@
+import { DealStage } from "@crm/db";
 import {
 	MAX_ARCHIVE_RETENTION_DAYS,
 	MIN_ARCHIVE_RETENTION_DAYS,
 } from "@crm/db/settings";
 import { chatgptLoginState } from "@crm/validation/chatgpt-login";
+import { DEAL_STAGE_NAME_MAX } from "@crm/validation/deal-stage-names";
 import { z } from "zod";
 
 export const archiveRetentionOutput = z.object({
@@ -223,3 +225,33 @@ export type SetAgentFunctionInput = z.infer<typeof setAgentFunctionInput>;
 export const forgetDraftStyleRuleInput = z.object({
 	ruleId: z.string().trim().min(1).max(40),
 });
+
+const dealStageEnum = z.enum(
+	Object.values(DealStage) as [DealStage, ...DealStage[]],
+);
+
+export const dealStagesOutput = z.object({
+	canRename: z.boolean(),
+	stages: z.array(
+		z.object({
+			stage: dealStageEnum,
+			name: z.string().nullable(),
+		}),
+	),
+});
+
+export type DealStagesSettings = z.infer<typeof dealStagesOutput>;
+
+export const setDealStageNameInput = z.object({
+	stage: dealStageEnum,
+	name: z
+		.string()
+		.trim()
+		.max(
+			DEAL_STAGE_NAME_MAX,
+			`A stage name takes at most ${DEAL_STAGE_NAME_MAX} characters.`,
+		)
+		.nullable(),
+});
+
+export type SetDealStageNameInput = z.infer<typeof setDealStageNameInput>;

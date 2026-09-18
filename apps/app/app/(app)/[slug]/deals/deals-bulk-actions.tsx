@@ -32,10 +32,11 @@ import {
 	BulkOwnerMenu,
 	reportBulk,
 } from "@/components/crm/bulk-actions";
-import { DEAL_STAGE_OPTIONS, LOSING_STAGES } from "@/lib/deal-stage";
+import { LOSING_STAGES } from "@/lib/deal-stage";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
+import { useDealStageOptions } from "@/lib/use-deal-stage-label";
 
 export function DealsBulkActions({
 	ids,
@@ -47,6 +48,7 @@ export function DealsBulkActions({
 	archived: boolean;
 }) {
 	const t = useT();
+	const stageOptions = useDealStageOptions();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
@@ -208,7 +210,7 @@ export function DealsBulkActions({
 					<DropdownMenuSubTrigger>{t("Change stage")}</DropdownMenuSubTrigger>
 					<DropdownMenuSubContent className="max-h-72 overflow-y-auto">
 						<DropdownMenuGroup>
-							{DEAL_STAGE_OPTIONS.map((option) => (
+							{stageOptions.map((option) => (
 								<DropdownMenuItem
 									key={option.value}
 									onSelect={() => {
@@ -219,7 +221,7 @@ export function DealsBulkActions({
 										setStage.mutate({ ids, stage: option.value });
 									}}
 								>
-									{t(option.label)}
+									{option.label}
 								</DropdownMenuItem>
 							))}
 						</DropdownMenuGroup>

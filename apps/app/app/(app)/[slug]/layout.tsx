@@ -75,6 +75,17 @@ async function UpdateNotice() {
 	return <UpdateBanner />;
 }
 
+async function loadDealStages() {
+	try {
+		return await getServerQueryClient().prefetchQuery(
+			getServerTrpc().settings.dealStages.queryOptions(),
+		);
+	} catch (error) {
+		unstable_rethrow(error);
+		return null;
+	}
+}
+
 async function loadWorkspace() {
 	try {
 		return await getServerQueryClient().fetchQuery(
@@ -94,6 +105,7 @@ async function WorkspaceHeader({
 		requireMailboxAccess(),
 		params,
 		loadWorkspace(),
+		loadDealStages(),
 	]);
 
 	if (workspace && workspace.slug !== slug) notFound();

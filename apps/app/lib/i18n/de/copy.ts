@@ -156,6 +156,7 @@ export const copy: Dictionary = {
 	"You already have a view with that name.":
 		"Du hast bereits eine Ansicht mit diesem Namen.",
 	"Pruning is not configured.": "Die Archivbereinigung ist nicht eingerichtet.",
+	"Follow-ups are not configured.": "Das Nachfassen ist nicht eingerichtet.",
 	"That mailbox is not connected.": "Dieses Postfach ist nicht verbunden.",
 	"Paste an OpenRouter API key first.":
 		"Füge zuerst einen OpenRouter-API-Schlüssel ein.",
@@ -193,6 +194,8 @@ export const copy: Dictionary = {
 		"Melde dich ab und erneut an, bevor du dein Passwort änderst.",
 	"Only a workspace admin can change these settings.":
 		"Nur ein Administrator kann diese Einstellungen ändern.",
+	"Only a workspace admin can rename a pipeline stage.":
+		"Nur ein Administrator kann eine Phase der Pipeline umbenennen.",
 	"Only the server operator can change the plan.":
 		"Nur der Betreiber kann den Tarif ändern.",
 	"The mail server must have a public network address.":

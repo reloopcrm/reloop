@@ -135,6 +135,9 @@ export function useCrmCache(): CrmCache {
 					entity
 						? trpc.fields.filters.queryKey({ entity: ENTITY_FOR[entity] })
 						: trpc.fields.filters.queryKey(),
+					entity
+						? trpc.fields.proposals.queryKey({ entity: ENTITY_FOR[entity] })
+						: trpc.fields.proposals.queryKey(),
 				],
 				entity
 					? [RECORD_BY_ID[entity](), RECORD_LIST[entity]()]
@@ -305,6 +308,7 @@ export function useCrmCache(): CrmCache {
 					trpc.settings.agentFunctions.queryKey(),
 					trpc.settings.agentProvider.queryKey(),
 					trpc.settings.archiveRetention.queryKey(),
+					trpc.settings.dealStages.queryKey(),
 				],
 				[],
 				options,

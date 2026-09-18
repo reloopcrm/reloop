@@ -94,6 +94,27 @@ crm.example.com {
 
 When your proxy runs in its own container, `127.0.0.1` is not the host. Set `APP_BIND=0.0.0.0` in `deploy/.env`, block port 3000 in your firewall, and point the proxy at the host address. Then run `docker compose up -d` in the `deploy` folder.
 
+## Add a colleague
+
+The owner and every admin add people in the app. Open **Settings, Members** and choose **Add person**. Enter the address, the name and the role. The CRM creates the account and shows a one-time password once. Copy it and pass it to the person yourself. They sign in with the address and that password, and they change it in **Settings, General**.
+
+Two rules decide whether the button works:
+
+- `ALLOWED_SIGN_IN` still decides who may sign in, and the app never writes it. An address the list refuses is refused here too, and the message names the exact value to add. Put that value in `deploy/.env`, then run `docker compose up -d` in the `deploy` folder and add the person again.
+- `PASSWORD_SIGN_IN="1"` must be set, because the new person signs in with a password. Without it the button stays hidden. With Google, Microsoft or an identity provider a colleague on an allowed domain signs in alone and needs no account from you.
+
+Your own session must be less than five minutes old, the same rule that guards a password change. Sign out and sign in again when the CRM asks for it.
+
+The shell still works and does the same thing:
+
+```sh
+printf '%s' 'a long password' | docker compose exec -T api bun apps/api/scripts/create-owner.ts colleague@example.com
+```
+
+That script creates the account and sets the password. The person becomes a member on the first sign-in. Change the role in **Settings, Members**.
+
+Removing a person is not in the app. Take the address off `ALLOWED_SIGN_IN` in `deploy/.env` and run `docker compose up -d` in the `deploy` folder. The next request locks the person out. The account, the member row and every record stay. For a person on a domain you keep, set a password only you know with the script above; that also ends every session they have.
+
 ## Connect a mailbox
 
 Open **Settings, Connections**. IMAP works with any provider and needs no extra setup.

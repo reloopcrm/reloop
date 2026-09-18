@@ -18,6 +18,12 @@ export class PasswordRefused extends Error {
 	}
 }
 
+export function generatePassword(): string {
+	return Buffer.from(
+		crypto.getRandomValues(new Uint8Array(PASSWORD_RULES.generatedBytes)),
+	).toString("base64url");
+}
+
 export async function hasPassword(userId: string): Promise<boolean> {
 	const row = await db.account.findFirst({
 		where: { userId, providerId: CREDENTIAL_PROVIDER_ID },

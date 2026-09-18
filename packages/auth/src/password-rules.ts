@@ -4,6 +4,7 @@ export const PASSWORD_RULES = {
 	freshSessionMs: 5 * MINUTE_MS,
 	minLength: 12,
 	maxLength: 128,
+	generatedBytes: 15,
 } as const;
 
 export function isFreshPasswordSession(

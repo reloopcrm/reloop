@@ -1,13 +1,19 @@
 import {
+	auth,
 	canAssignRole,
 	canChangeRole,
 	canRenameWorkspace,
 	ensureWorkspaceMembership,
+	generatePassword,
+	isPasswordSignInConfigured,
+	isWorkspaceEmail,
 	isWorkspaceRole,
+	setPasswordFor,
 	WORKSPACE_ID,
 	type WorkspaceRole,
 	workspaceRoleOf,
 } from "@crm/auth";
+import { isFreshPasswordSession } from "@crm/auth/password-rules";
 import type { Db, Prisma } from "@crm/db";
 import { isOnboarded, markOnboarded, workspaceSlug } from "@crm/db/workspace";
 import {
@@ -29,6 +35,8 @@ import {
 	resolveOrderBy,
 } from "../trpc/list-input";
 import type {
+	AddedPerson,
+	AddPersonInput,
 	MemberListInput,
 	SetMemberRoleInput,
 	UpdateWorkspaceInput,
@@ -91,6 +99,7 @@ export class WorkspaceService {
 			viewerRole: role,
 			canRename: canRenameWorkspace(role),
 			canChangeRoles: canChangeRole(role),
+			canAddPerson: canChangeRole(role) && isPasswordSignInConfigured(),
 		};
 	}
 
@@ -230,6 +239,89 @@ export class WorkspaceService {
 		});
 
 		return this.toMember(updated, userId);
+	}
+
+	async addPerson(
+		userId: string,
+		input: AddPersonInput,
+		sessionCreatedAt: Date,
+	): Promise<AddedPerson> {
+		const role = await workspaceRoleOf(userId, this.db);
+
+		if (!canChangeRole(role)) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can add a person.",
+			);
+		}
+
+		if (!isFreshPasswordSession(sessionCreatedAt)) {
+			throw new ForbiddenException(
+				"Sign out and sign in again before you add a person.",
+			);
+		}
+
+		if (!isPasswordSignInConfigured()) {
+			throw new BadRequestException(
+				'PASSWORD_SIGN_IN is not "1", so this person could not sign in. Set PASSWORD_SIGN_IN="1" in deploy/.env, then run docker compose up -d in that folder.',
+			);
+		}
+
+		if (!canAssignRole(role, "member", input.role)) {
+			throw new ForbiddenException("Only an owner can make someone an owner.");
+		}
+
+		if (!isWorkspaceEmail(input.email)) {
+			throw new BadRequestException(
+				`${input.email} is not in ALLOWED_SIGN_IN, so this person could not sign in. Add ${input.email} to ALLOWED_SIGN_IN in deploy/.env, then run docker compose up -d in that folder.`,
+			);
+		}
+
+		const taken = await this.db.user.findFirst({
+			where: { email: input.email },
+			select: { id: true },
+		});
+
+		if (taken) {
+			throw new BadRequestException("That address already has an account.");
+		}
+
+		const context = await auth.$context;
+		const created = await context.internalAdapter.createUser({
+			email: input.email,
+			name: input.name,
+			emailVerified: true,
+		});
+
+		const password = generatePassword();
+
+		try {
+			const member = await this.db.member.create({
+				data: {
+					id: crypto.randomUUID(),
+					organizationId: WORKSPACE_ID,
+					userId: created.id,
+					role: input.role,
+					createdAt: new Date(),
+				},
+				select: MEMBER_SELECT,
+			});
+
+			await setPasswordFor(created.id, password);
+
+			this.logger.log({
+				message: "Person added",
+				userId,
+				memberId: member.id,
+				role: input.role,
+			});
+
+			return { member: this.toMember(member, userId), password };
+		} catch (error) {
+			await this.db.user
+				.delete({ where: { id: created.id } })
+				.catch(() => undefined);
+			throw error;
+		}
 	}
 
 	private toMember(row: MemberRow, userId: string): WorkspaceMember {

@@ -36,6 +36,30 @@ export const settings: Dictionary = {
 	"Prune archived records after": "Archivierte Datensätze entfernen nach",
 	"Days. 180 is the default.": "Tage. 180 ist der Standard.",
 
+	"Add person": "Person hinzufügen",
+	"They get an account and a one-time password. The password is shown once, so pass it on yourself.":
+		"Sie bekommen ein Konto und ein Einmalpasswort. Das Passwort wird einmal angezeigt, gib es selbst weiter.",
+	"The address they sign in with. It has to be on the ALLOWED_SIGN_IN list.":
+		"Die Adresse, mit der sie sich anmelden. Sie muss auf der Liste ALLOWED_SIGN_IN stehen.",
+	"The name your team sees on every record they touch.":
+		"Der Name, den dein Team auf jedem Datensatz sieht.",
+	"Everyone reads and writes every record. The role decides who changes settings.":
+		"Alle lesen und schreiben jeden Datensatz. Die Rolle entscheidet, wer Einstellungen ändert.",
+	"{name} can sign in now": "{name} kann sich jetzt anmelden",
+	"Give {email} this one-time password. Copy it now, because nobody can show it again.":
+		"Gib {email} dieses Einmalpasswort. Kopiere es jetzt, denn niemand kann es noch einmal anzeigen.",
+	"Only an owner or an admin can add a person.":
+		"Nur eine Inhaberin, ein Inhaber oder ein Admin kann eine Person hinzufügen.",
+	"Sign out and sign in again before you add a person.":
+		"Melde dich ab und wieder an, bevor du eine Person hinzufügst.",
+	'PASSWORD_SIGN_IN is not "1", so this person could not sign in. Set PASSWORD_SIGN_IN="1" in deploy/.env, then run docker compose up -d in that folder.':
+		'PASSWORD_SIGN_IN steht nicht auf "1", diese Person könnte sich nicht anmelden. Setze PASSWORD_SIGN_IN="1" in deploy/.env und starte danach docker compose up -d in diesem Ordner.',
+	"Only an owner can make someone an owner.":
+		"Nur eine Inhaberin oder ein Inhaber kann jemandem diese Rolle geben.",
+	"That address already has an account.": "Diese Adresse hat schon ein Konto.",
+	"{email} is not in ALLOWED_SIGN_IN, so this person could not sign in. Add {email} to ALLOWED_SIGN_IN in deploy/.env, then run docker compose up -d in that folder.":
+		"{email} steht nicht in ALLOWED_SIGN_IN, diese Person könnte sich nicht anmelden. Trage {email} in ALLOWED_SIGN_IN in deploy/.env ein und starte danach docker compose up -d in diesem Ordner.",
+
 	"Could not copy the {label}. Select it instead.":
 		"{label} lässt sich nicht kopieren. Markiere den Wert stattdessen.",
 	"{label} copied.": "{label} kopiert.",

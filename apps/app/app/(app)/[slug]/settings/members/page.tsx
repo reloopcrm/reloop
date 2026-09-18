@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
 	PageShell,
+	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
 	PageShellHeader,
@@ -13,6 +14,7 @@ import { getT } from "@/lib/i18n/server";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { AddPersonSheet } from "./add-person-sheet";
 import { membersSearchParams } from "./members-search-params";
 import { MembersTable } from "./members-table";
 
@@ -35,6 +37,10 @@ export default async function MembersSettingsPage({
 						{t("Everyone who has access to your CRM.")}
 					</PageShellDescription>
 				</PageShellHeading>
+
+				<PageShellActions>
+					<AddPersonSheet />
+				</PageShellActions>
 			</PageShellHeader>
 
 			<PageShellContent className="min-h-0">

@@ -32,7 +32,7 @@ function SelectValue({
 }
 
 const selectTriggerVariants = cva(
-	"flex w-fit items-center justify-between gap-1.5 rounded-md text-xs whitespace-nowrap transition-colors outline-none select-none disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+	"flex items-center justify-between gap-1.5 rounded-md text-xs whitespace-nowrap transition-colors outline-none select-none disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 	{
 		variants: {
 			variant: {
@@ -41,9 +41,14 @@ const selectTriggerVariants = cva(
 				ghost:
 					"border border-transparent bg-transparent px-2 hover:border-input hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 data-[state=open]:border-input data-[state=open]:bg-muted/40 [&_svg]:opacity-0 hover:[&_svg]:opacity-100 focus-visible:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100",
 			},
+			width: {
+				auto: "w-fit",
+				full: "w-full",
+			},
 		},
 		defaultVariants: {
 			variant: "default",
+			width: "auto",
 		},
 	},
 );
@@ -52,6 +57,7 @@ function SelectTrigger({
 	className,
 	size = "default",
 	variant,
+	width,
 	children,
 	...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> &
@@ -62,7 +68,7 @@ function SelectTrigger({
 		<SelectPrimitive.Trigger
 			data-slot="select-trigger"
 			data-size={size}
-			className={cn(selectTriggerVariants({ variant }), className)}
+			className={cn(selectTriggerVariants({ variant, width }), className)}
 			{...props}
 		>
 			{children}

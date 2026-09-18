@@ -1,4 +1,4 @@
-import { Inject } from "@nestjs/common";
+import { Inject, UnauthorizedException } from "@nestjs/common";
 import {
 	Ctx,
 	Input,
@@ -10,8 +10,11 @@ import {
 import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
+import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
+	addedPersonOutput,
+	addPersonInput,
 	memberListInput,
 	memberListOutput,
 	setMemberRoleInput,
@@ -58,6 +61,24 @@ export class WorkspaceRouter {
 		@Input() input: z.infer<typeof updateWorkspaceInput>,
 	) {
 		return this.workspace.update(ctx.user.id, input);
+	}
+
+	@Mutation({
+		input: addPersonInput,
+		output: addedPersonOutput,
+		meta: restMeta("POST", "/workspace/members", ["Workspace"]),
+	})
+	@UseMiddlewares(SessionOnlyMiddleware)
+	async addPerson(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof addPersonInput>,
+	) {
+		if (!ctx.session) throw new UnauthorizedException();
+		return this.workspace.addPerson(
+			ctx.user.id,
+			input,
+			ctx.session.session.createdAt,
+		);
 	}
 
 	@Mutation({

@@ -26,8 +26,20 @@ export const setMemberRoleInput = z.object({
 	role: z.enum(WORKSPACE_ROLES),
 });
 
+export const addPersonInput = z.object({
+	email: z
+		.string()
+		.trim()
+		.toLowerCase()
+		.pipe(z.email())
+		.pipe(z.string().max(255)),
+	name: z.string().trim().min(1).max(120),
+	role: z.enum(WORKSPACE_ROLES),
+});
+
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceInput>;
 export type SetMemberRoleInput = z.infer<typeof setMemberRoleInput>;
+export type AddPersonInput = z.infer<typeof addPersonInput>;
 
 export const workspaceOutput = z.object({
 	id: z.string(),
@@ -38,6 +50,7 @@ export const workspaceOutput = z.object({
 	viewerRole: z.enum(WORKSPACE_ROLES).nullable(),
 	canRename: z.boolean(),
 	canChangeRoles: z.boolean(),
+	canAddPerson: z.boolean(),
 });
 
 export type Workspace = z.infer<typeof workspaceOutput>;
@@ -54,6 +67,13 @@ export const workspaceMemberOutput = z.object({
 });
 
 export type WorkspaceMember = z.infer<typeof workspaceMemberOutput>;
+
+export const addedPersonOutput = z.object({
+	member: workspaceMemberOutput,
+	password: z.string(),
+});
+
+export type AddedPerson = z.infer<typeof addedPersonOutput>;
 
 export const memberListOutput = z.object({
 	rows: z.array(workspaceMemberOutput),

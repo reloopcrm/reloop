@@ -28,17 +28,17 @@ import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { membersSearchParams } from "./members-search-params";
 
-const ROLE_LABEL = {
+export const ROLE_LABEL = {
 	owner: "Owner",
 	admin: "Admin",
 	member: "Member",
 } as const;
 
-type Role = keyof typeof ROLE_LABEL;
+export type Role = keyof typeof ROLE_LABEL;
 
 type MemberRow = RouterOutputs["workspace"]["members"]["rows"][number];
 
-function assignableRoles(
+export function assignableRoles(
 	viewerRole: WorkspaceRole | null,
 	current: Role,
 ): Role[] {

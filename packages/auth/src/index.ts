@@ -23,6 +23,7 @@ export {
 } from "./organization";
 export {
 	CREDENTIAL_PROVIDER_ID,
+	generatePassword,
 	hasPassword,
 	type PasswordRefusal,
 	PasswordRefused,

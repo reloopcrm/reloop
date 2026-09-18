@@ -11,7 +11,7 @@ import {
 	PageShellTitle,
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
-import { hasMailboxConnection } from "@/lib/mailbox-connection";
+import { hasRecordsToShow } from "@/lib/mailbox-connection";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
@@ -38,7 +38,7 @@ export default async function WinBackPage({
 	const [t, { slug }, connected] = await Promise.all([
 		getT(),
 		params,
-		hasMailboxConnection(),
+		hasRecordsToShow(),
 	]);
 
 	return (

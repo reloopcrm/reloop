@@ -8,7 +8,8 @@ import {
 	PageShellHeading,
 	PageShellLoading,
 } from "@/components/page-shell";
-import { hasMailboxConnection } from "@/lib/mailbox-connection";
+import { LoadSampleData } from "@/components/sample-data";
+import { hasRecordsToShow } from "@/lib/mailbox-connection";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
@@ -31,10 +32,7 @@ export default async function OverviewPage({
 }: PageProps<"/[slug]">) {
 	await requireSession();
 
-	const [{ slug }, connected] = await Promise.all([
-		params,
-		hasMailboxConnection(),
-	]);
+	const [{ slug }, connected] = await Promise.all([params, hasRecordsToShow()]);
 
 	return (
 		<PageShell>
@@ -59,7 +57,9 @@ export default async function OverviewPage({
 				<ConnectMailbox
 					connected={connected}
 					href={workspaceUrl(slug, CONNECTIONS_PATH)}
-				/>
+				>
+					<LoadSampleData />
+				</ConnectMailbox>
 				{connected ? (
 					<Suspense fallback={<PageShellLoading />}>
 						<Summary searchParams={searchParams} />

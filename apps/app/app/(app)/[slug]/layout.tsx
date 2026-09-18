@@ -9,6 +9,7 @@ import { QuickSwitcher } from "@/components/crm/quick-switcher";
 import { RecordSheetHost } from "@/components/crm/record-sheet/record-sheet-host";
 import { DemoTour } from "@/components/demo/demo-tour";
 import { MobileNavProvider } from "@/components/mobile-nav";
+import { SampleDataBanner } from "@/components/sample-data";
 import { UpdateBanner } from "@/components/update-banner";
 import { demoOffered, managedInstall } from "@/lib/operator";
 import { requireMailboxAccess, requireSession } from "@/lib/session";
@@ -38,6 +39,8 @@ export default function AppLayout({
 				<Suspense fallback={null}>
 					<UpdateNotice />
 				</Suspense>
+
+				<SampleDataBanner />
 
 				<div className="flex min-h-0 flex-1">
 					<Suspense fallback={<AppIconRailFallback />}>

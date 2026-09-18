@@ -18,6 +18,7 @@ import { CurrencyModule } from "./currency/currency.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { DatabaseModule } from "./database/database.module";
 import { DealsModule } from "./deals/deals.module";
+import { DemoModule } from "./demo/demo.module";
 import { EnrichmentModule } from "./enrichment/enrichment.module";
 import { ExportsModule } from "./exports/exports.module";
 import { FieldsModule } from "./fields/fields.module";
@@ -41,6 +42,7 @@ import { TrackingModule } from "./tracking/tracking.module";
 import { TrpcModule } from "./trpc/trpc.module";
 import { UsersModule } from "./users/users.module";
 import { WaitlistModule } from "./waitlist/waitlist.module";
+import { WebhooksModule } from "./webhooks/webhooks.module";
 import { WorkspaceModule } from "./workspace/workspace.module";
 
 @Module({
@@ -78,6 +80,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		ImapModule,
 		SyncModule,
 		SystemModule,
+		DemoModule,
 		SettingsModule,
 		WorkspaceModule,
 		SsoModule,
@@ -89,6 +92,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		SavedViewsModule,
 		ReactivationModule,
 		WaitlistModule,
+		WebhooksModule,
 	],
 })
 export class AppModule {}

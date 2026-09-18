@@ -340,4 +340,30 @@ export const copy: Dictionary = {
 	"Companies, people and deals appear here once this CRM can read the mail you already send. Nothing here has to be typed in by hand.":
 		"Firmen, Personen und Deals erscheinen hier, sobald dieses CRM die Mails lesen kann, die du ohnehin schreibst. Nichts davon musst du von Hand eintippen.",
 	"Connect a mailbox": "Postfach verbinden",
+	"Look around with sample data": "Mit Beispieldaten umsehen",
+	"Writing the sample data": "Beispieldaten werden geschrieben",
+	Ready: "Fertig",
+	"The sample data is in. Have a look around.":
+		"Die Beispieldaten sind da. Sieh dich um.",
+	"This CRM shows sample data": "Dieses CRM zeigt Beispieldaten",
+	"The companies, people, deals and mail here are made up. They count in every total, so remove them before you read a number as real.":
+		"Die Firmen, Personen, Deals und Mails hier sind erfunden. Sie zählen in jede Summe hinein. Entferne sie, bevor du eine Zahl für echt hältst.",
+	"Remove sample data": "Beispieldaten entfernen",
+	"Remove the sample data?": "Beispieldaten entfernen?",
+	"This deletes the sample rows and nothing else. Every company, person, deal and mail you brought here yourself stays.":
+		"Das löscht nur die Beispieldaten und sonst nichts. Jede Firma, Person, jeder Deal und jede Mail, die du selbst hergebracht hast, bleibt.",
+	Removing: "Wird entfernt",
+	Removed: "Entfernt",
+	"The sample data is gone.": "Die Beispieldaten sind weg.",
+	"Only an owner loads the sample data.":
+		"Nur ein Eigentümer lädt die Beispieldaten.",
+	"Only an owner removes the sample data.":
+		"Nur ein Eigentümer entfernt die Beispieldaten.",
+	"The sample data is already loaded.": "Die Beispieldaten sind schon geladen.",
+	"This CRM already holds your own records. The sample data only loads into an empty CRM.":
+		"Dieses CRM enthält schon eigene Datensätze. Die Beispieldaten laden nur in ein leeres CRM.",
+	"A mailbox is connected, so real records arrive here. The sample data only loads into an empty CRM.":
+		"Ein Postfach ist verbunden, also kommen hier echte Datensätze an. Die Beispieldaten laden nur in ein leeres CRM.",
+	"The sample data is being written already.":
+		"Die Beispieldaten werden schon geschrieben.",
 };

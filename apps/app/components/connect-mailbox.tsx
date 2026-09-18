@@ -9,14 +9,17 @@ import {
 	EmptyTitle,
 } from "@crm/ui/components/empty";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useT } from "@/lib/i18n/client";
 
 export function ConnectMailbox({
 	connected,
 	href,
+	children,
 }: {
 	connected: boolean;
 	href: string;
+	children?: ReactNode;
 }) {
 	const t = useT();
 
@@ -32,10 +35,11 @@ export function ConnectMailbox({
 					)}
 				</EmptyDescription>
 			</EmptyHeader>
-			<EmptyContent>
+			<EmptyContent layout="row">
 				<Button asChild>
 					<Link href={href}>{t("Connect a mailbox")}</Link>
 				</Button>
+				{children}
 			</EmptyContent>
 		</Empty>
 	);

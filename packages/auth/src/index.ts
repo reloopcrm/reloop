@@ -33,6 +33,7 @@ export { PASSWORD_RULES } from "./password-rules";
 export {
 	canAssignRole,
 	canChangeRole,
+	canLoadSampleData,
 	canManageConnections,
 	canManageCurrency,
 	canManageTracking,

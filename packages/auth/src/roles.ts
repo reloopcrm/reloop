@@ -44,3 +44,7 @@ export function canAssignRole(
 
 	return current !== "owner" && next !== "owner";
 }
+
+export function canLoadSampleData(role: WorkspaceRole | null): boolean {
+	return role === "owner";
+}

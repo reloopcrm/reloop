@@ -425,6 +425,37 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
 - **Recompute after commit, logging rather than throwing** — the row is already gone,
   and a raised error makes the browser skip invalidation and retry into a 404.
 
+## Sample data is a button, not a shell
+
+A stranger with no mailbox at hand sees an empty CRM and cannot tell whether it
+works. `sampleData.load` fills it: 25 companies, 40 contacts, 12 deals, 29 threads
+and 89 messages, every row carrying the `demo-` prefix from `DEMO.prefix`
+(`apps/api/src/demo/demo-data.ts`). `apps/api/scripts/demo-data.ts` is the same two
+functions behind a CLI, so the script and the button cannot drift.
+
+- **This is not `RELOOP_DEMO`.** That variable drives the operator's scripted tour
+  and is untouched by any of this.
+- **Owner only**, through `canLoadSampleData` (`@crm/auth/roles`), in the service
+  and in the status the UI reads. A member sees the banner and no button.
+- **It only loads into an empty CRM.** A non `demo-` Company, Contact, Deal or
+  EmailThread refuses the load, and so does a connected mailbox, because real rows
+  are already on their way. Nobody mixes 40 fake contacts into 2000 real ones by
+  accident.
+- **One transaction, one advisory lock.** `pg_try_advisory_xact_lock` inside the
+  same transaction that writes (`DEMO_DATA.lock.key`, `demo/demo.config.ts`), so a
+  second load is refused rather than queued, and a failure halfway leaves no half
+  filled CRM. The guards run inside the lock, or two callers both pass them.
+- **A banner on every page while the rows are there**, from the app layout. The
+  twelve demo deals count in the pipeline and in the dashboard sums, so a person
+  who connects a real mailbox later must not read the total as revenue.
+- **Presence is one client query with a stale time**, not a cookie and not a query
+  per page render: `sampleData.status` is read by the banner, cached by
+  react-query, and invalidated by the two mutations that are the only things that
+  can change the answer. A cookie is wrong here for the reason in *Gates in
+  `proxy.ts`*: the fact reverts on a database reset while the marker insists.
+- **Removing deletes exactly the prefixed rows** and the `AgentTask` and
+  `AgentEvent` rows that point at them. Nothing a person brought here is touched.
+
 ## Money
 
 A deal is sold in one currency and reported in another, and **only `baseAmount` may

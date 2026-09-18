@@ -1,10 +1,8 @@
-export const LOCALES = ["de", "en"] as const;
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@crm/db/locale";
 
-export type Locale = (typeof LOCALES)[number];
+export { DEFAULT_LOCALE, LOCALES, type Locale };
 
 export const LOCALE_COOKIE = "crm.locale";
-
-export const DEFAULT_LOCALE: Locale = "en";
 
 export function parseLocale(
 	value: string | null | undefined,

@@ -5,8 +5,12 @@ const { delimiter, newline, quote, formulaPrefixes, formulaGuard } =
 
 const prefixes: ReadonlySet<string> = new Set(formulaPrefixes);
 
+const negativeNumber = /^-\d+([.,]\d+)?$/;
+
 export function neutralizeFormula(value: string): string {
-	return prefixes.has(value.slice(0, 1)) ? `${formulaGuard}${value}` : value;
+	if (!prefixes.has(value.slice(0, 1))) return value;
+	if (negativeNumber.test(value)) return value;
+	return `${formulaGuard}${value}`;
 }
 
 export function csvField(value: string): string {

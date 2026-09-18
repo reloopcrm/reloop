@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import { SESSION_COOKIE_NAME } from "@crm/auth";
+import { LOCALES } from "@crm/db/locale";
 import {
 	BadRequestException,
 	Controller,
@@ -37,13 +38,21 @@ export class ExportsController {
 		description:
 			"The list input, JSON encoded. The same shape the list procedure takes, so the file holds exactly the rows the list shows.",
 	})
+	@ApiQuery({
+		name: "locale",
+		required: false,
+		enum: LOCALES,
+		description:
+			"The language of the fixed column headers and the file name. English when it is missing. Custom field labels stay as the workspace wrote them.",
+	})
 	@ApiOkResponse({ description: "A UTF-8 CSV file." })
 	async download(
 		@Param("entity") entity: string,
 		@Query("filter") filter: string | undefined,
+		@Query("locale") locale: string | undefined,
 		@Res({ passthrough: true }) response: Response,
 	) {
-		const request = this.read(entity, filter);
+		const request = this.read(entity, filter, locale);
 		const file = await this.exports.file(request);
 
 		response.setHeader("Cache-Control", "private, no-store");
@@ -57,9 +66,13 @@ export class ExportsController {
 		return new StreamableFile(Readable.from(file.lines));
 	}
 
-	private read(entity: string, filter: string | undefined) {
+	private read(
+		entity: string,
+		filter: string | undefined,
+		locale: string | undefined,
+	) {
 		try {
-			return parseExportRequest(entity, filter);
+			return parseExportRequest(entity, filter, locale);
 		} catch (cause) {
 			throw new BadRequestException(
 				cause instanceof Error ? cause.message : "That export is not known.",

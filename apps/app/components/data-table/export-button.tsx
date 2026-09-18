@@ -7,11 +7,20 @@ import {
 } from "@crm/ui/components/async-action";
 import { Button } from "@crm/ui/components/button";
 import { toast } from "sonner";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 export type ExportEntity = "contacts" | "companies" | "deals";
 
 class ExportFailed extends Error {}
+
+const FILENAME = /filename="([^"]+)"/;
+
+export function exportFilename(
+	disposition: string | null,
+	fallback: string,
+): string {
+	return FILENAME.exec(disposition ?? "")?.[1] ?? fallback;
+}
 
 export function ExportButton({
 	entity,
@@ -21,13 +30,17 @@ export function ExportButton({
 	input: unknown;
 }) {
 	const t = useT();
+	const locale = useLocale();
 
 	const download = async () => {
-		const filter = encodeURIComponent(JSON.stringify(input));
+		const query = new URLSearchParams({
+			filter: JSON.stringify(input),
+			locale,
+		});
 		let response: Response;
 
 		try {
-			response = await fetch(`/api/exports/${entity}?filter=${filter}`, {
+			response = await fetch(`/api/exports/${entity}?${query}`, {
 				credentials: "same-origin",
 			});
 		} catch {
@@ -49,7 +62,10 @@ export function ExportButton({
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = `${entity}-${new Date().toISOString().slice(0, 10)}.csv`;
+		link.download = exportFilename(
+			response.headers.get("content-disposition"),
+			`${entity}-${new Date().toISOString().slice(0, 10)}.csv`,
+		);
 		link.click();
 		setTimeout(() => URL.revokeObjectURL(url), 0);
 	};

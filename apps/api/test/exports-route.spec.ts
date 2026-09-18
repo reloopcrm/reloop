@@ -87,6 +87,25 @@ describe("the export route", () => {
 		);
 	});
 
+	it("writes German headers and a German file name for a German session", async () => {
+		const response = await request(app.getHttpServer())
+			.get("/api/exports/contacts?locale=de")
+			.set(API_KEY_HEADER, apiKey)
+			.expect(200);
+
+		expect(response.headers["content-disposition"]).toContain("kontakte-");
+		expect(response.text.startsWith("\ufeffVorname;Nachname;E-Mail;")).toBe(
+			true,
+		);
+	});
+
+	it("refuses a language nobody ships", async () => {
+		await request(app.getHttpServer())
+			.get("/api/exports/contacts?locale=fr")
+			.set(API_KEY_HEADER, apiKey)
+			.expect(400);
+	});
+
 	it("refuses a filter that is not the list's own shape", async () => {
 		await request(app.getHttpServer())
 			.get("/api/exports/contacts?filter=%7B%22page%22%3A%22soon%22%7D")

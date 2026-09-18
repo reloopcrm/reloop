@@ -183,6 +183,24 @@ starts with `=`, `+`, `-`, `@` or a tab gets a leading `'` (`neutralizeFormula`)
 so a contact called `=SUM(A1:A9)` stays text. Only values a person typed are
 guarded; dates and amounts the exporter formats are not.
 
+**A plain negative number keeps no guard.** `-1234,56` and `-1234` match
+`^-\d+([.,]\d+)?$`, so Excel reads a number and nobody sees an apostrophe.
+`-Rabatt` and `-5 Prozent` still get one. **A leading `+` always keeps its
+guard**, phone numbers included: Excel evaluates `+4917012345678` as a formula and
+prints `4,91701E+12`, which loses the country code without saying so. A visible
+apostrophe is the smaller harm.
+
+**The language comes from `?locale=`, not from the cookie.** `useLocale()` in the
+browser already holds the gated locale, so the client sends a finished value and
+the API translates the fixed headers and the file stem through
+`exports/exports-copy.ts`: `Vorname;Nachname;E-Mail` in `kontakte-2026-09-18.csv`.
+The cookie is not read in the API because `parseLocale` gates on `RELOOP_GERMAN`,
+and `deploy/docker-compose.yml` passes that variable to the app and the agent but
+not to the api container. A stale cookie would then outrank the flag. **Custom
+field labels are never translated**, because the workspace wrote them, and neither
+are stored enum values such as `Manual`. A caller with no `locale` gets English,
+which is what `curl` with an API key gets.
+
 ## The OpenAPI document is built at runtime, not committed
 
 `GET /openapi.json` serves one document: Nest's own controllers plus a REST bridge

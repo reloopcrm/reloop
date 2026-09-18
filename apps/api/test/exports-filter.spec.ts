@@ -56,6 +56,7 @@ async function read(owner: string[]): Promise<string> {
 	const file = await exports.file({
 		entity: "contacts",
 		filter: contactListInput.parse({ owner }),
+		locale: "en",
 	});
 
 	let text = "";

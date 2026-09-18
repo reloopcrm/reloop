@@ -22,6 +22,7 @@
 		"./insights": "./src/insights.ts",
 		"./idempotency": "./src/idempotency.ts",
 		"./json": "./src/json.ts",
+		"./locale": "./src/locale.ts",
 		"./contact-standing": "./src/contact-standing.ts",
 		"./contact-worth": "./src/contact-worth.ts",
 		"./message-text": "./src/message-text.ts",

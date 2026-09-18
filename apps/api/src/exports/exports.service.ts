@@ -1,5 +1,6 @@
 import type { Prisma } from "@crm/db";
 import type { FieldValueJson } from "@crm/db/fields";
+import type { Locale } from "@crm/db/locale";
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 import {
@@ -15,6 +16,7 @@ import { FieldsService } from "../fields/fields.service";
 import { csvLine, neutralizeFormula } from "./csv";
 import type { ExportRequest } from "./exports.contracts";
 import { EXPORTS } from "./exports-config";
+import { exportWord } from "./exports-copy";
 
 type Column<TRow> = {
 	header: string;
@@ -118,6 +120,14 @@ const DEAL_COLUMNS: Column<DealExportRow>[] = [
 	{ header: "Archived", value: (row) => moment(row.archivedAt) },
 ];
 
+export const EXPORT_HEADERS: string[] = [
+	...new Set(
+		[...CONTACT_COLUMNS, ...COMPANY_COLUMNS, ...DEAL_COLUMNS].map(
+			(column) => column.header,
+		),
+	),
+];
+
 export type ExportFile = {
 	filename: string;
 	lines: AsyncGenerator<string>;
@@ -133,16 +143,19 @@ export class ExportsService {
 	) {}
 
 	async file(request: ExportRequest): Promise<ExportFile> {
+		const { locale } = request;
 		const today = new Date().toISOString().slice(0, 10);
+		const name = (stem: string) => `${exportWord(locale, stem)}-${today}.csv`;
 
 		if (request.entity === "contacts") {
 			const fields = await this.fields.definitionsFor("CONTACT");
 			return {
-				filename: `contacts-${today}.csv`,
+				filename: name("contacts"),
 				lines: this.write(
 					CONTACT_COLUMNS,
 					fields,
 					this.contacts.exportRows(request.filter),
+					locale,
 				),
 			};
 		}
@@ -150,22 +163,24 @@ export class ExportsService {
 		if (request.entity === "companies") {
 			const fields = await this.fields.definitionsFor("COMPANY");
 			return {
-				filename: `companies-${today}.csv`,
+				filename: name("companies"),
 				lines: this.write(
 					COMPANY_COLUMNS,
 					fields,
 					this.companies.exportRows(request.filter),
+					locale,
 				),
 			};
 		}
 
 		const fields = await this.fields.definitionsFor("DEAL");
 		return {
-			filename: `deals-${today}.csv`,
+			filename: name("deals"),
 			lines: this.write(
 				DEAL_COLUMNS,
 				fields,
 				this.deals.exportRows(request.filter),
+				locale,
 			),
 		};
 	}
@@ -174,10 +189,11 @@ export class ExportsService {
 		columns: Column<TRow>[],
 		fields: { key: string; label: string }[],
 		pages: AsyncGenerator<TRow[]>,
+		locale: Locale,
 	): AsyncGenerator<string> {
 		yield EXPORTS.csv.bom +
 			csvLine([
-				...columns.map((column) => column.header),
+				...columns.map((column) => exportWord(locale, column.header)),
 				...fields.map((field) => field.label),
 			]);
 

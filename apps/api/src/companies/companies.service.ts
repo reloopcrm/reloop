@@ -6,7 +6,10 @@ import {
 	type RecordSource,
 } from "@crm/db";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
-import type { FieldDefinitionWithOptions } from "@crm/db/fields";
+import type {
+	FieldDefinitionWithOptions,
+	FieldValueJson,
+} from "@crm/db/fields";
 import {
 	BadRequestException,
 	ConflictException,
@@ -26,6 +29,7 @@ import { readPotential, readStanding } from "../crm/standing";
 import { blankToNull, toCents } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
+import { EXPORTS } from "../exports/exports-config";
 import { FieldsService } from "../fields/fields.service";
 import {
 	activityFacetCounts,
@@ -69,6 +73,36 @@ const SORTABLE: OrderByColumns<Prisma.CompanyOrderByWithRelationInput> = {
 	lastActivity: (dir) => ({ lastActivityAt: { sort: dir, nulls: "last" } }),
 	archivedAt: (dir) => ({ archivedAt: { sort: dir, nulls: "last" } }),
 };
+
+const COMPANY_EXPORT_SELECT = {
+	id: true,
+	name: true,
+	domain: true,
+	website: true,
+	industry: true,
+	city: true,
+	country: true,
+	phone: true,
+	email: true,
+	linkedinUrl: true,
+	owner: { select: { name: true, email: true } },
+	standing: true,
+	potentialBand: true,
+	source: true,
+	_count: {
+		select: {
+			contacts: true,
+			deals: { where: { stage: { in: [...OPEN_DEAL_STAGES] } } },
+		},
+	},
+	createdAt: true,
+	lastActivityAt: true,
+	archivedAt: true,
+} satisfies Prisma.CompanySelect;
+
+export type CompanyExportRow = Prisma.CompanyGetPayload<{
+	select: typeof COMPANY_EXPORT_SELECT;
+}> & { fields: Record<string, FieldValueJson> };
 
 @Injectable()
 export class CompaniesService {
@@ -160,6 +194,40 @@ export class CompaniesService {
 			total,
 			facetCounts,
 		};
+	}
+
+	async *exportRows(
+		input: CompanyListInput,
+	): AsyncGenerator<CompanyExportRow[]> {
+		const filterableFields = await this.fields.filterableFieldsFor("COMPANY");
+		const where = this.buildWhere(input, filterableFields);
+		let cursor: string | undefined;
+
+		for (;;) {
+			const rows = await this.db.company.findMany({
+				where,
+				orderBy: { id: "asc" },
+				take: EXPORTS.page.size,
+				cursor: cursor ? { id: cursor } : undefined,
+				skip: cursor ? 1 : 0,
+				select: COMPANY_EXPORT_SELECT,
+			});
+
+			if (rows.length === 0) return;
+
+			const values = await this.fields.exportValuesFor(
+				"COMPANY",
+				rows.map((row) => row.id),
+			);
+
+			yield rows.map((row) => ({
+				...row,
+				fields: values.get(row.id) ?? {},
+			}));
+
+			if (rows.length < EXPORTS.page.size) return;
+			cursor = rows.at(-1)?.id;
+		}
 	}
 
 	async byId(id: string) {

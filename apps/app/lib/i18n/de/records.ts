@@ -156,4 +156,11 @@ export const records: Dictionary = {
 	"Is read right now.": "Wird gerade gelesen.",
 	"Show the real emails": "Echte E-Mails anzeigen",
 	"Show the summary": "Zusammenfassung anzeigen",
+
+	"Preparing…": "Wird vorbereitet…",
+	Downloaded: "Heruntergeladen",
+	"The export did not finish. Try again.":
+		"Der Export wurde nicht fertig. Versuche es noch einmal.",
+	"Your session ended. Sign in again.":
+		"Deine Sitzung ist beendet. Melde dich neu an.",
 };

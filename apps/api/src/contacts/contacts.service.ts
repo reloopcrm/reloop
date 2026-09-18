@@ -7,7 +7,10 @@ import {
 	Prisma as PrismaNamespace,
 	type RecordSource,
 } from "@crm/db";
-import type { FieldDefinitionWithOptions } from "@crm/db/fields";
+import type {
+	FieldDefinitionWithOptions,
+	FieldValueJson,
+} from "@crm/db/fields";
 import { readDraftRole } from "@crm/validation/draft-style";
 import {
 	ConflictException,
@@ -27,6 +30,7 @@ import { type BulkResult, requireOwner, runBulk } from "../crm/bulk";
 import { readPotential, readStanding } from "../crm/standing";
 import { blankToNull, normalizeEmail, toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
+import { EXPORTS } from "../exports/exports-config";
 import { FieldsService } from "../fields/fields.service";
 import {
 	activityFacetCounts,
@@ -70,6 +74,30 @@ const COMPANY_SELECT = {
 } as const;
 
 const NO_COMPANY = "none";
+
+const CONTACT_EXPORT_SELECT = {
+	id: true,
+	firstName: true,
+	lastName: true,
+	email: true,
+	phone: true,
+	title: true,
+	seniority: true,
+	function: true,
+	linkedinUrl: true,
+	company: { select: { name: true, domain: true } },
+	owner: { select: { name: true, email: true } },
+	standing: true,
+	potentialBand: true,
+	source: true,
+	createdAt: true,
+	lastActivityAt: true,
+	archivedAt: true,
+} satisfies Prisma.ContactSelect;
+
+export type ContactExportRow = Prisma.ContactGetPayload<{
+	select: typeof CONTACT_EXPORT_SELECT;
+}> & { fields: Record<string, FieldValueJson> };
 
 type FactColumns = Record<string, string | undefined>;
 
@@ -165,6 +193,40 @@ export class ContactsService {
 			total,
 			facetCounts,
 		};
+	}
+
+	async *exportRows(
+		input: ContactListInput,
+	): AsyncGenerator<ContactExportRow[]> {
+		const filterableFields = await this.fields.filterableFieldsFor("CONTACT");
+		const where = this.buildWhere(input, filterableFields);
+		let cursor: string | undefined;
+
+		for (;;) {
+			const rows = await this.db.contact.findMany({
+				where,
+				orderBy: { id: "asc" },
+				take: EXPORTS.page.size,
+				cursor: cursor ? { id: cursor } : undefined,
+				skip: cursor ? 1 : 0,
+				select: CONTACT_EXPORT_SELECT,
+			});
+
+			if (rows.length === 0) return;
+
+			const values = await this.fields.exportValuesFor(
+				"CONTACT",
+				rows.map((row) => row.id),
+			);
+
+			yield rows.map((row) => ({
+				...row,
+				fields: values.get(row.id) ?? {},
+			}));
+
+			if (rows.length < EXPORTS.page.size) return;
+			cursor = rows.at(-1)?.id;
+		}
 	}
 
 	async byId(id: string) {

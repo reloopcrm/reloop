@@ -12,7 +12,10 @@ import {
 	LOSING_DEAL_STAGES,
 	OPEN_DEAL_STAGES,
 } from "@crm/db/deal-stage";
-import type { FieldDefinitionWithOptions } from "@crm/db/fields";
+import type {
+	FieldDefinitionWithOptions,
+	FieldValueJson,
+} from "@crm/db/fields";
 import {
 	BadRequestException,
 	Injectable,
@@ -34,6 +37,7 @@ import {
 } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
+import { EXPORTS } from "../exports/exports-config";
 import { FieldsService } from "../fields/fields.service";
 import {
 	archivedFilter,
@@ -98,6 +102,28 @@ const SORTABLE: OrderByColumns<Prisma.DealOrderByWithRelationInput[]> = {
 	lastActivity: (dir) => [{ lastActivityAt: { sort: dir, nulls: "last" } }],
 	archivedAt: (dir) => [{ archivedAt: { sort: dir, nulls: "last" } }],
 };
+
+const DEAL_EXPORT_SELECT = {
+	id: true,
+	name: true,
+	company: { select: { name: true, domain: true } },
+	stage: true,
+	amount: true,
+	currency: true,
+	baseAmount: true,
+	baseCurrency: true,
+	owner: { select: { name: true, email: true } },
+	expectedCloseDate: true,
+	closedAt: true,
+	closedReason: true,
+	createdAt: true,
+	lastActivityAt: true,
+	archivedAt: true,
+} satisfies Prisma.DealSelect;
+
+export type DealExportRow = Prisma.DealGetPayload<{
+	select: typeof DEAL_EXPORT_SELECT;
+}> & { fields: Record<string, FieldValueJson> };
 
 @Injectable()
 export class DealsService {
@@ -189,6 +215,38 @@ export class DealsService {
 			reportingCurrency: string;
 			unconverted: { count: number; currencies: string[] };
 		};
+	}
+
+	async *exportRows(input: DealListInput): AsyncGenerator<DealExportRow[]> {
+		const filterableFields = await this.fields.filterableFieldsFor("DEAL");
+		const where = this.buildWhere(input, filterableFields);
+		let cursor: string | undefined;
+
+		for (;;) {
+			const rows = await this.db.deal.findMany({
+				where,
+				orderBy: { id: "asc" },
+				take: EXPORTS.page.size,
+				cursor: cursor ? { id: cursor } : undefined,
+				skip: cursor ? 1 : 0,
+				select: DEAL_EXPORT_SELECT,
+			});
+
+			if (rows.length === 0) return;
+
+			const values = await this.fields.exportValuesFor(
+				"DEAL",
+				rows.map((row) => row.id),
+			);
+
+			yield rows.map((row) => ({
+				...row,
+				fields: values.get(row.id) ?? {},
+			}));
+
+			if (rows.length < EXPORTS.page.size) return;
+			cursor = rows.at(-1)?.id;
+		}
 	}
 
 	async byId(id: string) {

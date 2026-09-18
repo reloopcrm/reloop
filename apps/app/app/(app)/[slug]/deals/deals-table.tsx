@@ -17,6 +17,7 @@ import { DealAmount } from "@/components/crm/record-sheet/record-parts";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { DealStageMenu } from "@/components/crm/stage-change";
+import { ExportButton } from "@/components/data-table/export-button";
 import { ListSearch } from "@/components/data-table/list-search";
 import {
 	type LabeledColumn,
@@ -237,15 +238,18 @@ export function DealsTable() {
 				<ListSearch placeholder={t("Search deals by name or company…")} />
 			}
 			actions={
-				<Button
-					variant={input.archived ? "contrast" : "outline"}
-					size="sm"
-					className="justify-start sm:justify-center"
-					onClick={() => toggleArchived(!input.archived)}
-				>
-					<Archive data-icon="inline-start" />
-					{t("Archived")}
-				</Button>
+				<>
+					<ExportButton entity="deals" input={input} />
+					<Button
+						variant={input.archived ? "contrast" : "outline"}
+						size="sm"
+						className="justify-start sm:justify-center"
+						onClick={() => toggleArchived(!input.archived)}
+					>
+						<Archive data-icon="inline-start" />
+						{t("Archived")}
+					</Button>
+				</>
 			}
 			columns={columns}
 			rows={rows}

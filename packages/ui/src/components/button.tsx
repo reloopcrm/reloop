@@ -36,10 +36,15 @@ const buttonVariants = cva(
 				"icon-sm": "size-7",
 				"icon-lg": "size-9",
 			},
+			align: {
+				center: "",
+				toolbar: "justify-start sm:justify-center",
+			},
 		},
 		defaultVariants: {
 			variant: "default",
 			size: "default",
+			align: "center",
 		},
 	},
 );
@@ -48,6 +53,7 @@ function Button({
 	className,
 	variant = "default",
 	size = "default",
+	align = "center",
 	asChild = false,
 	...props
 }: React.ComponentProps<"button"> &
@@ -61,7 +67,7 @@ function Button({
 			data-slot="button"
 			data-variant={variant}
 			data-size={size}
-			className={cn(buttonVariants({ variant, size, className }))}
+			className={cn(buttonVariants({ variant, size, align, className }))}
 			{...props}
 		/>
 	);

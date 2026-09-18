@@ -438,12 +438,31 @@ export class FieldsService {
 		entity: FieldEntity,
 		recordIds: string[],
 	): Promise<Map<string, Record<string, FieldValueJson>>> {
+		return this.valuesByRecord(entity, recordIds, true);
+	}
+
+	async exportValuesFor(
+		entity: FieldEntity,
+		recordIds: string[],
+	): Promise<Map<string, Record<string, FieldValueJson>>> {
+		return this.valuesByRecord(entity, recordIds, false);
+	}
+
+	private async valuesByRecord(
+		entity: FieldEntity,
+		recordIds: string[],
+		tableOnly: boolean,
+	): Promise<Map<string, Record<string, FieldValueJson>>> {
 		const byRecord = new Map<string, Record<string, FieldValueJson>>();
 
 		if (recordIds.length === 0) return byRecord;
 
 		const definitions = await this.db.fieldDefinition.findMany({
-			where: { entity, archivedAt: null, showOnTable: true },
+			where: {
+				entity,
+				archivedAt: null,
+				showOnTable: tableOnly ? true : undefined,
+			},
 			include: WITH_OPTIONS,
 			orderBy: { position: "asc" },
 		});

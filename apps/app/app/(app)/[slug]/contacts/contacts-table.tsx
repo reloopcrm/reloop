@@ -17,6 +17,7 @@ import { OwnerCell } from "@/components/crm/owner-cell";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { PotentialCell, StandingCell } from "@/components/crm/standing-cell";
+import { ExportButton } from "@/components/data-table/export-button";
 import { ListSearch } from "@/components/data-table/list-search";
 import {
 	type LabeledColumn,
@@ -313,6 +314,7 @@ export function ContactsTable() {
 			actions={
 				<>
 					<SavedViewsMenu entity="CONTACT" table={table} />
+					<ExportButton entity="contacts" input={input} />
 					<Button
 						variant={input.archived ? "contrast" : "outline"}
 						size="sm"

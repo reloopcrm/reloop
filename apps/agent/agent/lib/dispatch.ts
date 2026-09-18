@@ -1,4 +1,5 @@
 import { EnrichmentStatus } from "@crm/db";
+import { waitsForPerson } from "@crm/db/agent-tasks";
 import { AGENT_FUNCTION_OFF_OUTCOME } from "@crm/validation/agent-functions";
 import {
 	readAgentTaskInstruction,
@@ -69,7 +70,9 @@ const MODEL_KINDS = new Set([
 	"email-draft",
 	"business-setup",
 ]);
-const VISIBLE_KINDS = DIRECT_KINDS.filter((kind) => !MODEL_KINDS.has(kind));
+const VISIBLE_KINDS = DIRECT_KINDS.filter(
+	(kind) => !MODEL_KINDS.has(kind) && !waitsForPerson(kind),
+);
 
 export async function runVisibleLane(signal?: AbortSignal): Promise<number> {
 	let handled = 0;

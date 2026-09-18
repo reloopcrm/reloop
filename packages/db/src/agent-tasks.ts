@@ -19,6 +19,7 @@ export const TASK_KINDS = [
 	"contact-clean",
 	"playbook-learn",
 	"email-draft",
+	"field-proposal",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];
@@ -47,12 +48,19 @@ export const DIRECT_KINDS = [
 	"contact-clean",
 	"playbook-learn",
 	"email-draft",
+	"field-proposal",
 ] as const;
 
 export type DirectKind = (typeof DIRECT_KINDS)[number];
 
 export function isDirectKind(kind: string): kind is DirectKind {
 	return (DIRECT_KINDS as readonly string[]).includes(kind);
+}
+
+export const PERSON_DECIDES_KINDS = ["field-proposal"] as const;
+
+export function waitsForPerson(kind: string): boolean {
+	return (PERSON_DECIDES_KINDS as readonly string[]).includes(kind);
 }
 
 export const CONTACT_STATUS_KINDS = ["identify", "profile", "recheck"] as const;

@@ -5,7 +5,11 @@ import ChevronRight from "@carbon/icons-react/es/ChevronRight";
 import OverflowMenuVertical from "@carbon/icons-react/es/OverflowMenuVertical";
 import Renew from "@carbon/icons-react/es/Renew";
 import Warning from "@carbon/icons-react/es/Warning";
-import { fieldKeyFromLabel, typeLabel } from "@crm/db/fields-shape";
+import {
+	FIELD_LIMITS,
+	fieldKeyFromLabel,
+	typeLabel,
+} from "@crm/db/fields-shape";
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
@@ -31,6 +35,7 @@ import {
 import { Icon } from "@crm/ui/components/icon";
 import { Loader } from "@crm/ui/components/loader";
 import { SortableItem, SortableList } from "@crm/ui/components/sortable-list";
+import { Suggestion } from "@crm/ui/components/suggestion";
 import { FIELD_TEMPLATES } from "@crm/validation/field-templates";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -43,6 +48,7 @@ import {
 	ADD,
 	ARCHIVED_NOTE,
 	ARCHIVED_ROW,
+	CAP_NOTE,
 	CUSTOM_GROUP,
 	DRAG_NOTE,
 	EMPTY_BODY,
@@ -53,6 +59,9 @@ import {
 	MANUAL_ONLY,
 	NEW_FIELD,
 	ORDER_NOTE,
+	PROPOSED_ACCEPTED,
+	PROPOSED_DISMISSED,
+	PROPOSED_GROUP,
 	RETRY,
 	STANDARD_NOTE,
 	STANDARD_ROW,
@@ -188,6 +197,20 @@ export function FieldsList({
 		}),
 	);
 
+	const proposals = useQuery(trpc.fields.proposals.queryOptions({ entity }));
+
+	const decide = useMutation(
+		trpc.fields.decideProposal.mutationOptions({
+			onSuccess: (result) => {
+				toast.success(
+					result.accepted ? t(PROPOSED_ACCEPTED) : t(PROPOSED_DISMISSED),
+				);
+				return cache.fields(kindOf(entity));
+			},
+			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
+
 	const addSuggested = useMutation(
 		trpc.fields.create.mutationOptions({
 			onSuccess: () => cache.fields(kindOf(entity)),
@@ -197,6 +220,8 @@ export function FieldsList({
 
 	const all = query.data ?? [];
 	const live = all.filter((field) => !field.archived);
+	const proposed = proposals.data ?? [];
+	const full = live.length >= FIELD_LIMITS.perEntity;
 	const archived = all.filter((field) => field.archived);
 	const standard = STANDARD_FIELDS[entity];
 
@@ -224,6 +249,28 @@ export function FieldsList({
 					</ul>
 				</DisclosureRow>
 
+				{proposed.length > 0 ? (
+					<div className="border-b px-5 py-2">
+						<p className="pb-1 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+							{t(PROPOSED_GROUP)}
+						</p>
+						{proposed.map((proposal) => (
+							<Suggestion
+								key={proposal.id}
+								value={`${proposal.label} · ${t(typeLabel(proposal.type))}`}
+								rationale={proposal.reason}
+								pending={decide.isPending}
+								onAccept={() =>
+									decide.mutate({ id: proposal.id, decision: "accept" })
+								}
+								onDismiss={() =>
+									decide.mutate({ id: proposal.id, decision: "dismiss" })
+								}
+							/>
+						))}
+					</div>
+				) : null}
+
 				{suggestions.length > 0 && (
 					<DisclosureRow
 						title={t(SUGGESTED_ROW)}
@@ -244,7 +291,7 @@ export function FieldsList({
 									<Button
 										variant="outline"
 										size="xs"
-										disabled={addSuggested.isPending}
+										disabled={addSuggested.isPending || full}
 										onClick={() =>
 											addSuggested.mutate({
 												entity,
@@ -308,7 +355,7 @@ export function FieldsList({
 									<EmptyDescription>{t(EMPTY_BODY)}</EmptyDescription>
 								</EmptyHeader>
 								<EmptyContent>
-									<Button onClick={onNew}>
+									<Button onClick={onNew} disabled={full}>
 										<Icon icon={Add} data-icon="inline-start" />
 										{t(NEW_FIELD)}
 									</Button>
@@ -321,7 +368,7 @@ export function FieldsList({
 										{t(CUSTOM_GROUP)}
 									</span>
 									<span className="text-muted-foreground text-xs">
-										{t(DRAG_NOTE)}
+										{full ? t(CAP_NOTE) : t(DRAG_NOTE)}
 									</span>
 								</div>
 
@@ -415,7 +462,7 @@ export function FieldsList({
 
 			{live.length > 0 ? (
 				<div className="flex shrink-0 items-center justify-between gap-3 border-t px-5 py-3">
-					<Button onClick={onNew}>
+					<Button onClick={onNew} disabled={full}>
 						<Icon icon={Add} data-icon="inline-start" />
 						{t(NEW_FIELD)}
 					</Button>

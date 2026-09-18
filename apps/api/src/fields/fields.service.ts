@@ -6,6 +6,8 @@ import {
 } from "@crm/db";
 import {
 	attachValues,
+	FIELD_CAP_MESSAGE,
+	FIELD_LIMITS,
 	type FieldDefinitionWithOptions,
 	FieldValueError,
 	type FieldValueJson,
@@ -15,9 +17,15 @@ import {
 	recordColumn,
 	type SerializedField,
 	serializeField,
+	typeLabel,
 	usesOptions,
 	writeValues,
 } from "@crm/db/fields";
+import { lockIdempotencyKey } from "@crm/db/idempotency";
+import {
+	FIELD_PROPOSAL_KIND,
+	parseFieldProposalPayload,
+} from "@crm/validation/field-proposal";
 import {
 	BadRequestException,
 	ConflictException,
@@ -28,6 +36,7 @@ import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
 import type {
 	FieldCreateInput,
+	FieldProposalDecisionInput,
 	FieldReorderInput,
 	FieldUpdateData,
 } from "./fields.contracts";
@@ -36,6 +45,9 @@ import { FIELDS_CONFIG } from "./fields-config";
 const WITH_OPTIONS = {
 	options: { orderBy: { position: "asc" } },
 } as const satisfies Prisma.FieldDefinitionInclude;
+
+const PROPOSAL_ACCEPTED = "A person accepted this field.";
+const PROPOSAL_DISMISSED = "A person dismissed this field.";
 
 const RELATIONS = {
 	COMPANY: "company",
@@ -81,48 +93,62 @@ export class FieldsService {
 			throw new BadRequestException("That label does not make a usable key.");
 		}
 
-		const taken = await this.db.fieldDefinition.findUnique({
-			where: { entity_key: { entity: input.entity, key } },
-			select: { id: true },
-		});
-
-		if (taken) {
-			throw new ConflictException(`There is already a field called "${key}".`);
-		}
-
 		if (usesOptions(input.type) && input.options.length === 0) {
 			throw new BadRequestException("A select needs at least one option.");
 		}
 
-		const last = await this.db.fieldDefinition.findFirst({
-			where: { entity: input.entity },
-			orderBy: { position: "desc" },
-			select: { position: true },
-		});
+		const definition = await this.db.$transaction(async (tx) => {
+			await lockIdempotencyKey(tx, `field-definition:${input.entity}`);
 
-		const definition = await this.db.fieldDefinition.create({
-			data: {
-				entity: input.entity,
-				key,
-				label: input.label,
-				type: input.type,
-				agentFilled: input.agentFilled,
-				agentBrief: input.agentBrief,
-				required: input.required,
-				showOnSheet: input.showOnSheet,
-				showOnTable: input.showOnTable,
-				showOnFilter: input.showOnFilter,
-				position: (last?.position ?? -1) + 1,
-				options: usesOptions(input.type)
-					? {
-							create: input.options.map((option, index) => ({
-								label: option.label,
-								position: index,
-							})),
-						}
-					: undefined,
-			},
-			include: WITH_OPTIONS,
+			const taken = await tx.fieldDefinition.findUnique({
+				where: { entity_key: { entity: input.entity, key } },
+				select: { id: true },
+			});
+
+			if (taken) {
+				throw new ConflictException(
+					`There is already a field called "${key}".`,
+				);
+			}
+
+			const live = await tx.fieldDefinition.count({
+				where: { entity: input.entity, archivedAt: null },
+			});
+
+			if (live >= FIELD_LIMITS.perEntity) {
+				throw new ConflictException(FIELD_CAP_MESSAGE);
+			}
+
+			const last = await tx.fieldDefinition.findFirst({
+				where: { entity: input.entity },
+				orderBy: { position: "desc" },
+				select: { position: true },
+			});
+
+			return tx.fieldDefinition.create({
+				data: {
+					entity: input.entity,
+					key,
+					label: input.label,
+					type: input.type,
+					agentFilled: input.agentFilled,
+					agentBrief: input.agentBrief,
+					required: input.required,
+					showOnSheet: input.showOnSheet,
+					showOnTable: input.showOnTable,
+					showOnFilter: input.showOnFilter,
+					position: (last?.position ?? -1) + 1,
+					options: usesOptions(input.type)
+						? {
+								create: input.options.map((option, index) => ({
+									label: option.label,
+									position: index,
+								})),
+							}
+						: undefined,
+				},
+				include: WITH_OPTIONS,
+			});
 		});
 
 		if (definition.agentFilled) {
@@ -140,6 +166,70 @@ export class FieldsService {
 		}
 
 		return serializeField(definition);
+	}
+
+	async proposals(entity: FieldEntity) {
+		const rows = await this.db.agentTask.findMany({
+			where: { kind: FIELD_PROPOSAL_KIND, finishedAt: null },
+			orderBy: { createdAt: "asc" },
+			select: { id: true, reason: true, payload: true },
+		});
+
+		return rows
+			.map((row) => ({
+				id: row.id,
+				reason: row.reason,
+				...parseFieldProposalPayload(row.payload),
+			}))
+			.filter((proposal) => proposal.entity === entity)
+			.map((proposal) => ({
+				id: proposal.id,
+				entity: proposal.entity,
+				label: proposal.label,
+				type: proposal.type,
+				typeLabel: typeLabel(proposal.type),
+				options: proposal.options,
+				reason: proposal.reason,
+			}));
+	}
+
+	async decideProposal(
+		input: FieldProposalDecisionInput,
+	): Promise<{ id: string; accepted: boolean }> {
+		const row = await this.db.agentTask.findFirst({
+			where: { id: input.id, kind: FIELD_PROPOSAL_KIND, finishedAt: null },
+			select: { id: true, payload: true },
+		});
+
+		if (!row) throw new NotFoundException("That proposal is already decided.");
+
+		const proposal = parseFieldProposalPayload(row.payload);
+
+		if (input.decision === "accept") {
+			await this.create({
+				entity: proposal.entity,
+				label: proposal.label,
+				type: proposal.type,
+				options: proposal.options.map((label) => ({ label })),
+				agentFilled: true,
+				agentBrief: proposal.agentBrief,
+				required: false,
+				showOnSheet: true,
+				showOnTable: false,
+				showOnFilter: false,
+			});
+		}
+
+		await this.db.agentTask.updateMany({
+			where: { id: row.id, finishedAt: null },
+			data: {
+				finishedAt: new Date(),
+				outcome:
+					input.decision === "accept" ? PROPOSAL_ACCEPTED : PROPOSAL_DISMISSED,
+			},
+		});
+
+		return { id: row.id, accepted: input.decision === "accept" };
 	}
 
 	async update(id: string, data: FieldUpdateData): Promise<SerializedField> {

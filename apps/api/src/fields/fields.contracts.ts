@@ -1,4 +1,5 @@
 import { FIELD_ENTITIES, FIELD_TYPES } from "@crm/db/fields";
+import { PROPOSABLE_FIELD_TYPES } from "@crm/validation/field-proposal";
 import { z } from "zod";
 
 export const fieldEntity = z.enum(FIELD_ENTITIES);
@@ -107,6 +108,32 @@ export const fieldReorderOutput = z.array(serializedFieldOutput);
 export const fieldCoverageOutput = z.object({
 	filled: z.number(),
 	total: z.number(),
+});
+
+export const fieldProposalOutput = z.array(
+	z.object({
+		id: z.string(),
+		entity: fieldEntity,
+		label: z.string(),
+		type: z.enum(PROPOSABLE_FIELD_TYPES),
+		typeLabel: z.string(),
+		options: z.array(z.string()),
+		reason: z.string(),
+	}),
+);
+
+export const fieldProposalDecisionInput = z.object({
+	id: z.string(),
+	decision: z.enum(["accept", "dismiss"]),
+});
+
+export type FieldProposalDecisionInput = z.infer<
+	typeof fieldProposalDecisionInput
+>;
+
+export const fieldProposalDecisionOutput = z.object({
+	id: z.string(),
+	accepted: z.boolean(),
 });
 
 export const fieldDeleteOutput = z.object({ id: z.string() });

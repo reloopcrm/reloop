@@ -2,6 +2,8 @@ import { db } from "@crm/db";
 import type { FieldEntity, FieldType } from "@crm/db/enums";
 import {
 	attachValues,
+	FIELD_CAP_MESSAGE,
+	FIELD_LIMITS,
 	type FieldDefinitionWithOptions,
 	FieldValueError,
 	fieldKeyFromLabel,
@@ -129,49 +131,61 @@ export async function createField(input: {
 		return { created: false, reason: "That label does not make a usable key." };
 	}
 
-	const taken = await db.fieldDefinition.findUnique({
-		where: { entity_key: { entity: input.entity, key } },
-		select: { id: true },
-	});
-
-	if (taken) {
-		return {
-			created: false,
-			reason: `There is already a field called "${key}" on ${input.entity.toLowerCase()}s.`,
-		};
-	}
-
 	if (usesOptions(input.type) && (input.options ?? []).length === 0) {
 		return { created: false, reason: "A select needs at least one option." };
 	}
 
-	const last = await db.fieldDefinition.findFirst({
-		where: { entity: input.entity },
-		orderBy: { position: "desc" },
-		select: { position: true },
+	const outcome = await db.$transaction(async (tx) => {
+		await lockIdempotencyKey(tx, `field-definition:${input.entity}`);
+
+		const taken = await tx.fieldDefinition.findUnique({
+			where: { entity_key: { entity: input.entity, key } },
+			select: { id: true },
+		});
+
+		if (taken) {
+			return {
+				created: false as const,
+				reason: `There is already a field called "${key}" on ${input.entity.toLowerCase()}s.`,
+			};
+		}
+
+		const live = await tx.fieldDefinition.count({
+			where: { entity: input.entity, archivedAt: null },
+		});
+
+		if (live >= FIELD_LIMITS.perEntity) {
+			return { created: false as const, reason: FIELD_CAP_MESSAGE };
+		}
+
+		const last = await tx.fieldDefinition.findFirst({
+			where: { entity: input.entity },
+			orderBy: { position: "desc" },
+			select: { position: true },
+		});
+
+		return tx.fieldDefinition.create({
+			data: {
+				entity: input.entity,
+				key,
+				label: input.label,
+				type: input.type,
+				agentBrief: input.agentBrief ?? null,
+				position: (last?.position ?? -1) + 1,
+				options: usesOptions(input.type)
+					? {
+							create: (input.options ?? []).map((label, index) => ({
+								label,
+								position: index,
+							})),
+						}
+					: undefined,
+			},
+			include: WITH_OPTIONS,
+		});
 	});
 
-	const definition = await db.fieldDefinition.create({
-		data: {
-			entity: input.entity,
-			key,
-			label: input.label,
-			type: input.type,
-			agentBrief: input.agentBrief ?? null,
-			position: (last?.position ?? -1) + 1,
-			options: usesOptions(input.type)
-				? {
-						create: (input.options ?? []).map((label, index) => ({
-							label,
-							position: index,
-						})),
-					}
-				: undefined,
-		},
-		include: WITH_OPTIONS,
-	});
-
-	return serializeField(definition);
+	return "created" in outcome ? outcome : serializeField(outcome);
 }
 
 export async function updateFieldBrief(input: {

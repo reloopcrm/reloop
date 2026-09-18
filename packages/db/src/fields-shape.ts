@@ -1,3 +1,13 @@
+export const FIELD_LIMITS = {
+	perEntity: 20,
+	proposalsPerRun: 4,
+	minMentions: 3,
+	maxOptions: 8,
+} as const;
+
+export const FIELD_CAP_MESSAGE =
+	"This record type already has as many fields as a sheet can show. Archive one before you add another.";
+
 export const FIELD_ENTITIES = ["COMPANY", "CONTACT", "DEAL"] as const;
 
 export type FieldEntityName = (typeof FIELD_ENTITIES)[number];

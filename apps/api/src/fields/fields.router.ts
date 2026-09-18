@@ -14,6 +14,9 @@ import {
 	fieldIdInput,
 	fieldListInput,
 	fieldListOutput,
+	fieldProposalDecisionInput,
+	fieldProposalDecisionOutput,
+	fieldProposalOutput,
 	fieldReorderInput,
 	fieldReorderOutput,
 	fieldUpdateArgs,
@@ -69,6 +72,26 @@ export class FieldsRouter {
 	})
 	async create(@Input() input: z.infer<typeof fieldCreateInput>) {
 		return this.fields.create(input);
+	}
+
+	@Query({
+		input: fieldEntityInput,
+		output: fieldProposalOutput,
+		meta: restMeta("GET", "/fields/{entity}/proposals", ["Fields"]),
+	})
+	async proposals(@Input() input: z.infer<typeof fieldEntityInput>) {
+		return this.fields.proposals(input.entity);
+	}
+
+	@Mutation({
+		input: fieldProposalDecisionInput,
+		output: fieldProposalDecisionOutput,
+		meta: restMeta("POST", "/fields/proposals/{id}/decide", ["Fields"]),
+	})
+	async decideProposal(
+		@Input() input: z.infer<typeof fieldProposalDecisionInput>,
+	) {
+		return this.fields.decideProposal(input);
 	}
 
 	@Mutation({

@@ -40,6 +40,16 @@ export const crmRecords: Dictionary = {
 	"More for {label}": "Mehr zu {label}",
 	"{entity} · {filled} of {total} filled":
 		"{entity} · {filled} von {total} gefüllt",
+	"Proposed by your agent": "Von deinem Agenten vorgeschlagen",
+	"Added to your fields.": "Zu deinen Feldern hinzugefügt.",
+	"Dismissed. It will not be proposed again.":
+		"Abgelehnt. Es wird nicht noch einmal vorgeschlagen.",
+	"Full. Archive one to add another":
+		"Voll. Archiviere eines, um ein weiteres anzulegen",
+	"This record type already has as many fields as a sheet can show. Archive one before you add another.":
+		"Dieser Datensatztyp hat bereits so viele Felder, wie ein Blatt zeigen kann. Archiviere eines, bevor du ein weiteres anlegst.",
+	"That proposal is already decided.":
+		"Dieser Vorschlag ist bereits entschieden.",
 	Fields: "Felder",
 	None: "Keine Angabe",
 	Search: "Suche",

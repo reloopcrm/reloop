@@ -82,6 +82,7 @@ const VERBS: ToolVerbs = {
 	list_fields: "Read what this workspace tracks",
 	set_field_value: "Filled in a custom field",
 	manage_fields: "Changed what the CRM tracks",
+	propose_fields: "Proposed what the CRM should track",
 	archive_field: "Asked to retire a field",
 
 	load_skill: "Read its instructions for this",

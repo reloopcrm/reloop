@@ -23,6 +23,7 @@ const STEPS = {
 	"usage-probe": "Reading the subscription limit",
 	"contact-clean": "Reading their signature",
 	"playbook-learn": "Learning from your replies",
+	"field-proposal": "Waiting for you to accept a field",
 } satisfies Record<TaskKind, string>;
 
 const STEP_BY_KIND = new Map<string, string>(Object.entries(STEPS));

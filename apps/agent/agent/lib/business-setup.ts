@@ -9,6 +9,7 @@ import {
 } from "@crm/validation/win-back-rules";
 import { streamText } from "ai";
 import { z } from "zod";
+import { runFieldProposals } from "./field-proposals";
 import { language, say } from "./language";
 import { directModel } from "./model";
 import { fetchPage } from "./website-brand";
@@ -46,7 +47,7 @@ export const businessProposal = z.object({
 	note: trimmed(400),
 });
 
-async function sample(): Promise<string> {
+export async function sample(): Promise<string> {
 	const threads = await db.emailThread.findMany({
 		orderBy: { lastMessageAt: "desc" },
 		take: BUSINESS_SETUP.threadSample,
@@ -237,7 +238,9 @@ export async function runBusinessSetup(
 			});
 			await writeWinBackRulesState(db, { note, mode: "auto" });
 
-			return note;
+			if (!fromMail) return note;
+
+			return `${note} ${await runFieldProposals(source, buildModel)}`;
 		} catch (error) {
 			lastError =
 				`not valid JSON (${error instanceof Error ? error.message : String(error)})`.slice(

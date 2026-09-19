@@ -15,7 +15,7 @@ import { IndicatorDot } from "@crm/ui/components/status-indicator";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { cleanSubject } from "@crm/ui/lib/email-text";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useQueryState } from "nuqs";
+import { parseAsString, useQueryState } from "nuqs";
 import { DetailSheetEmpty } from "@/components/detail-sheet";
 import { LocalDateTime, localDayKey } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -25,6 +25,7 @@ import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
 import { useHydrated } from "@/lib/use-hydrated";
 import { ActivityComposer } from "./activity-composer";
+import { AttentionBlock } from "./attention-block";
 import { EmailThreadEntry, speaker } from "./email-thread-entry";
 import { TIMELINE, tabCount } from "./timeline-config";
 import {
@@ -161,15 +162,22 @@ function dayKey(value: string, local: boolean): string {
 function TimelineRows({
 	entries,
 	anchor,
+	openThreadId,
 }: {
 	entries: TimelineEntryData[];
 	anchor: TimelineAnchor;
+	openThreadId: string | null;
 }) {
 	return (
 		<>
 			{entries.map((entry) =>
 				entry.emailThread?.lastMessage ? (
-					<EmailThreadEntry key={entry.id} entry={entry} anchor={anchor} />
+					<EmailThreadEntry
+						key={entry.id}
+						entry={entry}
+						anchor={anchor}
+						openThreadId={openThreadId}
+					/>
 				) : (
 					<TimelineEntry key={entry.id} entry={entry} anchor={anchor} />
 				),
@@ -228,6 +236,11 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 		SEARCH_PARAM.record.timeline,
 		timelineTabParser,
 	);
+	const [openThreadId] = useQueryState(
+		SEARCH_PARAM.record.thread,
+		parseAsString,
+	);
+	const contactId = "contactId" in anchor ? anchor.contactId : null;
 
 	const counts = useQuery(trpc.activities.timelineCounts.queryOptions(anchor));
 
@@ -293,7 +306,11 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 				</ToggleGroup>
 			</div>
 
-			{newestEmail ? <WaitingLine entry={newestEmail} /> : null}
+			{contactId ? (
+				<AttentionBlock contactId={contactId} />
+			) : newestEmail ? (
+				<WaitingLine entry={newestEmail} />
+			) : null}
 
 			{history.isPending ? (
 				<div className="flex min-h-0 flex-1 items-center justify-center">
@@ -319,7 +336,11 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 										: t("{count} open tasks", { count: openTasks })
 							}
 						>
-							<TimelineRows entries={pinnedEntries} anchor={anchor} />
+							<TimelineRows
+								entries={pinnedEntries}
+								anchor={anchor}
+								openThreadId={openThreadId}
+							/>
 						</EventGroup>
 					) : null}
 
@@ -328,7 +349,11 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 							key={group.day}
 							label={dayLabel(group.day, hydrated, t, locale)}
 						>
-							<TimelineRows entries={group.entries} anchor={anchor} />
+							<TimelineRows
+								entries={group.entries}
+								anchor={anchor}
+								openThreadId={openThreadId}
+							/>
 						</EventGroup>
 					))}
 

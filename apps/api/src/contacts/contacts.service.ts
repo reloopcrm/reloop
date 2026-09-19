@@ -7,11 +7,16 @@ import {
 	Prisma as PrismaNamespace,
 	type RecordSource,
 } from "@crm/db";
+import {
+	type ContactAttention,
+	readContactAttention,
+} from "@crm/db/contact-attention";
 import type {
 	FieldDefinitionWithOptions,
 	FieldValueJson,
 } from "@crm/db/fields";
 import { readDraftRole } from "@crm/validation/draft-style";
+import { readWinBackRules } from "@crm/validation/win-back-rules";
 import {
 	ConflictException,
 	Injectable,
@@ -336,6 +341,12 @@ export class ContactsService {
 				expectedCloseDate: deal.expectedCloseDate?.toISOString() ?? null,
 			})),
 		};
+	}
+
+	async attention(id: string): Promise<ContactAttention> {
+		const rules = await readWinBackRules(this.db);
+
+		return readContactAttention(this.db, { contactId: id, rules });
 	}
 
 	async create(input: ContactCreateInput) {

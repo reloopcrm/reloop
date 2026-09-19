@@ -5,7 +5,10 @@ import {
 	FactStatus,
 	RecordSource,
 } from "@crm/db";
+import { ATTENTION_KINDS } from "@crm/db/contact-attention";
+import { CONTACT_WORTH } from "@crm/db/contact-worth";
 import { FIELD_ENTITIES, FIELD_TYPES } from "@crm/db/fields";
+import { INSIGHT_OUTCOMES, INSIGHT_SIDES } from "@crm/db/insights";
 import { DRAFT_STYLE, draftRole } from "@crm/validation/draft-style";
 import { z } from "zod";
 import { bulkIdsInput } from "../crm/bulk";
@@ -326,4 +329,89 @@ export const decideFactOutput = z.object({
 	contactId: z.string(),
 	field: z.string(),
 	applied: z.boolean(),
+});
+
+const attentionSource = z.object({
+	threadId: z.string(),
+	subject: z.string().nullable(),
+	at: z.string(),
+});
+
+const attentionMoment = z.object({
+	at: z.string(),
+	threadId: z.string().nullable(),
+});
+
+const attentionField = z.discriminatedUnion("key", [
+	z.object({
+		key: z.literal("standing"),
+		standing: z.string(),
+		potential: z.string().nullable(),
+		worth: z.enum(CONTACT_WORTH).nullable(),
+		threadsRead: z.number(),
+	}),
+	z.object({
+		key: z.literal("outcome"),
+		outcome: z.enum(INSIGHT_OUTCOMES),
+		source: attentionSource.nullable(),
+	}),
+	z.object({
+		key: z.literal("quantity"),
+		pallets: z.number().nullable(),
+		loads: z.number().nullable(),
+		source: attentionSource.nullable(),
+	}),
+	z.object({
+		key: z.literal("side"),
+		side: z.enum(INSIGHT_SIDES),
+		source: attentionSource.nullable(),
+	}),
+	z.object({
+		key: z.enum(["products", "asked"]),
+		values: z.array(z.string()),
+		source: attentionSource.nullable(),
+	}),
+	z.object({
+		key: z.literal("task"),
+		activityId: z.string(),
+		subject: z.string().nullable(),
+		dueAt: z.string().nullable(),
+	}),
+	z.object({
+		key: z.literal("bought"),
+		dealId: z.string(),
+		name: z.string(),
+		amountCents: z.number().nullable(),
+		currency: z.string(),
+	}),
+]);
+
+export const contactAttentionOutput = z.object({
+	kind: z.enum(ATTENTION_KINDS),
+	quietDays: z.number(),
+	emails: z.number(),
+	firstContactAt: z.string().nullable(),
+	lastInbound: attentionMoment.nullable(),
+	lastOutbound: attentionMoment.nullable(),
+	reply: z.object({
+		email: z.string().nullable(),
+		subject: z.string().nullable(),
+	}),
+	fields: z.array(attentionField),
+	evidence: z.object({ quote: z.string(), source: attentionSource }).nullable(),
+	points: z
+		.object({
+			total: z.number(),
+			band: z.string().nullable(),
+			lines: z.array(
+				z.object({
+					label: z.string(),
+					points: z.number(),
+					vars: z
+						.record(z.string(), z.union([z.string(), z.number()]))
+						.optional(),
+				}),
+			),
+		})
+		.nullable(),
 });

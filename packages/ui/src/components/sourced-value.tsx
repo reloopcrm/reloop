@@ -5,9 +5,41 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@crm/ui/components/tooltip";
+import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
 
 export const SOURCED_VALUE = "underline decoration-dotted underline-offset-4";
+
+export function SourceLink({
+	children,
+	...props
+}: React.ComponentProps<"button">) {
+	return (
+		<button
+			type="button"
+			data-slot="source-link"
+			className={cn(
+				"inline-flex max-w-full items-baseline truncate rounded-xs font-mono text-muted-foreground text-xs outline-none",
+				SOURCED_VALUE,
+				"hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60",
+			)}
+			{...props}
+		>
+			{children}
+		</button>
+	);
+}
+
+export function SourceNote({ children }: { children: React.ReactNode }) {
+	return (
+		<span
+			data-slot="source-note"
+			className="font-mono text-muted-foreground text-xs"
+		>
+			{children}
+		</span>
+	);
+}
 
 export function SourcedValue({
 	children,

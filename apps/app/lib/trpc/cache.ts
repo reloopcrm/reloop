@@ -74,6 +74,7 @@ export function useCrmCache(): CrmCache {
 		trpc.activities.timeline.pathKey(),
 		trpc.activities.timelineCounts.queryKey(),
 		trpc.activities.myTasks.queryKey(),
+		trpc.contacts.attention.queryKey(),
 	];
 
 	const listKeys = () => [

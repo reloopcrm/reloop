@@ -54,24 +54,31 @@ function replyAddress(message: ThreadMessageData): string | null {
 	return message.recipients[0]?.email ?? null;
 }
 
+export function threadAnchorId(threadId: string): string {
+	return `thread-${threadId}`;
+}
+
 export function EmailThreadEntry({
 	entry,
 	anchor,
+	openThreadId,
 }: {
 	entry: TimelineEntryData;
 	anchor: TimelineAnchor;
+	openThreadId?: string | null;
 }) {
 	const t = useT();
 	const trpc = useTRPC();
 	const [opened, setOpened] = useState(false);
 
 	const threadId = entry.emailThread?.id ?? "";
+	const linked = threadId !== "" && threadId === openThreadId;
 	const last = entry.emailThread?.lastMessage ?? null;
 	const when = entry.occurredAt ?? entry.createdAt;
 
 	const thread = useQuery({
 		...trpc.google.thread.queryOptions({ threadId }),
-		enabled: opened,
+		enabled: opened || linked,
 	});
 
 	if (!last) return null;
@@ -177,6 +184,8 @@ export function EmailThreadEntry({
 			subject={subject}
 			preview={preview}
 			panel={panel}
+			anchorId={threadId === "" ? undefined : threadAnchorId(threadId)}
+			defaultOpen={linked}
 			onOpen={() => setOpened(true)}
 		/>
 	);

@@ -206,6 +206,8 @@ function EventRow({
 	preview,
 	panel,
 	onOpen,
+	defaultOpen = false,
+	anchorId,
 	className,
 	...props
 }: {
@@ -217,6 +219,8 @@ function EventRow({
 	preview?: React.ReactNode;
 	panel?: React.ReactNode;
 	onOpen?: () => void;
+	defaultOpen?: boolean;
+	anchorId?: string;
 	className?: string;
 	"data-demo"?: string;
 }) {
@@ -258,9 +262,10 @@ function EventRow({
 			<div
 				data-slot="event-row"
 				data-voice={voice}
+				id={anchorId}
 				className={cn(
 					COLUMNS,
-					"h-7 rounded-md text-sm hover:bg-muted max-md:h-11",
+					"h-7 scroll-mt-8 rounded-md text-sm hover:bg-muted max-md:h-11",
 					className,
 				)}
 				{...props}
@@ -274,8 +279,10 @@ function EventRow({
 		<details
 			data-slot="event-row"
 			data-voice={voice}
+			id={anchorId}
+			{...(defaultOpen ? { open: true } : {})}
 			className={cn(
-				"group/event rounded-md text-sm open:my-1 open:bg-muted",
+				"group/event scroll-mt-8 rounded-md text-sm open:my-1 open:bg-muted",
 				className,
 			)}
 			onToggle={(event) => {

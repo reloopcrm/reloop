@@ -42,8 +42,11 @@ export type ReactivationCandidate = {
 	standing: string | null;
 	potential: string | null;
 	lastContactAt: Date;
+	firstContactAt: Date;
 	lastInboundAt: Date | null;
 	lastOutboundAt: Date | null;
+	lastInboundThreadId: string | null;
+	lastOutboundThreadId: string | null;
 	quietDays: number;
 	threads: number;
 	messagesFromThem: number;
@@ -134,7 +137,10 @@ type Row = {
 	fromUs: bigint;
 	lastInbound: Date | null;
 	lastOutbound: Date | null;
+	lastInboundThread: string | null;
+	lastOutboundThread: string | null;
 	lastContact: Date;
+	firstContact: Date;
 	meetings: bigint;
 	openDeals: bigint;
 	wonDeals: bigint;
@@ -151,53 +157,16 @@ type Row = {
 	feedback: string | null;
 };
 
-export async function listReactivationCandidates(
-	db: Db,
-	options: ReactivationOptions = {},
-): Promise<ReactivationReport> {
-	const now = options.now ?? new Date();
-	const quietForDays = clamp(
-		options.quietForDays ?? REACTIVATION.quietForDays.default,
-		REACTIVATION.quietForDays.min,
-		REACTIVATION.quietForDays.max,
-	);
-	const limit = clamp(
-		options.limit ?? REACTIVATION.limit.default,
-		REACTIVATION.limit.min,
-		REACTIVATION.limit.max,
-	);
-	const rules = options.rules ?? DEFAULT_WIN_BACK_RULES;
-	const cutoff = new Date(now.getTime() - quietForDays * DAY_MS);
-	const standingFilter = options.rejected
-		? Prisma.sql`fb.verdict = 'bad'`
-		: Prisma.sql`c."archivedAt" IS NULL
-			AND (fb.verdict IS NULL OR fb.verdict <> 'bad')`;
-	const quietFilter =
-		quietForDays > 0
-			? Prisma.sql`AND mail.last_contact <= ${cutoff}`
-			: Prisma.empty;
-	const topicFilter = rules.include.requireTopic
-		? Prisma.sql`AND mem."didBusiness" IS NOT NULL AND array_length(mem."coveredThreadIds", 1) > 0`
-		: Prisma.empty;
+function rowQuery(
+	where: Prisma.Sql,
+	limit: number,
+	mailFilter: Prisma.Sql = Prisma.empty,
+): Prisma.Sql {
 	const openStages = Prisma.join(
 		OPEN_DEAL_STAGES.map((stage) => Prisma.sql`${stage}::"DealStage"`),
 	);
-	const ownerFilter = options.ownerId
-		? Prisma.sql`AND c."ownerId" = ${options.ownerId}`
-		: Prisma.empty;
-	const repliedFilter = rules.include.neverReplied
-		? Prisma.empty
-		: Prisma.sql`AND mail.from_us > 0`;
-	const companyFilter = rules.include.requireCompany
-		? Prisma.sql`AND co.id IS NOT NULL`
-		: Prisma.empty;
-	const excluded = rules.excludedDomains.map((domain) => domain.toLowerCase());
-	const domainFilter =
-		excluded.length > 0
-			? Prisma.sql`AND (c.email IS NULL OR split_part(lower(c.email), '@', 2) NOT IN (${Prisma.join(excluded)}))`
-			: Prisma.empty;
 
-	const rows = await db.$queryRaw<Row[]>`
+	return Prisma.sql`
 		WITH mail AS (
 			SELECT
 				t."contactId" AS contact_id,
@@ -206,10 +175,14 @@ export async function listReactivationCandidates(
 				COUNT(*) FILTER (WHERE m.direction = 'OUTBOUND') AS from_us,
 				MAX(m."sentAt") FILTER (WHERE m.direction = 'INBOUND') AS last_inbound,
 				MAX(m."sentAt") FILTER (WHERE m.direction = 'OUTBOUND') AS last_outbound,
-				MAX(m."sentAt") AS last_contact
+				(array_agg(t.id ORDER BY m."sentAt" DESC) FILTER (WHERE m.direction = 'INBOUND'))[1] AS last_inbound_thread,
+				(array_agg(t.id ORDER BY m."sentAt" DESC) FILTER (WHERE m.direction = 'OUTBOUND'))[1] AS last_outbound_thread,
+				MAX(m."sentAt") AS last_contact,
+				MIN(m."sentAt") AS first_contact
 			FROM "emailThread" t
 			JOIN "emailMessage" m ON m."threadId" = t.id
 			WHERE t."contactId" IS NOT NULL
+				${mailFilter}
 			GROUP BY t."contactId"
 		)
 		SELECT
@@ -230,7 +203,10 @@ export async function listReactivationCandidates(
 			mail.from_us AS "fromUs",
 			mail.last_inbound AS "lastInbound",
 			mail.last_outbound AS "lastOutbound",
+			mail.last_inbound_thread AS "lastInboundThread",
+			mail.last_outbound_thread AS "lastOutboundThread",
 			mail.last_contact AS "lastContact",
+			mail.first_contact AS "firstContact",
 			(
 				SELECT COUNT(*) FROM "calendarAttendee" a WHERE a."contactId" = c.id
 			) AS meetings,
@@ -268,7 +244,79 @@ export async function listReactivationCandidates(
 		LEFT JOIN "user" u ON u.id = c."ownerId"
 		LEFT JOIN "contactMemory" mem ON mem."contactId" = c.id
 		LEFT JOIN "potentialFeedback" fb ON fb."contactId" = c.id
-		WHERE ${standingFilter}
+		WHERE ${where}
+		ORDER BY mail.last_contact DESC, c.id
+		LIMIT ${limit}
+	`;
+}
+
+export async function readReactivationCandidate(
+	db: Db,
+	options: { contactId: string; now?: Date; rules?: WinBackRuleSet },
+): Promise<ReactivationCandidate | null> {
+	const rows = await db.$queryRaw<Row[]>(
+		rowQuery(
+			Prisma.sql`c.id = ${options.contactId}`,
+			1,
+			Prisma.sql`AND t."contactId" = ${options.contactId}`,
+		),
+	);
+	const row = rows[0];
+	if (!row) return null;
+
+	return candidateOf(
+		row,
+		options.now ?? new Date(),
+		options.rules ?? DEFAULT_WIN_BACK_RULES,
+	);
+}
+
+export async function listReactivationCandidates(
+	db: Db,
+	options: ReactivationOptions = {},
+): Promise<ReactivationReport> {
+	const now = options.now ?? new Date();
+	const quietForDays = clamp(
+		options.quietForDays ?? REACTIVATION.quietForDays.default,
+		REACTIVATION.quietForDays.min,
+		REACTIVATION.quietForDays.max,
+	);
+	const limit = clamp(
+		options.limit ?? REACTIVATION.limit.default,
+		REACTIVATION.limit.min,
+		REACTIVATION.limit.max,
+	);
+	const rules = options.rules ?? DEFAULT_WIN_BACK_RULES;
+	const cutoff = new Date(now.getTime() - quietForDays * DAY_MS);
+	const standingFilter = options.rejected
+		? Prisma.sql`fb.verdict = 'bad'`
+		: Prisma.sql`c."archivedAt" IS NULL
+			AND (fb.verdict IS NULL OR fb.verdict <> 'bad')`;
+	const quietFilter =
+		quietForDays > 0
+			? Prisma.sql`AND mail.last_contact <= ${cutoff}`
+			: Prisma.empty;
+	const topicFilter = rules.include.requireTopic
+		? Prisma.sql`AND mem."didBusiness" IS NOT NULL AND array_length(mem."coveredThreadIds", 1) > 0`
+		: Prisma.empty;
+	const ownerFilter = options.ownerId
+		? Prisma.sql`AND c."ownerId" = ${options.ownerId}`
+		: Prisma.empty;
+	const repliedFilter = rules.include.neverReplied
+		? Prisma.empty
+		: Prisma.sql`AND mail.from_us > 0`;
+	const companyFilter = rules.include.requireCompany
+		? Prisma.sql`AND co.id IS NOT NULL`
+		: Prisma.empty;
+	const excluded = rules.excludedDomains.map((domain) => domain.toLowerCase());
+	const domainFilter =
+		excluded.length > 0
+			? Prisma.sql`AND (c.email IS NULL OR split_part(lower(c.email), '@', 2) NOT IN (${Prisma.join(excluded)}))`
+			: Prisma.empty;
+
+	const rows = await db.$queryRaw<Row[]>(
+		rowQuery(
+			Prisma.sql`${standingFilter}
 			${quietFilter}
 			${topicFilter}
 			AND (mail.from_us + mail.from_them) >= ${rules.include.minEmails}
@@ -276,10 +324,10 @@ export async function listReactivationCandidates(
 			${repliedFilter}
 			${companyFilter}
 			${domainFilter}
-			${ownerFilter}
-		ORDER BY mail.last_contact DESC, c.id
-		LIMIT ${REACTIVATION.scan.maxRows}
-	`;
+			${ownerFilter}`,
+			REACTIVATION.scan.maxRows,
+		),
+	);
 
 	const scored = rows
 		.map((row) => candidateOf(row, now, rules))
@@ -636,8 +684,11 @@ function candidateOf(
 		standing: row.standing,
 		potential: row.potentialBand,
 		lastContactAt: row.lastContact,
+		firstContactAt: row.firstContact,
 		lastInboundAt: row.lastInbound,
 		lastOutboundAt: row.lastOutbound,
+		lastInboundThreadId: row.lastInboundThread,
+		lastOutboundThreadId: row.lastOutboundThread,
 		quietDays,
 		threads,
 		messagesFromThem,

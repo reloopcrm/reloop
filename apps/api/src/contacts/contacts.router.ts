@@ -13,6 +13,7 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
 	bulkResultOutput,
+	contactAttentionOutput,
 	contactBasicOutput,
 	contactBulkCompanyInput,
 	contactBulkInput,
@@ -55,6 +56,15 @@ export class ContactsRouter {
 	})
 	async byId(@Input("id") id: string) {
 		return this.contacts.byId(id);
+	}
+
+	@Query({
+		input: contactIdInput,
+		output: contactAttentionOutput,
+		meta: restMeta("GET", "/contacts/{id}/attention", ["Contacts"]),
+	})
+	async attention(@Input("id") id: string) {
+		return this.contacts.attention(id);
 	}
 
 	@Mutation({

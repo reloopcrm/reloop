@@ -75,6 +75,7 @@ function insight(over: Partial<AttentionInsight> = {}): AttentionInsight {
 		products: ["Europalette EPAL", "Gitterbox"],
 		topics: ["Abholfenster"],
 		evidence: ["Wir brauchen 620 Stück, Klasse A, sortenrein."],
+		evidenceMessageIds: ["m-620"],
 		...over,
 	};
 }
@@ -377,6 +378,31 @@ describe("every claim the block makes carries a link", () => {
 		expect(read.evidence?.quote).toBe(
 			"Wir brauchen 620 Stück, Klasse A, sortenrein.",
 		);
+	});
+
+	it("names the one mail the quote comes from", () => {
+		const read = attentionOf(
+			facts({
+				insight: insight({
+					evidence: ["   ", "Wir brauchen 620 Stück."],
+					evidenceMessageIds: ["m-first", "m-second"],
+				}),
+			}),
+		);
+
+		expect(read.evidence?.quote).toBe("Wir brauchen 620 Stück.");
+		expect(read.evidence?.messageId).toBe("m-second");
+	});
+
+	it("keeps the quote without a deep link when no mail is named", () => {
+		const read = attentionOf(
+			facts({ insight: insight({ evidenceMessageIds: [""] }) }),
+		);
+
+		expect(read.evidence?.quote).toBe(
+			"Wir brauchen 620 Stück, Klasse A, sortenrein.",
+		);
+		expect(read.evidence?.messageId).toBeNull();
 	});
 
 	it("keeps no evidence block when the thread carries no quote", () => {

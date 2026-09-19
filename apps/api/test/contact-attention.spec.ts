@@ -288,6 +288,77 @@ describe("readContactAttention picks the case from what the agent stored", () =>
 		);
 	});
 
+	it("leaves the quote without a deep link on a row stored before message ids", async () => {
+		const answer = await read(waiting);
+
+		expect(answer.evidence?.quote).not.toBeUndefined();
+		expect(answer.evidence?.messageId).toBeNull();
+	});
+
+	it("names the one mail an evidence quote comes from", async () => {
+		const contact = await db.contact.create({
+			data: {
+				firstName: "Quoted",
+				email: `quoted@${domain}`,
+				standing: "customer",
+				potentialBand: "high",
+			},
+			select: { id: true },
+		});
+		const thread = await db.emailThread.create({
+			data: {
+				rootMessageId: `Quoted-${suffix}@${domain}`,
+				subject: "Bedarf Q4 Quoted",
+				contactId: contact.id,
+				firstMessageAt: daysAgo(9),
+				lastMessageAt: daysAgo(4),
+				messageCount: 2,
+				messages: {
+					create: [
+						{
+							rfcMessageId: `Quoted-0-${suffix}@${domain}`,
+							syncedByUserId: rep,
+							direction: EmailDirection.OUTBOUND,
+							fromEmail: `rep@${domain}`,
+							recipients: [],
+							subject: "Bedarf Q4 Quoted",
+							sentAt: daysAgo(9),
+						},
+						{
+							rfcMessageId: `Quoted-1-${suffix}@${domain}`,
+							syncedByUserId: rep,
+							direction: EmailDirection.INBOUND,
+							fromEmail: `quoted@${domain}`,
+							recipients: [],
+							subject: "Bedarf Q4 Quoted",
+							sentAt: daysAgo(4),
+						},
+					],
+				},
+			},
+			select: { id: true, messages: { orderBy: { sentAt: "asc" } } },
+		});
+		const quoted = thread.messages[1];
+		if (!quoted) throw new Error("the thread stored no message");
+
+		await db.threadInsight.create({
+			data: {
+				threadId: thread.id,
+				relevant: true,
+				summary: "read by the agent",
+				modelId: "test",
+				lastMessageAt: daysAgo(4),
+				...OFFER,
+				evidenceMessageIds: [quoted.id],
+			},
+		});
+
+		const answer = await read(contact.id);
+
+		expect(answer.evidence?.quote).toBe(OFFER.evidence[0]);
+		expect(answer.evidence?.messageId).toBe(quoted.id);
+	});
+
 	it("names why the standing holds instead of linking to one thread", async () => {
 		const answer = await read(waiting);
 		const standing = answer.fields.find((field) => field.key === "standing");

@@ -21,7 +21,6 @@
 		"./field-proposal": "./src/field-proposal.ts",
 		"./field-templates": "./src/field-templates.ts",
 		"./saved-view": "./src/saved-view.ts",
-		"./thread-evidence": "./src/thread-evidence.ts",
 		"./waitlist": "./src/waitlist.ts",
 		"./win-back-rules": "./src/win-back-rules.ts"
 	},

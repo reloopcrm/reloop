@@ -87,6 +87,7 @@ export type AttentionField =
 
 export type AttentionEvidence = {
 	quote: string;
+	messageId: string | null;
 	source: AttentionSource;
 };
 
@@ -121,6 +122,7 @@ export type AttentionInsight = {
 	products: string[];
 	topics: string[];
 	evidence: string[];
+	evidenceMessageIds: string[];
 };
 
 export type AttentionTask = {
@@ -139,6 +141,7 @@ export type AttentionDeal = {
 export type AttentionFacts = {
 	candidate: ReactivationCandidate | null;
 	insight: AttentionInsight | null;
+	unanswered: AttentionInsight | null;
 	signals: readonly ThreadSignal[];
 	task: AttentionTask | null;
 	deal: AttentionDeal | null;
@@ -186,20 +189,29 @@ function trimmed(values: readonly string[]): string[] {
 	return kept;
 }
 
-function quote(values: readonly string[]): string | null {
-	const first = values.find((value) => value.trim().length > 0)?.trim();
-	if (first === undefined) return null;
+function quote(
+	values: readonly string[],
+	messageIds: readonly string[],
+): { said: string; messageId: string | null } | null {
+	const at = values.findIndex((value) => value.trim().length > 0);
+	if (at === -1) return null;
 
-	return first.length > ATTENTION.evidence.maxChars
-		? `${first.slice(0, ATTENTION.evidence.maxChars).trimEnd()}…`
-		: first;
+	const first = (values[at] ?? "").trim();
+	const said =
+		first.length > ATTENTION.evidence.maxChars
+			? `${first.slice(0, ATTENTION.evidence.maxChars).trimEnd()}…`
+			: first;
+
+	const messageId = (messageIds[at] ?? "").trim();
+
+	return { said, messageId: messageId.length > 0 ? messageId : null };
 }
 
 function knownNothing(facts: AttentionFacts): boolean {
 	if (facts.candidate === null) return true;
 	if (facts.insight !== null) return false;
 
-	return facts.candidate.memory.threadsRead === 0;
+	return facts.signals.every((signal) => !signal.relevant);
 }
 
 function quiet(candidate: ReactivationCandidate): boolean {
@@ -304,13 +316,18 @@ function fieldFor(
 		return { key, side, source };
 	}
 
-	if (key === "products" || key === "asked") {
-		const values = trimmed(
-			key === "products" ? (insight?.products ?? []) : (insight?.topics ?? []),
-		);
+	if (key === "products") {
+		const values = trimmed(insight?.products ?? []);
 		if (values.length === 0) return null;
 
 		return { key, values, source };
+	}
+
+	if (key === "asked") {
+		const values = trimmed(facts.unanswered?.topics ?? []);
+		if (values.length === 0) return null;
+
+		return { key, values, source: sourceOf(facts.unanswered) };
 	}
 
 	if (key === "task") {
@@ -352,10 +369,13 @@ function evidenceOf(
 	if (kind === "nothing-known") return null;
 
 	const source = sourceOf(facts.insight);
-	const said = quote(facts.insight?.evidence ?? []);
+	const said = quote(
+		facts.insight?.evidence ?? [],
+		facts.insight?.evidenceMessageIds ?? [],
+	);
 	if (!source || said === null) return null;
 
-	return { quote: said, source };
+	return { quote: said.said, messageId: said.messageId, source };
 }
 
 function pointsOf(
@@ -400,6 +420,64 @@ export function attentionOf(facts: AttentionFacts): ContactAttention {
 	};
 }
 
+type InsightThread = {
+	id: string;
+	subject: string | null;
+	lastMessageAt: Date;
+	insight: {
+		outcome: string;
+		side: string | null;
+		unansweredByUs: boolean;
+		quantityPallets: number | null;
+		loads: number | null;
+		products: string[];
+		topics: string[];
+		evidence: string[];
+		evidenceMessageIds: string[];
+	} | null;
+};
+
+function insightOf(thread: InsightThread | null): AttentionInsight | null {
+	if (!thread?.insight) return null;
+
+	return {
+		threadId: thread.id,
+		subject: thread.subject,
+		lastMessageAt: thread.lastMessageAt,
+		...thread.insight,
+	};
+}
+
+function newestReadThread(db: Db, contactId: string, unanswered: boolean) {
+	return db.emailThread.findFirst({
+		where: {
+			contactId,
+			insight: unanswered
+				? { relevant: true, unansweredByUs: true }
+				: { relevant: true },
+		},
+		orderBy: { lastMessageAt: "desc" },
+		select: {
+			id: true,
+			subject: true,
+			lastMessageAt: true,
+			insight: {
+				select: {
+					outcome: true,
+					side: true,
+					unansweredByUs: true,
+					quantityPallets: true,
+					loads: true,
+					products: true,
+					topics: true,
+					evidence: true,
+					evidenceMessageIds: true,
+				},
+			},
+		},
+	});
+}
+
 export async function readContactAttention(
 	db: Db,
 	options: { contactId: string; now?: Date; rules?: WinBackRuleSet },
@@ -408,55 +486,37 @@ export async function readContactAttention(
 	const rules = options.rules ?? DEFAULT_WIN_BACK_RULES;
 	const contactId = options.contactId;
 
-	const [candidate, thread, signals, task, deal] = await Promise.all([
-		readReactivationCandidate(db, { contactId, now, rules }),
-		db.emailThread.findFirst({
-			where: { contactId, insight: { relevant: true } },
-			orderBy: { lastMessageAt: "desc" },
-			select: {
-				id: true,
-				subject: true,
-				lastMessageAt: true,
-				insight: {
-					select: {
-						outcome: true,
-						side: true,
-						unansweredByUs: true,
-						quantityPallets: true,
-						loads: true,
-						products: true,
-						topics: true,
-						evidence: true,
-					},
+	const [candidate, thread, unanswered, signals, task, deal] =
+		await Promise.all([
+			readReactivationCandidate(db, { contactId, now, rules }),
+			newestReadThread(db, contactId, false),
+			newestReadThread(db, contactId, true),
+			db.threadInsight.findMany({
+				where: { thread: { contactId } },
+				select: {
+					relevant: true,
+					outcome: true,
+					quantityPallets: true,
+					unansweredByUs: true,
+					products: true,
+					topics: true,
 				},
-			},
-		}),
-		db.threadInsight.findMany({
-			where: { thread: { contactId } },
-			select: {
-				relevant: true,
-				outcome: true,
-				quantityPallets: true,
-				unansweredByUs: true,
-				products: true,
-				topics: true,
-			},
-		}),
-		db.activity.findFirst({
-			where: { contactId, type: "TASK", completedAt: null },
-			orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
-			select: { id: true, subject: true, dueAt: true },
-		}),
-		db.deal.findFirst({
-			where: {
-				archivedAt: null,
-				stage: DealStage.CLOSED_WON,
-				contacts: { some: { contactId } },
-			},
-			orderBy: { updatedAt: "desc" },
-			select: { id: true, name: true, amount: true, currency: true },
-		}),
-	]);
+			}),
+			db.activity.findFirst({
+				where: { contactId, type: "TASK", completedAt: null },
+				orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+				select: { id: true, subject: true, dueAt: true },
+			}),
+			db.deal.findFirst({
+				where: {
+					archivedAt: null,
+					stage: DealStage.CLOSED_WON,
+					contacts: { some: { contactId } },
+				},
+				orderBy: { updatedAt: "desc" },
+				select: { id: true, name: true, amount: true, currency: true },
+			}),
+		]);
 
 	return attentionOf({
 		candidate,
@@ -468,14 +528,8 @@ export async function readContactAttention(
 		},
 		products: rules.business.products,
 		unit: rules.business.unit,
-		insight: thread?.insight
-			? {
-					threadId: thread.id,
-					subject: thread.subject,
-					lastMessageAt: thread.lastMessageAt,
-					...thread.insight,
-				}
-			: null,
+		insight: insightOf(thread),
+		unanswered: insightOf(unanswered),
 		task: task
 			? { activityId: task.id, subject: task.subject, dueAt: task.dueAt }
 			: null,

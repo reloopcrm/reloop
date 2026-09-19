@@ -61,6 +61,7 @@ import type { RouterOutputs } from "@/lib/trpc/types";
 import { useDealStageLabel } from "@/lib/use-deal-stage-label";
 import { MeetingEntry, MeetingWhen } from "./meeting-entry";
 import type { TimelineAnchor } from "./timeline";
+import { blockRecords } from "./timeline-blocks";
 import { TIMELINE } from "./timeline-config";
 
 export type TimelineEntryData =
@@ -97,35 +98,27 @@ export function contactName(
 	return name.length > 0 ? name : null;
 }
 
-export function otherRecords(entry: TimelineEntryData, anchor: TimelineAnchor) {
-	const here = anchorId(anchor);
-	return {
-		deal: entry.deal && entry.deal.id !== here ? entry.deal : null,
-		contact: entry.contact && entry.contact.id !== here ? entry.contact : null,
-	};
-}
-
 export function RecordLinks({
-	entry,
+	entries,
 	anchor,
 }: {
-	entry: TimelineEntryData;
+	entries: readonly TimelineEntryData[];
 	anchor: TimelineAnchor;
 }) {
-	const { deal, contact } = otherRecords(entry, anchor);
+	const { deals, contacts } = blockRecords(entries, anchorId(anchor));
 
 	return (
 		<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs empty:hidden">
-			{deal ? (
-				<RecordLink kind="deal" id={deal.id}>
+			{deals.map((deal) => (
+				<RecordLink key={deal.id} kind="deal" id={deal.id}>
 					{deal.name}
 				</RecordLink>
-			) : null}
-			{contact ? (
-				<RecordLink kind="contact" id={contact.id}>
+			))}
+			{contacts.map((contact) => (
+				<RecordLink key={contact.id} kind="contact" id={contact.id}>
 					{contactName(contact)}
 				</RecordLink>
-			) : null}
+			))}
 		</div>
 	);
 }
@@ -233,8 +226,8 @@ export function TimelineEntry({
 			: null;
 
 	const event = entry.calendarEvent;
-	const links = otherRecords(entry, anchor);
-	const hasLinks = links.deal !== null || links.contact !== null;
+	const links = blockRecords([entry], anchorId(anchor));
+	const hasLinks = links.deals.length > 0 || links.contacts.length > 0;
 
 	let detail: ReactNode = preview;
 	if (isTask) {
@@ -269,7 +262,7 @@ export function TimelineEntry({
 						conferenceUrl={event.conferenceUrl}
 					/>
 				) : null}
-				<RecordLinks entry={entry} anchor={anchor} />
+				<RecordLinks entries={[entry]} anchor={anchor} />
 			</div>
 		) : null;
 
@@ -497,7 +490,7 @@ function EntryEditor({
 					</InputGroupButton>
 					<InputGroupButton
 						type="submit"
-						variant="default"
+						variant="outline"
 						size="xs"
 						disabled={text === "" || pending}
 					>

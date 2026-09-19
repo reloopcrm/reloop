@@ -39,6 +39,15 @@ const messageSummary = z.object({
 		),
 });
 
+const evidenceLine = z.object({
+	quote: z.string().max(MEMORY.evidenceQuoteMaxChars),
+	message: z
+		.number()
+		.int()
+		.min(1)
+		.describe("The number in front of the message the quote comes from."),
+});
+
 const threadDigestSchema = z.object({
 	messageSummaries: z.array(messageSummary).max(MEMORY.messagesPerThread),
 });
@@ -72,9 +81,11 @@ export const threadInsightSchema = z.object({
 		),
 	summary: z.string().max(MEMORY.threadSummaryMaxChars),
 	evidence: z
-		.array(z.string().max(200))
+		.array(evidenceLine)
 		.max(4)
-		.describe("Short quotes from the messages that support the verdict."),
+		.describe(
+			"Short quotes from the messages that support the verdict, each with the number of the message it comes from.",
+		),
 	messageSummaries: z
 		.array(messageSummary)
 		.max(MEMORY.messagesPerThread)
@@ -87,7 +98,13 @@ const lenientInsightSchema = threadInsightSchema.extend({
 	topics: capped(clamped(60), 8),
 	products: capped(clamped(60), 8),
 	summary: clamped(MEMORY.threadSummaryMaxChars),
-	evidence: capped(clamped(200), 4),
+	evidence: capped(
+		z.object({
+			quote: clamped(MEMORY.evidenceQuoteMaxChars),
+			message: z.number().int().min(1),
+		}),
+		4,
+	),
 	messageSummaries: capped(
 		z.object({
 			message: z.number().int().min(1),
@@ -248,6 +265,7 @@ export async function classifyThread(
 			"OPEN_INQUIRY_THEIRS means they asked to buy or sell and no agreement was reached.",
 			"OPEN_OFFER_OURS means we offered and they did not answer.",
 			`Write the summary in ${language()}, at most three sentences, naming what was discussed and where it ended.`,
+			"Every evidence quote is copied from one message and names the number of that message.",
 			`messageSummaries holds one ${language()} line for every numbered message, with its number, each at most 20 words.`,
 			"A message line never names its sender and never starts with WE or THEY. It starts with the verb.",
 			`A message line leaves out the greeting, the sign-off and the signature. Write a range as ${say("'800 to 1000'", "'800 bis 1000'")}, never with a dash.`,
@@ -403,7 +421,7 @@ export async function runThreadInsight(threadId: string): Promise<string> {
 			outcome: stored.outcome as ThreadInsightVerdict["outcome"],
 			unansweredByUs: stored.unansweredByUs,
 			summary: stored.summary,
-			evidence: stored.evidence,
+			evidence: [],
 			messageSummaries: [],
 		};
 	} else {
@@ -412,17 +430,20 @@ export async function runThreadInsight(threadId: string): Promise<string> {
 
 		await storeMessageSummaries(thread, verdict.messageSummaries);
 
-		const { messageSummaries: _lines, ...row } = verdict;
+		const { messageSummaries: _lines, evidence, ...row } = verdict;
+		const quoted = quotedMessages(thread, evidence);
 		await db.threadInsight.upsert({
 			where: { threadId },
 			create: {
 				threadId,
 				...row,
+				...quoted,
 				modelId: result.modelId,
 				lastMessageAt: thread.lastMessageAt,
 			},
 			update: {
 				...row,
+				...quoted,
 				modelId: result.modelId,
 				lastMessageAt: thread.lastMessageAt,
 			},
@@ -452,6 +473,18 @@ export async function runThreadInsight(threadId: string): Promise<string> {
 		? `, ${verdict.quantityPallets} units`
 		: "";
 	return `${verdict.outcome}${units}: ${verdict.summary.slice(0, 160)}`;
+}
+
+export function quotedMessages(
+	thread: ThreadRecord,
+	lines: readonly z.infer<typeof evidenceLine>[],
+) {
+	const recent = thread.messages.slice(-MEMORY.messagesPerThread);
+
+	return {
+		evidence: lines.map((line) => line.quote),
+		evidenceMessageIds: lines.map((line) => recent[line.message - 1]?.id ?? ""),
+	};
 }
 
 async function storeMessageSummaries(

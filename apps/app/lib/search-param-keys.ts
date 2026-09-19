@@ -12,6 +12,7 @@ export const SEARCH_PARAM = {
 		tab: "tab",
 		add: "add",
 		thread: "thread",
+		message: "message",
 		timeline: "timeline",
 	},
 	fieldsSheet: {

@@ -63,3 +63,50 @@ export function toBlocks<E extends Groupable>(
 
 	return blocks;
 }
+
+function unique<T extends { id: string }>(
+	values: (T | null)[],
+	here: string,
+): T[] {
+	const kept = new Map<string, T>();
+
+	for (const value of values) {
+		if (!value || value.id === here) continue;
+		if (!kept.has(value.id)) kept.set(value.id, value);
+	}
+
+	return [...kept.values()];
+}
+
+export function blockRecords<
+	D extends { id: string },
+	C extends { id: string },
+>(entries: readonly { deal: D | null; contact: C | null }[], here: string) {
+	return {
+		deals: unique(
+			entries.map((entry) => entry.deal),
+			here,
+		),
+		contacts: unique(
+			entries.map((entry) => entry.contact),
+			here,
+		),
+	};
+}
+
+export function blockMessages<M extends { id: string; sentAt: string }>(
+	lists: readonly (readonly M[])[],
+): M[] {
+	const kept = new Map<string, M>();
+
+	for (const list of lists) {
+		for (const message of list) {
+			if (!kept.has(message.id)) kept.set(message.id, message);
+		}
+	}
+
+	return [...kept.values()].sort(
+		(one, two) =>
+			new Date(one.sentAt).getTime() - new Date(two.sentAt).getTime(),
+	);
+}

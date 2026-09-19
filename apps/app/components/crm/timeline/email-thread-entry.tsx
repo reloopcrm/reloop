@@ -9,8 +9,8 @@ import {
 	cleanSubject,
 	emailPreview,
 } from "@crm/ui/lib/email-text";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 import { DEMO } from "@/components/demo/demo-tour-config";
 import { LocalDateTime, localDayKey } from "@/components/local-date-time";
 import { mailSourceLabel } from "@/lib/activity-presentation";
@@ -19,6 +19,7 @@ import type { Translate } from "@/lib/i18n/locale";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import type { TimelineAnchor } from "./timeline";
+import { blockMessages } from "./timeline-blocks";
 import { TIMELINE } from "./timeline-config";
 import { RecordLinks, type TimelineEntryData } from "./timeline-entry";
 
@@ -58,49 +59,64 @@ export function threadAnchorId(threadId: string): string {
 	return `thread-${threadId}`;
 }
 
-function threadMessageCount(entries: TimelineEntryData[]): number {
-	return entries.reduce(
-		(sum, entry) => sum + (entry.emailThread?.messageCount ?? 0),
-		0,
-	);
+function blockThreads(
+	entries: readonly TimelineEntryData[],
+): NonNullable<TimelineEntryData["emailThread"]>[] {
+	const kept = new Map<string, NonNullable<TimelineEntryData["emailThread"]>>();
+
+	for (const entry of entries) {
+		if (entry.emailThread) kept.set(entry.emailThread.id, entry.emailThread);
+	}
+
+	return [...kept.values()];
 }
 
-function ThreadPart({
-	entry,
+function messageAnchorId(messageId: string): string {
+	return `message-${messageId}`;
+}
+
+function ThreadPanel({
+	head,
+	threadIds,
 	day,
 	subject,
 	enabled,
-	actions,
+	openMessageId,
 }: {
-	entry: TimelineEntryData;
+	head: TimelineEntryData;
+	threadIds: readonly string[];
 	day: string;
 	subject: string | null;
 	enabled: boolean;
-	actions: boolean;
+	openMessageId: string | null;
 }) {
 	const t = useT();
 	const trpc = useTRPC();
-	const threadId = entry.emailThread?.id ?? "";
+	const scrolled = useRef<string | null>(null);
 
-	const thread = useQuery({
-		...trpc.google.thread.queryOptions({ threadId }),
-		enabled: enabled && threadId !== "",
+	const results = useQueries({
+		queries: threadIds.map((threadId) => ({
+			...trpc.google.thread.queryOptions({ threadId }),
+			enabled: enabled && threadId !== "",
+		})),
 	});
 
-	if (thread.isError) {
+	const failure = results.find((result) => result.isError);
+
+	if (failure?.error && results.every((result) => result.isError)) {
 		return (
 			<>
-				{entry.body ? (
+				{head.body ? (
 					<p className="whitespace-pre-wrap text-pretty wrap-anywhere text-body-foreground">
-						{cleanEmailBody(entry.body).text}
+						{cleanEmailBody(head.body).text}
 					</p>
 				) : null}
-				<p className="text-muted-foreground text-xs">{thread.error.message}</p>
+				<p className="text-muted-foreground text-xs">{failure.error.message}</p>
 			</>
 		);
 	}
 
-	if (thread.isPending) {
+	if (results.some((result) => result.isPending)) {
 		return (
 			<div className="flex flex-col gap-2">
 				<Skeleton className="h-4 w-1/3" />
@@ -109,12 +125,12 @@ function ThreadPart({
 		);
 	}
 
-	const messages = thread.data?.messages ?? [];
+	const messages = blockMessages(
+		results.map((result) => result.data?.messages ?? []),
+	);
 	const lastLoaded = messages[messages.length - 1] ?? null;
 	const to = lastLoaded?.recipients.map((one) => one.email).join(", ") ?? null;
-	const source = mailSourceLabel(
-		entry.emailThread?.lastMessage?.source ?? null,
-	);
+	const source = mailSourceLabel(head.emailThread?.lastMessage?.source ?? null);
 	const reply = lastLoaded ? replyAddress(lastLoaded) : null;
 
 	const meta = [
@@ -129,6 +145,16 @@ function ThreadPart({
 			{messages.map((message) => (
 				<ThreadMessage
 					key={message.id}
+					id={messageAnchorId(message.id)}
+					ref={
+						openMessageId === message.id
+							? (node) => {
+									if (!node || scrolled.current === message.id) return;
+									scrolled.current = message.id;
+									node.scrollIntoView({ block: "center" });
+								}
+							: undefined
+					}
 					from={speaker(message, t)}
 					fromEmail={message.fromEmail}
 					fromImageUrl={message.fromImageUrl}
@@ -138,13 +164,13 @@ function ThreadPart({
 				/>
 			))}
 
-			{actions && meta ? (
+			{meta ? (
 				<p className="font-mono text-faint-foreground text-xs wrap-anywhere">
 					{meta}
 				</p>
 			) : null}
 
-			{actions ? (
+			{reply || lastLoaded?.mailboxUrl ? (
 				<div className="flex flex-wrap items-center gap-2">
 					{reply ? (
 						<Button variant="outline" size="xs" asChild>
@@ -174,10 +200,12 @@ export function EmailThreadEntry({
 	entries,
 	anchor,
 	openThreadId,
+	openMessageId,
 }: {
 	entries: TimelineEntryData[];
 	anchor: TimelineAnchor;
 	openThreadId?: string | null;
+	openMessageId?: string | null;
 }) {
 	const t = useT();
 	const [opened, setOpened] = useState(false);
@@ -187,9 +215,8 @@ export function EmailThreadEntry({
 
 	if (!head || !last) return null;
 
-	const threadIds = entries.flatMap((entry) =>
-		entry.emailThread ? [entry.emailThread.id] : [],
-	);
+	const threads = blockThreads(entries);
+	const threadIds = threads.map((thread) => thread.id);
 	const linked =
 		openThreadId !== null &&
 		openThreadId !== undefined &&
@@ -197,10 +224,13 @@ export function EmailThreadEntry({
 
 	const when = head.occurredAt ?? head.createdAt;
 	const subject = head.subject ? cleanSubject(head.subject) : null;
-	const count = threadMessageCount(entries);
+	const count = threads.reduce(
+		(sum, thread) => sum + (thread.messageCount ?? 0),
+		0,
+	);
 
 	const preview =
-		entries.length > 1
+		threads.length > 1
 			? count === 1
 				? t("1 message")
 				: t("{count} messages", { count })
@@ -212,18 +242,16 @@ export function EmailThreadEntry({
 
 	const panel = (
 		<div className="flex flex-col gap-3">
-			{[...entries].reverse().map((entry, index) => (
-				<ThreadPart
-					key={entry.id}
-					entry={entry}
-					day={when}
-					subject={subject}
-					enabled={opened || linked}
-					actions={index === entries.length - 1}
-				/>
-			))}
+			<ThreadPanel
+				head={head}
+				threadIds={threadIds}
+				day={when}
+				subject={subject}
+				enabled={opened || linked}
+				openMessageId={openMessageId ?? null}
+			/>
 
-			<RecordLinks entry={head} anchor={anchor} />
+			<RecordLinks entries={entries} anchor={anchor} />
 		</div>
 	);
 

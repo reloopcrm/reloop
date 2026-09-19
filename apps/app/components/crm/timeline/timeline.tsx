@@ -164,10 +164,12 @@ function TimelineRows({
 	blocks,
 	anchor,
 	openThreadId,
+	openMessageId,
 }: {
 	blocks: TimelineBlock<TimelineEntryData>[];
 	anchor: TimelineAnchor;
 	openThreadId: string | null;
+	openMessageId: string | null;
 }) {
 	return (
 		<>
@@ -178,6 +180,7 @@ function TimelineRows({
 						entries={block.entries}
 						anchor={anchor}
 						openThreadId={openThreadId}
+						openMessageId={openMessageId}
 					/>
 				) : (
 					<TimelineEntry key={block.key} entry={block.entry} anchor={anchor} />
@@ -239,6 +242,10 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 	);
 	const [openThreadId] = useQueryState(
 		SEARCH_PARAM.record.thread,
+		parseAsString,
+	);
+	const [openMessageId] = useQueryState(
+		SEARCH_PARAM.record.message,
 		parseAsString,
 	);
 	const contactId = "contactId" in anchor ? anchor.contactId : null;
@@ -343,6 +350,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 								blocks={pinnedBlocks}
 								anchor={anchor}
 								openThreadId={openThreadId}
+								openMessageId={openMessageId}
 							/>
 						</EventGroup>
 					) : null}
@@ -356,6 +364,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 								blocks={group.entries}
 								anchor={anchor}
 								openThreadId={openThreadId}
+								openMessageId={openMessageId}
 							/>
 						</EventGroup>
 					))}

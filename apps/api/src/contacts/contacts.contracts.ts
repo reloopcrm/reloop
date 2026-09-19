@@ -399,7 +399,13 @@ export const contactAttentionOutput = z.object({
 		subject: z.string().nullable(),
 	}),
 	fields: z.array(attentionField),
-	evidence: z.object({ quote: z.string(), source: attentionSource }).nullable(),
+	evidence: z
+		.object({
+			quote: z.string(),
+			messageId: z.string().nullable(),
+			source: attentionSource,
+		})
+		.nullable(),
 	points: z
 		.object({
 			total: z.number(),

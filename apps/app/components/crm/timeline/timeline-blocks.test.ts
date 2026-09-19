@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { byDay } from "./timeline";
-import { toBlocks } from "./timeline-blocks";
+import { blockMessages, blockRecords, toBlocks } from "./timeline-blocks";
 
 function email(id: string, thread: string, subject: string, at: string) {
 	return {
@@ -94,5 +94,68 @@ describe("a merged thread keeps the day of its newest message", () => {
 	it("drops the day strips that held one message of the same thread", () => {
 		expect(byDay(entries, false)).toHaveLength(4);
 		expect(byDay(toBlocks(entries), false)).toHaveLength(2);
+	});
+});
+
+describe("a merged block keeps every record its entries link to", () => {
+	const deal = (id: string) => ({ id, name: `Deal ${id}` });
+	const contact = (id: string) => ({ id, firstName: "Ada", lastName: null });
+
+	it("shows the deal of a swallowed entry, not only the head deal", () => {
+		const records = blockRecords(
+			[
+				{ deal: deal("d1"), contact: null },
+				{ deal: deal("d2"), contact: null },
+			],
+			"company-1",
+		);
+		expect(records.deals.map((one) => one.id)).toEqual(["d1", "d2"]);
+	});
+
+	it("names one record once when two entries share it", () => {
+		const records = blockRecords(
+			[
+				{ deal: deal("d1"), contact: contact("c1") },
+				{ deal: deal("d1"), contact: contact("c1") },
+			],
+			"company-1",
+		);
+		expect(records.deals).toHaveLength(1);
+		expect(records.contacts).toHaveLength(1);
+	});
+
+	it("leaves out the record the sheet already shows", () => {
+		const records = blockRecords(
+			[{ deal: deal("d1"), contact: contact("c1") }],
+			"d1",
+		);
+		expect(records.deals).toHaveLength(0);
+		expect(records.contacts.map((one) => one.id)).toEqual(["c1"]);
+	});
+});
+
+describe("a merged panel reads from oldest to newest across the block", () => {
+	const message = (id: string, sentAt: string) => ({ id, sentAt });
+
+	it("interleaves two threads whose dates overlap", () => {
+		const merged = blockMessages([
+			[
+				message("a1", "2026-08-10T09:00:00.000Z"),
+				message("a2", "2026-09-14T09:00:00.000Z"),
+			],
+			[
+				message("b1", "2026-09-01T09:00:00.000Z"),
+				message("b2", "2026-09-20T09:00:00.000Z"),
+			],
+		]);
+		expect(merged.map((one) => one.id)).toEqual(["a1", "b1", "a2", "b2"]);
+	});
+
+	it("shows a message once when one thread is loaded twice", () => {
+		const merged = blockMessages([
+			[message("a1", "2026-08-10T09:00:00.000Z")],
+			[message("a1", "2026-08-10T09:00:00.000Z")],
+		]);
+		expect(merged).toHaveLength(1);
 	});
 });

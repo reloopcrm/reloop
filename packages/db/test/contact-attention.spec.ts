@@ -83,6 +83,11 @@ function facts(over: Partial<AttentionFacts> = {}): AttentionFacts {
 	return {
 		candidate: candidate(),
 		insight: insight(),
+		unanswered: insight({
+			threadId: "t-ask",
+			subject: "Anfrage Abholfenster",
+			unansweredByUs: true,
+		}),
 		signals: [
 			{
 				relevant: true,
@@ -146,7 +151,29 @@ describe("the block answers what to do about this person", () => {
 				threadsRead: 0,
 			},
 		});
-		const read = attentionOf(facts({ candidate: bare, insight: null }));
+		const read = attentionOf(
+			facts({ candidate: bare, insight: null, signals: [] }),
+		);
+
+		expect(read.kind).toBe("nothing-known");
+	});
+
+	it("knows nothing when every thread was read and judged irrelevant", () => {
+		const read = attentionOf(
+			facts({
+				insight: null,
+				signals: [
+					{
+						relevant: false,
+						outcome: "OTHER",
+						quantityPallets: null,
+						unansweredByUs: false,
+						products: [],
+						topics: [],
+					},
+				],
+			}),
+		);
 
 		expect(read.kind).toBe("nothing-known");
 	});
@@ -261,6 +288,35 @@ describe("the block shows only what applies", () => {
 		expect(waiting).not.toEqual(owing);
 		expect(owing).toContain("asked");
 		expect(waiting).not.toContain("asked");
+	});
+
+	it("takes the question from the newest thread nobody answered", () => {
+		const fields = attentionFieldsOf(
+			"owed",
+			facts({
+				insight: insight({ topics: ["Abholfenster"] }),
+				unanswered: insight({
+					threadId: "t-restposten",
+					subject: "Restposten Gitterbox",
+					unansweredByUs: true,
+					topics: ["Restposten Gitterbox"],
+				}),
+			}),
+		);
+		const asked = fields.find((field) => field.key === "asked");
+
+		expect(asked?.key === "asked" ? asked.values : []).toEqual([
+			"Restposten Gitterbox",
+		]);
+		expect(asked?.key === "asked" ? asked.source?.threadId : null).toBe(
+			"t-restposten",
+		);
+	});
+
+	it("drops the question row when no thread waits for an answer", () => {
+		const fields = attentionFieldsOf("owed", facts({ unanswered: null }));
+
+		expect(fields.map((field) => field.key)).not.toContain("asked");
 	});
 
 	it("gives the win back case the score table instead of the field grid", () => {

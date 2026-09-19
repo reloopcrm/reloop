@@ -177,6 +177,8 @@
 	"contacts": "kişiler",
 	"deals": "anlaşmalar",
 	"What to do about this person": "Bu kişiyle ne yapmalı",
+	"The answer about this person did not load. Reload the page to read it.": "Bu kişiyle ilgili cevap yüklenmedi. Okumak için sayfayı yeniden yükle.",
+	"This mail sits further back. Choose Show older until it appears.": "Bu posta daha geride. Görünene kadar Daha eskileri göster seçeneğini kullan.",
 	"Nothing is known about this request yet.": "Bu talep hakkında henüz bir şey bilinmiyor.",
 	"Quiet for {days} days.": "{days} gündür sessiz.",
 	"You owe them an answer.": "Onlara bir yanıt borçlusun.",

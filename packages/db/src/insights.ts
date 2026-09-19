@@ -45,6 +45,7 @@ export const MEMORY = {
 	summaryMaxChars: 1_200,
 	threadSummaryMaxChars: 400,
 	messageSummaryMaxChars: 200,
+	evidenceQuoteMaxChars: 200,
 	messagesPerThread: 12,
 	bodyMaxChars: 1_500,
 	jsonAttempts: 2,

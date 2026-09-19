@@ -19,6 +19,8 @@ import { cleanSubject } from "@crm/ui/lib/email-text";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
+import { unitLabel } from "@/app/(app)/[slug]/win-back/win-back-verdict";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { DealAmount } from "@/components/crm/record-sheet/record-parts";
 import {
@@ -26,7 +28,6 @@ import {
 	DetailSheetProperty,
 } from "@/components/detail-sheet";
 import { LocalDateTime } from "@/components/local-date-time";
-import { unitLabel } from "@/app/(app)/[slug]/win-back/win-back-verdict";
 import { useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
@@ -136,46 +137,66 @@ export function AttentionBlock({ contactId }: { contactId: string }) {
 		);
 	}
 
-	if (!query.data) return null;
+	if (!query.data) return <AttentionProblem />;
 
-	return <Answer attention={query.data} />;
+	return <AttentionAnswer attention={query.data} />;
 }
 
-function Answer({ attention }: { attention: Attention }) {
+export function AttentionProblem() {
+	const t = useT();
+
+	return (
+		<div
+			role="status"
+			className="flex shrink-0 flex-col gap-2 border-border-strong border-b px-5 py-3"
+		>
+			<p className="text-muted-foreground">
+				{t(
+					"The answer about this person did not load. Reload the page to read it.",
+				)}
+			</p>
+		</div>
+	);
+}
+
+export function AttentionAnswer({ attention }: { attention: Attention }) {
 	const t = useT();
 
 	return (
 		<section
 			aria-label={t("What to do about this person")}
-			className="flex max-h-1/2 shrink-0 flex-col gap-4 overflow-y-auto border-border-strong border-b px-5 py-4"
+			className="flex max-h-1/2 shrink-0 flex-col border-border-strong border-b"
 		>
-			<Verdict attention={attention} />
+			<div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 py-4">
+				<Verdict attention={attention} />
 
-			{attention.points ? <Score points={attention.points} /> : null}
+				{attention.points ? <Score points={attention.points} /> : null}
 
-			{attention.fields.length > 0 ? (
-				<DetailSheetProperties columns={1}>
-					{attention.fields.map((field) => (
-						<FieldRow key={field.key} field={field} />
-					))}
-				</DetailSheetProperties>
-			) : null}
+				{attention.fields.length > 0 ? (
+					<DetailSheetProperties columns={1}>
+						{attention.fields.map((field) => (
+							<FieldRow key={field.key} field={field} />
+						))}
+					</DetailSheetProperties>
+				) : null}
 
-			{attention.evidence ? (
-				<Evidence>
-					<EvidenceQuote>{`“${attention.evidence.quote}”`}</EvidenceQuote>
-					<EvidenceFooter>
-						<LocalDateTime
-							date={attention.evidence.source.at}
-							options={TIMELINE.format.dateWithYear}
-						/>
-						<Source
-							source={attention.evidence.source}
-							label={t("Open the mail")}
-						/>
-					</EvidenceFooter>
-				</Evidence>
-			) : null}
+				{attention.evidence ? (
+					<Evidence>
+						<EvidenceQuote>{`“${attention.evidence.quote}”`}</EvidenceQuote>
+						<EvidenceFooter>
+							<LocalDateTime
+								date={attention.evidence.source.at}
+								options={TIMELINE.format.dateWithYear}
+							/>
+							<Source
+								source={attention.evidence.source}
+								label={t("Open the mail")}
+								messageId={attention.evidence.messageId}
+							/>
+						</EvidenceFooter>
+					</Evidence>
+				) : null}
+			</div>
 
 			<Actions attention={attention} />
 		</section>
@@ -271,18 +292,41 @@ function Moment({
 	);
 }
 
-function Source({ source, label }: { source: Source; label?: string }) {
+export function openThreadRow(threadId: string): boolean {
+	const target = document.getElementById(threadAnchorId(threadId));
+	if (!target) return false;
+
+	const row = target.closest("details");
+	if (row instanceof HTMLDetailsElement) row.open = true;
+	target.scrollIntoView({ block: "center" });
+
+	return true;
+}
+
+function Source({
+	source,
+	label,
+	messageId,
+}: {
+	source: Source;
+	label?: string;
+	messageId?: string | null;
+}) {
 	const t = useT();
 	const [, setThread] = useQueryState(SEARCH_PARAM.record.thread);
+	const [, setMessage] = useQueryState(SEARCH_PARAM.record.message);
 
 	return (
 		<SourceLink
 			title={label ?? sourceLabel(source, t)}
 			onClick={() => {
 				void setThread(source.threadId);
-				document
-					.getElementById(threadAnchorId(source.threadId))
-					?.scrollIntoView({ block: "center" });
+				void setMessage(messageId ?? null);
+				if (openThreadRow(source.threadId)) return;
+
+				toast.info(
+					t("This mail sits further back. Choose Show older until it appears."),
+				);
 			}}
 		>
 			{label ?? sourceLabel(source, t)}
@@ -494,7 +538,7 @@ function Actions({ attention }: { attention: Attention }) {
 		: `mailto:${email}`;
 
 	return (
-		<div className="flex flex-wrap items-center gap-2">
+		<div className="flex shrink-0 flex-wrap items-center gap-2 px-5 pb-4">
 			<Button asChild size="sm">
 				<a href={href}>{t(ACTION[attention.kind])}</a>
 			</Button>

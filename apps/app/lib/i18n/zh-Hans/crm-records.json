@@ -177,6 +177,8 @@
 	"contacts": "联系人",
 	"deals": "交易",
 	"What to do about this person": "如何处理这个人",
+	"The answer about this person did not load. Reload the page to read it.": "关于此人的答案未加载。请重新加载页面以查看。",
+	"This mail sits further back. Choose Show older until it appears.": "这封邮件在更早的位置。请点击显示更早的，直到它出现。",
 	"Nothing is known about this request yet.": "这项需求还没有任何已知信息。",
 	"Quiet for {days} days.": "已经沉默 {days} 天。",
 	"You owe them an answer.": "你欠他们一个答复。",

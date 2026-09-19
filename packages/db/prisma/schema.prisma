@@ -1248,18 +1248,19 @@ model ThreadInsight {
   threadId String      @unique
   thread   EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
-  relevant        Boolean
-  topics          String[]
-  side            String?
-  products        String[]
-  quantityPallets Int?
-  loads           Int?
-  outcome         String
-  unansweredByUs  Boolean  @default(false)
-  summary         String
-  evidence        String[]
-  modelId         String
-  lastMessageAt   DateTime
+  relevant           Boolean
+  topics             String[]
+  side               String?
+  products           String[]
+  quantityPallets    Int?
+  loads              Int?
+  outcome            String
+  unansweredByUs     Boolean  @default(false)
+  summary            String
+  evidence           String[]
+  evidenceMessageIds String[] @default([])
+  modelId            String
+  lastMessageAt      DateTime
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

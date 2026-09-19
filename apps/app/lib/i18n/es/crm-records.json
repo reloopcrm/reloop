@@ -177,6 +177,8 @@
 	"contacts": "contactos",
 	"deals": "negocios",
 	"What to do about this person": "Qué hacer con esta persona",
+	"The answer about this person did not load. Reload the page to read it.": "La respuesta sobre esta persona no se cargó. Recarga la página para leerla.",
+	"This mail sits further back. Choose Show older until it appears.": "Este correo está más atrás. Elige Mostrar más antiguos hasta que aparezca.",
 	"Nothing is known about this request yet.": "Todavía no se sabe nada de esta solicitud.",
 	"Quiet for {days} days.": "{days} días en silencio.",
 	"You owe them an answer.": "Les debes una respuesta.",

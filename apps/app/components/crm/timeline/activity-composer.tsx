@@ -158,7 +158,7 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 					{text === "" ? null : (
 						<InputGroupButton
 							type="submit"
-							variant="default"
+							variant="outline"
 							size="xs"
 							className="ml-auto"
 							disabled={create.isPending}

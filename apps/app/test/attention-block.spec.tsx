@@ -11,6 +11,26 @@ if (owned) GlobalRegistrator.register();
 const { createElement } = await import("react");
 const { renderToStaticMarkup } = await import("react-dom/server");
 const { EventMark, EventRow } = await import("@crm/ui/components/event-row");
+const { AttentionAnswer, AttentionProblem, openThreadRow } = await import(
+	"../components/crm/timeline/attention-block"
+);
+
+type Attention = Parameters<typeof AttentionAnswer>[0]["attention"];
+
+function attention(): Attention {
+	return {
+		kind: "owed",
+		quietDays: 0,
+		emails: 4,
+		firstContactAt: null,
+		lastInbound: { at: "2026-09-10T08:12:00.000Z", threadId: null },
+		lastOutbound: null,
+		reply: { email: "c.graber@palatum.de", subject: "Bedarf Q4 Europaletten" },
+		fields: [],
+		evidence: null,
+		points: null,
+	};
+}
 
 afterAll(() => {
 	if (owned) GlobalRegistrator.unregister();
@@ -111,5 +131,65 @@ describe("the block speaks every language the app speaks", () => {
 
 		expect(keys.length).toBeGreaterThan(30);
 		expect(missing).toEqual([]);
+	});
+});
+
+describe("a failed answer says so in the block's own place", () => {
+	it("writes a line a screen reader announces", () => {
+		const markup = renderToStaticMarkup(createElement(AttentionProblem));
+
+		expect(markup).toContain('role="status"');
+		expect(markup).toContain("did not load");
+	});
+});
+
+describe("the action of the block stays reachable", () => {
+	it("keeps the action out of the part that scrolls", () => {
+		const holder = document.createElement("div");
+		holder.innerHTML = renderToStaticMarkup(
+			createElement(AttentionAnswer, { attention: attention() }),
+		);
+
+		const scroller = holder.querySelector(".overflow-y-auto");
+
+		expect(holder.querySelector('a[href^="mailto:"]')).not.toBeNull();
+		expect(scroller).not.toBeNull();
+		expect(scroller?.querySelector('a[href^="mailto:"]')).toBeNull();
+	});
+});
+
+describe("a link in the block opens the row it points at", () => {
+	it("opens the linked row, every time it is clicked", () => {
+		const holder = document.createElement("div");
+		holder.innerHTML = row({ anchorId: "thread-t1" });
+		document.body.append(holder);
+
+		const details = holder.querySelector("details");
+		if (details) details.open = false;
+
+		expect(openThreadRow("t1")).toBe(true);
+		expect(details?.open).toBe(true);
+
+		holder.remove();
+	});
+
+	it("says the mail is not loaded rather than moving nothing", () => {
+		expect(openThreadRow("t-not-loaded")).toBe(false);
+	});
+});
+
+describe("one filled action per view", () => {
+	it("leaves the lime to the block and not to a second button", async () => {
+		const files = [
+			"components/crm/timeline/activity-composer.tsx",
+			"components/crm/timeline/timeline-entry.tsx",
+		];
+
+		for (const path of files) {
+			const full = fileURLToPath(new URL(`../${path}`, import.meta.url));
+			const source = await Bun.file(full).text();
+
+			expect(source, path).not.toContain('variant="default"');
+		}
 	});
 });

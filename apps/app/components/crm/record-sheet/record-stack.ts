@@ -32,6 +32,7 @@ const params = {
 	[SEARCH_PARAM.record.tab]: parseAsString,
 	[SEARCH_PARAM.record.add]: parseAsStringLiteral(RECORD_FORMS),
 	[SEARCH_PARAM.record.thread]: parseAsString,
+	[SEARCH_PARAM.record.message]: parseAsString,
 	[SEARCH_PARAM.fieldsSheet.entity]: parseAsStringLiteral(RECORD_KINDS),
 	[SEARCH_PARAM.fieldsSheet.field]: parseAsString,
 	[SEARCH_PARAM.record.timeline]: timelineTabParser,
@@ -68,6 +69,7 @@ export function useRecordStack() {
 					[SEARCH_PARAM.record.tab]: null,
 					[SEARCH_PARAM.record.add]: null,
 					[SEARCH_PARAM.record.thread]: null,
+					[SEARCH_PARAM.record.message]: null,
 					[SEARCH_PARAM.fieldsSheet.entity]: null,
 					[SEARCH_PARAM.fieldsSheet.field]: null,
 					[SEARCH_PARAM.record.timeline]: null,
@@ -155,6 +157,7 @@ export function useRecordSheetView(fallbackTab: string) {
 				[SEARCH_PARAM.record.tab]: next === fallbackTab ? null : next,
 				[SEARCH_PARAM.record.add]: null,
 				[SEARCH_PARAM.record.thread]: null,
+				[SEARCH_PARAM.record.message]: null,
 				[SEARCH_PARAM.record.timeline]: null,
 			});
 		},

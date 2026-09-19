@@ -95,6 +95,7 @@ function facts(over: Partial<AttentionFacts> = {}): AttentionFacts {
 		],
 		rule: { minPallets: 200, minBoxes: 40, boxProducts: ["Gitterbox"] },
 		products: ["Europalette"],
+		unit: "Paletten",
 		task: null,
 		deal: null,
 		...over,

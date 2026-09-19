@@ -374,8 +374,10 @@ picker reads.
 `activities.update` changes the subject, the body, and for a task the due day.
 `activities.remove` deletes the row. Both go through `isEditable`
 (`activities/editable.ts`): kind `NOTE` or `TASK`, `meta` is null, and
-`createdById` is the signed-in user. A synced mail, a meeting, and anything the
-agent, win back or tracking wrote stay read only. `Activity` has no `archivedAt`,
+`createdById` is the signed-in user. The one exception to null `meta` is the win
+back follow up task (`{ winBack: true }`): it is assigned to the rep, so the rep
+moves it. A synced mail, a meeting, and anything the agent or tracking wrote stay
+read only. `Activity` has no `archivedAt`,
 so a delete is final. After it, `lastActivityAt` is recomputed for the company,
 contact and deal; a failure there is logged, never thrown.
 

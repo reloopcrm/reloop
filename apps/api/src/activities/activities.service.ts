@@ -289,7 +289,9 @@ export class ActivitiesService {
 		};
 
 		if (input.window === "overdue") where.dueAt = { lt: boundary };
-		if (input.window === "upcoming") where.dueAt = { gte: boundary };
+		if (input.window === "upcoming") {
+			where.OR = [{ dueAt: { gte: boundary } }, { dueAt: null }];
+		}
 
 		const tasks = await this.db.activity.findMany({
 			where,

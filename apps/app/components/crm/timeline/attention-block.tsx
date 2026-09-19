@@ -26,6 +26,7 @@ import {
 	DetailSheetProperty,
 } from "@/components/detail-sheet";
 import { LocalDateTime } from "@/components/local-date-time";
+import { unitLabel } from "@/app/(app)/[slug]/win-back/win-back-verdict";
 import { useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
@@ -345,7 +346,10 @@ function FieldRow({ field }: { field: Field }) {
 					{[
 						field.pallets === null
 							? null
-							: t("{count} pallets", { count: field.pallets }),
+							: t("{count} {unit}", {
+									count: field.pallets,
+									unit: unitLabel(field.unit, t),
+								}),
 						field.loads === null
 							? null
 							: t("{count} loads", { count: field.loads }),

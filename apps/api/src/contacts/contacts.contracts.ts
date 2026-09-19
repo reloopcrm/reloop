@@ -358,6 +358,7 @@ const attentionField = z.discriminatedUnion("key", [
 	z.object({
 		key: z.literal("quantity"),
 		pallets: z.number().nullable(),
+		unit: z.string(),
 		loads: z.number().nullable(),
 		source: attentionSource.nullable(),
 	}),

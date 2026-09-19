@@ -1,6 +1,5 @@
 import { db } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
-import { ATTENTION } from "@crm/db/contact-attention";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
 import { MEMORY } from "@crm/db/insights";
 import { SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
@@ -20,7 +19,7 @@ const STALL = DISPATCH.dealStall;
 let lastSweptAt: Date | null = null;
 
 export function quietCutoff(now: Date): Date {
-	return new Date(now.getTime() - ATTENTION.quiet.days * STALL.dayMs);
+	return new Date(now.getTime() - STALL.quietDays * STALL.dayMs);
 }
 
 export const dealStep = z.object({

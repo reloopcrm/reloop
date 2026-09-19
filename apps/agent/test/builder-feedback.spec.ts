@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { defaultMessageReducer } from "eve/client";
 import {
 	feedbackMarkdown,
 	turnIdOf,
@@ -9,6 +10,19 @@ import { DISPATCH } from "../agent/lib/dispatch-config";
 describe("turnIdOf", () => {
 	it("reads the turn from an assistant message id", () => {
 		expect(turnIdOf("turn_123:assistant")).toBe("turn_123");
+	});
+
+	it("reads the id eve itself gives an assistant message", () => {
+		const reducer = defaultMessageReducer();
+		const data = reducer.reduce(reducer.initial(), {
+			type: "turn.completed",
+			data: { turnId: "turn_eve" },
+		} as Parameters<typeof reducer.reduce>[1]);
+		const assistant = data.messages.find(
+			(message) => message.role === "assistant",
+		);
+		expect(assistant).toBeDefined();
+		expect(turnIdOf(assistant?.id ?? "")).toBe("turn_eve");
 	});
 
 	it("ignores ids that are not assistant messages", () => {

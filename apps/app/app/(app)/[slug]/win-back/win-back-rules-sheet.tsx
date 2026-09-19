@@ -398,7 +398,6 @@ export function WinBackRulesSheet({ rules }: { rules: WinBackRules }) {
 									rows={4}
 									value={products}
 									onChange={(event) => setProducts(event.target.value)}
-									placeholder={"Europalette\nGitterbox"}
 								/>
 								<FieldDescription>{t("One per line.")}</FieldDescription>
 							</Field>
@@ -411,7 +410,6 @@ export function WinBackRulesSheet({ rules }: { rules: WinBackRules }) {
 									rows={4}
 									value={sideProducts}
 									onChange={(event) => setSideProducts(event.target.value)}
-									placeholder={"CP-Palette\nEinwegpalette"}
 								/>
 								<FieldDescription>
 									{t("Ware you still take, but rank lower. One per line.")}

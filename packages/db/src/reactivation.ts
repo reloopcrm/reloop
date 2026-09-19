@@ -581,9 +581,17 @@ function candidateOf(
 		{ n: openInquiries },
 	);
 	if (bigQuantity && row.maxPallets !== null) {
-		add("Asked about {n} pallets", rules.points.bigQuantity, {
-			n: row.maxPallets,
-		});
+		const unit = rules.business.unit.trim();
+		if (unit && unit !== DEFAULT_WIN_BACK_RULES.business.unit) {
+			add("Asked about {n} {unit}", rules.points.bigQuantity, {
+				n: row.maxPallets,
+				unit,
+			});
+		} else {
+			add("Asked about {n} units", rules.points.bigQuantity, {
+				n: row.maxPallets,
+			});
+		}
 	}
 	if (productMatch) {
 		add("Talks about {products}", rules.points.productMatch, {

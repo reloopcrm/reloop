@@ -299,7 +299,13 @@ export function TimelineEntry({
 					<EventMark kind={MARK_BY_VOICE[voice]} />
 				)
 			}
-			who={voice === "system" ? kind : entry.createdBy.name}
+			who={
+				voice === "system"
+					? kind
+					: entry.meta?.agent || entry.meta?.source === "agent"
+						? t("Agent")
+						: entry.createdBy.name
+			}
 			subject={subject}
 			preview={detail}
 			panel={panel}

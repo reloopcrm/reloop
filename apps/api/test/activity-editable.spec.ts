@@ -34,12 +34,16 @@ describe("an activity a rep may change", () => {
 	it("is never written by the agent, a sweep or the tracker", () => {
 		expect(isEditable({ ...note, meta: { source: "agent" } }, rep)).toBe(false);
 		expect(isEditable({ ...note, meta: { automated: true } }, rep)).toBe(false);
+	});
+
+	it("lets the rep move the win back follow up task assigned to them", () => {
 		expect(
 			isEditable(
 				{ ...note, type: ActivityType.TASK, meta: { winBack: true } },
 				rep,
 			),
-		).toBe(false);
+		).toBe(true);
+		expect(isEditable({ ...note, meta: { winBack: true } }, rep)).toBe(false);
 	});
 
 	it("is never a call, a stage change or an enrichment", () => {

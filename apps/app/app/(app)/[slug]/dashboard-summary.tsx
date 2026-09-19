@@ -317,12 +317,12 @@ export function DashboardSummary() {
 				<CardHeader>
 					<CardTitle>{t("Your tasks")}</CardTitle>
 					<CardDescription>
-						{t("Open tasks due today or later, the soonest first")}
+						{t("Open tasks from today on, the soonest first, the undated last")}
 					</CardDescription>
 				</CardHeader>
 				<CardPanel>
 					{myTasks.length === 0 ? (
-						<CardPanelEmpty>{t("Nothing due today or later.")}</CardPanelEmpty>
+						<CardPanelEmpty>{t("Nothing planned.")}</CardPanelEmpty>
 					) : (
 						<SimpleTable
 							variant="panel"

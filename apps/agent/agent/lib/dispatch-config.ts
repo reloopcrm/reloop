@@ -30,6 +30,7 @@ export const DISPATCH = {
 	dealStall: {
 		everyMs: 7 * DAY_MS,
 		dayMs: DAY_MS,
+		quietDays: 30,
 		batch: 20,
 		threads: 3,
 		messagesPerThread: 4,

@@ -61,6 +61,7 @@ export type AttentionField =
 	| {
 			key: "quantity";
 			pallets: number | null;
+			unit: string;
 			loads: number | null;
 			source: AttentionSource | null;
 	  }
@@ -143,6 +144,7 @@ export type AttentionFacts = {
 	deal: AttentionDeal | null;
 	rule: QuantityRule;
 	products: readonly string[];
+	unit: string;
 };
 
 function outcomeOf(value: string): InsightOutcome {
@@ -288,6 +290,7 @@ function fieldFor(
 		return {
 			key,
 			pallets: insight.quantityPallets,
+			unit: facts.unit,
 			loads: insight.loads,
 			source,
 		};
@@ -464,6 +467,7 @@ export async function readContactAttention(
 			boxProducts: rules.business.boxProducts,
 		},
 		products: rules.business.products,
+		unit: rules.business.unit,
 		insight: thread?.insight
 			? {
 					threadId: thread.id,

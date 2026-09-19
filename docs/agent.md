@@ -219,8 +219,8 @@ underlying bug getting worse.
 `DISPATCH.dealStall.batch` deals. Each task is one direct model call in the reading
 lane, no session.
 
-- **Quiet means the same as on a contact.** The threshold is `ATTENTION.quiet.days`
-  from `@crm/db/contact-attention`. The clock is the newest of the deal's own
+- **A deal is quiet after `DISPATCH.dealStall.quietDays`.** Deals move faster than
+  contacts, so the threshold is its own and shorter than `ATTENTION.quiet.days`. The clock is the newest of the deal's own
   `lastActivityAt` (or `createdAt`) and the `lastActivityAt` of the people on it, so
   mail with them counts as movement.
 - **One note per stall.** A deal with a `deal-stall` task created after the stall

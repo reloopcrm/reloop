@@ -231,7 +231,7 @@ export function TimelineEntry({
 
 	let detail: ReactNode = preview;
 	if (isTask) {
-		detail = done ? t("Done") : dueAt ? dueLabel(dueAt, t) : null;
+		detail = done ? t("Completed") : dueAt ? dueLabel(dueAt, t) : null;
 	} else if (event) {
 		detail = (
 			<MeetingWhen

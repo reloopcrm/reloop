@@ -52,7 +52,7 @@ const TAB_LABELS = {
 	email: "Email",
 	meetings: "Meetings",
 	upcoming: "Upcoming",
-	done: "Done",
+	done: "Completed",
 } satisfies Record<TimelineTab, string>;
 
 const EMPTY_STATES = {
@@ -286,7 +286,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 		entries.find((entry) => entry.emailThread?.lastMessage) ?? null;
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col">
+		<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
 			<div className="flex shrink-0 flex-col gap-2 border-b px-5 py-3">
 				<ActivityComposer anchor={anchor} />
 
@@ -299,6 +299,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					}}
 					size="sm"
 					spacing={0}
+					aria-label={t("Filter the timeline")}
 				>
 					{TIMELINE_TABS.map((option) => {
 						const count = tabCount(option, counts.data);

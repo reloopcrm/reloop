@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge } from "@crm/ui/components/badge";
-import { Button } from "@crm/ui/components/button";
 import {
 	Evidence,
 	EvidenceFooter,
@@ -21,15 +20,17 @@ import { useQueryState } from "nuqs";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { unitLabel } from "@/app/(app)/[slug]/win-back/win-back-verdict";
+import { EmailDraftDialog } from "@/components/crm/email-draft-dialog";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { DealAmount } from "@/components/crm/record-sheet/record-parts";
 import {
 	DetailSheetProperties,
 	DetailSheetProperty,
 } from "@/components/detail-sheet";
-import { LocalDateTime } from "@/components/local-date-time";
-import { useT } from "@/lib/i18n/client";
-import type { Translate } from "@/lib/i18n/locale";
+import { localDayKey } from "@/components/local-date-time";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { dateFormat } from "@/lib/i18n/format";
+import type { Locale, Translate } from "@/lib/i18n/locale";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -53,10 +54,10 @@ const TONE_BY_KIND = {
 
 const CLAIM = {
 	"nothing-known": "Nothing is known about this request yet.",
-	"win-back": "Quiet for {days} days.",
-	owed: "You owe them an answer.",
-	declined: "They said no.",
-	waiting: "You are waiting on them.",
+	"win-back": "{name} has been quiet for {days} days.",
+	owed: "You owe {name} an answer.",
+	declined: "{name} said no.",
+	waiting: "You are waiting on {name}.",
 	settled: "The business is closed. Nobody is waiting.",
 	open: "The conversation is live. Nobody is waiting.",
 } as const satisfies Record<Attention["kind"], string>;
@@ -95,12 +96,12 @@ const STANDING_LABEL = {
 } as const;
 
 const WORTH_LABEL = {
-	deal: "a deal is attached to them",
-	verdict: "you marked them worth it yourself",
-	business: "business was done before",
-	quantity: "the quantity clears your floor",
-	asked: "they asked about your ware",
-	unread: "a thread of theirs is unread",
+	deal: "A deal is attached to them.",
+	verdict: "You marked them worth it yourself.",
+	business: "Business was done before.",
+	quantity: "The quantity clears your floor.",
+	asked: "They asked about your ware.",
+	unread: "A thread of theirs is unread.",
 } as const;
 
 const POTENTIAL_LABEL = {
@@ -109,6 +110,17 @@ const POTENTIAL_LABEL = {
 	low: "potential low",
 } as const;
 
+const SCORE_LABEL = {
+	high: "Why they are worth it: {total} points, potential high.",
+	medium: "Why they are worth it: {total} points, potential medium.",
+	low: "Why they are worth it: {total} points, potential low.",
+} as const;
+
+const SILENT_KINDS = [
+	"settled",
+	"open",
+] as const satisfies readonly Attention["kind"][];
+
 function labelOf<T extends string>(
 	table: Record<string, string>,
 	value: T | null,
@@ -116,10 +128,21 @@ function labelOf<T extends string>(
 	return value === null ? null : (table[value] ?? null);
 }
 
-function sourceLabel(source: Source, t: Translate): string {
-	const subject = source.subject ? cleanSubject(source.subject) : null;
+function dayText(at: string, locale: Locale): string {
+	return dateFormat(locale, TIMELINE.format.dateWithYear).format(new Date(at));
+}
 
-	return subject && subject.length > 0 ? subject : t("in the history");
+function sourceLabel(
+	source: Source,
+	beside: readonly string[],
+	t: Translate,
+): string {
+	const subject = source.subject ? cleanSubject(source.subject).trim() : "";
+	const repeats = beside.some(
+		(value) => value.trim().toLowerCase() === subject.toLowerCase(),
+	);
+
+	return subject.length > 0 && !repeats ? subject : t("Open the mail");
 }
 
 export function AttentionBlock({ contactId }: { contactId: string }) {
@@ -138,8 +161,9 @@ export function AttentionBlock({ contactId }: { contactId: string }) {
 	}
 
 	if (!query.data) return <AttentionProblem />;
+	if (SILENT_KINDS.some((kind) => kind === query.data.kind)) return null;
 
-	return <AttentionAnswer attention={query.data} />;
+	return <AttentionAnswer attention={query.data} contactId={contactId} />;
 }
 
 export function AttentionProblem() {
@@ -159,55 +183,71 @@ export function AttentionProblem() {
 	);
 }
 
-export function AttentionAnswer({ attention }: { attention: Attention }) {
+export function AttentionAnswer({
+	attention,
+	contactId,
+}: {
+	attention: Attention;
+	contactId: string;
+}) {
 	const t = useT();
 
 	return (
 		<section
 			aria-label={t("What to do about this person")}
-			className="flex max-h-1/2 shrink-0 flex-col border-border-strong border-b"
+			className="flex shrink-0 flex-col gap-4 border-border-strong border-b px-5 py-4"
 		>
-			<div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 py-4">
-				<Verdict attention={attention} />
+			<Verdict attention={attention} />
 
-				{attention.points ? <Score points={attention.points} /> : null}
+			{attention.points ? <Score points={attention.points} /> : null}
 
-				{attention.fields.length > 0 ? (
-					<DetailSheetProperties columns={1}>
-						{attention.fields.map((field) => (
-							<FieldRow key={field.key} field={field} />
-						))}
-					</DetailSheetProperties>
-				) : null}
+			{attention.fields.length > 0 ? (
+				<DetailSheetProperties columns={1}>
+					{attention.fields.map((field) => (
+						<FieldRow key={field.key} field={field} />
+					))}
+				</DetailSheetProperties>
+			) : null}
 
-				{attention.evidence ? (
-					<Evidence>
-						<EvidenceQuote>{`“${attention.evidence.quote}”`}</EvidenceQuote>
-						<EvidenceFooter>
-							<LocalDateTime
-								date={attention.evidence.source.at}
-								options={TIMELINE.format.dateWithYear}
-							/>
-							<Source
-								source={attention.evidence.source}
-								label={t("Open the mail")}
-								messageId={attention.evidence.messageId}
-							/>
-						</EvidenceFooter>
-					</Evidence>
-				) : null}
-			</div>
+			{attention.evidence ? <Quote evidence={attention.evidence} /> : null}
 
-			<Actions attention={attention} />
+			<Actions attention={attention} contactId={contactId} />
 		</section>
+	);
+}
+
+function Quote({ evidence }: { evidence: NonNullable<Attention["evidence"]> }) {
+	const t = useT();
+	const locale = useLocale();
+
+	return (
+		<Evidence>
+			<EvidenceQuote>{t("“{said}”", { said: evidence.quote })}</EvidenceQuote>
+			<EvidenceFooter>
+				<span className="tabular-nums">
+					{dayText(evidence.source.at, locale)}
+				</span>
+				<Source
+					source={evidence.source}
+					label={t("Open the mail")}
+					messageId={evidence.messageId}
+				/>
+			</EvidenceFooter>
+		</Evidence>
 	);
 }
 
 function Verdict({ attention }: { attention: Attention }) {
 	const t = useT();
+	const locale = useLocale();
 	const bare = attention.kind === "nothing-known";
+	const name = attention.name ?? t("this person");
 	const lastInbound = bare ? null : attention.lastInbound;
 	const lastOutbound = bare ? null : attention.lastOutbound;
+	const sameDay =
+		lastInbound !== null &&
+		lastOutbound !== null &&
+		localDayKey(lastInbound.at) === localDayKey(lastOutbound.at);
 
 	return (
 		<div className="flex items-start gap-3">
@@ -216,78 +256,64 @@ function Verdict({ attention }: { attention: Attention }) {
 				aria-hidden="true"
 				className="mt-1.5"
 			/>
-			<p className="min-w-0 flex-1 text-pretty">
-				<span className="block font-medium text-foreground">
-					{t(CLAIM[attention.kind], { days: attention.quietDays })}
-				</span>
-				<span className="text-muted-foreground">
-					{bare ? <FirstContact attention={attention} /> : null}
-					{lastInbound ? (
-						<Moment
-							label={t("Their last mail was")}
-							at={lastInbound.at}
-							threadId={lastInbound.threadId}
-						/>
-					) : null}
-					{lastOutbound ? (
-						<Moment
-							label={t("Your last mail was")}
-							at={lastOutbound.at}
-							threadId={lastOutbound.threadId}
-						/>
-					) : null}
-				</span>
-			</p>
+			<div className="flex min-w-0 flex-1 flex-col gap-1 text-pretty">
+				<p className="font-medium text-foreground">
+					{t(CLAIM[attention.kind], { days: attention.quietDays, name })}
+				</p>
+
+				{bare ? <FirstContact attention={attention} /> : null}
+
+				{sameDay && lastInbound ? (
+					<p className="text-muted-foreground">
+						{t("You both wrote last on {date}.", {
+							date: dayText(lastInbound.at, locale),
+						})}
+					</p>
+				) : (
+					<>
+						{lastInbound ? (
+							<p className="text-muted-foreground">
+								{t("Their last mail arrived on {date}.", {
+									date: dayText(lastInbound.at, locale),
+								})}
+							</p>
+						) : null}
+						{lastOutbound ? (
+							<p className="text-muted-foreground">
+								{t("Your last mail went out on {date}.", {
+									date: dayText(lastOutbound.at, locale),
+								})}
+							</p>
+						) : null}
+					</>
+				)}
+			</div>
 		</div>
 	);
 }
 
 function FirstContact({ attention }: { attention: Attention }) {
 	const t = useT();
+	const locale = useLocale();
 
 	if (attention.firstContactAt === null) {
-		return <>{t("No mail and no request are on file.")}</>;
+		return (
+			<p className="text-muted-foreground">
+				{t("No mail and no request are on file.")}
+			</p>
+		);
 	}
 
 	return (
 		<>
-			{t("The first mail arrived on")}{" "}
-			<LocalDateTime
-				date={attention.firstContactAt}
-				options={TIMELINE.format.dateWithYear}
-			/>
-			{". "}
-			{t("No request has been read out of it yet.")}{" "}
-		</>
-	);
-}
-
-function Moment({
-	label,
-	at,
-	threadId,
-}: {
-	label: string;
-	at: string;
-	threadId: string | null;
-}) {
-	const t = useT();
-
-	return (
-		<>
-			{label}{" "}
-			<span className="tabular-nums">
-				<LocalDateTime date={at} options={TIMELINE.format.dateWithYear} />
-			</span>
-			{". "}
-			{threadId ? (
-				<Source
-					source={{ threadId, subject: null, at }}
-					label={t("in the history")}
-				/>
-			) : (
-				<SourceNote>{t("no mail to open")}</SourceNote>
-			)}{" "}
+			<p className="text-muted-foreground">
+				{t("The first mail arrived on {date}.", {
+					date: dayText(attention.firstContactAt, locale),
+				})}
+			</p>
+			<p className="text-muted-foreground">
+				{t("No request has been read out of it yet.")}
+			</p>
 		</>
 	);
 }
@@ -306,19 +332,22 @@ export function openThreadRow(threadId: string): boolean {
 function Source({
 	source,
 	label,
+	beside = [],
 	messageId,
 }: {
 	source: Source;
 	label?: string;
+	beside?: readonly string[];
 	messageId?: string | null;
 }) {
 	const t = useT();
 	const [, setThread] = useQueryState(SEARCH_PARAM.record.thread);
 	const [, setMessage] = useQueryState(SEARCH_PARAM.record.message);
+	const title = label ?? sourceLabel(source, beside, t);
 
 	return (
 		<SourceLink
-			title={label ?? sourceLabel(source, t)}
+			title={title}
 			onClick={() => {
 				void setThread(source.threadId);
 				void setMessage(messageId ?? null);
@@ -329,7 +358,7 @@ function Source({
 				);
 			}}
 		>
-			{label ?? sourceLabel(source, t)}
+			{title}
 		</SourceLink>
 	);
 }
@@ -349,25 +378,24 @@ function FieldRow({ field }: { field: Field }) {
 	const label = t(FIELD_LABEL[field.key]);
 
 	if (field.key === "standing") {
+		const standing = labelOf(STANDING_LABEL, field.standing);
 		const potential = labelOf(POTENTIAL_LABEL, field.potential);
 		const worth = labelOf(WORTH_LABEL, field.worth);
 
 		return (
 			<Row label={label}>
-				<span className="text-foreground">
-					{[labelOf(STANDING_LABEL, field.standing), potential]
-						.filter(Boolean)
-						.map((word) => t(word ?? ""))
-						.join(", ")}
-				</span>
-				<SourceNote>
-					{worth
-						? t("read from {count} threads, because {reason}", {
-								count: field.threadsRead,
-								reason: t(worth),
-							})
-						: t("read from {count} threads", { count: field.threadsRead })}
-				</SourceNote>
+				{standing ? (
+					<span className="text-foreground">{t(standing)}</span>
+				) : null}
+				{potential ? (
+					<span className="text-body-foreground">{t(potential)}</span>
+				) : null}
+				{worth ? <SourceNote>{t(worth)}</SourceNote> : null}
+				{field.threadsRead > 0 ? (
+					<SourceNote>
+						{t("Read from {count} threads.", { count: field.threadsRead })}
+					</SourceNote>
+				) : null}
 			</Row>
 		);
 	}
@@ -378,7 +406,12 @@ function FieldRow({ field }: { field: Field }) {
 				<span className="text-foreground">
 					{t(OUTCOME_LABEL[field.outcome])}
 				</span>
-				{field.source ? <Source source={field.source} /> : null}
+				{field.source ? (
+					<Source
+						source={field.source}
+						beside={[t(OUTCOME_LABEL[field.outcome])]}
+					/>
+				) : null}
 			</Row>
 		);
 	}
@@ -386,21 +419,19 @@ function FieldRow({ field }: { field: Field }) {
 	if (field.key === "quantity") {
 		return (
 			<Row label={label}>
-				<span className="text-foreground tabular-nums">
-					{[
-						field.pallets === null
-							? null
-							: t("{count} {unit}", {
-									count: field.pallets,
-									unit: unitLabel(field.unit, t),
-								}),
-						field.loads === null
-							? null
-							: t("{count} loads", { count: field.loads }),
-					]
-						.filter(Boolean)
-						.join(", ")}
-				</span>
+				{field.pallets === null ? null : (
+					<span className="text-foreground tabular-nums">
+						{t("{count} {unit}", {
+							count: field.pallets,
+							unit: unitLabel(field.unit, t),
+						})}
+					</span>
+				)}
+				{field.loads === null ? null : (
+					<span className="text-foreground tabular-nums">
+						{t("{count} loads", { count: field.loads })}
+					</span>
+				)}
 				{field.source ? <Source source={field.source} /> : null}
 			</Row>
 		);
@@ -410,7 +441,9 @@ function FieldRow({ field }: { field: Field }) {
 		return (
 			<Row label={label}>
 				<span className="text-foreground">{t(SIDE_LABEL[field.side])}</span>
-				{field.source ? <Source source={field.source} /> : null}
+				{field.source ? (
+					<Source source={field.source} beside={[t(SIDE_LABEL[field.side])]} />
+				) : null}
 			</Row>
 		);
 	}
@@ -425,7 +458,9 @@ function FieldRow({ field }: { field: Field }) {
 						</Badge>
 					))}
 				</span>
-				{field.source ? <Source source={field.source} /> : null}
+				{field.source ? (
+					<Source source={field.source} beside={field.values} />
+				) : null}
 			</Row>
 		);
 	}
@@ -434,17 +469,7 @@ function FieldRow({ field }: { field: Field }) {
 		return (
 			<Row label={label}>
 				<span className="text-foreground">{field.subject ?? t("Task")}</span>
-				{field.dueAt ? (
-					<SourceNote>
-						{t("due")}{" "}
-						<LocalDateTime
-							date={field.dueAt}
-							options={TIMELINE.format.dateWithYear}
-						/>
-					</SourceNote>
-				) : (
-					<SourceNote>{t("no due date")}</SourceNote>
-				)}
+				<TaskDue dueAt={field.dueAt} />
 			</Row>
 		);
 	}
@@ -463,18 +488,28 @@ function FieldRow({ field }: { field: Field }) {
 	);
 }
 
+function TaskDue({ dueAt }: { dueAt: string | null }) {
+	const t = useT();
+	const locale = useLocale();
+
+	return (
+		<SourceNote>
+			{dueAt === null
+				? t("no due date")
+				: t("due {date}", { date: dayText(dueAt, locale) })}
+		</SourceNote>
+	);
+}
+
 function Score({ points }: { points: NonNullable<Attention["points"]> }) {
 	const t = useT();
-	const band = labelOf(POTENTIAL_LABEL, points.band);
+	const band = labelOf(SCORE_LABEL, points.band);
 
 	return (
 		<div className="flex flex-col gap-1">
 			<p className="text-muted-foreground text-xs/5">
 				{band
-					? t("Why they are worth it: {total} points, {band}.", {
-							total: points.total,
-							band: t(band),
-						})
+					? t(band, { total: points.total })
 					: t("Why they are worth it: {total} points.", {
 							total: points.total,
 						})}
@@ -524,24 +559,27 @@ const ACTION = {
 	open: "Write to them",
 } as const satisfies Record<Attention["kind"], string>;
 
-function Actions({ attention }: { attention: Attention }) {
+function Actions({
+	attention,
+	contactId,
+}: {
+	attention: Attention;
+	contactId: string;
+}) {
 	const t = useT();
 	const email = attention.reply.email;
 
 	if (!email) return null;
 
-	const subject = attention.reply.subject
-		? `Re: ${cleanSubject(attention.reply.subject)}`
-		: "";
-	const href = subject
-		? `mailto:${email}?subject=${encodeURIComponent(subject)}`
-		: `mailto:${email}`;
-
 	return (
-		<div className="flex shrink-0 flex-wrap items-center gap-2 px-5 pb-4">
-			<Button asChild size="sm">
-				<a href={href}>{t(ACTION[attention.kind])}</a>
-			</Button>
+		<div className="flex flex-wrap items-center gap-2">
+			<EmailDraftDialog
+				contactId={contactId}
+				email={email}
+				name={attention.name ?? email}
+				label={t(ACTION[attention.kind])}
+				variant="default"
+			/>
 		</div>
 	);
 }

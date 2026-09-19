@@ -1,6 +1,8 @@
 "use client";
 
+import Add from "@carbon/icons-react/es/Add";
 import Calendar from "@carbon/icons-react/es/Calendar";
+import { Button } from "@crm/ui/components/button";
 import { Calendar as DayPicker } from "@crm/ui/components/calendar";
 import { Icon } from "@crm/ui/components/icon";
 import {
@@ -37,7 +39,7 @@ const DUE_OPTIONS: Intl.DateTimeFormatOptions = {
 };
 
 const PLACEHOLDER = {
-	NOTE: "Log a note, call, email, meeting or task…",
+	NOTE: "What happened?",
 	CALL: "What came out of the call?",
 	EMAIL: "What was said?",
 	MEETING: "What came out of the meeting?",
@@ -59,6 +61,7 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 
+	const [open, setOpen] = useState(false);
 	const [type, setType] = useState<ComposableType>("NOTE");
 	const [draft, setDraft] = useState("");
 	const [dueAt, setDueAt] = useState<Date | undefined>(undefined);
@@ -69,6 +72,7 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 	const reset = () => {
 		setDraft("");
 		setDueAt(undefined);
+		setOpen(false);
 	};
 
 	const create = useMutation(
@@ -92,6 +96,15 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 		});
 	};
 
+	if (!open) {
+		return (
+			<Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+				<Icon icon={Add} data-icon="inline-start" />
+				{t(PLACEHOLDER.NOTE)}
+			</Button>
+		);
+	}
+
 	return (
 		<form
 			onSubmit={(event) => {
@@ -101,6 +114,7 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 		>
 			<InputGroup>
 				<InputGroupTextarea
+					autoFocus
 					value={draft}
 					onChange={(event) => setDraft(event.target.value)}
 					placeholder={t(PLACEHOLDER[type])}

@@ -163,15 +163,20 @@ export function DetailSheetStats({ children }: { children: ReactNode }) {
 
 export function DetailSheetStat({
 	label,
+	title,
 	children,
 }: {
 	label: ReactNode;
+	title?: string;
 	children: ReactNode;
 }) {
 	return (
 		<div className={cn("flex min-w-0 flex-1 flex-col gap-1 py-3", GUTTER)}>
 			<dt className="truncate text-muted-foreground text-xs/5">{label}</dt>
-			<dd className="min-w-0 truncate font-medium text-foreground text-sm/5">
+			<dd
+				title={title}
+				className="min-w-0 truncate font-medium text-foreground text-sm/5"
+			>
 				{children}
 			</dd>
 		</div>

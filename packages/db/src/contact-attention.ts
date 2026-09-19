@@ -99,12 +99,13 @@ export type AttentionPoints = {
 
 export type ContactAttention = {
 	kind: AttentionKind;
+	name: string | null;
 	quietDays: number;
 	emails: number;
 	firstContactAt: string | null;
 	lastInbound: AttentionMoment | null;
 	lastOutbound: AttentionMoment | null;
-	reply: { email: string | null; subject: string | null };
+	reply: { email: string | null };
 	fields: AttentionField[];
 	evidence: AttentionEvidence | null;
 	points: AttentionPoints | null;
@@ -168,6 +169,15 @@ function sourceOf(insight: AttentionInsight | null): AttentionSource | null {
 	};
 }
 
+function personName(contact: {
+	firstName: string;
+	lastName: string | null;
+}): string {
+	return [contact.firstName, contact.lastName]
+		.filter((part) => (part ?? "").trim().length > 0)
+		.join(" ");
+}
+
 function momentOf(
 	at: Date | null,
 	threadId: string | null,
@@ -189,14 +199,21 @@ function trimmed(values: readonly string[]): string[] {
 	return kept;
 }
 
+const QUOTE_MARKS =
+	/^[\s"'\u201c\u201d\u201e\u201f\u00ab\u00bb\u2039\u203a\u2018\u2019\u201a]+|[\s"'\u201c\u201d\u201e\u201f\u00ab\u00bb\u2039\u203a\u2018\u2019\u201a]+$/g;
+
+export function unquoted(value: string): string {
+	return value.replace(QUOTE_MARKS, "");
+}
+
 function quote(
 	values: readonly string[],
 	messageIds: readonly string[],
 ): { said: string; messageId: string | null } | null {
-	const at = values.findIndex((value) => value.trim().length > 0);
+	const at = values.findIndex((value) => unquoted(value).length > 0);
 	if (at === -1) return null;
 
-	const first = (values[at] ?? "").trim();
+	const first = unquoted(values[at] ?? "");
 	const said =
 		first.length > ATTENTION.evidence.maxChars
 			? `${first.slice(0, ATTENTION.evidence.maxChars).trimEnd()}…`
@@ -283,7 +300,7 @@ function fieldFor(
 				},
 				facts.rule,
 			),
-			threadsRead: candidate.memory.threadsRead,
+			threadsRead: facts.signals.filter((signal) => signal.relevant).length,
 		};
 	}
 
@@ -398,6 +415,7 @@ export function attentionOf(facts: AttentionFacts): ContactAttention {
 
 	return {
 		kind,
+		name: candidate ? personName(candidate.contact) : null,
 		quietDays: candidate?.quietDays ?? 0,
 		emails:
 			(candidate?.messagesFromThem ?? 0) + (candidate?.messagesFromUs ?? 0),
@@ -410,10 +428,7 @@ export function attentionOf(facts: AttentionFacts): ContactAttention {
 			candidate?.lastOutboundAt ?? null,
 			candidate?.lastOutboundThreadId ?? null,
 		),
-		reply: {
-			email: candidate?.contact.email ?? null,
-			subject: facts.insight?.subject ?? candidate?.lastSubject ?? null,
-		},
+		reply: { email: candidate?.contact.email ?? null },
 		fields: attentionFieldsOf(kind, facts),
 		evidence: evidenceOf(kind, facts),
 		points: pointsOf(kind, candidate),

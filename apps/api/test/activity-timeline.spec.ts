@@ -81,11 +81,14 @@ afterAll(clean);
 
 describe("timeline email threads", () => {
 	it("carries the newest message's sender and direction", async () => {
-		const result = await service.timeline({
-			companyId,
-			filter: "all",
-			limit: 30,
-		});
+		const result = await service.timeline(
+			{
+				companyId,
+				filter: "all",
+				limit: 30,
+			},
+			userId,
+		);
 		expect(() => timelineOutput.parse(result)).not.toThrow();
 		expect(result.entries[0]?.emailThread).toEqual({
 			id: expect.any(String),

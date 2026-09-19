@@ -369,6 +369,16 @@ picker reads.
 - **`role` is blanked to null, never stored as `""`** — `blankToNull`, as everywhere
   else.
 
+## A rep edits only what the rep wrote
+
+`activities.update` changes the subject, the body, and for a task the due day.
+`activities.remove` deletes the row. Both go through `isEditable`
+(`activities/editable.ts`): kind `NOTE` or `TASK`, `meta` is null, and
+`createdById` is the signed-in user. A synced mail, a meeting, and anything the
+agent, win back or tracking wrote stay read only. `Activity` has no `archivedAt`,
+so a delete is final. After it, `lastActivityAt` is recomputed for the company,
+contact and deal; a failure there is logged, never thrown.
+
 ## A task is due on a day, not at an instant
 
 `Activity.dueAt` stays a timestamp, but it means a calendar day. The composer sends

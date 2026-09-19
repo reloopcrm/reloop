@@ -212,6 +212,33 @@ work that is actually happening.
 this pass keeps that from reaching a rep, and the count it reports is how you see the
 underlying bug getting worse.
 
+### Stalled deals get one note per stall
+
+`queueStalledDeals` (`lib/deal-stall.ts`) runs in the dispatch sweep and queues a
+`deal-stall` task at most once a week (`DISPATCH.dealStall.everyMs`), for at most
+`DISPATCH.dealStall.batch` deals. Each task is one direct model call in the reading
+lane, no session.
+
+- **Quiet means the same as on a contact.** The threshold is `ATTENTION.quiet.days`
+  from `@crm/db/contact-attention`. The clock is the newest of the deal's own
+  `lastActivityAt` (or `createdAt`) and the `lastActivityAt` of the people on it, so
+  mail with them counts as movement.
+- **One note per stall.** A deal with a `deal-stall` task created after the stall
+  began is skipped, whatever that task's outcome. The note does not touch
+  `lastActivityAt`, so the deal still reads as quiet in `list_deals`.
+- **No mail and no notes means no call.** The task closes with an outcome and spends
+  nothing.
+- **Settings, Functions** switches it off like every other model kind.
+
+### Builder chat ratings reach the next turn
+
+The thumbs in the agent builder chat write `AgentConversationFeedback`, and only for
+`BUILDER` conversations. `lib/builder-feedback.ts` reads that user's newest ratings
+(`DISPATCH.builder.feedback.items`), finds the rated answer and its question in
+`AgentEvent` by the turn id in `messageId` (`<turnId>:assistant`, eve's reducer), and
+`instructions/task.ts` appends them to the builder instructions on every turn. A read
+that fails logs and the turn runs without them.
+
 ### Backfills
 
 Sign-in sweep covers records never looked up (one homepage fetch and one small model

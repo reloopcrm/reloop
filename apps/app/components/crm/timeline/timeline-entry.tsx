@@ -1,19 +1,48 @@
 "use client";
 
+import Calendar from "@carbon/icons-react/es/Calendar";
+import Edit from "@carbon/icons-react/es/Edit";
+import TrashCan from "@carbon/icons-react/es/TrashCan";
 import { DealStage } from "@crm/db/enums";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@crm/ui/components/alert-dialog";
+import { Button } from "@crm/ui/components/button";
+import { Calendar as DayPicker } from "@crm/ui/components/calendar";
 import { Checkbox } from "@crm/ui/components/checkbox";
 import {
 	EventMark,
 	EventRow,
 	type EventVoice,
 } from "@crm/ui/components/event-row";
+import { Icon } from "@crm/ui/components/icon";
+import {
+	InputGroup,
+	InputGroupAddon,
+	InputGroupButton,
+	InputGroupTextarea,
+} from "@crm/ui/components/input-group";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@crm/ui/components/popover";
+import { Spinner } from "@crm/ui/components/spinner";
 import {
 	cleanEmailBody,
 	emailPreview,
 	flatPreview,
 } from "@crm/ui/lib/email-text";
 import { useMutation } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
@@ -23,7 +52,8 @@ import {
 	LocalRelativeDate,
 } from "@/components/local-date-time";
 import { activityLabel } from "@/lib/activity-presentation";
-import { useErrorMessage, useT } from "@/lib/i18n/client";
+import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
+import { dateFormat } from "@/lib/i18n/format";
 import type { Translate } from "@/lib/i18n/locale";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -219,10 +249,16 @@ export function TimelineEntry({
 		);
 	}
 
+	const bodyView = body ? <EventPanelBody text={body} /> : null;
+
 	const panel =
-		event || body || hasLinks ? (
+		event || body || hasLinks || entry.editable ? (
 			<div className="flex flex-col gap-3">
-				{body ? <EventPanelBody text={body} /> : null}
+				{entry.editable ? (
+					<EditableEntry entry={entry}>{bodyView}</EditableEntry>
+				) : (
+					bodyView
+				)}
 				{event ? (
 					<MeetingEntry
 						eventId={event.id}
@@ -268,5 +304,202 @@ export function TimelineEntry({
 			preview={detail}
 			panel={panel}
 		/>
+	);
+}
+
+function EditableEntry({
+	entry,
+	children,
+}: {
+	entry: TimelineEntryData;
+	children: ReactNode;
+}) {
+	const t = useT();
+	const locale = useLocale();
+	const errorMessage = useErrorMessage();
+	const trpc = useTRPC();
+	const cache = useCrmCache();
+	const [editing, setEditing] = useState(false);
+
+	const onError = (error: { message: string }) =>
+		toast.error(errorMessage(error.message));
+
+	const update = useMutation(
+		trpc.activities.update.mutationOptions({
+			onSuccess: async () => {
+				await cache.activity();
+				setEditing(false);
+			},
+			onError,
+		}),
+	);
+
+	const remove = useMutation(
+		trpc.activities.remove.mutationOptions({
+			onSuccess: () => cache.activity(),
+			onError,
+		}),
+	);
+
+	const isTask = entry.type === "TASK";
+	const open = isTask && entry.completedAt === null;
+	const pending = update.isPending || remove.isPending;
+
+	if (editing) {
+		return (
+			<EntryEditor
+				initial={(isTask ? entry.subject : entry.body) ?? ""}
+				pending={update.isPending}
+				onCancel={() => setEditing(false)}
+				onSave={(text) =>
+					update.mutate(
+						isTask
+							? { id: entry.id, subject: text }
+							: { id: entry.id, body: text },
+					)
+				}
+			/>
+		);
+	}
+
+	return (
+		<>
+			{children}
+			<div className="flex flex-wrap items-center gap-2">
+				<Button
+					variant="ghost"
+					size="xs"
+					disabled={pending}
+					onClick={() => setEditing(true)}
+				>
+					<Icon icon={Edit} data-icon="inline-start" />
+					{t("Edit")}
+				</Button>
+
+				{open ? (
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button variant="ghost" size="xs" disabled={pending}>
+								<Icon icon={Calendar} data-icon="inline-start" />
+								{entry.dueAt
+									? dateFormat(locale, TIMELINE.format.date).format(
+											new Date(entry.dueAt),
+										)
+									: t("Due date")}
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent size="fit" align="start">
+							<DayPicker
+								mode="single"
+								selected={entry.dueAt ? new Date(entry.dueAt) : undefined}
+								onSelect={(day) =>
+									update.mutate({
+										id: entry.id,
+										dueAt: day?.toISOString() ?? null,
+									})
+								}
+								autoFocus
+							/>
+						</PopoverContent>
+					</Popover>
+				) : null}
+
+				<AlertDialog>
+					<AlertDialogTrigger asChild>
+						<Button variant="ghost" size="xs" disabled={pending}>
+							<Icon icon={TrashCan} data-icon="inline-start" />
+							{t("Delete")}
+						</Button>
+					</AlertDialogTrigger>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>
+								{isTask ? t("Delete this task?") : t("Delete this note?")}
+							</AlertDialogTitle>
+							<AlertDialogDescription>
+								{t(
+									"It leaves the timeline for everyone. This cannot be undone.",
+								)}
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+							<AlertDialogAction
+								variant="destructive"
+								onClick={() => remove.mutate({ id: entry.id })}
+							>
+								{t("Delete")}
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			</div>
+		</>
+	);
+}
+
+function EntryEditor({
+	initial,
+	pending,
+	onSave,
+	onCancel,
+}: {
+	initial: string;
+	pending: boolean;
+	onSave: (text: string) => void;
+	onCancel: () => void;
+}) {
+	const t = useT();
+	const [draft, setDraft] = useState(initial);
+	const text = draft.trim();
+
+	const save = () => {
+		if (text === "" || pending) return;
+		onSave(text);
+	};
+
+	return (
+		<form
+			onSubmit={(event) => {
+				event.preventDefault();
+				save();
+			}}
+		>
+			<InputGroup>
+				<InputGroupTextarea
+					value={draft}
+					onChange={(event) => setDraft(event.target.value)}
+					aria-label={t("Edit")}
+					autoFocus
+					onKeyDown={(event) => {
+						if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+							event.preventDefault();
+							save();
+						}
+						if (event.key === "Escape") onCancel();
+					}}
+				/>
+				<InputGroupAddon align="block-end" className="gap-2 border-t">
+					<InputGroupButton
+						type="button"
+						variant="ghost"
+						size="xs"
+						className="ml-auto"
+						onClick={onCancel}
+					>
+						{t("Cancel")}
+					</InputGroupButton>
+					<InputGroupButton
+						type="submit"
+						variant="default"
+						size="xs"
+						disabled={text === "" || pending}
+					>
+						{pending ? <Spinner /> : null}
+						{t("Save")}
+					</InputGroupButton>
+				</InputGroupAddon>
+			</InputGroup>
+		</form>
 	);
 }

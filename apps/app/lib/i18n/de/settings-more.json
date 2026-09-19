@@ -38,7 +38,6 @@
 	"Bring in email from any IMAP mailbox, including its history": "Holt E-Mails aus jedem IMAP-Postfach herein, samt der ganzen Vorgeschichte",
 	"Coming soon": "Kommt bald",
 	"Anything else": "Alles andere",
-	"The intake API is not available yet": "Die Intake-API gibt es noch nicht",
 	"Nothing is connected yet.": "Noch ist nichts verbunden.",
 	"{names} is already connected.": "{names} ist schon verbunden.",
 	"{names} are already connected.": "{names} sind schon verbunden.",
@@ -112,8 +111,6 @@
 	"Reads any mailbox that speaks IMAP, including everything already in it. Conversations are filed against the matching company and contact, and the agent reads them the same way it reads Gmail.": "Liest jedes Postfach, das IMAP spricht, samt allem, was schon darin liegt. Unterhaltungen werden bei der passenden Firma und dem passenden Kontakt abgelegt. Der Agent liest sie genauso wie Gmail.",
 	"No mailbox yet": "Noch kein Postfach",
 	"Add a mailbox to start. Brings in email and the people on it. Sends nothing, so nothing here can change your mailbox.": "Füge zum Start ein Postfach hinzu. Es holt E-Mails und die Personen darin herein. Es sendet nichts, deshalb kann hier nichts dein Postfach verändern.",
-	"Intake endpoint": "Intake-Endpunkt",
-	"This connection is not available yet. No endpoint, API key, or intake activity has been created for this workspace.": "Diese Verbindung gibt es noch nicht. Für diesen Arbeitsbereich wurden kein Endpunkt, kein API-Schlüssel und keine Intake-Aktivität angelegt.",
 	"Back to connections": "Zurück zu den Verbindungen",
 	"Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in the root .env file and restart.": "Trage MICROSOFT_CLIENT_ID und MICROSOFT_CLIENT_SECRET in die .env-Datei im Hauptordner ein und starte neu.",
 	"Could not reach Microsoft.": "Microsoft war nicht erreichbar.",
@@ -367,6 +364,8 @@
 	"Reads your newest sent emails and records how you sell, so drafts sound like you. One model call, rarely.": "Liest deine neuesten gesendeten E-Mails und hält fest, wie du verkaufst, damit Entwürfe nach dir klingen. Ein Modellaufruf, selten.",
 	"Win back rule tuning": "Regeln zur Rückgewinnung abstimmen",
 	"Re-tunes the win back ranking after a rep marks records good or bad. One model call per tune.": "Stimmt die Rangfolge zur Rückgewinnung neu ab, nachdem jemand Datensätze als gut oder schlecht markiert hat. Ein Modellaufruf pro Abstimmung.",
+	"Next steps on stalled deals": "Nächste Schritte bei stillen Deals",
+	"Once a week, writes one note on each open deal that has gone quiet, with the next step read from the latest emails. One model call per deal, at most once until the deal moves again.": "Schreibt einmal pro Woche eine Notiz an jeden offenen Deal, der still geworden ist. Sie nennt den nächsten Schritt aus den letzten E-Mails. Ein Modellaufruf pro Deal, höchstens einmal, bis sich der Deal wieder bewegt.",
 	"Win back follow-up tasks": "Aufgaben zum Nachfassen beim Zurückgewinnen",
 	"Writes one task 14 days after you reached out to somebody from Win back and nobody answered. The API counts what already happened, so this costs nothing.": "Schreibt eine Aufgabe 14 Tage nachdem du jemanden aus Zurückgewinnen angeschrieben hast und niemand geantwortet hat. Die API zählt nur, was schon passiert ist, das kostet nichts.",
 	"Business setup proposal": "Vorschlag zur Einrichtung des Geschäfts",
@@ -430,5 +429,10 @@
 	"Address hidden": "Adresse verborgen",
 	"Too many sign-ups from here. Wait a minute and try again.": "Zu viele Anmeldungen von hier. Warte eine Minute und versuche es erneut.",
 	"The waitlist is taking more sign-ups than it can store. Try again in a minute.": "Die Warteliste nimmt mehr Anmeldungen an, als sie speichern kann. Versuche es in einer Minute erneut.",
-	"Only an owner or an admin can change a custom field.": "Nur Eigentümer oder Administratoren können ein eigenes Feld ändern."
+	"Only an owner or an admin can change a custom field.": "Nur Eigentümer oder Administratoren können ein eigenes Feld ändern.",
+	"Read and write every record through the REST API": "Jeden Datensatz über die REST-API lesen und schreiben",
+	"REST API": "REST-API",
+	"Every action in the CRM is also a REST endpoint. Send an API key in the x-api-key header to /api/rest on this address.": "Jede Aktion im CRM ist auch ein REST-Endpunkt. Schick einen API-Schlüssel im Header x-api-key an /api/rest unter dieser Adresse.",
+	"GET /api/openapi.json lists every endpoint and every input. It needs the key too.": "GET /api/openapi.json listet jeden Endpunkt und jede Eingabe auf. Auch dafür brauchst du den Schlüssel.",
+	"Create an API key": "API-Schlüssel erstellen"
 }

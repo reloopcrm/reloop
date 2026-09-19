@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
+import { WIN_BACK_UI } from "./win-back-config";
 
 const TRIGGER_LABEL = {
 	good: "Worth it",
@@ -56,12 +57,14 @@ function keyOf(
 export function WinBackVerdictMenu({
 	name,
 	contactIds,
+	companyId,
 	verdict,
 	mixed = false,
 	size = "sm",
 }: {
 	name: string;
 	contactIds: string[];
+	companyId?: string;
 	verdict: string | null;
 	mixed?: boolean;
 	size?: "sm" | "xs";
@@ -91,6 +94,36 @@ export function WinBackVerdictMenu({
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
+
+	const days = WIN_BACK_UI.remindLater.afterDays;
+
+	const reminder = useMutation(
+		trpc.activities.create.mutationOptions({
+			onSuccess: () => {
+				void cache.activity();
+				toast.success(
+					t("A task to get back to {name} is due in {count} days.", {
+						name,
+						count: days,
+					}),
+				);
+			},
+			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
+
+	const remind = () => {
+		if (reminder.isPending) return;
+		const due = new Date();
+		due.setDate(due.getDate() + days);
+		due.setHours(0, 0, 0, 0);
+		reminder.mutate({
+			type: "TASK",
+			subject: t("Get back to {name}", { name }),
+			dueAt: due.toISOString(),
+			...(companyId ? { companyId } : { contactId: contactIds[0] }),
+		});
+	};
 
 	const save = (next: "good" | "bad" | null) => {
 		if (feedback.isPending) return;
@@ -122,6 +155,10 @@ export function WinBackVerdictMenu({
 					</DropdownMenuItem>
 					<DropdownMenuItem onSelect={() => setAsking(true)}>
 						{t("Not for us")}
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+					<DropdownMenuItem onSelect={remind}>
+						{t("Remind me in {count} days", { count: days })}
 					</DropdownMenuItem>
 					{current === "none" ? null : (
 						<>

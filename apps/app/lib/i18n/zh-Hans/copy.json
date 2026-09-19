@@ -252,5 +252,9 @@
 	"What you also sell, but rank lower. One per line.": "你也销售但排序更低的产品。每行一个。",
 	"Big order from": "大额订单起点",
 	"Skip for now": "暂时跳过",
-	"What you sell and what a big order looks like. The agent ranks old contacts by it and learns more from your mail later.": "你销售什么，以及大额订单是什么样子。代理会据此对老联系人排序，之后从你的邮件中学到更多。"
+	"What you sell and what a big order looks like. The agent ranks old contacts by it and learns more from your mail later.": "你销售什么，以及大额订单是什么样子。代理会据此对老联系人排序，之后从你的邮件中学到更多。",
+	"Only your own notes and tasks can be changed.": "你只能修改自己的笔记和任务。",
+	"Only tasks have a due date.": "只有任务有截止日期。",
+	"A note or a task cannot be empty.": "笔记或任务不能为空。",
+	"A task needs a subject. It is the thing to do.": "任务需要一个主题，也就是要做的事。"
 }

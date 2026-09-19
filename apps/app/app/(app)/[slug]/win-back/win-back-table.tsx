@@ -94,6 +94,7 @@ const COLUMNS: LabeledColumn<Group>[] = [
 			<WinBackVerdictMenu
 				name={row.name}
 				contactIds={row.people.map((person) => person.id)}
+				companyId={row.company?.id}
 				verdict={row.feedback}
 				mixed={row.people.some((person) => person.feedback !== null)}
 			/>
@@ -136,13 +137,16 @@ function FactCell({
 }) {
 	const t = useT();
 	const locale = useLocale();
+	const trpc = useTRPC();
+	const rules = useQuery(trpc.reactivation.rules.queryOptions());
+	const unit = rules.data?.business.unit ?? "";
 
 	return (
 		<span
 			className="block truncate text-sm"
-			title={factTitle(source, t, locale)}
+			title={factTitle(source, t, locale, unit)}
 		>
-			{shortFact(source, t, locale)}
+			{shortFact(source, t, locale, unit)}
 		</span>
 	);
 }

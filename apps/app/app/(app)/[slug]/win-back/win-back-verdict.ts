@@ -1,3 +1,4 @@
+import { DEFAULT_WIN_BACK_RULES } from "@crm/db/win-back-rules";
 import { numberFormat } from "@/lib/i18n/format";
 import type { Locale, Translate } from "@/lib/i18n/locale";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -6,10 +7,19 @@ type Group = RouterOutputs["reactivation"]["list"]["rows"][number];
 
 export type WinBackFacts = Pick<Group, "waitingOnUs" | "memory">;
 
+export function unitLabel(unit: string, t: Translate): string {
+	const word = unit.trim();
+
+	return word && word !== DEFAULT_WIN_BACK_RULES.business.unit
+		? word
+		: t("units");
+}
+
 export function shortFact(
 	source: WinBackFacts,
 	t: Translate,
 	locale: Locale,
+	unit: string,
 ): string {
 	const memory = source.memory;
 	const amount = (value: number) => numberFormat(locale).format(value);
@@ -20,7 +30,10 @@ export function shortFact(
 			: t("{count} deals", { count: amount(memory.didBusiness) });
 	}
 	if (memory.maxPallets !== null) {
-		return t("{count} units asked", { count: amount(memory.maxPallets) });
+		return t("{count} {unit} asked", {
+			count: amount(memory.maxPallets),
+			unit: unitLabel(unit, t),
+		});
 	}
 	if (memory.openInquiries > 0) {
 		return memory.openInquiries === 1
@@ -34,7 +47,12 @@ export function shortFact(
 	return t("Nothing about the business yet");
 }
 
-function factLine(source: WinBackFacts, t: Translate, locale: Locale): string {
+function factLine(
+	source: WinBackFacts,
+	t: Translate,
+	locale: Locale,
+	unit: string,
+): string {
 	const parts: string[] = [];
 	const memory = source.memory;
 
@@ -54,8 +72,9 @@ function factLine(source: WinBackFacts, t: Translate, locale: Locale): string {
 	}
 	if (memory.maxPallets !== null) {
 		parts.push(
-			t("up to {count} units", {
+			t("up to {count} {unit}", {
 				count: numberFormat(locale).format(memory.maxPallets),
+				unit: unitLabel(unit, t),
 			}),
 		);
 	}
@@ -74,9 +93,10 @@ export function factTitle(
 	source: WinBackFacts,
 	t: Translate,
 	locale: Locale,
+	unit: string,
 ): string {
 	const summary = source.memory.summary;
-	const line = factLine(source, t, locale);
+	const line = factLine(source, t, locale, unit);
 
 	return summary ? `${line}\n${summary}` : line;
 }

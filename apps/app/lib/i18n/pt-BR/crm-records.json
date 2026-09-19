@@ -231,5 +231,11 @@
 	"they asked about your ware": "eles perguntaram pela sua mercadoria",
 	"a thread of theirs is unread": "uma conversa deles está sem ler",
 	"read from {count} threads, because {reason}": "lido de {count} conversas, porque {reason}",
-	"read from {count} threads": "lido de {count} conversas"
+	"read from {count} threads": "lido de {count} conversas",
+	"Your tasks": "Suas tarefas",
+	"Open tasks due today or later, the soonest first": "Tarefas abertas com vencimento hoje ou depois, a mais próxima primeiro",
+	"Nothing due today or later.": "Nada vence hoje nem depois.",
+	"Delete this task?": "Excluir esta tarefa?",
+	"Delete this note?": "Excluir esta nota?",
+	"It leaves the timeline for everyone. This cannot be undone.": "Ela sai da linha do tempo para todos. Não dá para desfazer."
 }

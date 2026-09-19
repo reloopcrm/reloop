@@ -1,4 +1,5 @@
 const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
 
 export const DISPATCH = {
 	visible: {
@@ -23,6 +24,17 @@ export const DISPATCH = {
 		batch: 20,
 		maxAttempts: 3,
 		leaseMs: 5 * MINUTE_MS,
+		feedback: { items: 6, quoteChars: 300 },
+	},
+
+	dealStall: {
+		everyMs: 7 * DAY_MS,
+		dayMs: DAY_MS,
+		batch: 20,
+		threads: 3,
+		messagesPerThread: 4,
+		subjectMaxChars: 120,
+		bodyMaxChars: 900,
 	},
 
 	run: {

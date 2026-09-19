@@ -24,16 +24,24 @@ async function IntakeConnectionPageContent({
 	return (
 		<ConnectionPage centered className="max-w-(--container-narrow) text-center">
 			<header className="flex flex-col gap-3 px-(--spacing-block-inline)">
-				<h1 className="font-medium text-2xl tracking-tight">
-					{t("Intake endpoint")}
-				</h1>
+				<h1 className="font-medium text-2xl tracking-tight">{t("REST API")}</h1>
 				<p className="text-muted-foreground text-sm leading-relaxed">
 					{t(
-						"This connection is not available yet. No endpoint, API key, or intake activity has been created for this workspace.",
+						"Every action in the CRM is also a REST endpoint. Send an API key in the x-api-key header to /api/rest on this address.",
+					)}
+				</p>
+				<p className="text-muted-foreground text-sm leading-relaxed">
+					{t(
+						"GET /api/openapi.json lists every endpoint and every input. It needs the key too.",
 					)}
 				</p>
 			</header>
-			<div>
+			<div className="flex justify-center gap-2">
+				<Button asChild>
+					<Link href={`/${slug}/settings/api-keys`}>
+						{t("Create an API key")}
+					</Link>
+				</Button>
 				<Button asChild variant="outline">
 					<Link href={`/${slug}/settings/connections`}>
 						{t("Back to connections")}

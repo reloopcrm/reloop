@@ -2,6 +2,7 @@ import { ActivityType, type Db, type Prisma } from "@crm/db";
 import { activityMeta } from "@crm/validation/activity-meta";
 import {
 	BadRequestException,
+	ForbiddenException,
 	Injectable,
 	Logger,
 	NotFoundException,
@@ -12,6 +13,7 @@ import { InjectDatabase } from "../database/database.constants";
 import type {
 	ActivityCreateInput,
 	ActivityEntry,
+	ActivityUpdateInput,
 	MyTasksInput,
 	TimelineCounts,
 	TimelineFilter,
@@ -19,6 +21,7 @@ import type {
 	TimelineResult,
 } from "./activities.contracts";
 import { overdueBefore } from "./due-date";
+import { isEditable } from "./editable";
 
 const AUTHOR_SELECT = {
 	id: true,
@@ -101,7 +104,10 @@ export class ActivitiesService {
 		private readonly stamp: ActivityStampService,
 	) {}
 
-	async timeline(input: TimelineInput): Promise<TimelineResult> {
+	async timeline(
+		input: TimelineInput,
+		actingUserId: string,
+	): Promise<TimelineResult> {
 		const where = this.anchor(input);
 		Object.assign(where, filterClause(input.filter));
 
@@ -118,7 +124,7 @@ export class ActivitiesService {
 		const entries = hasMore ? rows.slice(0, input.limit) : rows;
 
 		return {
-			entries: entries.map(serializeEntry),
+			entries: entries.map((entry) => serializeEntry(entry, actingUserId)),
 			nextCursor: hasMore ? (entries[entries.length - 1]?.id ?? null) : null,
 		};
 	}
@@ -182,10 +188,14 @@ export class ActivitiesService {
 			type: activity.type,
 		});
 
-		return serializeEntry(activity);
+		return serializeEntry(activity, actingUserId);
 	}
 
-	async complete(id: string, completed: boolean): Promise<ActivityEntry> {
+	async complete(
+		id: string,
+		completed: boolean,
+		actingUserId: string,
+	): Promise<ActivityEntry> {
 		const activity = await this.db.activity.findUnique({
 			where: { id },
 			select: { type: true },
@@ -205,7 +215,66 @@ export class ActivitiesService {
 			select: ENTRY_SELECT,
 		});
 
-		return serializeEntry(updated);
+		return serializeEntry(updated, actingUserId);
+	}
+
+	async update(
+		input: ActivityUpdateInput,
+		actingUserId: string,
+	): Promise<ActivityEntry> {
+		const activity = await this.editable(input.id, actingUserId);
+		const isTask = activity.type === ActivityType.TASK;
+
+		if (!isTask && input.dueAt !== undefined) {
+			throw new BadRequestException("Only tasks have a due date.");
+		}
+
+		const subject =
+			input.subject === undefined ? undefined : blankToNull(input.subject);
+		const body = input.body === undefined ? undefined : blankToNull(input.body);
+		const nextSubject = subject === undefined ? activity.subject : subject;
+		const nextBody = body === undefined ? activity.body : body;
+
+		if (nextSubject === null && (isTask || nextBody === null)) {
+			throw new BadRequestException("A note or a task cannot be empty.");
+		}
+
+		const updated = await this.db.activity.update({
+			where: { id: input.id },
+			data: {
+				subject,
+				body,
+				dueAt:
+					isTask && input.dueAt !== undefined
+						? parseDate(input.dueAt)
+						: undefined,
+			},
+			select: ENTRY_SELECT,
+		});
+
+		return serializeEntry(updated, actingUserId);
+	}
+
+	async remove(id: string, actingUserId: string): Promise<{ id: string }> {
+		await this.editable(id, actingUserId);
+
+		const deleted = await this.db.activity.delete({
+			where: { id },
+			select: { companyId: true, contactId: true, dealId: true },
+		});
+
+		await this.stamp.recomputeAfterDelete(
+			{
+				companyIds: deleted.companyId ? [deleted.companyId] : [],
+				contactIds: deleted.contactId ? [deleted.contactId] : [],
+				dealIds: deleted.dealId ? [deleted.dealId] : [],
+			},
+			deleted,
+		);
+
+		this.logger.log({ message: "Activity deleted", activityId: id });
+
+		return { id };
 	}
 
 	async myTasks(
@@ -232,7 +301,34 @@ export class ActivitiesService {
 			select: ENTRY_SELECT,
 		});
 
-		return tasks.map(serializeEntry);
+		return tasks.map((task) => serializeEntry(task, actingUserId));
+	}
+
+	private async editable(id: string, actingUserId: string) {
+		const activity = await this.db.activity.findUnique({
+			where: { id },
+			select: {
+				type: true,
+				subject: true,
+				body: true,
+				meta: true,
+				emailThreadId: true,
+				calendarEventId: true,
+				createdById: true,
+			},
+		});
+
+		if (!activity) {
+			throw new NotFoundException(`No activity with id ${id}.`);
+		}
+
+		if (!isEditable(activity, actingUserId)) {
+			throw new ForbiddenException(
+				"Only your own notes and tasks can be changed.",
+			);
+		}
+
+		return activity;
 	}
 
 	private anchor(
@@ -317,7 +413,7 @@ function lastMessage(message: ThreadMessage | undefined) {
 	};
 }
 
-function serializeEntry(entry: Entry) {
+function serializeEntry(entry: Entry, actingUserId: string) {
 	return {
 		...entry,
 		occurredAt: entry.occurredAt?.toISOString() ?? null,
@@ -346,6 +442,17 @@ function serializeEntry(entry: Entry) {
 					attendeeCount: entry.calendarEvent._count.attendees,
 				}
 			: null,
+
+		editable: isEditable(
+			{
+				type: entry.type,
+				meta: entry.meta,
+				emailThreadId: entry.emailThread?.id ?? null,
+				calendarEventId: entry.calendarEvent?.id ?? null,
+				createdById: entry.createdBy.id,
+			},
+			actingUserId,
+		),
 	};
 }
 

@@ -252,5 +252,9 @@
 	"What you also sell, but rank lower. One per line.": "Lo que también vendes, pero con menos prioridad. Uno por línea.",
 	"Big order from": "Pedido grande a partir de",
 	"Skip for now": "Omitir por ahora",
-	"What you sell and what a big order looks like. The agent ranks old contacts by it and learns more from your mail later.": "Qué vendes y cómo es un pedido grande. El agente ordena los contactos antiguos según eso y aprende más de tu correo después."
+	"What you sell and what a big order looks like. The agent ranks old contacts by it and learns more from your mail later.": "Qué vendes y cómo es un pedido grande. El agente ordena los contactos antiguos según eso y aprende más de tu correo después.",
+	"Only your own notes and tasks can be changed.": "Solo puedes cambiar tus propias notas y tareas.",
+	"Only tasks have a due date.": "Solo las tareas tienen fecha de vencimiento.",
+	"A note or a task cannot be empty.": "Una nota o una tarea no puede estar vacía.",
+	"A task needs a subject. It is the thing to do.": "Una tarea necesita un asunto. Es lo que hay que hacer."
 }

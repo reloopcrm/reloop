@@ -109,6 +109,13 @@ export const AGENT_FUNCTIONS = [
 		kinds: ["playbook-learn"],
 	},
 	{
+		id: "deal-stall",
+		group: "writing",
+		title: "Next steps on stalled deals",
+		note: "Once a week, writes one note on each open deal that has gone quiet, with the next step read from the latest emails. One model call per deal, at most once until the deal moves again.",
+		kinds: ["deal-stall"],
+	},
+	{
 		id: "rules-tune",
 		group: "rules",
 		title: "Win back rule tuning",

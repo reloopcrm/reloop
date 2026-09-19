@@ -19,6 +19,7 @@ import {
 import { sweepContactStanding } from "./contact-standing-sweep";
 import { queueEventAgentRuns } from "./custom-agent-dispatch";
 import { settledWithin } from "./deadline";
+import { DEAL_STALL_KIND, queueStalledDeals, runDealStall } from "./deal-stall";
 import { DISPATCH } from "./dispatch-config";
 import { runEmailDraft } from "./email-draft";
 import { markRunning, settle } from "./enrichment";
@@ -72,6 +73,7 @@ const MODEL_KINDS = new Set([
 	"playbook-learn",
 	"email-draft",
 	"business-setup",
+	DEAL_STALL_KIND,
 ]);
 const VISIBLE_KINDS = DIRECT_KINDS.filter(
 	(kind) =>
@@ -252,6 +254,21 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 			await postponeTask(task.id, until);
 			console.error(
 				`[agent] a draft waits until ${until.toISOString()}: the usage limit is reached`,
+			);
+		}
+		return;
+	}
+
+	if (task.kind === DEAL_STALL_KIND && task.dealId) {
+		try {
+			await completeTask(task.id, await runDealStall(task.dealId));
+		} catch (error) {
+			const until = await resumeAt();
+			if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+			await postponeTask(task.id, until);
+			console.error(
+				`[agent] a stalled deal note waits until ${until.toISOString()}: the usage limit is reached`,
 			);
 		}
 		return;
@@ -551,6 +568,7 @@ export const drainAll = collapsing(
 			await Promise.all([
 				runSweep("contact cleanup sweep failed", queueContactCleanups),
 				runSweep("playbook sweep failed", queuePlaybookLearn),
+				runSweep("stalled deal sweep failed", () => queueStalledDeals()),
 				runSweep("own-contact sweep failed", archiveOwnContacts),
 				runSweep("contact prune failed", async () => {
 					await pruneContacts();

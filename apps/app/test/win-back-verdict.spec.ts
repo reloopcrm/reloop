@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	factTitle,
 	shortFact,
+	unitLabel,
 	type WinBackFacts,
 } from "../app/(app)/[slug]/win-back/win-back-verdict";
 
@@ -28,11 +29,13 @@ function source(over: Partial<WinBackFacts> = {}): WinBackFacts {
 function fact(
 	over: Partial<WinBackFacts["memory"]>,
 	rest: Partial<WinBackFacts> = {},
+	unit = "",
 ) {
 	return shortFact(
 		source({ ...rest, memory: { ...source().memory, ...over } }),
 		t,
 		"en",
+		unit,
 	);
 }
 
@@ -44,6 +47,14 @@ describe("the one fact per row", () => {
 
 	it("names the quantity next", () => {
 		expect(fact({ maxPallets: 660, openInquiries: 2 })).toBe("660 units asked");
+	});
+
+	it("names the quantity in the unit of the business", () => {
+		expect(fact({ maxPallets: 660 }, {}, "Paletten")).toBe(
+			"660 Paletten asked",
+		);
+		expect(fact({ maxPallets: 660 }, {}, "  ")).toBe("660 units asked");
+		expect(fact({ maxPallets: 660 }, {}, "units")).toBe("660 units asked");
 	});
 
 	it("names open inquiries next", () => {
@@ -82,6 +93,7 @@ describe("the tooltip behind the fact", () => {
 			}),
 			t,
 			"en",
+			"",
 		);
 
 		expect(line).toBe(
@@ -94,8 +106,23 @@ describe("the tooltip behind the fact", () => {
 			source({ memory: { ...source().memory, summary: "Wants pallets." } }),
 			t,
 			"en",
+			"",
 		);
 
 		expect(line.split("\n")[1]).toBe("Wants pallets.");
+	});
+});
+
+describe("the unit word", () => {
+	const german = (text: string) => (text === "units" ? "Einheiten" : text);
+
+	it("keeps the word the business chose", () => {
+		expect(unitLabel("Paletten", german)).toBe("Paletten");
+		expect(unitLabel(" licenses ", german)).toBe("licenses");
+	});
+
+	it("translates the default and an empty word", () => {
+		expect(unitLabel("units", german)).toBe("Einheiten");
+		expect(unitLabel("", german)).toBe("Einheiten");
 	});
 });

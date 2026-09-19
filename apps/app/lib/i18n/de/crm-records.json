@@ -231,5 +231,11 @@
 	"they asked about your ware": "sie haben nach deiner Ware gefragt",
 	"a thread of theirs is unread": "ein Verlauf von ihnen ist ungelesen",
 	"read from {count} threads, because {reason}": "aus {count} Verläufen gelesen, weil {reason}",
-	"read from {count} threads": "aus {count} Verläufen gelesen"
+	"read from {count} threads": "aus {count} Verläufen gelesen",
+	"Your tasks": "Deine Aufgaben",
+	"Open tasks due today or later, the soonest first": "Offene Aufgaben, fällig ab heute, die nächste zuerst",
+	"Nothing due today or later.": "Ab heute ist nichts fällig.",
+	"Delete this task?": "Diese Aufgabe löschen?",
+	"Delete this note?": "Diese Notiz löschen?",
+	"It leaves the timeline for everyone. This cannot be undone.": "Sie verschwindet für alle aus dem Verlauf. Das lässt sich nicht rückgängig machen."
 }

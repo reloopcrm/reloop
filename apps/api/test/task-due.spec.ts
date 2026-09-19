@@ -89,11 +89,14 @@ describe("a due date is a calendar day", () => {
 
 describe("the upcoming timeline", () => {
 	it("orders by due date with undated tasks last", async () => {
-		const page = await service.timeline({
-			companyId,
-			filter: "upcoming",
-			limit: 10,
-		});
+		const page = await service.timeline(
+			{
+				companyId,
+				filter: "upcoming",
+				limit: 10,
+			},
+			userId,
+		);
 		expect(page.entries.map((row) => row.subject)).toEqual([
 			"yesterday",
 			"today",
@@ -106,12 +109,15 @@ describe("the upcoming timeline", () => {
 		const seen: (string | null)[] = [];
 		let cursor: string | null = null;
 		do {
-			const page = await service.timeline({
-				companyId,
-				filter: "upcoming",
-				limit: 1,
-				cursor: cursor ?? undefined,
-			});
+			const page = await service.timeline(
+				{
+					companyId,
+					filter: "upcoming",
+					limit: 1,
+					cursor: cursor ?? undefined,
+				},
+				userId,
+			);
 			seen.push(...page.entries.map((row) => row.subject));
 			cursor = page.nextCursor;
 		} while (cursor);

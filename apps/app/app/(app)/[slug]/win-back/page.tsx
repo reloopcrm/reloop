@@ -87,6 +87,7 @@ async function WinBack({
 		),
 		queryClient.prefetchQuery(trpc.reactivation.progress.queryOptions()),
 		queryClient.prefetchQuery(trpc.reactivation.rulesState.queryOptions()),
+		queryClient.prefetchQuery(trpc.reactivation.rules.queryOptions()),
 	]);
 
 	return (

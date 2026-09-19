@@ -231,5 +231,11 @@
 	"they asked about your ware": "他们询问过你的货物",
 	"a thread of theirs is unread": "他们的一个会话未读",
 	"read from {count} threads, because {reason}": "从 {count} 个会话中读出，因为 {reason}",
-	"read from {count} threads": "从 {count} 个会话中读出"
+	"read from {count} threads": "从 {count} 个会话中读出",
+	"Your tasks": "你的任务",
+	"Open tasks due today or later, the soonest first": "今天或之后到期的未完成任务，最近的在前",
+	"Nothing due today or later.": "今天及之后没有到期的任务。",
+	"Delete this task?": "删除此任务？",
+	"Delete this note?": "删除此笔记？",
+	"It leaves the timeline for everyone. This cannot be undone.": "它会从所有人的时间线中移除，且无法撤销。"
 }

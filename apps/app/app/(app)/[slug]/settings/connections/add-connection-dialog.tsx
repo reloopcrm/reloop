@@ -99,7 +99,7 @@ export function AddConnectionDialog({
 					<CatalogRow
 						logo={Plug}
 						name={t("Anything else")}
-						description={t("The intake API is not available yet")}
+						description={t("Read and write every record through the REST API")}
 						href={`/${slug}/settings/connections/intake`}
 					/>
 				</div>

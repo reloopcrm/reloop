@@ -14,6 +14,10 @@ import { restMeta } from "../trpc/openapi";
 import {
 	activityCreateInput,
 	activityCreateOutput,
+	activityRemoveInput,
+	activityRemoveOutput,
+	activityUpdateInput,
+	activityUpdateOutput,
 	completeInput,
 	completeOutput,
 	myTasksInput,
@@ -37,8 +41,11 @@ export class ActivitiesRouter {
 		output: timelineOutput,
 		meta: restMeta("GET", "/activities", ["Activities"]),
 	})
-	async timeline(@Input() input: z.infer<typeof timelineInput>) {
-		return this.activities.timeline(input);
+	async timeline(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof timelineInput>,
+	) {
+		return this.activities.timeline(input, ctx.user.id);
 	}
 
 	@Query({
@@ -79,7 +86,34 @@ export class ActivitiesRouter {
 		output: completeOutput,
 		meta: restMeta("PATCH", "/activities/{id}/complete", ["Activities"]),
 	})
-	async complete(@Input() input: z.infer<typeof completeInput>) {
-		return this.activities.complete(input.id, input.completed);
+	async complete(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof completeInput>,
+	) {
+		return this.activities.complete(input.id, input.completed, ctx.user.id);
+	}
+
+	@Mutation({
+		input: activityUpdateInput,
+		output: activityUpdateOutput,
+		meta: restMeta("PATCH", "/activities/{id}", ["Activities"]),
+	})
+	async update(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof activityUpdateInput>,
+	) {
+		return this.activities.update(input, ctx.user.id);
+	}
+
+	@Mutation({
+		input: activityRemoveInput,
+		output: activityRemoveOutput,
+		meta: restMeta("DELETE", "/activities/{id}", ["Activities"]),
+	})
+	async remove(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof activityRemoveInput>,
+	) {
+		return this.activities.remove(input.id, ctx.user.id);
 	}
 }

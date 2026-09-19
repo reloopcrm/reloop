@@ -252,5 +252,9 @@
 	"What you also sell, but rank lower. One per line.": "Ayrıca sattığın ama daha düşük sıraladığın şeyler. Her satıra bir tane.",
 	"Big order from": "Büyük sipariş alt sınırı",
 	"Skip for now": "Şimdilik atla",
-	"What you sell and what a big order looks like. The agent ranks old contacts by it and learns more from your mail later.": "Ne sattığın ve büyük bir siparişin nasıl göründüğü. Ajan eski kişileri buna göre sıralar ve sonra postalarından daha fazlasını öğrenir."
+	"What you sell and what a big order looks like. The agent ranks old contacts by it and learns more from your mail later.": "Ne sattığın ve büyük bir siparişin nasıl göründüğü. Ajan eski kişileri buna göre sıralar ve sonra postalarından daha fazlasını öğrenir.",
+	"Only your own notes and tasks can be changed.": "Yalnızca kendi notlarını ve görevlerini değiştirebilirsin.",
+	"Only tasks have a due date.": "Yalnızca görevlerin bitiş tarihi vardır.",
+	"A note or a task cannot be empty.": "Bir not veya görev boş olamaz.",
+	"A task needs a subject. It is the thing to do.": "Bir görevin konusu olmalı. Yapılacak iş odur."
 }

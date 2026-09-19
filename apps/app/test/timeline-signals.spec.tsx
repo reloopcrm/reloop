@@ -50,6 +50,7 @@ function entry(over: Partial<Entry> = {}): Entry {
 		deal: null,
 		emailThread: null,
 		calendarEvent: null,
+		editable: false,
 		...over,
 	} as Entry;
 }

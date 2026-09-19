@@ -1,7 +1,7 @@
 # Connections — rules for AI agents
 
 Covers `/settings/connections` and everything under it: the index, per-connection
-pages, the intake endpoint, the add-connection picker, and identity matching.
+pages, the intake page (it explains the REST API), the add-connection picker, and identity matching.
 
 Read `docs/design.md` first. Read `docs/api.md` before touching `apps/api`, and
 `docs/agent.md` before touching `apps/agent`. The Paper file is

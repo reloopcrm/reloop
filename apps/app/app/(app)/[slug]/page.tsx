@@ -16,6 +16,7 @@ import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { workspaceUrl } from "@/lib/workspace-url";
 import { DashboardSummary } from "./dashboard-summary";
+import { OVERVIEW } from "./overview-config";
 import {
 	OverviewGreeting,
 	OverviewGreetingFallback,
@@ -79,9 +80,13 @@ async function Summary({
 	]);
 
 	const queryClient = getServerQueryClient();
-	await queryClient.prefetchQuery(
-		getServerTrpc().dashboard.summary.queryOptions({ scope }),
-	);
+	const trpc = getServerTrpc();
+	await Promise.all([
+		queryClient.prefetchQuery(trpc.dashboard.summary.queryOptions({ scope })),
+		queryClient.prefetchQuery(
+			trpc.activities.myTasks.queryOptions(OVERVIEW.myTasks),
+		),
+	]);
 
 	return (
 		<HydrateClient>

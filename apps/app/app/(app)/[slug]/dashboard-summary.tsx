@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { DealStageIndicator } from "@/components/crm/deal-stage";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
+import { contactName } from "@/components/crm/timeline/timeline-entry";
 import {
 	LocalRelativeDate,
 	LocalRelativeTime,
@@ -47,6 +48,7 @@ import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+import { OVERVIEW } from "./overview-config";
 import { overviewParsers } from "./overview-search-params";
 import { SalesDashboard } from "./sales-dashboard";
 
@@ -76,6 +78,11 @@ const TASK_COLUMNS: TranslatableColumn[] = [
 	{ id: "done", srLabel: "Done", width: "w-8" },
 	{ id: "task", header: "Task" },
 	{ id: "overdue", header: "Overdue", width: "w-24", align: "right" },
+];
+const MY_TASK_COLUMNS: TranslatableColumn[] = [
+	{ id: "done", srLabel: "Done", width: "w-8" },
+	{ id: "task", header: "Task" },
+	{ id: "due", header: "Due", width: "w-24", align: "right" },
 ];
 const ACTIVITY_COLUMNS: TranslatableColumn[] = [
 	{ id: "activity", header: "Activity" },
@@ -130,6 +137,10 @@ export function DashboardSummary() {
 		placeholderData: (previous) => previous,
 	});
 
+	const myTasksQuery = useQuery(
+		trpc.activities.myTasks.queryOptions(OVERVIEW.myTasks),
+	);
+
 	const complete = useMutation(
 		trpc.activities.complete.mutationOptions({
 			onSuccess: () => cache.activity(),
@@ -148,6 +159,7 @@ export function DashboardSummary() {
 	}
 
 	const { biggestOpen, overdueTasks, recentActivity } = summary;
+	const myTasks = myTasksQuery.data ?? [];
 
 	const mine = scope === "me";
 	const largestOpenCents = biggestOpen[0]?.baseAmountCents ?? 0;
@@ -300,6 +312,70 @@ export function DashboardSummary() {
 					</CardPanel>
 				</Card>
 			</DashboardRow>
+
+			<Card className="min-w-0">
+				<CardHeader>
+					<CardTitle>{t("Your tasks")}</CardTitle>
+					<CardDescription>
+						{t("Open tasks due today or later, the soonest first")}
+					</CardDescription>
+				</CardHeader>
+				<CardPanel>
+					{myTasks.length === 0 ? (
+						<CardPanelEmpty>{t("Nothing due today or later.")}</CardPanelEmpty>
+					) : (
+						<SimpleTable
+							variant="panel"
+							surface="page"
+							columns={localizeColumns(MY_TASK_COLUMNS, t)}
+						>
+							{myTasks.map((task) => (
+								<SimpleTableRow key={task.id}>
+									<TableCell className={CELL}>
+										<Checkbox
+											checked={false}
+											disabled={complete.isPending}
+											aria-label={t("Mark as done")}
+											onCheckedChange={() =>
+												complete.mutate({ id: task.id, completed: true })
+											}
+										/>
+									</TableCell>
+									<TableCell className={CELL}>
+										<span className="flex min-w-0 flex-col">
+											<span className="truncate">
+												{task.subject ? t(task.subject) : null}
+											</span>
+											<span className="flex min-w-0 text-muted-foreground">
+												{task.deal ? (
+													<RecordLink kind="deal" id={task.deal.id}>
+														{task.deal.name}
+													</RecordLink>
+												) : task.contact ? (
+													<RecordLink kind="contact" id={task.contact.id}>
+														{contactName(task.contact)}
+													</RecordLink>
+												) : task.company ? (
+													<RecordLink kind="company" id={task.company.id}>
+														{task.company.name}
+													</RecordLink>
+												) : null}
+											</span>
+										</span>
+									</TableCell>
+									<TableCell
+										className={`${CELL} text-right text-muted-foreground`}
+									>
+										{task.dueAt ? (
+											<LocalRelativeDate date={task.dueAt} />
+										) : null}
+									</TableCell>
+								</SimpleTableRow>
+							))}
+						</SimpleTable>
+					)}
+				</CardPanel>
+			</Card>
 
 			<Card className="min-w-0">
 				<CardHeader>

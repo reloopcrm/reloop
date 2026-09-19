@@ -231,5 +231,11 @@
 	"they asked about your ware": "malını sordular",
 	"a thread of theirs is unread": "onlardan bir konu okunmadı",
 	"read from {count} threads, because {reason}": "{count} konudan okundu, çünkü {reason}",
-	"read from {count} threads": "{count} konudan okundu"
+	"read from {count} threads": "{count} konudan okundu",
+	"Your tasks": "Görevlerin",
+	"Open tasks due today or later, the soonest first": "Bugün veya daha sonra vadesi gelen açık görevler, en yakını önce",
+	"Nothing due today or later.": "Bugün veya sonrasında vadesi gelen bir şey yok.",
+	"Delete this task?": "Bu görev silinsin mi?",
+	"Delete this note?": "Bu not silinsin mi?",
+	"It leaves the timeline for everyone. This cannot be undone.": "Herkes için zaman akışından kalkar. Bu geri alınamaz."
 }

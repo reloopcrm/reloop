@@ -1,6 +1,7 @@
 "use client";
 
 import Settings from "@carbon/icons-react/es/Settings";
+import { DEFAULT_WIN_BACK_RULES } from "@crm/db/win-back-rules";
 import { Button } from "@crm/ui/components/button";
 import {
 	Collapsible,
@@ -40,6 +41,7 @@ import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { unitLabel } from "./win-back-verdict";
 
 export type WinBackRules = RouterOutputs["reactivation"]["rules"];
 
@@ -417,7 +419,9 @@ export function WinBackRulesSheet({ rules }: { rules: WinBackRules }) {
 							</Field>
 							<Field>
 								<FieldLabel htmlFor={`${id}-min-pallets`}>
-									{t("Minimum quantity")}
+									{t("Minimum quantity in {unit}", {
+										unit: unitLabel(draft.business.unit, t),
+									})}
 								</FieldLabel>
 								<Input
 									id={`${id}-min-pallets`}
@@ -431,9 +435,9 @@ export function WinBackRulesSheet({ rules }: { rules: WinBackRules }) {
 									}
 								/>
 								<FieldDescription>
-									{t(
-										"Units per order that count as serious. 400 is one truck load.",
-									)}
+									{t("How many {unit} per order count as serious.", {
+										unit: unitLabel(draft.business.unit, t),
+									})}
 								</FieldDescription>
 							</Field>
 							<Field>
@@ -446,7 +450,7 @@ export function WinBackRulesSheet({ rules }: { rules: WinBackRules }) {
 									onChange={(event) => setBusiness("unit", event.target.value)}
 									onBlur={() => {
 										if (!draft.business.unit.trim())
-											setBusiness("unit", "units");
+											setBusiness("unit", DEFAULT_WIN_BACK_RULES.business.unit);
 									}}
 								/>
 								<FieldDescription>

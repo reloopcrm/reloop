@@ -38,7 +38,6 @@
 	"Bring in email from any IMAP mailbox, including its history": "接入任何 IMAP 邮箱的邮件，包括全部历史",
 	"Coming soon": "即将推出",
 	"Anything else": "其他",
-	"The intake API is not available yet": "接入 API 还不可用",
 	"Nothing is connected yet.": "还没有连接任何东西。",
 	"{names} is already connected.": "{names} 已经连接了。",
 	"{names} are already connected.": "{names} 已经连接了。",
@@ -112,8 +111,6 @@
 	"Reads any mailbox that speaks IMAP, including everything already in it. Conversations are filed against the matching company and contact, and the agent reads them the same way it reads Gmail.": "读取任何支持 IMAP 的邮箱，包括里面已有的全部内容。往来归到对应的公司和联系人下，智能体读它们的方式和读 Gmail 一样。",
 	"No mailbox yet": "还没有邮箱",
 	"Add a mailbox to start. Brings in email and the people on it. Sends nothing, so nothing here can change your mailbox.": "先添加一个邮箱。它接入邮件和里面的人。它不发送任何东西，所以这里没有任何操作会改动你的邮箱。",
-	"Intake endpoint": "接入端点",
-	"This connection is not available yet. No endpoint, API key, or intake activity has been created for this workspace.": "这个连接还不可用。这个工作区还没有建立端点、API 密钥或接入记录。",
 	"Back to connections": "返回连接",
 	"Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in the root .env file and restart.": "在根目录的 .env 文件里设置 MICROSOFT_CLIENT_ID 和 MICROSOFT_CLIENT_SECRET，然后重启。",
 	"Could not reach Microsoft.": "无法连接 Microsoft。",
@@ -367,6 +364,8 @@
 	"Reads your newest sent emails and records how you sell, so drafts sound like you. One model call, rarely.": "读你最新发出的邮件，记下你怎么卖东西，让草稿听起来像你。偶尔一次模型调用。",
 	"Win back rule tuning": "赢回规则调整",
 	"Re-tunes the win back ranking after a rep marks records good or bad. One model call per tune.": "销售把记录标为好或坏之后，重新调整赢回排序。每次调整一次模型调用。",
+	"Next steps on stalled deals": "停滞交易的下一步",
+	"Once a week, writes one note on each open deal that has gone quiet, with the next step read from the latest emails. One model call per deal, at most once until the deal moves again.": "每周一次，为每个已停滞的未结交易写一条备注，给出从最新邮件中读出的下一步。每个交易调用一次模型，在交易再次推进之前最多一次。",
 	"Win back follow-up tasks": "赢回跟进任务",
 	"Writes one task 14 days after you reached out to somebody from Win back and nobody answered. The API counts what already happened, so this costs nothing.": "你从赢回里联系某人 14 天后仍无人回复时，写一个任务。API 只统计已经发生的事，所以这不花钱。",
 	"Business setup proposal": "业务设置建议",
@@ -430,5 +429,10 @@
 	"Address hidden": "地址已隐藏",
 	"Too many sign-ups from here. Wait a minute and try again.": "来自此处的注册过多。请等待一分钟后重试。",
 	"The waitlist is taking more sign-ups than it can store. Try again in a minute.": "候补名单收到的注册超出了可存储的数量。请一分钟后重试。",
-	"Only an owner or an admin can change a custom field.": "只有所有者或管理员可以更改自定义字段。"
+	"Only an owner or an admin can change a custom field.": "只有所有者或管理员可以更改自定义字段。",
+	"Read and write every record through the REST API": "通过 REST API 读写每条记录",
+	"REST API": "REST API",
+	"Every action in the CRM is also a REST endpoint. Send an API key in the x-api-key header to /api/rest on this address.": "CRM 中的每个操作也是一个 REST 端点。在 x-api-key 请求头中携带 API 密钥，发送到此地址的 /api/rest。",
+	"GET /api/openapi.json lists every endpoint and every input. It needs the key too.": "GET /api/openapi.json 列出每个端点和每个输入。它同样需要密钥。",
+	"Create an API key": "创建 API 密钥"
 }

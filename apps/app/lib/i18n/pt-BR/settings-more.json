@@ -38,7 +38,6 @@
 	"Bring in email from any IMAP mailbox, including its history": "Traz e-mails de qualquer caixa IMAP, com todo o histórico",
 	"Coming soon": "Em breve",
 	"Anything else": "Qualquer outra coisa",
-	"The intake API is not available yet": "A API de entrada ainda não existe",
 	"Nothing is connected yet.": "Ainda não há nada conectado.",
 	"{names} is already connected.": "{names} já está conectado.",
 	"{names} are already connected.": "{names} já estão conectados.",
@@ -112,8 +111,6 @@
 	"Reads any mailbox that speaks IMAP, including everything already in it. Conversations are filed against the matching company and contact, and the agent reads them the same way it reads Gmail.": "Lê qualquer caixa que fale IMAP, com tudo que já está nela. As conversas são arquivadas na empresa e no contato certos, e o agente lê elas do mesmo jeito que lê o Gmail.",
 	"No mailbox yet": "Ainda sem caixa de e-mail",
 	"Add a mailbox to start. Brings in email and the people on it. Sends nothing, so nothing here can change your mailbox.": "Adicione uma caixa para começar. Ela traz os e-mails e as pessoas neles. Não envia nada, então nada aqui muda a sua caixa.",
-	"Intake endpoint": "Endpoint de entrada",
-	"This connection is not available yet. No endpoint, API key, or intake activity has been created for this workspace.": "Esta conexão ainda não existe. Para este espaço de trabalho não foi criado nenhum endpoint, nenhuma chave de API e nenhuma atividade de entrada.",
 	"Back to connections": "Voltar para as conexões",
 	"Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in the root .env file and restart.": "Coloque MICROSOFT_CLIENT_ID e MICROSOFT_CLIENT_SECRET no arquivo .env da raiz e reinicie.",
 	"Could not reach Microsoft.": "A Microsoft não respondeu.",
@@ -367,6 +364,8 @@
 	"Reads your newest sent emails and records how you sell, so drafts sound like you. One model call, rarely.": "Lê seus e-mails enviados mais novos e registra como você vende, para os rascunhos soarem como você. Uma chamada de modelo, raramente.",
 	"Win back rule tuning": "Ajustar as regras de reconquista",
 	"Re-tunes the win back ranking after a rep marks records good or bad. One model call per tune.": "Reajusta a ordem da reconquista depois que alguém marca registros como bons ou ruins. Uma chamada de modelo por ajuste.",
+	"Next steps on stalled deals": "Próximos passos em negócios parados",
+	"Once a week, writes one note on each open deal that has gone quiet, with the next step read from the latest emails. One model call per deal, at most once until the deal moves again.": "Uma vez por semana, escreve uma nota em cada negócio aberto que ficou parado, com o próximo passo tirado dos últimos e-mails. Uma chamada ao modelo por negócio, no máximo uma vez até o negócio andar de novo.",
 	"Win back follow-up tasks": "Tarefas de cobrança da reconquista",
 	"Writes one task 14 days after you reached out to somebody from Win back and nobody answered. The API counts what already happened, so this costs nothing.": "Escreve uma tarefa 14 dias depois de você falar com alguém de Reconquistar e ninguém responder. A API só conta o que já aconteceu, então isso não custa nada.",
 	"Business setup proposal": "Proposta de configuração do negócio",
@@ -430,5 +429,10 @@
 	"Address hidden": "Endereço oculto",
 	"Too many sign-ups from here. Wait a minute and try again.": "Inscrições demais daqui. Espere um minuto e tente de novo.",
 	"The waitlist is taking more sign-ups than it can store. Try again in a minute.": "A lista de espera está recebendo mais inscrições do que consegue guardar. Tente de novo em um minuto.",
-	"Only an owner or an admin can change a custom field.": "Apenas um proprietário ou um administrador pode alterar um campo personalizado."
+	"Only an owner or an admin can change a custom field.": "Apenas um proprietário ou um administrador pode alterar um campo personalizado.",
+	"Read and write every record through the REST API": "Leia e grave cada registro pela API REST",
+	"REST API": "API REST",
+	"Every action in the CRM is also a REST endpoint. Send an API key in the x-api-key header to /api/rest on this address.": "Cada ação do CRM também é um endpoint REST. Envie uma chave de API no cabeçalho x-api-key para /api/rest neste endereço.",
+	"GET /api/openapi.json lists every endpoint and every input. It needs the key too.": "GET /api/openapi.json lista cada endpoint e cada entrada. Ele também precisa da chave.",
+	"Create an API key": "Criar uma chave de API"
 }

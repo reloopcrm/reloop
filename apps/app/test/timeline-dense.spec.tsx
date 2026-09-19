@@ -110,6 +110,7 @@ describe("the collapsed preview is the sentence, not the sign-off", () => {
 				},
 			},
 			calendarEvent: null,
+			editable: false,
 		};
 
 		const markup = renderToString(
@@ -117,7 +118,7 @@ describe("the collapsed preview is the sentence, not the sign-off", () => {
 				children: createElement(I18nProvider, {
 					locale: "en",
 					children: createElement(EmailThreadEntry, {
-						entry,
+						entries: [entry],
 						anchor: { contactId: "c1" },
 					}),
 				}),
@@ -276,5 +277,131 @@ describe("the demo tour still has something to click", () => {
 		const holder = mount(markup);
 		const marked = holder.querySelector("[data-demo='email-thread']");
 		expect(marked?.tagName.toLowerCase()).toBe("summary");
+	});
+});
+
+function mail(id: string, threadId: string, subject: string, at: string) {
+	return {
+		id,
+		type: "EMAIL" as const,
+		subject,
+		body: "Kurzer Text zum Thema.",
+		occurredAt: at,
+		dueAt: null,
+		completedAt: null,
+		meta: null,
+		createdAt: at,
+		createdBy: {
+			id: "u1",
+			name: "Tugra Örscelik",
+			email: "t.orscelik@tt-handelslogistik.de",
+			image: null,
+		},
+		company: null,
+		contact: null,
+		deal: null,
+		emailThread: {
+			id: threadId,
+			messageCount: 2,
+			lastMessageAt: at,
+			lastMessage: {
+				direction: "INBOUND" as const,
+				fromName: "Christian Graber",
+				fromEmail: "graber@europaletten.de",
+				source: "IMAP" as const,
+			},
+		},
+		calendarEvent: null,
+		editable: false,
+	};
+}
+
+const CONVERSATION = [
+	mail("a", "t1", "Antwort Europaletten", "2026-09-14T07:37:00.000Z"),
+	mail("b", "t2", "AW: Antwort Europaletten", "2026-09-12T15:58:00.000Z"),
+	mail("c", "t3", "Re: Antwort Europaletten", "2026-09-11T11:20:00.000Z"),
+];
+
+function renderThread(
+	entries: ReturnType<typeof mail>[],
+	openThreadId: string | null = null,
+): HTMLElement {
+	return mount(
+		renderToString(
+			createElement(TRPCReactProvider, {
+				children: createElement(I18nProvider, {
+					locale: "en",
+					children: createElement(EmailThreadEntry, {
+						entries,
+						anchor: { contactId: "c1" },
+						openThreadId,
+					}),
+				}),
+			}),
+		),
+	);
+}
+
+function closedRow(holder: HTMLElement): string {
+	return holder.querySelector("summary")?.textContent ?? "";
+}
+
+describe("one conversation is one row", () => {
+	it("draws one row for three consecutive entries of one conversation", () => {
+		const holder = renderThread(CONVERSATION);
+		expect(holder.querySelectorAll("[data-slot='event-row']").length).toBe(1);
+	});
+
+	it("says the subject once, not once per message", () => {
+		const holder = renderThread(CONVERSATION);
+		expect(closedRow(holder).match(/Antwort Europaletten/g)?.length).toBe(1);
+	});
+
+	it("names the message count and the speaker who spoke last", () => {
+		const closed = closedRow(renderThread(CONVERSATION));
+		expect(closed).toContain("6 messages");
+		expect(closed).toContain("Christian Graber");
+	});
+
+	it("keeps the kind and the mailbox out of the row, because the mark says both", () => {
+		const closed = closedRow(renderThread(CONVERSATION));
+		expect(closed).not.toContain("IMAP");
+		expect(closed).not.toContain("Email");
+	});
+
+	it("says the count once, so the old three places cannot come back", () => {
+		const closed = closedRow(renderThread(CONVERSATION));
+		expect(closed.match(/6 messages/g)?.length).toBe(1);
+	});
+
+	it("keeps the snippet when one row is one conversation", () => {
+		const closed = closedRow(
+			renderThread([
+				mail("a", "t1", "Antwort Europaletten", "2026-09-14T07:37:00.000Z"),
+			]),
+		);
+		expect(closed).toContain("Kurzer Text zum Thema.");
+		expect(closed).not.toContain("messages");
+	});
+});
+
+describe("a deep link still opens the right conversation", () => {
+	it("opens the merged row when the link names a thread inside it", () => {
+		const holder = renderThread(CONVERSATION, "t3");
+		expect(
+			holder.querySelector("details")?.getAttribute("open"),
+		).not.toBeNull();
+	});
+
+	it("keeps an anchor for every thread the row swallowed", () => {
+		const holder = renderThread(CONVERSATION);
+		for (const id of ["thread-t1", "thread-t2", "thread-t3"]) {
+			expect(holder.querySelector(`[id='${id}']`)).not.toBeNull();
+		}
+	});
+
+	it("leaves the row closed when the link names another conversation", () => {
+		const holder = renderThread(CONVERSATION, "t9");
+		expect(holder.querySelector("details")?.getAttribute("open")).toBeNull();
 	});
 });

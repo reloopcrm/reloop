@@ -1,5 +1,6 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
 import { z } from "zod";
+import { builderFeedbackMarkdown } from "../lib/builder-feedback";
 import { focusOn, setBudget } from "../lib/focus";
 import { sessionPreamble } from "../lib/preamble";
 import { RESEARCH_INSTRUCTIONS } from "../lib/research-instructions";
@@ -62,12 +63,15 @@ export default defineDynamic({
 	},
 });
 
-function builderInstructions(ctx: Parameters<typeof purposeOf>[0]) {
+async function builderInstructions(ctx: Parameters<typeof purposeOf>[0]) {
+	const task = builderTaskMarkdown(
+		attribute(ctx, "commandType"),
+		attribute(ctx, "needsTitle") === "true",
+	);
+	const feedback = await builderFeedbackMarkdown(attribute(ctx, "userId"));
+
 	return defineInstructions({
-		markdown: builderTaskMarkdown(
-			attribute(ctx, "commandType"),
-			attribute(ctx, "needsTitle") === "true",
-		),
+		markdown: feedback ? `${task}\n\n${feedback}` : task,
 	});
 }
 

@@ -70,7 +70,7 @@ export const activityCreateInput = z
 	.refine(
 		(input) => input.type !== ActivityType.TASK || Boolean(input.subject),
 		{
-			message: "A task needs a subject — it is the thing to do.",
+			message: "A task needs a subject. It is the thing to do.",
 			path: ["subject"],
 		},
 	);
@@ -81,6 +81,19 @@ export const completeInput = z.object({
 	id: z.string(),
 	completed: z.boolean().default(true),
 });
+
+export const activityUpdateInput = z.object({
+	id: z.string(),
+	subject: z.string().trim().optional(),
+	body: z.string().trim().optional(),
+	dueAt: z.string().nullable().optional(),
+});
+
+export type ActivityUpdateInput = z.infer<typeof activityUpdateInput>;
+
+export const activityRemoveInput = z.object({ id: z.string() });
+
+export const activityRemoveOutput = z.object({ id: z.string() });
 
 export const myTasksInput = z.object({
 	window: z.enum(["overdue", "upcoming", "all"]).default("all"),
@@ -162,6 +175,7 @@ export const activityEntryOutput = z.object({
 	deal: activityDealRefOutput,
 	emailThread: activityEmailThreadOutput,
 	calendarEvent: activityCalendarEventOutput,
+	editable: z.boolean(),
 });
 
 export type ActivityEntry = z.infer<typeof activityEntryOutput>;
@@ -189,3 +203,5 @@ export const myTasksOutput = z.array(activityEntryOutput);
 export const activityCreateOutput = activityEntryOutput;
 
 export const completeOutput = activityEntryOutput;
+
+export const activityUpdateOutput = activityEntryOutput;

@@ -38,7 +38,6 @@
 	"Bring in email from any IMAP mailbox, including its history": "Her IMAP posta kutusundan e-postaları, geçmişiyle birlikte içeri getirir",
 	"Coming soon": "Yakında",
 	"Anything else": "Başka her şey",
-	"The intake API is not available yet": "Intake API'si henüz yok",
 	"Nothing is connected yet.": "Henüz hiçbir şey bağlı değil.",
 	"{names} is already connected.": "{names} zaten bağlı.",
 	"{names} are already connected.": "{names} zaten bağlı.",
@@ -112,8 +111,6 @@
 	"Reads any mailbox that speaks IMAP, including everything already in it. Conversations are filed against the matching company and contact, and the agent reads them the same way it reads Gmail.": "IMAP konuşan her posta kutusunu, içindeki her şeyle birlikte okur. Yazışmalar eşleşen şirkete ve kişiye dosyalanır, agent onları Gmail'i okuduğu gibi okur.",
 	"No mailbox yet": "Henüz posta kutusu yok",
 	"Add a mailbox to start. Brings in email and the people on it. Sends nothing, so nothing here can change your mailbox.": "Başlamak için bir posta kutusu ekle. E-postaları ve içindeki kişileri getirir. Hiçbir şey göndermez, bu yüzden burada hiçbir şey posta kutunu değiştiremez.",
-	"Intake endpoint": "Intake uç noktası",
-	"This connection is not available yet. No endpoint, API key, or intake activity has been created for this workspace.": "Bu bağlantı henüz yok. Bu çalışma alanı için uç nokta, API anahtarı veya intake hareketi oluşturulmadı.",
 	"Back to connections": "Bağlantılara dön",
 	"Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in the root .env file and restart.": "Ana klasördeki .env dosyasına MICROSOFT_CLIENT_ID ve MICROSOFT_CLIENT_SECRET gir ve yeniden başlat.",
 	"Could not reach Microsoft.": "Microsoft'a ulaşılamadı.",
@@ -367,6 +364,8 @@
 	"Reads your newest sent emails and records how you sell, so drafts sound like you. One model call, rarely.": "En yeni gönderilen e-postalarını okur ve nasıl sattığını kaydeder, böylece taslaklar senin gibi konuşur. Bir model çağrısı, nadiren.",
 	"Win back rule tuning": "Geri kazanma kurallarını ayarlama",
 	"Re-tunes the win back ranking after a rep marks records good or bad. One model call per tune.": "Biri kayıtları iyi veya kötü olarak işaretledikten sonra geri kazanma sıralamasını yeniden ayarlar. Ayarlama başına bir model çağrısı.",
+	"Next steps on stalled deals": "Duran fırsatlarda sonraki adımlar",
+	"Once a week, writes one note on each open deal that has gone quiet, with the next step read from the latest emails. One model call per deal, at most once until the deal moves again.": "Haftada bir kez, sessizleşen her açık fırsata son e-postalardan çıkarılan sonraki adımla bir not yazar. Fırsat başına bir model çağrısı, fırsat yeniden hareketlenene kadar en fazla bir kez.",
 	"Win back follow-up tasks": "Geri kazanma takip görevleri",
 	"Writes one task 14 days after you reached out to somebody from Win back and nobody answered. The API counts what already happened, so this costs nothing.": "Geri kazan listesinden birine yazdıktan 14 gün sonra kimse cevap vermezse bir görev yazar. API sadece olanları sayar, bu yüzden maliyeti yok.",
 	"Business setup proposal": "İş kurulumu önerisi",
@@ -430,5 +429,10 @@
 	"Address hidden": "Adres gizli",
 	"Too many sign-ups from here. Wait a minute and try again.": "Buradan çok fazla kayıt geldi. Bir dakika bekleyin ve yeniden deneyin.",
 	"The waitlist is taking more sign-ups than it can store. Try again in a minute.": "Bekleme listesi saklayabileceğinden fazla kayıt alıyor. Bir dakika sonra yeniden deneyin.",
-	"Only an owner or an admin can change a custom field.": "Özel bir alanı yalnızca bir sahip veya yönetici değiştirebilir."
+	"Only an owner or an admin can change a custom field.": "Özel bir alanı yalnızca bir sahip veya yönetici değiştirebilir.",
+	"Read and write every record through the REST API": "Her kaydı REST API ile oku ve yaz",
+	"REST API": "REST API",
+	"Every action in the CRM is also a REST endpoint. Send an API key in the x-api-key header to /api/rest on this address.": "CRM'deki her işlem aynı zamanda bir REST uç noktasıdır. Bu adreste /api/rest'e x-api-key başlığında bir API anahtarı gönder.",
+	"GET /api/openapi.json lists every endpoint and every input. It needs the key too.": "GET /api/openapi.json her uç noktayı ve her girdiyi listeler. Bunun için de anahtar gerekir.",
+	"Create an API key": "API anahtarı oluştur"
 }

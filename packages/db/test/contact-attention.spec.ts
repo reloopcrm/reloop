@@ -364,11 +364,93 @@ describe("every claim the block makes carries a link", () => {
 			}
 			if (field.key === "standing") {
 				expect(field.worth).toBe("deal");
-				expect(field.threadsRead).toBe(6);
+				expect(field.threadsRead).toBe(1);
 				continue;
 			}
 			expect(field.source?.threadId).toBe("t-offer");
 		}
+	});
+
+	it("names the person the answer is about", () => {
+		expect(attentionOf(facts()).name).toBe("Christian Graber");
+	});
+
+	it("keeps the first name alone when no last name is on file", () => {
+		const read = attentionOf(
+			facts({
+				candidate: candidate({
+					contact: { ...candidate().contact, lastName: null },
+				}),
+			}),
+		);
+
+		expect(read.name).toBe("Christian");
+	});
+
+	it("names nobody when no mail of this person was ever seen", () => {
+		expect(attentionOf(facts({ candidate: null })).name).toBeNull();
+	});
+
+	it("counts the threads the standing was read from, not every thread", () => {
+		const read = attentionOf(
+			facts({
+				signals: [
+					{
+						relevant: true,
+						outcome: "OPEN_OFFER_OURS",
+						quantityPallets: 620,
+						unansweredByUs: false,
+						products: ["Europalette EPAL"],
+						topics: [],
+					},
+					{
+						relevant: false,
+						outcome: "OTHER",
+						quantityPallets: null,
+						unansweredByUs: false,
+						products: [],
+						topics: [],
+					},
+					{
+						relevant: false,
+						outcome: "OTHER",
+						quantityPallets: null,
+						unansweredByUs: false,
+						products: [],
+						topics: [],
+					},
+				],
+			}),
+		);
+		const standing = read.fields.find((field) => field.key === "standing");
+
+		expect(standing?.key).toBe("standing");
+		if (standing?.key !== "standing") return;
+		expect(standing.threadsRead).toBe(1);
+	});
+
+	it("strips the marks a stored quote already carries", () => {
+		const read = attentionOf(
+			facts({
+				insight: insight({
+					evidence: ["\u201ehaben Sie 620 Europaletten verf\u00fcgbar?\u201c"],
+				}),
+			}),
+		);
+
+		expect(read.evidence?.quote).toBe(
+			"haben Sie 620 Europaletten verf\u00fcgbar?",
+		);
+	});
+
+	it("leaves a quote that carries no marks alone", () => {
+		const read = attentionOf(
+			facts({
+				insight: insight({ evidence: ["Wir brauchen 620 St\u00fcck."] }),
+			}),
+		);
+
+		expect(read.evidence?.quote).toBe("Wir brauchen 620 St\u00fcck.");
 	});
 
 	it("hands the evidence quote the thread it came from", () => {

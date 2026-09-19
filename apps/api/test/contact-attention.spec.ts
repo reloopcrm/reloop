@@ -359,6 +359,12 @@ describe("readContactAttention picks the case from what the agent stored", () =>
 		expect(answer.evidence?.messageId).toBe(quoted.id);
 	});
 
+	it("names the person the answer is about", async () => {
+		const answer = await read(waiting);
+
+		expect(answer.name).toBe("Waiting");
+	});
+
 	it("names why the standing holds instead of linking to one thread", async () => {
 		const answer = await read(waiting);
 		const standing = answer.fields.find((field) => field.key === "standing");

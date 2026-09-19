@@ -93,7 +93,7 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
-	const { tab, setTab } = useRecordSheetView("overview");
+	const { tab, setTab } = useRecordSheetView("activity");
 
 	const query = useQuery({
 		...trpc.contacts.byId.queryOptions({ id: contactId }),
@@ -245,14 +245,17 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 			stats={
 				contact ? (
 					<DetailSheetStats>
-						<DetailSheetStat label={t("Company")}>
+						<DetailSheetStat label={t("Company")} title={contact.company?.name}>
 							{contact.company ? (
 								<CompanyStat company={contact.company} />
 							) : (
 								<EmptyCellValue />
 							)}
 						</DetailSheetStat>
-						<DetailSheetStat label={t("Email")}>
+						<DetailSheetStat
+							label={t("Email")}
+							title={contact.email ?? undefined}
+						>
 							{contact.email ? (
 								<a
 									href={`mailto:${contact.email}`}
@@ -264,7 +267,10 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 								<EmptyCellValue />
 							)}
 						</DetailSheetStat>
-						<DetailSheetStat label={t("Phone")}>
+						<DetailSheetStat
+							label={t("Phone")}
+							title={contact.phone ?? undefined}
+						>
 							{contact.phone ? (
 								<a
 									href={`tel:${contact.phone}`}
@@ -275,9 +281,6 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 							) : (
 								<EmptyCellValue />
 							)}
-						</DetailSheetStat>
-						<DetailSheetStat label={t("Owner")}>
-							<OwnerCell owner={contact.owner} />
 						</DetailSheetStat>
 					</DetailSheetStats>
 				) : null
@@ -374,7 +377,7 @@ function ContactOverview({ contact }: { contact: Contact }) {
 					<InlineField
 						label={t("Title")}
 						value={contact.title}
-						placeholder="Head of Security"
+						placeholder={t("Head of Purchasing")}
 						saving={isSaving("title")}
 						onSave={(title) => save({ title })}
 						{...agentProps("title")}

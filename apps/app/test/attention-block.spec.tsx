@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import { fileURLToPath } from "node:url";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import ts from "typescript";
@@ -7,6 +7,16 @@ import { LOCALES } from "../lib/i18n/locale";
 
 const owned = !("document" in globalThis);
 if (owned) GlobalRegistrator.register();
+
+const nuqs = await import("nuqs");
+mock.module("nuqs", () => ({
+	...nuqs,
+	useQueryState: () => [null, () => {}],
+}));
+mock.module("../components/crm/email-draft-dialog", () => ({
+	EmailDraftDialog: ({ label }: { label?: string }) =>
+		createElement("button", { type: "button", "data-slot": "draft" }, label),
+}));
 
 const { createElement } = await import("react");
 const { renderToStaticMarkup } = await import("react-dom/server");
@@ -17,22 +27,63 @@ const { AttentionAnswer, AttentionProblem, openThreadRow } = await import(
 
 type Attention = Parameters<typeof AttentionAnswer>[0]["attention"];
 
-function attention(): Attention {
+const QUOTE = "haben Sie 620 Europaletten verfügbar?";
+
+function attention(over: Partial<Attention> = {}): Attention {
 	return {
-		kind: "owed",
+		kind: "waiting",
+		name: "Christian Graber",
 		quietDays: 0,
 		emails: 4,
 		firstContactAt: null,
-		lastInbound: { at: "2026-09-10T08:12:00.000Z", threadId: null },
-		lastOutbound: null,
-		reply: { email: "c.graber@palatum.de", subject: "Bedarf Q4 Europaletten" },
-		fields: [],
-		evidence: null,
+		lastInbound: { at: "2026-09-19T08:12:00.000Z", threadId: "t-ask" },
+		lastOutbound: { at: "2026-09-19T09:40:00.000Z", threadId: "t-offer" },
+		reply: { email: "c.graber@palatum.de" },
+		fields: [
+			{
+				key: "products",
+				values: ["Europaletten"],
+				source: {
+					threadId: "t-offer",
+					subject: "Europaletten",
+					at: "2026-09-19T09:40:00.000Z",
+				},
+			},
+		],
+		evidence: {
+			quote: QUOTE,
+			messageId: "m1",
+			source: {
+				threadId: "t-offer",
+				subject: "Europaletten",
+				at: "2026-09-19T09:40:00.000Z",
+			},
+		},
 		points: null,
+		...over,
 	};
 }
 
+function linkTexts(markup: string): (string | null)[] {
+	const holder = document.createElement("div");
+	holder.innerHTML = markup;
+
+	return [...holder.querySelectorAll('[data-slot="source-link"]')].map(
+		(node) => node.textContent,
+	);
+}
+
+function block(over: Partial<Attention> = {}): string {
+	return renderToStaticMarkup(
+		createElement(AttentionAnswer, {
+			attention: attention(over),
+			contactId: "c1",
+		}),
+	);
+}
+
 afterAll(() => {
+	mock.restore();
 	if (owned) GlobalRegistrator.unregister();
 });
 
@@ -132,6 +183,20 @@ describe("the block speaks every language the app speaks", () => {
 		expect(keys.length).toBeGreaterThan(30);
 		expect(missing).toEqual([]);
 	});
+
+	it("keeps one whole sentence per reason, never a prefix and a fragment", () => {
+		const german = DICTIONARIES.de;
+
+		expect(german["Business was done before."]).toBe(
+			"Früher wurde ein Geschäft gemacht.",
+		);
+		expect(
+			german["read from {count} threads, because {reason}"],
+		).toBeUndefined();
+		for (const value of Object.values(german)) {
+			expect(value.startsWith("weil ")).toBe(false);
+		}
+	});
 });
 
 describe("a failed answer says so in the block's own place", () => {
@@ -143,18 +208,109 @@ describe("a failed answer says so in the block's own place", () => {
 	});
 });
 
-describe("the action of the block stays reachable", () => {
-	it("keeps the action out of the part that scrolls", () => {
-		const holder = document.createElement("div");
-		holder.innerHTML = renderToStaticMarkup(
-			createElement(AttentionAnswer, { attention: attention() }),
+describe("the block scrolls with the timeline, not inside itself", () => {
+	it("opens no scroll area and caps no height of its own", () => {
+		const markup = block();
+
+		expect(markup).not.toContain("overflow-y-auto");
+		expect(markup).not.toContain("overflow-auto");
+		expect(markup).not.toContain("max-h-");
+	});
+
+	it("leaves the timeline one scroller that owns the whole tab body", async () => {
+		const full = fileURLToPath(
+			new URL("../components/crm/timeline/timeline.tsx", import.meta.url),
 		);
+		const source = await Bun.file(full).text();
 
-		const scroller = holder.querySelector(".overflow-y-auto");
+		expect(source.split("overflow-y-auto").length - 1).toBe(1);
+	});
+});
 
-		expect(holder.querySelector('a[href^="mailto:"]')).not.toBeNull();
-		expect(scroller).not.toBeNull();
-		expect(scroller?.querySelector('a[href^="mailto:"]')).toBeNull();
+describe("the action of the block covers nothing", () => {
+	it("sits in the flow, after the evidence it belongs to", () => {
+		const markup = block();
+		const quoted = markup.indexOf(QUOTE);
+		const action = markup.indexOf('data-slot="draft"');
+
+		expect(quoted).toBeGreaterThan(-1);
+		expect(action).toBeGreaterThan(quoted);
+	});
+
+	it("carries no pinned position that can lie on top of the text", () => {
+		const markup = block();
+
+		expect(markup).not.toContain("sticky");
+		expect(markup).not.toContain("absolute");
+		expect(markup).not.toContain("fixed");
+	});
+});
+
+describe("the verdict names the person", () => {
+	it("writes the first and the last name into the claim", () => {
+		expect(block()).toContain("You are waiting on Christian Graber.");
+	});
+
+	it("falls back to a word rather than an empty gap", () => {
+		expect(block({ name: null })).toContain("You are waiting on this person.");
+	});
+});
+
+describe("each mail moment is one sentence on one line", () => {
+	it("says it once when both last wrote on the same day", () => {
+		const markup = block();
+
+		expect(markup).toContain("You both wrote last on");
+		expect(markup).not.toContain("Their last mail arrived on");
+		expect(markup).not.toContain("Your last mail went out on");
+	});
+
+	it("keeps the two sentences apart when the days differ", () => {
+		const markup = block({
+			lastOutbound: { at: "2026-09-12T16:40:00.000Z", threadId: "t-offer" },
+		});
+
+		expect(markup).toContain("Their last mail arrived on");
+		expect(markup).toContain("Your last mail went out on");
+		expect(markup).not.toContain("You both wrote last on");
+		expect(markup).toContain("</p><p");
+	});
+});
+
+describe("a source link never repeats the value beside it", () => {
+	it("drops the subject when it is the same word as the value", () => {
+		const links = linkTexts(block());
+
+		expect(links).not.toContain("Europaletten");
+		expect(links).toContain("Open the mail");
+	});
+
+	it("names the thread when the subject says something new", () => {
+		const markup = block({
+			fields: [
+				{
+					key: "products",
+					values: ["Europaletten"],
+					source: {
+						threadId: "t-offer",
+						subject: "Angebot Q4",
+						at: "2026-09-19T09:40:00.000Z",
+					},
+				},
+			],
+		});
+
+		expect(linkTexts(markup)).toContain("Angebot Q4");
+	});
+});
+
+describe("a quote carries one pair of marks", () => {
+	it("adds exactly one pair around the stored words", () => {
+		const markup = block();
+
+		expect(markup.split("“").length - 1).toBe(1);
+		expect(markup.split("”").length - 1).toBe(1);
+		expect(markup).toContain(`“${QUOTE}”`);
 	});
 });
 

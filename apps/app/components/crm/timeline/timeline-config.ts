@@ -1,9 +1,9 @@
-import type { TimelineTab } from "./timeline-search-params";
+import { TIMELINE_TABS, type TimelineTab } from "./timeline-search-params";
 
 export const TIMELINE = {
 	pinned: { limit: 10 },
 	preview: { maxChars: 180 },
-	counted: ["all", "upcoming"],
+	counted: TIMELINE_TABS,
 	format: {
 		time: { hour: "numeric", minute: "2-digit" },
 		day: { weekday: "short", day: "numeric", month: "short" },

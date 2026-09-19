@@ -117,7 +117,7 @@ function EventList({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="event-list"
 			className={cn(
-				"flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-4 [--event-time:3rem] [--event-who:8rem] max-md:[--event-time:2.75rem] max-md:[--event-who:5.75rem]",
+				"flex shrink-0 flex-col px-5 pb-4 [--event-time:3rem] [--event-who:8rem] max-md:[--event-time:2.75rem] max-md:[--event-who:5.75rem]",
 				className,
 			)}
 			{...props}

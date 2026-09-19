@@ -39,10 +39,14 @@ export function EmailDraftDialog({
 	contactId,
 	email,
 	name,
+	label,
+	variant = "outline",
 }: {
 	contactId: string;
 	email: string;
 	name: string;
+	label?: string;
+	variant?: "outline" | "default";
 }) {
 	const t = useT();
 	const locale = useLocale();
@@ -152,9 +156,9 @@ export function EmailDraftDialog({
 	return (
 		<Dialog open={open} onOpenChange={(next) => void changeOpen(next)}>
 			<DialogTrigger asChild>
-				<Button variant="outline" size="sm">
+				<Button variant={variant} size="sm">
 					<Icon icon={Email} data-icon="inline-start" />
-					<span className="hidden sm:inline">{t("Email")}</span>
+					{label ?? <span className="hidden sm:inline">{t("Email")}</span>}
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-[640px]">

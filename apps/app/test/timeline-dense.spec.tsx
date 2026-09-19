@@ -173,7 +173,7 @@ describe("a row opens in place", () => {
 	});
 });
 
-describe("the tabs carry the total and the open tasks, nothing else", () => {
+describe("every tab carries the number the query already paid for", () => {
 	const counts = {
 		all: 54,
 		notes: 12,
@@ -191,11 +191,11 @@ describe("the tabs carry the total and the open tasks, nothing else", () => {
 		expect(tabCount("upcoming", counts)).toBe(1);
 	});
 
-	it("leaves notes, email, meetings and done without a number", () => {
-		expect(tabCount("notes", counts)).toBeNull();
-		expect(tabCount("email", counts)).toBeNull();
-		expect(tabCount("meetings", counts)).toBeNull();
-		expect(tabCount("done", counts)).toBeNull();
+	it("counts notes, email, meetings and done as well", () => {
+		expect(tabCount("notes", counts)).toBe(12);
+		expect(tabCount("email", counts)).toBe(53);
+		expect(tabCount("meetings", counts)).toBe(2);
+		expect(tabCount("done", counts)).toBe(3);
 	});
 
 	it("hides a zero", () => {

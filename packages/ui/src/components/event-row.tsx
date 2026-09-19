@@ -138,7 +138,7 @@ function EventDayStrip({
 		<h3
 			data-slot="event-day-strip"
 			data-tone={tone}
-			className="sticky top-0 z-10 mt-2 flex h-6 items-center justify-between gap-2 border-border-strong border-t bg-popover font-normal first:mt-0 first:border-t-0"
+			className="sticky top-0 z-10 flex h-6 items-center justify-between gap-2 bg-popover font-normal"
 		>
 			<span
 				className={cn(
@@ -161,18 +161,39 @@ function EventDayStrip({
 
 function EventGroup({
 	pending = false,
+	label,
+	note,
 	className,
+	children,
 	...props
-}: React.ComponentProps<"div"> & { pending?: boolean }) {
+}: React.ComponentProps<"div"> & {
+	pending?: boolean;
+	label?: React.ReactNode;
+	note?: React.ReactNode;
+}) {
 	return (
-		<div
-			data-slot="event-group"
-			className={cn(
-				pending && "border-border-strong border-l border-dashed",
-				className,
+		<section
+			data-slot="event-day"
+			className="mt-2 border-border-strong border-t first:mt-0 first:border-t-0"
+		>
+			{label === undefined ? null : (
+				<EventDayStrip
+					label={label}
+					note={note}
+					tone={pending ? "pending" : "past"}
+				/>
 			)}
-			{...props}
-		/>
+			<div
+				data-slot="event-group"
+				className={cn(
+					pending && "border-border-strong border-l border-dashed",
+					className,
+				)}
+				{...props}
+			>
+				{children}
+			</div>
+		</section>
 	);
 }
 
@@ -280,4 +301,4 @@ function EventRow({
 	);
 }
 
-export { EventDayStrip, EventGroup, EventList, EventMark, EventRow };
+export { EventGroup, EventList, EventMark, EventRow };

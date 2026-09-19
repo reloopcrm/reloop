@@ -7,11 +7,7 @@ import Events from "@carbon/icons-react/es/Events";
 import Task from "@carbon/icons-react/es/Task";
 import Time from "@carbon/icons-react/es/Time";
 import { Button } from "@crm/ui/components/button";
-import {
-	EventDayStrip,
-	EventGroup,
-	EventList,
-} from "@crm/ui/components/event-row";
+import { EventGroup, EventList } from "@crm/ui/components/event-row";
 import type { CarbonIcon } from "@crm/ui/components/icon";
 import { Loader } from "@crm/ui/components/loader";
 import { Spinner } from "@crm/ui/components/spinner";
@@ -20,7 +16,6 @@ import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { cleanSubject } from "@crm/ui/lib/email-text";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
-import { Fragment } from "react";
 import { DetailSheetEmpty } from "@/components/detail-sheet";
 import { LocalDateTime, localDayKey } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -313,31 +308,28 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 			) : (
 				<EventList>
 					{pinnedEntries.length > 0 ? (
-						<>
-							<EventDayStrip
-								tone="pending"
-								label={t("Upcoming")}
-								note={
-									openTasks === 0
-										? undefined
-										: openTasks === 1
-											? t("1 open task")
-											: t("{count} open tasks", { count: openTasks })
-								}
-							/>
-							<EventGroup pending>
-								<TimelineRows entries={pinnedEntries} anchor={anchor} />
-							</EventGroup>
-						</>
+						<EventGroup
+							pending
+							label={t("Upcoming")}
+							note={
+								openTasks === 0
+									? undefined
+									: openTasks === 1
+										? t("1 open task")
+										: t("{count} open tasks", { count: openTasks })
+							}
+						>
+							<TimelineRows entries={pinnedEntries} anchor={anchor} />
+						</EventGroup>
 					) : null}
 
 					{byDay(entries, hydrated).map((group) => (
-						<Fragment key={group.day}>
-							<EventDayStrip label={dayLabel(group.day, hydrated, t, locale)} />
-							<EventGroup>
-								<TimelineRows entries={group.entries} anchor={anchor} />
-							</EventGroup>
-						</Fragment>
+						<EventGroup
+							key={group.day}
+							label={dayLabel(group.day, hydrated, t, locale)}
+						>
+							<TimelineRows entries={group.entries} anchor={anchor} />
+						</EventGroup>
 					))}
 
 					{history.hasNextPage ? (

@@ -6,7 +6,7 @@ if (owned) GlobalRegistrator.register();
 
 const { createElement, Fragment } = await import("react");
 const { renderToString } = await import("react-dom/server");
-const { EventDayStrip, EventRow, EventMark } = await import(
+const { EventGroup, EventRow, EventMark } = await import(
 	"@crm/ui/components/event-row"
 );
 const { emailPreview } = await import("@crm/ui/lib/email-text");
@@ -227,7 +227,7 @@ describe("a day strip appears once per day", () => {
 				Fragment,
 				null,
 				byDay(entries, false).map((group) =>
-					createElement(EventDayStrip, { key: group.day, label: group.day }),
+					createElement(EventGroup, { key: group.day, label: group.day }),
 				),
 			),
 		);
@@ -236,6 +236,27 @@ describe("a day strip appears once per day", () => {
 			holder.querySelectorAll("[data-slot='event-day-strip']").length,
 		).toBe(3);
 		expect(entries.length).toBe(5);
+	});
+
+	it("keeps every day strip inside its own day, so two cannot stick at once", () => {
+		const markup = renderToString(
+			createElement(
+				Fragment,
+				null,
+				byDay(entries, false).map((group) =>
+					createElement(EventGroup, { key: group.day, label: group.day }),
+				),
+			),
+		);
+		const holder = mount(markup);
+		const days = holder.querySelectorAll("[data-slot='event-day']");
+
+		expect(days.length).toBe(3);
+		for (const day of days) {
+			expect(day.querySelectorAll("[data-slot='event-day-strip']").length).toBe(
+				1,
+			);
+		}
 	});
 });
 

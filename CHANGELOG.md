@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/reloopcrm/reloop/compare/v0.12.0...v0.12.1) (2026-09-19)
+
+
+### Fixes
+
+* **timeline:** scroll the activity tab as one page ([#16](https://github.com/reloopcrm/reloop/issues/16)) ([8c3c80b](https://github.com/reloopcrm/reloop/commit/8c3c80bc764f5a5e4e4e9c0595913b3602532d97))
+
 ## [0.12.0](https://github.com/reloopcrm/reloop/compare/v0.11.0...v0.12.0) (2026-09-19)
 
 

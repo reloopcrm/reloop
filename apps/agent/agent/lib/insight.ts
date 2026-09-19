@@ -5,12 +5,14 @@ import {
 	MEMORY,
 	THREAD_CLASSIFICATION,
 } from "@crm/db/insights";
+import { TYPESAFE } from "@crm/db/typesafe";
 import {
 	readWinBackRules,
 	type WinBackRules,
 } from "@crm/validation/win-back-rules";
 import { streamText } from "ai";
 import { z } from "zod";
+import { askJev, type JevAsk, type JevState, typesafeKey } from "./jev";
 import { language, say } from "./language";
 import { directModel } from "./model";
 import { MODEL } from "./model-config";
@@ -125,6 +127,24 @@ const lenientDigestSchema = threadDigestSchema.extend({
 });
 
 export type ThreadInsightVerdict = z.infer<typeof threadInsightSchema>;
+
+export type ThreadVerdict = Omit<ThreadInsightVerdict, "side"> & {
+	side: ThreadInsightVerdict["side"] | null;
+};
+
+const GATE_SKIPPED: ThreadVerdict = {
+	relevant: false,
+	topics: [],
+	side: null,
+	products: [],
+	quantityPallets: null,
+	loads: null,
+	outcome: "OTHER",
+	unansweredByUs: false,
+	summary: "",
+	evidence: [],
+	messageSummaries: [],
+};
 
 const memorySchema = z.object({
 	summary: z.string().max(MEMORY.summaryMaxChars),
@@ -247,10 +267,55 @@ export async function askJson<T>(
 	throw new Error(`The model did not return a valid answer: ${lastError}`);
 }
 
+export async function gateState(
+	thread: ThreadRecord,
+	rules: WinBackRules,
+): Promise<JevState> {
+	return {
+		business: (await businessPrompt(rules)).slice(
+			0,
+			TYPESAFE.gate.businessMaxChars,
+		),
+		subject: thread.subject ?? "",
+		transcript: transcript(thread),
+	};
+}
+
+async function gateSkips(
+	thread: ThreadRecord,
+	rules: WinBackRules,
+	ask: JevAsk,
+): Promise<boolean> {
+	if (!rules.business.description.trim()) return false;
+
+	const key = await typesafeKey();
+	if (!key) return false;
+
+	const noul = await ask(key, await gateState(thread, rules));
+
+	return noul !== null && noul < TYPESAFE.gate.threshold;
+}
+
 export async function classifyThread(
 	thread: ThreadRecord,
 	rules: WinBackRules,
-): Promise<{ verdict: ThreadInsightVerdict; modelId: string }> {
+	ask: JevAsk = askJev,
+	expensive: (
+		thread: ThreadRecord,
+		rules: WinBackRules,
+	) => Promise<{ verdict: ThreadVerdict; modelId: string }> = classifyWithModel,
+): Promise<{ verdict: ThreadVerdict; modelId: string }> {
+	if (await gateSkips(thread, rules, ask)) {
+		return { verdict: GATE_SKIPPED, modelId: TYPESAFE.model };
+	}
+
+	return expensive(thread, rules);
+}
+
+async function classifyWithModel(
+	thread: ThreadRecord,
+	rules: WinBackRules,
+): Promise<{ verdict: ThreadVerdict; modelId: string }> {
 	const model = await directModel("reading", "thread-insight");
 
 	const object = await askJson(
@@ -283,7 +348,7 @@ export async function classifyThread(
 async function refreshMemory(
 	contactId: string,
 	rules: WinBackRules,
-	added: { threadId: string; verdict: ThreadInsightVerdict },
+	added: { threadId: string; verdict: ThreadVerdict },
 ): Promise<void> {
 	const existing = await db.contactMemory.findUnique({ where: { contactId } });
 	if (existing?.coveredThreadIds.includes(added.threadId)) return;
@@ -405,7 +470,7 @@ export async function runThreadInsight(threadId: string): Promise<string> {
 		thread.insight !== null &&
 		thread.insight.lastMessageAt.getTime() === thread.lastMessageAt.getTime();
 
-	let verdict: ThreadInsightVerdict;
+	let verdict: ThreadVerdict;
 
 	if (unchanged) {
 		const stored = await db.threadInsight.findUniqueOrThrow({
@@ -466,7 +531,8 @@ export async function runThreadInsight(threadId: string): Promise<string> {
 	}
 
 	if (!verdict.relevant) {
-		return `Not about the business: ${verdict.summary.slice(0, 120)}`;
+		const why = verdict.summary.slice(0, 120);
+		return why ? `Not about the business: ${why}` : "Not about the business.";
 	}
 
 	const units = verdict.quantityPallets

@@ -41,6 +41,7 @@ import { SystemModule } from "./system/system.module";
 import { TelemetryModule } from "./telemetry/telemetry.module";
 import { TrackingModule } from "./tracking/tracking.module";
 import { TrpcModule } from "./trpc/trpc.module";
+import { TypesafeModule } from "./typesafe/typesafe.module";
 import { UsersModule } from "./users/users.module";
 import { WaitlistModule } from "./waitlist/waitlist.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
@@ -94,6 +95,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		ReactivationModule,
 		QuotesModule,
 		WaitlistModule,
+		TypesafeModule,
 		WebhooksModule,
 	],
 })

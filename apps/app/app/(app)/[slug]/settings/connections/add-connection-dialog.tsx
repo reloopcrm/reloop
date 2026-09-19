@@ -2,6 +2,7 @@
 
 import ConnectionSend from "@carbon/icons-react/es/ConnectionSend";
 import Email from "@carbon/icons-react/es/Email";
+import Filter from "@carbon/icons-react/es/Filter";
 import Plug from "@carbon/icons-react/es/Plug";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
@@ -94,6 +95,16 @@ export function AddConnectionDialog({
 								"Send every event you pick to n8n, Zapier or your own script",
 							)}
 							href={`/${slug}/settings/connections/webhooks`}
+						/>
+					) : null}
+					{!connected.includes("TypeSafe") ? (
+						<CatalogRow
+							logo={Filter}
+							name="TypeSafe"
+							description={t(
+								"Read every mail conversation cheaply first, and pay for the full read only when it looks like business",
+							)}
+							href={`/${slug}/settings/connections/typesafe`}
 						/>
 					) : null}
 					<CatalogRow

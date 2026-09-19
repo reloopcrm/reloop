@@ -434,5 +434,20 @@
 	"REST API": "REST API",
 	"Every action in the CRM is also a REST endpoint. Send an API key in the x-api-key header to /api/rest on this address.": "CRM 中的每个操作也是一个 REST 端点。在 x-api-key 请求头中携带 API 密钥，发送到此地址的 /api/rest。",
 	"GET /api/openapi.json lists every endpoint and every input. It needs the key too.": "GET /api/openapi.json 列出每个端点和每个输入。它同样需要密钥。",
-	"Create an API key": "创建 API 密钥"
+	"Create an API key": "创建 API 密钥",
+	"The key is saved. The next mail conversation is read cheaply.": "密钥已保存。下一个邮件会话将以低成本读取。",
+	"The key is deleted. Nothing goes to TypeSafe again.": "密钥已删除。不再向 TypeSafe 发送任何内容。",
+	"Reads every mail conversation once with a cheap model first, and pays for the expensive read only when the conversation looks like business.": "先用低成本模型读一遍每个邮件会话，只有当会话看起来与业务相关时才支付昂贵的读取。",
+	"Brings in nothing. Sends the business description from Settings and one mail conversation per read, so turn it on only if that is acceptable to you.": "不带入任何内容。每次读取会发送设置中的业务说明和一个邮件会话，只有你接受这一点时才开启。",
+	"It is off by default. Nothing goes to TypeSafe until you save a key. A conversation the cheap model calls business still gets the full read, so nothing is lost there.": "默认关闭。在你保存密钥之前不会向 TypeSafe 发送任何内容。低成本模型判定为业务的会话仍会获得完整读取，因此不会丢失任何内容。",
+	"The key from your TypeSafe account": "你的 TypeSafe 账户中的密钥",
+	"A key is saved. Stored encrypted and never shown again. Paste a new one to replace it.": "已保存一个密钥。加密存储且不再显示。粘贴新的密钥即可替换。",
+	"Stored encrypted and never shown again. You can also set TYPESAFE_API_KEY in the environment, and a key saved here wins over it.": "加密存储且不再显示。你也可以在环境中设置 TYPESAFE_API_KEY，此处保存的密钥优先。",
+	"Replace key": "替换密钥",
+	"Save key": "保存密钥",
+	"Delete the key": "删除密钥",
+	"Delete the key?": "删除密钥？",
+	"Nothing goes to TypeSafe again, and every mail conversation gets the expensive read. Everything in the CRM stays as it is.": "不再向 TypeSafe 发送任何内容，每个邮件会话都会获得昂贵的读取。CRM 中的一切保持不变。",
+	"Your business description and one mail conversation per read": "你的业务说明，以及每次读取一个邮件会话",
+	"Read every mail conversation cheaply first, and pay for the full read only when it looks like business": "先低成本读取每个邮件会话，只有看起来与业务相关时才支付完整读取"
 }

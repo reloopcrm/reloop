@@ -256,5 +256,6 @@
 	"Only your own notes and tasks can be changed.": "你只能修改自己的笔记和任务。",
 	"Only tasks have a due date.": "只有任务有截止日期。",
 	"A note or a task cannot be empty.": "笔记或任务不能为空。",
-	"A task needs a subject. It is the thing to do.": "任务需要一个主题，也就是要做的事。"
+	"A task needs a subject. It is the thing to do.": "任务需要一个主题，也就是要做的事。",
+	"Only an owner or an admin can change the TypeSafe connection.": "只有所有者或管理员可以更改 TypeSafe 连接。"
 }

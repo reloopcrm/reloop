@@ -36,6 +36,7 @@ import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannel
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
 import { versionOutput, updateOutput } from "../system/system.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
+import { typesafeStatusOutput, saveTypesafeKeyInput } from "../typesafe/typesafe.contracts";
 import { waitlistJoinInput } from "@crm/validation/waitlist";
 import { webhooksStatusOutput, createWebhookInput, updateWebhookInput, webhookIdInput, webhookRemoveOutput } from "../webhooks/webhooks.contracts";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, addPersonInput, addedPersonOutput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
@@ -893,6 +894,18 @@ const appRouter = t.router({
       .input(contactActivityInput)
       .output(websiteActivityOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  typesafe: t.router({
+    status: publicProcedure
+      .output(typesafeStatusOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    save: publicProcedure
+      .input(saveTypesafeKeyInput)
+      .output(typesafeStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    disconnect: publicProcedure
+      .output(typesafeStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   users: t.router({
     me: publicProcedure

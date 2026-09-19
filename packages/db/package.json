@@ -42,6 +42,7 @@
 		"./test-database": "./src/test-database.ts",
 		"./slack-inventory": "./src/slack-inventory.ts",
 		"./tracking": "./src/tracking.ts",
+		"./typesafe": "./src/typesafe.ts",
 		"./webhooks": "./src/webhooks.ts",
 		"./workspace": "./src/workspace.ts"
 	},

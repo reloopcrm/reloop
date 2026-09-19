@@ -27,6 +27,7 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { ActivityComposer } from "./activity-composer";
 import { AttentionBlock } from "./attention-block";
 import { EmailThreadEntry, speaker } from "./email-thread-entry";
+import { type TimelineBlock, toBlocks } from "./timeline-blocks";
 import { TIMELINE, tabCount } from "./timeline-config";
 import {
 	contactName,
@@ -160,26 +161,26 @@ function dayKey(value: string, local: boolean): string {
 }
 
 function TimelineRows({
-	entries,
+	blocks,
 	anchor,
 	openThreadId,
 }: {
-	entries: TimelineEntryData[];
+	blocks: TimelineBlock<TimelineEntryData>[];
 	anchor: TimelineAnchor;
 	openThreadId: string | null;
 }) {
 	return (
 		<>
-			{entries.map((entry) =>
-				entry.emailThread?.lastMessage ? (
+			{blocks.map((block) =>
+				block.kind === "thread" ? (
 					<EmailThreadEntry
-						key={entry.id}
-						entry={entry}
+						key={block.key}
+						entries={block.entries}
 						anchor={anchor}
 						openThreadId={openThreadId}
 					/>
 				) : (
-					<TimelineEntry key={entry.id} entry={entry} anchor={anchor} />
+					<TimelineEntry key={block.key} entry={block.entry} anchor={anchor} />
 				),
 			)}
 		</>
@@ -272,6 +273,8 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					...loaded.filter((entry) => isFuture(entry, now)).reverse(),
 				];
 	const openTasks = openTaskCount(pinnedEntries, counts.data?.upcoming);
+	const blocks = toBlocks(entries);
+	const pinnedBlocks = toBlocks(pinnedEntries);
 	const newestEmail =
 		entries.find((entry) => entry.emailThread?.lastMessage) ?? null;
 
@@ -324,7 +327,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 				/>
 			) : (
 				<EventList>
-					{pinnedEntries.length > 0 ? (
+					{pinnedBlocks.length > 0 ? (
 						<EventGroup
 							pending
 							label={t("Upcoming")}
@@ -337,20 +340,20 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 							}
 						>
 							<TimelineRows
-								entries={pinnedEntries}
+								blocks={pinnedBlocks}
 								anchor={anchor}
 								openThreadId={openThreadId}
 							/>
 						</EventGroup>
 					) : null}
 
-					{byDay(entries, hydrated).map((group) => (
+					{byDay(blocks, hydrated).map((group) => (
 						<EventGroup
 							key={group.day}
 							label={dayLabel(group.day, hydrated, t, locale)}
 						>
 							<TimelineRows
-								entries={group.entries}
+								blocks={group.entries}
 								anchor={anchor}
 								openThreadId={openThreadId}
 							/>

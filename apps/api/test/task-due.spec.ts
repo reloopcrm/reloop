@@ -71,12 +71,16 @@ describe("a due date is a calendar day", () => {
 		expect(overdue.map((row) => row.subject)).toEqual(["yesterday"]);
 	});
 
-	it("keeps a task due today in the upcoming window", async () => {
+	it("keeps a task due today in the upcoming window, undated last", async () => {
 		const upcoming = await service.myTasks(
 			{ window: "upcoming", limit: 25 },
 			userId,
 		);
-		expect(upcoming.map((row) => row.subject)).toEqual(["today", "tomorrow"]);
+		expect(upcoming.map((row) => row.subject)).toEqual([
+			"today",
+			"tomorrow",
+			"undated",
+		]);
 	});
 
 	it("lists only tasks whose day has ended on the dashboard", async () => {

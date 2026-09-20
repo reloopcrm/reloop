@@ -4,10 +4,27 @@ const DEFAULT_API_URL = "http://localhost:3001";
 const DEFAULT_APP_URL = "http://localhost:3000";
 const DEFAULT_MICROSOFT_TENANT = "common";
 
-const optional = (key: string): string | undefined => {
+const storedValues = new Map<string, string>();
+
+export function rememberStoredEnv(values: ReadonlyMap<string, string>): void {
+	for (const [key, value] of values) {
+		const trimmed = value.trim();
+		if (trimmed.length > 0) storedValues.set(key, trimmed);
+	}
+	credentials = undefined;
+}
+
+export function storedEnv(key: string): string | undefined {
+	return storedValues.get(key);
+}
+
+export function environmentOnly(key: string): string | undefined {
 	const value = process.env[key];
 	return value && value.length > 0 ? value : undefined;
-};
+}
+
+const optional = (key: string): string | undefined =>
+	storedValues.get(key) ?? environmentOnly(key);
 
 const pair = (
 	idKey: string,
@@ -48,10 +65,30 @@ const slackCredentials = ():
 	| { clientId: string; clientSecret: string }
 	| undefined => pair("SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET");
 
-const apiUrl =
-	optional("API_URL") ?? optional("BETTER_AUTH_URL") ?? DEFAULT_API_URL;
+interface OAuthCredentials {
+	google: ReturnType<typeof googleCredentials>;
+	microsoft: ReturnType<typeof microsoftCredentials>;
+	slack: ReturnType<typeof slackCredentials>;
+}
 
-const appUrls = (optional("APP_URL") ?? DEFAULT_APP_URL)
+let credentials: OAuthCredentials | undefined;
+
+const resolved = (): OAuthCredentials => {
+	credentials ??= {
+		google: googleCredentials(),
+		microsoft: microsoftCredentials(),
+		slack: slackCredentials(),
+	};
+
+	return credentials;
+};
+
+const apiUrl =
+	environmentOnly("API_URL") ??
+	environmentOnly("BETTER_AUTH_URL") ??
+	DEFAULT_API_URL;
+
+const appUrls = (environmentOnly("APP_URL") ?? DEFAULT_APP_URL)
 	.split(",")
 	.map((origin) => origin.trim())
 	.filter(Boolean);
@@ -61,11 +98,17 @@ const appUrl = appUrls[0] ?? DEFAULT_APP_URL;
 export const env = {
 	apiUrl,
 	appUrl,
-	google: googleCredentials(),
-	microsoft: microsoftCredentials(),
-	slack: slackCredentials(),
-	password: optional("PASSWORD_SIGN_IN") === "1",
-	cookieDomain: optional("AUTH_COOKIE_DOMAIN"),
+	get google() {
+		return resolved().google;
+	},
+	get microsoft() {
+		return resolved().microsoft;
+	},
+	get slack() {
+		return resolved().slack;
+	},
+	password: environmentOnly("PASSWORD_SIGN_IN") === "1",
+	cookieDomain: environmentOnly("AUTH_COOKIE_DOMAIN"),
 	trustedOrigins: [...new Set([...appUrls, apiUrl])],
 	secureCookies: appUrl.startsWith("https://"),
 } as const;

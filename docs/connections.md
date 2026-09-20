@@ -137,6 +137,44 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   back into the CRM: the card keeps the delivery time and the status code the
   receiver returned, and nothing else from it.
 
+## Google, Microsoft and Slack are connected with values a person types
+
+A client id and a client secret used to live only in `.env`, so a self-hoster had to
+open a shell to change one. They are now typed on Settings, Connections, on a hosted
+install and on a self-hosted one. `oauthApp.*` in `apps/api/src/oauth-apps` is the
+whole surface, and `packages/db/src/oauth-apps.ts` holds every constant, column name
+and environment variable name for the three providers.
+
+- **The saved value wins over the environment variable.** A person just typed it, so
+  it is the newer answer. An install that keeps `GOOGLE_CLIENT_ID` in `.env` and saves
+  nothing is unchanged. `status` reports `source` as `database`, `environment` or
+  `none`, and `environmentAlso` says the `.env` line is shadowed.
+- **Only the secret is sealed.** `sealOAuthAppSecret` with the purpose
+  `oauth-app-secret`, the same way the webhook secret and the TypeSafe key are. The
+  client id and the tenant id are stored in the clear, because a browser sees them in
+  the OAuth URL anyway. The secret is never returned: `secretHint` is a mask.
+- **`packages/auth/src/env.ts` reads the saved value first.** `rememberStoredEnv`
+  fills a map before the `auth` instance is built, and `env.google`, `env.microsoft`
+  and `env.slack` resolve on first read, not at module load.
+- **The API restarts itself after a save or a clear.** The `auth` instance is built
+  once at module load, and rebuilding it would touch every importer of `@crm/auth`.
+  `save` and `remove` answer first, then send the process `SIGTERM` after
+  `OAUTH_APPS.restart.delayMs`. `restart: unless-stopped` and the dev watcher bring it
+  straight back, so the outage is a few seconds. On Vercel there is nothing to restart,
+  so the answer is `unavailable` and the person restarts the deployment.
+- **`apps/api/src/main.ts` reads the credentials before it imports anything else.**
+  `create-app` is a dynamic import and the API build runs with `--splitting`, so
+  `@crm/auth` is in a chunk and evaluates after the read. `test/boot-order.spec.ts`
+  pins that. Without it the saved values are read too late and ignored.
+- **Nothing here throws.** An unreachable database, a missing column or a secret that
+  cannot be opened logs one warning, and the environment decides. A self-hoster who
+  saved nothing sees no change at all.
+- **Only an owner or an admin writes a pair, or reads the hint**, the same
+  `canManageConnections` Slack, webhooks and TypeSafe use.
+- **The redirect URI comes from the API**, never from the browser.
+  `oauthRedirectUri(provider)` builds it from `API_URL`, and `auth.ts` uses the same
+  function for Slack, so the page and the OAuth call cannot disagree.
+
 ## TypeSafe lives in Settings, AI
 
 TypeSafe is not a connection any more. It is a card on Settings, AI, beside the model

@@ -25,6 +25,7 @@ import { getT } from "@/lib/i18n/server";
 import { requireSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { ConnectionPage, ConnectionPageLoading } from "../connection-page";
+import { OAuthAppCard } from "../oauth-app-card";
 import { type ConnectionQuery, connectErrorOf } from "../oauth-connection-page";
 import { SlackChannels } from "./slack-channels";
 import {
@@ -108,6 +109,7 @@ async function SlackConnectionPageContent({
 				icon={Close}
 				tone="text-muted-foreground"
 			/>
+			<OAuthAppCard provider="slack" />
 			<div className="flex items-center gap-4 border-y px-(--spacing-block-inline) py-5">
 				<SlackConnectButton
 					slug={slug}

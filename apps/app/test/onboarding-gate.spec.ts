@@ -135,7 +135,7 @@ describe("proxy", () => {
 
 		expect(redirectedTo(await proxy(request("/")))).toBeNull();
 		expect(redirectedTo(await proxy(request("/sign-in")))).toBeNull();
-		expect(redirectedTo(await proxy(request(`/${SLUG}`)))).toBe("/sign-in");
+		expect((await proxy(request(`/${SLUG}`))).status).toBe(404);
 		expect(redirectedTo(await proxy(request(`/${SLUG}/companies`)))).toBe(
 			"/sign-in",
 		);
@@ -410,7 +410,7 @@ describe("the public pages", () => {
 
 		marketing(undefined);
 		for (const path of marketingPaths) {
-			expect(redirectedTo(await proxy(request(path)))).toBe("/sign-in");
+			expect((await proxy(request(path))).status, path).toBe(404);
 		}
 	});
 });

@@ -55,6 +55,7 @@ import {
 	type ImportHistoryValue,
 	importSinceFor,
 } from "./import-history";
+import { OAuthAppCard } from "./oauth-app-card";
 
 const SOURCES = {
 	calendar: {
@@ -112,32 +113,6 @@ function failureSignature(
 		}
 	}
 	return failures.sort().join("|");
-}
-
-function GoogleUnavailable() {
-	const t = useT();
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>
-					<div className="flex items-center gap-2">
-						Google
-						<StatusIndicator
-							size="sm"
-							tone="neutral"
-							label={t("Not configured")}
-						/>
-					</div>
-				</CardTitle>
-				<CardDescription>
-					{t(
-						"Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the root .env file and restart.",
-					)}
-				</CardDescription>
-			</CardHeader>
-		</Card>
-	);
 }
 
 const CONNECT_ERRORS = new Map([
@@ -348,8 +323,14 @@ export function GoogleConnection({
 	const { sources, hasRefreshToken, configured, linked, required } =
 		status.data;
 
-	if (!configured) return <GoogleUnavailable />;
-	if (!linked) return <ConnectGoogle slug={slug} connectError={connectError} />;
+	if (!configured) return <OAuthAppCard provider="google" />;
+	if (!linked)
+		return (
+			<>
+				<ConnectGoogle slug={slug} connectError={connectError} />
+				<OAuthAppCard provider="google" />
+			</>
+		);
 
 	const failing = sources.filter(
 		(source) => source.status === "NEEDS_RECONNECT" || source.lastError,

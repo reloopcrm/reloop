@@ -257,5 +257,6 @@
 	"Only tasks have a due date.": "Nur Aufgaben haben ein Fälligkeitsdatum.",
 	"A note or a task cannot be empty.": "Eine Notiz oder Aufgabe darf nicht leer sein.",
 	"A task needs a subject. It is the thing to do.": "Eine Aufgabe braucht einen Betreff. Er ist das, was zu tun ist.",
-	"Only an owner or an admin can change the TypeSafe connection.": "Nur Eigentümer und Administratoren dürfen die TypeSafe-Verbindung ändern."
+	"Only an owner or an admin can change the TypeSafe connection.": "Nur Eigentümer und Administratoren dürfen die TypeSafe-Verbindung ändern.",
+	"Only an owner or an admin can change the sign-in credentials.": "Nur Inhaber oder Admins können die Anmeldedaten ändern."
 }

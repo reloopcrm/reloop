@@ -1,0 +1,30 @@
+export const PROXY = {
+	path: {
+		landing: "/",
+		signIn: "/sign-in",
+		notFound: "/_not-found",
+	},
+	anonymous: [
+		"/t",
+		"/docs",
+		"/opengraph-image",
+		"/twitter-image",
+		"/robots.txt",
+		"/sitemap.xml",
+		"/llms.txt",
+	],
+	marketing: [
+		"/about",
+		"/contact",
+		"/privacy",
+		"/open-source",
+		"/open-source-crm",
+		"/self-hosted-crm",
+		"/vs/hubspot",
+		"/for/freight-forwarding",
+		"/get-started",
+	],
+	ungated: ["/grant-access", "/eve"],
+	sections: ["/companies", "/contacts", "/deals", "/win-back", "/settings"],
+	workspaceSegments: ["agents", "chat"],
+} as const;

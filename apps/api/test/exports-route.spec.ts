@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import { API_KEY_HEADER } from "@crm/auth";
 import { testDatabaseUrl } from "@crm/db/test-database";
 import type { INestApplication } from "@nestjs/common";
@@ -26,6 +26,13 @@ describe("the export route", () => {
 	let companyId = "";
 
 	beforeAll(async () => {
+		const { BackfillService } = await import(
+			"../src/backfill/backfill.service"
+		);
+		spyOn(BackfillService.prototype, "onModuleInit").mockImplementation(
+			() => {},
+		);
+
 		const { AppModule } = await import("../src/app.module");
 		const moduleFixture: TestingModule = await Test.createTestingModule({
 			imports: [AppModule],

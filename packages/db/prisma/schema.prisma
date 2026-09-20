@@ -1485,6 +1485,14 @@ model AppSetting {
   typesafeApiKey       String?
   researchKeySkippedAt DateTime?
 
+  googleClientId        String?
+  googleClientSecret    String?
+  microsoftClientId     String?
+  microsoftClientSecret String?
+  microsoftTenantId     String?
+  slackClientId         String?
+  slackClientSecret     String?
+
   reportingCurrency String?
 
   ratesRefreshedAt DateTime?

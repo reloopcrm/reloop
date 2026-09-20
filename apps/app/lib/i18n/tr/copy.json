@@ -257,5 +257,6 @@
 	"Only tasks have a due date.": "Yalnızca görevlerin bitiş tarihi vardır.",
 	"A note or a task cannot be empty.": "Bir not veya görev boş olamaz.",
 	"A task needs a subject. It is the thing to do.": "Bir görevin konusu olmalı. Yapılacak iş odur.",
-	"Only an owner or an admin can change the TypeSafe connection.": "TypeSafe bağlantısını yalnızca bir sahip veya yönetici değiştirebilir."
+	"Only an owner or an admin can change the TypeSafe connection.": "TypeSafe bağlantısını yalnızca bir sahip veya yönetici değiştirebilir.",
+	"Only an owner or an admin can change the sign-in credentials.": "Giriş kimlik bilgilerini sadece sahip veya yönetici değiştirir."
 }

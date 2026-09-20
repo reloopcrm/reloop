@@ -11,6 +11,7 @@ import { accessGuard } from "./access-guard";
 import { API_KEY_EXPIRATION, API_KEY_HEADER, API_KEY_PREFIX } from "./api-keys";
 import { AUTH_COOKIE_PREFIX } from "./cookies";
 import { env } from "./env";
+import { oauthRedirectUri } from "./oauth-apps";
 import { ensureWorkspaceMembership } from "./organization";
 import { PASSWORD_RULES } from "./password-rules";
 import {
@@ -29,10 +30,7 @@ import { hasSignInAllowList, primaryWorkspaceDomain } from "./workspace";
 
 const socialProviders: NonNullable<BetterAuthOptions["socialProviders"]> = {};
 const slackOAuth = env.slack;
-const slackRedirectUri = new URL(
-	"/api/auth/oauth2/callback/slack",
-	env.apiUrl,
-).toString();
+const slackRedirectUri = oauthRedirectUri("slack");
 
 if (env.google) {
 	const google: NonNullable<typeof socialProviders.google> = {

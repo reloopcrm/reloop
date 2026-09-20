@@ -19,9 +19,9 @@ function candidate(over: Partial<ReactivationCandidate> = {}) {
 	return {
 		contact: {
 			id: "c1",
-			firstName: "Christian",
-			lastName: "Graber",
-			email: "c.graber@palatum.de",
+			firstName: "Martin",
+			lastName: "Berg",
+			email: "m.berg@feinkost-sued.example",
 			title: "Leiter Einkauf",
 			imageUrl: null,
 			company: { id: "co1", name: "Palatum Verpackungslogistik GmbH" },
@@ -372,7 +372,7 @@ describe("every claim the block makes carries a link", () => {
 	});
 
 	it("names the person the answer is about", () => {
-		expect(attentionOf(facts()).name).toBe("Christian Graber");
+		expect(attentionOf(facts()).name).toBe("Martin Berg");
 	});
 
 	it("keeps the first name alone when no last name is on file", () => {
@@ -384,7 +384,7 @@ describe("every claim the block makes carries a link", () => {
 			}),
 		);
 
-		expect(read.name).toBe("Christian");
+		expect(read.name).toBe("Martin");
 	});
 
 	it("names nobody when no mail of this person was ever seen", () => {

@@ -41,7 +41,7 @@ function entry(over: Partial<Entry> = {}): Entry {
 		createdAt: "2026-09-18T07:00:00.000Z",
 		createdBy: {
 			id: "u1",
-			name: "Tugra Örscelik",
+			name: "Nina Falk",
 			email: "t@example.com",
 			image: null,
 		},
@@ -103,8 +103,8 @@ describe("an overdue task does not read like everything else", () => {
 					voice,
 					time: "Tue 15",
 					mark: createElement(EventMark, { kind: "task" }),
-					who: "Tugra Örscelik",
-					subject: "Christian anrufen",
+					who: "Nina Falk",
+					subject: "Martin anrufen",
 					preview: "Overdue by 3 days",
 				}),
 			);
@@ -152,12 +152,12 @@ describe("a short note can be opened", () => {
 		const { body, preview } = entryBody(
 			entry({
 				type: "EMAIL",
-				body: "Hallo Herr Graber,\n\nhaben Sie Paletten?\n\nMit freundlichen Grüßen\nTugra",
+				body: "Hallo Herr Berg,\n\nhaben Sie Paletten?\n\nMit freundlichen Grüßen\nNina",
 			}),
 			t,
 		);
 
-		expect(body).toBe("Hallo Herr Graber,\n\nhaben Sie Paletten?");
+		expect(body).toBe("Hallo Herr Berg,\n\nhaben Sie Paletten?");
 		expect(preview).toBe("haben Sie Paletten?");
 	});
 });

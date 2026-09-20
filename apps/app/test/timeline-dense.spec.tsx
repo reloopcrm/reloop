@@ -23,22 +23,22 @@ afterAll(() => {
 });
 
 const SIGNED_OFF = [
-	"Hallo Herr Graber,",
+	"Hallo Herr Berg,",
 	"",
 	"haben Sie mittlerweile wieder Europaletten zur Abholung verfügbar?",
 	"",
 	"Vielen Dank vorab.",
 	"",
 	"Mit freundlichen Grüßen",
-	"Tugra Örscelik",
+	"Nina Falk",
 	"--",
-	"Tugra Örscelik",
-	"www.tt-handelslogistik.de",
-	"E: t.orscelik@tt-handelslogistik.de",
+	"Nina Falk",
+	"www.nordfracht.example",
+	"E: info@nordfracht.example",
 ].join("\n");
 
 const FLAT_SNIPPET =
-	"Hallo Herr Graber, haben Sie mittlerweile wieder Europaletten zur Abholung verfügbar? Vielen Dank vorab. Mit freundlichen Grüßen Tugra Örscelik -- Tugra Örscelik www.tt-handelslogistik.de E: t.orscel…";
+	"Hallo Herr Berg, haben Sie mittlerweile wieder Europaletten zur Abholung verfügbar? Vielen Dank vorab. Mit freundlichen Grüßen Nina Falk -- Nina Falk www.nordfracht.example E: t.orscel…";
 
 function mount(markup: string): HTMLElement {
 	const holder = document.createElement("div");
@@ -58,18 +58,18 @@ describe("the collapsed preview is the sentence, not the sign-off", () => {
 	it("drops the signature from the flattened snippet the timeline stores", () => {
 		const preview = emailPreview(FLAT_SNIPPET, 180) ?? "";
 		expect(preview).not.toContain("Mit freundlichen Grüßen");
-		expect(preview).not.toContain("tt-handelslogistik");
-		expect(preview).not.toContain("Tugra Örscelik");
+		expect(preview).not.toContain("nordfracht");
+		expect(preview).not.toContain("Nina Falk");
 	});
 
 	it("drops the greeting, because the greeting is not the sentence", () => {
 		const preview = emailPreview(FLAT_SNIPPET, 180) ?? "";
-		expect(preview).not.toContain("Hallo Herr Graber");
+		expect(preview).not.toContain("Hallo Herr Berg");
 		expect(preview.startsWith("haben Sie mittlerweile")).toBe(true);
 	});
 
 	it("keeps a body that is only a greeting rather than emptying it", () => {
-		expect(emailPreview("Hallo Herr Graber,", 180)).toBe("Hallo Herr Graber,");
+		expect(emailPreview("Hallo Herr Berg,", 180)).toBe("Hallo Herr Berg,");
 	});
 
 	it("truncates instead of wrapping", () => {
@@ -91,8 +91,8 @@ describe("the collapsed preview is the sentence, not the sign-off", () => {
 			createdAt: "2026-09-14T07:37:00.000Z",
 			createdBy: {
 				id: "u1",
-				name: "Tugra Örscelik",
-				email: "t.orscelik@tt-handelslogistik.de",
+				name: "Nina Falk",
+				email: "info@nordfracht.example",
 				image: null,
 			},
 			company: null,
@@ -104,8 +104,8 @@ describe("the collapsed preview is the sentence, not the sign-off", () => {
 				lastMessageAt: "2026-09-14T07:37:00.000Z",
 				lastMessage: {
 					direction: "OUTBOUND" as const,
-					fromName: "Tugra Örscelik",
-					fromEmail: "t.orscelik@tt-handelslogistik.de",
+					fromName: "Nina Falk",
+					fromEmail: "info@nordfracht.example",
 					source: "IMAP" as const,
 				},
 			},
@@ -129,8 +129,8 @@ describe("the collapsed preview is the sentence, not the sign-off", () => {
 		const closed = holder.querySelector("summary")?.textContent ?? "";
 		expect(closed).toContain("Europaletten Abholung");
 		expect(closed).not.toContain("Mit freundlichen Grüßen");
-		expect(closed).not.toContain("tt-handelslogistik.de");
-		expect(closed).not.toContain("Hallo Herr Graber");
+		expect(closed).not.toContain("nordfracht.example");
+		expect(closed).not.toContain("Hallo Herr Berg");
 	});
 });
 
@@ -140,7 +140,7 @@ describe("a row opens in place", () => {
 			voice: "inbound",
 			time: "07:37",
 			mark: createElement(EventMark, { kind: "inbound" }),
-			who: "Christian Graber",
+			who: "Martin Berg",
 			subject: "Europaletten Abholung",
 			preview: "Diese Woche kommt nichts zusammen.",
 			panel: panel === null ? undefined : panel,
@@ -268,7 +268,7 @@ describe("the demo tour still has something to click", () => {
 				voice: "inbound",
 				time: "07:37",
 				mark: createElement(EventMark, { kind: "inbound" }),
-				who: "Christian Graber",
+				who: "Martin Berg",
 				subject: "Europaletten Abholung",
 				panel: "Die ganze Nachricht.",
 				"data-demo": "email-thread",
@@ -293,8 +293,8 @@ function mail(id: string, threadId: string, subject: string, at: string) {
 		createdAt: at,
 		createdBy: {
 			id: "u1",
-			name: "Tugra Örscelik",
-			email: "t.orscelik@tt-handelslogistik.de",
+			name: "Nina Falk",
+			email: "info@nordfracht.example",
 			image: null,
 		},
 		company: null,
@@ -306,8 +306,8 @@ function mail(id: string, threadId: string, subject: string, at: string) {
 			lastMessageAt: at,
 			lastMessage: {
 				direction: "INBOUND" as const,
-				fromName: "Christian Graber",
-				fromEmail: "graber@europaletten.de",
+				fromName: "Martin Berg",
+				fromEmail: "m.berg@paletten-nord.example",
 				source: "IMAP" as const,
 			},
 		},
@@ -360,7 +360,7 @@ describe("one conversation is one row", () => {
 	it("names the message count and the speaker who spoke last", () => {
 		const closed = closedRow(renderThread(CONVERSATION));
 		expect(closed).toContain("6 messages");
-		expect(closed).toContain("Christian Graber");
+		expect(closed).toContain("Martin Berg");
 	});
 
 	it("keeps the kind and the mailbox out of the row, because the mark says both", () => {

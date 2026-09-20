@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.13.0](https://github.com/reloopcrm/reloop/compare/v0.12.1...v0.13.0) (2026-09-20)
+
+
+### Features
+
+* **agent:** read a mail conversation cheaply before paying for the full read ([#18](https://github.com/reloopcrm/reloop/issues/18)) ([17eea87](https://github.com/reloopcrm/reloop/commit/17eea870482a80c3c5af47321186bd917cafa917))
+
+## [0.12.1](https://github.com/reloopcrm/reloop/compare/v0.12.0...v0.12.1) (2026-09-19)
+
+
+### Fixes
+
+* **timeline:** scroll the activity tab as one page ([#16](https://github.com/reloopcrm/reloop/issues/16)) ([8c3c80b](https://github.com/reloopcrm/reloop/commit/8c3c80bc764f5a5e4e4e9c0595913b3602532d97))
+
+## [0.12.0](https://github.com/reloopcrm/reloop/compare/v0.11.0...v0.12.0) (2026-09-19)
+
+
+### Features
+
+* **contacts:** say what to do about this person ([c483c90](https://github.com/reloopcrm/reloop/commit/c483c90b92ee47a3378529703ddb17bad96f2cf2))
+* tasks on the start page, editable notes, quiet deals, remind later ([047f3ee](https://github.com/reloopcrm/reloop/commit/047f3ee2b223cfe1371272184209250b96b3f6d9))
+
+
+### Fixes
+
+* close what the feature round left open ([ca9e1df](https://github.com/reloopcrm/reloop/commit/ca9e1dfbeae6e9cec72f0ff411dfce212de59add))
+* **contacts:** answer honestly and open the mail a quote came from ([d6e3c0c](https://github.com/reloopcrm/reloop/commit/d6e3c0c50ee8ed25cb665e65d0a546054b4acd85))
+* **security:** close what the second audit found ([ad98208](https://github.com/reloopcrm/reloop/commit/ad9820885c222fd7315291f07fd0d2901fbedf83))
+* **timeline:** collapse one mail thread into one row ([77e7ec8](https://github.com/reloopcrm/reloop/commit/77e7ec8c946b591c3f8cb23c4e353cd1c816a857))
+* **timeline:** keep each day strip inside its own day ([3304020](https://github.com/reloopcrm/reloop/commit/33040201b409e6cf0428c0b5b79c030d61f4e1f9))
+
 ## [0.11.0](https://github.com/reloopcrm/reloop/compare/v0.10.0...v0.11.0) (2026-09-18)
 
 

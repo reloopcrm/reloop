@@ -94,6 +94,42 @@ crm.example.com {
 
 When your proxy runs in its own container, `127.0.0.1` is not the host. Set `APP_BIND=0.0.0.0` in `deploy/.env`, block port 3000 in your firewall, and point the proxy at the host address. Then run `docker compose up -d` in the `deploy` folder.
 
+## Move to another domain
+
+`install.sh` writes the domain you gave it. Nothing changes it later, so a domain you
+add in front of an existing install does not reach the app. The sign in page still
+works, but every address the app prints for a provider, an SSO callback or an OAuth
+redirect names the old host.
+
+Three values carry the domain and they must change together. Edit `deploy/.env`:
+
+```
+RELOOP_DOMAIN=crm.example.com
+APP_URL=https://crm.example.com
+API_URL=https://crm.example.com
+```
+
+`RELOOP_DOMAIN` is the name Caddy asks a certificate for. Change only `API_URL` and
+Caddy keeps serving the old certificate.
+
+`APP_URL` takes a comma separated list. Keep the old host on it while you move, so a
+bookmark and an open session still work:
+
+```
+APP_URL=https://crm.example.com,https://old-host.example.com
+```
+
+Then restart:
+
+```bash
+cd deploy && docker compose up -d
+```
+
+Before you restart, add the new redirect URI at every provider you connected. Google,
+Microsoft and Slack each reject a callback they do not know, so sign in through that
+provider breaks the moment the app starts naming the new host. Keep the old URI as
+well until the move is done. The addresses are printed in Settings, Connections.
+
 ## Add a colleague
 
 The owner and every admin add people in the app. Open **Settings, Members** and choose **Add person**. Enter the address, the name and the role. The CRM creates the account and shows a one-time password once. Copy it and pass it to the person yourself. They sign in with the address and that password, and they change it in **Settings, General**.

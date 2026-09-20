@@ -75,13 +75,24 @@ describe("the language picker", () => {
 		}
 	});
 
-	it("invites a correction on GitHub in every language", () => {
-		for (const locale of LOCALES) {
+	it("invites a correction on GitHub in a machine translated language", () => {
+		for (const locale of LOCALE.machineTranslated) {
 			const text = cardText(locale);
 			const invitation =
 				DICTIONARIES[locale]["Fix a word on GitHub"] ?? "Fix a word on GitHub";
 
 			expect(text).toContain(invitation);
+		}
+	});
+
+	it("says nothing about translation when people wrote the language", () => {
+		for (const locale of LOCALE.writtenByPeople) {
+			const text = cardText(locale);
+			const invitation =
+				DICTIONARIES[locale]["Fix a word on GitHub"] ?? "Fix a word on GitHub";
+
+			expect(text).not.toContain(invitation);
+			expect(text).not.toContain("machine");
 		}
 	});
 });

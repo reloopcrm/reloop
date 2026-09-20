@@ -187,7 +187,6 @@
 	"An empty field keeps the built-in name. Your own name shows in every language.": "留空则保留内置名称。你自己的名称在每种语言中都显示。",
 	"Stage names saved.": "阶段名称已保存。",
 	"{language} is machine translated.": "{language} 由机器翻译。",
-	"English and German are written by people. A machine writes the others.": "英语和德语由人撰写。其余语言由机器翻译。",
 	"Fix a word on GitHub": "在 GitHub 上改进用词",
 	"Who you are, and how this workspace works.": "你是谁，以及这个工作区如何运作。",
 	"Share": "占比",

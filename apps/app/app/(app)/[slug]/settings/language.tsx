@@ -65,18 +65,16 @@ export function Language() {
 							))}
 						</SelectContent>
 					</Select>
-					<FieldDescription>
-						{isMachineTranslated(locale)
-							? t("{language} is machine translated.", {
-									language: LOCALE.names[locale],
-								})
-							: t(
-									"English and German are written by people. A machine writes the others.",
-								)}{" "}
-						<Link href={REPO_URL} target="_blank" rel="noreferrer">
-							{t("Fix a word on GitHub")}
-						</Link>
-					</FieldDescription>
+					{isMachineTranslated(locale) ? (
+						<FieldDescription>
+							{t("{language} is machine translated.", {
+								language: LOCALE.names[locale],
+							})}{" "}
+							<Link href={REPO_URL} target="_blank" rel="noreferrer">
+								{t("Fix a word on GitHub")}
+							</Link>
+						</FieldDescription>
+					) : null}
 				</Field>
 			</CardContent>
 		</Card>

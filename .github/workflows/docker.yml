@@ -14,6 +14,9 @@ concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  STAGING_TAG: staging-${{ github.run_id }}
+
 jobs:
   image:
     name: reloop-${{ matrix.app }}
@@ -54,10 +57,54 @@ jobs:
           file: apps/${{ matrix.app }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ghcr.io/reloopcrm/reloop-${{ matrix.app }}:${{ env.STAGING_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
             type=gha,scope=reloop-api
             type=gha,scope=reloop-app
             type=gha,scope=reloop-agent
           cache-to: type=gha,scope=reloop-${{ matrix.app }},mode=max
+
+
+  publish:
+    name: publish all three
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/reloopcrm/reloop-api
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
+            type=sha
+
+      - name: Promote the staging tag to the real tags
+        run: |
+          set -euo pipefail
+
+          for app in api app agent; do
+            repo="ghcr.io/reloopcrm/reloop-$app"
+            args=""
+
+            while read -r tag; do
+              [ -n "$tag" ] || continue
+              args="$args --tag ${repo}:${tag##*:}"
+            done <<< "${{ steps.meta.outputs.tags }}"
+
+            echo "Promoting $repo"
+            # shellcheck disable=SC2086
+            docker buildx imagetools create $args "${repo}:${STAGING_TAG}"
+          done

@@ -143,6 +143,8 @@ services:
     command: --http-api-update --scope reloop --cleanup
     environment:
       WATCHTOWER_HTTP_API_TOKEN: ${UPDATER_TOKEN:-}
+      WATCHTOWER_SCHEDULE: ${UPDATER_SCHEDULE:-}
+      WATCHTOWER_HTTP_API_PERIODIC_POLLS: "true"
     labels:
       com.centurylinklabs.watchtower.scope: reloop
     volumes:

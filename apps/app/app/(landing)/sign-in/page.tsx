@@ -122,7 +122,7 @@ async function SignIn({
 		);
 	}
 
-	const onlySocial = !showSso && !showPassword && social.length === 1;
+	const socialLeads = !showSso && !showPassword;
 	const failure = signInErrorText(Array.isArray(error) ? undefined : error);
 
 	return (
@@ -142,8 +142,12 @@ async function SignIn({
 
 			<div className="flex flex-col gap-3">
 				{showSso ? <SsoSignIn providers={providers} /> : null}
-				{social.map((provider) => (
-					<SocialSignIn key={provider} provider={provider} only={onlySocial} />
+				{social.map((provider, index) => (
+					<SocialSignIn
+						key={provider}
+						provider={provider}
+						only={socialLeads && index === 0}
+					/>
 				))}
 			</div>
 		</>

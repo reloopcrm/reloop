@@ -132,7 +132,7 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
 						/>
 					</InputGroup>
 					<FieldDescription>
-						{t("Read once, so every answer afterwards knows what you sell.")}
+						{t("Read once, so the agent knows what you sell.")}
 					</FieldDescription>
 				</Field>
 			</FieldGroup>

@@ -43,7 +43,7 @@ export default async function GrantAccessPage() {
 
 			<p className="text-pretty text-muted-foreground text-sm/5">
 				{t(
-					"Only conversations with companies in the CRM are stored. Personal mail is discarded without being saved.",
+					"Only conversations with companies in the CRM are stored. Personal mail is discarded.",
 				)}
 			</p>
 		</AuthShell>

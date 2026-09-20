@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function GetStartedPage() {
 	return (
 		<LandingShell>
-			<main className="flex w-full max-w-6xl flex-1 flex-col gap-12 px-6 py-20">
+			<main className="flex w-full max-w-(--container-page-wide) flex-1 flex-col gap-12 px-6 py-20">
 				<SectionHeading
 					title="Get started"
 					lede="Run Reloop CRM on your own server today. A hosted version is on the way."
@@ -27,7 +27,7 @@ export default function GetStartedPage() {
 					<BentoCard className="gap-5 md:row-span-3 md:grid md:grid-rows-subgrid">
 						<CardHeading
 							title="Self-host"
-							body="One command installs Reloop CRM with Docker. It asks for your domain and your email, then starts everything."
+							body="One command installs everything with Docker. It asks for a domain, an email and a password."
 						/>
 						<CopyCommand command={INSTALL_COMMAND} />
 						<Button

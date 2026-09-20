@@ -6,7 +6,7 @@ export function SectionHeading({
 	lede?: string;
 }) {
 	return (
-		<div className="flex max-w-3xl flex-col gap-[18px]">
+		<div className="flex max-w-(--container-page) flex-col gap-4">
 			<h2 className="text-balance font-semibold text-4xl/[42px] tracking-tight md:text-[44px]/[50px]">
 				{title}
 			</h2>

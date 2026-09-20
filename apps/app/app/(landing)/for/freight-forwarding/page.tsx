@@ -25,15 +25,15 @@ export const metadata: Metadata = {
 const READS = [
 	{
 		title: "Pallet inquiries and quantities",
-		body: "Each conversation gets a summary: what was asked, how many units, which lane, what was quoted. Quantities and products are facts on the record, not a note someone forgot to write.",
+		body: "Every thread gets a summary: what was asked, how many units, which lane, what was quoted. Quantities are facts on the record, not a note someone forgot.",
 	},
 	{
 		title: "Quotes that went quiet",
-		body: "A quote with no answer is a lead you already paid for. An inquiry that was left open counts in the ranking, and so does a last email of theirs that nobody answered.",
+		body: "A quote with no answer is a lead you already paid for. An inquiry left open counts in the ranking, and so does a last email of theirs that nobody answered.",
 	},
 	{
 		title: "Customers who stopped ordering",
-		body: "Each deal done with a customer before counts. A company that shipped every month and then stopped rises in the list, with the last thread one click away.",
+		body: "A company that shipped every month and then stopped rises in the list, with the last thread one click away.",
 	},
 	{
 		title: "Clean contacts",
@@ -61,7 +61,7 @@ const FAQ = [
 	{
 		question: "Does it read every email?",
 		answer:
-			"It reads the mailbox history once and then keeps it in sync, over IMAP, Gmail and Microsoft 365 alike. You choose how far back when you connect. Newsletters, out of office replies and your own addresses stay out of the contact list.",
+			"It reads the mailbox history once and then keeps it in sync. You choose how far back when you connect. Newsletters, out of office replies and your own addresses stay out of the contact list.",
 	},
 	{
 		question: "Is it only for freight forwarding?",
@@ -75,29 +75,23 @@ export default function FreightForwardingPage() {
 		<LandingShell>
 			<PageHero
 				title="A CRM for freight forwarding, built by a forwarder"
-				lede="Reloop CRM started inside a freight forwarding company. It reads the inbox where the pallet inquiries, the quotes and the silence all live, and shows which customers are worth a new call."
+				lede="It reads the inbox where the pallet inquiries, the quotes and the silence all live, and shows which customers are worth a new call."
 			/>
 
 			<PageSection title="The problem in a forwarder's inbox">
 				<Prose>
 					<p>
-						A freight forwarding company runs on email. A customer asks for a
-						price on twelve pallets to Milan. You quote. Sometimes they book,
-						sometimes they go quiet, and the thread sinks under the next
-						hundred. A year later nobody remembers that this customer used to
-						ship every month, or that the last quote never got an answer.
+						A customer asks for a price on twelve pallets to Milan. You quote.
+						Sometimes they book, sometimes they go quiet, and the thread sinks
+						under the next hundred. A year later nobody remembers that this
+						customer used to ship every month.
 					</p>
 					<p>
 						A normal CRM asks you to type all of this in. Nobody in dispatch has
-						time for that, so the CRM stays empty and the knowledge stays in the
-						inbox and in the heads of two people. When one of them leaves, it
-						leaves with them.
-					</p>
-					<p>
-						Reloop CRM was built by the owner of a forwarding company for
-						exactly this. It connects to the company mailbox, reads the whole
-						history once, and builds the CRM out of what is already there.
-						Nobody types anything in.
+						time for that, so the CRM stays empty and the knowledge stays in two
+						people's heads. Reloop CRM connects to the company mailbox, reads
+						the whole history once, and builds the CRM out of what is already
+						there.
 					</p>
 				</Prose>
 			</PageSection>
@@ -130,12 +124,11 @@ export default function FreightForwardingPage() {
 				<Prose>
 					<p>
 						Every one of those 178 people once asked for a price, booked a
-						shipment, or stopped ordering. The list is ranked by what happened
-						in the thread: an inquiry left open, a last email unanswered, deals
-						done before, a quantity above the line you set. 400 units is one
-						truck load, and the rules know that. Nobody guessed. The owner then
-						marks a person as worth it or not, and the agent tunes the weights
-						from those verdicts.
+						shipment, or stopped ordering. The ranking reads the thread: an
+						inquiry left open, a last email unanswered, deals done before, a
+						quantity above the line you set. The owner then marks a person as
+						worth it or not, and the agent tunes the weights from those
+						verdicts.
 					</p>
 				</Prose>
 			</PageSection>
@@ -146,34 +139,18 @@ export default function FreightForwardingPage() {
 						Monday morning: open the win back list. The top entries are the
 						customers whose silence costs the most. Each one shows the last
 						conversation, so the call starts with the six pallets to Lyon they
-						asked about in March, not with a question about how things are
-						going.
+						asked about in March.
 					</p>
 					<p>
 						Before a quote: open the company. The timeline shows every earlier
-						quote, what was accepted and what was not, and who wrote last. The
-						summary of each thread is one line, so nobody opens an email to find
-						out what happened.
+						quote, what was accepted and what was not, and who wrote last. Each
+						thread is one line, so nobody opens an email to find out what
+						happened.
 					</p>
 					<p>
-						At onboarding: say what you ship and where. The agent reads your
-						website and your mail to learn the rest, and sharpens its rules from
-						what you accept and dismiss. Side ware you still take but rank lower
-						goes on a list. The minimum quantity that counts as serious is a
-						number you set.
-					</p>
-					<p>
-						The data stays in-house. Rates and customer lists never leave the
-						server, which matters when that server holds every quote you ever
-						sent. The <Link href="/self-hosted-crm">self-hosted CRM page</Link>{" "}
-						lists what the server needs, and the{" "}
-						<Link href="/open-source-crm">open source CRM page</Link> explains
-						why you can read every line of the code that touches your mail.
-					</p>
-					<p>
-						To start, <Link href="/get-started">install it</Link> with one
-						command, connect the company mailbox and let it read. The{" "}
-						<Link href="/docs">docs</Link> cover the mailbox and AI setup.
+						Rates and customer lists never leave the server. The{" "}
+						<Link href="/self-hosted-crm">self-hosted CRM page</Link> lists what
+						that server needs.
 					</p>
 				</Prose>
 			</PageSection>
@@ -184,7 +161,6 @@ export default function FreightForwardingPage() {
 				title="Every quote you ever sent, ranked by what happened next"
 				links={[
 					{ href: "/get-started", label: "Get started" },
-					{ href: "/self-hosted-crm", label: "What self-hosting takes" },
 					{ href: "/vs/hubspot", label: "Compare with HubSpot" },
 				]}
 			/>

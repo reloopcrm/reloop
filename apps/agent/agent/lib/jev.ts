@@ -10,16 +10,57 @@ export type JevState = {
 	transcript: string;
 };
 
+export type JevFields = Record<string, string>;
+
 export type JevAsk = (key: string, state: JevState) => Promise<number | null>;
 
-const noulAnswer = z.object({
-	answers: z.object({
-		[TYPESAFE.gate.question]: z.object({
-			type: z.literal("noul").optional(),
-			noul: z.number().min(0).max(1),
-		}),
-	}),
+export type JevQuestion = {
+	type: "noul" | "choice";
+	instructions: string;
+	criteria: Record<string, string>;
+};
+
+export type JevOptions = {
+	fetchImpl?: typeof fetch;
+	timeoutMs?: number;
+};
+
+export type JevNoulAsk = (
+	key: string,
+	state: JevFields,
+	id: string,
+	question: JevQuestion,
+	options?: JevOptions,
+) => Promise<number | null>;
+
+export type JevChoiceAnswer = {
+	choice: string;
+	confidence: number;
+	probabilities: Record<string, number>;
+};
+
+export type JevChoiceAsk = (
+	key: string,
+	state: JevFields,
+	id: string,
+	question: JevQuestion,
+	options: readonly string[],
+	requestOptions?: JevOptions,
+) => Promise<JevChoiceAnswer | null>;
+
+const noulShape = z.object({
+	type: z.literal("noul").optional(),
+	noul: z.number().min(0).max(1),
 });
+
+function choiceShape(options: readonly string[]) {
+	return z.object({
+		type: z.literal("choice").optional(),
+		choice: z.enum(options),
+		confidence: z.number().min(0).max(1),
+		probabilities: z.record(z.string(), z.number()),
+	});
+}
 
 export async function storedTypesafeKey(): Promise<string | null> {
 	try {
@@ -46,32 +87,31 @@ export async function typesafeKey(
 	return (await storedTypesafeKey()) ?? env[TYPESAFE.envVar]?.trim() ?? null;
 }
 
-function gateQuestion() {
+function gateQuestion(): JevQuestion {
 	return {
-		[TYPESAFE.gate.question]: {
-			type: "noul",
-			instructions:
-				"The state holds the workspace's own business, the subject of one email conversation from its mailbox, and the messages in it. Is this conversation about that business?",
-			criteria: {
-				true: "The conversation is about buying, selling, quoting, delivering, paying for or arranging the goods or services the workspace describes, with a customer, a supplier or a partner.",
-				false:
-					"The conversation is a newsletter, an advertisement, a notification from a tool, a receipt, a job application, spam or private mail, or it is about something the workspace does not trade in.",
-			},
+		type: "noul",
+		instructions:
+			"The state holds the workspace's own business, the subject of one email conversation from its mailbox, and the messages in it. Is this conversation about that business?",
+		criteria: {
+			true: "The conversation is about buying, selling, quoting, delivering, paying for or arranging the goods or services the workspace describes, with a customer, a supplier or a partner.",
+			false:
+				"The conversation is a newsletter, an advertisement, a notification from a tool, a receipt, a job application, spam or private mail, or it is about something the workspace does not trade in.",
 		},
 	};
 }
 
-export async function askJev(
+async function askJevQuestion<Shape extends z.ZodType>(
 	key: string,
-	state: JevState,
-	{
-		fetchImpl = fetch,
-		timeoutMs = TYPESAFE.gate.timeoutMs,
-	}: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
-): Promise<number | null> {
+	state: JevFields,
+	id: string,
+	question: JevQuestion,
+	shape: Shape,
+	{ fetchImpl = fetch, timeoutMs = TYPESAFE.gate.timeoutMs }: JevOptions = {},
+): Promise<z.infer<Shape> | null> {
 	const controller = new AbortController();
+	const envelope = z.object({ answers: z.record(z.string(), shape) });
 
-	const work = (async (): Promise<number | null> => {
+	const work = (async (): Promise<z.infer<Shape> | null> => {
 		try {
 			const response = await fetchImpl(TYPESAFE.endpoint, {
 				method: "POST",
@@ -82,7 +122,7 @@ export async function askJev(
 				body: JSON.stringify({
 					state,
 					model: TYPESAFE.model,
-					questions: gateQuestion(),
+					questions: { [id]: question },
 				}),
 				signal: controller.signal,
 			});
@@ -92,14 +132,14 @@ export async function askJev(
 				return null;
 			}
 
-			const parsed = noulAnswer.safeParse(await response.json());
+			const parsed = envelope.safeParse(await response.json());
 
 			if (!parsed.success) {
 				console.error("[agent] Jev sent an answer this agent cannot read");
 				return null;
 			}
 
-			return parsed.data.answers[TYPESAFE.gate.question].noul;
+			return parsed.data.answers[id] ?? null;
 		} catch (error) {
 			console.error(
 				`[agent] Jev could not be reached: ${
@@ -118,4 +158,56 @@ export async function askJev(
 	void work.catch(() => undefined);
 
 	return null;
+}
+
+export async function askNoul(
+	key: string,
+	state: JevFields,
+	id: string,
+	question: JevQuestion,
+	options: JevOptions = {},
+): Promise<number | null> {
+	const answer = await askJevQuestion(
+		key,
+		state,
+		id,
+		question,
+		noulShape,
+		options,
+	);
+
+	return answer?.noul ?? null;
+}
+
+export async function askChoice(
+	key: string,
+	state: JevFields,
+	id: string,
+	question: JevQuestion,
+	options: readonly string[],
+	requestOptions: JevOptions = {},
+): Promise<JevChoiceAnswer | null> {
+	const answer = await askJevQuestion(
+		key,
+		state,
+		id,
+		question,
+		choiceShape(options),
+		requestOptions,
+	);
+	if (!answer) return null;
+
+	return {
+		choice: answer.choice,
+		confidence: answer.confidence,
+		probabilities: answer.probabilities,
+	};
+}
+
+export async function askJev(
+	key: string,
+	state: JevState,
+	options: JevOptions = {},
+): Promise<number | null> {
+	return askNoul(key, state, TYPESAFE.gate.question, gateQuestion(), options);
 }

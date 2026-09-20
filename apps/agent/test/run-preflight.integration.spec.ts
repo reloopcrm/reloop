@@ -248,7 +248,7 @@ describe("a run on an install with no provider at all", () => {
 		const blocked = await runBlocker(versionId);
 
 		expect(blocked).toMatchObject({ code: MODEL_UNAVAILABLE });
-		expect(blocked?.message).toContain("Settings, General");
+		expect(blocked?.message).toContain("Settings, AI");
 		expect(blocked?.message).not.toContain("used up its window");
 	});
 });

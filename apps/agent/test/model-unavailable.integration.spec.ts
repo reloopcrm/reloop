@@ -126,7 +126,7 @@ describe("what a run is told when no model can serve it", () => {
 		const said = await modelUnavailable();
 
 		expect(said).toBe(NO_PROVIDER_MESSAGE);
-		expect(said).toContain("Settings, General");
+		expect(said).toContain("Settings, AI");
 		expect(said).not.toContain("used up its window");
 	});
 

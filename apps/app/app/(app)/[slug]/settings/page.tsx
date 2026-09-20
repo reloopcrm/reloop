@@ -15,14 +15,12 @@ import { managedInstall, plansOffered } from "@/lib/operator";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
-import { AgentProvider } from "./agent-model";
 import { ArchiveRetention } from "./archive-retention";
 import { DealStages } from "./deal-stages";
 import { Language } from "./language";
 import { PasswordSignIn } from "./password";
 import { Plan } from "./plan";
 import { ProfileForm } from "./profile-form";
-import { Spend } from "./spend";
 import { Version } from "./version";
 import { WorkspaceForm } from "./workspace-form";
 
@@ -40,7 +38,7 @@ export default async function GeneralSettingsPage() {
 				<PageShellHeading>
 					<PageShellTitle>{t("General")}</PageShellTitle>
 					<PageShellDescription>
-						{t("Who you are, and the model the research agent thinks with.")}
+						{t("Who you are, and how this workspace works.")}
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
@@ -64,12 +62,10 @@ async function Settings() {
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.users.me.queryOptions()),
 		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
-		queryClient.prefetchQuery(trpc.settings.agentProvider.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.archiveRetention.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.dealStages.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.passwordSignIn.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.plan.queryOptions()),
-		queryClient.prefetchQuery(trpc.settings.spend.queryOptions()),
 	]);
 
 	return (
@@ -84,15 +80,11 @@ async function Settings() {
 						<Plan />
 					</fieldset>
 				) : null}
-				<Spend />
 				<fieldset disabled={!canManage} className="contents">
 					<DealStages />
 				</fieldset>
 				<fieldset disabled={!canManage} className="contents">
 					<ArchiveRetention />
-				</fieldset>
-				<fieldset disabled={!canManage} className="contents">
-					<AgentProvider />
 				</fieldset>
 				<Version managed={managedInstall()} />
 			</div>

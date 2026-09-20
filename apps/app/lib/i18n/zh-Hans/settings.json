@@ -7,7 +7,6 @@
 	"Your email address stays {email}.": "你的邮箱地址仍然是 {email}。",
 	"Enter the name people should see.": "输入你想让别人看到的名字。",
 	"General": "通用",
-	"Who you are, and the model the research agent thinks with.": "你是谁，以及调研智能体用哪个模型思考。",
 	"Workspace settings": "工作区设置",
 	"Workspace": "工作区",
 	"Workspace saved.": "工作区已保存。",
@@ -204,5 +203,7 @@
 	"Stage names saved.": "阶段名称已保存。",
 	"{language} is machine translated. English and German are written by people. Tell us a better word and we put it in.": "{language} 是机器翻译的。英语和德语由人工撰写。告诉我们更好的说法，我们就换上。",
 	"English and German are written by people. The other languages are machine translated. Tell us a better word and we put it in.": "英语和德语由人工撰写。其他语言是机器翻译的。告诉我们更好的说法，我们就换上。",
-	"Fix a word on GitHub": "在 GitHub 上改进用词"
+	"Fix a word on GitHub": "在 GitHub 上改进用词",
+	"Who you are, and how this workspace works.": "你是谁，以及这个工作区如何运作。",
+	"Share": "占比"
 }

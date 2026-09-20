@@ -145,7 +145,7 @@ OpenRouter is one key for every model vendor and the default for a self-hosted i
 
 1. Create an account at [openrouter.ai](https://openrouter.ai) and buy credits. Credits are prepaid, there is no subscription.
 2. Create a key at [openrouter.ai/keys](https://openrouter.ai/keys).
-3. Open **Settings, General**, choose **OpenRouter**, paste the key and save.
+3. Open **Settings, AI**, choose **OpenRouter**, paste the key and save.
 
 The agent starts on `openai/gpt-5.6-luna`. At the time of writing OpenRouter lists it at 0.20 USD per million input tokens and 1.20 USD per million output tokens. Pick another model in the same panel, any id from [openrouter.ai/models](https://openrouter.ai/models) that supports tools works.
 
@@ -153,13 +153,13 @@ To keep the key out of the database, set `OPENROUTER_API_KEY` in `deploy/.env` i
 
 ### Your own API key
 
-Open **Settings, General** and add an OpenAI or Anthropic API key. The agent uses it from the next task on.
+Open **Settings, AI** and add an OpenAI or Anthropic API key. The agent uses it from the next task on.
 
 ### ChatGPT subscription (experimental)
 
 The agent can use a ChatGPT subscription through the Codex login. This path is experimental and can stop working when OpenAI changes it.
 
-Open **Settings, General** and start the ChatGPT sign-in. The page shows a link and a code. Open the link and enter the code.
+Open **Settings, AI** and start the ChatGPT sign-in. The page shows a link and a code. Open the link and enter the code.
 
 The agent image does not contain the Codex command line. The first sign-in downloads it from npm into the `codex` volume. The download is about 280 MB. The agent needs internet access at that moment. The settings page shows "Starting the ChatGPT sign-in" while the download runs. When the download fails, the page shows the reason. Start the sign-in again when the agent is online.
 

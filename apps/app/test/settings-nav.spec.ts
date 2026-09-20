@@ -13,6 +13,11 @@ describe("the settings navigation", () => {
 		expect(titles(true)).toContain("Waitlist");
 	});
 
+	it("puts AI directly below Connections", () => {
+		const order = titles(false);
+		expect(order.indexOf("AI")).toBe(order.indexOf("Connections") + 1);
+	});
+
 	it("keeps every other entry in both installs", () => {
 		expect(titles(false)).toEqual(
 			titles(true).filter((title) => title !== "Waitlist"),

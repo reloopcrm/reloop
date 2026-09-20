@@ -13,6 +13,7 @@ import {
 import { streamText } from "ai";
 import { z } from "zod";
 import { askJev, type JevAsk, type JevState, typesafeKey } from "./jev";
+import { countGate, countGateFailure } from "./jev-meter";
 import { language, say } from "./language";
 import { directModel } from "./model";
 import { MODEL } from "./model-config";
@@ -294,6 +295,9 @@ export const NEEDS_FULL_READ = new Error(
 
 export const GATE_UNAVAILABLE = new Error("The cheap gate did not answer.");
 
+const THREAD_GATE = "thread-insight";
+const GATE_WORD = "skipped";
+
 async function askGate(
 	thread: ThreadRecord,
 	rules: WinBackRules,
@@ -305,9 +309,16 @@ async function askGate(
 	if (!key) return "unavailable";
 
 	const noul = await ask(key, await gateState(thread, rules)).catch(() => null);
-	if (noul === null) return "unavailable";
 
-	return noul < TYPESAFE.gate.threshold ? "skip" : "read";
+	if (noul === null) {
+		countGateFailure(THREAD_GATE, GATE_WORD);
+		return "unavailable";
+	}
+
+	const skip = noul < TYPESAFE.gate.threshold;
+	countGate(THREAD_GATE, skip, GATE_WORD);
+
+	return skip ? "skip" : "read";
 }
 
 function gateOnlyVerdict(answer: GateAnswer): ThreadClassification {

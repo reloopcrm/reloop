@@ -11,7 +11,7 @@ are in `docs/setup.md`.
 
 ## Model
 
-Four providers pay for the model, and Settings → General picks one: OpenRouter, a
+Four providers pay for the model, and Settings → AI picks one: OpenRouter, a
 ChatGPT subscription, an OpenAI key, an Anthropic key. Every provider's default model
 is `AGENT_PROVIDER_DEFAULTS` in `@crm/db/settings`, because the agent and the API both
 need it. OpenRouter is the default provider and `openai/gpt-5.6-luna` its default
@@ -34,7 +34,7 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
   ChatGPT counts as a candidate only when `$CODEX_HOME/auth.json` exists
   (`chatgptLoginExists` in `lib/codex-binary.ts`), the file eve's
   `experimental_chatgpt` reads. With no candidate at all `modelUnavailable()` answers
-  `NO_PROVIDER_MESSAGE`, which names Settings, General; the research lane postpones
+  `NO_PROVIDER_MESSAGE`, which names Settings, AI; the research lane postpones
   its tasks, `runBlocker` blocks the run, and `turn.failed` writes that sentence on
   the record instead of the vendor's error text.
 - **A provider switch drops the mail models the old provider chose.**
@@ -430,6 +430,39 @@ that group, so the queue drains while the subscription window is empty.
 - **The gate answer is not stored.** A returned task pays for the gate again after the
   limit resets. That is one extra call per task per pause, a few cents for a mailbox of
   this size. A column for it costs a migration and an invalidation rule.
+
+### Three more cheap gates
+
+`lib/jev.ts` is the one TypeSafe client. It posts a single question, parses the
+answer with zod at the read, returns `null` on every failure and never throws.
+`askNoul` and `askChoice` are the two primitives; `askJev` is the thread gate above,
+written on `askNoul`. **Never write a second HTTP client for this.**
+
+Three more gates sit in front of an expensive model call. **No key means the gate
+never runs and the path behaves exactly as it did before the gate existed.**
+
+| Gate | Question | Threshold | A low answer means |
+| --- | --- | --- | --- |
+| `deal-stall` | Is a follow up worth sending on this deal at all | `DISPATCH.dealStall.gate.threshold` (0.25) | No draft. The task closes with `STALL_SKIPPED`. |
+| `contact-clean` | Does this mail end in a signature block that names a person | `CLEAN.gate.threshold` (0.35) | No read. `done()` stamps `cleanedAt` and the task closes with `CLEAN_SKIPPED`. |
+| `brand-industry` | Which industry is this company in, from a fixed list | `WEBSITE.industry.threshold` (0.5) | The model's own free text `industry` is kept. |
+
+- **`brand-industry` saves no money.** It runs beside the brand read, not instead
+  of it, and it exists to keep `industry` out of many spellings, because the
+  companies table facets on that column. `WEBSITE.industry.options` is the list and
+  `Other` is the no match option. An answer outside the list fails the zod enum and
+  falls through to the free text, exactly like a 500.
+- **A skip writes a complete result.** `deal-stall` writes no note, `contact-clean`
+  writes no fact and stamps `cleanedAt`, so the sweeps read the row as finished.
+  The outcome text of a skip is its own sentence, so skipped rows are countable in
+  `AgentTask`.
+- **`lib/jev-meter.ts` counts how often each gate ran and how often it hit.**
+  Each gate names its own word, `skipped` for the two that skip a model call and
+  `labelled` for the industry choice, which skips nothing.
+  `drainAll` prints one line per sweep, `[agent] cheap gates this pass: …`, and
+  `dispatchHealth().cheapGates` carries the totals since boot. There is no column
+  and no migration: the money not spent is already visible as missing `ModelSpend`
+  rows.
 
 **Two evidence kinds have no producer left.** `profile.email-match` and
 `linkedin.employer-and-name` were both filed from a Context person lookup. Nothing

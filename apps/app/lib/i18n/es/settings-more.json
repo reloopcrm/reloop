@@ -448,6 +448,6 @@
 	"Delete the key": "Eliminar la clave",
 	"Delete the key?": "¿Eliminar la clave?",
 	"Nothing goes to TypeSafe again, and every mail conversation gets the expensive read. Everything in the CRM stays as it is.": "Ya no se envía nada a TypeSafe y cada conversación de correo recibe la lectura cara. Todo en el CRM queda como está.",
-	"Your business description and one mail conversation per read": "La descripción de tu negocio y una conversación de correo por lectura",
-	"Read every mail conversation cheaply first, and pay for the full read only when it looks like business": "Leer primero cada conversación de correo de forma barata y pagar la lectura completa solo cuando parece de negocio"
+	"AI": "IA",
+	"The model the agent thinks with, what it costs, and what makes it cheaper.": "El modelo con el que piensa el agente, lo que cuesta y lo que lo hace más barato."
 }

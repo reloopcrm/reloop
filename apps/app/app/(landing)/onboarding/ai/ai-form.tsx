@@ -15,7 +15,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { toast } from "sonner";
-import { ChatgptDeviceLogin } from "@/app/(app)/[slug]/settings/chatgpt-device-login";
+import { ChatgptDeviceLogin } from "@/app/(app)/[slug]/settings/ai/chatgpt-device-login";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { useTRPC } from "@/lib/trpc/client";

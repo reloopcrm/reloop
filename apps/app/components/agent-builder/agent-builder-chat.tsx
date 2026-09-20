@@ -1228,11 +1228,11 @@ function BuilderFailureCard({
 	const message =
 		failure.kind === "rate-limit"
 			? t(
-					"The model provider rate-limited this request before it could start. Try again in a moment. Which account pays for the agent is set under Settings, General.",
+					"The model provider rate-limited this request before it could start. Try again in a moment. Which account pays for the agent is set under Settings, AI.",
 				)
 			: failure.kind === "restricted"
 				? t(
-						"The model provider refused this model for the account that pays for the agent. Pick another model or account under Settings, General.",
+						"The model provider refused this model for the account that pays for the agent. Pick another model or account under Settings, AI.",
 					)
 				: failure.kind === "credits"
 					? t(

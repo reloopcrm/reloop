@@ -5,8 +5,10 @@ import { MEMORY } from "@crm/db/insights";
 import { SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
 import { streamText } from "ai";
 import { z } from "zod";
-import { readDealHistory } from "./accounts";
+import { type DealHistory, readDealHistory } from "./accounts";
 import { DISPATCH } from "./dispatch-config";
+import { askNoul, type JevNoulAsk, type JevQuestion, typesafeKey } from "./jev";
+import { countGate } from "./jev-meter";
 import { language } from "./language";
 import { directModel } from "./model";
 import { scheduleTask } from "./tasks";
@@ -144,9 +146,103 @@ export async function queueStalledDeals(now = new Date()): Promise<number> {
 	return queued;
 }
 
+export const STALL_GATE = "deal-stall";
+
+export const STALL_SKIPPED =
+	"A follow up on this deal is not worth sending now. No note was written.";
+
+function lastSaid(history: DealHistory): string {
+	const lines: string[] = [];
+
+	for (const thread of history.threads) {
+		lines.push(`Subject: ${thread.subject ?? "(none)"}`);
+		for (const message of thread.messages) {
+			lines.push(
+				`${message.direction === "INBOUND" ? "THEY" : "WE"} ${message.sentAt}: ${
+					message.body ?? ""
+				}`,
+			);
+		}
+	}
+
+	for (const note of history.notes) {
+		lines.push(`Note: ${note.subject ?? ""} ${note.body ?? ""}`);
+	}
+
+	return lines.join("\n").slice(0, STALL.gate.transcriptMaxChars);
+}
+
+export type StallState = {
+	deal: string;
+	people: string;
+	lastSaid: string;
+	quiet: string;
+};
+
+export function stallState(history: DealHistory): StallState {
+	const quiet = history.stats.daysSinceLastActivity;
+
+	return {
+		deal: `${history.deal.name} at ${history.company.name}. Stage ${history.deal.stage}, ${history.deal.daysInStage} days in that stage.`,
+		people: history.people
+			.map(
+				(person) =>
+					`${person.name}${person.title ? `, ${person.title}` : ""}${
+						person.email ? ` (${person.email})` : ""
+					}`,
+			)
+			.join("; "),
+		lastSaid: lastSaid(history),
+		quiet:
+			quiet === null
+				? "Nothing has happened on this deal since it was created."
+				: `Nothing has happened on this deal for ${quiet} days.`,
+	};
+}
+
+function stallQuestion(): JevQuestion {
+	return {
+		type: "noul",
+		instructions:
+			"The state holds one open sales deal that has gone quiet, the people on it, what the last emails and notes said, and how long it has been silent. Is a follow up message from the sales rep worth sending on this deal now?",
+		criteria: {
+			true: "The deal is alive and the rep owes or can usefully make the next move: an open question, an unanswered quote, a promise to come back, a trial or a decision still pending, or an ordinary silence that a polite nudge would break.",
+			false:
+				"The material shows the deal is over or a follow up would be unwelcome: they said no, they bought elsewhere, they asked for no further contact, the request was already fulfilled and closed, the mail is a bounce or an automatic reply, or there is nothing concrete at all to write about.",
+		},
+	};
+}
+
+export async function worthFollowUp(
+	history: DealHistory,
+	ask: JevNoulAsk = askNoul,
+): Promise<boolean> {
+	const key = await typesafeKey();
+	if (!key) return true;
+
+	const noul = await ask(
+		key,
+		stallState(history),
+		STALL.gate.question,
+		stallQuestion(),
+	).catch(() => null);
+	if (noul === null) return true;
+
+	const skip = noul < STALL.gate.threshold;
+	countGate(STALL_GATE, skip, "skipped");
+
+	return !skip;
+}
+
+export type DealStallDeps = {
+	ask?: JevNoulAsk;
+	draft?: (history: DealHistory) => Promise<DealStep>;
+};
+
 export async function runDealStall(
 	dealId: string,
 	now = new Date(),
+	{ ask = askNoul, draft = draftStep }: DealStallDeps = {},
 ): Promise<string> {
 	const deal = await db.deal.findUnique({
 		where: { id: dealId },
@@ -179,6 +275,28 @@ export async function runDealStall(
 		return "There is no mail and no note to read. No note was written.";
 	}
 
+	if (!(await worthFollowUp(history, ask))) return STALL_SKIPPED;
+
+	const step = await draft(history);
+
+	await db.activity.create({
+		data: {
+			type: "NOTE",
+			subject: step.subject,
+			body: step.body,
+			occurredAt: now,
+			dealId,
+			companyId: deal.companyId,
+			createdById: deal.ownerId,
+			meta: { agent: DEAL_STALL_KIND },
+		},
+		select: { id: true },
+	});
+
+	return `Wrote the next step: ${step.subject}`;
+}
+
+async function draftStep(history: DealHistory): Promise<DealStep> {
 	const model = await directModel("reading", DEAL_STALL_KIND);
 
 	const system = [
@@ -213,21 +331,7 @@ export async function runDealStall(
 			continue;
 		}
 
-		await db.activity.create({
-			data: {
-				type: "NOTE",
-				subject: read.step.subject,
-				body: read.step.body,
-				occurredAt: now,
-				dealId,
-				companyId: deal.companyId,
-				createdById: deal.ownerId,
-				meta: { agent: DEAL_STALL_KIND },
-			},
-			select: { id: true },
-		});
-
-		return `Wrote the next step: ${read.step.subject}`;
+		return read.step;
 	}
 
 	throw new Error(`The model did not return a usable next step: ${lastError}`);

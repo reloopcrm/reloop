@@ -37,6 +37,7 @@ import {
 	runThreadInsight,
 } from "./insight";
 import { typesafeKey } from "./jev";
+import { drainGateCounts, gateCounts } from "./jev-meter";
 import {
 	isExhaustion,
 	modelUnavailable,
@@ -637,6 +638,7 @@ export function dispatchHealth() {
 		pendingItems,
 		unlinkedSessions,
 		staleTasks: staleTaskSweep(),
+		cheapGates: gateCounts(),
 		lastError: lastSweepError,
 	};
 }
@@ -689,6 +691,9 @@ export const drainAll = collapsing(
 				runResearchLane(start, signal),
 				runWebhookLane(signal),
 			]);
+
+			const gates = drainGateCounts();
+			if (gates) console.error(`[agent] cheap gates this pass: ${gates}`);
 		})();
 
 		let timer: ReturnType<typeof setTimeout> | undefined;

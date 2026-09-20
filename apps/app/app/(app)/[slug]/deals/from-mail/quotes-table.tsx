@@ -23,6 +23,7 @@ import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { useDealStageLabel } from "@/lib/use-deal-stage-label";
+import { shortLine } from "./quotes-line";
 
 type Quote = RouterOutputs["quotes"]["list"]["rows"][number];
 
@@ -103,7 +104,7 @@ export function QuotesTable() {
 									{row.subject ?? t("No subject")}
 								</span>
 								<span className="truncate text-muted-foreground text-xs">
-									{row.summary}
+									{shortLine(row)}
 								</span>
 							</span>
 						</TableCell>

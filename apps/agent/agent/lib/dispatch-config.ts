@@ -12,6 +12,10 @@ export const DISPATCH = {
 		batch: 90,
 		concurrency: 6,
 		leaseMs: 6 * MINUTE_MS,
+		gate: {
+			batch: 300,
+			concurrency: 15,
+		},
 	},
 
 	research: {

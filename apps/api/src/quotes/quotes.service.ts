@@ -252,6 +252,7 @@ function rowOf(
 		lastMessageAt: thread.lastMessageAt.toISOString(),
 		quantityPallets: thread.insight?.quantityPallets ?? null,
 		products: thread.insight?.products ?? [],
+		topics: thread.insight?.topics ?? [],
 		company,
 		contact: contact
 			? {

@@ -281,19 +281,40 @@ export async function gateState(
 	};
 }
 
-async function gateSkips(
+export type GateAnswer = "skip" | "read" | "unavailable";
+
+export type ThreadClassification = {
+	verdict: ThreadVerdict;
+	modelId: string;
+};
+
+export const NEEDS_FULL_READ = new Error(
+	"This conversation needs the full read, and no model provider is available.",
+);
+
+export const GATE_UNAVAILABLE = new Error("The cheap gate did not answer.");
+
+async function askGate(
 	thread: ThreadRecord,
 	rules: WinBackRules,
 	ask: JevAsk,
-): Promise<boolean> {
-	if (!rules.business.description.trim()) return false;
+): Promise<GateAnswer> {
+	if (!rules.business.description.trim()) return "unavailable";
 
 	const key = await typesafeKey();
-	if (!key) return false;
+	if (!key) return "unavailable";
 
-	const noul = await ask(key, await gateState(thread, rules));
+	const noul = await ask(key, await gateState(thread, rules)).catch(() => null);
+	if (noul === null) return "unavailable";
 
-	return noul !== null && noul < TYPESAFE.gate.threshold;
+	return noul < TYPESAFE.gate.threshold ? "skip" : "read";
+}
+
+function gateOnlyVerdict(answer: GateAnswer): ThreadClassification {
+	if (answer === "unavailable") throw GATE_UNAVAILABLE;
+	if (answer === "read") throw NEEDS_FULL_READ;
+
+	return { verdict: GATE_SKIPPED, modelId: TYPESAFE.model };
 }
 
 export async function classifyThread(
@@ -303,9 +324,9 @@ export async function classifyThread(
 	expensive: (
 		thread: ThreadRecord,
 		rules: WinBackRules,
-	) => Promise<{ verdict: ThreadVerdict; modelId: string }> = classifyWithModel,
-): Promise<{ verdict: ThreadVerdict; modelId: string }> {
-	if (await gateSkips(thread, rules, ask)) {
+	) => Promise<ThreadClassification> = classifyWithModel,
+): Promise<ThreadClassification> {
+	if ((await askGate(thread, rules, ask)) === "skip") {
 		return { verdict: GATE_SKIPPED, modelId: TYPESAFE.model };
 	}
 
@@ -315,7 +336,7 @@ export async function classifyThread(
 async function classifyWithModel(
 	thread: ThreadRecord,
 	rules: WinBackRules,
-): Promise<{ verdict: ThreadVerdict; modelId: string }> {
+): Promise<ThreadClassification> {
 	const model = await directModel("reading", "thread-insight");
 
 	const object = await askJson(
@@ -437,7 +458,10 @@ async function refreshMemory(
 	});
 }
 
-export async function runThreadInsight(threadId: string): Promise<string> {
+export async function runThreadInsight(
+	threadId: string,
+	gateOnly = false,
+): Promise<string> {
 	const thread = await db.emailThread.findUnique({
 		where: { id: threadId },
 		select: {
@@ -490,7 +514,9 @@ export async function runThreadInsight(threadId: string): Promise<string> {
 			messageSummaries: [],
 		};
 	} else {
-		const result = await classifyThread(thread, rules);
+		const result = gateOnly
+			? gateOnlyVerdict(await askGate(thread, rules, askJev))
+			: await classifyThread(thread, rules);
 		verdict = result.verdict;
 
 		await storeMessageSummaries(thread, verdict.messageSummaries);

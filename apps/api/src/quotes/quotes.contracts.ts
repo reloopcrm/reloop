@@ -8,6 +8,7 @@ export const quoteRowOutput = z.object({
 	lastMessageAt: z.string(),
 	quantityPallets: z.number().nullable(),
 	products: z.array(z.string()),
+	topics: z.array(z.string()),
 	company: z.object({ id: z.string(), name: z.string() }),
 	contact: z
 		.object({

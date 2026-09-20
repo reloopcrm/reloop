@@ -27,6 +27,7 @@ const ROWS = [
 		lastMessageAt: new Date("2026-09-10T09:00:00.000Z").toISOString(),
 		quantityPallets: 40,
 		products: ["Europalette"],
+		topics: ["Ankauf Europaletten", "Preisangebot"],
 		company: { id: "company-1", name: "Nordfracht" },
 		contact: {
 			id: "contact-1",

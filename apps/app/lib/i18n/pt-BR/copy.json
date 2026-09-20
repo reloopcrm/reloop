@@ -256,5 +256,6 @@
 	"Only your own notes and tasks can be changed.": "Você só pode alterar suas próprias notas e tarefas.",
 	"Only tasks have a due date.": "Só tarefas têm data de vencimento.",
 	"A note or a task cannot be empty.": "Uma nota ou tarefa não pode ficar vazia.",
-	"A task needs a subject. It is the thing to do.": "Uma tarefa precisa de um assunto. É o que precisa ser feito."
+	"A task needs a subject. It is the thing to do.": "Uma tarefa precisa de um assunto. É o que precisa ser feito.",
+	"Only an owner or an admin can change the TypeSafe connection.": "Só um proprietário ou um administrador pode alterar a conexão TypeSafe."
 }

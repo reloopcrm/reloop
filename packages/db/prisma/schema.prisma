@@ -1482,6 +1482,7 @@ model AppSetting {
   agentDraftModel         String?
 
   contextDevApiKey     String?
+  typesafeApiKey       String?
   researchKeySkippedAt DateTime?
 
   reportingCurrency String?

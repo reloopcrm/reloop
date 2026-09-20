@@ -16,6 +16,7 @@ const NOT_A_SENTENCE = new Set([
 	"Microsoft",
 	"Slack",
 	"SSO",
+	"TypeSafe",
 ]);
 
 const ONBOARDING = [

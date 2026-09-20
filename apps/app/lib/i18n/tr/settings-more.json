@@ -434,5 +434,20 @@
 	"REST API": "REST API",
 	"Every action in the CRM is also a REST endpoint. Send an API key in the x-api-key header to /api/rest on this address.": "CRM'deki her işlem aynı zamanda bir REST uç noktasıdır. Bu adreste /api/rest'e x-api-key başlığında bir API anahtarı gönder.",
 	"GET /api/openapi.json lists every endpoint and every input. It needs the key too.": "GET /api/openapi.json her uç noktayı ve her girdiyi listeler. Bunun için de anahtar gerekir.",
-	"Create an API key": "API anahtarı oluştur"
+	"Create an API key": "API anahtarı oluştur",
+	"The key is saved. The next mail conversation is read cheaply.": "Anahtar kaydedildi. Sonraki e-posta konuşması ucuz okunur.",
+	"The key is deleted. Nothing goes to TypeSafe again.": "Anahtar silindi. TypeSafe'e artık hiçbir şey gitmiyor.",
+	"Reads every mail conversation once with a cheap model first, and pays for the expensive read only when the conversation looks like business.": "Her e-posta konuşmasını önce ucuz bir modelle bir kez okur ve pahalı okumayı sadece konuşma iş gibi göründüğünde öder.",
+	"Brings in nothing. Sends the business description from Settings and one mail conversation per read, so turn it on only if that is acceptable to you.": "Hiçbir şey getirmez. Ayarlardaki iş açıklamasını ve her okumada bir e-posta konuşmasını gönderir, bu yüzden sadece senin için uygunsa aç.",
+	"It is off by default. Nothing goes to TypeSafe until you save a key. A conversation the cheap model calls business still gets the full read, so nothing is lost there.": "Varsayılan olarak kapalıdır. Sen bir anahtar kaydedene kadar TypeSafe'e hiçbir şey gitmez. Ucuz modelin iş saydığı bir konuşma yine tam okuma alır, orada hiçbir şey kaybolmaz.",
+	"The key from your TypeSafe account": "TypeSafe hesabındaki anahtar",
+	"A key is saved. Stored encrypted and never shown again. Paste a new one to replace it.": "Bir anahtar kayıtlı. Şifreli saklanır ve bir daha gösterilmez. Değiştirmek için yenisini yapıştır.",
+	"Stored encrypted and never shown again. You can also set TYPESAFE_API_KEY in the environment, and a key saved here wins over it.": "Şifreli saklanır ve bir daha gösterilmez. TYPESAFE_API_KEY değişkenini ortamda da tanımlayabilirsin, burada kayıtlı anahtar önceliklidir.",
+	"Replace key": "Anahtarı değiştir",
+	"Save key": "Anahtarı kaydet",
+	"Delete the key": "Anahtarı sil",
+	"Delete the key?": "Anahtar silinsin mi?",
+	"Nothing goes to TypeSafe again, and every mail conversation gets the expensive read. Everything in the CRM stays as it is.": "TypeSafe'e artık hiçbir şey gitmez ve her e-posta konuşması pahalı okumayı alır. CRM'deki her şey olduğu gibi kalır.",
+	"Your business description and one mail conversation per read": "İş açıklaman ve her okumada bir e-posta konuşması",
+	"Read every mail conversation cheaply first, and pay for the full read only when it looks like business": "Her e-posta konuşmasını önce ucuz oku ve tam okumayı sadece iş gibi göründüğünde öde"
 }

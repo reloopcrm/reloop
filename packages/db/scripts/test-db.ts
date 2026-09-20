@@ -74,7 +74,11 @@ async function create(target: string, database: string): Promise<void> {
 			fail([
 				reason,
 				"Database preparation stops. Existing data stays unchanged.",
-				"Review the schema difference and prepare a separate authorized test database.",
+				"",
+				"A migration this branch adds is not applied yet. Apply it:",
+				`  DATABASE_URL=$TEST_DATABASE_URL bunx prisma migrate deploy --schema ${SCHEMA}`,
+				"",
+				"Any other difference needs a separate authorized test database.",
 			]);
 		}
 

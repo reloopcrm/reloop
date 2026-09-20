@@ -1,5 +1,6 @@
 import ConnectionSend from "@carbon/icons-react/es/ConnectionSend";
 import Email from "@carbon/icons-react/es/Email";
+import Filter from "@carbon/icons-react/es/Filter";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
@@ -41,13 +42,15 @@ async function ConnectionsSettingsPageContent({
 	]);
 	const queryClient = getServerQueryClient();
 	const trpc = getServerTrpc();
-	const [google, microsoft, slack, imap, webhooks] = await Promise.all([
-		queryClient.fetchQuery(trpc.google.status.queryOptions()),
-		queryClient.fetchQuery(trpc.microsoft.status.queryOptions()),
-		queryClient.fetchQuery(trpc.slack.status.queryOptions()),
-		queryClient.fetchQuery(trpc.imap.status.queryOptions()),
-		queryClient.fetchQuery(trpc.webhooks.status.queryOptions()),
-	]);
+	const [google, microsoft, slack, imap, webhooks, typesafe] =
+		await Promise.all([
+			queryClient.fetchQuery(trpc.google.status.queryOptions()),
+			queryClient.fetchQuery(trpc.microsoft.status.queryOptions()),
+			queryClient.fetchQuery(trpc.slack.status.queryOptions()),
+			queryClient.fetchQuery(trpc.imap.status.queryOptions()),
+			queryClient.fetchQuery(trpc.webhooks.status.queryOptions()),
+			queryClient.fetchQuery(trpc.typesafe.status.queryOptions()),
+		]);
 	const rows = [
 		...(google.linked
 			? [
@@ -103,6 +106,20 @@ async function ConnectionsSettingsPageContent({
 						sends: t("Nothing, so nothing here can change your mailbox"),
 						href: `/${slug}/settings/connections/imap`,
 						logo: Email,
+					},
+				]
+			: []),
+		...(typesafe.connected
+			? [
+					{
+						name: "TypeSafe",
+						status: t("Connected"),
+						bringsIn: t("Nothing, so nothing here reads your other tools"),
+						sends: t(
+							"Your business description and one mail conversation per read",
+						),
+						href: `/${slug}/settings/connections/typesafe`,
+						logo: Filter,
 					},
 				]
 			: []),

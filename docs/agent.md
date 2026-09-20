@@ -363,6 +363,39 @@ missing key removes a place to look. **Never an error, never throws.**
 so a source that has to be read rather than looked up in the environment can be added
 without changing every caller.
 
+### A cheap gate in front of the thread classifier
+
+`classifyThread` (`lib/insight.ts`) is the expensive read of one mail conversation.
+With a TypeSafe key it is preceded by one call to Jev (`lib/jev.ts`), which answers a
+single noul: is this conversation about the workspace's business. `TYPESAFE` in
+`@crm/db/typesafe` holds the endpoint, the model, the threshold and the deadline.
+
+- **One question, not four.** When the gate passes, the big model answers `side`,
+  `outcome` and `unansweredByUs` anyway. When it fails, those describe a conversation
+  nobody reads. A second question is three dead answers per call.
+- **The state carries the business.** `businessPrompt(rules)`, the subject and the
+  transcript, as three named fields. Without the business text the gate judges
+  "is this commercial mail", which is a different question and a useless one. A
+  workspace with no business description therefore skips the gate entirely.
+- **A skip writes the verdict itself**: `relevant: false`, `outcome: "OTHER"`,
+  `side: null`, an empty summary, empty arrays, and `modelId: "jev-latest"`. That model
+  id is how every gate-skipped row is found again.
+- **A skipped conversation is not re-read** until new mail moves its `lastMessageAt`.
+  The threshold is 0.2 for that reason: a wrong skip costs a summary nobody asked for,
+  and 0.2 is a clear no rather than an uncertain one.
+- **Never a throw, and off-path is byte identical.** No key, a 401, a 5xx, bad JSON, a
+  timeout, a network error: every one of them falls through to the big model and nothing
+  reaches the rep. The answer is parsed with zod at the read.
+- **The deadline is `settledWithin`, not `AbortSignal.timeout`.** That signal does not
+  fire under Bun, so a cap built on it alone is no cap. The abort still runs, to free the
+  socket. `test/jev-gate.spec.ts` pins both.
+- **The timeline is untouched.** Message summaries come from the `thread-digest` task,
+  which does not depend on insight.
+- **It is a capability, not a tool.** `lib/capabilities.ts` reads the stored key as well
+  as `TYPESAFE_API_KEY`, so the boot line states it. `briefed: false` keeps it out of
+  `markdownFor`, because the session briefing lists places the agent can look and this
+  is not one.
+
 **Two evidence kinds have no producer left.** `profile.email-match` and
 `linkedin.employer-and-name` were both filed from a Context person lookup. Nothing
 observes them now, `agent/skills/evidence.md` says so, and they stay in `WEIGHTS` so

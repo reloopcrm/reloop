@@ -1,4 +1,6 @@
 import "@crm/env/load";
+import { TYPESAFE } from "@crm/db/typesafe";
+import { storedTypesafeKey } from "./jev";
 
 export type Capability = {
 	readonly id: string;
@@ -6,15 +8,18 @@ export type Capability = {
 	readonly gives: string;
 	readonly enabled: boolean;
 	readonly from: string;
+	readonly briefed?: boolean;
 };
 
 export const COMPANY_BRAND = "COMPANY_BRAND";
 
 export async function capabilities(): Promise<readonly Capability[]> {
-	return capabilitiesFrom();
+	return capabilitiesFrom(Boolean(await storedTypesafeKey()));
 }
 
-export function capabilitiesFrom(): readonly Capability[] {
+export function capabilitiesFrom(
+	typesafeStored = false,
+): readonly Capability[] {
 	const fromEnv = (id: string) => ({
 		id,
 		from: id,
@@ -34,6 +39,15 @@ export function capabilitiesFrom(): readonly Capability[] {
 			gives:
 				"a company's name, logo, industry, location and contact details, read off its own website",
 			enabled: true,
+		},
+		{
+			...fromEnv(TYPESAFE.envVar),
+			enabled: typesafeStored || Boolean(process.env[TYPESAFE.envVar]?.trim()),
+			from: typesafeStored ? "Settings, Connections" : TYPESAFE.envVar,
+			briefed: false,
+			label: "Cheap first read of a mail conversation",
+			gives:
+				"a cheap yes or no on whether one mail conversation is about this business, asked before the expensive read. It is not a tool you call",
 		},
 		{
 			...fromEnv("BLOB_READ_WRITE_TOKEN"),
@@ -78,7 +92,8 @@ export async function capabilitiesMarkdown(): Promise<string> {
 	return markdownFor(await capabilities());
 }
 
-export function markdownFor(all: readonly Capability[]): string {
+export function markdownFor(every: readonly Capability[]): string {
+	const all = every.filter((capability) => capability.briefed !== false);
 	const on = all.filter((capability) => capability.enabled);
 	const off = all.filter((capability) => !capability.enabled);
 

@@ -434,5 +434,20 @@
 	"REST API": "REST-API",
 	"Every action in the CRM is also a REST endpoint. Send an API key in the x-api-key header to /api/rest on this address.": "Jede Aktion im CRM ist auch ein REST-Endpunkt. Schick einen API-Schlüssel im Header x-api-key an /api/rest unter dieser Adresse.",
 	"GET /api/openapi.json lists every endpoint and every input. It needs the key too.": "GET /api/openapi.json listet jeden Endpunkt und jede Eingabe auf. Auch dafür brauchst du den Schlüssel.",
-	"Create an API key": "API-Schlüssel erstellen"
+	"Create an API key": "API-Schlüssel erstellen",
+	"The key is saved. The next mail conversation is read cheaply.": "Der Schlüssel ist gespeichert. Die nächste Mail-Unterhaltung wird günstig gelesen.",
+	"The key is deleted. Nothing goes to TypeSafe again.": "Der Schlüssel ist gelöscht. Es geht nichts mehr an TypeSafe.",
+	"Reads every mail conversation once with a cheap model first, and pays for the expensive read only when the conversation looks like business.": "Liest jede Mail-Unterhaltung zuerst einmal mit einem günstigen Modell und zahlt das teure Lesen nur, wenn die Unterhaltung nach Geschäft aussieht.",
+	"Brings in nothing. Sends the business description from Settings and one mail conversation per read, so turn it on only if that is acceptable to you.": "Bringt nichts herein. Sendet die Geschäftsbeschreibung aus den Einstellungen und pro Lesevorgang eine Mail-Unterhaltung. Schalte es nur ein, wenn das für dich in Ordnung ist.",
+	"It is off by default. Nothing goes to TypeSafe until you save a key. A conversation the cheap model calls business still gets the full read, so nothing is lost there.": "Standardmäßig ist es aus. Es geht nichts an TypeSafe, bevor du einen Schlüssel speicherst. Eine Unterhaltung, die das günstige Modell als Geschäft einstuft, bekommt weiterhin das volle Lesen. Dabei geht nichts verloren.",
+	"The key from your TypeSafe account": "Der Schlüssel aus deinem TypeSafe-Konto",
+	"A key is saved. Stored encrypted and never shown again. Paste a new one to replace it.": "Ein Schlüssel ist gespeichert. Verschlüsselt abgelegt und nie wieder angezeigt. Füge einen neuen ein, um ihn zu ersetzen.",
+	"Stored encrypted and never shown again. You can also set TYPESAFE_API_KEY in the environment, and a key saved here wins over it.": "Verschlüsselt abgelegt und nie wieder angezeigt. Du kannst auch TYPESAFE_API_KEY in der Umgebung setzen. Ein hier gespeicherter Schlüssel hat Vorrang.",
+	"Replace key": "Schlüssel ersetzen",
+	"Save key": "Schlüssel speichern",
+	"Delete the key": "Schlüssel löschen",
+	"Delete the key?": "Schlüssel löschen?",
+	"Nothing goes to TypeSafe again, and every mail conversation gets the expensive read. Everything in the CRM stays as it is.": "Es geht nichts mehr an TypeSafe und jede Mail-Unterhaltung bekommt das teure Lesen. Alles im CRM bleibt, wie es ist.",
+	"Your business description and one mail conversation per read": "Deine Geschäftsbeschreibung und pro Lesevorgang eine Mail-Unterhaltung",
+	"Read every mail conversation cheaply first, and pay for the full read only when it looks like business": "Jede Mail-Unterhaltung zuerst günstig lesen und das volle Lesen nur zahlen, wenn es nach Geschäft aussieht"
 }

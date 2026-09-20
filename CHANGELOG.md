@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/reloopcrm/reloop/compare/v0.15.0...v0.15.1) (2026-09-20)
+
+
+### Fixes
+
+* **release:** publish three images or none, and cap what the agent holds ([#25](https://github.com/reloopcrm/reloop/issues/25)) ([0dfc90b](https://github.com/reloopcrm/reloop/commit/0dfc90b72b7c77b7ccb2dde96bfde76e5b3d7a89))
+
 ## [0.15.0](https://github.com/reloopcrm/reloop/compare/v0.14.0...v0.15.0) (2026-09-20)
 
 

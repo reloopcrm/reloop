@@ -134,7 +134,7 @@ describe("a merged block keeps every record its entries link to", () => {
 	});
 });
 
-describe("a merged panel reads from oldest to newest across the block", () => {
+describe("a merged panel reads from newest to oldest across the block", () => {
 	const message = (id: string, sentAt: string) => ({ id, sentAt });
 
 	it("interleaves two threads whose dates overlap", () => {
@@ -148,7 +148,18 @@ describe("a merged panel reads from oldest to newest across the block", () => {
 				message("b2", "2026-09-20T09:00:00.000Z"),
 			],
 		]);
-		expect(merged.map((one) => one.id)).toEqual(["a1", "b1", "a2", "b2"]);
+		expect(merged.map((one) => one.id)).toEqual(["b2", "a2", "b1", "a1"]);
+	});
+
+	it("puts the newest message first so the panel matches the timeline", () => {
+		const merged = blockMessages([
+			[
+				message("old", "2026-09-14T07:37:00.000Z"),
+				message("middle", "2026-09-19T13:36:00.000Z"),
+				message("new", "2026-09-19T18:25:00.000Z"),
+			],
+		]);
+		expect(merged.map((one) => one.id)).toEqual(["new", "middle", "old"]);
 	});
 
 	it("shows a message once when one thread is loaded twice", () => {

@@ -8,6 +8,7 @@ import {
 	type ThreadVerdict,
 } from "../agent/lib/insight";
 import { askJev, type JevState } from "../agent/lib/jev";
+import { gateCounts, resetGateCounts } from "../agent/lib/jev-meter";
 
 const KEY = "ts-test-key";
 
@@ -324,5 +325,52 @@ describe("the call is capped in time", () => {
 		);
 
 		expect(noul).toBeNull();
+	});
+});
+
+describe("the thread gate reports its own numbers", () => {
+	beforeEach(() => {
+		resetGateCounts();
+	});
+
+	afterEach(() => {
+		resetGateCounts();
+	});
+
+	it("counts a skip, so the largest saving is readable", async () => {
+		const big = bigModel();
+		await classifyThread(thread, rules, answering(0.02).ask, big.run);
+
+		expect(gateCounts()["thread-insight"]).toMatchObject({
+			asked: 1,
+			hits: 1,
+			failed: 0,
+		});
+	});
+
+	it("counts a pass as asked but not as a saving", async () => {
+		const big = bigModel();
+		await classifyThread(thread, rules, answering(0.97).ask, big.run);
+
+		expect(gateCounts()["thread-insight"]).toMatchObject({
+			asked: 1,
+			hits: 0,
+			failed: 0,
+		});
+	});
+
+	it("counts a failure, so an outage does not read as fewer conversations", async () => {
+		const big = bigModel();
+		const failing = async () => {
+			throw new Error("Jev is down");
+		};
+
+		await classifyThread(thread, rules, failing, big.run);
+
+		expect(gateCounts()["thread-insight"]).toMatchObject({
+			asked: 0,
+			failed: 1,
+		});
+		expect(big.calls).toHaveLength(1);
 	});
 });

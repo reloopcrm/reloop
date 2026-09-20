@@ -40,6 +40,11 @@ export const DISPATCH = {
 		messagesPerThread: 4,
 		subjectMaxChars: 120,
 		bodyMaxChars: 900,
+		gate: {
+			question: "worthFollowUp",
+			threshold: 0.25,
+			transcriptMaxChars: 2_400,
+		},
 	},
 
 	run: {

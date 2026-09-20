@@ -4,6 +4,8 @@ import { stripQuotedHistory } from "@crm/db/message-text";
 import { streamText } from "ai";
 import { z } from "zod";
 import { recordFact } from "./facts";
+import { askNoul, type JevNoulAsk, type JevQuestion, typesafeKey } from "./jev";
+import { countGate } from "./jev-meter";
 import { directModel } from "./model";
 import { looksMachineMade, properCase } from "./names";
 import { UNTRUSTED_RULE, untrusted } from "./untrusted";
@@ -11,7 +13,17 @@ import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 const CLEAN = {
 	messages: 6,
 	bodyTailChars: 1_200,
+	gate: {
+		question: "hasSignature",
+		threshold: 0.35,
+		mailMaxChars: 4_000,
+	},
 } as const;
+
+export const CLEAN_GATE = "contact-clean";
+
+export const CLEAN_SKIPPED =
+	"Their mail carries no signature block. Nothing changed.";
 
 const found = z.object({
 	fullName: z.string().max(120).nullable(),
@@ -104,7 +116,64 @@ async function extract(input: {
 	return parsed.data;
 }
 
-export async function runContactClean(contactId: string): Promise<string> {
+function signatureQuestion(): JevQuestion {
+	return {
+		type: "noul",
+		instructions:
+			"The state holds the end of one or more emails that one person sent, and the name their mailbox shows. Does at least one of these emails end in a signature block that names a person?",
+		criteria: {
+			true: "A closing block under a sign off names a person, on its own line, usually with a job title, a company, a phone number or a postal address beneath it.",
+			false:
+				"The mail simply stops, or ends with a bare sign off with no name under it, or ends with a company footer, a legal disclaimer, an unsubscribe line or an automatic notice that names no person.",
+		},
+	};
+}
+
+export type SignatureState = {
+	senderName: string;
+	mail: string;
+};
+
+export function signatureState(input: {
+	displayNames: string[];
+	bodies: string[];
+}): SignatureState {
+	return {
+		senderName: input.displayNames.join(" | ") || "(none)",
+		mail: input.bodies.join("\n\n").slice(-CLEAN.gate.mailMaxChars),
+	};
+}
+
+export async function hasSignature(
+	input: { displayNames: string[]; bodies: string[] },
+	ask: JevNoulAsk = askNoul,
+): Promise<boolean> {
+	const key = await typesafeKey();
+	if (!key) return true;
+
+	const noul = await ask(
+		key,
+		signatureState(input),
+		CLEAN.gate.question,
+		signatureQuestion(),
+	).catch(() => null);
+	if (noul === null) return true;
+
+	const skip = noul < CLEAN.gate.threshold;
+	countGate(CLEAN_GATE, skip, "skipped");
+
+	return !skip;
+}
+
+export type ContactCleanDeps = {
+	ask?: JevNoulAsk;
+	read?: typeof extract;
+};
+
+export async function runContactClean(
+	contactId: string,
+	{ ask = askNoul, read = extract }: ContactCleanDeps = {},
+): Promise<string> {
 	const contact = await db.contact.findUnique({
 		where: { id: contactId },
 		select: {
@@ -136,15 +205,22 @@ export async function runContactClean(contactId: string): Promise<string> {
 
 	if (messages.length === 0) return done("No email from them to read.");
 
+	const displayNames = [
+		...new Set(
+			messages.map((m) => m.fromName).filter((n): n is string => Boolean(n)),
+		),
+	];
+	const bodies = messages.map((m) => tail(m.body ?? m.snippet));
+
+	if (!(await hasSignature({ displayNames, bodies }, ask))) {
+		return done(CLEAN_SKIPPED);
+	}
+
 	const ours = await ourIdentity();
-	const facts = await extract({
+	const facts = await read({
 		email: contact.email,
-		displayNames: [
-			...new Set(
-				messages.map((m) => m.fromName).filter((n): n is string => Boolean(n)),
-			),
-		],
-		bodies: messages.map((m) => tail(m.body ?? m.snippet)),
+		displayNames,
+		bodies,
 		ours,
 	});
 

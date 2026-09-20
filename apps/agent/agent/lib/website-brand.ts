@@ -2,6 +2,13 @@ import { safeFetch } from "@crm/db/safe-fetch";
 import { streamText } from "ai";
 import { z } from "zod";
 import type { Brand, BrandLookup } from "./brand-mapping";
+import {
+	askChoice,
+	type JevChoiceAsk,
+	type JevQuestion,
+	typesafeKey,
+} from "./jev";
+import { countGate } from "./jev-meter";
 import { language } from "./language";
 import { directModel } from "./model";
 import { WEBSITE } from "./website-config";
@@ -194,17 +201,78 @@ export async function askPage<Shape extends z.ZodType>(
 	return null;
 }
 
-async function extract(page: Page): Promise<Extracted> {
-	const facts = await askPage(page, extracted, [
-		"You read a company's homepage and report facts about the company.",
-		"Report only what the page states. Unknown values are null. Never guess a city or country from the language alone.",
-		"name is the company's real name without slogans or legal suffixes like GmbH left as they appear on the page.",
-		`description is one ${language()} sentence about what the company does.`,
-		"industry and subindustry are short English labels, for example Logistics / Pallet trading.",
-		"countryCode is the ISO 3166-1 alpha-2 code.",
+export const BRAND_GATE = "brand-industry";
+
+const INDUSTRY_OPTIONS: readonly string[] = Object.keys(
+	WEBSITE.industry.options,
+);
+
+function industryQuestion(): JevQuestion {
+	return {
+		type: "choice",
+		instructions:
+			"The state holds one company's own homepage. Which industry does this company work in? Choose by what the company itself does, not by what its customers do.",
+		criteria: WEBSITE.industry.options,
+	};
+}
+
+export type IndustryState = {
+	url: string;
+	title: string;
+	description: string;
+	page: string;
+};
+
+export function industryState(page: Page): IndustryState {
+	return {
+		url: page.url.toString(),
+		title: page.title ?? "",
+		description: page.metaDescription ?? "",
+		page: page.text.slice(0, WEBSITE.industry.stateMaxChars),
+	};
+}
+
+export async function askIndustry(
+	page: Page,
+	ask: JevChoiceAsk = askChoice,
+): Promise<string | null> {
+	const key = await typesafeKey();
+	if (!key) return null;
+
+	const answer = await ask(
+		key,
+		industryState(page),
+		WEBSITE.industry.question,
+		industryQuestion(),
+		INDUSTRY_OPTIONS,
+	).catch(() => null);
+	if (!answer) return null;
+
+	const chosen =
+		answer.choice !== WEBSITE.industry.noMatch &&
+		(answer.probabilities[answer.choice] ?? 0) >= WEBSITE.industry.threshold;
+
+	countGate(BRAND_GATE, chosen, "labelled");
+
+	return chosen ? answer.choice : null;
+}
+
+async function extract(page: Page, ask: JevChoiceAsk): Promise<Extracted> {
+	const [facts, industry] = await Promise.all([
+		askPage(page, extracted, [
+			"You read a company's homepage and report facts about the company.",
+			"Report only what the page states. Unknown values are null. Never guess a city or country from the language alone.",
+			"name is the company's real name without slogans or legal suffixes like GmbH left as they appear on the page.",
+			`description is one ${language()} sentence about what the company does.`,
+			"industry and subindustry are short English labels, for example Logistics / Pallet trading.",
+			"countryCode is the ISO 3166-1 alpha-2 code.",
+		]),
+		askIndustry(page, ask),
 	]);
 
-	return facts ?? fromMetadata(page);
+	const read = facts ?? fromMetadata(page);
+
+	return industry ? { ...read, industry } : read;
 }
 
 function fromMetadata(page: Page): Extracted {
@@ -221,7 +289,10 @@ function fromMetadata(page: Page): Extracted {
 	};
 }
 
-export async function brandFromWebsite(domain: string): Promise<BrandLookup> {
+export async function brandFromWebsite(
+	domain: string,
+	ask: JevChoiceAsk = askChoice,
+): Promise<BrandLookup> {
 	const page = await fetchPage(domain);
 	if (!page) {
 		return {
@@ -230,7 +301,7 @@ export async function brandFromWebsite(domain: string): Promise<BrandLookup> {
 		};
 	}
 
-	const facts = await extract(page);
+	const facts = await extract(page, ask);
 
 	const logos: NonNullable<Brand["logos"]> = [];
 	const icon =

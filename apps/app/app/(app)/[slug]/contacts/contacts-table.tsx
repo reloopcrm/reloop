@@ -113,6 +113,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		sortable: true,
 		width: "w-[16%]",
 		hideBelow: "md",
+		defaultHidden: true,
 		cell: (row) => <OwnerCell owner={row.owner} />,
 	},
 	{

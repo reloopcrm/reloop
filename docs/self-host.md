@@ -65,6 +65,20 @@ curl -fsSL https://reloopcrm.com/install.sh -o install.sh
 RELOOP_DOMAIN=crm.example.com RELOOP_EMAIL=you@example.com RELOOP_PASSWORD='a long password' sh install.sh
 ```
 
+A real domain needs one variable more, because the script otherwise asks whether
+this server already runs a proxy on ports 80 and 443. Set `RELOOP_OWN_PROXY=n`
+to let Caddy take those ports, or `RELOOP_OWN_PROXY=y` to keep your own proxy in
+front and let the app listen on `127.0.0.1:3000`:
+
+```bash
+RELOOP_DOMAIN=crm.example.com RELOOP_EMAIL=you@example.com \
+  RELOOP_PASSWORD='a long password' RELOOP_OWN_PROXY=n sh install.sh
+```
+
+Without it the script stops at that question, and over `ssh host '…'` it stops
+without printing anything, because the question reads from the terminal and
+`ssh` gives the command none. Either set the variable or run `ssh -t`.
+
 This also helps on a keyboard where `@` needs the Option key. Some terminals send Option as Meta, so a typed `@` arrives as `^[`.
 
 ### What runs

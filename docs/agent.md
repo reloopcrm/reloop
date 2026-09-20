@@ -11,7 +11,7 @@ are in `docs/setup.md`.
 
 ## Model
 
-Four providers pay for the model, and Settings → General picks one: OpenRouter, a
+Four providers pay for the model, and Settings → AI picks one: OpenRouter, a
 ChatGPT subscription, an OpenAI key, an Anthropic key. Every provider's default model
 is `AGENT_PROVIDER_DEFAULTS` in `@crm/db/settings`, because the agent and the API both
 need it. OpenRouter is the default provider and `openai/gpt-5.6-luna` its default
@@ -34,7 +34,7 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
   ChatGPT counts as a candidate only when `$CODEX_HOME/auth.json` exists
   (`chatgptLoginExists` in `lib/codex-binary.ts`), the file eve's
   `experimental_chatgpt` reads. With no candidate at all `modelUnavailable()` answers
-  `NO_PROVIDER_MESSAGE`, which names Settings, General; the research lane postpones
+  `NO_PROVIDER_MESSAGE`, which names Settings, AI; the research lane postpones
   its tasks, `runBlocker` blocks the run, and `turn.failed` writes that sentence on
   the record instead of the vendor's error text.
 - **A provider switch drops the mail models the old provider chose.**

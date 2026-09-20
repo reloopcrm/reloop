@@ -12,7 +12,7 @@ export const REASONS: RunFailureReasons = {
 	DEPENDENCY_UNAVAILABLE:
 		"A connection this agent needs is missing. Reconnect it, then run again.",
 	MODEL_UNAVAILABLE:
-		"The model subscription has used up its window. The agent starts again when the limit resets. Settings, General shows the day.",
+		"The model subscription has used up its window. The agent starts again when the limit resets. Settings, AI shows the day.",
 	NOT_AUTHORISED:
 		"The connection refused this. Its access may have been revoked or narrowed.",
 	PROVIDER_ERROR:

@@ -137,21 +137,25 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   back into the CRM: the card keeps the delivery time and the status code the
   receiver returned, and nothing else from it.
 
-## TypeSafe brings in nothing and saves money
+## TypeSafe lives in Settings, AI
 
-Settings, Connections, TypeSafe holds one API key for the workspace. It buys a cheap
-first read of every mail conversation, so the expensive model only reads the ones that
-look like business. `docs/agent.md` holds the gate; this page holds the key.
+TypeSafe is not a connection any more. It is a card on Settings, AI, beside the model
+and the cost table, because it is a lever on what the agent costs.
+`/settings/connections/typesafe` redirects to `/settings/ai`.
+
+It holds one API key for the workspace. It buys a cheap first read of every mail
+conversation, so the expensive model only reads the ones that look like business.
+`docs/agent.md` holds the gate; this section holds the key.
 
 - **Off by default, and opt-in by key.** No key means no call and no change at all. A
   self-hoster who has never heard of TypeSafe sees the same behaviour as before.
 - **`TYPESAFE_API_KEY` is the same key for an install that keeps secrets out of the
   database.** A key saved here wins over it.
 - **Sealed like the webhook secret**, with `sealTypesafeKey` and `appSecretKey`. The
-  page shows a masked hint and never the value.
+  card shows a masked hint and never the value.
 - **Only an owner or an admin writes it, or reads the hint**, the same
   `canManageConnections` Slack and webhooks use.
-- **It sends, so the page says what it sends**: the business description from Settings
+- **It sends, so the card says what it sends**: the business description from Settings
   and one mail conversation per read.
 
 ## Direction is the organising idea

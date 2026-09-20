@@ -7,7 +7,6 @@
 	"Your email address stays {email}.": "Deine E-Mail-Adresse bleibt {email}.",
 	"Enter the name people should see.": "Gib den Namen ein, den andere sehen sollen.",
 	"General": "Allgemein",
-	"Who you are, and the model the research agent thinks with.": "Wer du bist und mit welchem Modell der Recherche-Agent denkt.",
 	"Workspace settings": "Einstellungen des Arbeitsbereichs",
 	"Workspace": "Arbeitsbereich",
 	"Workspace saved.": "Arbeitsbereich gespeichert.",
@@ -204,5 +203,7 @@
 	"Stage names saved.": "Namen der Phasen gespeichert.",
 	"{language} is machine translated. English and German are written by people. Tell us a better word and we put it in.": "{language} ist maschinell übersetzt. Englisch und Deutsch schreiben Menschen. Sag uns ein besseres Wort und wir bauen es ein.",
 	"English and German are written by people. The other languages are machine translated. Tell us a better word and we put it in.": "Englisch und Deutsch schreiben Menschen. Die anderen Sprachen sind maschinell übersetzt. Sag uns ein besseres Wort und wir bauen es ein.",
-	"Fix a word on GitHub": "Ein Wort auf GitHub verbessern"
+	"Fix a word on GitHub": "Ein Wort auf GitHub verbessern",
+	"Who you are, and how this workspace works.": "Wer du bist, und wie dieser Arbeitsbereich funktioniert.",
+	"Share": "Anteil"
 }

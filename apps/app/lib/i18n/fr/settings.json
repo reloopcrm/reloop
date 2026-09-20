@@ -7,7 +7,6 @@
 	"Your email address stays {email}.": "Ton adresse e-mail reste {email}.",
 	"Enter the name people should see.": "Saisis le nom que les autres doivent voir.",
 	"General": "Général",
-	"Who you are, and the model the research agent thinks with.": "Qui tu es, et le modèle avec lequel l'agent de recherche réfléchit.",
 	"Workspace settings": "Paramètres de l'espace de travail",
 	"Workspace": "Espace de travail",
 	"Workspace saved.": "Espace de travail enregistré.",
@@ -204,5 +203,7 @@
 	"Stage names saved.": "Noms des étapes enregistrés.",
 	"{language} is machine translated. English and German are written by people. Tell us a better word and we put it in.": "{language} est traduit par une machine. L'anglais et l'allemand sont écrits par des personnes. Dis-nous un meilleur mot et nous l'intégrons.",
 	"English and German are written by people. The other languages are machine translated. Tell us a better word and we put it in.": "L'anglais et l'allemand sont écrits par des personnes. Les autres langues sont traduites par une machine. Dis-nous un meilleur mot et nous l'intégrons.",
-	"Fix a word on GitHub": "Corriger un mot sur GitHub"
+	"Fix a word on GitHub": "Corriger un mot sur GitHub",
+	"Who you are, and how this workspace works.": "Qui vous êtes, et comment cet espace de travail fonctionne.",
+	"Share": "Part"
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { configuredProviders } from "../app/(app)/[slug]/settings/agent-provider-state";
+import { configuredProviders } from "../app/(app)/[slug]/settings/ai/agent-provider-state";
 
 const nothingStored = { openrouter: false, openai: false, anthropic: false };
 const nothingTyped = { openrouter: "", openai: "", anthropic: "" };

@@ -15,6 +15,14 @@ import { useTRPC } from "@/lib/trpc/client";
 
 const CENTS = 100;
 
+function share(value: number, total: number, locale: string): string {
+	if (total <= 0) return "";
+	return new Intl.NumberFormat(locale, {
+		style: "percent",
+		maximumFractionDigits: 0,
+	}).format(value / total);
+}
+
 function euro(value: number, locale: string): string {
 	const number = (amount: number) =>
 		new Intl.NumberFormat(locale, {
@@ -70,6 +78,7 @@ export function Spend() {
 							{ id: "model", header: t("Model") },
 							{ id: "calls", header: t("Calls"), align: "right" },
 							{ id: "cost", header: t("Cost"), align: "right" },
+							{ id: "share", header: t("Share"), align: "right" },
 						]}
 					>
 						{lines.map((line) => (
@@ -84,6 +93,9 @@ export function Spend() {
 								<TableCell className="text-right">
 									{line.priced ? euro(line.costEur, locale) : t("no price")}
 								</TableCell>
+								<TableCell className="text-right">
+									{line.priced ? share(line.costEur, costEur, locale) : ""}
+								</TableCell>
 							</SimpleTableRow>
 						))}
 						<SimpleTableRow>
@@ -95,6 +107,7 @@ export function Spend() {
 							<TableCell className="text-right">
 								{euro(costEur, locale)}
 							</TableCell>
+							<TableCell />
 						</SimpleTableRow>
 					</SimpleTable>
 				)}

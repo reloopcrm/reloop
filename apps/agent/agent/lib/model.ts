@@ -485,7 +485,7 @@ async function chatgptExhausted(): Promise<boolean> {
 }
 
 export const NO_PROVIDER_MESSAGE =
-	"No model provider is set up. Add an OpenRouter, OpenAI or Anthropic key under Settings, General, or sign in with ChatGPT there.";
+	"No model provider is set up. Add an OpenRouter, OpenAI or Anthropic key under Settings, AI, or sign in with ChatGPT there.";
 
 export async function modelUnavailable(): Promise<string | null> {
 	try {
@@ -514,7 +514,7 @@ export async function modelUnavailable(): Promise<string | null> {
 			days === null
 				? "The agent starts again when the limit resets."
 				: `The agent starts again when the limit resets in ${days} ${days === 1 ? "day" : "days"}.`,
-			"Add an OpenRouter, OpenAI or Anthropic key under Settings, General to keep working now.",
+			"Add an OpenRouter, OpenAI or Anthropic key under Settings, AI to keep working now.",
 		].join(" ");
 	} catch {
 		return null;

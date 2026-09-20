@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
-import { CopyValue } from "./copy-value";
+import { CopyValue } from "../copy-value";
 
 export function ChatgptDeviceLogin({
 	onConnected,

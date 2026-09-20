@@ -7,7 +7,6 @@
 	"Your email address stays {email}.": "E-posta adresin {email} olarak kalır.",
 	"Enter the name people should see.": "İnsanların görmesi gereken ismi gir.",
 	"General": "Genel",
-	"Who you are, and the model the research agent thinks with.": "Kim olduğun ve araştırma agent'ının hangi modelle düşündüğü.",
 	"Workspace settings": "Çalışma alanı ayarları",
 	"Workspace": "Çalışma alanı",
 	"Workspace saved.": "Çalışma alanı kaydedildi.",
@@ -204,5 +203,7 @@
 	"Stage names saved.": "Aşama isimleri kaydedildi.",
 	"{language} is machine translated. English and German are written by people. Tell us a better word and we put it in.": "{language} makine çevirisi. İngilizce ve Almanca insan yazıyor. Daha iyi bir kelime söyle, ekleyelim.",
 	"English and German are written by people. The other languages are machine translated. Tell us a better word and we put it in.": "İngilizce ve Almanca insan yazıyor. Diğer diller makine çevirisi. Daha iyi bir kelime söyle, ekleyelim.",
-	"Fix a word on GitHub": "GitHub'da bir kelimeyi düzelt"
+	"Fix a word on GitHub": "GitHub'da bir kelimeyi düzelt",
+	"Who you are, and how this workspace works.": "Kim olduğun ve bu çalışma alanının nasıl çalıştığı.",
+	"Share": "Pay"
 }

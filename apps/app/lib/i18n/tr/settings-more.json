@@ -448,6 +448,6 @@
 	"Delete the key": "Anahtarı sil",
 	"Delete the key?": "Anahtar silinsin mi?",
 	"Nothing goes to TypeSafe again, and every mail conversation gets the expensive read. Everything in the CRM stays as it is.": "TypeSafe'e artık hiçbir şey gitmez ve her e-posta konuşması pahalı okumayı alır. CRM'deki her şey olduğu gibi kalır.",
-	"Your business description and one mail conversation per read": "İş açıklaman ve her okumada bir e-posta konuşması",
-	"Read every mail conversation cheaply first, and pay for the full read only when it looks like business": "Her e-posta konuşmasını önce ucuz oku ve tam okumayı sadece iş gibi göründüğünde öde"
+	"AI": "Yapay zeka",
+	"The model the agent thinks with, what it costs, and what makes it cheaper.": "Ajanın düşündüğü model, maliyeti ve onu ucuzlatan şey."
 }

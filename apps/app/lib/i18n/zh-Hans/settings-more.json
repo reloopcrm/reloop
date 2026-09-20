@@ -448,6 +448,6 @@
 	"Delete the key": "删除密钥",
 	"Delete the key?": "删除密钥？",
 	"Nothing goes to TypeSafe again, and every mail conversation gets the expensive read. Everything in the CRM stays as it is.": "不再向 TypeSafe 发送任何内容，每个邮件会话都会获得昂贵的读取。CRM 中的一切保持不变。",
-	"Your business description and one mail conversation per read": "你的业务说明，以及每次读取一个邮件会话",
-	"Read every mail conversation cheaply first, and pay for the full read only when it looks like business": "先低成本读取每个邮件会话，只有看起来与业务相关时才支付完整读取"
+	"AI": "人工智能",
+	"The model the agent thinks with, what it costs, and what makes it cheaper.": "代理思考所用的模型、它的花费，以及让它更便宜的东西。"
 }

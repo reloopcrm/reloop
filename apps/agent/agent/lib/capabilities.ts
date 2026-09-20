@@ -43,7 +43,7 @@ export function capabilitiesFrom(
 		{
 			...fromEnv(TYPESAFE.envVar),
 			enabled: typesafeStored || Boolean(process.env[TYPESAFE.envVar]?.trim()),
-			from: typesafeStored ? "Settings, Connections" : TYPESAFE.envVar,
+			from: typesafeStored ? "Settings, AI" : TYPESAFE.envVar,
 			briefed: false,
 			label: "Cheap first read of a mail conversation",
 			gives:

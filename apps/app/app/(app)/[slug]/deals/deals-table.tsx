@@ -74,6 +74,7 @@ const COLUMNS: LabeledColumn<DealRow>[] = [
 		sortable: true,
 		width: "w-[14%]",
 		hideBelow: "md",
+		defaultHidden: true,
 		cell: (row) => <OwnerCell owner={row.owner} />,
 	},
 	{

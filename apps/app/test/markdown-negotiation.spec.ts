@@ -154,13 +154,16 @@ describe("an unknown path", () => {
 		expect(response.status).toBe(404);
 	});
 
-	it("keeps a bare workspace link alive on a self hosted install", async () => {
+	it("answers 404 on a bare workspace link, and confirms no slug", async () => {
 		delete process.env.IS_MARKETING;
 
 		const response = await proxy(request("/acme", BROWSER_ACCEPT));
 
-		expect(response.status).toBe(307);
-		expect(response.headers.get("location")).toContain("/sign-in");
+		expect(response.status).toBe(404);
+		expect(response.headers.get("location")).toBeNull();
+		expect(response.headers.get("x-middleware-rewrite")).toContain(
+			"/_not-found",
+		);
 	});
 });
 

@@ -5,6 +5,7 @@ import {
 	describe,
 	expect,
 	it,
+	spyOn,
 } from "bun:test";
 import { testDatabaseUrl } from "@crm/db/test-database";
 import type { INestApplication } from "@nestjs/common";
@@ -33,6 +34,13 @@ describe("Auth (e2e)", () => {
 	let app: INestApplication;
 
 	beforeAll(async () => {
+		const { BackfillService } = await import(
+			"../src/backfill/backfill.service"
+		);
+		spyOn(BackfillService.prototype, "onModuleInit").mockImplementation(
+			() => {},
+		);
+
 		const { AppModule } = await import("../src/app.module");
 
 		const moduleFixture: TestingModule = await Test.createTestingModule({

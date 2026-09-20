@@ -20,6 +20,20 @@ async function stopServer() {
 	});
 }
 
+function startServer() {
+	const child = spawn(process.execPath, ["dist/main.js"], {
+		cwd: api,
+		stdio: "inherit",
+	});
+	server = child;
+	child.once("exit", (_code, signal) => {
+		if (signal !== "SIGTERM" || stopping || building || server !== child) {
+			return;
+		}
+		startServer();
+	});
+}
+
 async function rebuild() {
 	pending = true;
 	if (building || stopping) return;
@@ -38,12 +52,7 @@ async function rebuild() {
 			compiler = undefined;
 			if (!passed || stopping) continue;
 			await stopServer();
-			if (!stopping) {
-				server = spawn(process.execPath, ["dist/main.js"], {
-					cwd: api,
-					stdio: "inherit",
-				});
-			}
+			if (!stopping) startServer();
 		}
 	} finally {
 		building = false;

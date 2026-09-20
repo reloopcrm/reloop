@@ -49,6 +49,7 @@ import {
 	type ImportHistoryValue,
 	importSinceFor,
 } from "./import-history";
+import { OAuthAppCard } from "./oauth-app-card";
 
 const AUTO_CREATE = "Add the company and contact when you reply to someone new";
 
@@ -58,32 +59,6 @@ const CONNECT_ERRORS = new Map([
 		"That Microsoft account has a different email address to the one you sign in with, so it cannot be attached to your account. Connect the Microsoft account that matches your sign-in address.",
 	],
 ]);
-
-function MicrosoftUnavailable() {
-	const t = useT();
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>
-					<div className="flex items-center gap-2">
-						Microsoft
-						<StatusIndicator
-							size="sm"
-							tone="neutral"
-							label={t("Not configured")}
-						/>
-					</div>
-				</CardTitle>
-				<CardDescription>
-					{t(
-						"Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in the root .env file and restart.",
-					)}
-				</CardDescription>
-			</CardHeader>
-		</Card>
-	);
-}
 
 function ConnectMicrosoft({
 	slug,
@@ -264,9 +239,14 @@ export function MicrosoftConnection({
 	const { sources, hasRefreshToken, configured, linked, required } =
 		status.data;
 
-	if (!configured) return <MicrosoftUnavailable />;
+	if (!configured) return <OAuthAppCard provider="microsoft" />;
 	if (!linked) {
-		return <ConnectMicrosoft slug={slug} connectError={connectError} />;
+		return (
+			<>
+				<ConnectMicrosoft slug={slug} connectError={connectError} />
+				<OAuthAppCard provider="microsoft" />
+			</>
+		);
 	}
 
 	const failing = sources.filter(

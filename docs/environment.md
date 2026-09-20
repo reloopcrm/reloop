@@ -53,6 +53,12 @@ the three that is genuinely optional on its own: set it to your tenant's GUID to
 refuse other tenants at Microsoft instead of at `ALLOWED_SIGN_IN`. There is **no
 Microsoft equivalent of `hd`**: `tenantId` is the whole of it.
 
+**All three pairs can be typed on Settings, Connections instead**, on a hosted install
+and on a self-hosted one. A saved pair is sealed in `AppSetting` and **wins over the
+line in `.env`**, because a person just typed it. Clear it there and the file decides
+again. The API restarts itself so the new value reaches the `auth` instance. See
+`docs/connections.md`.
+
 **Neither pair is required.** Password sign-in, an available OAuth provider, or an SSO provider supplies account access.
 Incomplete optional credentials disable that provider. They do not prevent API startup.
 

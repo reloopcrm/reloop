@@ -8,6 +8,7 @@
 		"./account-token": "./src/account-token.ts",
 		"./client": "./src/client.ts",
 		"./cookies": "./src/cookies.ts",
+		"./oauth-apps": "./src/oauth-apps.ts",
 		"./password-rules": "./src/password-rules.ts",
 		"./roles": "./src/roles.ts",
 		"./scopes": "./src/scopes.ts",

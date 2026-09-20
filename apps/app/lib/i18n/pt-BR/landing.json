@@ -38,5 +38,10 @@
 	"Your team will use this address to open the CRM.": "Seu time usa este endereço para abrir o CRM.",
 	"Read once, so the agent knows what you sell.": "Lido uma vez, para que o agente saiba o que você vende.",
 	"Copy command": "Copiar comando",
-	"Copying failed. Select the command and copy it by hand.": "A cópia falhou. Selecione o comando e copie na mão."
+	"Copying failed. Select the command and copy it by hand.": "A cópia falhou. Selecione o comando e copie na mão.",
+	"This page does not exist": "Esta página não existe",
+	"The address is wrong, or the page moved.": "O endereço está errado, ou a página foi movida.",
+	"Go to the home page": "Ir para a página inicial",
+	"Read the docs": "Ler a documentação",
+	"Sitemap": "Mapa do site"
 }

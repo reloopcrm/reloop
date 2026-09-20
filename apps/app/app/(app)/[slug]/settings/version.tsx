@@ -85,7 +85,7 @@ export function Version({ managed }: { managed: boolean }) {
 
 				{managed ? (
 					<p className="text-muted-foreground text-sm/6">
-						{t("The operator keeps this install up to date.")}
+						{t("New versions arrive on their own. You never update anything.")}
 					</p>
 				) : (
 					<>

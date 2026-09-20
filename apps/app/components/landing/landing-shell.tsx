@@ -19,6 +19,12 @@ const READING_LINKS = [
 	{ href: "/open-source", label: "Open source" },
 ] as const;
 
+const COMPANY_LINKS = [
+	{ href: "/about", label: "About" },
+	{ href: "/contact", label: "Contact" },
+	{ href: "/privacy", label: "Privacy" },
+] as const;
+
 export function LandingShell({ children }: { children: React.ReactNode }) {
 	return (
 		<div className="dark flex min-h-svh w-full flex-col items-center bg-background font-sans text-foreground">
@@ -78,6 +84,14 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 
 						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
 							{READING_LINKS.map((link) => (
+								<Link variant="quiet" key={link.href} href={link.href}>
+									{link.label}
+								</Link>
+							))}
+						</nav>
+
+						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
+							{COMPANY_LINKS.map((link) => (
 								<Link variant="quiet" key={link.href} href={link.href}>
 									{link.label}
 								</Link>

@@ -1,7 +1,10 @@
+import { loadStoredOAuthApps } from "@crm/auth/oauth-apps";
 import { Logger } from "@nestjs/common";
-import { createApp } from "./create-app";
 
 async function bootstrap() {
+	await loadStoredOAuthApps();
+
+	const { createApp } = await import("./create-app");
 	const app = await createApp();
 	app.enableShutdownHooks();
 

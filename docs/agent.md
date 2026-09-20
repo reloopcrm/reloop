@@ -396,6 +396,41 @@ single noul: is this conversation about the workspace's business. `TYPESAFE` in
   `markdownFor`, because the session briefing lists places the agent can look and this
   is not one.
 
+#### The gate keeps working while the expensive providers are empty
+
+`runInsightLane` breaks when `providersExhausted()` is true, which used to stop the
+gate as well: the cheap answer sat behind the expensive one. With a TypeSafe key the
+lane now runs `runGateLane` instead of breaking, and clears the conversations the gate
+says are not business. On one real mailbox about two thirds of conversations are in
+that group, so the queue drains while the subscription window is empty.
+
+- **`runThreadInsight(threadId, true)` is the reduced read.** `askGate` answers `skip`,
+  `read` or `unavailable`. `skip` writes the same verdict the gate branch writes today.
+  `read` and `unavailable` throw `NEEDS_FULL_READ` and `GATE_UNAVAILABLE`, two module
+  singletons the lane compares by identity.
+- **A conversation that passes the gate goes back to the queue with `postponeTask`.**
+  That clears the lease, sets `dueAt` to `resumeAt()`, and gives the attempt back, so
+  waiting for the limit to reset never retires a task. `runResearchLane` releases the
+  same way.
+- **No key, no business text, or a gate that does not answer breaks the lane** and logs
+  the ordinary pause line. A Jev outage must not read as "every conversation is
+  relevant".
+- **The lane stops when a pass clears nothing.** The postponed rows are due in the
+  future and cannot be claimed again, and the counter is the second guard.
+- **One line per pass, not per task**: `reading paused until <reset>: the cheap gate is
+  still clearing conversations, N cleared and M wait for the full read`.
+- **`DISPATCH.insight.gate`** holds the batch and the concurrency. One gate call costs
+  about $0.00003, far less than the read, so the gate clears more rows per tick than
+  the lane above it.
+- **`resumeAt()` must name a time.** No provider at all also answers
+  `providersExhausted()`, and it has no reset. Without this guard the lane would push
+  every passed task 30 minutes out and pay for the gate again on every cycle, for as
+  long as the install has no model key. That state logs the ordinary pause line and
+  clears nothing.
+- **The gate answer is not stored.** A returned task pays for the gate again after the
+  limit resets. That is one extra call per task per pause, a few cents for a mailbox of
+  this size. A column for it costs a migration and an invalidation rule.
+
 **Two evidence kinds have no producer left.** `profile.email-match` and
 `linkedin.employer-and-name` were both filed from a Context person lookup. Nothing
 observes them now, `agent/skills/evidence.md` says so, and they stay in `WEIGHTS` so

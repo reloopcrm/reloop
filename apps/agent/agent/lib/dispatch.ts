@@ -30,7 +30,13 @@ import {
 	queuePlaybookLearn,
 	queueUnreadThreads,
 } from "./housekeeping";
-import { runThreadDigest, runThreadInsight } from "./insight";
+import {
+	GATE_UNAVAILABLE,
+	NEEDS_FULL_READ,
+	runThreadDigest,
+	runThreadInsight,
+} from "./insight";
+import { typesafeKey } from "./jev";
 import {
 	isExhaustion,
 	modelUnavailable,
@@ -101,6 +107,110 @@ export async function runVisibleLane(signal?: AbortSignal): Promise<number> {
 	return handled;
 }
 
+async function logReadingPaused(): Promise<void> {
+	const until = await resumeAt();
+	console.error(
+		`[agent] reading paused until ${until?.toISOString() ?? "the limit resets"}: ${
+			(await modelUnavailable()) ??
+			"every configured model provider is at its usage limit"
+		}`,
+	);
+}
+
+type GateOutcome = "cleared" | "returned" | "unavailable";
+
+async function clearWithGate(
+	task: LeasedTask,
+	until: Date,
+): Promise<GateOutcome> {
+	const threadId = readAgentTaskThreadId(task.payload);
+	if (!threadId) {
+		await completeTask(task.id, "No thread id on the task.");
+		return "cleared";
+	}
+
+	try {
+		await completeTask(task.id, await runThreadInsight(threadId, true));
+		return "cleared";
+	} catch (error) {
+		await postponeTask(task.id, until);
+
+		if (error === NEEDS_FULL_READ) return "returned";
+		if (error !== GATE_UNAVAILABLE) {
+			console.error(`[agent] ⨯ ${INSIGHT_KIND} ${task.id}: ${reasonOf(error)}`);
+		}
+
+		return "unavailable";
+	}
+}
+
+async function runGateLane(
+	budget: number,
+	signal?: AbortSignal,
+): Promise<number> {
+	const until = await resumeAt();
+
+	if (
+		!until ||
+		!(await typesafeKey()) ||
+		!(await taskKindEnabled(INSIGHT_KIND))
+	) {
+		await logReadingPaused();
+		return 0;
+	}
+
+	let cleared = 0;
+	let returned = 0;
+	let unavailable = false;
+
+	while (cleared + returned < budget && !unavailable) {
+		if (signal?.aborted) break;
+
+		const tasks = await claimDue(
+			Math.min(DISPATCH.insight.gate.concurrency, budget - cleared - returned),
+			{ only: [INSIGHT_KIND] },
+			DISPATCH.insight.leaseMs,
+		);
+
+		if (tasks.length === 0) break;
+
+		const before = cleared;
+
+		await runLimited(
+			DISPATCH.insight.gate.concurrency,
+			tasks,
+			async (task) => {
+				if (unavailable) {
+					await postponeTask(task.id, until);
+					returned += 1;
+					return;
+				}
+
+				const outcome = await clearWithGate(task, until);
+
+				if (outcome === "cleared") cleared += 1;
+				else returned += 1;
+
+				if (outcome === "unavailable") unavailable = true;
+			},
+			signal,
+		);
+
+		if (cleared === before) break;
+	}
+
+	if (unavailable || cleared + returned === 0) {
+		await logReadingPaused();
+		return cleared;
+	}
+
+	console.error(
+		`[agent] reading paused until ${until.toISOString()}: the cheap gate is still clearing conversations, ${cleared} cleared and ${returned} wait for the full read`,
+	);
+
+	return cleared;
+}
+
 export async function runInsightLane(signal?: AbortSignal): Promise<number> {
 	let handled = 0;
 
@@ -108,13 +218,7 @@ export async function runInsightLane(signal?: AbortSignal): Promise<number> {
 		if (signal?.aborted) break;
 
 		if (await providersExhausted()) {
-			const until = await resumeAt();
-			console.error(
-				`[agent] reading paused until ${until?.toISOString() ?? "the limit resets"}: ${
-					(await modelUnavailable()) ??
-					"every configured model provider is at its usage limit"
-				}`,
-			);
+			handled += await runGateLane(DISPATCH.insight.gate.batch, signal);
 			break;
 		}
 

@@ -128,7 +128,7 @@ function ThreadPanel({
 	const messages = blockMessages(
 		results.map((result) => result.data?.messages ?? []),
 	);
-	const lastLoaded = messages[messages.length - 1] ?? null;
+	const lastLoaded = messages[0] ?? null;
 	const to = lastLoaded?.recipients.map((one) => one.email).join(", ") ?? null;
 	const source = mailSourceLabel(head.emailThread?.lastMessage?.source ?? null);
 	const reply = lastLoaded ? replyAddress(lastLoaded) : null;

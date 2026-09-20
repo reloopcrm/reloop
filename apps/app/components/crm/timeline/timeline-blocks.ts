@@ -107,6 +107,6 @@ export function blockMessages<M extends { id: string; sentAt: string }>(
 
 	return [...kept.values()].sort(
 		(one, two) =>
-			new Date(one.sentAt).getTime() - new Date(two.sentAt).getTime(),
+			new Date(two.sentAt).getTime() - new Date(one.sentAt).getTime(),
 	);
 }

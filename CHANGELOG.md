@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0](https://github.com/reloopcrm/reloop/compare/v0.13.0...v0.14.0) (2026-09-20)
+
+
+### Features
+
+* **agent:** keep reading mail when the model window is empty ([#22](https://github.com/reloopcrm/reloop/issues/22)) ([45622a7](https://github.com/reloopcrm/reloop/commit/45622a78e659d7bc87892b93f6e47c0ad3fe810d))
+
+
+### Fixes
+
+* **timeline:** read a thread newest first, like the list around it ([#20](https://github.com/reloopcrm/reloop/issues/20)) ([1147955](https://github.com/reloopcrm/reloop/commit/1147955c417fd34ef5e6ebb7054bfe0c8562d24a))
+
 ## [0.13.0](https://github.com/reloopcrm/reloop/compare/v0.12.1...v0.13.0) (2026-09-20)
 
 

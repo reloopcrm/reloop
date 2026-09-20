@@ -120,7 +120,7 @@ export function DealStages() {
 
 						<FieldDescription>
 							{t(
-								"An empty field keeps the built-in name. Your own wording is shown exactly as you type it, in every language.",
+								"An empty field keeps the built-in name. Your own name shows in every language.",
 							)}
 						</FieldDescription>
 					</FieldGroup>

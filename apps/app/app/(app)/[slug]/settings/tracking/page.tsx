@@ -30,7 +30,7 @@ export default async function TrackingSettingsPage() {
 					<PageShellTitle>{t("Tracking & Analytics")}</PageShellTitle>
 					<PageShellDescription>
 						{t(
-							"Track website visitors and automatically add contacts when a form is submitted.",
+							"Records page views, and adds a contact when somebody submits a form.",
 						)}
 					</PageShellDescription>
 				</PageShellHeading>

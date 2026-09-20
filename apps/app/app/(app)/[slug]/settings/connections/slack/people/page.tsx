@@ -47,7 +47,7 @@ async function SlackPeoplePageContent({ params }: SlackPeoplePageProps) {
 				</h1>
 				<p className="text-muted-foreground text-sm">
 					{t(
-						"Match your CRM people to Slack once. Agents use these exact accounts later instead of guessing from a similar name.",
+						"Match your CRM people to Slack once. Agents then use these exact accounts.",
 					)}
 				</p>
 			</header>

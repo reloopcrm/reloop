@@ -166,7 +166,7 @@ function ConnectGoogle({
 
 	function fail(message?: string) {
 		setPending(false);
-		toast.error(message ?? t("Could not reach Google."));
+		toast.error(message ?? t("Could not reach Google. Try again in a minute."));
 	}
 
 	async function handleConnect() {
@@ -516,7 +516,7 @@ export function GoogleConnection({
 									</AlertDialogTitle>
 									<AlertDialogDescription>
 										{t(
-											"Every email and meeting brought in from Google is removed from the CRM. The next check starts from now, so nothing deleted here comes back.",
+											"Every email and meeting from Google is removed from the CRM. Nothing of it comes back.",
 										)}
 									</AlertDialogDescription>
 								</AlertDialogHeader>
@@ -551,7 +551,7 @@ export function GoogleConnection({
 													"You stay signed in, but the CRM sends you back to the access page until you grant it again.",
 												)
 											: t(
-													"New email and meetings stop arriving. Everything already synced stays, and you can connect Google again from this page.",
+													"New email and meetings stop arriving. Everything already filed stays.",
 												)}
 									</AlertDialogDescription>
 								</AlertDialogHeader>

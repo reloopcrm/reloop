@@ -56,7 +56,7 @@ export function ProfileForm() {
 			<CardHeader>
 				<CardTitle>{t("Your name")}</CardTitle>
 				<CardDescription>
-					{t("The name your team and every record sees.")}
+					{t("Your team sees this name on every record.")}
 				</CardDescription>
 
 				<CardAction>

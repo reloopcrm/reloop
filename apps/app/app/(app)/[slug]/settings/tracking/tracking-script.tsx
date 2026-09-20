@@ -67,7 +67,9 @@ export function TrackingScript() {
 		trpc.tracking.rotateSiteId.mutationOptions({
 			onSuccess: async () => {
 				await cache.tracking();
-				toast.success(t("Site ID rotated. Paste the new tag on your website."));
+				toast.success(
+					t("Site ID rotated. Paste the new script on your website."),
+				);
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
@@ -119,7 +121,7 @@ export function TrackingScript() {
 					</div>
 				</CardTitle>
 				<CardDescription>
-					{t("One tag, 4 KB, in the head of every page you measure.")}
+					{t("One script, 4 KB, in the head of every page you measure.")}
 				</CardDescription>
 
 				<CardAction>
@@ -191,7 +193,7 @@ export function TrackingScript() {
 							</ol>
 							<p className="text-muted-foreground text-xs/relaxed">
 								{t(
-									"Tag Manager drops a {attribute} attribute when it injects a script, so this form carries the site ID in the URL instead.",
+									"Tag Manager drops a {attribute} attribute, so this snippet carries the site ID in the URL.",
 									{ attribute: "data-site" },
 								)}
 							</p>
@@ -242,7 +244,7 @@ export function TrackingScript() {
 									</AlertDialogTitle>
 									<AlertDialogDescription>
 										{t(
-											"Every copy of the old script stops recording at once, including any you have forgotten about. You will need to paste the new tag on every page that carries the old one. Nothing already collected is lost.",
+											"Every copy of the old script stops recording at once. Paste the new script on every page that carries the old one. Nothing already collected is lost.",
 										)}
 									</AlertDialogDescription>
 								</AlertDialogHeader>

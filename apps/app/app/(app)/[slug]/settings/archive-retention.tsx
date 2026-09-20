@@ -58,7 +58,7 @@ export function ArchiveRetention() {
 			<CardHeader>
 				<CardTitle>{t("Archived records")}</CardTitle>
 				<CardDescription>
-					{t("Deleted records are archived and hidden, then pruned for good.")}
+					{t("Deleted records stay hidden, then go for good.")}
 				</CardDescription>
 
 				<CardAction>
@@ -93,9 +93,7 @@ export function ArchiveRetention() {
 				>
 					<FieldGroup>
 						<Field>
-							<FieldLabel htmlFor={daysId}>
-								{t("Prune archived records after")}
-							</FieldLabel>
+							<FieldLabel htmlFor={daysId}>{t("Remove them after")}</FieldLabel>
 							<Input
 								id={daysId}
 								inputMode="numeric"

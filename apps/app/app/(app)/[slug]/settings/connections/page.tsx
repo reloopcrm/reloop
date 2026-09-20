@@ -131,7 +131,7 @@ async function ConnectionsSettingsPageContent({
 							</h1>
 							<p className="max-w-2xl text-muted-foreground text-sm">
 								{t(
-									"Where your CRM gets its information, and what it is allowed to send on your behalf.",
+									"Where your CRM gets its data, and what it may send for you.",
 								)}
 							</p>
 						</div>
@@ -155,7 +155,7 @@ async function ConnectionsSettingsPageContent({
 						</h1>
 						<p className="text-muted-foreground text-sm leading-relaxed">
 							{t(
-								"Right now every deal, contact and note has to be typed in by hand. Connect a tool and the CRM starts filling itself in from the work your team already does.",
+								"Connect a tool and the CRM fills itself in from the work your team already does.",
 							)}
 						</p>
 					</div>

@@ -30,7 +30,7 @@ export default async function FunctionsSettingsPage() {
 					<PageShellTitle>{t("Functions")}</PageShellTitle>
 					<PageShellDescription>
 						{t(
-							"Every job the agent does on its own. Switch off what you do not need and it stops costing you.",
+							"Every job the agent does on its own. Switch off what you do not need.",
 						)}
 					</PageShellDescription>
 				</PageShellHeading>

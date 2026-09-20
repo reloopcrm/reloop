@@ -104,7 +104,9 @@ function ConnectMicrosoft({
 
 	function fail(message?: string) {
 		setPending(false);
-		toast.error(message ?? t("Could not reach Microsoft."));
+		toast.error(
+			message ?? t("Could not reach Microsoft. Try again in a minute."),
+		);
 	}
 
 	async function handleConnect() {
@@ -403,7 +405,7 @@ export function MicrosoftConnection({
 									</AlertDialogTitle>
 									<AlertDialogDescription>
 										{t(
-											"Every email brought in from Outlook is removed from the CRM. The next check starts from now, so nothing deleted here comes back.",
+											"Every email from Outlook is removed from the CRM. Nothing of it comes back.",
 										)}
 									</AlertDialogDescription>
 								</AlertDialogHeader>
@@ -438,10 +440,10 @@ export function MicrosoftConnection({
 													"You stay signed in, but the CRM sends you back to the access page until you grant it again.",
 												)
 											: t(
-													"New email stops arriving. Everything already synced stays, and you can connect Microsoft again from this page.",
+													"New email stops arriving. Everything already filed stays.",
 												)}{" "}
 										{t(
-											"Microsoft has no way for us to withdraw the consent itself. Remove this app from your Microsoft account to do that.",
+											"To withdraw the consent itself, remove this app in your Microsoft account.",
 										)}
 									</AlertDialogDescription>
 								</AlertDialogHeader>

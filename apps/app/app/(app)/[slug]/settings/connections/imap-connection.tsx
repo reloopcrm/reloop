@@ -684,7 +684,7 @@ export function ImapConnection({ slug: _slug }: { slug: string }) {
 					</h1>
 					<p className="max-w-2xl text-muted-foreground text-sm">
 						{t(
-							"Reads any mailbox that speaks IMAP, including everything already in it. Conversations are filed against the matching company and contact, and the agent reads them the same way it reads Gmail.",
+							"Reads any mailbox that speaks IMAP, including everything already in it. Conversations are filed against the matching company and contact.",
 						)}
 					</p>
 				</div>
@@ -706,7 +706,7 @@ export function ImapConnection({ slug: _slug }: { slug: string }) {
 						</CardTitle>
 						<CardDescription>
 							{t(
-								"Add a mailbox to start. Brings in email and the people on it. Sends nothing, so nothing here can change your mailbox.",
+								"Brings in email and the people on it. Sends nothing, so nothing here can change your mailbox.",
 							)}
 						</CardDescription>
 					</CardHeader>

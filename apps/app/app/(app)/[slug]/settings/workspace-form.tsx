@@ -9,12 +9,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@crm/ui/components/card";
-import {
-	Field,
-	FieldDescription,
-	FieldGroup,
-	FieldLabel,
-} from "@crm/ui/components/field";
+import { Field, FieldGroup, FieldLabel } from "@crm/ui/components/field";
 import { Input } from "@crm/ui/components/input";
 import {
 	InputGroup,
@@ -125,9 +120,6 @@ export function WorkspaceForm() {
 								disabled={!canRename || save.isPending}
 								required
 							/>
-							<FieldDescription>
-								{t("Shown wherever the CRM refers to your own company.")}
-							</FieldDescription>
 						</Field>
 
 						<Field>
@@ -149,9 +141,6 @@ export function WorkspaceForm() {
 									disabled={!canRename || save.isPending}
 								/>
 							</InputGroup>
-							<FieldDescription>
-								{t("Your own company's website.")}
-							</FieldDescription>
 						</Field>
 					</FieldGroup>
 				</form>

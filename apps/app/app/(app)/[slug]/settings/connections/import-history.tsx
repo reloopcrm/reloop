@@ -24,7 +24,7 @@ export type ImportHistoryValue = (typeof IMPORT_HISTORY)[number]["value"];
 export const DEFAULT_IMPORT_HISTORY: ImportHistoryValue = "all";
 
 export const IMPORT_HISTORY_NOTE =
-	"Sent mail is read first, so every person you ever replied to is found before their replies are filed. A large mailbox takes a few hours in the background.";
+	"A large mailbox takes a few hours in the background.";
 
 const DAY_MS = 86_400_000;
 

@@ -38,7 +38,7 @@ export function Language() {
 			<CardHeader>
 				<CardTitle>{t("Language")}</CardTitle>
 				<CardDescription>
-					{t("The language of every screen, for you on this browser.")}
+					{t("Only for you, only in this browser.")}
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -67,12 +67,11 @@ export function Language() {
 					</Select>
 					<FieldDescription>
 						{isMachineTranslated(locale)
-							? t(
-									"{language} is machine translated. English and German are written by people. Tell us a better word and we put it in.",
-									{ language: LOCALE.names[locale] },
-								)
+							? t("{language} is machine translated.", {
+									language: LOCALE.names[locale],
+								})
 							: t(
-									"English and German are written by people. The other languages are machine translated. Tell us a better word and we put it in.",
+									"English and German are written by people. A machine writes the others.",
 								)}{" "}
 						<Link href={REPO_URL} target="_blank" rel="noreferrer">
 							{t("Fix a word on GitHub")}

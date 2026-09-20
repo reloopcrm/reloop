@@ -64,7 +64,7 @@ export function Plan() {
 			value: limits.mailboxes === null ? never : String(limits.mailboxes),
 		},
 		{
-			what: t("Mail history pulled in"),
+			what: t("Mail history"),
 			value:
 				limits.importMonths === null
 					? never

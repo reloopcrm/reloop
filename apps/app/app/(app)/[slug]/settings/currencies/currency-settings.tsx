@@ -156,7 +156,7 @@ export function CurrencySettings() {
 					<CardTitle>{t("Reporting currency")}</CardTitle>
 					<CardDescription>
 						{t(
-							"Every total, chart and average in the CRM is expressed in this currency. Each deal keeps the currency it was sold in.",
+							"Every total is in this currency. Each deal keeps the currency it was sold in.",
 						)}
 					</CardDescription>
 				</CardHeader>
@@ -198,7 +198,7 @@ export function CurrencySettings() {
 					<CardTitle>{t("Exchange rates")}</CardTitle>
 					<CardDescription>
 						{t(
-							"How many {currency} one unit of each currency buys. Fetched daily from open.er-api.com; a rate you enter here wins.",
+							"How many {currency} one unit buys. Fetched daily from open.er-api.com. A rate you enter wins.",
 							{ currency: reportingCurrency },
 						)}
 					</CardDescription>

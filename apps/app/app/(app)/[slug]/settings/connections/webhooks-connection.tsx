@@ -141,7 +141,7 @@ function AddWebhookSheet({
 					<SheetTitle>{t("Add a webhook")}</SheetTitle>
 					<SheetDescription>
 						{t(
-							"The CRM posts the event to your address as JSON. Everything on the record that changed goes with it, so send it only to a service you run or trust.",
+							"Everything on the changed record goes with the event, so use only an address you run or trust.",
 						)}
 					</SheetDescription>
 				</SheetHeader>
@@ -189,7 +189,7 @@ function AddWebhookSheet({
 							/>
 							<FieldDescription>
 								{t(
-									"At least 16 characters. Stored encrypted and never shown again. Your receiver computes the same signature with it and refuses anything else.",
+									"At least 16 characters. Stored encrypted and never shown again. Your receiver checks the signature with it.",
 								)}
 							</FieldDescription>
 							<Button
@@ -274,7 +274,7 @@ function AddWebhookSheet({
 									</AlertTitle>
 									<AlertDescription>
 										{t(
-											"The CRM posts to the address you type, even a service on this machine or behind your firewall. Anybody who can change this webhook can make the CRM post to any of them. Cloud metadata addresses stay blocked, and the answer is never read back.",
+											"The CRM posts to the address you type, even one on this machine or behind your firewall. Cloud metadata addresses stay blocked.",
 										)}
 									</AlertDescription>
 								</Alert>
@@ -424,7 +424,7 @@ function WebhookCard({
 									</AlertDialogTitle>
 									<AlertDialogDescription>
 										{t(
-											"Nothing is sent to this address again, and the stored secret is deleted. Everything in the CRM stays as it is.",
+											"Nothing is sent to this address again, and the stored secret is deleted.",
 										)}
 									</AlertDialogDescription>
 								</AlertDialogHeader>
@@ -471,7 +471,7 @@ export function WebhooksConnection({
 					</h1>
 					<p className="max-w-2xl text-muted-foreground text-sm">
 						{t(
-							"Sends every event you pick to an address you run, as signed JSON. Point it at n8n, Zapier or your own script and the CRM drives whatever you build there.",
+							"Sends every event you pick to an address you run, as signed JSON. Point it at n8n, Zapier or your own script.",
 						)}
 					</p>
 				</div>

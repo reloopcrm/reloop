@@ -198,7 +198,10 @@ else
 		URL="http://localhost:3000"
 	else
 		URL="https://$DOMAIN"
-		ask "Does a reverse proxy already use ports 80 and 443 on this server (nginx, Traefik, Caddy)? [y/N] "
+		REPLY="${RELOOP_OWN_PROXY:-}"
+		if [ -z "$REPLY" ]; then
+			ask "Does a reverse proxy already use ports 80 and 443 on this server (nginx, Traefik, Caddy)? [y/N] "
+		fi
 		case "$REPLY" in
 			y | Y | yes | YES) PROFILES="" ;;
 			*) PROFILES="caddy" ;;

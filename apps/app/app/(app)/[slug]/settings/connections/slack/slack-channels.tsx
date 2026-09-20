@@ -206,7 +206,7 @@ function AskDialog({
 					<AlertDialogDescription>
 						{canInviteItself
 							? t(
-									"It is a private channel, so {brand} joins as you. Same as typing the invite yourself. Everyone in the channel sees it join. It reads nothing until you turn a permission on.",
+									"It is a private channel, so {brand} joins as you. Everyone in the channel sees it join.",
 									{ brand: BRAND.name },
 								)
 							: t(

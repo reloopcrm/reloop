@@ -37,10 +37,9 @@ export function AddedPersonDialog({
 						{t("{name} can sign in now", { name: person?.member.name ?? "" })}
 					</DialogTitle>
 					<DialogDescription>
-						{t(
-							"Give {email} this one-time password. Copy it now, because nobody can show it again.",
-							{ email: person?.member.email ?? "" },
-						)}
+						{t("Give {email} this password. Nobody can show it again.", {
+							email: person?.member.email ?? "",
+						})}
 					</DialogDescription>
 				</DialogHeader>
 

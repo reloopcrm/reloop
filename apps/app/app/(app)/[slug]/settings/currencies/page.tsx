@@ -29,9 +29,7 @@ export default async function CurrenciesSettingsPage() {
 				<PageShellHeading>
 					<PageShellTitle>{t("Currencies")}</PageShellTitle>
 					<PageShellDescription>
-						{t(
-							"What your numbers are reported in, and how the other currencies get there.",
-						)}
+						{t("Which currency your numbers are reported in.")}
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>

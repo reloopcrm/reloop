@@ -379,9 +379,7 @@ export function AgentProvider() {
 					autoComplete="off"
 				/>
 				<FieldDescription>
-					{t(
-						"Billed to your OpenRouter account. You buy credits at openrouter.ai and pay per token, at the price OpenRouter lists for the model.",
-					)}
+					{t("You buy credits at openrouter.ai and pay per token.")}
 				</FieldDescription>
 			</Field>
 			<ModelPicker
@@ -531,7 +529,7 @@ export function AgentProvider() {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>{t("Who pays for the agent")}</CardTitle>
+				<CardTitle>{t("Billing")}</CardTitle>
 				<CardDescription>
 					{t("The account every model call is billed to.")}
 				</CardDescription>
@@ -542,10 +540,10 @@ export function AgentProvider() {
 					{nothingToPayWith ? (
 						<Alert variant="warning">
 							<Icon icon={Warning} />
-							<AlertTitle>{t("The agent has nothing to pay with")}</AlertTitle>
+							<AlertTitle>{t("The agent cannot pay")}</AlertTitle>
 							<AlertDescription>
 								{t(
-									"The agent is billed to {provider}, but no key or sign-in is stored for it. Nothing runs until you add one here.",
+									"No key or sign-in is stored for {provider}. Nothing runs until you add one.",
 									{ provider: t(providerLabel) },
 								)}
 							</AlertDescription>
@@ -569,7 +567,7 @@ export function AgentProvider() {
 								value={entry.id}
 								aria-label={
 									entry.id === provider
-										? `${t(entry.label)}, ${t("Who pays for the agent")}`
+										? `${t(entry.label)}, ${t("Billing")}`
 										: undefined
 								}
 							>
@@ -606,7 +604,7 @@ export function AgentProvider() {
 
 						<Field orientation="horizontal">
 							<FieldLabel htmlFor={`${id}-per-hour`}>
-								{t("Research sessions per hour")}
+								{t("Research runs per hour")}
 							</FieldLabel>
 							<Input
 								id={`${id}-per-hour`}
@@ -621,9 +619,7 @@ export function AgentProvider() {
 						<div>
 							<Button type="submit" variant="outline" disabled={save.isPending}>
 								{save.isPending ? <Spinner /> : null}
-								{shown === provider
-									? t("Save")
-									: t("Bill the agent to this account")}
+								{shown === provider ? t("Save") : t("Bill to this account")}
 							</Button>
 						</div>
 					</form>

@@ -52,7 +52,6 @@ export function PasswordSignIn() {
 	if (!password.data?.enabled) return null;
 
 	const { set, minLength, maxLength } = password.data;
-	const tooShort = first.length > 0 && first.length < minLength;
 	const mismatch = again.length > 0 && first !== again;
 	const ready =
 		first.length >= minLength && first.length <= maxLength && first === again;
@@ -72,12 +71,8 @@ export function PasswordSignIn() {
 				</CardTitle>
 				<CardDescription>
 					{set
-						? t(
-								"You sign in with your email address and this password. Enter a new one to replace it.",
-							)
-						: t(
-								"Set a password so you can sign in with your email address. Without one, only the sign-in methods above get you in.",
-							)}
+						? t("Enter a new password to replace it.")
+						: t("Set a password to sign in with your email address.")}
 				</CardDescription>
 
 				<CardAction>
@@ -114,12 +109,7 @@ export function PasswordSignIn() {
 								onChange={(event) => setFirst(event.target.value)}
 							/>
 							<FieldDescription>
-								{tooShort
-									? t("At least {count} characters.", { count: minLength })
-									: t(
-											"At least {count} characters. The page is open on the internet, so pick a long one.",
-											{ count: minLength },
-										)}
+								{t("At least {count} characters.", { count: minLength })}
 							</FieldDescription>
 						</Field>
 

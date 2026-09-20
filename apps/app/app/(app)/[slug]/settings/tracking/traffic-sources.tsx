@@ -42,7 +42,7 @@ export function TrafficSources() {
 				<CardTitle>{t("Traffic sources")}</CardTitle>
 				<CardDescription>
 					{t(
-						"Where your visitors come from. Only people who have submitted a form are attributed to a record.",
+						"Where your visitors come from. Only somebody who submitted a form reaches a record.",
 					)}
 				</CardDescription>
 			</CardHeader>

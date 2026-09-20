@@ -17,7 +17,6 @@ import { Button } from "@crm/ui/components/button";
 import {
 	Card,
 	CardContent,
-	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "@crm/ui/components/card";
@@ -71,9 +70,6 @@ export function Version({ managed }: { managed: boolean }) {
 		<Card id="version">
 			<CardHeader>
 				<CardTitle>{t("Version")}</CardTitle>
-				<CardDescription>
-					{t("The release this install runs, and how to move to the next one.")}
-				</CardDescription>
 			</CardHeader>
 
 			<CardContent className="flex flex-col gap-4">
@@ -207,7 +203,7 @@ function UpdateNow() {
 				<Spinner />
 				<span>
 					{t(
-						"The update runs. The app is unreachable for a moment, then this page reloads itself.",
+						"The update runs. The app is unreachable for a moment, then this page reloads.",
 					)}
 				</span>
 			</div>
@@ -227,9 +223,7 @@ function UpdateNow() {
 					<AlertDialogHeader>
 						<AlertDialogTitle>{t("Update now?")}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{t(
-								"The updater pulls the new images and restarts the app. The app is unreachable for everyone for a moment. Make a backup first.",
-							)}
+							{t("The app is unreachable for a moment. Make a backup first.")}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 

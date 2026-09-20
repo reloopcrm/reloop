@@ -93,7 +93,7 @@ async function SlackConnectionPageContent({
 				</div>
 				<p className="text-muted-foreground text-sm leading-relaxed">
 					{t(
-						"Connecting Slack gives the CRM a way in and a way out. What it actually does with that is up to you afterwards, one automation at a time.",
+						"Slack does nothing on its own. You build each automation afterwards.",
 					)}
 				</p>
 			</header>
@@ -121,16 +121,9 @@ async function SlackConnectionPageContent({
 				</p>
 			</div>
 			<section className="flex flex-col gap-3 px-(--spacing-block-inline)">
-				<div>
-					<h2 className="font-medium text-sm">
-						{t("Afterwards, most teams start with one of these")}
-					</h2>
-					<p className="text-muted-foreground text-xs">
-						{t(
-							"Suggestions, not settings. None of them exist until you pick one and switch it on.",
-						)}
-					</p>
-				</div>
+				<h2 className="font-medium text-sm">
+					{t("Most teams start with one of these")}
+				</h2>
 				<div className="grid gap-3 md:grid-cols-3">
 					{suggestions.map(([name, description]) => (
 						<div className="rounded-lg border p-4" key={name}>
@@ -207,12 +200,8 @@ async function ConnectedSlack({
 				</div>
 				<p className="text-muted-foreground text-sm">
 					{status.canManage
-						? t(
-								"Here is what Slack gave us. Agents only post where their automation says.",
-							)
-						: t(
-								"Here is what Slack gave us. Only an owner or an admin can disconnect it.",
-							)}
+						? t("Agents only post where their automation says.")
+						: t("Only an owner or an admin can disconnect it.")}
 				</p>
 			</header>
 			<MissingGrant missing={missing} slug={slug} />

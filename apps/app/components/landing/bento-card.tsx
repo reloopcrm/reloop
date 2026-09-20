@@ -11,7 +11,7 @@ export function BentoCard({
 	return (
 		<div
 			className={cn(
-				"flex flex-col overflow-clip rounded-lg bg-card p-7",
+				"flex flex-col overflow-clip rounded-lg border border-border bg-card p-7",
 				className,
 			)}
 		>
@@ -39,23 +39,4 @@ export function CardTitle({ children }: { children: React.ReactNode }) {
 
 export function CardBody({ children }: { children: React.ReactNode }) {
 	return <p className="text-muted-foreground text-sm/[23px]">{children}</p>;
-}
-
-export function MonoLabel({
-	className,
-	children,
-}: {
-	className?: string;
-	children: React.ReactNode;
-}) {
-	return (
-		<p
-			className={cn(
-				"select-none font-mono text-[#5A5A5A] text-[11px]/4 tracking-widest",
-				className,
-			)}
-		>
-			{children}
-		</p>
-	);
 }

@@ -66,9 +66,7 @@ describe("the language picker", () => {
 		for (const locale of LOCALE.machineTranslated) {
 			const text = cardText(locale);
 			const sentence =
-				DICTIONARIES[locale][
-					"{language} is machine translated. English and German are written by people. Tell us a better word and we put it in."
-				];
+				DICTIONARIES[locale]["{language} is machine translated."];
 
 			expect(sentence).toBeString();
 			expect(text).toContain(

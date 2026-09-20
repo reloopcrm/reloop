@@ -173,7 +173,7 @@ function Outcome({ result, siteId }: { result: Result; siteId: string }) {
 				<AlertDescription>
 					{result.detail}{" "}
 					{t(
-						"We only follow public pages, and we never follow a redirect to a private address.",
+						"Check that the page is public. We never follow a redirect to a private address.",
 					)}
 				</AlertDescription>
 			</Alert>
@@ -189,12 +189,11 @@ function Outcome({ result, siteId }: { result: Result; siteId: string }) {
 				</AlertTitle>
 				<AlertDescription>
 					{t(
-						"The page answered in {ms} ms, but the tag was not in the HTML. Check that it sits in the head, above anything that rewrites the page.",
-						{ ms: result.responseMs },
+						"The script was not in the HTML. Check that it sits in the head, above anything that rewrites the page.",
 					)}
 					{result.containers.length > 0
 						? ` ${t(
-								"We also read Tag Manager container {containers}, and the tag is not in there either.",
+								"We also read Tag Manager container {containers}, and the script is not in there either.",
 								{ containers: result.containers.join(", ") },
 							)}`
 						: ""}
@@ -210,7 +209,7 @@ function Outcome({ result, siteId }: { result: Result; siteId: string }) {
 				<AlertTitle>{t("Tag Manager will drop the site ID")}</AlertTitle>
 				<AlertDescription>
 					{t(
-						"Container {container} carries the tag, but the site ID is not in the script URL. Tag Manager keeps only the URL when it injects a script, so a data-site attribute never reaches the page and the tracker never starts. Copy the Tag Manager snippet above and replace the tag's HTML.",
+						"Container {container} carries the script, but the site ID is missing from its URL, so nothing is recorded. Copy the Tag Manager snippet above and replace the tag's HTML.",
 						{ container: result.container.id },
 					)}
 					{result.pageView
@@ -248,7 +247,7 @@ function Outcome({ result, siteId }: { result: Result; siteId: string }) {
 						)}
 				{result.container
 					? ` ${t(
-							"The tag is not in the HTML, so it only runs once Tag Manager fires it. A page view is the proof.",
+							"The script is not in the HTML, so it only runs once Tag Manager fires it. A page view is the proof.",
 						)}`
 					: ""}
 				{result.pageView

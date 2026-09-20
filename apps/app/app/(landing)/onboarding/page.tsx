@@ -21,7 +21,7 @@ export default async function OnboardingPage() {
 			<AuthHeading
 				title={t("Tell us about your company")}
 				description={t(
-					"Two things, once. The name is what the CRM calls you; the website is how the agent learns what you sell.",
+					"The name is what the CRM calls you. The website is how the agent learns what you sell.",
 				)}
 			/>
 

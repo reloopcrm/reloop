@@ -22,7 +22,7 @@ export function Faq({ id, items }: { id: string; items: readonly FaqItem[] }) {
 			<Script id={id} type="application/ld+json">
 				{JSON.stringify(faqEntry(items))}
 			</Script>
-			<div className="flex w-full max-w-6xl flex-col gap-12">
+			<div className="flex w-full max-w-(--container-page-wide) flex-col gap-12">
 				<SectionHeading title="Questions people ask" />
 				<div className="grid gap-4 md:grid-cols-2">
 					{items.map((item) => (

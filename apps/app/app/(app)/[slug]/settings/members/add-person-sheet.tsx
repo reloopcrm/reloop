@@ -98,7 +98,7 @@ export function AddPersonSheet() {
 						<SheetTitle>{t("Add person")}</SheetTitle>
 						<SheetDescription>
 							{t(
-								"They get an account and a one-time password. The password is shown once, so pass it on yourself.",
+								"They get an account and a one-time password. Pass it on yourself.",
 							)}
 						</SheetDescription>
 					</SheetHeader>
@@ -154,7 +154,7 @@ export function AddPersonSheet() {
 									required
 								/>
 								<FieldDescription>
-									{t("The name your team sees on every record they touch.")}
+									{t("Your team sees this name on every record.")}
 								</FieldDescription>
 							</Field>
 

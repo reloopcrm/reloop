@@ -3,7 +3,6 @@
 import {
 	Card,
 	CardContent,
-	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "@crm/ui/components/card";
@@ -16,32 +15,11 @@ import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 
 const GROUPS = [
-	{
-		id: "reading",
-		title: "Reading your email",
-		description: "What the agent reads by itself, every minute.",
-	},
-	{
-		id: "research",
-		title: "Research",
-		description:
-			"What the agent looks up about the people and companies you work with.",
-	},
-	{
-		id: "pictures",
-		title: "Logos and photos",
-		description: "The pictures on a record.",
-	},
-	{
-		id: "writing",
-		title: "Writing",
-		description: "What the agent writes for you.",
-	},
-	{
-		id: "rules",
-		title: "Rules and setup",
-		description: "What the agent learns about your own business.",
-	},
+	{ id: "reading", title: "Reading your email" },
+	{ id: "research", title: "Research" },
+	{ id: "pictures", title: "Logos and photos" },
+	{ id: "writing", title: "Writing" },
+	{ id: "rules", title: "Rules and setup" },
 ] as const;
 
 export function AgentFunctions() {
@@ -74,7 +52,6 @@ export function AgentFunctions() {
 					<Card key={group.id}>
 						<CardHeader>
 							<CardTitle>{t(group.title)}</CardTitle>
-							<CardDescription>{t(group.description)}</CardDescription>
 						</CardHeader>
 
 						<CardContent>

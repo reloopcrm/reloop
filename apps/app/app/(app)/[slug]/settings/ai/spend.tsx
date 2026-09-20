@@ -48,20 +48,10 @@ export function Spend() {
 			<CardHeader>
 				<CardTitle>{t("What the agent costs")}</CardTitle>
 				<CardDescription>
-					{t(
-						"Every model call of the last {days} days, counted from what the vendor reports. A line without a price is a model with no price list here.",
-					).replace("{days}", String(days))}{" "}
-					{t(
-						"Estimated using 1 USD = {rate} EUR. Unpriced calls are excluded from the total.",
-						{
-							rate: new Intl.NumberFormat(locale).format(
-								spend.data.exchangeRate,
-							),
-						},
-					)}{" "}
-					{t(
-						"Standard token estimate. Regional processing, long context and tools can add charges.",
-					)}
+					{t("Model calls of the last {days} days. 1 USD = {rate} EUR.", {
+						days,
+						rate: new Intl.NumberFormat(locale).format(spend.data.exchangeRate),
+					})}
 				</CardDescription>
 			</CardHeader>
 

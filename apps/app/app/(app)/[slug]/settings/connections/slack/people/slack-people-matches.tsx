@@ -110,7 +110,7 @@ export function SlackPeopleMatches({
 			</div>
 			<p className="text-muted-foreground text-xs leading-relaxed">
 				{t(
-					"Refresh after a Slack email changes. The CRM matches exact email addresses only. Someone with no exact match stays unmatched, and an agent stops instead of guessing at a similar name.",
+					"The CRM matches exact email addresses only. Somebody with no exact match stays unmatched, and an agent stops instead of guessing.",
 				)}
 			</p>
 			<div className="flex justify-end">

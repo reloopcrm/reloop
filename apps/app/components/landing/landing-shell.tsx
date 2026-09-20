@@ -5,20 +5,31 @@ import NextLink from "next/link";
 import type * as React from "react";
 import { REPO_URL } from "./site";
 
+const PRODUCT_LINKS = [
+	{ href: "/docs", label: "Docs" },
+	{ href: "/get-started", label: "Get started" },
+	{ href: "/sign-in", label: "Sign in" },
+] as const;
+
+const READING_LINKS = [
+	{ href: "/self-hosted-crm", label: "Self-hosted CRM" },
+	{ href: "/open-source-crm", label: "Open source CRM" },
+	{ href: "/vs/hubspot", label: "Reloop vs HubSpot" },
+	{ href: "/for/freight-forwarding", label: "For freight forwarding" },
+	{ href: "/open-source", label: "Open source" },
+] as const;
+
 export function LandingShell({ children }: { children: React.ReactNode }) {
 	return (
-		<div className="dark flex min-h-svh w-full flex-col items-center overflow-clip bg-background font-sans text-foreground">
-			<header className="relative flex h-16 w-full shrink-0 items-center justify-center border-border border-b">
-				<nav className="flex w-full max-w-6xl items-center gap-4 px-6 text-[13px]/6">
+		<div className="dark flex min-h-svh w-full flex-col items-center bg-background font-sans text-foreground">
+			<header className="sticky top-0 z-10 flex h-16 w-full shrink-0 items-center justify-center border-border border-b bg-background">
+				<nav className="flex w-full max-w-(--container-page-wide) items-center gap-4 px-6 text-[13px]/6">
 					<NextLink href="/" aria-label="Reloop CRM home">
 						<Wordmark className="h-5 w-auto" />
 					</NextLink>
 					<div className="grow" />
 					<Link variant="quiet" href="/docs">
 						Docs
-					</Link>
-					<Link variant="quiet" href="/get-started">
-						Get started
 					</Link>
 					<Link
 						variant="quiet"
@@ -28,8 +39,11 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 					>
 						GitHub
 					</Link>
+					<Link variant="quiet" href="/sign-in">
+						Sign in
+					</Link>
 					<Button variant="outline" size="sm" asChild>
-						<NextLink href="/sign-in">Sign in</NextLink>
+						<NextLink href="/get-started">Get started</NextLink>
 					</Button>
 				</nav>
 			</header>
@@ -37,8 +51,8 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 			{children}
 
 			<footer className="relative flex w-full shrink-0 flex-col items-center border-border border-t">
-				<div className="flex w-full max-w-6xl flex-col items-start justify-between gap-12 px-6 py-16 sm:flex-row sm:gap-16">
-					<div className="flex w-[280px] max-w-full shrink-0 flex-col items-start gap-[14px]">
+				<div className="flex w-full max-w-(--container-page-wide) flex-col items-start justify-between gap-12 px-6 py-16 sm:flex-row sm:gap-16">
+					<div className="flex shrink-0 flex-col items-start gap-4">
 						<Wordmark className="h-5 w-auto" />
 						<p className="text-[13px]/[21px] text-muted-foreground">
 							The open-source, self-hosted CRM.
@@ -46,13 +60,12 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 					</div>
 
 					<div className="flex shrink-0 gap-12">
-						<nav className="flex w-[150px] flex-col items-start gap-[14px] text-[13px]/6">
-							<Link variant="quiet" href="/docs">
-								Docs
-							</Link>
-							<Link variant="quiet" href="/get-started">
-								Get started
-							</Link>
+						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
+							{PRODUCT_LINKS.map((link) => (
+								<Link variant="quiet" key={link.href} href={link.href}>
+									{link.label}
+								</Link>
+							))}
 							<Link
 								variant="quiet"
 								href={REPO_URL}
@@ -61,27 +74,14 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 							>
 								GitHub
 							</Link>
-							<Link variant="quiet" href="/sign-in">
-								Sign in
-							</Link>
 						</nav>
 
-						<nav className="flex w-[180px] flex-col items-start gap-[14px] text-[13px]/6">
-							<Link variant="quiet" href="/self-hosted-crm">
-								Self-hosted CRM
-							</Link>
-							<Link variant="quiet" href="/open-source-crm">
-								Open source CRM
-							</Link>
-							<Link variant="quiet" href="/vs/hubspot">
-								Reloop vs HubSpot
-							</Link>
-							<Link variant="quiet" href="/for/freight-forwarding">
-								For freight forwarding
-							</Link>
-							<Link variant="quiet" href="/open-source">
-								Open source
-							</Link>
+						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
+							{READING_LINKS.map((link) => (
+								<Link variant="quiet" key={link.href} href={link.href}>
+									{link.label}
+								</Link>
+							))}
 						</nav>
 					</div>
 				</div>

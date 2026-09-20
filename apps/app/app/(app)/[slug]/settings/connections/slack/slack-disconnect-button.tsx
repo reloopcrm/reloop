@@ -76,7 +76,7 @@ export function SlackDisconnectButton({
 						</AlertDialogTitle>
 						<AlertDialogDescription>
 							{t(
-								"Agents stop sending to Slack immediately, and the cached channel list is cleared so a new app re-reads it. Who is matched to which Slack account is kept, so reconnecting the same workspace does not ask you to match everyone again.",
+								"Agents stop sending to Slack at once. Who is matched to which Slack account is kept, so the same workspace asks you nothing again.",
 							)}
 						</AlertDialogDescription>
 					</AlertDialogHeader>

@@ -173,7 +173,7 @@
 	"Update available: {version}": "Atualização disponível: {version}",
 	"Up to date": "Em dia",
 	"Release notes": "Notas da versão",
-	"The operator keeps this install up to date.": "O operador mantém esta instalação em dia.",
+	"New versions arrive on their own. You never update anything.": "As versões novas chegam sozinhas. Você nunca precisa atualizar nada.",
 	"Update now": "Atualizar agora",
 	"Version {version} is out": "A versão {version} chegou",
 	"Dismiss": "Descartar",

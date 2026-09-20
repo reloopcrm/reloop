@@ -173,7 +173,7 @@
 	"Update available: {version}": "有可用更新：{version}",
 	"Up to date": "已是最新",
 	"Release notes": "版本说明",
-	"The operator keeps this install up to date.": "运维方负责让这个安装实例保持最新。",
+	"New versions arrive on their own. You never update anything.": "新版本会自动送达，你永远不需要手动更新。",
 	"Update now": "立即更新",
 	"Version {version} is out": "{version} 版本发布了",
 	"Dismiss": "忽略",

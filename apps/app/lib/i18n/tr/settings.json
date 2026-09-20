@@ -173,7 +173,7 @@
 	"Update available: {version}": "Güncelleme var: {version}",
 	"Up to date": "Güncel",
 	"Release notes": "Sürüm notları",
-	"The operator keeps this install up to date.": "Bu kurulumu işletmeci güncel tutuyor.",
+	"New versions arrive on their own. You never update anything.": "Yeni sürümler kendiliğinden gelir. Hiçbir zaman güncelleme yapmazsın.",
 	"Update now": "Şimdi güncelle",
 	"Version {version} is out": "Sürüm {version} çıktı",
 	"Dismiss": "Yoksay",

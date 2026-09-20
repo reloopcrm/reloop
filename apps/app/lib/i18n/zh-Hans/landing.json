@@ -38,5 +38,10 @@
 	"Your team will use this address to open the CRM.": "你的团队用这个地址打开 CRM。",
 	"Read once, so the agent knows what you sell.": "只读取一次，让智能体知道你卖什么。",
 	"Copy command": "复制命令",
-	"Copying failed. Select the command and copy it by hand.": "复制失败。选中命令手动复制。"
+	"Copying failed. Select the command and copy it by hand.": "复制失败。选中命令手动复制。",
+	"This page does not exist": "此页面不存在",
+	"The address is wrong, or the page moved.": "地址有误，或页面已移动。",
+	"Go to the home page": "前往首页",
+	"Read the docs": "阅读文档",
+	"Sitemap": "站点地图"
 }

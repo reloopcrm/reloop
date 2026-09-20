@@ -11,7 +11,7 @@ describe("the offer column reads as a summary, not as sentences", () => {
 					"Abholung in Hannover",
 				],
 				summary:
-					"Kraul & Wilkening bot 800 bis 1000 unbenutzte Europaletten zur Abholung in Hannover an.",
+					"Weber Logistik bot 800 bis 1000 unbenutzte Europaletten zur Abholung in Hannover an.",
 			}),
 		).toBe(
 			"Ankauf überschüssiger Europaletten · Preisverhandlung · Abholung in Hannover",

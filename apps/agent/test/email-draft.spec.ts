@@ -3,7 +3,7 @@ import { stripQuoted, stripSignature } from "../agent/lib/email-draft";
 
 describe("what stays of a sent email when it becomes a style sample", () => {
 	it("keeps a mail that quotes nothing", () => {
-		const text = "Hallo Herr Meier,\n\nhaben Sie Paletten?\n\nGruß\nTugra";
+		const text = "Hallo Herr Meier,\n\nhaben Sie Paletten?\n\nGruß\nNina";
 
 		expect(stripQuoted(text)).toBe(text);
 	});
@@ -77,13 +77,13 @@ describe("what stays when the signature block is cut", () => {
 	});
 
 	it("cuts a contact block that has no separator", () => {
-		const text = "Hallo,\n\nGruß\nTugra\nTel: +49 30 1234567";
+		const text = "Hallo,\n\nGruß\nNina\nTel: +49 30 1234567";
 
-		expect(stripSignature(text)).toBe("Hallo,\n\nGruß\nTugra");
+		expect(stripSignature(text)).toBe("Hallo,\n\nGruß\nNina");
 	});
 
 	it("keeps a mail that carries no signature block", () => {
-		const text = "Hallo,\n\nhaben Sie Paletten?\n\nGruß\nTugra";
+		const text = "Hallo,\n\nhaben Sie Paletten?\n\nGruß\nNina";
 
 		expect(stripSignature(text)).toBe(text);
 	});

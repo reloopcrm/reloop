@@ -32,13 +32,13 @@ const QUOTE = "haben Sie 620 Europaletten verfügbar?";
 function attention(over: Partial<Attention> = {}): Attention {
 	return {
 		kind: "waiting",
-		name: "Christian Graber",
+		name: "Martin Berg",
 		quietDays: 0,
 		emails: 4,
 		firstContactAt: null,
 		lastInbound: { at: "2026-09-19T08:12:00.000Z", threadId: "t-ask" },
 		lastOutbound: { at: "2026-09-19T09:40:00.000Z", threadId: "t-offer" },
-		reply: { email: "c.graber@palatum.de" },
+		reply: { email: "m.berg@feinkost-sued.example" },
 		fields: [
 			{
 				key: "products",
@@ -97,7 +97,7 @@ function row(over: { defaultOpen?: boolean; anchorId?: string }) {
 			voice: "inbound",
 			time: "08:12",
 			mark: createElement(EventMark, { kind: "inbound" }),
-			who: "Christian Graber",
+			who: "Martin Berg",
 			subject: "Re: Bedarf Q4 Europaletten",
 			preview: "620 Stück, Klasse A",
 			panel: createElement("p", null, "620 Europaletten"),
@@ -248,7 +248,7 @@ describe("the action of the block covers nothing", () => {
 
 describe("the verdict names the person", () => {
 	it("writes the first and the last name into the claim", () => {
-		expect(block()).toContain("You are waiting on Christian Graber.");
+		expect(block()).toContain("You are waiting on Martin Berg.");
 	});
 
 	it("falls back to a word rather than an empty gap", () => {

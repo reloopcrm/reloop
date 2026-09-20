@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/reloopcrm/reloop/compare/v0.14.0...v0.15.0) (2026-09-20)
+
+
+### Features
+
+* one page for the AI, and three more cheap gates ([#23](https://github.com/reloopcrm/reloop/issues/23)) ([d4ca95d](https://github.com/reloopcrm/reloop/commit/d4ca95d4d4b93d06d6e55ced10529958ea5ec90e))
+
 ## [0.14.0](https://github.com/reloopcrm/reloop/compare/v0.13.0...v0.14.0) (2026-09-20)
 
 

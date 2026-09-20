@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/reloopcrm/reloop/compare/v0.12.1...v0.13.0) (2026-09-20)
+
+
+### Features
+
+* **agent:** read a mail conversation cheaply before paying for the full read ([#18](https://github.com/reloopcrm/reloop/issues/18)) ([17eea87](https://github.com/reloopcrm/reloop/commit/17eea870482a80c3c5af47321186bd917cafa917))
+
 ## [0.12.1](https://github.com/reloopcrm/reloop/compare/v0.12.0...v0.12.1) (2026-09-19)
 
 

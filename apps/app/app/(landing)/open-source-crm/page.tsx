@@ -6,6 +6,7 @@ import { LandingShell } from "@/components/landing/landing-shell";
 import {
 	CardGrid,
 	ClosingCta,
+	CloudBanner,
 	PageHero,
 	PageSection,
 	Prose,
@@ -60,9 +61,12 @@ export default function OpenSourceCrmPage() {
 			<PageHero
 				title="An open source CRM is one you can read, run and keep"
 				lede="The code is public, the licence lets you run it on your own server, and nobody can switch it off. Here is what that buys you and where it stops."
+				actions={null}
 			/>
 
-			<PageSection title="What the licence says">
+			<CloudBanner />
+
+			<PageSection title="What the licence says" tone="secondary">
 				<Prose>
 					<p>
 						Reloop CRM uses the GNU Affero General Public License, version 3.
@@ -95,7 +99,7 @@ export default function OpenSourceCrmPage() {
 				</CardGrid>
 			</PageSection>
 
-			<PageSection title="Where the limits are">
+			<PageSection title="Where the limits are" tone="secondary">
 				<Prose>
 					<p>
 						Nobody runs it for you. You need a server, a domain and a person who
@@ -125,21 +129,21 @@ export default function OpenSourceCrmPage() {
 						company, and that is still the clearest example of the job it does.
 					</p>
 					<p>
-						The honest limits: it sends no email campaigns and no sequences,
-						there is no mobile app, and the hosted version is not open yet. It
-						is a young project, so read the changelog before an update.
+						The honest limits: it sends no email campaigns and no sequences, and
+						there is no mobile app. It is a young project, so read the changelog
+						before an update.
 					</p>
 				</Prose>
 			</PageSection>
 
-			<Faq id="open-source-crm-faq" items={FAQ} />
+			<Faq id="open-source-crm-faq" items={FAQ} tone="secondary" />
 
 			<ClosingCta
 				title="Read the code. Run it. Keep it."
-				links={[
-					{ href: "/get-started", label: "Get started" },
-					{ href: "/self-hosted-crm", label: "What self-hosting takes" },
-				]}
+				secondary={{
+					href: "/self-hosted-crm",
+					label: "What self-hosting takes",
+				}}
 			/>
 		</LandingShell>
 	);

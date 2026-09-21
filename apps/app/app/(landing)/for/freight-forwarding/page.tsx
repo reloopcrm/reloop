@@ -1,4 +1,3 @@
-import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
 import {
 	BentoCard,
@@ -14,6 +13,7 @@ import {
 	PageHero,
 	PageSection,
 	Prose,
+	SelfHostNote,
 } from "@/components/landing/page-blocks";
 
 export const metadata: Metadata = {
@@ -78,7 +78,7 @@ export default function FreightForwardingPage() {
 				lede="It reads the inbox where the pallet inquiries, the quotes and the silence all live, and shows which customers are worth a new call."
 			/>
 
-			<PageSection title="The problem in a forwarder's inbox">
+			<PageSection title="The problem in a forwarder's inbox" tone="secondary">
 				<Prose>
 					<p>
 						A customer asks for a price on twelve pallets to Milan. You quote.
@@ -112,8 +112,9 @@ export default function FreightForwardingPage() {
 			<PageSection
 				title="Numbers from the owner's own install"
 				lede="These come from the company Reloop CRM was built in. They are one install, not a benchmark."
+				tone="secondary"
 			>
-				<CardGrid>
+				<CardGrid columns={3}>
 					{NUMBERS.map((item) => (
 						<BentoCard key={item.value}>
 							<CardTitle>{item.value}</CardTitle>
@@ -147,22 +148,15 @@ export default function FreightForwardingPage() {
 						thread is one line, so nobody opens an email to find out what
 						happened.
 					</p>
-					<p>
-						Rates and customer lists never leave the server. The{" "}
-						<Link href="/self-hosted-crm">self-hosted CRM page</Link> lists what
-						that server needs.
-					</p>
 				</Prose>
+				<SelfHostNote />
 			</PageSection>
 
-			<Faq id="freight-forwarding-faq" items={FAQ} />
+			<Faq id="freight-forwarding-faq" items={FAQ} tone="secondary" />
 
 			<ClosingCta
 				title="Every quote you ever sent, ranked by what happened next"
-				links={[
-					{ href: "/get-started", label: "Get started" },
-					{ href: "/vs/hubspot", label: "Compare with HubSpot" },
-				]}
+				secondary={{ href: "/vs/hubspot", label: "Compare with HubSpot" }}
 			/>
 		</LandingShell>
 	);

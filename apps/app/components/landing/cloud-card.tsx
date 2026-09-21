@@ -4,7 +4,7 @@ import { WaitlistForm } from "./waitlist-form";
 
 export function CloudCard() {
 	return (
-		<BentoCard className="gap-5 md:row-span-3 md:grid md:grid-rows-subgrid">
+		<BentoCard className="w-full max-w-(--container-narrow) gap-6">
 			<div className="flex flex-col gap-2">
 				<div className="flex items-center gap-2">
 					<CardTitle>Cloud</CardTitle>

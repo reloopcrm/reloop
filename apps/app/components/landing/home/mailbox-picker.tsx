@@ -1,3 +1,4 @@
+import Email from "@carbon/icons-react/es/Email";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import { Button } from "@crm/ui/components/button";
@@ -23,7 +24,11 @@ export function MailboxPicker({ t }: { t: Translate }) {
 				<span className="grow font-medium">Outlook</span>
 			</li>
 			<li className="flex min-h-15 items-center gap-3 py-2">
-				<span aria-hidden="true" className="size-6 shrink-0" />
+				<Email
+					size={HOME.iconSize}
+					aria-hidden="true"
+					className="shrink-0 text-body-foreground"
+				/>
 				<span className="grow font-medium">IMAP</span>
 			</li>
 		</ul>

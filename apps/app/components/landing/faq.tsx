@@ -1,5 +1,6 @@
 import Script from "next/script";
 import { BentoCard, CardHeading } from "./bento-card";
+import { Band, type Tone } from "./page-blocks";
 import { SectionHeading } from "./section-heading";
 
 export type FaqItem = { question: string; answer: string };
@@ -16,22 +17,28 @@ function faqEntry(items: readonly FaqItem[]) {
 	};
 }
 
-export function Faq({ id, items }: { id: string; items: readonly FaqItem[] }) {
+export function Faq({
+	id,
+	items,
+	tone,
+}: {
+	id: string;
+	items: readonly FaqItem[];
+	tone?: Tone;
+}) {
 	return (
-		<section className="relative flex w-full shrink-0 flex-col items-center px-6 pb-20 md:pb-30">
+		<Band tone={tone}>
 			<Script id={id} type="application/ld+json">
 				{JSON.stringify(faqEntry(items))}
 			</Script>
-			<div className="flex w-full max-w-(--container-page-wide) flex-col gap-12">
-				<SectionHeading title="Questions people ask" />
-				<div className="grid gap-4 md:grid-cols-2">
-					{items.map((item) => (
-						<BentoCard key={item.question}>
-							<CardHeading title={item.question} body={item.answer} />
-						</BentoCard>
-					))}
-				</div>
+			<SectionHeading title="Questions people ask" />
+			<div className="grid w-full gap-4 md:grid-cols-2">
+				{items.map((item) => (
+					<BentoCard key={item.question}>
+						<CardHeading title={item.question} body={item.answer} />
+					</BentoCard>
+				))}
 			</div>
-		</section>
+		</Band>
 	);
 }

@@ -8,7 +8,6 @@ import NextLink from "next/link";
 import { HOME } from "@/components/landing/home/config";
 import { MailboxPicker } from "@/components/landing/home/mailbox-picker";
 import { LandingShell } from "@/components/landing/landing-shell";
-import { REPO_URL } from "@/components/landing/site";
 import { StructuredData } from "@/components/landing/structured-data";
 import { getT } from "@/lib/i18n/server";
 
@@ -53,12 +52,10 @@ export default async function Home() {
 	const actions = (
 		<div className="flex flex-wrap items-center justify-center gap-6">
 			<Button size="pill" asChild>
-				<NextLink href={HOME.href.start}>{t("Get started")}</NextLink>
+				<NextLink href={HOME.href.start}>{t("Start free trial")}</NextLink>
 			</Button>
 			<Button variant="link" size="pill" asChild>
-				<NextLink href={REPO_URL} target="_blank" rel="noreferrer">
-					{t("Code on GitHub")}
-				</NextLink>
+				<NextLink href={HOME.href.start}>{t("See pricing")}</NextLink>
 			</Button>
 		</div>
 	);
@@ -150,10 +147,10 @@ export default async function Home() {
 			<section className="w-full bg-secondary px-6 py-20 md:py-24">
 				<div className="mx-auto flex w-full max-w-(--container-page) flex-col items-center gap-6 text-center">
 					<h2 className="text-balance font-semibold text-4xl/[42px] tracking-tight md:text-[44px]/[50px]">
-						{t("Open code. Your server.")}
+						{t("Try it on your own mailbox.")}
 					</h2>
 					<p className="text-body-foreground text-xl">
-						{t("Runs on your server, under GNU AGPL v3.")}
+						{t("14 days free, no card. From 39 € a month after that.")}
 					</p>
 					<div className="pt-4">{actions}</div>
 				</div>

@@ -5,6 +5,7 @@ import { siteAddress } from "@/lib/site-address";
 const PAGES = [
 	"/",
 	"/get-started",
+	"/pricing",
 	"/docs",
 	"/open-source",
 	"/about",

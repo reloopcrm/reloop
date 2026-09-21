@@ -46,8 +46,8 @@ export async function createApp(): Promise<NestExpressApplication> {
 
 	app.use(requestSizeLimit());
 	app.use(REQUEST_SIZE.trpc.path, trpcBodyLimit());
-	app.use(tenantMiddleware());
 	app.use(helmet());
+	app.use(tenantMiddleware());
 	app.useGlobalPipes(
 		new ValidationPipe({
 			whitelist: true,

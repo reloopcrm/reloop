@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { tenantId as tenantIdSchema } from "@crm/db/tenancy";
 import { currentTenantId } from "@crm/db/tenant-context";
 
@@ -17,7 +17,9 @@ const ALPHABET =
 
 function randomKey(length: number): string {
 	let key = "";
-	for (const byte of randomBytes(length)) key += ALPHABET[byte % 62];
+	for (let index = 0; index < length; index += 1) {
+		key += ALPHABET[randomInt(ALPHABET.length)];
+	}
 	return key;
 }
 

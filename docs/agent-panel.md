@@ -49,6 +49,12 @@ claim minted, the field a conversation is filed under, the empty-thread question
 - **`autoScroll` and nothing else**; `scrollAnchor` stops it following the bottom.
 - **One `MessageScrollerItem` per message, not per part**; ids prefer `toolCallId`.
 - **Scoped to the rep** — a session id in a body decides which row, never whose.
+- **The bridge route claims a new session before the client sees its id.** `POST
+  /eve/v1/session` writes the `AgentConversation` row for the caller, with the record
+  from the header and the first message as the title, before it answers. Every request
+  that names a session id is refused unless a row with that id belongs to the caller:
+  a session with no row and a session of another rep get the same `404`. eve itself
+  lets any principal resume any session, so this row is the only guard.
 
 This lives in the API and is not a breach of rule one: listing history decides nothing.
 

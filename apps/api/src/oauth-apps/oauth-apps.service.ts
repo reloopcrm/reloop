@@ -12,6 +12,7 @@ import {
 	sealOAuthAppSecret,
 } from "@crm/db/oauth-apps";
 import { maskKey, SETTINGS_ID } from "@crm/db/settings";
+import { isHosted } from "@crm/db/tenant-context";
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { AgentAccessService } from "../agent/agent-access.service";
 import { InjectDatabase } from "../database/database.constants";
@@ -138,7 +139,7 @@ function appSettingFields(
 }
 
 function restartsItself(): boolean {
-	return !process.env.VERCEL;
+	return !process.env.VERCEL && !isHosted();
 }
 
 function describeApp(

@@ -1,5 +1,7 @@
 import "@crm/env/load";
 
+import { currentTenant, isHosted } from "@crm/db/tenant-context";
+
 type AllowList = {
 	domains: readonly string[];
 	addresses: readonly string[];
@@ -10,21 +12,27 @@ const EMPTY: AllowList = { domains: [], addresses: [] };
 let cachedSource: string | undefined;
 let cached: AllowList = EMPTY;
 
-function allowList(): AllowList {
-	const source = process.env.ALLOWED_SIGN_IN ?? "";
-	if (source === cachedSource) return cached;
-
+function parseAllowList(entries: readonly string[]): AllowList {
 	const domains: string[] = [];
 	const addresses: string[] = [];
 
-	for (const raw of source.split(",")) {
+	for (const raw of entries) {
 		const entry = raw.trim().toLowerCase().replace(/^@/, "");
 		if (!entry) continue;
 		(entry.includes("@") ? addresses : domains).push(entry);
 	}
 
+	return { domains, addresses };
+}
+
+function allowList(): AllowList {
+	if (isHosted()) return parseAllowList(currentTenant().allowList);
+
+	const source = process.env.ALLOWED_SIGN_IN ?? "";
+	if (source === cachedSource) return cached;
+
 	cachedSource = source;
-	cached = { domains, addresses };
+	cached = parseAllowList(source.split(","));
 	return cached;
 }
 

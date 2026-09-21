@@ -1,5 +1,7 @@
+import pg from "pg";
 import { z } from "zod";
 import { TENANCY } from "./tenancy-config";
+import { isHosted, runAsTenant } from "./tenant-context";
 
 export const TENANT_STATUSES = [
 	"active",
@@ -31,6 +33,50 @@ export const tenant = z.object({
 
 export type Tenant = z.infer<typeof tenant>;
 
+const tenantRow = z
+	.object({
+		id: z.string(),
+		slug: z.string(),
+		db_name: z.string(),
+		plan: z.string(),
+		status: z.string(),
+		ai_mode: z.string(),
+		sign_in: z.string(),
+		created_at: z.date(),
+		trial_ends_at: z.date().nullable(),
+		deleted_at: z.date().nullable(),
+		allow_list: z.array(z.string()).nullable(),
+	})
+	.transform((row) =>
+		tenant.parse({
+			id: row.id,
+			slug: row.slug,
+			dbName: row.db_name,
+			plan: row.plan,
+			status: row.status,
+			aiMode: row.ai_mode,
+			signIn: row.sign_in,
+			createdAt: row.created_at,
+			trialEndsAt: row.trial_ends_at,
+			deletedAt: row.deleted_at,
+			allowList: row.allow_list ?? [],
+		}),
+	);
+
+const tenantRows = z.array(tenantRow);
+
+export const newTenant = tenant
+	.pick({ id: true, slug: true, dbName: true, allowList: true })
+	.extend({
+		plan: z.string().min(1).default("trial"),
+		aiMode: z.string().min(1).default("operator"),
+		signIn: z.string().min(1).default("google"),
+		trialEndsAt: z.date().nullable().default(null),
+		siteIds: z.array(z.string().min(1)).default([]),
+	});
+
+export type NewTenant = z.input<typeof newTenant>;
+
 export function tenantDatabaseUrl(dbName: string): string {
 	const template = process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE;
 	if (!template?.includes(TENANCY.template.placeholder)) {
@@ -39,4 +85,223 @@ export function tenantDatabaseUrl(dbName: string): string {
 		);
 	}
 	return template.replace(TENANCY.template.placeholder, dbName);
+}
+
+const REGISTRY_SCHEMA = `
+CREATE TABLE IF NOT EXISTS tenant (
+	id text PRIMARY KEY,
+	slug text NOT NULL UNIQUE,
+	db_name text NOT NULL UNIQUE,
+	plan text NOT NULL DEFAULT 'trial',
+	status text NOT NULL DEFAULT 'active',
+	ai_mode text NOT NULL DEFAULT 'operator',
+	sign_in text NOT NULL DEFAULT 'google',
+	created_at timestamptz NOT NULL DEFAULT now(),
+	trial_ends_at timestamptz,
+	deleted_at timestamptz
+);
+CREATE TABLE IF NOT EXISTS tenant_sign_in (
+	entry text PRIMARY KEY,
+	tenant_id text NOT NULL REFERENCES tenant(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS tenant_sign_in_tenant_id ON tenant_sign_in(tenant_id);
+CREATE TABLE IF NOT EXISTS tenant_site (
+	site_id text PRIMARY KEY,
+	tenant_id text NOT NULL REFERENCES tenant(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS tenant_site_tenant_id ON tenant_site(tenant_id);
+`;
+
+const SELECT_TENANT = `
+SELECT t.*, (
+	SELECT array_agg(s.entry ORDER BY s.entry) FROM tenant_sign_in s WHERE s.tenant_id = t.id
+) AS allow_list
+FROM tenant t
+WHERE t.deleted_at IS NULL`;
+
+let registry: { url: string; pool: pg.Pool } | undefined;
+
+function registryPool(): pg.Pool {
+	const url = process.env.RELOOP_REGISTRY_URL;
+	if (!url) {
+		throw new Error(
+			"RELOOP_REGISTRY_URL is not set. The registry only exists in hosted mode.",
+		);
+	}
+	if (registry?.url !== url) {
+		void registry?.pool.end();
+		registry = {
+			url,
+			pool: new pg.Pool({
+				connectionString: url,
+				max: TENANCY.registry.pool.max,
+			}),
+		};
+	}
+	return registry.pool;
+}
+
+const cached = new Map<string, { tenant: Tenant; until: number }>();
+
+function remember(found: Tenant): Tenant {
+	cached.set(found.id, {
+		tenant: found,
+		until: Date.now() + TENANCY.registry.cacheMs,
+	});
+	return found;
+}
+
+export function forgetTenants(): void {
+	cached.clear();
+}
+
+async function selectTenants(
+	where: string,
+	values: readonly (string | string[])[],
+): Promise<Tenant[]> {
+	const result = await registryPool().query(`${SELECT_TENANT} AND ${where}`, [
+		...values,
+	]);
+	return tenantRows.parse(result.rows);
+}
+
+export async function ensureRegistrySchema(): Promise<void> {
+	await registryPool().query(REGISTRY_SCHEMA);
+}
+
+export async function pingRegistry(): Promise<void> {
+	await registryPool().query("SELECT 1");
+}
+
+export async function closeRegistry(): Promise<void> {
+	const open = registry;
+	registry = undefined;
+	cached.clear();
+	await open?.pool.end();
+}
+
+export async function tenantById(id: string): Promise<Tenant | null> {
+	if (!tenantId.safeParse(id).success) return null;
+
+	const hit = cached.get(id);
+	if (hit && hit.until > Date.now()) return hit.tenant;
+
+	const [found] = await selectTenants("t.id = $1", [id]);
+	return found ? remember(found) : null;
+}
+
+export function signInEntriesFor(email: string): string[] {
+	const address = email.trim().toLowerCase();
+	const host = address.split("@")[1];
+	if (!host || address.split("@").length !== 2) return [];
+
+	const labels = host.split(".");
+	const domains = labels.map((_, index) => labels.slice(index).join("."));
+	return [address, ...domains.filter((domain) => domain.includes("."))];
+}
+
+export async function tenantBySignIn(email: string): Promise<Tenant | null> {
+	const entries = signInEntriesFor(email);
+	if (entries.length === 0) return null;
+
+	const [found] = await selectTenants(
+		"t.id = (SELECT tenant_id FROM tenant_sign_in WHERE entry = ANY($1) ORDER BY length(entry) DESC LIMIT 1)",
+		[entries],
+	);
+	return found ? remember(found) : null;
+}
+
+export async function tenantBySite(siteId: string): Promise<Tenant | null> {
+	const [found] = await selectTenants(
+		"t.id = (SELECT tenant_id FROM tenant_site WHERE site_id = $1)",
+		[siteId],
+	);
+	return found ? remember(found) : null;
+}
+
+export async function activeTenants(): Promise<Tenant[]> {
+	return selectTenants("t.status = 'active' ORDER BY t.created_at, t.id", []);
+}
+
+export async function createTenant(input: NewTenant): Promise<Tenant> {
+	const values = newTenant.parse(input);
+	const client = await registryPool().connect();
+
+	try {
+		await client.query("BEGIN");
+		await client.query(
+			`INSERT INTO tenant (id, slug, db_name, plan, ai_mode, sign_in, trial_ends_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7)
+			 ON CONFLICT (id) DO UPDATE SET slug = EXCLUDED.slug, db_name = EXCLUDED.db_name,
+			   plan = EXCLUDED.plan, ai_mode = EXCLUDED.ai_mode, sign_in = EXCLUDED.sign_in,
+			   trial_ends_at = EXCLUDED.trial_ends_at, status = 'active', deleted_at = NULL`,
+			[
+				values.id,
+				values.slug,
+				values.dbName,
+				values.plan,
+				values.aiMode,
+				values.signIn,
+				values.trialEndsAt,
+			],
+		);
+		await client.query("DELETE FROM tenant_sign_in WHERE tenant_id = $1", [
+			values.id,
+		]);
+		for (const entry of values.allowList) {
+			await client.query(
+				"INSERT INTO tenant_sign_in (entry, tenant_id) VALUES ($1, $2)",
+				[entry.trim().toLowerCase().replace(/^@/, ""), values.id],
+			);
+		}
+		await client.query("DELETE FROM tenant_site WHERE tenant_id = $1", [
+			values.id,
+		]);
+		for (const siteId of values.siteIds) {
+			await client.query(
+				"INSERT INTO tenant_site (site_id, tenant_id) VALUES ($1, $2)",
+				[siteId, values.id],
+			);
+		}
+		await client.query("COMMIT");
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
+
+	cached.delete(values.id);
+	const created = await tenantById(values.id);
+	if (!created) throw new Error(`Tenant ${values.id} was not written.`);
+	return created;
+}
+
+export type TenantOutcome<T> =
+	| { tenantId: string; ok: true; result: T }
+	| { tenantId: string; ok: false; error: string };
+
+export type TenantLoop<T> = { tenants: TenantOutcome<T>[] };
+
+export async function forEachTenant<T>(
+	fn: () => Promise<T>,
+): Promise<T | TenantLoop<T>> {
+	if (!isHosted()) return fn();
+
+	const tenants: TenantOutcome<T>[] = [];
+
+	for (const current of await activeTenants()) {
+		try {
+			const result = await runAsTenant(current, fn);
+			tenants.push({ tenantId: current.id, ok: true, result });
+		} catch (error) {
+			tenants.push({
+				tenantId: current.id,
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+
+	return { tenants };
 }

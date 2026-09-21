@@ -1,6 +1,7 @@
 import { apiKey } from "@better-auth/api-key";
 import { sso } from "@better-auth/sso";
 import { db } from "@crm/db";
+import { isHosted } from "@crm/db/tenant-context";
 import { schemas } from "@crm/validation";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -8,7 +9,12 @@ import { APIError } from "better-auth/api";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { organization } from "better-auth/plugins/organization";
 import { accessGuard } from "./access-guard";
-import { API_KEY_EXPIRATION, API_KEY_HEADER, API_KEY_PREFIX } from "./api-keys";
+import {
+	API_KEY_EXPIRATION,
+	API_KEY_HEADER,
+	API_KEY_PREFIX,
+	generateApiKey,
+} from "./api-keys";
 import { AUTH_COOKIE_PREFIX } from "./cookies";
 import { env } from "./env";
 import { oauthRedirectUri } from "./oauth-apps";
@@ -41,7 +47,7 @@ if (env.google) {
 		accessType: "offline",
 	};
 
-	const hostedDomain = primaryWorkspaceDomain();
+	const hostedDomain = isHosted() ? undefined : primaryWorkspaceDomain();
 	if (hostedDomain) google.hd = hostedDomain;
 
 	socialProviders.google = google;
@@ -239,6 +245,7 @@ export const auth = betterAuth({
 		apiKey({
 			apiKeyHeaders: API_KEY_HEADER,
 			defaultPrefix: API_KEY_PREFIX,
+			customKeyGenerator: generateApiKey,
 			enableSessionForAPIKeys: true,
 			requireName: true,
 			defaultKeyLength: 32,

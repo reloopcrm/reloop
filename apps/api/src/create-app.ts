@@ -26,6 +26,7 @@ import {
 	trpcBodyLimit,
 } from "./http/request-size.middleware";
 import { ContextLogger } from "./logging/context-logger";
+import { tenantMiddleware } from "./tenancy/tenant.middleware";
 import { REST } from "./trpc/openapi";
 import { createBaseTrpcContext } from "./trpc/trpc.context";
 
@@ -45,6 +46,7 @@ export async function createApp(): Promise<NestExpressApplication> {
 
 	app.use(requestSizeLimit());
 	app.use(REQUEST_SIZE.trpc.path, trpcBodyLimit());
+	app.use(tenantMiddleware());
 	app.use(helmet());
 	app.useGlobalPipes(
 		new ValidationPipe({

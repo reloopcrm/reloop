@@ -36,6 +36,14 @@ documented exception, for timing: the exchange-rate fetcher, below.
 Single tenant. No org header, no org interceptor, no org-scoped cache keys, **no
 `organizationId` on any CRM record.**
 
+Hosted mode does not change that: a customer gets a whole database, and `db` from
+`@crm/db` resolves to that customer's client through an `AsyncLocalStorage`. The
+tenant is resolved once per request in `apps/api/src/tenancy/tenant.middleware.ts`
+and never travels as a parameter. A process-wide cache key that is per workspace
+goes through `tenantScopedKey()` (`@crm/db/tenant-context`), and a cron route that
+serves every workspace loops through `forEachTenant()` (`@crm/db/tenancy`). The
+variables and the rules are in `docs/environment.md`.
+
 A **singleton workspace** exists — Better Auth's `organization` plugin, one row with
 id `WORKSPACE_ID` (the literal `workspace`, in `@crm/db`, re-exported by `@crm/auth`
 so the agent needn't depend on it). It answers only: what are we called, who works

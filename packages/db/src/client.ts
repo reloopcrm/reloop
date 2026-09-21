@@ -1,7 +1,7 @@
 import "@crm/env/load";
 
 import { PrismaPg } from "@prisma/adapter-pg";
-import { type Prisma, PrismaClient } from "./generated/prisma/client";
+import { Prisma, PrismaClient } from "./generated/prisma/client";
 import { type Tenant, tenantDatabaseUrl } from "./tenancy";
 import { TENANCY } from "./tenancy-config";
 import { currentTenant, isHosted } from "./tenant-context";
@@ -178,16 +178,26 @@ export async function disconnectAll(): Promise<void> {
 	await Promise.all(open.map((client) => client.$disconnect()));
 }
 
+const delegates = new Set(
+	Object.values(Prisma.ModelName).map(
+		(model) => model.charAt(0).toLowerCase() + model.slice(1),
+	),
+);
+
+const isClientProperty = (property: string | symbol): boolean =>
+	String(property).startsWith("$") || delegates.has(String(property));
+
 export const db: Db = new Proxy({} as Db, {
 	get(target, property, receiver) {
 		if (Reflect.has(target, property)) {
 			return Reflect.get(target, property, receiver);
 		}
+		if (!isClientProperty(property)) return undefined;
 		const client = resolve();
 		const value = Reflect.get(client, property, client);
 		return value instanceof Function ? value.bind(client) : value;
 	},
 	has(target, property) {
-		return Reflect.has(target, property) || Reflect.has(resolve(), property);
+		return Reflect.has(target, property) || isClientProperty(property);
 	},
 });

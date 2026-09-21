@@ -1,5 +1,6 @@
 import type { Db } from "@crm/db";
 import { readArchiveRetentionDays } from "@crm/db/settings";
+import { forEachTenant } from "@crm/db/tenancy";
 import {
 	Controller,
 	ForbiddenException,
@@ -80,6 +81,10 @@ export class ArchiveRetentionController {
 			throw new ForbiddenException();
 		}
 
+		return forEachTenant(() => this.prune());
+	}
+
+	private async prune() {
 		const retentionDays = await readArchiveRetentionDays(this.db);
 		const before = new Date(Date.now() - retentionDays * DAY_MS);
 

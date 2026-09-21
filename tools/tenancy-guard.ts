@@ -25,6 +25,7 @@ const RULES: readonly Rule[] = [
 	},
 ];
 
+const SELF = "tools/tenancy-guard.ts";
 const TEST_FILE = /(^|\/)(test|tests)\/|\.spec\.tsx?$/;
 const SKIPPED = /(^|\/)(generated|node_modules|dist|\.next)\//;
 
@@ -34,7 +35,7 @@ const files = new TextDecoder()
 			.stdout,
 	)
 	.split("\0")
-	.filter((file) => file && !SKIPPED.test(file));
+	.filter((file) => file && file !== SELF && !SKIPPED.test(file));
 
 const violations: string[] = [];
 

@@ -1,5 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import type { Db } from "@crm/db";
+import { forEachTenant, tenantBySite } from "@crm/db/tenancy";
+import { isHosted, runAsTenant } from "@crm/db/tenant-context";
 import {
 	EVENT_RETENTION_DAYS,
 	isSiteId,
@@ -118,11 +120,20 @@ export class TrackingController {
 
 		if (!isSiteId(batch?.siteId) || !Array.isArray(batch?.events)) return;
 
-		try {
-			await this.ingest.accept(batch, {
+		const accept = () =>
+			this.ingest.accept(batch, {
 				origin: origin ?? null,
 				userAgent: userAgent ?? null,
 			});
+
+		try {
+			if (!isHosted()) {
+				await accept();
+				return;
+			}
+
+			const tenant = await tenantBySite(batch.siteId);
+			if (tenant?.status === "active") await runAsTenant(tenant, accept);
 		} catch (error) {
 			this.logger.error(
 				{ message: "Tracking event was not stored" },
@@ -183,6 +194,10 @@ export class TrackingRetentionController {
 			throw new ForbiddenException();
 		}
 
+		return forEachTenant(() => this.sweep());
+	}
+
+	private async sweep() {
 		const before = startOfDay(
 			new Date(Date.now() - EVENT_RETENTION_DAYS * 24 * 60 * 60_000),
 		);

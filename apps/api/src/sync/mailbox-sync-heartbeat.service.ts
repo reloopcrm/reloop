@@ -1,3 +1,4 @@
+import { forEachTenant } from "@crm/db/tenancy";
 import {
 	Injectable,
 	Logger,
@@ -82,7 +83,7 @@ export class MailboxSyncHeartbeatService
 		this.running = true;
 
 		try {
-			await this.sync.runDue();
+			await forEachTenant(() => this.sync.runDue());
 		} catch (error) {
 			this.logger.error(
 				{ message: "Mailbox sync heartbeat failed" },
@@ -95,7 +96,7 @@ export class MailboxSyncHeartbeatService
 
 	private async writeFollowUps(): Promise<void> {
 		try {
-			await this.winBack.sweep();
+			await forEachTenant(() => this.winBack.sweep());
 		} catch (error) {
 			this.logger.error(
 				{ message: "Win back follow-up sweep failed" },
@@ -106,8 +107,10 @@ export class MailboxSyncHeartbeatService
 
 	private async refreshRates(): Promise<void> {
 		try {
-			const refresh = await this.rates.refresh();
-			if (refresh.ok) await this.conversion.fillMissing();
+			await forEachTenant(async () => {
+				const refresh = await this.rates.refresh();
+				if (refresh.ok) await this.conversion.fillMissing();
+			});
 		} catch (error) {
 			this.logger.error(
 				{ message: "Exchange rate heartbeat failed" },

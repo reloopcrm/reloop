@@ -127,6 +127,38 @@ reads it too: `system.update` answers `refused` and `system.version` reports
 `updaterAvailable: false`, even when an updater answers. Declared in
 `env.validation.ts`, the root `turbo.json` and `apps/app/turbo.json`.
 
+## `RELOOP_REGISTRY_URL` and `RELOOP_TENANT_DATABASE_URL_TEMPLATE`, off by default
+
+Hosted mode: one Postgres database per customer, one API process for all of them.
+Both are unset on a self-hosted install, which then runs as one workspace on
+`DATABASE_URL` and reads none of this.
+
+- **`RELOOP_REGISTRY_URL`** names the registry, a small Postgres database with three
+  tables (`tenant`, `tenant_sign_in`, `tenant_site`), read through `pg` by
+  `packages/db/src/tenancy.ts`. `ensureRegistrySchema()` creates them; the SQL is
+  idempotent. Setting the variable is what turns hosted mode on: `isHosted()` in
+  `@crm/db/tenant-context` reads it on every call, never at import.
+- **`RELOOP_TENANT_DATABASE_URL_TEMPLATE`** is required in hosted mode and holds
+  `{db}`, replaced with the tenant's `db_name`. `DATABASE_URL` is not read.
+- **`db` from `@crm/db` is a Proxy** to the current tenant's `PrismaClient`, held in
+  an `AsyncLocalStorage` (`runAsTenant`, `currentTenant`). Outside a context it
+  throws `TenantContextMissing`. Clients live in a bounded LRU
+  (`TENANCY.clients.max`, `packages/db/src/tenancy-config.ts`).
+- **The tenant is resolved once per request**, in `tenantMiddleware`
+  (`apps/api/src/tenancy`), mounted before Nest so `/api/auth/*` is covered: the
+  API-key prefix `crm_<tenantId>_…`, then the signed `crm.tenant` cookie, then the
+  site id on `/api/t/config/:siteId`. The collector resolves the site id from its
+  body in its controller. `/health` and `/internal/*` carry no tenant: the cron
+  routes loop over every active tenant through `forEachTenant()`, one at a time,
+  and a failing tenant does not stop the others.
+- **`ALLOWED_SIGN_IN` is optional in hosted mode** and ignored: `allowList()` in
+  `packages/auth/src/workspace.ts` reads the tenant's `tenant_sign_in` rows.
+- **Off in hosted mode**: the stored OAuth credentials (`loadStoredOAuthApps`), the
+  self-restart after saving them (`unavailable`), and Google's `hd` hint.
+- **The guard `tools/tenancy-guard.ts`** runs with `bun run lint` and refuses
+  `new PrismaClient` outside `packages/db/src/client.ts` and a
+  `process.env.ALLOWED_SIGN_IN` read outside `workspace.ts`.
+
 ## `RELOOP_DEMO`, off by default
 
 A floating Play demo button drives a scripted tour of the real app with a fake

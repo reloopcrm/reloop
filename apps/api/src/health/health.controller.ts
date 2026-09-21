@@ -1,4 +1,6 @@
 import type { Db } from "@crm/db";
+import { pingRegistry } from "@crm/db/tenancy";
+import { isHosted } from "@crm/db/tenant-context";
 import {
 	Controller,
 	Get,
@@ -38,7 +40,8 @@ export class HealthController {
 		const startedAt = process.hrtime.bigint();
 
 		try {
-			await this.db.$queryRaw`SELECT 1`;
+			if (isHosted()) await pingRegistry();
+			else await this.db.$queryRaw`SELECT 1`;
 		} catch (error) {
 			this.logger.error(
 				{ message: "Database health check failed" },

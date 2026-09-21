@@ -82,7 +82,8 @@ bun run --filter=agent dispatch    # exact production path, both lanes, real cre
 ```
 
 Its printed `sessionIds` are research rows only, so a run that resolved forty logos
-prints an empty list and was not idle. `eve start` and Vercel do run the schedule.
+prints an empty list and was not idle. The built server (`bun run start`) and Vercel
+do run the schedule.
 
 ## `vercel env pull` writes `.env.local`, which wins
 

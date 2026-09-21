@@ -575,6 +575,31 @@ files a web form the same way, so this is not a hypothetical.
 
 `skills/data-boundaries.md` is the agent's copy. Keep them in step.
 
+## The container starts the built server itself, not `eve start`
+
+`scripts/start.ts` spawns `node .output/server/index.mjs` with `HOST`, `NITRO_HOST`,
+`NITRO_PORT` and `PORT`, cwd at the app root. It does not run `eve start`.
+
+**The starter held 3.5 GB for nothing.** `eve start`, which is
+`node_modules/eve/dist/src/internal/nitro/host/start-production-server.js`, does
+four things: loads `.env*` from the app root, runs `prewarmBuiltAppSandboxes`, picks
+a port, and spawns that same `node .output/server/index.mjs` with those same four
+variables. The prewarm bundles the whole agent source with rolldown for the sandbox
+template of the two subagents, and the parent keeps every server log line in one
+string that is never freed. Measured in the container: 3,550 MB RSS forever with the
+starter, 280 to 530 MB for the server alone. Nothing in `apps/agent` calls
+`getSandbox` (see [Sandbox](#sandbox)), so the template is never used. The day an
+authored tool asks for a sandbox again, the prewarm comes back with it. Cron, the
+local workflow world and dispatch live in the `.output` build, not in the starter;
+eve's own self-hosting guide says the schedule runner is Nitro's.
+
+eve's docs prescribe `eve build && eve start` and do not name `index.mjs`. So on
+**every eve upgrade**, diff `start-production-server.js` against the four steps
+above. A step the starter gains that the server needs moves into `scripts/start.ts`.
+
+`bun scripts/start.ts` runs under bun, so `process.execPath` is bun there; the
+script spawns `node` by name in that case, which is what eve did too.
+
 ## Sandbox
 
 **The root session has no sandbox tools.** `agent/tools/bash.ts`, `read_file.ts`,
@@ -951,8 +976,8 @@ point of it, and the reason it is a command you run rather than a ticker somebod
 leaves on. Watch the agent pane; the session ids it returns are also streamable at
 `GET /eve/v1/session/:id/stream`.
 
-`eve start` on a built app *does* run the schedule, and so does Vercel, where
-each `defineSchedule` becomes a Cron Job. Dev is the only place the clock is
+The built server (`bun run start`) *does* run the schedule, and so does Vercel,
+where each `defineSchedule` becomes a Cron Job. Dev is the only place the clock is
 missing.
 
 ### The continuation token you write is not the one you read

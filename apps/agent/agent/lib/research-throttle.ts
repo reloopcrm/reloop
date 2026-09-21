@@ -1,6 +1,6 @@
 import { db } from "@crm/db";
 import { DIRECT_KINDS } from "@crm/db/agent-tasks";
-import { clampResearchPerHour, limitsOf } from "@crm/db/plans";
+import { clampResearchPerHour, limitsOf, startOfMonth } from "@crm/db/plans";
 import {
 	AGENT_RESEARCH_PER_HOUR,
 	readAgentProvider,
@@ -51,5 +51,27 @@ export async function researchAllowance(
 		};
 	}
 
-	return { allowed: Math.min(batch, remaining), reason: null };
+	const perMonth = limits.researchSessionsPerMonth;
+	if (perMonth === null) {
+		return { allowed: Math.min(batch, remaining), reason: null };
+	}
+
+	const startedThisMonth = await db.agentTask.count({
+		where: {
+			kind: { notIn: [...DIRECT_KINDS] },
+			startedAt: { gte: startOfMonth(now) },
+		},
+	});
+	const monthRemaining = Math.max(0, perMonth - startedThisMonth);
+	if (monthRemaining === 0) {
+		return {
+			allowed: 0,
+			reason: `the research limit of ${perMonth} sessions per month is reached`,
+		};
+	}
+
+	return {
+		allowed: Math.min(batch, remaining, monthRemaining),
+		reason: null,
+	};
 }

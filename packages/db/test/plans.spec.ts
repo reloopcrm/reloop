@@ -159,10 +159,16 @@ describe("the pricing page", () => {
 describe("the trial plan", () => {
 	const limits = PLANS.trial;
 
-	it("runs fourteen days with one mailbox and a thousand conversations", () => {
+	it("runs fourteen days with one mailbox and five hundred conversations", () => {
 		expect(TRIAL_DAYS).toBe(14);
 		expect(limits.mailboxes).toBe(1);
-		expect(limits.insightsPerMonth).toBe(1_000);
+		expect(limits.insightsPerMonth).toBe(500);
+	});
+
+	it("caps drafts, research sessions and chat so a trial costs little", () => {
+		expect(limits.draftsPerMonth).toBe(20);
+		expect(limits.researchSessionsPerMonth).toBe(100);
+		expect(limits.chatPerMonth).toBe(200);
 	});
 
 	it("imports the last ninety days and at most five hundred conversations", () => {

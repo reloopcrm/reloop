@@ -79,7 +79,7 @@ describe("plan limits in the API", () => {
 			where: { source: { in: ["gmail", "outlook"] } },
 		});
 		const imap = await db.imapAccount.count();
-		if (already + imap > 0) return;
+		expect(already + imap).toBe(0);
 
 		const gmail = await state.ensure(reps[0] ?? "", "gmail", {
 			autoCreate: false,

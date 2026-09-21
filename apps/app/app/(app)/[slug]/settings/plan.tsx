@@ -57,7 +57,7 @@ export function Plan() {
 	const limitOf = (limit: number | null) =>
 		limit === null ? never : String(limit);
 	const usedOf = (used: number, limit: number | null) =>
-		t("{used} of {limit}", { used, limit: limitOf(limit) });
+		limit === null ? String(used) : t("{used} of {limit}", { used, limit });
 	const rows = [
 		{
 			what: t("Contacts"),

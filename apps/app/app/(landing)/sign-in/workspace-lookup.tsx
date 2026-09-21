@@ -11,13 +11,13 @@ import { useState } from "react";
 import { PRICING } from "@/components/landing/pricing/config";
 import { useT } from "@/lib/i18n/client";
 import { lookupWorkspace, type TenantRefusal } from "@/lib/tenant-api";
-import { PasswordSignIn } from "./password-sign-in";
 import { SocialSignIn } from "./social-sign-in";
 
 const REFUSALS = {
 	NO_WORKSPACE: "No workspace for this address.",
 	WORKSPACE_EXISTS: "A workspace for this address already exists.",
 	TOO_MANY_REQUESTS: "Too many tries. Wait a moment, then start again.",
+	NOT_HOSTED: "This server has no hosted workspaces.",
 	INVALID: "Check the address and try again.",
 	FAILED: "Could not reach the sign-in service.",
 } satisfies Record<TenantRefusal, string>;
@@ -41,21 +41,29 @@ export function WorkspaceLookup() {
 	}
 
 	if (found) {
-		const social = found.signIn.filter((method) => method !== "email");
-		const password = found.signIn.includes("email");
+		const providers = found.signIn.filter(
+			(method): method is "google" | "microsoft" => method !== "email",
+		);
 
 		return (
 			<div className="flex flex-col gap-4">
-				{password ? <PasswordSignIn /> : null}
-				<div className="flex flex-col gap-3">
-					{social.map((provider, index) => (
-						<SocialSignIn
-							key={provider}
-							provider={provider}
-							only={!password && index === 0}
-						/>
-					))}
-				</div>
+				{found.status === "suspended" ? (
+					<p role="status" className="text-body-foreground text-sm/6">
+						{t(
+							"The trial of this workspace has ended. Write to us and we switch it back on.",
+						)}
+					</p>
+				) : (
+					<div className="flex flex-col gap-3">
+						{providers.map((provider, index) => (
+							<SocialSignIn
+								key={provider}
+								provider={provider}
+								only={index === 0}
+							/>
+						))}
+					</div>
+				)}
 				<Button
 					type="button"
 					variant="ghost"

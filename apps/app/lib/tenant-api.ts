@@ -1,14 +1,13 @@
 import {
-	type TENANT_ERROR_CODES,
+	TENANT_SIGNUP_CODES,
 	type TenantLookupInput,
 	type TenantLookupResult,
 	type TenantSignupInput,
 	type TenantSignupResult,
-	tenantErrorBody,
 	tenantLookupResult,
 	tenantSignupResult,
 } from "@crm/validation/tenant-signup";
-import type { z } from "zod";
+import { z } from "zod";
 
 export const TENANT_API = {
 	lookup: "/api/tenant/lookup",
@@ -16,11 +15,18 @@ export const TENANT_API = {
 	status: { tooManyRequests: 429, invalid: 422 },
 } as const;
 
-export type TenantRefusal =
-	| (typeof TENANT_ERROR_CODES)[keyof typeof TENANT_ERROR_CODES]
-	| "TOO_MANY_REQUESTS"
-	| "INVALID"
-	| "FAILED";
+const REFUSAL_CODES = [
+	TENANT_SIGNUP_CODES.noWorkspace,
+	TENANT_SIGNUP_CODES.workspaceExists,
+	TENANT_SIGNUP_CODES.tooMany,
+	TENANT_SIGNUP_CODES.notHosted,
+	"INVALID",
+	"FAILED",
+] as const;
+
+export type TenantRefusal = (typeof REFUSAL_CODES)[number];
+
+const refusalBody = z.object({ code: z.enum(REFUSAL_CODES) });
 
 export type TenantOutcome<T> =
 	| { ok: true; data: T }
@@ -52,13 +58,13 @@ async function post<T>(
 	}
 
 	if (response.status === TENANT_API.status.tooManyRequests) {
-		return { ok: false, code: "TOO_MANY_REQUESTS" };
+		return { ok: false, code: TENANT_SIGNUP_CODES.tooMany };
 	}
 	if (response.status === TENANT_API.status.invalid) {
 		return { ok: false, code: "INVALID" };
 	}
 
-	const refused = tenantErrorBody.safeParse(json);
+	const refused = refusalBody.safeParse(json);
 	return { ok: false, code: refused.success ? refused.data.code : "FAILED" };
 }
 

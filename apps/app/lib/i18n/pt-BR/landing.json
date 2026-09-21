@@ -152,9 +152,10 @@
 	"Create your Reloop CRM workspace. 14 days free, no card, every plan.": "Crie seu espaço de trabalho no Reloop CRM. 14 dias grátis, sem cartão, em todos os planos.",
 	"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.": "Seu próprio Reloop CRM em um minuto. 14 dias grátis, sem cartão. Você escolhe o plano depois.",
 	"Your workspace is ready. Sign in to open it.": "Seu espaço de trabalho está pronto. Entre para abri-lo.",
-	"Check your inbox. We sent a sign-in link to {email}.": "Veja sua caixa de entrada. Enviamos um link de acesso para {email}.",
 	"Plan: {plan}.": "Plano: {plan}.",
 	"Change plan": "Mudar de plano",
 	"Check your details and try again.": "Verifique seus dados e tente de novo.",
-	"That did not work. Try again in a moment.": "Isso não funcionou. Tente de novo em instantes."
+	"That did not work. Try again in a moment.": "Isso não funcionou. Tente de novo em instantes.",
+	"The trial of this workspace has ended. Write to us and we switch it back on.": "O período de teste deste espaço de trabalho acabou. Escreva para nós e nós o reativamos.",
+	"This server has no hosted workspaces.": "Este servidor não tem espaços de trabalho hospedados."
 }

@@ -20,9 +20,12 @@ const REFUSALS = {
 	WORKSPACE_EXISTS: "A workspace for this address already exists.",
 	TOO_MANY_REQUESTS:
 		"Too many sign-ups from here. Wait a minute and try again.",
+	NOT_HOSTED: "This server has no hosted workspaces.",
 	INVALID: "Check your details and try again.",
 	FAILED: "That did not work. Try again in a moment.",
 } satisfies Record<TenantRefusal, string>;
+
+const OAUTH_PROVIDERS = ["google", "microsoft"] as const;
 
 export function SignupForm({ plan }: { plan: PlanId }) {
 	const t = useT();
@@ -52,22 +55,24 @@ export function SignupForm({ plan }: { plan: PlanId }) {
 		else setRefusal(outcome.code);
 	}
 
-	if (done?.next === "oauth" && done.provider) {
+	if (done) {
+		const providers = done.provider ? [done.provider] : OAUTH_PROVIDERS;
+
 		return (
 			<div className="flex flex-col gap-4">
 				<p role="status" className="text-body-foreground text-sm/6">
 					{t("Your workspace is ready. Sign in to open it.")}
 				</p>
-				<SocialSignIn provider={done.provider} only />
+				<div className="flex flex-col gap-3">
+					{providers.map((provider, index) => (
+						<SocialSignIn
+							key={provider}
+							provider={provider}
+							only={index === 0}
+						/>
+					))}
+				</div>
 			</div>
-		);
-	}
-
-	if (done) {
-		return (
-			<p role="status" className="text-body-foreground text-sm/6">
-				{t("Check your inbox. We sent a sign-in link to {email}.", { email })}
-			</p>
 		);
 	}
 

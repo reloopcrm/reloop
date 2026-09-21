@@ -152,9 +152,10 @@
 	"Create your Reloop CRM workspace. 14 days free, no card, every plan.": "创建你的 Reloop CRM 工作区。14 天免费，无需银行卡，所有套餐均可。",
 	"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.": "一分钟拥有你自己的 Reloop CRM。14 天免费，无需银行卡。套餐之后再选。",
 	"Your workspace is ready. Sign in to open it.": "你的工作区已就绪。登录即可打开。",
-	"Check your inbox. We sent a sign-in link to {email}.": "请查看收件箱。我们已向 {email} 发送登录链接。",
 	"Plan: {plan}.": "套餐：{plan}。",
 	"Change plan": "更改套餐",
 	"Check your details and try again.": "请检查你的信息后重试。",
-	"That did not work. Try again in a moment.": "操作失败。请稍后重试。"
+	"That did not work. Try again in a moment.": "操作失败。请稍后重试。",
+	"The trial of this workspace has ended. Write to us and we switch it back on.": "此工作区的试用已结束。给我们写信，我们会重新开通。",
+	"This server has no hosted workspaces.": "此服务器没有托管的工作区。"
 }

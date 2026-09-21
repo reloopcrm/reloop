@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
-	TENANT_ERROR_CODES,
-	tenantErrorBody,
+	TENANT_SIGNUP_CODES,
 	tenantLookupInput,
 	tenantLookupResult,
 	tenantSignupInput,
@@ -18,13 +17,14 @@ describe("tenant lookup", () => {
 		).toBe(false);
 	});
 
-	it("answers with the workspace and its sign-in methods", () => {
+	it("answers with the workspace, its status and its sign-in methods", () => {
 		expect(
 			tenantLookupResult.parse({
 				tenantId: "acme",
-				signIn: ["google", "email"],
+				signIn: ["google"],
+				status: "suspended",
 			}),
-		).toEqual({ tenantId: "acme", signIn: ["google", "email"] });
+		).toEqual({ tenantId: "acme", signIn: ["google"], status: "suspended" });
 		expect(
 			tenantLookupResult.safeParse({ tenantId: "acme", signIn: ["saml"] })
 				.success,
@@ -60,10 +60,10 @@ describe("tenant signup", () => {
 		).toBe(false);
 	});
 
-	it("answers with the next step", () => {
+	it("answers with the next step and the provider it guessed", () => {
 		expect(
-			tenantSignupResult.parse({ tenantId: "acme", next: "verify-email" }),
-		).toEqual({ tenantId: "acme", next: "verify-email" });
+			tenantSignupResult.parse({ tenantId: "acme", next: "oauth" }).provider,
+		).toBeUndefined();
 		expect(
 			tenantSignupResult.parse({
 				tenantId: "acme",
@@ -73,13 +73,12 @@ describe("tenant signup", () => {
 		).toBe("microsoft");
 	});
 
-	it("names the two refusals", () => {
-		expect(
-			tenantErrorBody.parse({ code: TENANT_ERROR_CODES.noWorkspace }),
-		).toEqual({ code: "NO_WORKSPACE" });
-		expect(
-			tenantErrorBody.parse({ code: TENANT_ERROR_CODES.workspaceExists }),
-		).toEqual({ code: "WORKSPACE_EXISTS" });
-		expect(tenantErrorBody.safeParse({ code: "TEAPOT" }).success).toBe(false);
+	it("names every refusal", () => {
+		expect(Object.values(TENANT_SIGNUP_CODES).sort()).toEqual([
+			"NOT_HOSTED",
+			"NO_WORKSPACE",
+			"TOO_MANY_REQUESTS",
+			"WORKSPACE_EXISTS",
+		]);
 	});
 });

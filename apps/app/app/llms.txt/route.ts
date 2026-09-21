@@ -20,9 +20,14 @@ const PAGES: readonly Entry[] = [
 		note: "What the product does and who it is for.",
 	},
 	{
+		title: "Pricing",
+		path: "/pricing",
+		note: "The plans, what each includes, and the 14 day trial.",
+	},
+	{
 		title: "Get started",
 		path: "/get-started",
-		note: "Install Reloop CRM on your own server with one command.",
+		note: "How to start with Reloop CRM, hosted or on your own server.",
 	},
 	{
 		title: "Open source",
@@ -37,7 +42,7 @@ const PAGES: readonly Entry[] = [
 	{
 		title: "Self-hosted CRM",
 		path: "/self-hosted-crm",
-		note: "The server, the disk and the domain a self-hosted install needs.",
+		note: "Install Reloop CRM on your own server with one command, and what the server needs.",
 	},
 	{
 		title: "Reloop CRM vs HubSpot",

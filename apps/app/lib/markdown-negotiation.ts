@@ -91,9 +91,9 @@ Every point stands on its own. You check it yourself.
 
 Reloop writes the draft. Sending stays with you.
 
-## Open code. Your server.
+## Try it on your own mailbox.
 
-Reloop CRM runs on your server, under GNU AGPL v3.
+14 days free, no card. From 39 € a month after that. See the plans at https://reloopcrm.com/pricing.
 
 ## Where to go next
 

@@ -11,7 +11,7 @@ export function BentoCard({
 	return (
 		<div
 			className={cn(
-				"flex flex-col overflow-clip rounded-lg border border-border bg-card p-7",
+				"flex flex-col gap-2 overflow-clip rounded-lg border border-border bg-card p-6",
 				className,
 			)}
 		>
@@ -31,12 +31,12 @@ export function CardHeading({ title, body }: { title: string; body: string }) {
 
 export function CardTitle({ children }: { children: React.ReactNode }) {
 	return (
-		<h3 className="text-balance font-medium text-[19px]/[26px] tracking-tight">
+		<h3 className="text-balance font-semibold text-foreground text-xl">
 			{children}
 		</h3>
 	);
 }
 
 export function CardBody({ children }: { children: React.ReactNode }) {
-	return <p className="text-muted-foreground text-sm/[23px]">{children}</p>;
+	return <p className="text-muted-foreground">{children}</p>;
 }

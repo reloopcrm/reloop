@@ -23,6 +23,7 @@ export const PROXY = {
 		"/vs/hubspot",
 		"/for/freight-forwarding",
 		"/get-started",
+		"/pricing",
 	],
 	ungated: ["/grant-access", "/eve"],
 	sections: ["/companies", "/contacts", "/deals", "/win-back", "/settings"],

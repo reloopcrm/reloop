@@ -1,15 +1,19 @@
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
 import { BentoCard, CardHeading } from "@/components/landing/bento-card";
+import { CopyCommand } from "@/components/landing/copy-command";
 import { Faq } from "@/components/landing/faq";
 import { LandingShell } from "@/components/landing/landing-shell";
 import {
 	CardGrid,
 	ClosingCta,
+	CloudBanner,
 	PageHero,
 	PageSection,
+	PRICING,
 	Prose,
 } from "@/components/landing/page-blocks";
+import { INSTALL_COMMAND } from "@/components/landing/site";
 
 export const metadata: Metadata = {
 	title: "Self-hosted CRM: costs, requirements, setup",
@@ -65,11 +69,15 @@ export default function SelfHostedCrmPage() {
 			<PageHero
 				title="Run your CRM on a server you control"
 				lede="A self-hosted CRM costs a small server and a few hours a year. Here is what you need, what it costs, and how backups and updates work."
+				actions={null}
 			/>
+
+			<CloudBanner />
 
 			<PageSection
 				title="What you need"
 				lede="Four things. The installer takes care of the rest."
+				tone="secondary"
 			>
 				<CardGrid>
 					{NEEDS.map((need) => (
@@ -109,7 +117,7 @@ export default function SelfHostedCrmPage() {
 				</Prose>
 			</PageSection>
 
-			<PageSection title="Backups">
+			<PageSection title="Backups" tone="secondary">
 				<Prose>
 					<p>
 						Everything lives in the{" "}
@@ -123,7 +131,13 @@ export default function SelfHostedCrmPage() {
 				</Prose>
 			</PageSection>
 
-			<PageSection title="What the installer does">
+			<PageSection
+				title="What the installer does"
+				lede="One command installs everything with Docker. It asks for a domain, an email and a password."
+			>
+				<div className="w-full max-w-(--container-page)">
+					<CopyCommand command={INSTALL_COMMAND} />
+				</div>
 				<Prose>
 					<p>
 						It installs into{" "}
@@ -131,20 +145,20 @@ export default function SelfHostedCrmPage() {
 						generates the secrets with openssl, writes deploy/.env with
 						permissions 600, pulls the images and creates the owner account.
 						Running it again keeps your .env file and never touches the database
-						volume. The command is on the{" "}
-						<Link href="/get-started">get started page</Link>.
+						volume.
 					</p>
 				</Prose>
 			</PageSection>
 
-			<PageSection title="Self-hosted or hosted?">
+			<PageSection title="Self-hosted or hosted?" tone="secondary">
 				<Prose>
 					<p>
 						A hosted CRM gives you no server to run and a support desk to call.
-						If nobody on the team will open a terminal, wait for the hosted
-						Reloop CRM. It is not open yet. The{" "}
-						<Link href="/vs/hubspot">comparison with HubSpot</Link> lays the two
-						side by side.
+						If nobody on the team will open a terminal, Reloop Cloud does it for
+						you. The plans are on the{" "}
+						<Link href={PRICING.href}>pricing page</Link>, and the{" "}
+						<Link href="/vs/hubspot">comparison with HubSpot</Link> lays hosted
+						and self-hosted side by side.
 					</p>
 				</Prose>
 			</PageSection>
@@ -153,10 +167,8 @@ export default function SelfHostedCrmPage() {
 
 			<ClosingCta
 				title="Your server. Your data. Your CRM."
-				links={[
-					{ href: "/get-started", label: "Get started" },
-					{ href: "/docs", label: "Read the docs" },
-				]}
+				tone="secondary"
+				secondary={{ href: "/docs", label: "Read the docs" }}
 			/>
 		</LandingShell>
 	);

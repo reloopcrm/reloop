@@ -1,6 +1,6 @@
 export const HOME = {
 	href: {
-		start: "/get-started",
+		start: "/pricing",
 		change: "/sign-in",
 	},
 	iconSize: 24,

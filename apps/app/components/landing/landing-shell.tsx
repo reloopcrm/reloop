@@ -14,6 +14,7 @@ export async function LandingShell({
 	const t = await getT();
 
 	const productLinks = [
+		{ href: "/pricing", label: t("Pricing") },
 		{ href: "/docs", label: t("Docs") },
 		{ href: "/get-started", label: t("Get started") },
 		{ href: "/sign-in", label: t("Sign in") },
@@ -41,22 +42,17 @@ export async function LandingShell({
 						<Wordmark className="h-5 w-auto" />
 					</NextLink>
 					<div className="grow" />
+					<Link variant="quiet" href="/pricing">
+						{t("Pricing")}
+					</Link>
 					<Link variant="quiet" href="/docs">
 						{t("Docs")}
-					</Link>
-					<Link
-						variant="quiet"
-						href={REPO_URL}
-						target="_blank"
-						rel="noreferrer"
-					>
-						GitHub
 					</Link>
 					<Link variant="quiet" href="/sign-in">
 						{t("Sign in")}
 					</Link>
-					<Button variant="outline" size="sm" asChild>
-						<NextLink href="/get-started">{t("Get started")}</NextLink>
+					<Button size="pill-sm" asChild>
+						<NextLink href="/pricing">{t("Start free trial")}</NextLink>
 					</Button>
 				</nav>
 			</header>
@@ -68,7 +64,7 @@ export async function LandingShell({
 					<div className="flex shrink-0 flex-col items-start gap-4">
 						<Wordmark className="h-5 w-auto" />
 						<p className="text-[13px]/[21px] text-muted-foreground">
-							{t("The open-source, self-hosted CRM.")}
+							{t("The CRM that wins old customers back.")}
 						</p>
 					</div>
 

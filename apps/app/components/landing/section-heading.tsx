@@ -1,3 +1,5 @@
+import { Display } from "@crm/ui/components/display";
+
 export function SectionHeading({
 	title,
 	lede,
@@ -6,12 +8,14 @@ export function SectionHeading({
 	lede?: string;
 }) {
 	return (
-		<div className="flex max-w-(--container-page) flex-col gap-4">
-			<h2 className="text-balance font-semibold text-4xl/[42px] tracking-tight md:text-[44px]/[50px]">
-				{title}
-			</h2>
+		<div className="flex w-full flex-col items-center gap-6 text-center">
+			<Display size="title" asChild>
+				<h2 className="max-w-(--container-page)">{title}</h2>
+			</Display>
 			{lede ? (
-				<p className="text-muted-foreground text-lg/[29px]">{lede}</p>
+				<p className="max-w-(--container-sheet) text-pretty text-body-foreground text-lg md:text-xl">
+					{lede}
+				</p>
 			) : null}
 		</div>
 	);

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.18.0](https://github.com/reloopcrm/reloop/compare/v0.17.0...v0.18.0) (2026-09-21)
+
+
+### Features
+
+* **agent:** the agent serves every tenant, fixed AI on included plans, plan limits and history retention ([#45](https://github.com/reloopcrm/reloop/issues/45)) ([781465c](https://github.com/reloopcrm/reloop/commit/781465c4365788d418286d1ff5843863d2b5b7bc))
+* **api:** hosted multi-tenant foundation behind RELOOP_REGISTRY_URL ([#41](https://github.com/reloopcrm/reloop/issues/41)) ([eabdd5b](https://github.com/reloopcrm/reloop/commit/eabdd5b558a1bf96c40750e340d3b6309a5f3b4a))
+* **api:** tenant loops run in parallel with a budget, and the plan and session gaps close ([#43](https://github.com/reloopcrm/reloop/issues/43)) ([7d701f2](https://github.com/reloopcrm/reloop/commit/7d701f22de4ba8b2bfdbf320d3325b680f6d4e76))
+* **api:** tenant signup, provisioning, trial expiry, nightly backups and deletion for hosted mode ([#44](https://github.com/reloopcrm/reloop/issues/44)) ([ed5b7e9](https://github.com/reloopcrm/reloop/commit/ed5b7e999f11ef72370508ec26b3403e4395f66a))
+* **app:** email-first sign-in, sign-up form and tenant context in hosted mode ([#42](https://github.com/reloopcrm/reloop/issues/42)) ([44f7841](https://github.com/reloopcrm/reloop/commit/44f7841cd386334bfe877b13e3e6d772a3773008))
+
+
+### Fixes
+
+* **app:** the eve bridge refuses a session without a conversation row owned by the caller ([#39](https://github.com/reloopcrm/reloop/issues/39)) ([05886a1](https://github.com/reloopcrm/reloop/commit/05886a18b17d752f8185511071753d012bd00fd1))
+* **db:** plan ids match the pricing page, and the contact trigger knows every plan ([#38](https://github.com/reloopcrm/reloop/issues/38)) ([7af931c](https://github.com/reloopcrm/reloop/commit/7af931cbf30e1ca462e23145a8dc903f2ab789a2))
+
 ## [0.17.0](https://github.com/reloopcrm/reloop/compare/v0.16.0...v0.17.0) (2026-09-21)
 
 

@@ -66,6 +66,10 @@ drops them looks foreign. Body tracking is `-0.011em`. Display sizes take
 misleading name. Past 590 the second lever is colour: `foreground`,
 `body-foreground`, `muted-foreground`, `faint-foreground`.
 
+One exception, for the public site only: `Display` from `packages/ui` sets landing
+headlines in weight 900 through `font-display`. The app never uses it. A screen
+inside the product that reaches for `Display` is wrong.
+
 `font-mono` is for identifiers, keyboard shortcuts and technical metadata. Never for
 a heading.
 

@@ -17,7 +17,7 @@ const buttonVariants = cva(
 				secondary:
 					"border-border bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
 				ghost:
-					"hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+					"hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground dark:hover:bg-muted/50",
 				destructive:
 					"bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklch,var(--destructive),black_12%)] active:bg-[color-mix(in_oklch,var(--destructive),black_22%)] focus-visible:ring-destructive/50",
 				contrast:
@@ -35,6 +35,8 @@ const buttonVariants = cva(
 				"icon-xs": "size-6 rounded-sm [&_svg:not([class*='size-'])]:size-3",
 				"icon-sm": "size-7",
 				"icon-lg": "size-9",
+				pill: "h-11 gap-2 rounded-full px-6 text-base",
+				"pill-sm": "h-9 gap-1.5 rounded-full px-4 text-sm",
 			},
 			align: {
 				center: "",

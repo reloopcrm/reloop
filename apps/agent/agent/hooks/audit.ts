@@ -28,12 +28,12 @@ const completedMessage = z
 export default defineHook({
 	events: {
 		async "*"(event, ctx) {
-			return withTenant(ctx, async () => {
-				const id = event.meta?.id;
+			const id = event.meta?.id;
 
-				if (!id || isTransportOnlyEvent(event.type)) return;
+			if (!id || isTransportOnlyEvent(event.type)) return;
 
-				try {
+			try {
+				await withTenant(ctx, async () => {
 					const data = (
 						"data" in event ? (event.data ?? {}) : {}
 					) as Prisma.InputJsonObject;
@@ -66,13 +66,13 @@ export default defineHook({
 							await persistRunEvent(tx, id, event.type, data, emittedAt, ctx);
 						}
 					});
-				} catch (error) {
-					console.warn("[audit] could not record event", {
-						type: event.type,
-						reason: error instanceof Error ? error.message : String(error),
-					});
-				}
-			});
+				});
+			} catch (error) {
+				console.warn("[audit] could not record event", {
+					type: event.type,
+					reason: error instanceof Error ? error.message : String(error),
+				});
+			}
 		},
 	},
 });

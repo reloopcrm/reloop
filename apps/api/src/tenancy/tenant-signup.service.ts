@@ -1,9 +1,5 @@
 import { randomBytes } from "node:crypto";
-import {
-	isGoogleConfigured,
-	isMicrosoftConfigured,
-	isPasswordSignInConfigured,
-} from "@crm/auth";
+import { isGoogleConfigured, isMicrosoftConfigured } from "@crm/auth";
 import { dbNameOf, provisionTenant } from "@crm/db/provision";
 import { tenantById, tenantBySignIn } from "@crm/db/tenancy";
 import { TENANCY } from "@crm/db/tenancy-config";
@@ -29,7 +25,6 @@ export class TenantSignupService {
 		const methods: TenantSignInMethod[] = [];
 		if (isGoogleConfigured()) methods.push("google");
 		if (isMicrosoftConfigured()) methods.push("microsoft");
-		if (isPasswordSignInConfigured()) methods.push("email");
 		return methods;
 	}
 

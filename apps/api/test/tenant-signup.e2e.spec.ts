@@ -122,7 +122,7 @@ describe("tenant signup, lookup and activation", () => {
 		expect(response.status).toBe(200);
 		expect(response.body.tenantId).toBe(TEST_TENANTS.a.id);
 		expect(response.body.status).toBe("active");
-		expect(response.body.signIn).toContain("email");
+		expect(response.body.signIn).not.toContain("email");
 		expect(cookieOf(response)).toStartWith(
 			`${TENANT_COOKIE_NAME}=${TEST_TENANTS.a.id}.`,
 		);

@@ -24,8 +24,13 @@ Object.defineProperty(navigator, "clipboard", {
 	},
 });
 
-mock.module("sonner", () => ({ toast: { success, error, info } }));
+const sonner = { ...(await import("sonner")) };
+const client = { ...(await import("../lib/trpc/client")) };
+const reactQuery = { ...(await import("@tanstack/react-query")) };
+
+mock.module("sonner", () => ({ ...sonner, toast: { success, error, info } }));
 mock.module("../lib/trpc/client", () => ({
+	...client,
 	useTRPC: () => ({
 		contacts: {
 			draft: {
@@ -48,6 +53,7 @@ const draftState = () => ({
 	queued: false,
 });
 mock.module("@tanstack/react-query", () => ({
+	...reactQuery,
 	useQuery: ({ queryKey }: { queryKey: string[] }) => ({
 		data: queryKey[0] === "draft" ? draftState() : { rules: [] },
 	}),
@@ -76,6 +82,9 @@ afterEach(async () => {
 });
 afterAll(() => {
 	mock.restore();
+	mock.module("sonner", () => sonner);
+	mock.module("../lib/trpc/client", () => client);
+	mock.module("@tanstack/react-query", () => reactQuery);
 	GlobalRegistrator.unregister();
 });
 

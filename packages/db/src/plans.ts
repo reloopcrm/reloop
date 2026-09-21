@@ -34,7 +34,7 @@ export type PlanLimits = {
 };
 
 export const NO_PLAN: PlanLimits = {
-	label: "Ohne Grenze",
+	label: "No limit",
 	contacts: null,
 	mailboxes: null,
 	importMonths: null,

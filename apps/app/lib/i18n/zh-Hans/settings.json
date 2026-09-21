@@ -202,5 +202,10 @@
 	"Email drafts": "邮件草稿",
 	"Company research runs": "公司调研次数",
 	"Chat messages": "聊天消息",
-	"Agent builder messages": "代理构建器消息"
+	"Agent builder messages": "代理构建器消息",
+	"{used} of {limit}": "{used} / {limit}",
+	"Imported conversations": "已导入的往来邮件",
+	"Email drafts per month": "每月邮件草稿数",
+	"Storage": "存储",
+	"{count} GB": "{count} GB"
 }

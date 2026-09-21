@@ -202,5 +202,10 @@
 	"Email drafts": "E-Mail-Entwürfe",
 	"Company research runs": "Firmen-Recherchen",
 	"Chat messages": "Chat-Nachrichten",
-	"Agent builder messages": "Agent-Builder-Nachrichten"
+	"Agent builder messages": "Agent-Builder-Nachrichten",
+	"{used} of {limit}": "{used} von {limit}",
+	"Imported conversations": "Importierte Unterhaltungen",
+	"Email drafts per month": "E-Mail-Entwürfe pro Monat",
+	"Storage": "Speicher",
+	"{count} GB": "{count} GB"
 }

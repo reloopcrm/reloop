@@ -39,20 +39,25 @@ try {
 	await first.query("CREATE TABLE contact (id text PRIMARY KEY)");
 	await first.query('INSERT INTO "appSetting" VALUES ($1, $2)', [
 		"app",
-		"test",
+		"trial",
 	]);
 	await first.query("INSERT INTO contact SELECT generate_series(1, $1)::text", [
-		PLANS.test.contacts - 1,
+		PLANS.trial.contacts - 1,
 	]);
-	await first.query(
-		await readFile(
-			new URL(
-				"../prisma/migrations/20260913000000_enforce_contact_plan_limit/migration.sql",
-				import.meta.url,
+	for (const migration of [
+		"20260913000000_enforce_contact_plan_limit",
+		"20260921120000_plan_ids",
+	]) {
+		await first.query(
+			await readFile(
+				new URL(
+					`../prisma/migrations/${migration}/migration.sql`,
+					import.meta.url,
+				),
+				"utf8",
 			),
-			"utf8",
-		),
-	);
+		);
+	}
 	const results = await Promise.allSettled(
 		clients.map((client, index) =>
 			client.query("INSERT INTO contact VALUES ($1)", [`parallel-${index}`]),
@@ -67,7 +72,7 @@ try {
 	assert.equal(rejected.reason.code, "23514");
 	assert.equal(rejected.reason.message, CONTACT_LIMIT_MESSAGE);
 	const count = await first.query("SELECT count(*)::int AS total FROM contact");
-	assert.equal(count.rows[0].total, PLANS.test.contacts);
+	assert.equal(count.rows[0].total, PLANS.trial.contacts);
 	await first.query(
 		"INSERT INTO contact VALUES ('1') ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id",
 	);
@@ -78,7 +83,7 @@ try {
 	assert.equal(
 		(await first.query("SELECT count(*)::int AS total FROM contact")).rows[0]
 			.total,
-		PLANS.test.contacts,
+		PLANS.trial.contacts,
 	);
 	console.log(
 		`Parallel contact limit check passes. Test records remain in schema ${schema}.`,

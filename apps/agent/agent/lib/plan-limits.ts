@@ -1,8 +1,7 @@
 import { db, type Prisma } from "@crm/db";
-import { planIdOf } from "@crm/db/plan-usage";
+import { fixedAiFor, planIdOf } from "@crm/db/plan-usage";
 import {
 	DRAFT_KIND,
-	fixedAiFor,
 	INSIGHT_KIND,
 	limitsOf,
 	monthlyBudget,

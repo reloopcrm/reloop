@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { MODEL_PRICES } from "../src/model-prices";
+import { fixedAiFor } from "../src/plan-usage";
 import {
 	allowsCompanyResearch,
 	COMPANY_RESEARCH_KINDS,
@@ -8,7 +9,6 @@ import {
 	clampImportSince,
 	clampResearchPerHour,
 	DRAFT_KIND,
-	fixedAiFor,
 	INSIGHT_KIND,
 	isPlanId,
 	LEGACY_PLAN_IDS,

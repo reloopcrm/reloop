@@ -1,7 +1,6 @@
 import type { Db } from "./client";
 import {
 	DRAFT_KIND,
-	fixedAiFor,
 	INSIGHT_KIND,
 	limitsOf,
 	type PlanLimits,
@@ -15,6 +14,10 @@ export async function planIdOf(db: Db): Promise<string | null> {
 	const stored = await readPlan(db);
 	if (stored) return stored;
 	return isHosted() ? currentTenant().plan : null;
+}
+
+export function fixedAiFor(plan: string | null | undefined): boolean {
+	return isHosted() && limitsOf(plan).aiIncluded;
 }
 
 export async function planLimitsOf(db: Db): Promise<PlanLimits> {

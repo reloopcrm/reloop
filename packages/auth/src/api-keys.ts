@@ -2,15 +2,14 @@ import { randomInt } from "node:crypto";
 import { tenantId as tenantIdSchema } from "@crm/db/tenancy";
 import { currentTenantId } from "@crm/db/tenant-context";
 
-export const API_KEY_HEADER = "x-api-key";
-export const API_KEY_PREFIX = "crm_";
+import { API_KEY_PREFIX } from "./api-key-config";
 
-export const DAY_SECONDS = 24 * 60 * 60;
-
-export const API_KEY_EXPIRATION = {
-	minDays: 1,
-	maxDays: 365,
-} as const;
+export {
+	API_KEY_EXPIRATION,
+	API_KEY_HEADER,
+	API_KEY_PREFIX,
+	DAY_SECONDS,
+} from "./api-key-config";
 
 const ALPHABET =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

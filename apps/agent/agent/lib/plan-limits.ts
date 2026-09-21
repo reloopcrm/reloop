@@ -6,10 +6,10 @@ import {
 	INSIGHT_KIND,
 	limitsOf,
 	monthlyBudget,
-	monthStart,
 	nextMonthStart,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
+	startOfMonth,
 } from "@crm/db/plans";
 
 export function planId(): Promise<string | null> {
@@ -35,7 +35,7 @@ export async function monthlyUsed(
 	now: Date = new Date(),
 	exceptTaskId: string | null = null,
 ): Promise<number> {
-	const since = monthStart(now);
+	const since = startOfMonth(now);
 	const where: Prisma.AgentTaskWhereInput = COUNTED_BY_FINISH.has(kind)
 		? { kind, finishedAt: { gte: since } }
 		: { kind, createdAt: { gte: since } };

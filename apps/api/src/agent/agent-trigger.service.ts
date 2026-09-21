@@ -10,7 +10,6 @@ import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { planIdOf } from "@crm/db/plan-usage";
 import {
 	allowsCompanyResearch,
-	INSIGHT_KIND,
 	limitsOf,
 	monthlyBudget,
 	startOfMonth,
@@ -603,7 +602,7 @@ export class AgentTriggerService {
 			return false;
 		}
 
-		const budget = kind === INSIGHT_KIND ? monthlyBudget(kind, limits) : null;
+		const budget = monthlyBudget(kind, limits);
 		if (budget === null) return true;
 
 		const used = await this.db.agentTask.count({

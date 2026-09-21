@@ -236,10 +236,6 @@ export function monthlyBudget(kind: string, limits: PlanLimits): number | null {
 	return null;
 }
 
-export function monthStart(now: Date = new Date()): Date {
-	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-}
-
 export function nextMonthStart(now: Date = new Date()): Date {
 	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 }

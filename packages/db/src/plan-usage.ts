@@ -4,9 +4,9 @@ import {
 	fixedAiFor,
 	INSIGHT_KIND,
 	limitsOf,
-	monthStart,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
+	startOfMonth,
 } from "./plans";
 import { readPlan } from "./settings";
 import { currentTenant, isHosted } from "./tenant-context";
@@ -73,7 +73,7 @@ export async function readMonthlyUsage(
 	db: Db,
 	now: Date = new Date(),
 ): Promise<MonthlyUsage> {
-	const since = monthStart(now);
+	const since = startOfMonth(now);
 	const count = (kind: string) =>
 		db.agentTask.count({ where: { kind, createdAt: { gte: since } } });
 

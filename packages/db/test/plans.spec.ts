@@ -14,12 +14,12 @@ import {
 	LEGACY_PLAN_IDS,
 	limitsOf,
 	monthlyBudget,
-	monthStart,
 	NO_PLAN,
 	nextMonthStart,
 	PLAN_IDS,
 	PLANS,
 	RESEARCH_RUN_KIND,
+	startOfMonth,
 	TRIAL_DAYS,
 } from "../src/plans";
 
@@ -145,7 +145,7 @@ describe("the pricing page", () => {
 	});
 
 	it("counts a month from its first day in UTC", () => {
-		expect(monthStart(now).toISOString()).toBe("2026-09-01T00:00:00.000Z");
+		expect(startOfMonth(now).toISOString()).toBe("2026-09-01T00:00:00.000Z");
 		expect(nextMonthStart(now).toISOString()).toBe("2026-10-01T00:00:00.000Z");
 		expect(monthlyBudget(RESEARCH_RUN_KIND, PLANS.trial)).toBeNull();
 		expect(fixedAiFor("start")).toBe(false);

@@ -26,7 +26,7 @@ export type AuthContext = {
 const attributeText = z.string().trim().min(1).nullable().catch(null);
 
 export function tenantIdOf(ctx: AuthContext | null | undefined): string | null {
-	const auth = ctx?.session.auth;
+	const auth = ctx?.session?.auth;
 	return (
 		attributeText.parse(auth?.current?.attributes?.[TENANT_ATTRIBUTE]) ??
 		attributeText.parse(auth?.initiator?.attributes?.[TENANT_ATTRIBUTE])

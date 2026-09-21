@@ -18,6 +18,12 @@ import { USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
 import { DEAL_STAGES } from "@crm/db/deal-stage";
 import { readModelSpend } from "@crm/db/model-spend";
 import {
+	fixedAiWith,
+	planIdOf,
+	readMonthlyUsage,
+	usageLines,
+} from "@crm/db/plan-usage";
+import {
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	isPlanId,
@@ -26,12 +32,6 @@ import {
 	PLANS,
 	startOfMonth,
 } from "@crm/db/plans";
-import {
-	fixedAiWith,
-	planIdOf,
-	readMonthlyUsage,
-	usageLines,
-} from "@crm/db/plan-usage";
 import { readProviderUsage } from "@crm/db/provider-usage";
 import { openSecret, sealSecret, secretKey } from "@crm/db/secrets";
 import {

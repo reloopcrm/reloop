@@ -1,29 +1,51 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { disconnectAll } from "@crm/db/client";
-import { closeRegistry, type Tenant } from "@crm/db/tenancy";
+import type { Tenant } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
-import { prepareTestTenants } from "@crm/db/test-tenants";
+import { databaseName, testDatabaseUrl } from "@crm/db/test-database";
 import { forgetInstall, readInstall, syncVersion } from "../src/install";
 
 const runId = process.env.TEST_RUN_ID ?? "spec";
 
-describe("the install row in hosted mode", () => {
+const tenantOf = (id: string, dbName: string): Tenant => ({
+	id,
+	slug: id,
+	dbName,
+	plan: "trial",
+	status: "active",
+	aiMode: "operator",
+	signIn: "google",
+	createdAt: new Date("2026-09-21T00:00:00.000Z"),
+	trialEndsAt: null,
+	deletedAt: null,
+	allowList: [`${id}.example`],
+});
+
+describe("the install cache in hosted mode", () => {
 	const saved = {
 		registry: process.env.RELOOP_REGISTRY_URL,
 		template: process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE,
 	};
-	let a: Tenant;
-	let b: Tenant;
+	const url = testDatabaseUrl(process.env);
+	const shared = databaseName(url);
+	const a = tenantOf(`install-a-${runId}`, shared);
+	const b = tenantOf(`install-b-${runId}`, shared);
+	let before: string | undefined;
 
 	beforeAll(async () => {
-		({ a, b } = await prepareTestTenants());
+		before = (await readInstall())?.version;
 		forgetInstall();
+		process.env.RELOOP_REGISTRY_URL = "postgresql://unused/registry";
+		process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE = url.replace(
+			`/${shared}`,
+			"/{db}",
+		);
 	});
 
 	afterAll(async () => {
-		forgetInstall();
+		if (before) await runAsTenant(a, () => syncVersion(before));
 		await disconnectAll();
-		await closeRegistry();
+		forgetInstall();
 		if (saved.registry === undefined) delete process.env.RELOOP_REGISTRY_URL;
 		else process.env.RELOOP_REGISTRY_URL = saved.registry;
 		if (saved.template === undefined)
@@ -32,18 +54,18 @@ describe("the install row in hosted mode", () => {
 	});
 
 	it("remembers one row per tenant, never the neighbour's", async () => {
-		const versionA = `a-${runId}`;
-		const versionB = `b-${runId}`;
-
-		const wroteA = await runAsTenant(a, () => syncVersion(versionA));
-		const wroteB = await runAsTenant(b, () => syncVersion(versionB));
-		const readA = await runAsTenant(a, () => readInstall());
+		const wroteA = await runAsTenant(a, () => syncVersion(`a-${runId}`));
 		const readB = await runAsTenant(b, () => readInstall());
+		const readA = await runAsTenant(a, () => readInstall());
+		const readBAgain = await runAsTenant(b, () => readInstall());
 
-		expect(wroteA?.version).toBe(versionA);
-		expect(wroteB?.version).toBe(versionB);
+		expect(wroteA?.version).toBe(`a-${runId}`);
 		expect(readA).toBe(wroteA);
-		expect(readB).toBe(wroteB);
-		expect(readA?.uuid).not.toBe(readB?.uuid);
+		expect(readB).not.toBe(wroteA);
+		expect(readBAgain).toBe(readB);
+	});
+
+	it("answers null outside a tenant context instead of throwing", async () => {
+		expect(await readInstall()).toBeNull();
 	});
 });

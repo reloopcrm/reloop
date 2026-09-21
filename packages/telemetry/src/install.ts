@@ -38,12 +38,14 @@ function state(): Remembered {
 }
 
 export async function readInstall(): Promise<Install | null> {
-	const entry = state();
-	if (entry.install) return entry.install;
-	if (entry.missingSince && Date.now() - entry.missingSince < MISSING_FOR_MS)
-		return null;
+	let entry: Remembered | undefined;
 
 	try {
+		entry = state();
+		if (entry.install) return entry.install;
+		if (entry.missingSince && Date.now() - entry.missingSince < MISSING_FOR_MS)
+			return null;
+
 		const row = await db.install.findUnique({
 			where: { id: INSTALL_ID },
 			select: SELECT,
@@ -54,7 +56,7 @@ export async function readInstall(): Promise<Install | null> {
 
 		return row;
 	} catch {
-		entry.missingSince = Date.now();
+		if (entry) entry.missingSince = Date.now();
 		return null;
 	}
 }

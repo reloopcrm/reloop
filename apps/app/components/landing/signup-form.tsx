@@ -82,7 +82,7 @@ export function SignupForm({ plan }: { plan: PlanId }) {
 				});
 			}}
 		>
-			<Field>
+			<Field data-invalid={refusal !== null || undefined}>
 				<FieldLabel htmlFor={`${id}-email`}>{t("Work email")}</FieldLabel>
 				<Input
 					id={`${id}-email`}
@@ -92,30 +92,6 @@ export function SignupForm({ plan }: { plan: PlanId }) {
 					required
 					value={email}
 					onChange={(event) => setEmail(event.target.value)}
-				/>
-			</Field>
-
-			<Field>
-				<FieldLabel htmlFor={`${id}-name`}>{t("Your name")}</FieldLabel>
-				<Input
-					id={`${id}-name`}
-					name="name"
-					autoComplete="name"
-					required
-					value={name}
-					onChange={(event) => setName(event.target.value)}
-				/>
-			</Field>
-
-			<Field data-invalid={refusal !== null || undefined}>
-				<FieldLabel htmlFor={`${id}-company`}>{t("Company")}</FieldLabel>
-				<Input
-					id={`${id}-company`}
-					name="company"
-					autoComplete="organization"
-					required
-					value={company}
-					onChange={(event) => setCompany(event.target.value)}
 					aria-invalid={refusal !== null || undefined}
 				/>
 				{refusal ? (
@@ -131,6 +107,30 @@ export function SignupForm({ plan }: { plan: PlanId }) {
 						) : null}
 					</FieldError>
 				) : null}
+			</Field>
+
+			<Field>
+				<FieldLabel htmlFor={`${id}-name`}>{t("Your name")}</FieldLabel>
+				<Input
+					id={`${id}-name`}
+					name="name"
+					autoComplete="name"
+					required
+					value={name}
+					onChange={(event) => setName(event.target.value)}
+				/>
+			</Field>
+
+			<Field>
+				<FieldLabel htmlFor={`${id}-company`}>{t("Company")}</FieldLabel>
+				<Input
+					id={`${id}-company`}
+					name="company"
+					autoComplete="organization"
+					required
+					value={company}
+					onChange={(event) => setCompany(event.target.value)}
+				/>
 			</Field>
 
 			<p className="text-muted-foreground text-sm/6">

@@ -3,39 +3,46 @@ import { Link } from "@crm/ui/components/link";
 import Wordmark from "@crm/ui/components/wordmark";
 import NextLink from "next/link";
 import type * as React from "react";
+import { getT } from "@/lib/i18n/server";
 import { REPO_URL } from "./site";
 
-const PRODUCT_LINKS = [
-	{ href: "/docs", label: "Docs" },
-	{ href: "/get-started", label: "Get started" },
-	{ href: "/sign-in", label: "Sign in" },
-] as const;
+export async function LandingShell({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	const t = await getT();
 
-const READING_LINKS = [
-	{ href: "/self-hosted-crm", label: "Self-hosted CRM" },
-	{ href: "/open-source-crm", label: "Open source CRM" },
-	{ href: "/vs/hubspot", label: "Reloop vs HubSpot" },
-	{ href: "/for/freight-forwarding", label: "For freight forwarding" },
-	{ href: "/open-source", label: "Open source" },
-] as const;
+	const productLinks = [
+		{ href: "/docs", label: t("Docs") },
+		{ href: "/get-started", label: t("Get started") },
+		{ href: "/sign-in", label: t("Sign in") },
+	];
 
-const COMPANY_LINKS = [
-	{ href: "/about", label: "About" },
-	{ href: "/contact", label: "Contact" },
-	{ href: "/privacy", label: "Privacy" },
-] as const;
+	const readingLinks = [
+		{ href: "/self-hosted-crm", label: t("Self-hosted CRM") },
+		{ href: "/open-source-crm", label: t("Open source CRM") },
+		{ href: "/vs/hubspot", label: t("Reloop vs HubSpot") },
+		{ href: "/for/freight-forwarding", label: t("For freight forwarding") },
+		{ href: "/open-source", label: t("Open source") },
+	];
 
-export function LandingShell({ children }: { children: React.ReactNode }) {
+	const companyLinks = [
+		{ href: "/about", label: t("About") },
+		{ href: "/contact", label: t("Contact") },
+		{ href: "/privacy", label: t("Privacy") },
+	];
+
 	return (
 		<div className="dark flex min-h-svh w-full flex-col items-center bg-background font-sans text-foreground">
 			<header className="sticky top-0 z-10 flex h-16 w-full shrink-0 items-center justify-center border-border border-b bg-background">
 				<nav className="flex w-full max-w-(--container-page-wide) items-center gap-4 px-6 text-[13px]/6">
-					<NextLink href="/" aria-label="Reloop CRM home">
+					<NextLink href="/" aria-label={t("Reloop CRM home")}>
 						<Wordmark className="h-5 w-auto" />
 					</NextLink>
 					<div className="grow" />
 					<Link variant="quiet" href="/docs">
-						Docs
+						{t("Docs")}
 					</Link>
 					<Link
 						variant="quiet"
@@ -46,10 +53,10 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 						GitHub
 					</Link>
 					<Link variant="quiet" href="/sign-in">
-						Sign in
+						{t("Sign in")}
 					</Link>
 					<Button variant="outline" size="sm" asChild>
-						<NextLink href="/get-started">Get started</NextLink>
+						<NextLink href="/get-started">{t("Get started")}</NextLink>
 					</Button>
 				</nav>
 			</header>
@@ -61,13 +68,13 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 					<div className="flex shrink-0 flex-col items-start gap-4">
 						<Wordmark className="h-5 w-auto" />
 						<p className="text-[13px]/[21px] text-muted-foreground">
-							The open-source, self-hosted CRM.
+							{t("The open-source, self-hosted CRM.")}
 						</p>
 					</div>
 
 					<div className="flex shrink-0 gap-12">
 						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
-							{PRODUCT_LINKS.map((link) => (
+							{productLinks.map((link) => (
 								<Link variant="quiet" key={link.href} href={link.href}>
 									{link.label}
 								</Link>
@@ -83,7 +90,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 						</nav>
 
 						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
-							{READING_LINKS.map((link) => (
+							{readingLinks.map((link) => (
 								<Link variant="quiet" key={link.href} href={link.href}>
 									{link.label}
 								</Link>
@@ -91,7 +98,7 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 						</nav>
 
 						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
-							{COMPANY_LINKS.map((link) => (
+							{companyLinks.map((link) => (
 								<Link variant="quiet" key={link.href} href={link.href}>
 									{link.label}
 								</Link>

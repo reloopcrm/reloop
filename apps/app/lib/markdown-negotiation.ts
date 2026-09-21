@@ -65,27 +65,35 @@ const LINKS = [
 export function landingMarkdown(): string {
 	return `# Reloop CRM
 
-Win back the customers you already have.
+Win back old customers.
 
-Reloop CRM reads years of mail in your inbox and shows which past customers are worth a call. Open source, on your own server.
+Reloop reads the mailbox you already have. And tells you which old customers you should call.
 
-## What it does
+## Your mailbox is enough
 
-### It starts in your mailbox
+Connect Gmail, Outlook or any IMAP mailbox. Reloop sends no mail. It reads along, scores every thread point by point and puts a draft in front of you. Sending stays with you.
 
-Connect Gmail, Outlook or any IMAP inbox. Every real conversation lands on the right contact and company.
+## 178 old customers. Worth a call.
 
-### Contacts stay clean
+Measured in one real installation: 13,821 threads read, 15,885 messages, 2,691 people, 2,537 companies. 64.5% of the threads held nothing for the business.
 
-Newsletters, no-reply addresses and your own colleagues never become contacts. What you delete stays deleted.
+## It reads. You decide.
 
-### It tells you who to win back
+### Reads only. Never sends.
 
-A customer who went quiet shows up with the reason to call again, so you know who to ring first. The ranking needs an AI key of your own.
+Reloop has read access only. No mail goes out without you.
 
-## Your server. Your data. Your CRM.
+### Value, point by point.
 
-Reloop CRM is open source and runs on a server you own.
+Every point stands on its own. You check it yourself.
+
+### A draft, not a send.
+
+Reloop writes the draft. Sending stays with you.
+
+## Open code. Your server.
+
+Reloop CRM runs on your server, under GNU AGPL v3.
 
 ## Where to go next
 

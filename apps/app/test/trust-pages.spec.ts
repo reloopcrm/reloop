@@ -106,7 +106,7 @@ describe("the trust anchor pages", () => {
 		).text();
 		const footer = source.slice(source.indexOf("<footer"));
 
-		expect(footer).toContain("COMPANY_LINKS.map");
+		expect(footer).toContain("companyLinks.map");
 
 		for (const page of TRUST_PAGES)
 			expect(source, page.path).toContain(`href: "${page.path}"`);

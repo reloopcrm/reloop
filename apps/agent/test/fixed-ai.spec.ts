@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import { defineTool } from "eve/tools";
+import { z } from "zod";
 import { fixedCandidates } from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
-import { rotated, tenantHandlers, tenantTool } from "../agent/lib/tenant";
+import { rotated, tenantTool } from "../agent/lib/tenant";
 
 describe("the fixed AI chain", () => {
 	it("is one OpenRouter candidate on the operator key, by purpose", () => {
@@ -40,21 +42,15 @@ describe("the fixed AI chain", () => {
 });
 
 describe("the tenant wrappers in single mode", () => {
-	it("pass a tool call and a hook through unchanged", async () => {
-		const tool = tenantTool({
-			execute: async (input: { n: number }) => input.n + 1,
-		});
-		expect(await tool.execute({ n: 1 })).toBe(2);
-
-		const calls: string[] = [];
-		const handlers = tenantHandlers({
-			"session.started": (event: { id: string }) => {
-				calls.push(event.id);
-			},
-			skipped: undefined,
-		});
-		await handlers["session.started"]({ id: "x" });
-		expect(calls).toEqual(["x"]);
+	it("passes a tool call through unchanged", async () => {
+		const tool = tenantTool(
+			defineTool({
+				description: "adds one",
+				inputSchema: z.object({ n: z.number() }),
+				execute: async ({ n }) => n + 1,
+			}),
+		);
+		expect(await tool.execute({ n: 1 }, {} as never)).toBe(2);
 	});
 
 	it("rotates the start of the tenant list", () => {

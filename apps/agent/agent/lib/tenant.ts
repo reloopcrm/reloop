@@ -1,6 +1,5 @@
 import { activeTenants, type Tenant, tenantById } from "@crm/db/tenancy";
 import { currentTenantId, isHosted, runAsTenant } from "@crm/db/tenant-context";
-import type { HookDefinition } from "eve/hooks";
 import type { ToolDefinition } from "eve/tools";
 import { z } from "zod";
 import { settledWithin } from "./deadline";
@@ -79,42 +78,12 @@ export function tenantAttributes(): Record<string, string> {
 	return id ? { [TENANT_ATTRIBUTE]: id } : {};
 }
 
-type ContextLast = (...args: never[]) => unknown;
-
-function ctxOf(args: readonly unknown[]): AuthContext | null {
-	const last = args[args.length - 1];
-	return last && typeof last === "object" && "session" in last
-		? (last as AuthContext)
-		: null;
-}
-
-function wrapped<F extends ContextLast>(handler: F): F {
-	return ((...args: Parameters<F>) =>
-		withTenant(ctxOf(args), () => handler(...args))) as unknown as F;
-}
-
-type Handlers = Record<string, ContextLast | undefined>;
-
-export function tenantHandlers<T extends object>(handlers: T): T {
-	const map = handlers as unknown as Handlers;
-	for (const key of Object.keys(map)) {
-		const handler = map[key];
-		if (typeof handler === "function") map[key] = wrapped(handler);
-	}
-	return handlers;
-}
-
-export function tenantTool<T extends Pick<ToolDefinition, "execute">>(
-	tool: T,
-): T {
-	const execute = tool.execute.bind(tool) as ContextLast;
-	(tool as { execute: ContextLast }).execute = wrapped(execute);
+export function tenantTool<TInput, TOutput>(
+	tool: ToolDefinition<TInput, TOutput>,
+): ToolDefinition<TInput, TOutput> {
+	const execute = tool.execute.bind(tool);
+	tool.execute = (input, ctx) => withTenant(ctx, () => execute(input, ctx));
 	return tool;
-}
-
-export function tenantHook<T extends HookDefinition>(hook: T): T {
-	if (hook.events) tenantHandlers(hook.events);
-	return hook;
 }
 
 export function tenantState<T>(initial: () => T): () => T {
@@ -162,9 +131,9 @@ export async function eachActiveTenant(
 		tenants = only
 			? [await tenantFromId(only)].filter((entry): entry is Tenant => !!entry)
 			: rotated(await activeTenants(), rotation++);
-	} catch (error) {
+	} catch (cause) {
 		console.error(
-			`[agent] ${label} could not list the tenants: ${error instanceof Error ? error.message : String(error)}`,
+			`[agent] ${label} could not list the tenants: ${cause instanceof Error ? cause.message : String(cause)}`,
 		);
 		return outcomes;
 	}
@@ -179,9 +148,9 @@ export async function eachActiveTenant(
 
 		const work = runAsTenant(tenant, () => run(tenant)).then(
 			() => undefined,
-			(error: unknown) => {
+			(cause: unknown) => {
 				outcome.ok = false;
-				outcome.error = error instanceof Error ? error.message : String(error);
+				outcome.error = cause instanceof Error ? cause.message : String(cause);
 				console.error(
 					`[agent] ${label} for tenant ${tenant.id}: ${outcome.error}`,
 				);
@@ -212,21 +181,10 @@ export function channelState(): CrmChannelState {
 	return { tenantId: isHosted() ? currentTenantId() : null };
 }
 
-type ChannelHandler = (
-	data: never,
+export function withChannelTenant<T>(
 	channel: { readonly state?: CrmChannelState },
-	ctx?: AuthContext,
-) => unknown;
-
-export function tenantChannelEvents<T extends object>(events: T): T {
-	const map = events as unknown as Record<string, ChannelHandler | undefined>;
-	for (const key of Object.keys(map)) {
-		const handler = map[key];
-		if (typeof handler !== "function") continue;
-		map[key] = (data, channel, ctx) =>
-			withTenantId(channel.state?.tenantId ?? tenantIdOf(ctx), () =>
-				handler(data, channel, ctx),
-			);
-	}
-	return events;
+	ctx: AuthContext | undefined,
+	fn: () => Promise<T> | T,
+): Promise<T> {
+	return withTenantId(channel.state?.tenantId ?? tenantIdOf(ctx), fn);
 }

@@ -26,13 +26,13 @@ export type UsageLine = {
 	reached: boolean;
 };
 
-const COUNTER_LABEL: Record<UsageCounter, string> = {
+const COUNTER_LABEL = {
 	insights: "Conversations read",
 	drafts: "Email drafts",
 	research: "Company research runs",
 	chat: "Chat messages",
 	builder: "Agent builder messages",
-};
+} satisfies Record<UsageCounter, string>;
 
 export function IncludedAi({
 	label,

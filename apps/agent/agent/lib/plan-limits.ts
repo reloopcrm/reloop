@@ -1,4 +1,4 @@
-import { db } from "@crm/db";
+import { db, type Prisma } from "@crm/db";
 import { planIdOf } from "@crm/db/plan-usage";
 import {
 	DRAFT_KIND,
@@ -36,15 +36,12 @@ export async function monthlyUsed(
 	exceptTaskId: string | null = null,
 ): Promise<number> {
 	const since = monthStart(now);
-	return db.agentTask.count({
-		where: {
-			kind,
-			...(COUNTED_BY_FINISH.has(kind)
-				? { finishedAt: { gte: since } }
-				: { createdAt: { gte: since } }),
-			...(exceptTaskId ? { id: { not: exceptTaskId } } : {}),
-		},
-	});
+	const where: Prisma.AgentTaskWhereInput = COUNTED_BY_FINISH.has(kind)
+		? { kind, finishedAt: { gte: since } }
+		: { kind, createdAt: { gte: since } };
+	if (exceptTaskId) where.id = { not: exceptTaskId };
+
+	return db.agentTask.count({ where });
 }
 
 export async function monthlyRoom(

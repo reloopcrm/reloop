@@ -44,22 +44,13 @@ export type UsageLine = {
 	reached: boolean;
 };
 
-const LIMIT_OF: Record<UsageCounter, keyof PlanLimits> = {
-	insights: "insightsPerMonth",
-	drafts: "draftsPerMonth",
-	research: "researchPerMonth",
-	chat: "chatPerMonth",
-	builder: "builderPerMonth",
-};
-
-export const USAGE_KIND: Record<
-	Exclude<UsageCounter, "chat" | "builder">,
-	string
-> = {
-	insights: INSIGHT_KIND,
-	drafts: DRAFT_KIND,
-	research: RESEARCH_RUN_KIND,
-};
+const LIMIT_OF = {
+	insights: (limits: PlanLimits) => limits.insightsPerMonth,
+	drafts: (limits: PlanLimits) => limits.draftsPerMonth,
+	research: (limits: PlanLimits) => limits.researchPerMonth,
+	chat: (limits: PlanLimits) => limits.chatPerMonth,
+	builder: (limits: PlanLimits) => limits.builderPerMonth,
+} satisfies Record<UsageCounter, (limits: PlanLimits) => number | null>;
 
 async function conversationMessages(
 	db: Db,
@@ -103,8 +94,7 @@ export function limitOf(
 	counter: UsageCounter,
 	limits: PlanLimits,
 ): number | null {
-	const value = limits[LIMIT_OF[counter]];
-	return typeof value === "number" ? value : null;
+	return LIMIT_OF[counter](limits);
 }
 
 export function usageLines(

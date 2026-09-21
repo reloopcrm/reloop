@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
+import { disconnectAll } from "@crm/db/client";
 import { readMonthlyUsage } from "@crm/db/plan-usage";
 import { DRAFT_KIND, INSIGHT_KIND, nextMonthStart } from "@crm/db/plans";
-import { disconnectAll } from "@crm/db/client";
 import { closeRegistry, type Tenant } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants } from "@crm/db/test-tenants";

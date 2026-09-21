@@ -60,7 +60,7 @@ export class TenantSweepController {
 
 	private async run(authorization?: string) {
 		if (!this.secret) {
-			throw new ServiceUnavailableException("The sweep is not configured.");
+			throw new ServiceUnavailableException("Retention is not configured.");
 		}
 		const expected = Buffer.from(`Bearer ${this.secret}`);
 		const given = Buffer.from(authorization ?? "");

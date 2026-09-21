@@ -1,12 +1,12 @@
 import { db, Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
+import { INSIGHT_KIND } from "@crm/db/plans";
 import { NOT_SAMPLE_RECORD, SAMPLE_DATA } from "@crm/db/sample-data";
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskThreadPayload,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
-import { INSIGHT_KIND } from "@crm/db/plans";
 import { DISPATCH } from "./dispatch-config";
 import { isDerivedName } from "./names";
 import { limitOutcome, monthlyRoom } from "./plan-limits";

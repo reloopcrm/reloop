@@ -2,8 +2,8 @@ import { db } from "@crm/db";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { focusOn } from "../lib/focus";
-import { untrusted } from "../lib/untrusted";
 import { tenantTool } from "../lib/tenant";
+import { untrusted } from "../lib/untrusted";
 
 const tool = defineTool({
 	description:

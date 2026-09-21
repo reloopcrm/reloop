@@ -197,5 +197,15 @@
 	"Imported conversations": "İçe aktarılan yazışmalar",
 	"Email drafts per month": "Aylık e-posta taslağı",
 	"Storage": "Depolama",
-	"{count} GB": "{count} GB"
+	"{count} GB": "{count} GB",
+	"AI included": "Yapay zeka dahil",
+	"Your plan includes the AI. This is what the agent used this month against the limits of the {plan} plan.": "Planınız yapay zekayı içerir. Ajanın bu ay {plan} planının sınırlarına göre kullandığı miktar budur.",
+	"A monthly limit is reached": "Bir aylık sınıra ulaşıldı",
+	"Work above the limit waits until next month. Upgrade your plan to continue now.": "Sınırın üzerindeki iş gelecek aya kadar bekler. Şimdi devam etmek için planınızı yükseltin.",
+	"Used": "Kullanılan",
+	"Conversations read": "Okunan yazışmalar",
+	"Email drafts": "E-posta taslakları",
+	"Company research runs": "Şirket araştırmaları",
+	"Chat messages": "Sohbet mesajları",
+	"Agent builder messages": "Ajan oluşturucu mesajları"
 }

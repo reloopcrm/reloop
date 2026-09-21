@@ -1,11 +1,29 @@
 import type { Db } from "./client";
 import {
 	DRAFT_KIND,
+	fixedAiFor,
 	INSIGHT_KIND,
+	limitsOf,
 	monthStart,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
 } from "./plans";
+import { readPlan } from "./settings";
+import { currentTenant, isHosted } from "./tenant-context";
+
+export async function planIdOf(db: Db): Promise<string | null> {
+	const stored = await readPlan(db);
+	if (stored) return stored;
+	return isHosted() ? currentTenant().plan : null;
+}
+
+export async function planLimitsOf(db: Db): Promise<PlanLimits> {
+	return limitsOf(await planIdOf(db));
+}
+
+export async function fixedAiWith(db: Db): Promise<boolean> {
+	return fixedAiFor(await planIdOf(db));
+}
 
 export const USAGE_COUNTERS = [
 	"insights",
@@ -79,7 +97,10 @@ export async function readMonthlyUsage(
 	return { insights, drafts, research, chat, builder };
 }
 
-export function limitOf(counter: UsageCounter, limits: PlanLimits): number | null {
+export function limitOf(
+	counter: UsageCounter,
+	limits: PlanLimits,
+): number | null {
 	const value = limits[LIMIT_OF[counter]];
 	return typeof value === "number" ? value : null;
 }
@@ -95,7 +116,11 @@ export function usageLines(
 	});
 }
 
-export function roomFor(counter: UsageCounter, usage: MonthlyUsage, limits: PlanLimits): number | null {
+export function roomFor(
+	counter: UsageCounter,
+	usage: MonthlyUsage,
+	limits: PlanLimits,
+): number | null {
 	const limit = limitOf(counter, limits);
 	return limit === null ? null : Math.max(0, limit - usage[counter]);
 }

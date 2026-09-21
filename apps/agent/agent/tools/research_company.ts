@@ -2,8 +2,8 @@ import { ActivityType, db } from "@crm/db";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { spend } from "../lib/focus";
-import { askPage, fetchPage } from "../lib/website-brand";
 import { tenantTool } from "../lib/tenant";
+import { askPage, fetchPage } from "../lib/website-brand";
 
 const RESEARCH_INSTRUCTIONS = [
 	"You read a company's marketing site and answer as a salesperson preparing for a first call.",

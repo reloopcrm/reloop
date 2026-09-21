@@ -1,12 +1,12 @@
 import { defineTool } from "eve/tools";
 import { saveBuilderDraft } from "../../../lib/builder-runtime";
 import { requireBuilderAttribute } from "../../../lib/session-purpose";
+import { tenantTool } from "../../../lib/tenant";
 import { builderDraftToolInput, draftInputFromTool } from "../lib/draft-input";
 import {
 	assertBuilderDraftOpen,
 	markBuilderDraftSaveFinished,
 } from "../lib/execution-state";
-import { tenantTool } from "../../../lib/tenant";
 
 const tool = defineTool({
 	description:

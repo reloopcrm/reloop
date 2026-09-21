@@ -15,8 +15,8 @@ import {
 	limitsOf,
 	monthlyBudget,
 	monthStart,
-	nextMonthStart,
 	NO_PLAN,
+	nextMonthStart,
 	PLAN_IDS,
 	PLANS,
 	RESEARCH_RUN_KIND,
@@ -123,7 +123,14 @@ describe("the pricing page", () => {
 	});
 
 	it("includes the AI on every other plan", () => {
-		for (const id of ["trial", "start", "standard", "plus", "team", "office"] as const) {
+		for (const id of [
+			"trial",
+			"start",
+			"standard",
+			"plus",
+			"team",
+			"office",
+		] as const) {
 			expect(PLANS[id].aiIncluded).toBe(true);
 		}
 	});
@@ -139,9 +146,7 @@ describe("the pricing page", () => {
 
 	it("counts a month from its first day in UTC", () => {
 		expect(monthStart(now).toISOString()).toBe("2026-09-01T00:00:00.000Z");
-		expect(nextMonthStart(now).toISOString()).toBe(
-			"2026-10-01T00:00:00.000Z",
-		);
+		expect(nextMonthStart(now).toISOString()).toBe("2026-10-01T00:00:00.000Z");
 		expect(monthlyBudget(RESEARCH_RUN_KIND, PLANS.trial)).toBe(0);
 		expect(fixedAiFor("start")).toBe(false);
 	});

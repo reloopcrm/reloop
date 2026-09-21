@@ -15,6 +15,7 @@ import { restMeta } from "../trpc/openapi";
 import {
 	agentFunctionsOutput,
 	agentProviderOutput,
+	aiUsageOutput,
 	archiveRetentionOutput,
 	businessProposalOutput,
 	chatgptLoginInput,
@@ -131,6 +132,14 @@ export class SettingsRouter {
 	})
 	async spend() {
 		return this.settings.spend();
+	}
+
+	@Query({
+		output: aiUsageOutput,
+		meta: restMeta("GET", "/settings/ai-usage", ["Settings"]),
+	})
+	async aiUsage() {
+		return this.settings.aiUsage();
 	}
 
 	@Query({

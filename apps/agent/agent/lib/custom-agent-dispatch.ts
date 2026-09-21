@@ -14,7 +14,7 @@ import {
 	runTerminalEventId,
 } from "./run-state";
 import type { LeasedTask } from "./tasks";
-import { channelState, type CrmChannelState, tenantAttributes } from "./tenant";
+import { type CrmChannelState, channelState, tenantAttributes } from "./tenant";
 
 type SendFn = EveSendFn<CrmChannelState>;
 

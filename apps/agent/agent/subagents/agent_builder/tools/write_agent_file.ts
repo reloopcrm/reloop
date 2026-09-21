@@ -5,8 +5,8 @@ import {
 	writeBuilderArtifact,
 } from "../../../lib/builder-runtime";
 import { requireBuilderAttribute } from "../../../lib/session-purpose";
-import { assertBuilderDraftOpen } from "../lib/execution-state";
 import { tenantTool } from "../../../lib/tenant";
+import { assertBuilderDraftOpen } from "../lib/execution-state";
 
 const tool = defineTool({
 	description:

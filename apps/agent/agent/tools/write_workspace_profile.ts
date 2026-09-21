@@ -8,8 +8,8 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { currentFocus } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
-import { identity } from "../lib/workspace";
 import { tenantTool } from "../lib/tenant";
+import { identity } from "../lib/workspace";
 
 const line = (what: string) =>
 	z.string().max(MAX_LINE).optional().describe(what);

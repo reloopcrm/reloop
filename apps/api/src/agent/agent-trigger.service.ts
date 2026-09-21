@@ -15,7 +15,7 @@ import {
 } from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
 import { forEachTenant } from "@crm/db/tenancy";
-import { tenantScopedKey } from "@crm/db/tenant-context";
+import { currentTenantId, tenantScopedKey } from "@crm/db/tenant-context";
 import {
 	isTaskKindEnabled,
 	readAgentFunctions,
@@ -64,6 +64,8 @@ async function runWithConcurrency<T>(
 		}),
 	);
 }
+
+const TENANT_HEADER = "x-reloop-tenant";
 
 @Injectable()
 export class AgentTriggerService {
@@ -752,6 +754,8 @@ export class AgentTriggerService {
 				authorization: `Bearer ${agent.secret}`,
 			});
 			if (body) headers.set("content-type", "application/json");
+			const tenantId = currentTenantId();
+			if (tenantId) headers.set(TENANT_HEADER, tenantId);
 
 			const response = await fetch(agent.url(path), {
 				method: "POST",

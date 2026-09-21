@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { type Db, Prisma } from "@crm/db";
 import type { AgentRunStatus } from "@crm/db/enums";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { fixedAiWith } from "@crm/db/plan-usage";
 import {
 	BadRequestException,
 	ConflictException,
@@ -93,8 +94,11 @@ export class AgentRunsService {
 			},
 		});
 
+		const fixed = await fixedAiWith(this.db);
+
 		return rows.map(({ _count, ...run }) => ({
 			...run,
+			modelId: fixed ? null : run.modelId,
 			totalEvents: _count.events,
 			eventsTruncated: _count.events > run.events.length,
 			canCancel:

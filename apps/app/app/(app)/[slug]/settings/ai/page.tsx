@@ -15,6 +15,7 @@ import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AgentProvider } from "./agent-model";
+import { IncludedAi } from "./included-ai";
 import { Spend } from "./spend";
 import { Typesafe } from "./typesafe";
 
@@ -54,6 +55,18 @@ async function Ai() {
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
+
+	const usage = await queryClient.fetchQuery(
+		trpc.settings.aiUsage.queryOptions(),
+	);
+
+	if (usage.fixed) {
+		return (
+			<div className="flex max-w-3xl flex-col gap-6">
+				<IncludedAi label={usage.label} lines={usage.lines} />
+			</div>
+		);
+	}
 
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.settings.agentProvider.queryOptions()),

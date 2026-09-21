@@ -1,4 +1,5 @@
 import { db } from "@crm/db";
+import { planIdOf } from "@crm/db/plan-usage";
 import {
 	DRAFT_KIND,
 	fixedAiFor,
@@ -10,13 +11,9 @@ import {
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
 } from "@crm/db/plans";
-import { readPlan } from "@crm/db/settings";
-import { currentTenant, isHosted } from "@crm/db/tenant-context";
 
-export async function planId(): Promise<string | null> {
-	const stored = await readPlan(db);
-	if (stored) return stored;
-	return isHosted() ? currentTenant().plan : null;
+export function planId(): Promise<string | null> {
+	return planIdOf(db);
 }
 
 export async function planLimits(): Promise<PlanLimits> {

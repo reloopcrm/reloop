@@ -5,8 +5,9 @@ import { WEIGHTS } from "../lib/evidence";
 import { FACT_FIELDS, type FactField, recordFact } from "../lib/facts";
 import { focusOn } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Record one claim about a contact — title, employer, a profile URL, seniority — together with the evidence for it. The evidence decides whether it is written to the record or offered to a rep as a suggestion. Never invent evidence you did not observe.",
 	inputSchema: z.object({
@@ -68,3 +69,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

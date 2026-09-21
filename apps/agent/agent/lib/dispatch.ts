@@ -1,5 +1,6 @@
 import { EnrichmentStatus } from "@crm/db";
 import { waitsForPerson } from "@crm/db/agent-tasks";
+import { RESEARCH_RUN_KIND } from "@crm/db/plans";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import { AGENT_FUNCTION_OFF_OUTCOME } from "@crm/validation/agent-functions";
 import {
@@ -26,6 +27,7 @@ import { markRunning, settle } from "./enrichment";
 import {
 	cancelArchivedWork,
 	cancelSampleWork,
+	pruneAgentHistory,
 	queueContactCleanups,
 	queuePlaybookLearn,
 	queueUnreadThreads,
@@ -46,6 +48,7 @@ import {
 	readProviderFailure,
 	resumeAt,
 } from "./model";
+import { limitOutcome, monthlyRoom, resumeNextMonth } from "./plan-limits";
 import { runPlaybookLearn } from "./playbook";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
@@ -63,6 +66,7 @@ import {
 	postponeTask,
 	taskKindEnabled,
 } from "./tasks";
+import { tenantAttributes, tenantState } from "./tenant";
 import { queueWebhookDeliveries, runWebhookLane } from "./webhooks";
 
 export const VISIBLE_BATCH = DISPATCH.visible.batch;
@@ -257,11 +261,12 @@ export async function runDirect(
 		return;
 	}
 
-	pendingItems += 1;
+	const state = health();
+	state.pendingItems += 1;
 	void work
 		.then((late) => reconcileDirect(task, late))
 		.finally(() => {
-			pendingItems -= 1;
+			state.pendingItems -= 1;
 		});
 }
 
@@ -344,6 +349,13 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	}
 
 	if (task.kind === "email-draft" && task.contactId) {
+		const room = await monthlyRoom(task.kind, new Date(), task.id);
+		if (room !== null && room <= 0) {
+			await postponeTask(task.id, resumeNextMonth());
+			console.error(`[agent] a draft waits: ${limitOutcome(task.kind)}`);
+			return;
+		}
+
 		try {
 			await completeTask(
 				task.id,
@@ -447,11 +459,14 @@ export async function runResearchLane(
 		return 0;
 	}
 
-	const tasks = await claimDue(
+	const claimed = await claimDue(
 		allowance.allowed,
 		{ except: DIRECT_KINDS },
 		RESEARCH_LEASE_MS,
 	);
+	if (claimed.length === 0) return 0;
+
+	const tasks = await withinResearchBudget(claimed);
 	if (tasks.length === 0) return 0;
 
 	const blocked = await modelUnavailable();
@@ -478,6 +493,39 @@ export async function runResearchLane(
 	);
 
 	return started;
+}
+
+async function withinResearchBudget(
+	tasks: LeasedTask[],
+): Promise<LeasedTask[]> {
+	const room = await monthlyRoom(RESEARCH_RUN_KIND);
+	if (room === null) return tasks;
+
+	const kept: LeasedTask[] = [];
+	let left = room;
+	let deferred = 0;
+
+	for (const task of tasks) {
+		if (task.kind !== RESEARCH_RUN_KIND) {
+			kept.push(task);
+			continue;
+		}
+		if (left > 0) {
+			left -= 1;
+			kept.push(task);
+			continue;
+		}
+		await postponeTask(task.id, resumeNextMonth());
+		deferred += 1;
+	}
+
+	if (deferred > 0) {
+		console.error(
+			`[agent] ${deferred} research runs wait: ${limitOutcome(RESEARCH_RUN_KIND)}`,
+		);
+	}
+
+	return kept;
 }
 
 type StartOutcome =
@@ -514,11 +562,12 @@ async function beginResearch(
 		return;
 	}
 
-	pendingStarts += 1;
+	const state = health();
+	state.pendingStarts += 1;
 	void send
 		.then((late) => reconcileStart(task, late))
 		.finally(() => {
-			pendingStarts -= 1;
+			state.pendingStarts -= 1;
 		});
 }
 
@@ -552,7 +601,7 @@ export async function linkSession(
 				continue;
 			}
 
-			unlinkedSessions += 1;
+			health().unlinkedSessions += 1;
 			console.error(
 				`[agent] Task ${task.id} accepted session ${sessionId}, but the session id was not recorded: ${reasonOf(error)}`,
 			);
@@ -580,6 +629,7 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 	return {
 		...base,
 		attributes: {
+			...tenantAttributes(),
 			taskKind: task.kind,
 			reason: task.reason,
 			budget: String(task.budget),
@@ -590,20 +640,21 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 
 export const DRAIN_TIMEOUT_MS = DISPATCH.sweep.timeoutMs;
 
-let lastSweepStartedAt: Date | null = null;
-let lastSweepFinishedAt: Date | null = null;
-let lastSweepError: string | null = null;
-let abandonedSweeps = 0;
-let pendingStarts = 0;
-let pendingItems = 0;
-let unlinkedSessions = 0;
-
-const unsettledSweeps = new Set<{ startedAt: Date }>();
+const health = tenantState(() => ({
+	lastSweepStartedAt: null as Date | null,
+	lastSweepFinishedAt: null as Date | null,
+	lastSweepError: null as string | null,
+	abandonedSweeps: 0,
+	pendingStarts: 0,
+	pendingItems: 0,
+	unlinkedSessions: 0,
+	unsettledSweeps: new Set<{ startedAt: Date }>(),
+}));
 
 function oldestUnsettledAt(): Date | null {
 	let oldest: Date | null = null;
 
-	for (const sweep of unsettledSweeps) {
+	for (const sweep of health().unsettledSweeps) {
 		if (!oldest || sweep.startedAt.getTime() < oldest.getTime()) {
 			oldest = sweep.startedAt;
 		}
@@ -613,8 +664,9 @@ function oldestUnsettledAt(): Date | null {
 }
 
 export function dispatchHealth() {
-	const startedAt = lastSweepStartedAt;
-	const finishedAt = lastSweepFinishedAt;
+	const state = health();
+	const startedAt = state.lastSweepStartedAt;
+	const finishedAt = state.lastSweepFinishedAt;
 	const collapsed = Boolean(
 		startedAt && (!finishedAt || finishedAt.getTime() < startedAt.getTime()),
 	);
@@ -632,14 +684,14 @@ export function dispatchHealth() {
 		finishedAt: finishedAt?.toISOString() ?? null,
 		running,
 		stalledMs: oldest ? Math.max(0, Date.now() - oldest.getTime()) : 0,
-		abandonedSweeps,
-		unsettledSweeps: unsettledSweeps.size,
-		pendingStarts,
-		pendingItems,
-		unlinkedSessions,
+		abandonedSweeps: state.abandonedSweeps,
+		unsettledSweeps: state.unsettledSweeps.size,
+		pendingStarts: state.pendingStarts,
+		pendingItems: state.pendingItems,
+		unlinkedSessions: state.unlinkedSessions,
 		staleTasks: staleTaskSweep(),
 		cheapGates: gateCounts(),
-		lastError: lastSweepError,
+		lastError: state.lastSweepError,
 	};
 }
 
@@ -654,98 +706,109 @@ async function runSweep(
 	}
 }
 
-export const drainAll = collapsing(
-	async (start: (task: LeasedTask) => Promise<{ id: string }>) => {
-		if (unsettledSweeps.size >= DISPATCH.sweep.maxAbandoned) {
-			lastSweepError =
-				"An abandoned dispatch sweep is still in flight, so this sweep did not start.";
-			console.error(`[agent] ${lastSweepError}`);
-			return;
-		}
+const drains = tenantState(() => collapsing(sweepOnce));
 
-		const startedAt = new Date();
-		lastSweepStartedAt = startedAt;
-		lastSweepError = null;
+export function drainAll(
+	start: (task: LeasedTask) => Promise<{ id: string }>,
+): Promise<void> {
+	return drains()(start);
+}
 
-		const controller = new AbortController();
-		const signal = controller.signal;
+async function sweepOnce(
+	start: (task: LeasedTask) => Promise<{ id: string }>,
+): Promise<void> {
+	const state = health();
+	const { unsettledSweeps } = state;
+	if (unsettledSweeps.size >= DISPATCH.sweep.maxAbandoned) {
+		state.lastSweepError =
+			"An abandoned dispatch sweep is still in flight, so this sweep did not start.";
+		console.error(`[agent] ${state.lastSweepError}`);
+		return;
+	}
 
-		const sweep = (async () => {
-			await Promise.all([
-				runSweep("contact cleanup sweep failed", queueContactCleanups),
-				runSweep("playbook sweep failed", queuePlaybookLearn),
-				runSweep("stalled deal sweep failed", () => queueStalledDeals()),
-				runSweep("own-contact sweep failed", archiveOwnContacts),
-				runSweep("contact prune failed", async () => {
-					await pruneContacts();
-					await pruneCompanies();
-				}),
-				runSweep("contact standing sweep failed", sweepContactStanding),
-				runSweep("reading sweep failed", queueUnreadThreads),
-				runSweep("archived-work sweep failed", cancelArchivedWork),
-				runSweep("sample-data sweep failed", cancelSampleWork),
-			]);
-			await Promise.all([
-				runVisibleLane(signal),
-				runInsightLane(signal),
-				runResearchLane(start, signal),
-				runWebhookLane(signal),
-			]);
+	const startedAt = new Date();
+	state.lastSweepStartedAt = startedAt;
+	state.lastSweepError = null;
 
-			const gates = drainGateCounts();
-			if (gates) console.error(`[agent] cheap gates this pass: ${gates}`);
-		})();
+	const controller = new AbortController();
+	const signal = controller.signal;
 
-		let timer: ReturnType<typeof setTimeout> | undefined;
-		const abandon = new Promise<never>((_, reject) => {
-			timer = setTimeout(() => {
-				abandonedSweeps += 1;
+	const sweep = (async () => {
+		await Promise.all([
+			runSweep("contact cleanup sweep failed", queueContactCleanups),
+			runSweep("playbook sweep failed", queuePlaybookLearn),
+			runSweep("stalled deal sweep failed", () => queueStalledDeals()),
+			runSweep("own-contact sweep failed", archiveOwnContacts),
+			runSweep("contact prune failed", async () => {
+				await pruneContacts();
+				await pruneCompanies();
+			}),
+			runSweep("contact standing sweep failed", sweepContactStanding),
+			runSweep("reading sweep failed", queueUnreadThreads),
+			runSweep("archived-work sweep failed", cancelArchivedWork),
+			runSweep("sample-data sweep failed", cancelSampleWork),
+			runSweep("history retention failed", () => pruneAgentHistory()),
+		]);
+		await Promise.all([
+			runVisibleLane(signal),
+			runInsightLane(signal),
+			runResearchLane(start, signal),
+			runWebhookLane(signal),
+		]);
 
-				const unsettled = { startedAt };
-				unsettledSweeps.add(unsettled);
+		const gates = drainGateCounts();
+		if (gates) console.error(`[agent] cheap gates this pass: ${gates}`);
+	})();
 
-				const forget = setTimeout(() => {
-					if (!unsettledSweeps.delete(unsettled)) return;
-					console.error(
-						`[agent] An abandoned dispatch sweep never settled within ${DISPATCH.sweep.abandonGraceMs}ms, so dispatch is starting again without it.`,
-					);
-				}, DISPATCH.sweep.abandonGraceMs);
-				forget.unref?.();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const abandon = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => {
+			state.abandonedSweeps += 1;
 
-				void sweep
-					.catch((error) => {
-						console.error(
-							`[agent] An abandoned dispatch sweep then failed: ${reasonOf(error)}`,
-						);
-					})
-					.finally(() => {
-						clearTimeout(forget);
-						unsettledSweeps.delete(unsettled);
-					});
+			const unsettled = { startedAt };
+			unsettledSweeps.add(unsettled);
 
-				controller.abort();
-				reject(
-					new Error(
-						`Dispatch sweep exceeded ${DRAIN_TIMEOUT_MS}ms and was abandoned so the next one can start.`,
-					),
+			const forget = setTimeout(() => {
+				if (!unsettledSweeps.delete(unsettled)) return;
+				console.error(
+					`[agent] An abandoned dispatch sweep never settled within ${DISPATCH.sweep.abandonGraceMs}ms, so dispatch is starting again without it.`,
 				);
-			}, DRAIN_TIMEOUT_MS);
-		});
+			}, DISPATCH.sweep.abandonGraceMs);
+			forget.unref?.();
 
-		sweep.catch(() => {});
+			void sweep
+				.catch((error) => {
+					console.error(
+						`[agent] An abandoned dispatch sweep then failed: ${reasonOf(error)}`,
+					);
+				})
+				.finally(() => {
+					clearTimeout(forget);
+					unsettledSweeps.delete(unsettled);
+				});
 
-		try {
-			await Promise.race([sweep, abandon]);
-		} catch (error) {
-			lastSweepError = reasonOf(error);
-			console.error(`[agent] ${lastSweepError}`);
-			throw error;
-		} finally {
-			clearTimeout(timer);
-			lastSweepFinishedAt = new Date();
-		}
-	},
-);
+			controller.abort();
+			reject(
+				new Error(
+					`Dispatch sweep exceeded ${DRAIN_TIMEOUT_MS}ms and was abandoned so the next one can start.`,
+				),
+			);
+		}, DRAIN_TIMEOUT_MS);
+	});
+
+	sweep.catch(() => {});
+
+	try {
+		await Promise.race([sweep, abandon]);
+	} catch (error) {
+		state.lastSweepError = reasonOf(error);
+		console.error(`[agent] ${state.lastSweepError}`);
+		throw error;
+	} finally {
+		clearTimeout(timer);
+		state.lastSweepFinishedAt = new Date();
+	}
+}
 
 export function brief(task: LeasedTask): string {
 	const again =

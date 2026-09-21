@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { queryRunCrm } from "../../../lib/run-runtime";
 import { requireTeamAgentAttribute } from "../../../lib/session-purpose";
+import { tenantTool } from "../../../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Search contacts, companies, and deals inside this deployed version's approved CRM scope.",
 	inputSchema: z.object({
@@ -15,3 +16,5 @@ export default defineTool({
 		return queryRunCrm(requireTeamAgentAttribute(ctx, "runId"), input);
 	},
 });
+
+export default tenantTool(tool);

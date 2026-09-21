@@ -5,6 +5,7 @@ import { isTransportOnlyEvent } from "../lib/event-persistence";
 import { currentFocus } from "../lib/focus";
 import { lockAgentRun } from "../lib/run-state";
 import { attribute, purposeOf } from "../lib/session-purpose";
+import { withTenant } from "../lib/tenant";
 
 const finiteNumber = z.number().refine(Number.isFinite).nullable().catch(null);
 
@@ -32,35 +33,39 @@ export default defineHook({
 			if (!id || isTransportOnlyEvent(event.type)) return;
 
 			try {
-				const data = (
-					"data" in event ? (event.data ?? {}) : {}
-				) as Prisma.InputJsonObject;
-				const emittedAt = event.meta?.at ? new Date(event.meta.at) : new Date();
-				const purpose = purposeOf(ctx);
-				const conversationId =
-					purpose === "builder" ? attribute(ctx, "conversationId") : null;
-				await db.$transaction(async (tx) => {
-					await tx.agentEvent.createMany({
-						data: [
-							{
-								id,
-								sessionId: ctx.session.id,
-								contactId: currentFocus().contactId,
-								conversationId,
-								type: event.type,
-								data,
-								emittedAt,
-							},
-						],
-						skipDuplicates: true,
-					});
+				await withTenant(ctx, async () => {
+					const data = (
+						"data" in event ? (event.data ?? {}) : {}
+					) as Prisma.InputJsonObject;
+					const emittedAt = event.meta?.at
+						? new Date(event.meta.at)
+						: new Date();
+					const purpose = purposeOf(ctx);
+					const conversationId =
+						purpose === "builder" ? attribute(ctx, "conversationId") : null;
+					await db.$transaction(async (tx) => {
+						await tx.agentEvent.createMany({
+							data: [
+								{
+									id,
+									sessionId: ctx.session.id,
+									contactId: currentFocus().contactId,
+									conversationId,
+									type: event.type,
+									data,
+									emittedAt,
+								},
+							],
+							skipDuplicates: true,
+						});
 
-					if (purpose === "builder") {
-						await persistBuilderLifecycle(tx, event, ctx.session.id, ctx);
-					}
-					if (purpose === "team-agent") {
-						await persistRunEvent(tx, id, event.type, data, emittedAt, ctx);
-					}
+						if (purpose === "builder") {
+							await persistBuilderLifecycle(tx, event, ctx.session.id, ctx);
+						}
+						if (purpose === "team-agent") {
+							await persistRunEvent(tx, id, event.type, data, emittedAt, ctx);
+						}
+					});
 				});
 			} catch (error) {
 				console.warn("[audit] could not record event", {

@@ -3,11 +3,12 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { assertResearchPurpose } from "../lib/session-purpose";
 import { scheduleTask } from "../lib/tasks";
+import { tenantTool } from "../lib/tenant";
 
 const MIN_DAYS = 1;
 const MAX_DAYS = 730;
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Decide when this contact is worth looking at again, and say why. Use a short interval for people whose job change would move a live deal, a long one for quiet records, and skip it entirely for addresses nobody will ever sell to.",
 	inputSchema: z.object({
@@ -50,3 +51,5 @@ export default defineTool({
 		return { scheduled: true as const, dueAt: dueAt.toISOString(), reason };
 	},
 });
+
+export default tenantTool(tool);

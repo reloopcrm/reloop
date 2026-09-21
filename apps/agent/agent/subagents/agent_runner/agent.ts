@@ -3,7 +3,9 @@ import { AGENT_PROVIDER_DEFAULTS } from "@crm/db/settings";
 import { defineAgent, defineDynamic } from "eve";
 import { z } from "zod";
 import { fallbackModel, stepModel } from "../../lib/model";
+import { fixedAi } from "../../lib/plan-limits";
 import { attribute, purposeOf } from "../../lib/session-purpose";
+import { withTenant } from "../../lib/tenant";
 
 export default defineAgent({
 	description:
@@ -18,22 +20,9 @@ export default defineAgent({
 				const runId = attribute(ctx, "runId");
 				if (!runId) return null;
 
-				const run = await db.agentRun.findUnique({
-					where: { id: runId },
-					select: {
-						version: {
-							select: { modelId: true, modelContextWindowTokens: true },
-						},
-					},
-				});
-				return run
-					? {
-							model: run.version.modelId,
-							modelContextWindowTokens: run.version.modelContextWindowTokens,
-						}
-					: null;
+				return withTenant(ctx, () => versionModel(runId));
 			},
-			"step.started": () => stepModel(),
+			"step.started": (_event, ctx) => withTenant(ctx, () => stepModel()),
 		},
 	}),
 	outputSchema: z.object({
@@ -46,3 +35,22 @@ export default defineAgent({
 		sessionTimeoutMs: 24 * 60 * 60 * 1000,
 	},
 });
+
+async function versionModel(runId: string) {
+	if (await fixedAi()) return null;
+
+	const run = await db.agentRun.findUnique({
+		where: { id: runId },
+		select: {
+			version: {
+				select: { modelId: true, modelContextWindowTokens: true },
+			},
+		},
+	});
+	return run
+		? {
+				model: run.version.modelId,
+				modelContextWindowTokens: run.version.modelContextWindowTokens,
+			}
+		: null;
+}

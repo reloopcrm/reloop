@@ -7,6 +7,7 @@ import {
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { planIdOf } from "@crm/db/plan-usage";
 import {
 	allowsCompanyResearch,
 	limitsOf,
@@ -15,7 +16,7 @@ import {
 } from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
 import { forEachTenant } from "@crm/db/tenancy";
-import { tenantScopedKey } from "@crm/db/tenant-context";
+import { currentTenantId, tenantScopedKey } from "@crm/db/tenant-context";
 import {
 	isTaskKindEnabled,
 	readAgentFunctions,
@@ -63,6 +64,16 @@ async function runWithConcurrency<T>(
 			for (const item of queue) await run(item);
 		}),
 	);
+}
+
+const TENANT_HEADER = "x-reloop-tenant";
+
+function tenantOfThisRequest(): string | null {
+	try {
+		return currentTenantId();
+	} catch {
+		return null;
+	}
 }
 
 @Injectable()
@@ -580,8 +591,7 @@ export class AgentTriggerService {
 	}
 
 	private async planAllows(kind: string): Promise<boolean> {
-		const row = await this.db.appSetting.findFirst({ select: { plan: true } });
-		const limits = limitsOf(row?.plan);
+		const limits = limitsOf(await planIdOf(this.db));
 
 		if (!allowsCompanyResearch(kind, limits)) {
 			this.logger.log({
@@ -752,6 +762,8 @@ export class AgentTriggerService {
 				authorization: `Bearer ${agent.secret}`,
 			});
 			if (body) headers.set("content-type", "application/json");
+			const tenantId = tenantOfThisRequest();
+			if (tenantId) headers.set(TENANT_HEADER, tenantId);
 
 			const response = await fetch(agent.url(path), {
 				method: "POST",

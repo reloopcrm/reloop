@@ -1,12 +1,16 @@
 import { db, Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
+import { INSIGHT_KIND } from "@crm/db/plans";
 import { NOT_SAMPLE_RECORD, SAMPLE_DATA } from "@crm/db/sample-data";
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskThreadPayload,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
+import { z } from "zod";
+import { DISPATCH } from "./dispatch-config";
 import { isDerivedName } from "./names";
+import { limitOutcome, monthlyRoom } from "./plan-limits";
 import { playbookDue } from "./playbook";
 import { scheduleTask } from "./tasks";
 
@@ -14,6 +18,8 @@ const HOUSEKEEPING = {
 	cleanBatch: 20,
 	readBatch: 40,
 } as const;
+
+const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export async function cancelArchivedWork(): Promise<number> {
 	const [contacts, companies, deals] = await Promise.all([
@@ -68,10 +74,19 @@ export async function cancelSampleWork(): Promise<number> {
 }
 
 export async function queueUnreadThreads(): Promise<number> {
+	const room = await monthlyRoom(INSIGHT_KIND);
+	if (room !== null && room <= 0) {
+		console.error(`[agent] reading waits: ${limitOutcome(INSIGHT_KIND)}`);
+		return 0;
+	}
+
 	const threads = await db.emailThread.findMany({
 		where: { ...NOT_SAMPLE_RECORD, insight: null, messages: { some: {} } },
 		orderBy: { lastMessageAt: "desc" },
-		take: HOUSEKEEPING.readBatch,
+		take:
+			room === null
+				? HOUSEKEEPING.readBatch
+				: Math.min(HOUSEKEEPING.readBatch, room),
 		select: { id: true },
 	});
 
@@ -182,4 +197,46 @@ export async function queuePlaybookLearn(): Promise<boolean> {
 	});
 
 	return true;
+}
+
+export type HistoryPrune = { events: number; tasks: number };
+
+const retentionDays = z.coerce.number().int().positive().catch(0);
+
+export function historyRetentionDays(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const raw = env[DISPATCH.retention.envVar]?.trim();
+	return raw ? retentionDays.parse(raw) : 0;
+}
+
+export async function pruneAgentHistory(
+	now = new Date(),
+	days = historyRetentionDays(),
+): Promise<HistoryPrune> {
+	if (days <= 0) return { events: 0, tasks: 0 };
+
+	const { batch } = DISPATCH.retention;
+	const eventCutoff = new Date(now.getTime() - days * DAY_MS);
+	const taskCutoff = eventCutoff;
+
+	const events = await db.$executeRaw`
+		DELETE FROM "agentEvent"
+		WHERE id IN (
+			SELECT id FROM "agentEvent"
+			WHERE "emittedAt" < ${eventCutoff}
+			LIMIT ${batch}
+		)
+	`;
+
+	const tasks = await db.$executeRaw`
+		DELETE FROM "agentTask"
+		WHERE id IN (
+			SELECT id FROM "agentTask"
+			WHERE "finishedAt" IS NOT NULL AND "finishedAt" < ${taskCutoff}
+			LIMIT ${batch}
+		)
+	`;
+
+	return { events, tasks };
 }

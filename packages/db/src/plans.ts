@@ -1,3 +1,5 @@
+import { isHosted } from "./tenant-context";
+
 export const CONTACT_LIMIT_MESSAGE =
 	"The contact limit is reached. Ask the server operator to change your plan.";
 
@@ -30,7 +32,11 @@ export type PlanLimits = {
 	companyResearch: boolean;
 	insightsPerMonth: number | null;
 	draftsPerMonth: number | null;
+	researchPerMonth: number | null;
+	chatPerMonth: number | null;
+	builderPerMonth: number | null;
 	storageGb: number | null;
+	aiIncluded: boolean;
 };
 
 export const NO_PLAN: PlanLimits = {
@@ -43,7 +49,11 @@ export const NO_PLAN: PlanLimits = {
 	companyResearch: true,
 	insightsPerMonth: null,
 	draftsPerMonth: null,
+	researchPerMonth: null,
+	chatPerMonth: null,
+	builderPerMonth: null,
 	storageGb: null,
+	aiIncluded: false,
 };
 
 export const TRIAL_DAYS = 14;
@@ -59,7 +69,11 @@ export const PLANS = {
 		companyResearch: false,
 		insightsPerMonth: 1_000,
 		draftsPerMonth: 40,
+		researchPerMonth: null,
+		chatPerMonth: null,
+		builderPerMonth: null,
 		storageGb: null,
+		aiIncluded: true,
 	},
 	start: {
 		label: "Start",
@@ -71,7 +85,11 @@ export const PLANS = {
 		companyResearch: true,
 		insightsPerMonth: 1_000,
 		draftsPerMonth: 40,
+		researchPerMonth: null,
+		chatPerMonth: null,
+		builderPerMonth: null,
 		storageGb: null,
+		aiIncluded: true,
 	},
 	standard: {
 		label: "Standard",
@@ -83,7 +101,11 @@ export const PLANS = {
 		companyResearch: true,
 		insightsPerMonth: 3_000,
 		draftsPerMonth: 100,
+		researchPerMonth: null,
+		chatPerMonth: null,
+		builderPerMonth: null,
 		storageGb: null,
+		aiIncluded: true,
 	},
 	plus: {
 		label: "Plus",
@@ -95,7 +117,11 @@ export const PLANS = {
 		companyResearch: true,
 		insightsPerMonth: 7_000,
 		draftsPerMonth: 300,
+		researchPerMonth: null,
+		chatPerMonth: null,
+		builderPerMonth: null,
 		storageGb: null,
+		aiIncluded: true,
 	},
 	team: {
 		label: "Team",
@@ -107,7 +133,11 @@ export const PLANS = {
 		companyResearch: true,
 		insightsPerMonth: 18_000,
 		draftsPerMonth: 800,
+		researchPerMonth: null,
+		chatPerMonth: null,
+		builderPerMonth: null,
 		storageGb: null,
+		aiIncluded: true,
 	},
 	office: {
 		label: "Office",
@@ -119,7 +149,11 @@ export const PLANS = {
 		companyResearch: true,
 		insightsPerMonth: 45_000,
 		draftsPerMonth: 2_000,
+		researchPerMonth: null,
+		chatPerMonth: null,
+		builderPerMonth: null,
 		storageGb: null,
+		aiIncluded: true,
 	},
 	hosting: {
 		label: "Hosting",
@@ -131,7 +165,11 @@ export const PLANS = {
 		companyResearch: true,
 		insightsPerMonth: null,
 		draftsPerMonth: null,
+		researchPerMonth: null,
+		chatPerMonth: null,
+		builderPerMonth: null,
 		storageGb: 5,
+		aiIncluded: false,
 	},
 	"hosting-pro": {
 		label: "Hosting Pro",
@@ -143,13 +181,19 @@ export const PLANS = {
 		companyResearch: true,
 		insightsPerMonth: null,
 		draftsPerMonth: null,
+		researchPerMonth: null,
+		chatPerMonth: null,
+		builderPerMonth: null,
 		storageGb: 25,
+		aiIncluded: false,
 	},
 } as const satisfies Record<PlanId, PlanLimits>;
 
 export const INSIGHT_KIND = "thread-insight";
 
 export const DRAFT_KIND = "email-draft";
+
+export const RESEARCH_RUN_KIND = "company-profile";
 
 export const COMPANY_RESEARCH_KINDS = [
 	"brand",
@@ -187,9 +231,21 @@ export function startOfMonth(now = new Date()): Date {
 export function monthlyBudget(kind: string, limits: PlanLimits): number | null {
 	if (kind === INSIGHT_KIND) return limits.insightsPerMonth;
 	if (kind === DRAFT_KIND) return limits.draftsPerMonth;
+	if (kind === RESEARCH_RUN_KIND) return limits.researchPerMonth;
 
 	return null;
 }
+
+export function nextMonthStart(now: Date = new Date()): Date {
+	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+}
+
+export function fixedAiFor(plan: string | null | undefined): boolean {
+	return isHosted() && limitsOf(plan).aiIncluded;
+}
+
+export const LIMIT_REACHED_MESSAGE =
+	"The monthly limit of your plan is reached. This work continues next month. Upgrade your plan to continue now.";
 
 export function importSinceFloor(limits: PlanLimits, now: Date): Date | null {
 	if (limits.importMonths === null) return null;

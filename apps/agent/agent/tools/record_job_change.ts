@@ -6,8 +6,9 @@ import { writeTimelineNote } from "../lib/crm";
 import { lastEmployerChange } from "../lib/facts";
 import { focusOn } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Raise a job change on a contact's timeline and task their owner. Reads the change from the facts already recorded; call it after recording a new employer.",
 	inputSchema: z.object({
@@ -81,3 +82,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

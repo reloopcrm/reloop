@@ -197,5 +197,15 @@
 	"Imported conversations": "Conversas importadas",
 	"Email drafts per month": "Rascunhos de e-mail por mês",
 	"Storage": "Armazenamento",
-	"{count} GB": "{count} GB"
+	"{count} GB": "{count} GB",
+	"AI included": "IA incluída",
+	"Your plan includes the AI. This is what the agent used this month against the limits of the {plan} plan.": "Seu plano inclui a IA. Isto é o que o agente usou neste mês em relação aos limites do plano {plan}.",
+	"A monthly limit is reached": "Um limite mensal foi atingido",
+	"Work above the limit waits until next month. Upgrade your plan to continue now.": "O trabalho acima do limite espera até o próximo mês. Faça upgrade do plano para continuar agora.",
+	"Used": "Usado",
+	"Conversations read": "Conversas lidas",
+	"Email drafts": "Rascunhos de e-mail",
+	"Company research runs": "Pesquisas de empresas",
+	"Chat messages": "Mensagens de chat",
+	"Agent builder messages": "Mensagens do construtor de agentes"
 }

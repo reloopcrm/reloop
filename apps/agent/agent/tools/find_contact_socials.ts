@@ -3,8 +3,9 @@ import { z } from "zod";
 import { personForVerification, stampSocialsChecked } from "../lib/crm";
 import { focusOn, spend } from "../lib/focus";
 import { findSocialCandidates } from "../lib/socials";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Search the web for a contact's X and GitHub profiles. Returns CANDIDATES ONLY — pass them to set_contact_socials, which re-checks each one against the account itself before writing. Never write these URLs any other way.",
 	inputSchema: z.object({
@@ -40,3 +41,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

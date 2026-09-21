@@ -5,8 +5,9 @@ import { WEIGHTS } from "../lib/evidence";
 import { recordFact } from "../lib/facts";
 import { focusOn } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Put a verified name to a CRM contact, with the evidence for it. Strong evidence writes the name; anything less becomes a suggestion for a rep. Never overwrites a name a person supplied.",
 	inputSchema: z.object({
@@ -48,3 +49,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

@@ -12,13 +12,14 @@ import { countGate } from "./jev-meter";
 import { language } from "./language";
 import { directModel } from "./model";
 import { scheduleTask } from "./tasks";
+import { tenantState } from "./tenant";
 import { UNTRUSTED_RULE } from "./untrusted";
 
 export const DEAL_STALL_KIND = "deal-stall";
 
 const STALL = DISPATCH.dealStall;
 
-let lastSweptAt: Date | null = null;
+const sweep = tenantState(() => ({ lastSweptAt: null as Date | null }));
 
 export function quietCutoff(now: Date): Date {
 	return new Date(now.getTime() - STALL.quietDays * STALL.dayMs);
@@ -85,7 +86,8 @@ export function readDealStep(
 }
 
 export async function queueStalledDeals(now = new Date()): Promise<number> {
-	if (!stallSweepDue(lastSweptAt, now)) return 0;
+	const state = sweep();
+	if (!stallSweepDue(state.lastSweptAt, now)) return 0;
 
 	const last = await db.agentTask.findFirst({
 		where: { kind: DEAL_STALL_KIND },
@@ -93,7 +95,7 @@ export async function queueStalledDeals(now = new Date()): Promise<number> {
 		select: { createdAt: true },
 	});
 	if (!stallSweepDue(last?.createdAt ?? null, now)) {
-		lastSweptAt = last?.createdAt ?? null;
+		state.lastSweptAt = last?.createdAt ?? null;
 		return 0;
 	}
 
@@ -128,7 +130,7 @@ export async function queueStalledDeals(now = new Date()): Promise<number> {
 		ORDER BY o.since DESC
 		LIMIT ${STALL.batch}
 	`;
-	lastSweptAt = now;
+	state.lastSweptAt = now;
 
 	let queued = 0;
 	for (const deal of deals) {

@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { readDealHistory } from "../lib/accounts";
 import { focusOn } from "../lib/focus";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Read a deal in full: stage and how long it has been there, value, close date, the whole stage history, who is on it with their contact ids, the correspondence and meetings with those people, and the notes. Free — call it first in a deal session.",
 	inputSchema: z.object({
@@ -25,3 +26,5 @@ export default defineTool({
 		return { found: true as const, ...history };
 	},
 });
+
+export default tenantTool(tool);

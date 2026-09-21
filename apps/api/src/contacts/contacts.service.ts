@@ -15,6 +15,7 @@ import type {
 	FieldDefinitionWithOptions,
 	FieldValueJson,
 } from "@crm/db/fields";
+import { fixedAiWith } from "@crm/db/plan-usage";
 import { readDraftRole } from "@crm/validation/draft-style";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 import {
@@ -816,7 +817,7 @@ export class ContactsService {
 				body: stored.body,
 				language: stored.language,
 				role: readDraftRole(stored.role),
-				modelId: stored.modelId,
+				modelId: (await fixedAiWith(this.db)) ? null : stored.modelId,
 				writtenAt: stored.updatedAt.toISOString(),
 				stale:
 					since !== null &&

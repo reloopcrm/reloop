@@ -3,8 +3,9 @@ import { z } from "zod";
 import { enabled, unavailable } from "../lib/capabilities";
 import { spend } from "../lib/focus";
 import { ask } from "../lib/perplexity";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Research a person or company on the open web for sales context — recent news, funding, launches, public statements. Returns cited claims. NOT a source of truth for someone's identity or job title.",
 	inputSchema: z.object({
@@ -43,3 +44,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

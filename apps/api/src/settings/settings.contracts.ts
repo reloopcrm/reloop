@@ -1,4 +1,5 @@
 import { DealStage } from "@crm/db";
+import { USAGE_COUNTERS } from "@crm/db/plan-usage";
 import {
 	MAX_ARCHIVE_RETENTION_DAYS,
 	MIN_ARCHIVE_RETENTION_DAYS,
@@ -41,6 +42,7 @@ const keyHint = z.object({
 });
 
 export const agentProviderOutput = z.object({
+	fixed: z.boolean(),
 	provider: agentProvider,
 	openrouterModel: z.string(),
 	chatgptModel: z.string(),
@@ -111,6 +113,7 @@ export const planOutput = z.object({
 		insightsPerMonth: z.number().nullable(),
 		draftsPerMonth: z.number().nullable(),
 		storageGb: z.number().nullable(),
+		researchPerMonth: z.number().nullable(),
 	}),
 	usage: z.object({
 		contacts: z.number(),
@@ -122,6 +125,22 @@ export const planOutput = z.object({
 });
 
 export type PlanSettings = z.infer<typeof planOutput>;
+
+export const aiUsageOutput = z.object({
+	fixed: z.boolean(),
+	label: z.string(),
+	month: z.string(),
+	lines: z.array(
+		z.object({
+			counter: z.enum(USAGE_COUNTERS),
+			used: z.number(),
+			limit: z.number().nullable(),
+			reached: z.boolean(),
+		}),
+	),
+});
+
+export type AiUsageSettings = z.infer<typeof aiUsageOutput>;
 
 export const setPlanInput = z.object({
 	plan: z.string().nullable(),

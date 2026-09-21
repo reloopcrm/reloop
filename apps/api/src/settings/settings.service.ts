@@ -18,6 +18,12 @@ import { USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
 import { DEAL_STAGES } from "@crm/db/deal-stage";
 import { readModelSpend } from "@crm/db/model-spend";
 import {
+	fixedAiWith,
+	planIdOf,
+	readMonthlyUsage,
+	usageLines,
+} from "@crm/db/plan-usage";
+import {
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	isPlanId,
@@ -39,7 +45,6 @@ import {
 	readAgentProvider,
 	readArchiveRetentionDays,
 	readingModelFor,
-	readPlan,
 	writeAgentProvider,
 	writeArchiveRetentionDays,
 } from "@crm/db/settings";
@@ -79,6 +84,7 @@ import { SETTINGS } from "./settings.config";
 import type {
 	AgentFunctionsSettings,
 	AgentProviderSettings,
+	AiUsageSettings,
 	ArchiveRetentionSettings,
 	ChatgptLoginSettings,
 	DealStagesSettings,
@@ -90,6 +96,9 @@ import type {
 	SetDealStageNameInput,
 	SpendSettings,
 } from "./settings.contracts";
+
+const FIXED_AI_REFUSAL =
+	"The AI is included in this plan. There is no model to choose.";
 
 const PASSWORD_REFUSALS = {
 	"sign-in-off":
@@ -123,10 +132,33 @@ export class SettingsService {
 		}
 	}
 
+	private async assertModelChoice(): Promise<void> {
+		if (await fixedAiWith(this.db)) {
+			throw new ForbiddenException(FIXED_AI_REFUSAL);
+		}
+	}
+
 	async refreshUsage(userId: string): Promise<AgentProviderSettings> {
 		await this.assertManager(userId);
+		await this.assertModelChoice();
 		await this.agent.usageProbeRequested();
 		return this.agentProvider();
+	}
+
+	async aiUsage(): Promise<AiUsageSettings> {
+		const [plan, usage, fixed] = await Promise.all([
+			planIdOf(this.db),
+			readMonthlyUsage(this.db),
+			fixedAiWith(this.db),
+		]);
+		const limits = limitsOf(plan);
+
+		return {
+			fixed,
+			label: limits.label,
+			month: startOfMonth().toISOString(),
+			lines: usageLines(usage, limits),
+		};
 	}
 
 	async passwordSignIn(userId: string): Promise<PasswordSignInSettings> {
@@ -164,7 +196,7 @@ export class SettingsService {
 	}
 
 	async plan(): Promise<PlanSettings> {
-		const plan = await readPlan(this.db);
+		const plan = await planIdOf(this.db);
 		const limits = limitsOf(plan);
 		const month = startOfMonth();
 		const usedThisMonth = (kind: string) =>
@@ -191,6 +223,7 @@ export class SettingsService {
 				insightsPerMonth: limits.insightsPerMonth,
 				draftsPerMonth: limits.draftsPerMonth,
 				storageGb: limits.storageGb,
+				researchPerMonth: limits.researchPerMonth,
 			},
 			usage: { contacts, mailboxes, insightsThisMonth, draftsThisMonth },
 			options: PLAN_IDS.map((id) => ({ id, label: PLANS[id].label })),
@@ -200,7 +233,21 @@ export class SettingsService {
 	async spend(): Promise<SpendSettings> {
 		const days = SETTINGS.spend.days;
 		const since = new Date(Date.now() - days * SETTINGS.spend.dayMs);
-		const report = await readModelSpend(this.db, since);
+		const [report, fixed] = await Promise.all([
+			readModelSpend(this.db, since),
+			fixedAiWith(this.db),
+		]);
+
+		if (fixed) {
+			return {
+				exchangeRate: SETTINGS.spend.dollarsToEuro,
+				days,
+				costUsd: 0,
+				costEur: 0,
+				calls: 0,
+				lines: [],
+			};
+		}
 
 		return {
 			exchangeRate: SETTINGS.spend.dollarsToEuro,
@@ -248,6 +295,8 @@ export class SettingsService {
 	}
 
 	async agentProvider(): Promise<AgentProviderSettings> {
+		if (await fixedAiWith(this.db)) return this.includedAi();
+
 		const setting = await readAgentProvider(this.db);
 		const [usage, probe] = await Promise.all([
 			setting.provider === "chatgpt"
@@ -257,6 +306,7 @@ export class SettingsService {
 		]);
 
 		return {
+			fixed: false,
 			readingModel: setting.readingModel,
 			effectiveReadingModel: readingModelFor(setting),
 			draftModel: setting.draftModel,
@@ -303,11 +353,44 @@ export class SettingsService {
 		};
 	}
 
+	private includedAi(): AgentProviderSettings {
+		const none = { configured: false, hint: null };
+		return {
+			fixed: true,
+			provider: "openrouter",
+			openrouterModel: "",
+			chatgptModel: "",
+			openaiModel: "",
+			anthropicModel: "",
+			openrouterKey: none,
+			openaiKey: none,
+			anthropicKey: none,
+			researchPerHour: null,
+			readingModel: null,
+			effectiveReadingModel: "",
+			draftModel: null,
+			effectiveDraftModel: "",
+			defaults: {
+				openrouterModel: "",
+				chatgptModel: "",
+				openaiModel: "",
+				anthropicModel: "",
+				researchPerHour: AGENT_RESEARCH_PER_HOUR.default,
+				readingModel: "",
+				draftModel: "",
+			},
+			options: {},
+			usage: null,
+			probe: null,
+		};
+	}
+
 	async setAgentProvider(
 		userId: string,
 		input: SetAgentProviderInput,
 	): Promise<AgentProviderSettings> {
 		await this.assertManager(userId);
+		await this.assertModelChoice();
 		const current = await readAgentProvider(this.db);
 
 		for (const provider of ["openrouter", "openai", "anthropic"] as const) {
@@ -372,6 +455,7 @@ export class SettingsService {
 		action: ChatgptLoginAction,
 	): Promise<ChatgptLoginSettings> {
 		await this.assertManager(userId);
+		await this.assertModelChoice();
 		return this.researchKeys.chatgptLogin(action);
 	}
 

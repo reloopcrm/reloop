@@ -3,6 +3,7 @@ import { chatModelFor, readAgentProvider } from "@crm/db/settings";
 import { agentError, modelError } from "@crm/telemetry";
 import { defineHook } from "eve/hooks";
 import { z } from "zod";
+import { tenantState, withTenant } from "../lib/tenant";
 
 type SessionPrincipal = {
 	readonly attributes?: Readonly<Record<string, string | readonly string[]>>;
@@ -10,18 +11,19 @@ type SessionPrincipal = {
 
 const attributeText = z.string().trim().min(1).nullable().catch(null);
 
-let modelId: string | null = null;
+const known = tenantState(() => ({ modelId: null as string | null }));
 
 async function configuredModel(): Promise<string | null> {
-	if (modelId) return modelId;
+	const state = known();
+	if (state.modelId) return state.modelId;
 
 	try {
-		modelId = chatModelFor(await readAgentProvider(db)).id;
+		state.modelId = chatModelFor(await readAgentProvider(db)).id;
 	} catch {
-		modelId = null;
+		state.modelId = null;
 	}
 
-	return modelId;
+	return state.modelId;
 }
 
 const MODEL_CODES = [
@@ -73,13 +75,15 @@ export default defineHook({
 			});
 		},
 
-		async "step.failed"(event) {
+		async "step.failed"(event, ctx) {
 			if (!looksLikeModel(event.data.code)) return;
 
-			modelError({
-				error: event.data.code,
-				modelId: await configuredModel(),
-			});
+			await withTenant(ctx, async () =>
+				modelError({
+					error: event.data.code,
+					modelId: await configuredModel(),
+				}),
+			);
 		},
 	},
 });

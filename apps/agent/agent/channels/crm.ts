@@ -3,7 +3,7 @@ import { EnrichmentStatus, Prisma } from "@crm/db";
 import { MAX_ATTEMPTS } from "@crm/db/agent-tasks";
 import { schemas } from "@crm/validation";
 import { eveTurnFailure } from "@crm/validation/eve-stream";
-import { defineChannel, GET, POST } from "eve/channels";
+import { type ChannelDefinition, defineChannel, GET, POST } from "eve/channels";
 import { z } from "zod";
 import { persistBuilderInputRequest } from "../lib/builder-input";
 import {
@@ -27,12 +27,20 @@ import {
 } from "../lib/dispatch";
 import { DISPATCH } from "../lib/dispatch-config";
 import { settle } from "../lib/enrichment";
-import { modelUnavailable } from "../lib/model";
+import { modelUnavailable, publicReason } from "../lib/model";
 import { finishRun, runResultOf } from "../lib/run-runtime";
 import { attribute } from "../lib/session-purpose";
 import { createSlackChannel } from "../lib/slack-membership";
 import { reconcileStaleTasks } from "../lib/stale-tasks";
 import { completeTask, taskSubject } from "../lib/tasks";
+import {
+	type CrmChannelState,
+	channelState,
+	eachActiveTenant,
+	tenantFromRequest,
+	withChannelTenant,
+	withTenantId,
+} from "../lib/tenant";
 
 const TASK_MARKER = "task:";
 const STALE_QUEUE_MS = DISPATCH.sweep.staleQueueMs;
@@ -41,9 +49,12 @@ type InternalDispatchPrincipal = {
 	readonly authenticator: string;
 	readonly principalId: string;
 	readonly principalType: string;
+	readonly attributes?: Readonly<Record<string, string | readonly string[]>>;
 } | null;
 
 const identifier = z.string().trim().min(1).nullable().catch(null);
+
+const attributeText = z.string().trim().min(1).nullable().catch(null);
 
 const cancelRunRequest = z.object({ runId: identifier }).catch({ runId: null });
 
@@ -96,136 +107,58 @@ export async function closeTask(
 	return true;
 }
 
-export default defineChannel({
-	routes: [
-		GET("/internal/crm/dispatch-health", async (request) => {
-			if (!authorised(request)) {
-				return new Response("Unauthorized", { status: 401 });
-			}
+type TenantHealth = ReturnType<typeof dispatchHealth> & {
+	tenantId: string | null;
+	ok: boolean;
+	wedged: boolean;
+	overdueTasks: number;
+};
 
-			const health = dispatchHealth();
-			const { db } = await import("@crm/db");
-			const now = new Date();
-			const overdue = await db.agentTask.count({
-				where: {
-					finishedAt: null,
-					dueAt: { lte: new Date(now.getTime() - STALE_QUEUE_MS) },
-					attempts: { lt: MAX_ATTEMPTS },
-					OR: [{ leasedUntil: null }, { leasedUntil: { lt: now } }],
-				},
-			});
+async function tenantHealth(tenantId: string | null): Promise<TenantHealth> {
+	const health = dispatchHealth();
+	const { db } = await import("@crm/db");
+	const now = new Date();
+	const overdue = await db.agentTask.count({
+		where: {
+			finishedAt: null,
+			dueAt: { lte: new Date(now.getTime() - STALE_QUEUE_MS) },
+			attempts: { lt: MAX_ATTEMPTS },
+			OR: [{ leasedUntil: null }, { leasedUntil: { lt: now } }],
+		},
+	});
 
-			const wedged = health.stalledMs > DRAIN_TIMEOUT_MS;
-			return Response.json(
-				{
-					ok: !wedged && overdue === 0,
-					wedged,
-					overdueTasks: overdue,
-					...health,
-				},
-				{ status: wedged || overdue > 0 ? 503 : 200 },
-			);
-		}),
+	const wedged = health.stalledMs > DRAIN_TIMEOUT_MS;
+	return {
+		tenantId,
+		ok: !wedged && overdue === 0,
+		wedged,
+		overdueTasks: overdue,
+		...health,
+	};
+}
 
-		POST("/internal/crm/dispatch", async (request, { send, waitUntil }) => {
-			if (!authorised(request)) {
-				return new Response("Unauthorized", { status: 401 });
-			}
+function noTenant(cause: unknown): Response {
+	return Response.json(
+		{ error: cause instanceof Error ? cause.message : String(cause) },
+		{ status: 400 },
+	);
+}
 
-			waitUntil(
-				(async () => {
-					await reconcileStaleTasks();
-					await drainAll((task) =>
-						send(brief(task), {
-							auth: taskAuth(task),
-							continuationToken: taskToken(task.id),
-						}),
-					);
-					await drainAgentRuns(send);
-				})(),
-			);
+type CrmChannelContext = { state: CrmChannelState };
 
-			return new Response(null, { status: 202 });
-		}),
-
-		POST(
-			"/internal/crm/builder-dispatch",
-			async (request, { send, waitUntil }) => {
-				if (!authorised(request)) {
-					return new Response("Unauthorized", { status: 401 });
-				}
-
-				waitUntil(drainBuilder(send));
-				return new Response(null, { status: 202 });
-			},
-		),
-
-		POST(
-			"/internal/crm/agent-dispatch",
-			async (request, { send, waitUntil }) => {
-				if (!authorised(request)) {
-					return new Response("Unauthorized", { status: 401 });
-				}
-
-				waitUntil(drainAgentRuns(send));
-				return new Response(null, { status: 202 });
-			},
-		),
-
-		POST("/internal/crm/cancel-run", async (request, { cancel }) => {
-			if (!authorised(request)) {
-				return new Response("Unauthorized", { status: 401 });
-			}
-
-			const { runId } = cancelRunRequest.parse(
-				await request.json().catch(() => null),
-			);
-			if (!runId) {
-				return Response.json({ error: "No run id was sent." }, { status: 400 });
-			}
-
-			return Response.json(
-				await cancel({ continuationToken: runToken(runId) }),
-			);
-		}),
-
-		POST("/internal/crm/slack/create-channel", async (request) => {
-			if (!authorised(request)) {
-				return new Response("Unauthorized", { status: 401 });
-			}
-
-			const parsed = schemas.slack.createPayload.safeParse(
-				await request.json().catch(() => null),
-			);
-
-			if (!parsed.success) {
-				return Response.json(
-					{ error: "That channel name is not usable." },
-					{ status: 400 },
-				);
-			}
-
-			const outcome = await createSlackChannel(
-				parsed.data.channelName,
-				parsed.data.isPrivate,
-			);
-
-			return "error" in outcome
-				? Response.json({ error: outcome.error }, { status: 422 })
-				: Response.json({ channel: outcome });
-		}),
-	],
-
-	events: {
-		async "input.requested"(data, channel, ctx) {
+const events = {
+	async "input.requested"(data, channel, ctx) {
+		return withChannelTenant(channel, ctx, async () => {
 			await persistBuilderInputRequest(
 				data,
 				channel.continuationToken,
 				attribute(ctx, "conversationId"),
 			);
-		},
+		});
+	},
 
-		async "message.completed"(data, channel) {
+	async "message.completed"(data, channel) {
+		return withChannelTenant(channel, undefined, async () => {
 			const conversationId = builderIdFromToken(channel.continuationToken);
 			if (!conversationId || !data.message?.trim()) return;
 
@@ -239,9 +172,11 @@ export default defineChannel({
 					},
 				}),
 			);
-		},
+		});
+	},
 
-		async "session.waiting"(_data, channel) {
+	async "session.waiting"(_data, channel) {
+		return withChannelTenant(channel, undefined, async () => {
 			if (await closeTask(channel.continuationToken, "ran")) return;
 
 			const conversationId = builderIdFromToken(channel.continuationToken);
@@ -253,14 +188,17 @@ export default defineChannel({
 					data: { continuationToken: builderToken(conversationId) },
 				}),
 			);
-		},
+		});
+	},
 
-		async "turn.failed"(data, channel) {
+	async "turn.failed"(data, channel) {
+		return withChannelTenant(channel, undefined, async () => {
 			const taskId = taskFromToken(channel.continuationToken);
-			const reason =
+			const reason = await publicReason(
 				(await modelUnavailable()) ??
-				eveTurnFailure.parse(data).message ??
-				"The agent turn failed.";
+					eveTurnFailure.parse(data).message ??
+					"The agent turn failed.",
+			);
 
 			if (taskId) {
 				const subject = await taskSubject(taskId);
@@ -283,9 +221,11 @@ export default defineChannel({
 
 			const runId = runIdFromToken(channel.continuationToken);
 			if (runId) await failRun(runId, "TURN_FAILED", reason);
-		},
+		});
+	},
 
-		async "session.completed"(_data, channel) {
+	async "session.completed"(_data, channel) {
+		return withChannelTenant(channel, undefined, async () => {
 			if (await closeTask(channel.continuationToken, "ran")) return;
 
 			const conversationId = builderIdFromToken(channel.continuationToken);
@@ -320,9 +260,11 @@ export default defineChannel({
 					error instanceof Error ? error.message : String(error),
 				).catch(() => {});
 			}
-		},
+		});
+	},
 
-		async "turn.cancelled"(_data, channel) {
+	async "turn.cancelled"(_data, channel) {
+		return withChannelTenant(channel, undefined, async () => {
 			if (
 				await closeTask(
 					channel.continuationToken,
@@ -354,9 +296,11 @@ export default defineChannel({
 					"The run was stopped before it finished.",
 				);
 			}
-		},
+		});
+	},
 
-		async "session.failed"(data, channel) {
+	async "session.failed"(data, channel) {
+		return withChannelTenant(channel, undefined, async () => {
 			const conversationId = builderIdFromToken(channel.continuationToken);
 			if (conversationId) {
 				const { db } = await import("@crm/db");
@@ -374,26 +318,185 @@ export default defineChannel({
 
 			const runId = runIdFromToken(channel.continuationToken);
 			if (runId) await failRun(runId, data.code, data.message);
-		},
+		});
 	},
+} satisfies ChannelDefinition<CrmChannelState, CrmChannelContext>["events"];
+
+export default defineChannel<CrmChannelState, CrmChannelContext>({
+	state: { tenantId: null },
+	context(state) {
+		return { state };
+	},
+
+	routes: [
+		GET("/internal/crm/dispatch-health", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const tenants: TenantHealth[] = [];
+			await eachActiveTenant("dispatch health", async (tenant) => {
+				tenants.push(await tenantHealth(tenant?.id ?? null));
+			});
+
+			const first = tenants[0];
+			const ok = tenants.every((entry) => entry.ok);
+			const body =
+				tenants.length === 1 && first && first.tenantId === null
+					? first
+					: {
+							ok,
+							wedged: tenants.some((entry) => entry.wedged),
+							overdueTasks: tenants.reduce(
+								(sum, entry) => sum + entry.overdueTasks,
+								0,
+							),
+							tenants,
+						};
+
+			return Response.json(body, { status: ok ? 200 : 503 });
+		}),
+
+		POST("/internal/crm/dispatch", async (request, { send, waitUntil }) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			waitUntil(
+				eachActiveTenant(
+					"dispatch",
+					async () => {
+						await reconcileStaleTasks();
+						await drainAll((task) =>
+							send(brief(task), {
+								auth: taskAuth(task),
+								continuationToken: taskToken(task.id),
+								state: channelState(),
+							}),
+						);
+						await drainAgentRuns(send);
+					},
+					tenantFromRequest(request),
+				),
+			);
+
+			return new Response(null, { status: 202 });
+		}),
+
+		POST(
+			"/internal/crm/builder-dispatch",
+			async (request, { send, waitUntil }) => {
+				if (!authorised(request)) {
+					return new Response("Unauthorized", { status: 401 });
+				}
+
+				waitUntil(
+					eachActiveTenant(
+						"builder dispatch",
+						() => drainBuilder(send),
+						tenantFromRequest(request),
+					),
+				);
+				return new Response(null, { status: 202 });
+			},
+		),
+
+		POST(
+			"/internal/crm/agent-dispatch",
+			async (request, { send, waitUntil }) => {
+				if (!authorised(request)) {
+					return new Response("Unauthorized", { status: 401 });
+				}
+
+				waitUntil(
+					eachActiveTenant(
+						"agent dispatch",
+						() => drainAgentRuns(send),
+						tenantFromRequest(request),
+					),
+				);
+				return new Response(null, { status: 202 });
+			},
+		),
+
+		POST("/internal/crm/cancel-run", async (request, { cancel }) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const { runId } = cancelRunRequest.parse(
+				await request.json().catch(() => null),
+			);
+			if (!runId) {
+				return Response.json({ error: "No run id was sent." }, { status: 400 });
+			}
+
+			try {
+				return Response.json(
+					await withTenantId(tenantFromRequest(request), () =>
+						cancel({ continuationToken: runToken(runId) }),
+					),
+				);
+			} catch (error) {
+				return noTenant(error);
+			}
+		}),
+
+		POST("/internal/crm/slack/create-channel", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const parsed = schemas.slack.createPayload.safeParse(
+				await request.json().catch(() => null),
+			);
+
+			if (!parsed.success) {
+				return Response.json(
+					{ error: "That channel name is not usable." },
+					{ status: 400 },
+				);
+			}
+
+			let outcome: Awaited<ReturnType<typeof createSlackChannel>>;
+			try {
+				outcome = await withTenantId(tenantFromRequest(request), () =>
+					createSlackChannel(parsed.data.channelName, parsed.data.isPrivate),
+				);
+			} catch (error) {
+				return noTenant(error);
+			}
+
+			return "error" in outcome
+				? Response.json({ error: outcome.error }, { status: 422 })
+				: Response.json({ channel: outcome });
+		}),
+	],
+
+	events,
 
 	async receive(input, { send }) {
 		const target = receiveTarget.parse(input.target);
-		if (target.builderSubmissionId) {
-			assertInternalDispatchAuth(input.auth);
-			return dispatchBuilderSubmission(target.builderSubmissionId, send);
-		}
+		const tenantId = attributeText.parse(input.auth?.attributes?.tenantId);
 
-		if (target.runId) {
-			assertInternalDispatchAuth(input.auth);
-			return dispatchAgentRun(target.runId, send);
-		}
+		return withTenantId(tenantId, () => {
+			if (target.builderSubmissionId) {
+				assertInternalDispatchAuth(input.auth);
+				return dispatchBuilderSubmission(target.builderSubmissionId, send);
+			}
 
-		return send(input.message, {
-			auth: input.auth,
-			continuationToken: target.taskId
-				? taskToken(target.taskId)
-				: `crm:adhoc:${crypto.randomUUID()}`,
+			if (target.runId) {
+				assertInternalDispatchAuth(input.auth);
+				return dispatchAgentRun(target.runId, send);
+			}
+
+			return send(input.message, {
+				auth: input.auth,
+				continuationToken: target.taskId
+					? taskToken(target.taskId)
+					: `crm:adhoc:${crypto.randomUUID()}`,
+				state: channelState(),
+			});
 		});
 	},
 });

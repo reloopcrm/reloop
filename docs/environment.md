@@ -194,6 +194,15 @@ Both are unset on a self-hosted install, which then runs as one workspace on
   whose migration fails `migration_failed` and continues; the `migrate` service
   in `deploy/cloud/docker-compose.cloud.yml` runs it before `api` starts.
 
+## `AGENT_HISTORY_RETENTION_DAYS`, off by default
+
+Empty means nothing is deleted. A positive number makes `pruneAgentHistory`
+(`apps/agent/agent/lib/housekeeping.ts`) delete `agentEvent` rows and finished
+`agentTask` rows older than that many days, `DISPATCH.retention.batch` rows per
+dispatch tick. The record sheet's offline transcript reaches back that far. A
+value that is not a positive integer counts as off. Declared in the root and the
+agent's `turbo.json`.
+
 ## `RELOOP_DEMO`, off by default
 
 A floating Play demo button drives a scripted tour of the real app with a fake
@@ -256,7 +265,7 @@ single place that knows what is set.
 | `PERPLEXITY_API_KEY` | Open-web research with citations |
 | `GITHUB_TOKEN` | Raises the GitHub rate limit from 60/hour |
 | `BLOB_READ_WRITE_TOKEN` | Mirrors logos and photos into Blob |
-| `OPENROUTER_API_KEY` | The model through OpenRouter, when no key was pasted on Settings → AI. A pasted key wins |
+| `OPENROUTER_API_KEY` | The model through OpenRouter, when no key was pasted on Settings → AI. A pasted key wins. In hosted mode it is the operator's key for every plan with AI included, and a pasted key is not read |
 | `AGENT_BRIDGE_SECRET` | The rep-facing Agent panel, see `agent.md` |
 | `CODEX_HOME` | Where the Codex login lives and where the agent downloads codex on the first ChatGPT sign-in. Defaults to `~/.codex` |
 

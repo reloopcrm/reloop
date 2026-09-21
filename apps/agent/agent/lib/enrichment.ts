@@ -1,5 +1,6 @@
 import { db, EnrichmentStatus, type Prisma } from "@crm/db";
 import { ownsCompanyStatus, ownsContactStatus } from "@crm/db/agent-tasks";
+import { publicReason } from "./model";
 import type { TaskSubject } from "./tasks";
 
 type StatusGuard =
@@ -51,7 +52,12 @@ export async function settle(
 	const owned = ownedColumns(subject);
 	if (!owned.contactId && !owned.companyId) return;
 
-	await write(owned, status, error ?? null, await settleable(subject, status));
+	await write(
+		owned,
+		status,
+		error ? await publicReason(error) : null,
+		await settleable(subject, status),
+	);
 }
 
 async function write(

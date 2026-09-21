@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { runBrand } from "../lib/brand";
 import { assertResearchPurpose } from "../lib/session-purpose";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Read a company's own website for its brand, industry, location and social links, and fill in the blanks on its record. Fills empty fields only — never overwrites what a person typed.",
 	inputSchema: z.object({
@@ -34,3 +35,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

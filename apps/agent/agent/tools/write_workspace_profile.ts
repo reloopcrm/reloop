@@ -8,12 +8,13 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { currentFocus } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
+import { tenantTool } from "../lib/tenant";
 import { identity } from "../lib/workspace";
 
 const line = (what: string) =>
 	z.string().max(MAX_LINE).optional().describe(what);
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Write the short profile of the company we work for. Every other session opens with it, so it is deliberately small: a few sentences and three one-line facts. Replaces the previous one.",
 	inputSchema: z.object({
@@ -78,3 +79,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

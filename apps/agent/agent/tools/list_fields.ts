@@ -1,8 +1,9 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { listFields } from "../lib/fields";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"List the custom fields a workspace has added to companies, contacts or deals — their key, type, options, and the brief saying what would count as an answer. Free. Read this before setting any custom value, and before telling a rep a field does not exist.",
 	inputSchema: z.object({
@@ -29,3 +30,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

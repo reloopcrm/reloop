@@ -1,13 +1,14 @@
 import { defineTool } from "eve/tools";
 import { saveBuilderDraft } from "../../../lib/builder-runtime";
 import { requireBuilderAttribute } from "../../../lib/session-purpose";
+import { tenantTool } from "../../../lib/tenant";
 import { builderDraftToolInput, draftInputFromTool } from "../lib/draft-input";
 import {
 	assertBuilderDraftOpen,
 	markBuilderDraftSaveFinished,
 } from "../lib/execution-state";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Validate and save one immutable agent version for human review. Copy selected CRM records exactly into resources. Put connected read sources only in integrations. This never deploys the agent.",
 	inputSchema: builderDraftToolInput,
@@ -22,3 +23,5 @@ export default defineTool({
 		return result;
 	},
 });
+
+export default tenantTool(tool);

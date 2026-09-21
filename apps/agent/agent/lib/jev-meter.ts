@@ -5,8 +5,12 @@ export type GateCount = {
 	word: string;
 };
 
-const totals = new Map<string, GateCount>();
-const pass = new Map<string, GateCount>();
+import { tenantState } from "./tenant";
+
+const meter = tenantState(() => ({
+	totals: new Map<string, GateCount>(),
+	pass: new Map<string, GateCount>(),
+}));
 
 function add(
 	into: Map<string, GateCount>,
@@ -27,22 +31,25 @@ function addFailure(into: Map<string, GateCount>, gate: string, word: string) {
 }
 
 export function countGate(gate: string, hit: boolean, word: string): void {
+	const { totals, pass } = meter();
 	add(totals, gate, hit, word);
 	add(pass, gate, hit, word);
 }
 
 export function countGateFailure(gate: string, word: string): void {
+	const { totals, pass } = meter();
 	addFailure(totals, gate, word);
 	addFailure(pass, gate, word);
 }
 
 export function gateCounts(): Record<string, GateCount> {
 	return Object.fromEntries(
-		[...totals].map(([gate, row]) => [gate, { ...row }]),
+		[...meter().totals].map(([gate, row]) => [gate, { ...row }]),
 	);
 }
 
 export function drainGateCounts(): string | null {
+	const { pass } = meter();
 	if (pass.size === 0) return null;
 
 	const line = [...pass]
@@ -58,6 +65,7 @@ export function drainGateCounts(): string | null {
 }
 
 export function resetGateCounts(): void {
+	const { totals, pass } = meter();
 	totals.clear();
 	pass.clear();
 }

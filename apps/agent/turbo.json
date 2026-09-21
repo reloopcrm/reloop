@@ -23,7 +23,8 @@
 				"PERPLEXITY_API_KEY",
 				"TYPESAFE_API_KEY",
 				"RELOOP_GERMAN",
-				"CODEX_HOME"
+				"CODEX_HOME",
+				"AGENT_HISTORY_RETENTION_DAYS"
 			]
 		},
 		"dev:headless": {
@@ -39,7 +40,8 @@
 				"PERPLEXITY_API_KEY",
 				"TYPESAFE_API_KEY",
 				"RELOOP_GERMAN",
-				"CODEX_HOME"
+				"CODEX_HOME",
+				"AGENT_HISTORY_RETENTION_DAYS"
 			]
 		},
 		/**

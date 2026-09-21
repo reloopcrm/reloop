@@ -5,8 +5,9 @@ import {
 	setBuilderConversationTitle,
 } from "../lib/conversation-title";
 import { purposeOf, requireAttribute } from "../lib/session-purpose";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Set the concise title for a new private builder chat. Available only when the current turn says the chat needs a title.",
 	inputSchema: z.object({
@@ -24,3 +25,5 @@ export default defineTool({
 		);
 	},
 });
+
+export default tenantTool(tool);

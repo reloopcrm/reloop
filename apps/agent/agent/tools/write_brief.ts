@@ -5,10 +5,11 @@ import { WEIGHTS } from "../lib/evidence";
 import { writeBrief } from "../lib/facts";
 import { focusOn } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
+import { tenantTool } from "../lib/tenant";
 
 const MAX_NARRATIVE = 400;
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Write the Background panel on a contact: a short narrative plus the structured lines under it. Replaces the previous one. Every claim must come from something you read.",
 	inputSchema: z.object({
@@ -75,3 +76,5 @@ export default defineTool({
 			: { written: false as const, reason: result.reason };
 	},
 });
+
+export default tenantTool(tool);

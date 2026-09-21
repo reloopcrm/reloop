@@ -73,6 +73,16 @@ export const DISPATCH = {
 		page: 400,
 	},
 
+	tenants: {
+		concurrency: 8,
+		budgetMs: 3 * MINUTE_MS,
+	},
+
+	retention: {
+		envVar: "AGENT_HISTORY_RETENTION_DAYS",
+		batch: 5_000,
+	},
+
 	sweep: {
 		timeoutMs: 4 * MINUTE_MS,
 		staleQueueMs: 5 * MINUTE_MS,

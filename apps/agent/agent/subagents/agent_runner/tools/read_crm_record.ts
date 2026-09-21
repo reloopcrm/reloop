@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { readRunRecord } from "../../../lib/run-runtime";
 import { requireTeamAgentAttribute } from "../../../lib/session-purpose";
+import { tenantTool } from "../../../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Read one approved CRM record with its CRM history and only the connected email or calendar sources approved by this version.",
 	inputSchema: z.object({
@@ -14,3 +15,5 @@ export default defineTool({
 		return readRunRecord(requireTeamAgentAttribute(ctx, "runId"), input);
 	},
 });
+
+export default tenantTool(tool);

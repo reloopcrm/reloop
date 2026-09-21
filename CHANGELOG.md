@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/reloopcrm/reloop/compare/v0.16.0...v0.17.0) (2026-09-21)
+
+
+### Features
+
+* **landing:** a pricing page, and every page now sells the trial ([#34](https://github.com/reloopcrm/reloop/issues/34)) ([4adac97](https://github.com/reloopcrm/reloop/commit/4adac97b99a8552a3b97655277b80b9feb31f232))
+
+
+### Fixes
+
+* **agent:** start the built server directly, not through eve start ([#36](https://github.com/reloopcrm/reloop/issues/36)) ([bad0787](https://github.com/reloopcrm/reloop/commit/bad0787ca28b4e274a324d2b14b66cdb73cf4af9))
+* **ci:** pin the auth tests to one API origin, and let the owner skip the CLA ([#35](https://github.com/reloopcrm/reloop/issues/35)) ([d14ed5d](https://github.com/reloopcrm/reloop/commit/d14ed5d967afd57d89ac97e16eb9f6aaf716fa6c))
+
 ## [0.16.0](https://github.com/reloopcrm/reloop/compare/v0.15.1...v0.16.0) (2026-09-21)
 
 

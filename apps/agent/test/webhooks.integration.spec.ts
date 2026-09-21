@@ -169,10 +169,6 @@ describe("an event reaching a webhook", () => {
 
 		expect(await runWebhookLane(undefined, TIMEOUT_MS)).toBe(1);
 
-		console.error(
-			"[diag]",
-			JSON.stringify(await deliveriesOf(webhook.id), null, 0),
-		);
 		const message = received as Received | null;
 		if (!message) throw new Error("The receiver was never called.");
 
@@ -197,10 +193,6 @@ describe("an event reaching a webhook", () => {
 		await queueWebhookDeliveries(event);
 
 		await runWebhookLane(undefined, TIMEOUT_MS);
-		console.error(
-			"[diag]",
-			JSON.stringify(await deliveriesOf(webhook.id), null, 0),
-		);
 
 		const [delivery] = await deliveriesOf(webhook.id);
 		expect(delivery?.finishedAt).toBeNull();
@@ -238,10 +230,6 @@ describe("a receiver that never answers", () => {
 		await runWebhookLane(undefined, TIMEOUT_MS);
 
 		expect(Date.now() - started).toBeLessThan(WEBHOOKS.deliver.timeoutMs);
-		console.error(
-			"[diag]",
-			JSON.stringify(await deliveriesOf(webhook.id), null, 0),
-		);
 		const [delivery] = await deliveriesOf(webhook.id);
 		expect(delivery?.finishedAt).toBeNull();
 	});
@@ -269,10 +257,6 @@ describe("a receiver that keeps failing", () => {
 			await runWebhookLane(undefined, TIMEOUT_MS);
 		}
 
-		console.error(
-			"[diag]",
-			JSON.stringify(await deliveriesOf(webhook.id), null, 0),
-		);
 		expect(calls).toBe(MAX_ATTEMPTS);
 
 		const [delivery] = await deliveriesOf(webhook.id);

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
@@ -6,6 +6,13 @@ describe("Tracking collector", () => {
 	let app: INestApplication;
 
 	beforeAll(async () => {
+		const { BackfillService } = await import(
+			"../src/backfill/backfill.service"
+		);
+		spyOn(BackfillService.prototype, "onModuleInit").mockImplementation(
+			() => {},
+		);
+
 		const { createApp } = await import("../src/create-app");
 
 		app = await createApp();

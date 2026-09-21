@@ -10,7 +10,7 @@ import { Band, PageHero, SelfHostNote } from "@/components/landing/page-blocks";
 import { PRICING } from "@/components/landing/pricing/config";
 import { SignupForm } from "@/components/landing/signup-form";
 import { getT } from "@/lib/i18n/server";
-import { cloudUrl, signUpUrl } from "@/lib/sign-up-url";
+import { cloudUrl, marketingUrl, signUpUrl } from "@/lib/site-links";
 
 const chosenPlan = z.enum(PLAN_IDS).catch("trial");
 
@@ -76,7 +76,10 @@ export default async function GetStartedPage({
 
 			<Band tone="secondary">
 				<BentoCard className="w-full max-w-(--container-narrow) gap-6">
-					<SignupForm plan={plan} />
+					<SignupForm
+						plan={plan}
+						pricingHref={marketingUrl(PRICING.href.pricing)}
+					/>
 				</BentoCard>
 				<SelfHostNote />
 			</Band>

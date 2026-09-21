@@ -114,13 +114,31 @@ on this site redirects there with the same plan. Sign-in stays on this site.
 - **Only the sign-up links move.** Pricing, docs and sign-in stay here.
 - **Unset or empty means off**: the links stay relative. The compose file passes
   `${RELOOP_CLOUD_URL:-}`, so an empty string is the normal off state.
-- **`signUpUrl()` (`apps/app/lib/sign-up-url.ts`) reads it on the server** and
+- **`signUpUrl()` (`apps/app/lib/site-links.ts`) reads it on the server** and
   hands a plain string to the client component. Declared in `apps/app/turbo.json`
   `passThroughEnv`. The API does not read it.
 
 On the hosted stack itself (`RELOOP_REGISTRY_URL` set, `IS_MARKETING` unset)
 `/get-started` is reachable without a session, so a stranger can register. No
 other marketing page opens there.
+
+With `RELOOP_CLOUD_URL` set, `sitemap.xml` and `llms.txt` leave `/get-started`
+out, because the page only redirects.
+
+## `RELOOP_SITE_URL`, unset by default
+
+The other direction: the address of the marketing site, set on the hosted Cloud.
+The Cloud serves `/get-started` and `/docs` inside the landing shell, and the
+shell links to pricing, about, privacy and the reading pages. Those pages answer
+404 on the Cloud, because `IS_MARKETING` is off there. With `RELOOP_SITE_URL` set,
+every link to a marketing page becomes `<RELOOP_SITE_URL>/<page>`, including
+"Change plan" on the sign-up form. Docs, sign-in and the home link stay here.
+
+- **Unset or empty means off**: the links stay relative. The compose file passes
+  `${RELOOP_SITE_URL:-}`.
+- **`marketingUrl()` (`apps/app/lib/site-links.ts`) reads it on the server** and
+  hands a plain string to a client component. Declared in `apps/app/turbo.json`
+  `passThroughEnv`. The API does not read it.
 
 ## `GOOGLE_SITE_VERIFICATION`, unset by default
 

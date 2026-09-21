@@ -20,7 +20,8 @@
 				"RELOOP_PLANS",
 				"RELOOP_MANAGED",
 				"RELOOP_DEMO",
-				"RELOOP_CLOUD_URL"
+				"RELOOP_CLOUD_URL",
+				"RELOOP_SITE_URL"
 			]
 		},
 		"check-types": {
@@ -49,6 +50,7 @@
 				"RELOOP_MANAGED",
 				"RELOOP_DEMO",
 				"RELOOP_CLOUD_URL",
+				"RELOOP_SITE_URL",
 				"NEXT_PUBLIC_API_URL",
 				"NEXT_PUBLIC_AUTH_URL"
 			]

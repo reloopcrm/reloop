@@ -6,7 +6,7 @@ import { LandingShell } from "@/components/landing/landing-shell";
 import { PRICING } from "@/components/landing/pricing/config";
 import { PricingPlans } from "@/components/landing/pricing/pricing-plans";
 import { getT } from "@/lib/i18n/server";
-import { signUpUrl } from "@/lib/sign-up-url";
+import { signUpUrl } from "@/lib/site-links";
 
 export const metadata: Metadata = {
 	title: "Pricing",

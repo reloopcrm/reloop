@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { writeField } from "../lib/fields";
 import { focusOn } from "../lib/focus";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Set one custom field on one record, when you have read the answer from a source rather than guessed it. The field's brief says what would count — follow it. Call list_fields first if you do not know the key. A field the rep marked manual will refuse.",
 	inputSchema: z.object({
@@ -25,3 +26,5 @@ export default defineTool({
 		return writeField({ entity, recordId, key, value });
 	},
 });
+
+export default tenantTool(tool);

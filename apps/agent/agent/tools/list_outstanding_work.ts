@@ -1,8 +1,9 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { contactsNeedingWork } from "../lib/crm";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"List CRM contacts with outstanding research: no real name yet, no background written, or socials never looked for. Each row says what is missing. Deciding what is worth doing, and in what order, is your job.",
 	inputSchema: z.object({
@@ -13,3 +14,5 @@ export default defineTool({
 		return { count: contacts.length, contacts };
 	},
 });
+
+export default tenantTool(tool);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
+import { MODEL_PRICES } from "../src/model-prices";
 import {
 	allowsCompanyResearch,
 	COMPANY_RESEARCH_KINDS,
@@ -7,14 +8,18 @@ import {
 	clampImportSince,
 	clampResearchPerHour,
 	DRAFT_KIND,
+	fixedAiFor,
 	INSIGHT_KIND,
 	isPlanId,
 	LEGACY_PLAN_IDS,
 	limitsOf,
 	monthlyBudget,
+	monthStart,
+	nextMonthStart,
 	NO_PLAN,
 	PLAN_IDS,
 	PLANS,
+	RESEARCH_RUN_KIND,
 	TRIAL_DAYS,
 } from "../src/plans";
 
@@ -74,6 +79,10 @@ describe("an install without a plan", () => {
 		}
 		for (const [key, value] of Object.entries(NO_PLAN)) {
 			if (key === "label") continue;
+			if (key === "aiIncluded") {
+				expect(value).toBe(false);
+				continue;
+			}
 			expect(value).toBe(key === "companyResearch" ? true : null);
 		}
 	});
@@ -109,7 +118,32 @@ describe("the pricing page", () => {
 		for (const id of ["hosting", "hosting-pro"] as const) {
 			expect(PLANS[id].researchPerHour).toBeNull();
 			expect(PLANS[id].companyResearch).toBe(true);
+			expect(PLANS[id].aiIncluded).toBe(false);
 		}
+	});
+
+	it("includes the AI on every other plan", () => {
+		for (const id of ["trial", "start", "standard", "plus", "team", "office"] as const) {
+			expect(PLANS[id].aiIncluded).toBe(true);
+		}
+	});
+
+	it("prices Sol at the standard OpenRouter route", () => {
+		expect(MODEL_PRICES["gpt-5.6-sol"]).toEqual({
+			input: 2,
+			cacheRead: 0.2,
+			cacheWrite: 2.5,
+			output: 10,
+		});
+	});
+
+	it("counts a month from its first day in UTC", () => {
+		expect(monthStart(now).toISOString()).toBe("2026-09-01T00:00:00.000Z");
+		expect(nextMonthStart(now).toISOString()).toBe(
+			"2026-10-01T00:00:00.000Z",
+		);
+		expect(monthlyBudget(RESEARCH_RUN_KIND, PLANS.trial)).toBe(0);
+		expect(fixedAiFor("start")).toBe(false);
 	});
 
 	it("names every plan id it carries", () => {

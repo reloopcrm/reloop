@@ -6,8 +6,9 @@ import { recordFact } from "../lib/facts";
 import { focusOn } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
 import { parseSocialUrl, verifyGithub, verifyX } from "../lib/socials";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Write a contact's X and/or GitHub profile URLs after verifying each one. GitHub is checked against the account's own profile via the GitHub API; X is checked by handle and independent citation. Rejects anything it cannot corroborate — a rejection is a correct outcome, not a problem to work around.",
 	inputSchema: z.object({
@@ -100,3 +101,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

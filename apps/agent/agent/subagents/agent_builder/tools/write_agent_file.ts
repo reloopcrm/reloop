@@ -6,8 +6,9 @@ import {
 } from "../../../lib/builder-runtime";
 import { requireBuilderAttribute } from "../../../lib/session-purpose";
 import { assertBuilderDraftOpen } from "../lib/execution-state";
+import { tenantTool } from "../../../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Write one durable agent file revision so the user can follow the build live. Write instructions and the manifest before saving the final draft.",
 	inputSchema: z.object({
@@ -24,3 +25,5 @@ export default defineTool({
 		);
 	},
 });
+
+export default tenantTool(tool);

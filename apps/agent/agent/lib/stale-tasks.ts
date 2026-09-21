@@ -7,6 +7,7 @@ import {
 import { DISPATCH } from "./dispatch-config";
 import { settle } from "./enrichment";
 import { retireExhausted, type TaskSubject } from "./tasks";
+import { tenantState } from "./tenant";
 
 const SCAN = DISPATCH.reconcile.scan;
 
@@ -40,10 +41,10 @@ type OpenTask = {
 	startedAt: Date | null;
 };
 
-let lastSweep: StaleTaskSweep | null = null;
+const last = tenantState(() => ({ sweep: null as StaleTaskSweep | null }));
 
 export function staleTaskSweep(): StaleTaskSweep | null {
-	return lastSweep;
+	return last().sweep;
 }
 
 export async function retireAbandoned(): Promise<TaskSubject[]> {
@@ -80,7 +81,7 @@ export async function reconcileStaleTasks(): Promise<StaleTaskSweep> {
 		console.error(`[agent] Stale task reconciliation failed: ${sweep.error}`);
 	}
 
-	lastSweep = sweep;
+	last().sweep = sweep;
 	return sweep;
 }
 

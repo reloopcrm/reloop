@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { isHosted } from "@crm/db/tenant-context";
 import { defineChannel, POST } from "eve/channels";
 import { z } from "zod";
 import { chatgptLogin } from "../lib/chatgpt-login";
@@ -35,6 +36,17 @@ export default defineChannel({
 			const { action } = loginRequest.parse(
 				await request.json().catch(() => null),
 			);
+
+			if (isHosted()) {
+				return Response.json({
+					status: "unavailable",
+					url: null,
+					code: null,
+					alreadyLoggedIn: false,
+					reason: "A ChatGPT sign-in is not offered on a hosted install.",
+					pollMs: 0,
+				});
+			}
 
 			if (action === "start") return Response.json(await chatgptLogin.start());
 			if (action === "cancel") return Response.json(chatgptLogin.cancel());

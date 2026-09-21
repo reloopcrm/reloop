@@ -1,17 +1,22 @@
 import "@crm/env/load";
 
 import { AGENT_PROVIDER_DEFAULTS } from "@crm/db/settings";
+import { isHosted } from "@crm/db/tenant-context";
 import { onTelemetryProblem, syncVersion } from "@crm/telemetry";
 import { defineAgent, defineDynamic } from "eve";
 import { logCapabilities } from "./lib/capabilities";
 import { fallbackModel, logModelProvider, stepModel } from "./lib/model";
+import { withTenant } from "./lib/tenant";
 
-void logCapabilities();
-void logModelProvider();
+if (isHosted()) {
+	console.log("[agent] hosted mode: one database per tenant, read per session");
+} else {
+	void logCapabilities();
+	void logModelProvider();
+	void syncVersion();
+}
 
 onTelemetryProblem((message) => console.debug(`[telemetry] ${message}`));
-
-void syncVersion();
 
 export default defineAgent({
 	modelContextWindowTokens:
@@ -19,7 +24,7 @@ export default defineAgent({
 	model: defineDynamic({
 		fallback: fallbackModel(),
 		events: {
-			"step.started": () => stepModel(),
+			"step.started": (_event, ctx) => withTenant(ctx, () => stepModel()),
 		},
 	}),
 	limits: {

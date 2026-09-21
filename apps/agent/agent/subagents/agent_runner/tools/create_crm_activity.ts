@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { createRunActivity } from "../../../lib/run-runtime";
 import { requireTeamAgentAttribute } from "../../../lib/session-purpose";
+import { tenantTool } from "../../../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Create an approved internal CRM note or task on an approved record. The version must allow the exact activity type. The action is logged before it executes and is idempotent across retries.",
 	inputSchema: z.object({
@@ -22,3 +23,5 @@ export default defineTool({
 		);
 	},
 });
+
+export default tenantTool(tool);

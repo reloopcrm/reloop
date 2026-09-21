@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { sensitiveWrite } from "../lib/approval";
 import { archiveField } from "../lib/fields";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Archive a custom field. It leaves every sheet and table and stops being filled; the values already recorded are kept. A schema change every rep will see, so it needs a person.",
 	inputSchema: z.object({
@@ -17,3 +18,5 @@ export default defineTool({
 		return archiveField(input);
 	},
 });
+
+export default tenantTool(tool);

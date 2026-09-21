@@ -3,8 +3,9 @@ import { listReactivationCandidates, REACTIVATION } from "@crm/db/reactivation";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"List contacts worth getting back in touch with: people who emailed this workspace and have gone quiet, ranked by the workspace's own win-back rules (points the rep configured for replies owed, emails exchanged, meetings, deals, company and title keywords). Every row carries the facts and the point breakdown, nothing is guessed. Use it for questions like who should I follow up with, which old customers went quiet, or who is waiting on a reply. Free.",
 	inputSchema: z.object({
@@ -71,3 +72,5 @@ export default defineTool({
 		return { type: "json", value: output };
 	},
 });
+
+export default tenantTool(tool);

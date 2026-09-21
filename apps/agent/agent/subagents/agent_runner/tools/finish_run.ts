@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { stageRunResult } from "../../../lib/run-runtime";
 import { requireTeamAgentAttribute } from "../../../lib/session-purpose";
+import { tenantTool } from "../../../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Finish this run successfully with its concise summary and structured result. Set noActionNeeded when the trigger fired but this run's condition was not met, so none of the declared actions applied — an agent that watches for something is expected to do nothing when that thing did not happen.",
 	inputSchema: z.object({
@@ -19,3 +20,5 @@ export default defineTool({
 		return stageRunResult(requireTeamAgentAttribute(ctx, "runId"), input);
 	},
 });
+
+export default tenantTool(tool);

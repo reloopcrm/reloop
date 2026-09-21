@@ -14,6 +14,18 @@ export const MODEL = {
 		},
 	},
 	spend: { defaultKind: "agent", researchKind: "research" },
+	fixed: {
+		provider: "openrouter",
+		chat: "openai/gpt-5.6-luna",
+		reading: "openai/gpt-5.6-luna",
+		draft: "openai/gpt-5.6-sol",
+		contextWindowTokens: 200_000,
+		unavailable:
+			"The AI service is not available right now. The work continues when it is back.",
+		busy: "The AI service is busy right now. The work continues when it is free again.",
+		vendorWords:
+			/openrouter|openai|anthropic|chatgpt|codex|gpt[- ]?\d|claude|luna|terra|\bsol\b|api key|provider|model/i,
+	},
 	cache: { anthropic: { cacheControl: { type: "ephemeral" } } },
 	chatgptLogin: {
 		command: "codex",

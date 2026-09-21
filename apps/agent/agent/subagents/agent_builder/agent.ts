@@ -2,6 +2,7 @@ import { AGENT_PROVIDER_DEFAULTS } from "@crm/db/settings";
 import { defineAgent, defineDynamic } from "eve";
 import { z } from "zod";
 import { fallbackModel, stepModel } from "../../lib/model";
+import { withTenant } from "../../lib/tenant";
 
 export default defineAgent({
 	description:
@@ -11,7 +12,7 @@ export default defineAgent({
 	model: defineDynamic({
 		fallback: fallbackModel(),
 		events: {
-			"step.started": () => stepModel(),
+			"step.started": (_event, ctx) => withTenant(ctx, () => stepModel()),
 		},
 	}),
 	outputSchema: z.object({

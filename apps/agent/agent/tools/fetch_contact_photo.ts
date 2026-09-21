@@ -3,8 +3,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { runPortrait } from "../lib/portrait";
 import { assertResearchPurpose } from "../lib/session-purpose";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Find and store a photograph for a contact from the GitHub account on their record. Never searches for a face by name. Reports which source it used, or what it tried.",
 	inputSchema: z.object({
@@ -29,3 +30,5 @@ export default defineTool({
 		return runPortrait({ contactId, force });
 	},
 });
+
+export default tenantTool(tool);

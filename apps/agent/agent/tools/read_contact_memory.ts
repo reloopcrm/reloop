@@ -3,8 +3,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { focusOn } from "../lib/focus";
 import { untrusted } from "../lib/untrusted";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Read the running memory the CRM keeps about a contact: a short summary of every relevant conversation, how many deals were done, open inquiries, the largest quantity they asked about, the products involved, and the rep's own verdict on their potential. Bounded to a few hundred words, so prefer it over reading every thread. Free.",
 	inputSchema: z.object({ contactId: z.string() }),
@@ -66,3 +67,5 @@ export default defineTool({
 		};
 	},
 });
+
+export default tenantTool(tool);

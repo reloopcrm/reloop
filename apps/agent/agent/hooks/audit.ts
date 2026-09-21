@@ -5,6 +5,7 @@ import { isTransportOnlyEvent } from "../lib/event-persistence";
 import { currentFocus } from "../lib/focus";
 import { lockAgentRun } from "../lib/run-state";
 import { attribute, purposeOf } from "../lib/session-purpose";
+import { tenantHook } from "../lib/tenant";
 
 const finiteNumber = z.number().refine(Number.isFinite).nullable().catch(null);
 
@@ -24,7 +25,7 @@ const completedMessage = z
 	.object({ message: z.string().nullable().catch(null) })
 	.catch({ message: null });
 
-export default defineHook({
+const hook = defineHook({
 	events: {
 		async "*"(event, ctx) {
 			const id = event.meta?.id;
@@ -71,6 +72,8 @@ export default defineHook({
 		},
 	},
 });
+
+export default tenantHook(hook);
 
 async function persistBuilderLifecycle(
 	tx: Prisma.TransactionClient,

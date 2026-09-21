@@ -3,9 +3,10 @@ import { CRM_EVENT_CATALOG } from "@crm/db/crm-events";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { crmEventTask } from "@crm/validation/agent-events";
 import { readAgentTriggerConfig } from "@crm/validation/agent-manifest";
-import type { SendFn } from "eve/channels";
+import type { SendFn as EveSendFn } from "eve/channels";
 import { z } from "zod";
 import { DISPATCH } from "./dispatch-config";
+import { publicReason } from "./model";
 import { runBlocker } from "./run-preflight";
 import {
 	isTerminalRunStatus,
@@ -13,6 +14,9 @@ import {
 	runTerminalEventId,
 } from "./run-state";
 import type { LeasedTask } from "./tasks";
+import { channelState, type CrmChannelState, tenantAttributes } from "./tenant";
+
+type SendFn = EveSendFn<CrmChannelState>;
 
 const BUILDER_BATCH = DISPATCH.builder.batch;
 const RUN_BATCH = DISPATCH.run.batch;
@@ -169,6 +173,7 @@ export async function dispatchBuilderSubmission(
 					principalType: "user",
 					principalId: submission.conversation.userId,
 					attributes: {
+						...tenantAttributes(),
 						purpose: "builder",
 						commandType: builderCommandType(
 							submission.commandType,
@@ -182,6 +187,7 @@ export async function dispatchBuilderSubmission(
 				},
 				continuationToken: builderToken(conversationId),
 				title: submission.conversation.title ?? "Agent builder",
+				state: channelState(),
 			},
 		);
 
@@ -518,6 +524,7 @@ export async function dispatchAgentRun(runId: string, send: SendFn) {
 				principalType: run.initiatedById ? "user" : "runtime",
 				principalId,
 				attributes: {
+					...tenantAttributes(),
 					purpose: "team-agent",
 					runId: run.id,
 					agentId: run.agentId,
@@ -528,6 +535,7 @@ export async function dispatchAgentRun(runId: string, send: SendFn) {
 			continuationToken: runToken(run.id),
 			title: `${run.agent.name} run`,
 			mode: "task",
+			state: channelState(),
 		});
 
 		await db.agentRun.updateMany({
@@ -542,7 +550,8 @@ export async function dispatchAgentRun(runId: string, send: SendFn) {
 	}
 }
 
-export async function failRun(runId: string, code: string, message: string) {
+export async function failRun(runId: string, code: string, reason: string) {
+	const message = await publicReason(reason);
 	return db.$transaction(async (tx) => {
 		const run = await lockAgentRun(tx, runId);
 		if (run.status === "FAILED") {

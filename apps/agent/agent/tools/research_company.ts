@@ -3,6 +3,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { spend } from "../lib/focus";
 import { askPage, fetchPage } from "../lib/website-brand";
+import { tenantTool } from "../lib/tenant";
 
 const RESEARCH_INSTRUCTIONS = [
 	"You read a company's marketing site and answer as a salesperson preparing for a first call.",
@@ -31,7 +32,7 @@ const researchBrief = z.object({
 
 type ResearchBrief = z.infer<typeof researchBrief>;
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Read a company's own website and write a research brief to its timeline: positioning, pricing, who they sell to, notable customers, recent news.",
 	inputSchema: z.object({
@@ -125,6 +126,8 @@ export default defineTool({
 		return { written: true as const, activityId: activity.id };
 	},
 });
+
+export default tenantTool(tool);
 
 function hostOf(website: string | null): string | null {
 	if (!website) return null;

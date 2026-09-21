@@ -6,8 +6,9 @@ import {
 	assertBuilderDraftOpen,
 	markBuilderDraftSaveFinished,
 } from "../lib/execution-state";
+import { tenantTool } from "../../../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Validate and save one immutable agent version for human review. Copy selected CRM records exactly into resources. Put connected read sources only in integrations. This never deploys the agent.",
 	inputSchema: builderDraftToolInput,
@@ -22,3 +23,5 @@ export default defineTool({
 		return result;
 	},
 });
+
+export default tenantTool(tool);

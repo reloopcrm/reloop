@@ -1,10 +1,14 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
 import { z } from "zod";
+import { db } from "@crm/db";
+import { readMonthlyUsage, roomFor } from "@crm/db/plan-usage";
 import { builderFeedbackMarkdown } from "../lib/builder-feedback";
 import { focusOn, setBudget } from "../lib/focus";
+import { planLimits } from "../lib/plan-limits";
 import { sessionPreamble } from "../lib/preamble";
 import { RESEARCH_INSTRUCTIONS } from "../lib/research-instructions";
 import { attribute, purposeOf } from "../lib/session-purpose";
+import { withTenant } from "../lib/tenant";
 
 const attributeText = z.string().trim().min(1).nullable().catch(null);
 
@@ -17,51 +21,82 @@ const attributeNumber = z
 
 export default defineDynamic({
 	events: {
-		"session.started": async (_event, ctx) => {
-			const purpose = purposeOf(ctx);
-			if (purpose === "builder") {
-				return builderInstructions(ctx);
-			}
-
-			if (purpose === "team-agent") {
-				return defineInstructions({
-					markdown: `This is one background run of a deployed team agent. Call agent_runner exactly once and pass the run id from your user message. Do not call research tools or perform work yourself. Relay the specialist's structured factual completion summary. Never claim an external action that the specialist did not log.`,
-				});
-			}
-
-			const attributes = ctx.session.auth.current?.attributes ?? {};
-			const budget = attributeNumber.parse(attributes.budget);
-			const kind = attributeText.parse(attributes.taskKind);
-
-			if (budget) setBudget(budget);
-
-			const fieldKeys = attributeText.parse(attributes.fieldKeys);
-
-			const { markdown, focus } = await sessionPreamble(
-				{
-					contactId: attributeText.parse(attributes.contactId),
-					companyId: attributeText.parse(attributes.companyId),
-					dealId: attributeText.parse(attributes.dealId),
-				},
-				{
-					dispatched: Boolean(kind),
-					kind,
-					reason: attributeText.parse(attributes.reason),
-					budget,
-					fieldKeys: fieldKeys ? fieldKeys.split(",") : null,
-				},
-			);
-
-			focusOn({ ...focus, sessionId: ctx.session.id, taskKind: kind });
-
-			return defineInstructions({
-				markdown: `${RESEARCH_INSTRUCTIONS}\n\n${markdown}`,
-			});
-		},
+		"session.started": (_event, ctx) =>
+			withTenant(ctx, () => sessionInstructions(ctx)),
 		"turn.started": (_event, ctx) =>
-			purposeOf(ctx) === "builder" ? builderInstructions(ctx) : null,
+			withTenant(ctx, () =>
+				purposeOf(ctx) === "builder" ? builderInstructions(ctx) : null,
+			),
 	},
 });
+
+async function sessionInstructions(
+	ctx: Parameters<typeof purposeOf>[0] & { session: { id: string } },
+) {
+	const purpose = purposeOf(ctx);
+	const stop = await limitReached(purpose === "builder" ? "builder" : "chat");
+	if (stop) return stop;
+
+	if (purpose === "builder") {
+		return builderInstructions(ctx);
+	}
+
+	if (purpose === "team-agent") {
+		return defineInstructions({
+			markdown: `This is one background run of a deployed team agent. Call agent_runner exactly once and pass the run id from your user message. Do not call research tools or perform work yourself. Relay the specialist's structured factual completion summary. Never claim an external action that the specialist did not log.`,
+		});
+	}
+
+	const attributes = ctx.session.auth.current?.attributes ?? {};
+	const budget = attributeNumber.parse(attributes.budget);
+	const kind = attributeText.parse(attributes.taskKind);
+
+	if (budget) setBudget(budget);
+
+	const fieldKeys = attributeText.parse(attributes.fieldKeys);
+
+	const { markdown, focus } = await sessionPreamble(
+		{
+			contactId: attributeText.parse(attributes.contactId),
+			companyId: attributeText.parse(attributes.companyId),
+			dealId: attributeText.parse(attributes.dealId),
+		},
+		{
+			dispatched: Boolean(kind),
+			kind,
+			reason: attributeText.parse(attributes.reason),
+			budget,
+			fieldKeys: fieldKeys ? fieldKeys.split(",") : null,
+		},
+	);
+
+	focusOn({ ...focus, sessionId: ctx.session.id, taskKind: kind });
+
+	return defineInstructions({
+		markdown: `${RESEARCH_INSTRUCTIONS}\n\n${markdown}`,
+	});
+}
+
+export const LIMIT_REACHED_INSTRUCTION =
+	"The monthly limit of this workspace's plan for this kind of conversation is reached. Answer with one sentence: the limit is reached, the conversation continues next month, and an upgrade of the plan continues it now. Call no tool and do nothing else.";
+
+async function limitReached(
+	counter: "chat" | "builder",
+): Promise<{ markdown: string } | null> {
+	try {
+		const limits = await planLimits();
+		const limit =
+			limits[counter === "chat" ? "chatPerMonth" : "builderPerMonth"];
+		if (limit === null) return null;
+
+		const room = roomFor(counter, await readMonthlyUsage(db), limits);
+		return room !== null && room <= 0
+			? defineInstructions({ markdown: LIMIT_REACHED_INSTRUCTION })
+			: null;
+	} catch {
+		return null;
+	}
+}
 
 async function builderInstructions(ctx: Parameters<typeof purposeOf>[0]) {
 	const task = builderTaskMarkdown(

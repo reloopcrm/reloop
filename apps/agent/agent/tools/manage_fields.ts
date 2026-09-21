@@ -1,8 +1,9 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { createField, updateFieldBrief } from "../lib/fields";
+import { tenantTool } from "../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Add a custom field to a record type, or change what a field's brief tells you to look for. Use it when a rep asks the CRM to start tracking something it has no field for. To suggest fields nobody asked for, call propose_fields instead: it writes a proposal a person decides on. A field a person created or renamed is theirs, so never rename it and never archive it. The brief is the whole instruction you will be working from later, so write it the way you would want to read it. A record type holds a fixed number of fields, and creating one past that is refused.",
 	inputSchema: z.object({
@@ -79,3 +80,5 @@ export default defineTool({
 		});
 	},
 });
+
+export default tenantTool(tool);

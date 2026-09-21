@@ -28,7 +28,9 @@ import { experimental_chatgpt } from "eve/models/openai";
 import { z } from "zod";
 import { chatgptLoginExists } from "./codex-binary";
 import { MODEL } from "./model-config";
+import { fixedAi } from "./plan-limits";
 import { withSpendMeter } from "./spend-meter";
+import { tenantState } from "./tenant";
 
 type ModelObject = Exclude<LanguageModel, string>;
 
@@ -45,22 +47,72 @@ export type ModelCandidate = {
 	build: () => ModelObject;
 };
 
-let cached: { at: number; setting: AgentProviderSetting } | null = null;
+type ProviderRead = { setting: AgentProviderSetting; fixed: boolean };
 
-const exhaustedUntil = new Map<AgentProvider, number>();
+const state = tenantState(() => ({
+	cached: null as { at: number; read: ProviderRead } | null,
+	exhaustedUntil: new Map<AgentProvider, number>(),
+	lastUsageWrite: 0,
+	usageWritten: Promise.resolve() as Promise<void>,
+}));
 
-async function provider(): Promise<AgentProviderSetting> {
+async function provider(): Promise<ProviderRead> {
 	const now = Date.now();
-	if (cached && now - cached.at < MODEL.provider.cacheMs) return cached.setting;
+	const current = state();
+	if (current.cached && now - current.cached.at < MODEL.provider.cacheMs) {
+		return current.cached.read;
+	}
 
-	const setting = await readAgentProvider(db);
-	cached = { at: now, setting };
-	return setting;
+	const [setting, fixed] = await Promise.all([
+		readAgentProvider(db),
+		fixedAi(),
+	]);
+	const read = { setting, fixed };
+	current.cached = { at: now, read };
+	return read;
 }
 
 export function forgetProviderCache(): void {
-	cached = null;
-	exhaustedUntil.clear();
+	const current = state();
+	current.cached = null;
+	current.exhaustedUntil.clear();
+}
+
+export function fixedCandidates(
+	env: NodeJS.ProcessEnv = process.env,
+	purpose: ModelPurpose = "chat",
+	kind: string = MODEL.spend.defaultKind,
+): ModelCandidate[] {
+	const key = env.OPENROUTER_API_KEY?.trim();
+	if (!key) return [];
+
+	const model = MODEL.fixed[purpose];
+	return [
+		{
+			provider: MODEL.fixed.provider,
+			label: `Included AI (${model})`,
+			model,
+			contextWindowTokens: MODEL.fixed.contextWindowTokens,
+			build: () => withSpendMeter(openrouterModel(key, model), model, kind),
+		},
+	];
+}
+
+async function chainFor(
+	purpose: ModelPurpose = "chat",
+	kind: string = MODEL.spend.defaultKind,
+): Promise<ModelCandidate[]> {
+	const { setting, fixed } = await provider();
+	return fixed
+		? fixedCandidates(process.env, purpose, kind)
+		: candidatesFor(setting, process.env, purpose, kind);
+}
+
+export async function publicReason(reason: string): Promise<string> {
+	if (!(await fixedAi())) return reason;
+	return MODEL.fixed.vendorWords.test(reason)
+		? MODEL.fixed.unavailable
+		: reason;
 }
 
 function openKey(sealed: string | null): string | null {
@@ -284,14 +336,14 @@ export function markExhausted(
 	until: number | null = null,
 ): void {
 	const resumeTime = until ?? now + MODEL.fallback.cooldownMs;
-	exhaustedUntil.set(name, resumeTime);
+	state().exhaustedUntil.set(name, resumeTime);
 	console.error(
 		`[agent] ${name} reports its usage limit; waiting until ${new Date(resumeTime).toISOString()} before using it again`,
 	);
 }
 
 export function exhaustedUntilOf(name: AgentProvider): number | null {
-	const until = exhaustedUntil.get(name) ?? null;
+	const until = state().exhaustedUntil.get(name) ?? null;
 	return until !== null && until > Date.now() ? until : null;
 }
 
@@ -299,18 +351,18 @@ export function usable(
 	candidates: ModelCandidate[],
 	now = Date.now(),
 ): ModelCandidate[] {
+	const { exhaustedUntil } = state();
 	return candidates.filter(
 		(entry) => (exhaustedUntil.get(entry.provider) ?? 0) <= now,
 	);
 }
 
 export async function providersExhausted(): Promise<boolean> {
-	return usable(candidatesFor(await provider())).length === 0;
+	return usable(await chainFor()).length === 0;
 }
 
 export async function resumeAt(): Promise<Date | null> {
-	const setting = await provider();
-	const chain = candidatesFor(setting);
+	const chain = await chainFor();
 	const times = chain
 		.map((entry) => exhaustedUntilOf(entry.provider))
 		.filter((value): value is number => value !== null);
@@ -320,26 +372,24 @@ export async function resumeAt(): Promise<Date | null> {
 		: null;
 }
 
-let lastUsageWrite = 0;
-let usageWritten: Promise<void> = Promise.resolve();
-
 function recordUsage(headers: UsageHeaders): void {
 	const now = Date.now();
-	if (now - lastUsageWrite < MODEL.usage.minIntervalMs) return;
+	const current = state();
+	if (now - current.lastUsageWrite < MODEL.usage.minIntervalMs) return;
 
 	const snapshot = usageFromCodexHeaders(headers);
 	if (!snapshot) return;
-	lastUsageWrite = now;
+	current.lastUsageWrite = now;
 
 	if (
 		snapshot.primaryUsedPercent !== null &&
 		snapshot.primaryUsedPercent >= 100 &&
 		snapshot.primaryResetAt
 	) {
-		exhaustedUntil.set("chatgpt", snapshot.primaryResetAt.getTime());
+		current.exhaustedUntil.set("chatgpt", snapshot.primaryResetAt.getTime());
 	}
 
-	usageWritten = (async () => {
+	current.usageWritten = (async () => {
 		try {
 			await writeProviderUsage(db, snapshot);
 		} catch (error) {
@@ -447,8 +497,7 @@ export async function stepModel(
 	kind: string = MODEL.spend.researchKind,
 ): Promise<StepModelSelection | null> {
 	try {
-		const setting = await provider();
-		const chain = usable(candidatesFor(setting, process.env, "chat", kind));
+		const chain = usable(await chainFor("chat", kind));
 		const first = chain[0];
 		if (!first) {
 			console.error(
@@ -489,8 +538,12 @@ export const NO_PROVIDER_MESSAGE =
 
 export async function modelUnavailable(): Promise<string | null> {
 	try {
-		const setting = await provider();
-		const chain = candidatesFor(setting);
+		const { fixed } = await provider();
+		const chain = await chainFor();
+		if (fixed) {
+			if (chain.length === 0) return MODEL.fixed.unavailable;
+			return usable(chain).length > 0 ? null : MODEL.fixed.busy;
+		}
 		if (chain.length === 0) return NO_PROVIDER_MESSAGE;
 
 		const spent = await chatgptExhausted();
@@ -525,15 +578,19 @@ export async function directModel(
 	purpose: ModelPurpose = "chat",
 	kind: string = MODEL.spend.defaultKind,
 ): Promise<ModelObject> {
-	const setting = await provider();
-	const all = candidatesFor(setting, process.env, purpose, kind);
-	if (all.length === 0) throw new Error(NO_PROVIDER_MESSAGE);
+	const { fixed } = await provider();
+	const all = await chainFor(purpose, kind);
+	if (all.length === 0) {
+		throw new Error(fixed ? MODEL.fixed.unavailable : NO_PROVIDER_MESSAGE);
+	}
 
 	const chain = usable(all);
 	const built = chain.map((entry) => entry.build());
 	if (built.length === 0) {
 		throw new Error(
-			"Every configured model provider is at its usage limit; the call waits for the next reset.",
+			fixed
+				? MODEL.fixed.busy
+				: "Every configured model provider is at its usage limit; the call waits for the next reset.",
 		);
 	}
 
@@ -542,9 +599,15 @@ export async function directModel(
 
 export async function logModelProvider(): Promise<void> {
 	try {
-		const setting = await readAgentProvider(db);
-		const chain = candidatesFor(setting);
+		const { setting, fixed } = await provider();
+		const chain = await chainFor();
 		const labels = chain.map((entry) => entry.label);
+		if (fixed) {
+			console.error(
+				`[agent] on   Model: ${labels[0] ?? "included AI, but OPENROUTER_API_KEY is not set"}`,
+			);
+			return;
+		}
 		console.error(
 			`[agent] on   Model: ${labels[0] ?? `${chatModelFor(setting).id} (${setting.provider}, no key yet)`}${
 				labels.length > 1 ? `, falls back to ${labels.slice(1).join(", ")}` : ""
@@ -565,8 +628,8 @@ async function usageStampOf(): Promise<number> {
 }
 
 export async function probeUsage(): Promise<string> {
-	const setting = await provider();
-	if (setting.provider !== "chatgpt") {
+	const { setting, fixed } = await provider();
+	if (fixed || setting.provider !== "chatgpt") {
 		return USAGE_PROBE_OUTCOMES.wrongProvider;
 	}
 
@@ -576,7 +639,7 @@ export async function probeUsage(): Promise<string> {
 	if (!candidate) return USAGE_PROBE_OUTCOMES.notSetUp;
 
 	const before = await usageStampOf();
-	lastUsageWrite = 0;
+	state().lastUsageWrite = 0;
 
 	try {
 		const result = streamText({
@@ -595,7 +658,7 @@ export async function probeUsage(): Promise<string> {
 		}
 	}
 
-	await usageWritten;
+	await state().usageWritten;
 
 	return (await usageStampOf()) > before
 		? USAGE_PROBE_OUTCOMES.refreshed

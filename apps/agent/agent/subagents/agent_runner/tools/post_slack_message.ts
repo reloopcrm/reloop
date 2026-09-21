@@ -2,8 +2,9 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { postRunSlackMessage } from "../../../lib/run-runtime";
 import { requireTeamAgentAttribute } from "../../../lib/session-purpose";
+import { tenantTool } from "../../../lib/tenant";
 
-export default defineTool({
+const tool = defineTool({
 	description:
 		"Post one message to the exact Slack channel or person approved in the deployed version. The destination comes from the manifest and the action is idempotent across retries.",
 	inputSchema: z.object({
@@ -18,3 +19,5 @@ export default defineTool({
 		);
 	},
 });
+
+export default tenantTool(tool);

@@ -10,6 +10,7 @@ import {
 	wrapLanguageModel,
 } from "ai";
 import { z } from "zod";
+import { tenantState } from "./tenant";
 
 type ModelObject = Exclude<LanguageModel, string>;
 
@@ -69,12 +70,15 @@ export function spendOfPart(
 	return spendFromUsage(model, kind, parsed.usage ?? null);
 }
 
-let written: Promise<void> = Promise.resolve();
+const pending = tenantState(() => ({
+	written: Promise.resolve() as Promise<void>,
+}));
 
 export function storeSpend(entry: SpendEntry | null): void {
 	if (!entry) return;
 
-	written = written
+	const queue = pending();
+	queue.written = queue.written
 		.catch(() => {})
 		.then(() =>
 			writeModelSpend(db, entry).catch((error) => {
@@ -88,7 +92,7 @@ export function storeSpend(entry: SpendEntry | null): void {
 }
 
 export async function spendWritten(): Promise<void> {
-	await written;
+	await pending().written;
 }
 
 export type SpendSink = (entry: SpendEntry | null) => void;

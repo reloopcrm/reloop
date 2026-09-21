@@ -3,7 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
 GlobalRegistrator.register({ url: "https://crm.test/" });
 
-const navigation = await import("next/navigation");
+const navigation = { ...(await import("next/navigation")) };
 
 mock.module("next/navigation", () => ({
 	...navigation,
@@ -18,7 +18,10 @@ const { I18nProvider, writeLocaleCookie } = await import("../lib/i18n/client");
 const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
 const { LOCALE_COOKIE, parseLocale } = await import("../lib/i18n/locale");
 
-afterAll(() => GlobalRegistrator.unregister());
+afterAll(() => {
+	mock.module("next/navigation", () => navigation);
+	GlobalRegistrator.unregister();
+});
 
 function cookieValue(name: string): string | undefined {
 	return document.cookie

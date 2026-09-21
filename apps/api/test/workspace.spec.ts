@@ -1,9 +1,16 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { isWorkspaceEmail } from "@crm/auth/workspace";
 import { externalParticipants } from "../src/mailbox/participants";
 
+const allowed = process.env.ALLOWED_SIGN_IN;
+
 beforeEach(() => {
 	process.env.ALLOWED_SIGN_IN = "acme.com";
+});
+
+afterEach(() => {
+	if (allowed === undefined) delete process.env.ALLOWED_SIGN_IN;
+	else process.env.ALLOWED_SIGN_IN = allowed;
 });
 
 describe("isWorkspaceEmail", () => {

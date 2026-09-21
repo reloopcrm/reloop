@@ -86,6 +86,72 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
 - **There is no image search by name, and there must never be.** Nobody audits a face.
   **Guess where to look, never what you will find.**
 
+## Hosted mode: one agent, every tenant
+
+With `RELOOP_REGISTRY_URL` set the one agent process serves every tenant, and `db`
+resolves through the tenant in `AsyncLocalStorage` exactly as in the API. eve runs
+authored code step by step, so that context never survives a step boundary: every
+entry point reads the tenant again from `session.auth.attributes.tenantId` and
+`lib/tenant.ts` is the only place that does it.
+
+- **`tenantTool(defineTool(...))` wraps every tool**, root and subagent. `tenantHook`
+  wraps the hooks that touch the database, the two instruction resolvers and the
+  three model resolvers call `withTenant(ctx, ...)`, and `tenantChannelEvents` wraps
+  the crm channel's event handlers. `session.failed` carries no `ctx`, so the crm
+  channel keeps the tenant in its channel `state` and every `send` seeds it with
+  `channelState()`.
+- **A session names its tenant in the auth attributes.** `taskAuth` adds it for the
+  research lane, `dispatchBuilderSubmission` and `dispatchAgentRun` add it for the
+  builder and the runner, and the bridge token carries it for a rep's chat. Without
+  it, hosted mode throws rather than guessing, and `db` throws
+  `TenantContextMissing` for a wrapper somebody forgot.
+- **The dispatch tick loops over the active tenants**: `eachActiveTenant` runs
+  `DISPATCH.tenants.concurrency` tenants at once, each under
+  `DISPATCH.tenants.budgetMs`, the start rotates every tick, and one tenant's failure
+  is one log line. The internal routes loop the same way; `x-reloop-tenant` from the
+  API's poke narrows a route to one tenant.
+- **Module state is per tenant** through `tenantState()`: the provider cache and the
+  exhaustion marks in `lib/model.ts`, the health counters and the collapsing sweep in
+  `lib/dispatch.ts`, the stall sweep, the stale task sweep, the gate meter, the spend
+  queue and the telemetry model id. The boot reads in `agent.ts` are skipped, and a
+  ChatGPT login is never a candidate.
+
+### Included AI
+
+A plan with `aiIncluded` (`@crm/db/plans`) fixes the chain: the TypeSafe gate first,
+`MODEL.fixed.chat` and `MODEL.fixed.reading` (Luna) for every session, summary and
+research, `MODEL.fixed.draft` (Sol) for an email draft only. The key is the
+operator's `OPENROUTER_API_KEY`; a key or model a customer stored is not read. The
+customer never sees a model name: the settings page shows usage against limits, the
+spend report carries no model column, drafts and runs carry no model id, and
+`publicReason()` replaces any error that names a vendor with `MODEL.fixed.unavailable`
+before `settle()` or `failRun()` writes it. Hosting plans and a self-hosted install keep
+the model choice.
+
+### Monthly limits, enforced here
+
+`lib/plan-limits.ts` reads the plan (the tenant's registry plan when the row has
+none) and counts the month in UTC, the same way the API's `planAllows` does. Nothing
+fails silently: work past a limit waits until the first of next month and the
+settings page says so.
+
+| Limit | Where | What happens past it |
+| --- | --- | --- |
+| `insightsPerMonth` | `queueUnreadThreads` | queues at most the room left, then nothing until next month |
+| `draftsPerMonth` | `handleDirect` for `email-draft` | `postponeTask` to the next month; the draft dialog shows the wait |
+| `researchPerMonth` | `runResearchLane` | `company-profile` rows past the room are postponed, the rest run |
+| `chatPerMonth`, `builderPerMonth` | `instructions/task.ts` | the session answers with the limit sentence and calls no tool |
+
+`readMonthlyUsage` (`@crm/db/plan-usage`) is the one counter for both apps. Chat and
+builder count `message.received` events by conversation kind.
+
+### Retention
+
+`pruneAgentHistory` runs in the sweep and deletes `agentEvent` rows older than
+`DISPATCH.retention.eventDays` and finished `agentTask` rows older than
+`DISPATCH.retention.taskDays`, `DISPATCH.retention.batch` rows a pass. The panel's
+offline transcript therefore reaches back that far and no further.
+
 ## Two lanes
 
 `schedules/dispatch.ts`, split by `DIRECT_KINDS` in `@crm/db/agent-tasks`.

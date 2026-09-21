@@ -7,8 +7,10 @@ import {
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { planIdOf } from "@crm/db/plan-usage";
 import {
 	allowsCompanyResearch,
+	INSIGHT_KIND,
 	limitsOf,
 	monthlyBudget,
 	startOfMonth,
@@ -590,8 +592,7 @@ export class AgentTriggerService {
 	}
 
 	private async planAllows(kind: string): Promise<boolean> {
-		const row = await this.db.appSetting.findFirst({ select: { plan: true } });
-		const limits = limitsOf(row?.plan);
+		const limits = limitsOf(await planIdOf(this.db));
 
 		if (!allowsCompanyResearch(kind, limits)) {
 			this.logger.log({
@@ -602,7 +603,7 @@ export class AgentTriggerService {
 			return false;
 		}
 
-		const budget = monthlyBudget(kind, limits);
+		const budget = kind === INSIGHT_KIND ? monthlyBudget(kind, limits) : null;
 		if (budget === null) return true;
 
 		const used = await this.db.agentTask.count({

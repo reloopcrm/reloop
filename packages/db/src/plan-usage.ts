@@ -89,7 +89,9 @@ export async function readMonthlyUsage(
 	const [insights, drafts, research, chat, builder] = await Promise.all([
 		count(INSIGHT_KIND),
 		count(DRAFT_KIND),
-		count(RESEARCH_RUN_KIND),
+		db.agentTask.count({
+			where: { kind: RESEARCH_RUN_KIND, finishedAt: { gte: since } },
+		}),
 		conversationMessages(db, "RECORD", since),
 		conversationMessages(db, "BUILDER", since),
 	]);

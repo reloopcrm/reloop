@@ -69,7 +69,7 @@ export const PLANS = {
 		companyResearch: false,
 		insightsPerMonth: 1_000,
 		draftsPerMonth: 40,
-		researchPerMonth: 0,
+		researchPerMonth: null,
 		chatPerMonth: null,
 		builderPerMonth: null,
 		storageGb: null,

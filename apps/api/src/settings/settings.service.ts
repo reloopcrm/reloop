@@ -238,6 +238,17 @@ export class SettingsService {
 			fixedAiWith(this.db),
 		]);
 
+		if (fixed) {
+			return {
+				exchangeRate: SETTINGS.spend.dollarsToEuro,
+				days,
+				costUsd: 0,
+				costEur: 0,
+				calls: 0,
+				lines: [],
+			};
+		}
+
 		return {
 			exchangeRate: SETTINGS.spend.dollarsToEuro,
 			days,
@@ -246,7 +257,7 @@ export class SettingsService {
 			calls: report.calls,
 			lines: report.lines.map((line) => ({
 				kind: line.kind,
-				model: fixed ? "" : line.model,
+				model: line.model,
 				calls: line.calls,
 				costEur: line.costUsd * SETTINGS.spend.dollarsToEuro,
 				cacheReadTokens: line.cacheReadTokens,

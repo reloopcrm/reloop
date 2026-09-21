@@ -147,7 +147,7 @@ describe("the pricing page", () => {
 	it("counts a month from its first day in UTC", () => {
 		expect(monthStart(now).toISOString()).toBe("2026-09-01T00:00:00.000Z");
 		expect(nextMonthStart(now).toISOString()).toBe("2026-10-01T00:00:00.000Z");
-		expect(monthlyBudget(RESEARCH_RUN_KIND, PLANS.trial)).toBe(0);
+		expect(monthlyBudget(RESEARCH_RUN_KIND, PLANS.trial)).toBeNull();
 		expect(fixedAiFor("start")).toBe(false);
 	});
 

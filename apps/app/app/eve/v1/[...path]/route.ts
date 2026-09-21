@@ -1,5 +1,6 @@
 import { db } from "@crm/db";
 import { connection } from "next/server";
+import { z } from "zod";
 import {
 	AGENT_URL,
 	bridgeConfigured,
@@ -56,11 +57,10 @@ async function handler(request: Request): Promise<Response> {
 	headers.delete("x-crm-builder-conversation");
 
 	if (requestedSession) {
-		const conversation = await db.agentConversation.findUnique({
-			where: { sessionId: requestedSession },
-			select: { userId: true },
+		const owned = await db.agentConversation.count({
+			where: { sessionId: requestedSession, userId: session.user.id },
 		});
-		if (conversation && conversation.userId !== session.user.id) {
+		if (owned === 0) {
 			return Response.json(
 				{ error: "Conversation not found." },
 				{ status: 404 },
@@ -111,7 +111,17 @@ async function handler(request: Request): Promise<Response> {
 		signal: request.signal,
 	};
 
-	if (request.method !== "GET" && request.method !== "HEAD") {
+	const creating =
+		request.method === "POST" &&
+		url.pathname === CREATE_SESSION_PATH &&
+		!builderConversationId;
+	let opening: string | null = null;
+
+	if (creating) {
+		const text = await request.text();
+		opening = openingMessage(text);
+		init.body = text;
+	} else if (request.method !== "GET" && request.method !== "HEAD") {
 		init.body = request.body;
 		init.duplex = "half";
 	}
@@ -139,6 +149,35 @@ async function handler(request: Request): Promise<Response> {
 		responseHeaders.delete(header);
 	}
 
+	if (creating && upstream.ok) {
+		const text = await upstream.text();
+		const sessionId =
+			mintedSessionId(text) ?? upstream.headers.get(SESSION_ID_HEADER)?.trim();
+		if (!sessionId) {
+			return Response.json(
+				{ error: "The research agent did not return a session id." },
+				{ status: 502 },
+			);
+		}
+		await db.agentConversation.create({
+			data: {
+				sessionId,
+				userId: session.user.id,
+				kind: "RECORD",
+				contactId: recordId(contactId),
+				companyId: recordId(companyId),
+				dealId: recordId(dealId),
+				title: opening,
+			},
+			select: { id: true },
+		});
+		return new Response(text, {
+			status: upstream.status,
+			statusText: upstream.statusText,
+			headers: responseHeaders,
+		});
+	}
+
 	return new Response(upstream.body, {
 		status: upstream.status,
 		statusText: upstream.statusText,
@@ -156,11 +195,53 @@ export {
 	handler as PUT,
 };
 
+const CREATE_SESSION_PATH = "/eve/v1/session";
+const RESET_SESSION_PATH = "/eve/v1/session/reset";
+const SESSION_ID_HEADER = "x-eve-session-id";
+const TITLE_LENGTH = 120;
+
 function cuid(value: string | null): string | undefined {
 	return value && /^[a-z0-9]{20,32}$/.test(value) ? value : undefined;
 }
 
+function recordId(value: string | null): string | undefined {
+	const trimmed = value?.trim();
+	return trimmed ? trimmed : undefined;
+}
+
 function sessionFromPath(pathname: string): string | null {
+	if (pathname === RESET_SESSION_PATH) return null;
 	const match = pathname.match(/\/eve\/v1\/session\/([^/]+)/);
 	return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+const createSessionBody = z.object({
+	message: z
+		.string()
+		.trim()
+		.catch("")
+		.transform((message) => message.slice(0, TITLE_LENGTH)),
+});
+
+const createSessionReply = z.object({
+	sessionId: z.string().trim().min(1).catch(""),
+});
+
+function parseJson<Schema extends z.ZodType>(
+	text: string,
+	schema: Schema,
+): z.infer<Schema> | null {
+	try {
+		return schema.parse(JSON.parse(text));
+	} catch {
+		return null;
+	}
+}
+
+function openingMessage(body: string): string | null {
+	return parseJson(body, createSessionBody)?.message || null;
+}
+
+function mintedSessionId(body: string): string | undefined {
+	return parseJson(body, createSessionReply)?.sessionId || undefined;
 }

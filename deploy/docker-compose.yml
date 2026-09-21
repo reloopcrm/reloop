@@ -104,7 +104,7 @@ services:
       DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
       PORT: "2000"
       CODEX_HOME: /data/codex
-      NODE_OPTIONS: --max-old-space-size=${AGENT_HEAP_MB:-1024}
+      NODE_OPTIONS: ${AGENT_HEAP_MB:+--max-old-space-size=}${AGENT_HEAP_MB:-}
       AGENT_PORT:
       AGENT_BRIDGE_SECRET:
       BETTER_AUTH_SECRET:

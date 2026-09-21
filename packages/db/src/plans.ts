@@ -1,5 +1,3 @@
-import { isHosted } from "./tenant-context";
-
 export const CONTACT_LIMIT_MESSAGE =
 	"The contact limit is reached. Ask the server operator to change your plan.";
 
@@ -238,10 +236,6 @@ export function monthlyBudget(kind: string, limits: PlanLimits): number | null {
 
 export function nextMonthStart(now: Date = new Date()): Date {
 	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-}
-
-export function fixedAiFor(plan: string | null | undefined): boolean {
-	return isHosted() && limitsOf(plan).aiIncluded;
 }
 
 export const LIMIT_REACHED_MESSAGE =

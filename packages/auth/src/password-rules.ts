@@ -1,4 +1,4 @@
-import { API_KEY_PREFIX } from "./api-keys";
+import { API_KEY_PREFIX } from "./api-key-config";
 
 const MINUTE_MS = 60_000;
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { fixedCandidates } from "../agent/lib/model";
+import { fixedCandidates, pinnedBody } from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
 import { rotated, tenantTool } from "../agent/lib/tenant";
 
@@ -17,6 +17,14 @@ describe("the fixed AI chain", () => {
 		expect(chat[0]?.model).toBe("openai/gpt-5.6-luna");
 		expect(reading[0]?.model).toBe("openai/gpt-5.6-luna");
 		expect(draft[0]?.model).toBe("openai/gpt-5.6-sol");
+	});
+
+	it("pins Sol to the standard OpenAI route on OpenRouter", () => {
+		const body = JSON.stringify({ model: "openai/gpt-5.6-sol", messages: [] });
+		expect(JSON.parse(pinnedBody("openai/gpt-5.6-sol", body))).toMatchObject({
+			provider: { order: ["openai"], allow_fallbacks: false },
+		});
+		expect(pinnedBody("openai/gpt-5.6-luna", body)).toBe(body);
 	});
 
 	it("has no candidate without the operator key", () => {

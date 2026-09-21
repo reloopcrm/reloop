@@ -12,6 +12,9 @@ export const MODEL = {
 			"HTTP-Referer": "https://reloopcrm.com",
 			"X-Title": "Reloop CRM",
 		},
+		pins: {
+			"openai/gpt-5.6-sol": { order: ["openai"], allow_fallbacks: false },
+		},
 	},
 	spend: { defaultKind: "agent", researchKind: "research" },
 	fixed: {

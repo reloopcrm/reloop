@@ -79,8 +79,7 @@ export const DISPATCH = {
 	},
 
 	retention: {
-		eventDays: 90,
-		taskDays: 90,
+		envVar: "AGENT_HISTORY_RETENTION_DAYS",
 		batch: 5_000,
 	},
 

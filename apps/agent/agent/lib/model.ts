@@ -140,12 +140,43 @@ export function openrouterKeyOf(
 	);
 }
 
+const requestBody = z.record(z.string(), z.unknown());
+
+const textBody = z.string();
+
+function pinOf(model: string) {
+	return Object.hasOwn(MODEL.openrouter.pins, model)
+		? MODEL.openrouter.pins[model as keyof typeof MODEL.openrouter.pins]
+		: null;
+}
+
+export function pinnedBody(model: string, body: string): string {
+	const pin = pinOf(model);
+	if (!pin) return body;
+	const parsed = requestBody.safeParse(JSON.parse(body));
+	return parsed.success
+		? JSON.stringify({ ...parsed.data, provider: pin })
+		: body;
+}
+
+function pinnedFetch(model: string): typeof fetch | undefined {
+	if (!pinOf(model)) return undefined;
+	return (input, init) => {
+		const body = textBody.safeParse(init?.body);
+		return fetch(
+			input,
+			body.success ? { ...init, body: pinnedBody(model, body.data) } : init,
+		);
+	};
+}
+
 export function openrouterModel(apiKey: string, model: string): ModelObject {
 	return createOpenAI({
 		name: "openrouter",
 		baseURL: MODEL.openrouter.baseUrl,
 		apiKey,
 		headers: MODEL.openrouter.headers,
+		fetch: pinnedFetch(model),
 	}).chat(model);
 }
 

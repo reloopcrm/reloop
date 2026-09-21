@@ -194,6 +194,15 @@ Both are unset on a self-hosted install, which then runs as one workspace on
   whose migration fails `migration_failed` and continues; the `migrate` service
   in `deploy/cloud/docker-compose.cloud.yml` runs it before `api` starts.
 
+## `AGENT_HISTORY_RETENTION_DAYS`, off by default
+
+Empty means nothing is deleted. A positive number makes `pruneAgentHistory`
+(`apps/agent/agent/lib/housekeeping.ts`) delete `agentEvent` rows and finished
+`agentTask` rows older than that many days, `DISPATCH.retention.batch` rows per
+dispatch tick. The record sheet's offline transcript reaches back that far. A
+value that is not a positive integer counts as off. Declared in the root and the
+agent's `turbo.json`.
+
 ## `RELOOP_DEMO`, off by default
 
 A floating Play demo button drives a scripted tour of the real app with a fake

@@ -7,6 +7,7 @@ import {
 	type AgentTaskThreadPayload,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
+import { z } from "zod";
 import { DISPATCH } from "./dispatch-config";
 import { isDerivedName } from "./names";
 import { limitOutcome, monthlyRoom } from "./plan-limits";
@@ -200,12 +201,24 @@ export async function queuePlaybookLearn(): Promise<boolean> {
 
 export type HistoryPrune = { events: number; tasks: number };
 
+const retentionDays = z.coerce.number().int().positive().catch(0);
+
+export function historyRetentionDays(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const raw = env[DISPATCH.retention.envVar]?.trim();
+	return raw ? retentionDays.parse(raw) : 0;
+}
+
 export async function pruneAgentHistory(
 	now = new Date(),
+	days = historyRetentionDays(),
 ): Promise<HistoryPrune> {
-	const { eventDays, taskDays, batch } = DISPATCH.retention;
-	const eventCutoff = new Date(now.getTime() - eventDays * DAY_MS);
-	const taskCutoff = new Date(now.getTime() - taskDays * DAY_MS);
+	if (days <= 0) return { events: 0, tasks: 0 };
+
+	const { batch } = DISPATCH.retention;
+	const eventCutoff = new Date(now.getTime() - days * DAY_MS);
+	const taskCutoff = eventCutoff;
 
 	const events = await db.$executeRaw`
 		DELETE FROM "agentEvent"

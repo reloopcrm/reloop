@@ -125,8 +125,9 @@ operator's `OPENROUTER_API_KEY`; a key or model a customer stored is not read. T
 customer never sees a model name: the settings page shows usage against limits, the
 spend report carries no model column, drafts and runs carry no model id, and
 `publicReason()` replaces any error that names a vendor with `MODEL.fixed.unavailable`
-before `settle()` or `failRun()` writes it. Hosting plans and a self-hosted install keep
-the model choice.
+before `settle()` or `failRun()` writes it. `MODEL.openrouter.pins` pins Sol to OpenAI's
+own route with `allow_fallbacks: false`, so OpenRouter never bills the 5/30 route.
+Hosting plans and a self-hosted install keep the model choice.
 
 ### Monthly limits, enforced here
 
@@ -147,10 +148,11 @@ builder count `message.received` events by conversation kind.
 
 ### Retention
 
-`pruneAgentHistory` runs in the sweep and deletes `agentEvent` rows older than
-`DISPATCH.retention.eventDays` and finished `agentTask` rows older than
-`DISPATCH.retention.taskDays`, `DISPATCH.retention.batch` rows a pass. The panel's
-offline transcript therefore reaches back that far and no further.
+`pruneAgentHistory` runs in the sweep and is off unless `AGENT_HISTORY_RETENTION_DAYS`
+names a number of days. Then it deletes `agentEvent` rows and finished `agentTask`
+rows older than that, `DISPATCH.retention.batch` rows a pass. The panel's offline
+transcript therefore reaches back that far and no further. A self-hosted install
+leaves the variable unset and keeps everything.
 
 ## Two lanes
 

@@ -7,8 +7,8 @@ import { closeRegistry, type Tenant } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants } from "@crm/db/test-tenants";
 import { runDirect } from "../agent/lib/dispatch";
-import { DISPATCH } from "../agent/lib/dispatch-config";
 import {
+	historyRetentionDays,
 	pruneAgentHistory,
 	queueUnreadThreads,
 } from "../agent/lib/housekeeping";
@@ -19,6 +19,7 @@ const reason = `plan-limits-${suffix}`;
 const email = `${reason}@example.test`;
 const userId = `user-${reason}`;
 const DAY_MS = 24 * 60 * 60 * 1_000;
+const RETENTION_DAYS = 90;
 
 const saved = {
 	registry: process.env.RELOOP_REGISTRY_URL,
@@ -173,9 +174,7 @@ describe("the monthly plan limits inside the agent, on the trial plan of the reg
 
 	it("prunes old events and finished tasks, and keeps the recent ones", () =>
 		inTenant(async () => {
-			const old = new Date(
-				Date.now() - (DISPATCH.retention.eventDays + 1) * DAY_MS,
-			);
+			const old = new Date(Date.now() - (RETENTION_DAYS + 1) * DAY_MS);
 			await db.agentEvent.create({
 				data: {
 					id: `${reason}-old`,
@@ -193,7 +192,13 @@ describe("the monthly plan limits inside the agent, on the trial plan of the reg
 				select: { id: true },
 			});
 
-			const pruned = await pruneAgentHistory();
+			expect(await pruneAgentHistory()).toEqual({ events: 0, tasks: 0 });
+			expect(historyRetentionDays({})).toBe(0);
+			expect(historyRetentionDays({ AGENT_HISTORY_RETENTION_DAYS: "x" })).toBe(
+				0,
+			);
+
+			const pruned = await pruneAgentHistory(new Date(), RETENTION_DAYS);
 			expect(pruned.events).toBeGreaterThanOrEqual(1);
 			expect(pruned.tasks).toBeGreaterThanOrEqual(1);
 

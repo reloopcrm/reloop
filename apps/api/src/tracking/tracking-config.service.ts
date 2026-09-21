@@ -1,5 +1,6 @@
 import type { Db } from "@crm/db";
 import { SETTINGS_ID } from "@crm/db/settings";
+import { tenantScopedKey } from "@crm/db/tenant-context";
 import {
 	configHash,
 	mintSiteId,
@@ -32,7 +33,9 @@ export class TrackingConfigService {
 	) {}
 
 	async compiled(): Promise<CompiledConfig | null> {
-		const cached = await this.cache.get<CompiledConfig>(CONFIG_KEY);
+		const cached = await this.cache.get<CompiledConfig>(
+			tenantScopedKey(CONFIG_KEY),
+		);
 		if (cached) return cached;
 
 		const read = this.generation;
@@ -42,7 +45,11 @@ export class TrackingConfigService {
 		const compiled = { config, hash: configHash(config) };
 
 		if (read === this.generation && (await this.current(compiled.hash))) {
-			await this.cache.set(CONFIG_KEY, compiled, CONFIG_TTL_MS);
+			await this.cache.set(
+				tenantScopedKey(CONFIG_KEY),
+				compiled,
+				CONFIG_TTL_MS,
+			);
 		}
 
 		return compiled;
@@ -66,7 +73,7 @@ export class TrackingConfigService {
 		this.generation += 1;
 		const written = this.generation;
 
-		await this.cache.del(CONFIG_KEY);
+		await this.cache.del(tenantScopedKey(CONFIG_KEY));
 
 		const config = await readTrackingConfig(this.db);
 
@@ -89,7 +96,11 @@ export class TrackingConfigService {
 		if (written !== this.generation) return;
 		if (!(await this.current(hash))) return;
 
-		await this.cache.set(CONFIG_KEY, { config, hash }, CONFIG_TTL_MS);
+		await this.cache.set(
+			tenantScopedKey(CONFIG_KEY),
+			{ config, hash },
+			CONFIG_TTL_MS,
+		);
 	}
 
 	async ensureSiteId(): Promise<string> {

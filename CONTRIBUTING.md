@@ -41,6 +41,8 @@ All four run on CI, and `bun run format` fixes most of what `lint` complains abo
 
 **The suite runs against `TEST_DATABASE_URL`, never `DATABASE_URL`, and refuses to start without it.** `bun run db:test` creates the database and migrates it; the name has to end in `_test`. These tests write and delete real rows, so never point `TEST_DATABASE_URL` at a database you care about.
 
+**The tenancy specs create three more databases next to it**: `reloop_registry_test`, `crm_tenant_a_test` and `crm_tenant_b_test`, on the same server as `TEST_DATABASE_URL`, migrated on first use. They prove that two workspaces in hosted mode never see each other's rows.
+
 **A test may not delete a row it did not create.** Where a spec needs state it cannot own, it asserts the precondition and fails, rather than clearing whatever is in the way.
 
 **`test` runs one package at a time (`turbo run test --concurrency=1`).** The integration tests of several packages share one database, so running them at once lets one package's fixtures land inside another package's assertions. Do not raise the concurrency without giving each package its own database.

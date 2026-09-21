@@ -2,6 +2,7 @@ import { onSignedIn } from "@crm/auth";
 import { type Db, EnrichmentStatus, type Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { NOT_SAMPLE_RECORD } from "@crm/db/sample-data";
+import { tenantScopedKey } from "@crm/db/tenant-context";
 import { readWorkspaceIdentity } from "@crm/db/workspace";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Inject, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
@@ -64,8 +65,9 @@ export class BackfillService implements OnModuleInit {
 	}
 
 	async auto(): Promise<{ started: boolean }> {
-		if (await this.cache.get(AUTO_KEY)) return { started: false };
-		await this.cache.set(AUTO_KEY, true, AUTO_EVERY_MS);
+		const key = tenantScopedKey(AUTO_KEY);
+		if (await this.cache.get(key)) return { started: false };
+		await this.cache.set(key, true, AUTO_EVERY_MS);
 
 		void (async () => {
 			try {

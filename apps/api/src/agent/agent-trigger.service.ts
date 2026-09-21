@@ -9,6 +9,8 @@ import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { allowsCompanyResearch, INSIGHT_KIND, limitsOf } from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
+import { forEachTenant } from "@crm/db/tenancy";
+import { tenantScopedKey } from "@crm/db/tenant-context";
 import {
 	isTaskKindEnabled,
 	readAgentFunctions,
@@ -446,6 +448,10 @@ export class AgentTriggerService {
 	}
 
 	async redeliverCancellations(): Promise<void> {
+		await forEachTenant(() => this.redeliverCancellationsHere());
+	}
+
+	private async redeliverCancellationsHere(): Promise<void> {
 		try {
 			const since = new Date(
 				Date.now() - AGENT_DISPATCH.cancel.redeliverWithinMs,
@@ -462,13 +468,13 @@ export class AgentTriggerService {
 				select: { id: true },
 			});
 
-			const outstanding = new Set(runs.map((run) => run.id));
-			for (const runId of this.cancellationsDelivered) {
-				if (!outstanding.has(runId)) this.cancellationsDelivered.delete(runId);
+			const outstanding = new Set(runs.map((run) => tenantScopedKey(run.id)));
+			for (const key of this.cancellationsDelivered) {
+				if (!outstanding.has(key)) this.cancellationsDelivered.delete(key);
 			}
 
 			for (const run of runs) {
-				if (this.cancellationsDelivered.has(run.id)) continue;
+				if (this.cancellationsDelivered.has(tenantScopedKey(run.id))) continue;
 				await this.deliverCancellation(run.id);
 			}
 		} catch (error) {
@@ -481,7 +487,7 @@ export class AgentTriggerService {
 
 	private async deliverCancellation(runId: string): Promise<void> {
 		const delivered = await this.post("/internal/crm/cancel-run", { runId });
-		if (delivered) this.cancellationsDelivered.add(runId);
+		if (delivered) this.cancellationsDelivered.add(tenantScopedKey(runId));
 	}
 
 	async backfill(input: {

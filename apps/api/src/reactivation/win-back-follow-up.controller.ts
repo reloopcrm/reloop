@@ -1,3 +1,4 @@
+import { forEachTenant } from "@crm/db/tenancy";
 import {
 	Controller,
 	ForbiddenException,
@@ -71,7 +72,7 @@ export class WinBackFollowUpController {
 			throw new ForbiddenException();
 		}
 
-		return this.followUps.sweep();
+		return forEachTenant(() => this.followUps.sweep());
 	}
 }
 

@@ -1,4 +1,7 @@
 import { type Db, db } from "@crm/db";
+import { disconnectAll } from "@crm/db/client";
+import { closeRegistry, pingRegistry } from "@crm/db/tenancy";
+import { isHosted } from "@crm/db/tenant-context";
 import {
 	Global,
 	Logger,
@@ -20,6 +23,11 @@ export class DatabaseModule implements OnModuleInit, OnApplicationShutdown {
 
 	async onModuleInit(): Promise<void> {
 		try {
+			if (isHosted()) {
+				await pingRegistry();
+				this.logger.log({ message: "Tenant registry connected" });
+				return;
+			}
 			await this.db.$connect();
 			this.logger.log({ message: "Database connected" });
 		} catch (error) {
@@ -32,7 +40,12 @@ export class DatabaseModule implements OnModuleInit, OnApplicationShutdown {
 	}
 
 	async onApplicationShutdown(signal?: string): Promise<void> {
-		await this.db.$disconnect();
+		if (isHosted()) {
+			await disconnectAll();
+			await closeRegistry();
+		} else {
+			await this.db.$disconnect();
+		}
 		this.logger.log({ message: "Database disconnected", signal });
 	}
 }

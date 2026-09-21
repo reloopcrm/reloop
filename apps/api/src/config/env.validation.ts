@@ -6,9 +6,11 @@ import {
 	IsOptional,
 	IsString,
 	IsUrl,
+	Matches,
 	Max,
 	Min,
 	MinLength,
+	ValidateIf,
 	validateSync,
 } from "class-validator";
 
@@ -42,12 +44,26 @@ export class EnvironmentVariables {
 	})
 	BETTER_AUTH_SECRET!: string;
 
+	@ValidateIf((env: EnvironmentVariables) => !env.RELOOP_REGISTRY_URL)
 	@IsString()
 	@MinLength(1, {
 		message:
 			'ALLOWED_SIGN_IN is required — it is the only thing deciding who can sign in. Set it to your email domain, e.g. ALLOWED_SIGN_IN="acme.com", or to a single address for a one-person install.',
 	})
-	ALLOWED_SIGN_IN!: string;
+	ALLOWED_SIGN_IN?: string;
+
+	@IsOptional()
+	@IsString()
+	@MinLength(1)
+	RELOOP_REGISTRY_URL?: string;
+
+	@ValidateIf((env: EnvironmentVariables) => Boolean(env.RELOOP_REGISTRY_URL))
+	@IsString()
+	@Matches(/\{db\}/, {
+		message:
+			"RELOOP_TENANT_DATABASE_URL_TEMPLATE is required in hosted mode and must contain {db}, where the tenant's database name goes.",
+	})
+	RELOOP_TENANT_DATABASE_URL_TEMPLATE?: string;
 
 	@IsOptional()
 	@IsIn(["0", "1"], {

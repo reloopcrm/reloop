@@ -1,3 +1,4 @@
+import { forEachTenant } from "@crm/db/tenancy";
 import {
 	Controller,
 	ForbiddenException,
@@ -72,13 +73,19 @@ export class RatesController {
 			throw new ForbiddenException();
 		}
 
-		const refresh = await this.rates.refresh();
+		return forEachTenant(async () => {
+			const refresh = await this.rates.refresh();
 
-		if (!refresh.ok) return refresh;
+			if (!refresh.ok) return refresh;
 
-		const filled = await this.conversion.fillMissing();
+			const filled = await this.conversion.fillMissing();
 
-		return { ...refresh, converted: filled.converted, missing: filled.missing };
+			return {
+				...refresh,
+				converted: filled.converted,
+				missing: filled.missing,
+			};
+		});
 	}
 }
 

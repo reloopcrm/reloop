@@ -1,3 +1,4 @@
+import { forEachTenant } from "@crm/db/tenancy";
 import {
 	Controller,
 	ForbiddenException,
@@ -85,7 +86,7 @@ export class SyncController {
 			throw new ForbiddenException();
 		}
 
-		return this.sync.runDue();
+		return forEachTenant(() => this.sync.runDue());
 	}
 }
 

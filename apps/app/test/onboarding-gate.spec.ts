@@ -417,6 +417,7 @@ describe("the public pages", () => {
 		}
 
 		marketing(undefined);
+		hosted(undefined);
 		for (const path of marketingPaths) {
 			expect((await proxy(request(path))).status, path).toBe(404);
 		}

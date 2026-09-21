@@ -27,6 +27,7 @@ export type PlanLimits = {
 	importMonths: number | null;
 	importThreads: number | null;
 	researchPerHour: number | null;
+	researchSessionsPerMonth: number | null;
 	companyResearch: boolean;
 	insightsPerMonth: number | null;
 	draftsPerMonth: number | null;
@@ -44,6 +45,7 @@ export const NO_PLAN: PlanLimits = {
 	importMonths: null,
 	importThreads: null,
 	researchPerHour: null,
+	researchSessionsPerMonth: null,
 	companyResearch: true,
 	insightsPerMonth: null,
 	draftsPerMonth: null,
@@ -64,11 +66,12 @@ export const PLANS = {
 		importMonths: 3,
 		importThreads: 500,
 		researchPerHour: 5,
+		researchSessionsPerMonth: 100,
 		companyResearch: false,
-		insightsPerMonth: 1_000,
-		draftsPerMonth: 40,
+		insightsPerMonth: 500,
+		draftsPerMonth: 20,
 		researchPerMonth: null,
-		chatPerMonth: null,
+		chatPerMonth: 200,
 		builderPerMonth: null,
 		storageGb: null,
 		aiIncluded: true,
@@ -80,6 +83,7 @@ export const PLANS = {
 		importMonths: null,
 		importThreads: null,
 		researchPerHour: 10,
+		researchSessionsPerMonth: null,
 		companyResearch: true,
 		insightsPerMonth: 1_000,
 		draftsPerMonth: 40,
@@ -96,6 +100,7 @@ export const PLANS = {
 		importMonths: null,
 		importThreads: null,
 		researchPerHour: 30,
+		researchSessionsPerMonth: null,
 		companyResearch: true,
 		insightsPerMonth: 3_000,
 		draftsPerMonth: 100,
@@ -112,6 +117,7 @@ export const PLANS = {
 		importMonths: null,
 		importThreads: null,
 		researchPerHour: 30,
+		researchSessionsPerMonth: null,
 		companyResearch: true,
 		insightsPerMonth: 7_000,
 		draftsPerMonth: 300,
@@ -128,6 +134,7 @@ export const PLANS = {
 		importMonths: null,
 		importThreads: null,
 		researchPerHour: 60,
+		researchSessionsPerMonth: null,
 		companyResearch: true,
 		insightsPerMonth: 18_000,
 		draftsPerMonth: 800,
@@ -144,6 +151,7 @@ export const PLANS = {
 		importMonths: null,
 		importThreads: null,
 		researchPerHour: 60,
+		researchSessionsPerMonth: null,
 		companyResearch: true,
 		insightsPerMonth: 45_000,
 		draftsPerMonth: 2_000,
@@ -160,6 +168,7 @@ export const PLANS = {
 		importMonths: null,
 		importThreads: null,
 		researchPerHour: null,
+		researchSessionsPerMonth: null,
 		companyResearch: true,
 		insightsPerMonth: null,
 		draftsPerMonth: null,
@@ -176,6 +185,7 @@ export const PLANS = {
 		importMonths: null,
 		importThreads: null,
 		researchPerHour: null,
+		researchSessionsPerMonth: null,
 		companyResearch: true,
 		insightsPerMonth: null,
 		draftsPerMonth: null,

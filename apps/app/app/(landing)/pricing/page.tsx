@@ -27,7 +27,7 @@ export default async function PricingPage() {
 		{
 			title: t("Trial"),
 			body: t(
-				"14 days, 1,000 mail conversations, no card. The same for every plan.",
+				"14 days, 500 mail conversations, no card. The same for every plan.",
 			),
 		},
 	];
@@ -44,7 +44,7 @@ export default async function PricingPage() {
 					</p>
 					<p className="max-w-(--container-sheet) text-pretty text-muted-foreground">
 						{t(
-							"Try it free for 14 days, no card. 1,000 mail conversations included. You choose the plan afterwards.",
+							"Try it free for 14 days, no card. 500 mail conversations included. You choose the plan afterwards.",
 						)}
 					</p>
 				</div>

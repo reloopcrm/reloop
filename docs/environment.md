@@ -158,6 +158,32 @@ Both are unset on a self-hosted install, which then runs as one workspace on
 - **The guard `tools/tenancy-guard.ts`** runs with `bun run lint` and refuses
   `new PrismaClient` outside `packages/db/src/client.ts` and a
   `process.env.ALLOWED_SIGN_IN` read outside `workspace.ts`.
+- **A customer registers through `POST /api/tenant/signup`** and looks their
+  workspace up through `POST /api/tenant/lookup` (`apps/api/src/tenancy`). Both
+  are open paths in `tenantMiddleware`, rate limited per address and per IP in
+  memory (`TENANCY.signup.rate`). Signup provisions the database at once
+  (`provisionTenant`, `packages/db/src/provision.ts`: create, migrate, registry
+  row, `AppSetting.plan`, all rolled back on failure) with status `pending` and
+  the one address in `tenant_sign_in`. The API sends no mail, so activation is
+  the first Google or Microsoft sign-in with that exact address:
+  `TenantActivationHooks` runs on session create, sets `active`, and registers
+  the company domain when the address is not free mail. A tenant still
+  `pending` after `TENANCY.signup.pendingTtlMs` (48 hours) is removed.
+- **Trials end by a daily sweep** (`TenantSweepService`, in-process in
+  production, or `POST /internal/tenants/sweep` with `CRON_SECRET`): `trial`
+  past `trial_ends_at` becomes `suspended` (sign-in answers 403
+  `TENANT_SUSPENDED`, data kept); suspended for `TENANCY.trial.suspendedTtlMs`
+  (30 days) is dumped to `RELOOP_BACKUP_DIR` with `pg_dump`, dropped, and
+  removed from the registry. No `RELOOP_BACKUP_DIR` or no `pg_dump` means the
+  tenant is kept and an error is logged. Every duration is in
+  `packages/db/src/tenancy-config.ts`.
+- **`RELOOP_BACKUP_DIR`** is that dump folder, optional. **`RELOOP_BACKUP_REMOTE`**
+  is the rclone remote the nightly `deploy/cloud/backup.sh` copies to, optional:
+  without it the dumps stay local and the script warns.
+- **The CLI `apps/api/scripts/tenant.ts`** does the same by hand:
+  `create|migrate|migrate-all|suspend|delete|list`. `migrate-all` marks a tenant
+  whose migration fails `migration_failed` and continues; the `migrate` service
+  in `deploy/cloud/docker-compose.cloud.yml` runs it before `api` starts.
 
 ## `RELOOP_DEMO`, off by default
 

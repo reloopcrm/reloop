@@ -68,6 +68,7 @@ function harness(options: {
 	sentPages?: string[][];
 	historyIds?: string[];
 	plan?: string | null;
+	threads?: number;
 	alreadyFiled?: string[];
 	getMessage?: (id: string) => NotOk | null;
 }) {
@@ -145,6 +146,11 @@ function harness(options: {
 		appSetting: {
 			async findUnique() {
 				return { plan: options.plan ?? null };
+			},
+		},
+		emailThread: {
+			async count() {
+				return options.threads ?? 0;
 			},
 		},
 	} as unknown as Db;
@@ -250,6 +256,15 @@ describe("GmailSyncService backfill", () => {
 
 		const floor = backfillOf(kit.settled.at(-1)?.backfill).floor;
 		expect(floor).not.toBeNull();
+	});
+
+	it("finishes the backfill once the plan's import cap is reached", async () => {
+		const kit = harness({ pages: [["old-1"]], plan: "test", threads: 500 });
+
+		await kit.service.sync(row());
+
+		expect(kit.stored).toHaveLength(0);
+		expect(backfillOf(kit.settled.at(-1)?.backfill).state).toBe("done");
 	});
 
 	it("stops on the tick budget and keeps the page it stopped on", async () => {

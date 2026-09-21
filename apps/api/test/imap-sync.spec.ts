@@ -175,6 +175,7 @@ function harness(options: {
 		imapAccount: { findUnique: async () => account },
 		mailboxSync: { update: async () => undefined },
 		appSetting: { findUnique: async () => ({ plan }) },
+		emailThread: { count: async () => 0 },
 	} as unknown as Db;
 
 	const service = new ImapSyncService(db, clients, credentials, state, threads);
@@ -341,6 +342,7 @@ describe("ImapSyncService", () => {
 			imapAccount: { findUnique: async () => since },
 			mailboxSync: { update: async () => undefined },
 			appSetting: { findUnique: async () => ({ plan: null }) },
+			emailThread: { count: async () => 0 },
 		} as unknown as Db;
 
 		await h.service.sync(row());
@@ -365,6 +367,7 @@ describe("ImapSyncService", () => {
 			imapAccount: { findUnique: async () => wide },
 			mailboxSync: { update: async () => undefined },
 			appSetting: { findUnique: async () => ({ plan: "test" }) },
+			emailThread: { count: async () => 0 },
 		} as unknown as Db;
 
 		await h.service.sync(row());

@@ -11,6 +11,7 @@ import {
 	advancePhase,
 	backfillBefore,
 	backfillFloor,
+	finishBackfill,
 	isBackfillRunning,
 	type MailboxBackfill,
 	planBackfill,
@@ -19,6 +20,7 @@ import {
 	restartBackfill,
 	serialiseBackfill,
 } from "../mailbox/backfill-cursor";
+import { importCapReached } from "../mailbox/import-cap";
 import { MAILBOX } from "../mailbox/mailbox.config";
 import type { MailboxResult } from "../mailbox/mailbox-api.client";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
@@ -286,8 +288,14 @@ export class OutlookSyncService {
 
 		let left = budget;
 		let written = 0;
+		const limits = limitsOf(await readPlan(this.db));
 
 		while (left > 0 && isBackfillRunning(plan)) {
+			if (await importCapReached(this.db, limits)) {
+				plan = finishBackfill(plan);
+				break;
+			}
+
 			const page = plan.position
 				? await this.graph.nextPage(accessToken, plan.position)
 				: await this.graph.listMessages(accessToken, {

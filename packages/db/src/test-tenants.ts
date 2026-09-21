@@ -1,8 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
 import pg from "pg";
+import { createDatabase, migrateDatabase } from "./provision";
 import {
 	createTenant,
 	ensureRegistrySchema,
@@ -10,14 +7,7 @@ import {
 	type Tenant,
 } from "./tenancy";
 import { TENANCY } from "./tenancy-config";
-import {
-	databaseName,
-	isTestDatabaseName,
-	testDatabaseUrl,
-} from "./test-database";
-
-const DB_DIR = dirname(import.meta.dirname);
-const MIGRATIONS = join(DB_DIR, "prisma", "migrations");
+import { isTestDatabaseName, testDatabaseUrl } from "./test-database";
 
 export const TEST_TENANTS = {
 	registry: "reloop_registry_test",
@@ -46,65 +36,11 @@ function withDatabase(url: string, name: string): string {
 	return parsed.toString();
 }
 
-async function createDatabase(url: string, name: string): Promise<void> {
+async function createTestDatabase(url: string, name: string): Promise<void> {
 	if (!isTestDatabaseName(name)) {
 		throw new Error(`${name} does not end in _test. Refusing to create it.`);
 	}
-
-	const client = new pg.Client({
-		connectionString: withDatabase(url, "postgres"),
-	});
-	await client.connect();
-	try {
-		const existing = await client.query(
-			"SELECT 1 FROM pg_database WHERE datname = $1",
-			[name],
-		);
-		if (!existing.rowCount) await client.query(`CREATE DATABASE "${name}"`);
-	} finally {
-		await client.end();
-	}
-}
-
-async function appliedMigrations(url: string): Promise<Set<string>> {
-	const client = new pg.Client({ connectionString: url });
-	await client.connect();
-	try {
-		const rows = await client.query<{ migration_name: string }>(
-			"SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL",
-		);
-		return new Set(rows.rows.map((row) => row.migration_name));
-	} catch {
-		return new Set();
-	} finally {
-		await client.end();
-	}
-}
-
-async function migrate(url: string): Promise<void> {
-	const onDisk = existsSync(MIGRATIONS)
-		? readdirSync(MIGRATIONS, { withFileTypes: true })
-				.filter((entry) => entry.isDirectory())
-				.map((entry) => entry.name)
-		: [];
-	const applied = await appliedMigrations(url);
-	if (onDisk.every((name) => applied.has(name))) return;
-
-	const cli = join(
-		dirname(createRequire(import.meta.url).resolve("prisma/package.json")),
-		"build",
-		"index.js",
-	);
-	const result = spawnSync(process.execPath, [cli, "migrate", "deploy"], {
-		cwd: DB_DIR,
-		env: { ...process.env, DATABASE_URL: url },
-		encoding: "utf8",
-	});
-	if (result.status !== 0) {
-		throw new Error(
-			`prisma migrate deploy failed for ${databaseName(url)}:\n${result.stderr}`,
-		);
-	}
+	await createDatabase(withDatabase(url, name));
 }
 
 export async function prepareTestTenants(): Promise<TestTenancy> {
@@ -115,10 +51,10 @@ export async function prepareTestTenants(): Promise<TestTenancy> {
 		TENANCY.template.placeholder,
 	);
 
-	await createDatabase(base, TEST_TENANTS.registry);
+	await createTestDatabase(base, TEST_TENANTS.registry);
 	for (const { dbName } of [TEST_TENANTS.a, TEST_TENANTS.b]) {
-		await createDatabase(base, dbName);
-		await migrate(withDatabase(base, dbName));
+		await createTestDatabase(base, dbName);
+		await migrateDatabase(withDatabase(base, dbName));
 	}
 
 	process.env.RELOOP_REGISTRY_URL = registryUrl;
@@ -142,4 +78,19 @@ export async function prepareTestTenants(): Promise<TestTenancy> {
 	});
 
 	return { registryUrl, template, a, b };
+}
+
+export async function registryQuery(
+	sql: string,
+	values: readonly string[],
+): Promise<void> {
+	const client = new pg.Client({
+		connectionString: process.env.RELOOP_REGISTRY_URL,
+	});
+	await client.connect();
+	try {
+		await client.query(sql, [...values]);
+	} finally {
+		await client.end();
+	}
 }

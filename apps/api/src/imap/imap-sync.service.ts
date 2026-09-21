@@ -8,6 +8,7 @@ import { clampImportSince, limitsOf } from "@crm/db/plans";
 import { readPlan } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
+import { importCapReached } from "../mailbox/import-cap";
 import {
 	type ImapSyncSource,
 	imapAccountIdOf,
@@ -192,9 +193,10 @@ export class ImapSyncService {
 		let budget = IMAP.sync.maxMessagesPerTick;
 		let written = 0;
 
+		const limits = limitsOf(await readPlan(this.db));
 		const importSince = clampImportSince(
 			account.importSince,
-			limitsOf(await readPlan(this.db)),
+			limits,
 			new Date(),
 		);
 
@@ -242,6 +244,11 @@ export class ImapSyncService {
 			}
 
 			while (entry.backfillUid !== null && budget > 0) {
+				if (await importCapReached(this.db, limits)) {
+					entry.backfillUid = null;
+					break;
+				}
+
 				const to = entry.backfillUid;
 				const from = Math.max(entry.floorUid, to - IMAP.sync.backfillChunk + 1);
 

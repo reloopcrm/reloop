@@ -124,7 +124,7 @@ export function Plan() {
 						<SelectItem value={NONE}>{t("No plan, no limits")}</SelectItem>
 						{plan.data.options.map((option) => (
 							<SelectItem key={option.id} value={option.id}>
-								{option.label}
+								{t(option.label)}
 							</SelectItem>
 						))}
 					</SelectContent>
@@ -134,7 +134,7 @@ export function Plan() {
 					surface="page"
 					columns={[
 						{ id: "what", header: t("Limit") },
-						{ id: "value", header: plan.data.label, align: "right" },
+						{ id: "value", header: t(plan.data.label), align: "right" },
 					]}
 				>
 					{rows.map((row) => (

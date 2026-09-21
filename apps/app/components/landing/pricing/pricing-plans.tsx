@@ -44,7 +44,7 @@ function SwitchButton({
 	);
 }
 
-export function PricingPlans() {
+export function PricingPlans({ startHref }: { startHref: string }) {
 	const t = useT();
 	const locale = useLocale();
 	const [mode, setMode] = useState<Mode>("included");
@@ -154,7 +154,7 @@ export function PricingPlans() {
 								asChild
 							>
 								<NextLink
-									href={`${PRICING.href.start}?${PRICING.href.planParam}=${plan.id}`}
+									href={`${startHref}?${PRICING.href.planParam}=${plan.id}`}
 								>
 									{t("Try it now")}
 								</NextLink>

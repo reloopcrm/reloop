@@ -16,14 +16,22 @@ const realFetch = globalThis.fetch;
 
 const realMarketing = process.env.IS_MARKETING;
 
+const realRegistry = process.env.RELOOP_REGISTRY_URL;
+
 afterEach(() => {
 	globalThis.fetch = realFetch;
 	marketing(realMarketing);
+	hosted(realRegistry);
 });
 
 function marketing(value: string | undefined) {
 	if (value === undefined) delete process.env.IS_MARKETING;
 	else process.env.IS_MARKETING = value;
+}
+
+function hosted(value: string | undefined) {
+	if (value === undefined) delete process.env.RELOOP_REGISTRY_URL;
+	else process.env.RELOOP_REGISTRY_URL = value;
 }
 
 function stub(handler: (url: string) => Promise<Response>) {
@@ -412,6 +420,23 @@ describe("the public pages", () => {
 		for (const path of marketingPaths) {
 			expect((await proxy(request(path))).status, path).toBe(404);
 		}
+	});
+
+	it("open the sign-up form on a hosted install, and nothing else", async () => {
+		marketing(undefined);
+		hosted("postgresql://localhost:5432/reloop_registry");
+
+		expect(redirectedTo(await proxy(request("/get-started")))).toBeNull();
+		expect((await proxy(request("/get-started"))).status).toBe(200);
+		expect(
+			redirectedTo(await proxy(request("/get-started?plan=start"))),
+		).toBeNull();
+
+		for (const path of ["/about", "/pricing", "/self-hosted-crm"]) {
+			expect((await proxy(request(path))).status, path).toBe(404);
+		}
+
+		expect(redirectedTo(await proxy(request("/")))).toBe("/sign-in");
 	});
 });
 

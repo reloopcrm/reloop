@@ -6,6 +6,7 @@ import { LandingShell } from "@/components/landing/landing-shell";
 import { PRICING } from "@/components/landing/pricing/config";
 import { PricingPlans } from "@/components/landing/pricing/pricing-plans";
 import { getT } from "@/lib/i18n/server";
+import { signUpUrl } from "@/lib/sign-up-url";
 
 export const metadata: Metadata = {
 	title: "Pricing",
@@ -52,7 +53,7 @@ export default async function PricingPage() {
 
 			<section className="w-full px-6 pb-24 md:pb-32">
 				<div className="mx-auto w-full max-w-(--container-page-wide)">
-					<PricingPlans />
+					<PricingPlans startHref={signUpUrl()} />
 				</div>
 			</section>
 

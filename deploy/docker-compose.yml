@@ -87,6 +87,7 @@ services:
       RELOOP_DEMO:
       RELOOP_PLANS:
       GOOGLE_SITE_VERIFICATION:
+      RELOOP_CLOUD_URL: ${RELOOP_CLOUD_URL:-}
     ports:
       - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
     depends_on:

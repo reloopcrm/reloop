@@ -4,6 +4,7 @@ import Wordmark from "@crm/ui/components/wordmark";
 import NextLink from "next/link";
 import type * as React from "react";
 import { getT } from "@/lib/i18n/server";
+import { signUpUrl } from "@/lib/sign-up-url";
 import { REPO_URL } from "./site";
 
 export async function LandingShell({
@@ -16,7 +17,7 @@ export async function LandingShell({
 	const productLinks = [
 		{ href: "/pricing", label: t("Pricing") },
 		{ href: "/docs", label: t("Docs") },
-		{ href: "/get-started", label: t("Get started") },
+		{ href: signUpUrl(), label: t("Get started") },
 		{ href: "/sign-in", label: t("Sign in") },
 	];
 

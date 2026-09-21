@@ -103,6 +103,25 @@ list fails closed.** Parsed on demand. `packages/auth/src/workspace.ts`.
 - **`isMarketing()` (`apps/app/lib/env.ts`) reads per request**, so a config change
   needs no rebuild. Declared in `apps/app/turbo.json` `passThroughEnv`.
 
+## `RELOOP_CLOUD_URL`, unset by default
+
+The address of the hosted Cloud, for a marketing site that runs on another
+address: `reloopcrm.com` sells, `app.reloopcrm.com` signs people up. With it set,
+every sign-up link ("Try it now" on the pricing page, "Get started" in the
+footer) points at `<RELOOP_CLOUD_URL>/get-started?plan=<id>`, and `/get-started`
+on this site redirects there with the same plan. Sign-in stays on this site.
+
+- **Only the sign-up links move.** Pricing, docs and sign-in stay here.
+- **Unset or empty means off**: the links stay relative. The compose file passes
+  `${RELOOP_CLOUD_URL:-}`, so an empty string is the normal off state.
+- **`signUpUrl()` (`apps/app/lib/sign-up-url.ts`) reads it on the server** and
+  hands a plain string to the client component. Declared in `apps/app/turbo.json`
+  `passThroughEnv`. The API does not read it.
+
+On the hosted stack itself (`RELOOP_REGISTRY_URL` set, `IS_MARKETING` unset)
+`/get-started` is reachable without a session, so a stranger can register. No
+other marketing page opens there.
+
 ## `GOOGLE_SITE_VERIFICATION`, unset by default
 
 Google Search Console proves that the site belongs to you. The DNS method needs

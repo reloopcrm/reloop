@@ -19,7 +19,8 @@
 				"GOOGLE_SITE_VERIFICATION",
 				"RELOOP_PLANS",
 				"RELOOP_MANAGED",
-				"RELOOP_DEMO"
+				"RELOOP_DEMO",
+				"RELOOP_CLOUD_URL"
 			]
 		},
 		"check-types": {
@@ -47,6 +48,7 @@
 				"RELOOP_PLANS",
 				"RELOOP_MANAGED",
 				"RELOOP_DEMO",
+				"RELOOP_CLOUD_URL",
 				"NEXT_PUBLIC_API_URL",
 				"NEXT_PUBLIC_AUTH_URL"
 			]

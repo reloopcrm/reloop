@@ -1,6 +1,7 @@
 import { PLAN_IDS } from "@crm/db/plans";
 import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { BentoCard } from "@/components/landing/bento-card";
 import { CloudCard } from "@/components/landing/cloud-card";
@@ -9,6 +10,7 @@ import { Band, PageHero, SelfHostNote } from "@/components/landing/page-blocks";
 import { PRICING } from "@/components/landing/pricing/config";
 import { SignupForm } from "@/components/landing/signup-form";
 import { getT } from "@/lib/i18n/server";
+import { cloudUrl, signUpUrl } from "@/lib/sign-up-url";
 
 const chosenPlan = z.enum(PLAN_IDS).catch("trial");
 
@@ -33,6 +35,14 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function GetStartedPage({
 	searchParams,
 }: PageProps<"/get-started">) {
+	const params = await searchParams;
+	const requested = params[PRICING.href.planParam];
+	const plan = chosenPlan.parse(
+		Array.isArray(requested) ? requested[0] : requested,
+	);
+
+	if (!isHosted() && cloudUrl()) redirect(signUpUrl(plan));
+
 	if (!isHosted()) {
 		return (
 			<LandingShell>
@@ -52,11 +62,6 @@ export default async function GetStartedPage({
 	}
 
 	const t = await getT();
-	const params = await searchParams;
-	const requested = params[PRICING.href.planParam];
-	const plan = chosenPlan.parse(
-		Array.isArray(requested) ? requested[0] : requested,
-	);
 
 	return (
 		<LandingShell>

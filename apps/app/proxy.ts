@@ -1,4 +1,5 @@
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
+import { isHosted } from "@crm/db/tenant-context";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { isMarketing } from "@/lib/env";
@@ -107,9 +108,14 @@ function isSection(pathname: string): boolean {
 }
 
 function isMarketingPath(pathname: string): boolean {
-	return (
-		isMarketing() && PROXY.marketing.some((prefix) => isUnder(pathname, prefix))
-	);
+	if (
+		isMarketing() &&
+		PROXY.marketing.some((prefix) => isUnder(pathname, prefix))
+	) {
+		return true;
+	}
+
+	return isHosted() && PROXY.hosted.some((prefix) => isUnder(pathname, prefix));
 }
 
 function isAnonymous(pathname: string): boolean {

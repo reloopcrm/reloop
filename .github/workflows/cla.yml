@@ -27,4 +27,4 @@ jobs:
           path-to-signatures: signatures/cla.json
           path-to-document: https://github.com/${{ github.repository }}/blob/main/CLA.md
           branch: cla-signatures
-          allowlist: dependabot[bot]
+          allowlist: dependabot[bot],reloopcrm,Tugra06

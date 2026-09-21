@@ -7,16 +7,26 @@ type Status = { present: boolean; canManage: boolean; loadable: boolean };
 
 let status: Status = { present: false, canManage: true, loadable: true };
 
+const sonner = { ...(await import("sonner")) };
+const navigation = { ...(await import("next/navigation")) };
+const cache = { ...(await import("../lib/trpc/cache")) };
+const client = { ...(await import("../lib/trpc/client")) };
+const reactQuery = { ...(await import("@tanstack/react-query")) };
+
 mock.module("sonner", () => ({
+	...sonner,
 	toast: { success: () => {}, error: () => {} },
 }));
 mock.module("next/navigation", () => ({
+	...navigation,
 	useRouter: () => ({ refresh: () => {} }),
 }));
 mock.module("../lib/trpc/cache", () => ({
+	...cache,
 	useCrmCache: () => ({ everything: async () => {} }),
 }));
 mock.module("../lib/trpc/client", () => ({
+	...client,
 	useTRPC: () => ({
 		sampleData: {
 			status: { queryOptions: () => ({ queryKey: ["sampleData"] }) },
@@ -26,6 +36,7 @@ mock.module("../lib/trpc/client", () => ({
 	}),
 }));
 mock.module("@tanstack/react-query", () => ({
+	...reactQuery,
 	useQuery: () => ({ data: status }),
 	useMutation: () => ({ isPending: false, mutateAsync: async () => {} }),
 }));
@@ -39,6 +50,11 @@ const { LoadSampleData, SampleDataBanner } = await import(
 
 afterAll(() => {
 	mock.restore();
+	mock.module("sonner", () => sonner);
+	mock.module("next/navigation", () => navigation);
+	mock.module("../lib/trpc/cache", () => cache);
+	mock.module("../lib/trpc/client", () => client);
+	mock.module("@tanstack/react-query", () => reactQuery);
 	GlobalRegistrator.unregister();
 });
 

@@ -5,7 +5,10 @@ import { DOCUMENT_LANGUAGE_SCRIPT, matchLocale } from "../lib/i18n/locale";
 const owned = !("document" in globalThis);
 if (owned) GlobalRegistrator.register({ url: "https://crm.test/" });
 
+const nextHeaders = { ...(await import("next/headers")) };
+
 afterAll(() => {
+	mock.module("next/headers", () => nextHeaders);
 	if (owned) GlobalRegistrator.unregister();
 });
 
@@ -18,6 +21,7 @@ beforeEach(() => {
 });
 
 mock.module("next/headers", () => ({
+	...nextHeaders,
 	cookies: async () => ({
 		get: (name: string) =>
 			cookieValue === undefined ? undefined : { name, value: cookieValue },

@@ -5,10 +5,12 @@ import {
 	describe,
 	expect,
 	it,
-	mock,
+	spyOn,
 } from "bun:test";
 import { db, EnrichmentStatus } from "@crm/db";
+import * as safeFetchModule from "@crm/db/safe-fetch";
 import { settle } from "../agent/lib/enrichment";
+import * as model from "../agent/lib/model";
 
 /**
  * A `brand` task with nowhere to look is consumed and marked done. What must
@@ -161,8 +163,8 @@ const PAGE = `<!doctype html><html><head>
 
 const served: string[] = [];
 
-mock.module("@crm/db/safe-fetch", () => ({
-	safeFetch: async (url: string) => {
+const spies = [
+	spyOn(safeFetchModule, "safeFetch").mockImplementation(async (url) => {
 		served.push(url);
 
 		return {
@@ -172,14 +174,15 @@ mock.module("@crm/db/safe-fetch", () => ({
 				headers: { "content-type": "text/html; charset=utf-8" },
 			}),
 		};
-	},
-}));
-
-mock.module("../agent/lib/model", () => ({
-	directModel: async () => {
+	}),
+	spyOn(model, "directModel").mockImplementation(async () => {
 		throw new Error("no model provider is configured here");
-	},
-}));
+	}),
+];
+
+afterAll(() => {
+	for (const spy of spies) spy.mockRestore();
+});
 
 const { runBrand } = await import("../agent/lib/brand");
 

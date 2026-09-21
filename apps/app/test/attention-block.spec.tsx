@@ -8,12 +8,16 @@ import { LOCALES } from "../lib/i18n/locale";
 const owned = !("document" in globalThis);
 if (owned) GlobalRegistrator.register();
 
-const nuqs = await import("nuqs");
+const nuqs = { ...(await import("nuqs")) };
+const draftDialog = {
+	...(await import("../components/crm/email-draft-dialog")),
+};
 mock.module("nuqs", () => ({
 	...nuqs,
 	useQueryState: () => [null, () => {}],
 }));
 mock.module("../components/crm/email-draft-dialog", () => ({
+	...draftDialog,
 	EmailDraftDialog: ({ label }: { label?: string }) =>
 		createElement("button", { type: "button", "data-slot": "draft" }, label),
 }));
@@ -84,6 +88,8 @@ function block(over: Partial<Attention> = {}): string {
 
 afterAll(() => {
 	mock.restore();
+	mock.module("nuqs", () => nuqs);
+	mock.module("../components/crm/email-draft-dialog", () => draftDialog);
 	if (owned) GlobalRegistrator.unregister();
 });
 

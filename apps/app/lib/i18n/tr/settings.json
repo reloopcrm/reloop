@@ -192,5 +192,10 @@
 	"Who you are, and how this workspace works.": "Kim olduğun ve bu çalışma alanının nasıl çalıştığı.",
 	"Share": "Pay",
 	"Model calls of the last {days} days. 1 USD = {rate} EUR.": "Son {days} günün model çağrıları. 1 USD = {rate} EUR.",
-	"Convertible": "Çevrilebilir"
+	"Convertible": "Çevrilebilir",
+	"{used} of {limit}": "{used} / {limit}",
+	"Imported conversations": "İçe aktarılan yazışmalar",
+	"Email drafts per month": "Aylık e-posta taslağı",
+	"Storage": "Depolama",
+	"{count} GB": "{count} GB"
 }

@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import pg from "pg";
 import { db, disconnectAll } from "../src/client";
 import {
 	closeRegistry,
 	forEachTenant,
+	forgetTenant,
 	signInEntriesFor,
 	type Tenant,
 	tenantById,
@@ -17,6 +19,8 @@ const prefix = `tenancy-${runId}-`;
 
 const ROWS = 50;
 
+const PREPARE_TIMEOUT_MS = 120_000;
+
 describe("two tenant databases behind one db", () => {
 	const saved = {
 		registry: process.env.RELOOP_REGISTRY_URL,
@@ -24,6 +28,7 @@ describe("two tenant databases behind one db", () => {
 	};
 	let a: Tenant;
 	let b: Tenant;
+	let registryUrl = "";
 
 	const clean = (tenant: Tenant) =>
 		runAsTenant(tenant, () =>
@@ -31,9 +36,9 @@ describe("two tenant databases behind one db", () => {
 		);
 
 	beforeAll(async () => {
-		({ a, b } = await prepareTestTenants());
+		({ a, b, registryUrl } = await prepareTestTenants());
 		await Promise.all([clean(a), clean(b)]);
-	});
+	}, PREPARE_TIMEOUT_MS);
 
 	afterAll(async () => {
 		await Promise.all([clean(a), clean(b)]);
@@ -141,12 +146,93 @@ describe("two tenant databases behind one db", () => {
 			return tenant.dbName;
 		});
 
-		expect(seen).toEqual([a.id, b.id]);
+		expect(seen.sort()).toEqual([a.id, b.id].sort());
 		expect(outcome).toEqual({
 			tenants: [
 				{ tenantId: a.id, ok: false, error: "tenant a is on fire" },
 				{ tenantId: b.id, ok: true, result: TEST_TENANTS.b.dbName },
 			],
 		});
+	});
+
+	it("runs tenants in parallel and a hanging tenant never blocks the other", async () => {
+		const started: string[] = [];
+		const startedAt = Date.now();
+
+		const outcome = await forEachTenant(
+			async () => {
+				const tenant = currentTenant();
+				started.push(tenant.id);
+				if (tenant.id === a.id) {
+					await new Promise((resolve) => setTimeout(resolve, 2_000));
+				}
+				await db.$queryRaw`SELECT 1`;
+				return tenant.dbName;
+			},
+			{ budgetMs: 300 },
+		);
+
+		expect(Date.now() - startedAt).toBeLessThan(1_500);
+		expect(started.sort()).toEqual([a.id, b.id].sort());
+		expect(outcome).toEqual({
+			tenants: [
+				{
+					tenantId: a.id,
+					ok: false,
+					error: "Tenant budget of 300 ms exceeded",
+				},
+				{ tenantId: b.id, ok: true, result: TEST_TENANTS.b.dbName },
+			],
+		});
+	});
+
+	it("runs one tenant at a time when asked, in registry order", async () => {
+		const order: string[] = [];
+
+		await forEachTenant(
+			async () => {
+				order.push(`${currentTenant().id}:start`);
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				order.push(`${currentTenant().id}:end`);
+			},
+			{ concurrency: 1 },
+		);
+
+		expect(order).toEqual([
+			`${a.id}:start`,
+			`${a.id}:end`,
+			`${b.id}:start`,
+			`${b.id}:end`,
+		]);
+	});
+
+	it("forgets a cached tenant so a status change shows at once", async () => {
+		const registry = new pg.Client({ connectionString: registryUrl });
+		await registry.connect();
+
+		try {
+			expect((await tenantById(a.id))?.status).toBe("active");
+
+			await registry.query(
+				"UPDATE tenant SET status = 'suspended' WHERE id = $1",
+				[a.id],
+			);
+			expect((await tenantById(a.id))?.status).toBe("active");
+
+			forgetTenant(a.id);
+			expect((await tenantById(a.id))?.status).toBe("suspended");
+			expect(
+				(await forEachTenant(async () => currentTenant().id)) as unknown,
+			).toEqual({
+				tenants: [{ tenantId: b.id, ok: true, result: b.id }],
+			});
+		} finally {
+			await registry.query(
+				"UPDATE tenant SET status = 'active' WHERE id = $1",
+				[a.id],
+			);
+			forgetTenant(a.id);
+			await registry.end();
+		}
 	});
 });

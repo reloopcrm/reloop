@@ -177,6 +177,13 @@ export function limitsOf(plan: string | null | undefined): PlanLimits {
 	return PLANS[canonicalPlanId(plan) ?? "trial"];
 }
 
+export function startOfMonth(now = new Date()): Date {
+	const month = new Date(now);
+	month.setUTCDate(1);
+	month.setUTCHours(0, 0, 0, 0);
+	return month;
+}
+
 export function monthlyBudget(kind: string, limits: PlanLimits): number | null {
 	if (kind === INSIGHT_KIND) return limits.insightsPerMonth;
 	if (kind === DRAFT_KIND) return limits.draftsPerMonth;

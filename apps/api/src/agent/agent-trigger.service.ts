@@ -7,7 +7,12 @@ import {
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { allowsCompanyResearch, INSIGHT_KIND, limitsOf } from "@crm/db/plans";
+import {
+	allowsCompanyResearch,
+	limitsOf,
+	monthlyBudget,
+	startOfMonth,
+} from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
 import { forEachTenant } from "@crm/db/tenancy";
 import { tenantScopedKey } from "@crm/db/tenant-context";
@@ -587,24 +592,21 @@ export class AgentTriggerService {
 			return false;
 		}
 
-		if (kind !== INSIGHT_KIND || limits.insightsPerMonth === null) return true;
-
-		const month = new Date();
-		month.setUTCDate(1);
-		month.setUTCHours(0, 0, 0, 0);
+		const budget = monthlyBudget(kind, limits);
+		if (budget === null) return true;
 
 		const used = await this.db.agentTask.count({
-			where: { kind: INSIGHT_KIND, createdAt: { gte: month } },
+			where: { kind, createdAt: { gte: startOfMonth() } },
 		});
 
-		if (used < limits.insightsPerMonth) return true;
+		if (used < budget) return true;
 
 		this.logger.log({
-			message: "Reading budget for the month is spent",
+			message: "Monthly budget for this task kind is spent",
 			kind,
 			plan: limits.label,
 			used,
-			allowed: limits.insightsPerMonth,
+			allowed: budget,
 		});
 
 		return false;

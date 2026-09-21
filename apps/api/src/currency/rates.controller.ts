@@ -1,4 +1,3 @@
-import { forEachTenant } from "@crm/db/tenancy";
 import {
 	Controller,
 	ForbiddenException,
@@ -20,7 +19,6 @@ import {
 } from "@nestjs/swagger";
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import type { EnvironmentVariables } from "../config/env.validation";
-import { ConversionService } from "./conversion.service";
 import { RatesService } from "./rates.service";
 
 @ApiTags("Internal: Cron")
@@ -38,7 +36,6 @@ export class RatesController {
 
 	constructor(
 		private readonly rates: RatesService,
-		private readonly conversion: ConversionService,
 		config: ConfigService<EnvironmentVariables, true>,
 	) {
 		this.secret = config.get("CRON_SECRET", { infer: true });
@@ -73,19 +70,7 @@ export class RatesController {
 			throw new ForbiddenException();
 		}
 
-		return forEachTenant(async () => {
-			const refresh = await this.rates.refresh();
-
-			if (!refresh.ok) return refresh;
-
-			const filled = await this.conversion.fillMissing();
-
-			return {
-				...refresh,
-				converted: filled.converted,
-				missing: filled.missing,
-			};
-		});
+		return this.rates.refreshAll();
 	}
 }
 

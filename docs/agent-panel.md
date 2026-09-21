@@ -55,6 +55,10 @@ claim minted, the field a conversation is filed under, the empty-thread question
   that names a session id is refused unless a row with that id belongs to the caller:
   a session with no row and a session of another rep get the same `404`. eve itself
   lets any principal resume any session, so this row is the only guard.
+  `conversations.save` moves the cursor on that row and never creates one, so a
+  session id nobody claimed through the bridge is a `404` there too. The title
+  length both sides cut to is `CONVERSATIONS.title.maxLength`
+  (`@crm/validation/conversations`).
 
 This lives in the API and is not a breach of rule one: listing history decides nothing.
 

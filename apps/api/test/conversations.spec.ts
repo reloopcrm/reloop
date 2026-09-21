@@ -69,6 +69,23 @@ beforeAll(async () => {
 	service = new ConversationsService(db);
 });
 
+const claim = (
+	sessionId: string,
+	record: { contactId?: string; companyId?: string } = { contactId },
+	title: string | null = null,
+) =>
+	db.agentConversation.create({
+		data: {
+			sessionId,
+			userId,
+			kind: "RECORD",
+			contactId: record.contactId ?? null,
+			companyId: record.companyId ?? null,
+			title,
+		},
+		select: { id: true },
+	});
+
 afterAll(async () => {
 	await db.agentEvent.deleteMany({
 		where: {
@@ -89,7 +106,19 @@ describe("ConversationsService", () => {
 		expect(await service.list({ contactId }, userId)).toEqual([]);
 	});
 
-	it("saves a cursor and titles the thread from the opening question", async () => {
+	it("refuses a session no bridge call claimed for the rep", async () => {
+		await expect(
+			service.save({ contactId, sessionId: `ses_${suffix}_unclaimed` }, userId),
+		).rejects.toThrow("No record conversation");
+		expect(
+			await db.agentConversation.count({
+				where: { sessionId: `ses_${suffix}_unclaimed` },
+			}),
+		).toBe(0);
+	});
+
+	it("saves a cursor on the thread the bridge claimed and titled", async () => {
+		await claim(`ses_${suffix}_1`, { contactId }, "Are they still there?");
 		await service.save(
 			{
 				contactId,
@@ -137,6 +166,7 @@ describe("ConversationsService", () => {
 
 	it("reflects newly saved conversations immediately", async () => {
 		const before = await service.list({ contactId }, userId);
+		await claim(`ses_${suffix}_2`);
 		await service.save(
 			{ contactId, sessionId: `ses_${suffix}_2`, messageCount: 1 },
 			userId,
@@ -178,6 +208,7 @@ describe("ConversationsService", () => {
 
 	it("does not mutate a conversation owned by another rep", async () => {
 		const sessionId = `ses_${suffix}_ownership`;
+		await claim(sessionId);
 		await service.save(
 			{
 				contactId,
@@ -214,6 +245,7 @@ describe("ConversationsService", () => {
 
 	it("does not move an existing session to another CRM record", async () => {
 		const sessionId = `ses_${suffix}_record`;
+		await claim(sessionId);
 		await service.save({ contactId, sessionId }, userId);
 
 		let recordError: unknown;
@@ -228,6 +260,7 @@ describe("ConversationsService", () => {
 
 	it("deduplicates concurrent saves of the same record session", async () => {
 		const sessionId = `ses_${suffix}_concurrent`;
+		await claim(sessionId);
 		const results = await Promise.all(
 			Array.from({ length: 4 }, () =>
 				service.save({ contactId, sessionId, streamIndex: 7 }, userId),
@@ -272,6 +305,7 @@ describe("ConversationsService", () => {
 
 	it("returns the newest event window in chronological order", async () => {
 		const sessionId = `ses_${suffix}_events`;
+		await claim(sessionId);
 		const saved = await service.save({ contactId, sessionId }, userId);
 		const emittedAt = new Date("2026-08-05T12:00:00.000Z");
 		await db.agentEvent.createMany({
@@ -339,6 +373,7 @@ describe("ConversationsService", () => {
 
 	it("forgets a conversation and the events behind it", async () => {
 		const sessionId = `ses_${suffix}_delete`;
+		await claim(sessionId);
 		const conversation = await service.save({ contactId, sessionId }, userId);
 
 		await db.agentEvent.create({
@@ -379,6 +414,7 @@ describe("ConversationsService", () => {
 	});
 
 	it("will not let one rep delete another's conversation", async () => {
+		await claim(`ses_${suffix}_protected`);
 		const conversation = await service.save(
 			{ contactId, sessionId: `ses_${suffix}_protected` },
 			userId,

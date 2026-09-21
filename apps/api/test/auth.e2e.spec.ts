@@ -59,6 +59,15 @@ describe("Auth (e2e)", () => {
 		await request(app.getHttpServer()).get("/auth/me").expect(401);
 	});
 
+	it("answers 401, not 500, to an API key nobody issued", async () => {
+		const response = await request(app.getHttpServer())
+			.get("/auth/me")
+			.set("x-api-key", "crm_nobody_0123456789abcdef0123456789abcdef");
+
+		expect(response.status).toBe(401);
+		expect(response.body.statusCode).toBe(401);
+	});
+
 	it("allows an unauthenticated request to an optional-auth route", async () => {
 		const response = await request(app.getHttpServer())
 			.get("/auth/session")

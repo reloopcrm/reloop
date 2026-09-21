@@ -88,7 +88,10 @@ export class MicrosoftConnectionService {
 			if (!granted.has(SCOPE_FOR_SOURCE[source])) continue;
 			if (known.has(source)) continue;
 
-			await this.state.ensure(userId, source, { autoCreate: false });
+			const row = await this.state.ensure(userId, source, {
+				autoCreate: false,
+			});
+			if (!row) continue;
 
 			added.push(source);
 		}

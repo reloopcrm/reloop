@@ -2,7 +2,7 @@ import { onSignedIn } from "@crm/auth";
 import { type Db, EnrichmentStatus, type Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { NOT_SAMPLE_RECORD } from "@crm/db/sample-data";
-import { tenantScopedKey } from "@crm/db/tenant-context";
+import { holdTenant, tenantScopedKey } from "@crm/db/tenant-context";
 import { readWorkspaceIdentity } from "@crm/db/workspace";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Inject, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
@@ -69,7 +69,7 @@ export class BackfillService implements OnModuleInit {
 		if (await this.cache.get(key)) return { started: false };
 		await this.cache.set(key, true, AUTO_EVERY_MS);
 
-		void (async () => {
+		void holdTenant(async () => {
 			try {
 				await this.sweepWorkspace();
 
@@ -91,7 +91,7 @@ export class BackfillService implements OnModuleInit {
 					error instanceof Error ? error.stack : String(error),
 				);
 			}
-		})();
+		});
 
 		return { started: true };
 	}
@@ -245,7 +245,7 @@ export class BackfillService implements OnModuleInit {
 
 		if (rows.length === 0) return 0;
 
-		void (async () => {
+		void holdTenant(async () => {
 			let resolved = 0;
 			for (const row of rows) {
 				if (await this.favicon.backfill(row.id, row.domain)) resolved += 1;
@@ -255,7 +255,7 @@ export class BackfillService implements OnModuleInit {
 				attempted: rows.length,
 				resolved,
 			});
-		})();
+		});
 
 		return rows.length;
 	}

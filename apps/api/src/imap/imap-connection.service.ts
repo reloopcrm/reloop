@@ -10,7 +10,10 @@ import {
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import { imapSourceFor } from "../mailbox/mailbox.constants";
-import { SyncStateService } from "../mailbox/sync-state.service";
+import {
+	mailboxLimitMessage,
+	SyncStateService,
+} from "../mailbox/sync-state.service";
 import { rebuildThreads } from "../mailbox/thread-rebuild";
 import { ImapClientFactory } from "./imap.client";
 import { IMAP } from "./imap.config";
@@ -106,16 +109,8 @@ export class ImapConnectionService {
 
 		const limits = limitsOf(await readPlan(this.db));
 
-		if (limits.mailboxes !== null) {
-			const connectedCount = await this.db.imapAccount.count({
-				where: { userId },
-			});
-			if (connectedCount >= limits.mailboxes) {
-				throw new BadRequestException(
-					`The ${limits.label} plan carries ${limits.mailboxes} mailbox${limits.mailboxes === 1 ? "" : "es"}. Remove one first, or move up a plan.`,
-				);
-			}
-		}
+		const reached = await this.state.mailboxLimitReached();
+		if (reached) throw new BadRequestException(mailboxLimitMessage(reached));
 
 		const importSince = clampImportSince(
 			input.importSince ? new Date(input.importSince) : null,

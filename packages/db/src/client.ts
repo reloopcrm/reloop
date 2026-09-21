@@ -4,7 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "./generated/prisma/client";
 import { type Tenant, tenantDatabaseUrl } from "./tenancy";
 import { TENANCY } from "./tenancy-config";
-import { currentTenant, isHosted } from "./tenant-context";
+import { currentTenant, isHosted, tenantHeld } from "./tenant-context";
 
 function connectionString(): string {
 	return process.env.NODE_ENV === "test" ? testDatabase() : liveDatabase();
@@ -154,21 +154,28 @@ function clientFor(tenant: Tenant): Db {
 	);
 	clients.set(tenant.id, client);
 
-	if (clients.size > TENANCY.clients.max) {
-		const oldest = clients.entries().next().value;
-		if (oldest) {
-			clients.delete(oldest[0]);
-			void oldest[1].$disconnect();
-		}
-	}
+	if (clients.size > TENANCY.clients.max) evictIdle();
 
 	return client;
+}
+
+function evictIdle(): void {
+	for (const [id, idle] of clients) {
+		if (tenantHeld(id)) continue;
+		clients.delete(id);
+		void idle.$disconnect();
+		return;
+	}
 }
 
 function resolve(): Db {
 	if (isHosted()) return clientFor(currentTenant());
 	single ??= singleClient();
 	return single;
+}
+
+export function openClients(): string[] {
+	return [...clients.keys()];
 }
 
 export async function disconnectAll(): Promise<void> {

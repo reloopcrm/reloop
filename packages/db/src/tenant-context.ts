@@ -12,12 +12,48 @@ export class TenantContextMissing extends Error {
 
 const storage = new AsyncLocalStorage<Tenant>();
 
+const holds = new Map<string, number>();
+
 export function isHosted(): boolean {
 	return Boolean(process.env.RELOOP_REGISTRY_URL);
 }
 
+function hold(id: string): () => void {
+	holds.set(id, (holds.get(id) ?? 0) + 1);
+	let released = false;
+	return () => {
+		if (released) return;
+		released = true;
+		const left = (holds.get(id) ?? 1) - 1;
+		if (left > 0) holds.set(id, left);
+		else holds.delete(id);
+	};
+}
+
 export function runAsTenant<T>(tenant: Tenant, fn: () => T): T {
-	return storage.run(tenant, fn);
+	const release = hold(tenant.id);
+	let result: T;
+	try {
+		result = storage.run(tenant, fn);
+	} catch (error) {
+		release();
+		throw error;
+	}
+	if (result instanceof Object && "then" in result) {
+		(result as PromiseLike<T>).then(release, release);
+	} else {
+		release();
+	}
+	return result;
+}
+
+export function holdTenant<T>(fn: () => T): T {
+	const tenant = storage.getStore();
+	return tenant ? runAsTenant(tenant, fn) : fn();
+}
+
+export function tenantHeld(id: string): boolean {
+	return holds.has(id);
 }
 
 export function currentTenant(): Tenant {

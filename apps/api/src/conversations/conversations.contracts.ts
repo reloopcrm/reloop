@@ -7,6 +7,7 @@ import {
 	AgentTriggerType,
 	AgentVersionStatus,
 } from "@crm/db";
+import { CONVERSATIONS } from "@crm/validation/conversations";
 import { z } from "zod";
 
 const agentManifestSummaryOutput = z.object({
@@ -65,7 +66,7 @@ export const conversationSaveInput = z
 		sessionId: z.string().trim().min(1),
 		continuationToken: z.string().nullish(),
 		streamIndex: z.number().int().min(0).optional(),
-		title: z.string().trim().max(120).optional(),
+		title: z.string().trim().max(CONVERSATIONS.title.maxLength).optional(),
 		messageCount: z.number().int().min(0).optional(),
 	})
 	.refine(hasExactlyOneRecord, { message: recordMessage });

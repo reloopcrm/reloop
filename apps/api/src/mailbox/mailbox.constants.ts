@@ -21,6 +21,8 @@ export {
 export const SYNC_SOURCES = ["calendar", "gmail", "outlook"] as const;
 export type SyncSource = (typeof SYNC_SOURCES)[number];
 
+export const MAILBOX_SOURCES = ["gmail", "outlook"] as const;
+
 export const IMAP_SOURCE_PREFIX = "imap:";
 export type ImapSyncSource = `imap:${string}`;
 

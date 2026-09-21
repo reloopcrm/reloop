@@ -17,7 +17,15 @@ import type { Db } from "@crm/db";
 import { USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
 import { DEAL_STAGES } from "@crm/db/deal-stage";
 import { readModelSpend } from "@crm/db/model-spend";
-import { isPlanId, limitsOf, PLAN_IDS, PLANS } from "@crm/db/plans";
+import {
+	DRAFT_KIND,
+	INSIGHT_KIND,
+	isPlanId,
+	limitsOf,
+	PLAN_IDS,
+	PLANS,
+	startOfMonth,
+} from "@crm/db/plans";
 import { readProviderUsage } from "@crm/db/provider-usage";
 import { openSecret, sealSecret, secretKey } from "@crm/db/secrets";
 import {
@@ -66,6 +74,7 @@ import {
 } from "../agent/research-key.service";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
+import { countMailboxes } from "../mailbox/sync-state.service";
 import { SETTINGS } from "./settings.config";
 import type {
 	AgentFunctionsSettings,
@@ -157,6 +166,17 @@ export class SettingsService {
 	async plan(): Promise<PlanSettings> {
 		const plan = await readPlan(this.db);
 		const limits = limitsOf(plan);
+		const month = startOfMonth();
+		const usedThisMonth = (kind: string) =>
+			this.db.agentTask.count({ where: { kind, createdAt: { gte: month } } });
+
+		const [contacts, mailboxes, insightsThisMonth, draftsThisMonth] =
+			await Promise.all([
+				this.db.contact.count({ where: { archivedAt: null } }),
+				countMailboxes(this.db),
+				usedThisMonth(INSIGHT_KIND),
+				usedThisMonth(DRAFT_KIND),
+			]);
 
 		return {
 			plan: isPlanId(plan) ? plan : null,
@@ -165,10 +185,14 @@ export class SettingsService {
 				contacts: limits.contacts,
 				mailboxes: limits.mailboxes,
 				importMonths: limits.importMonths,
+				importThreads: limits.importThreads,
 				researchPerHour: limits.researchPerHour,
 				companyResearch: limits.companyResearch,
 				insightsPerMonth: limits.insightsPerMonth,
+				draftsPerMonth: limits.draftsPerMonth,
+				storageGb: limits.storageGb,
 			},
+			usage: { contacts, mailboxes, insightsThisMonth, draftsThisMonth },
 			options: PLAN_IDS.map((id) => ({ id, label: PLANS[id].label })),
 		};
 	}

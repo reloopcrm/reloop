@@ -155,6 +155,10 @@ export function forgetTenants(): void {
 	cached.clear();
 }
 
+export function forgetTenant(id: string): void {
+	cached.delete(id);
+}
+
 async function selectTenants(
 	where: string,
 	values: readonly (string | string[])[],
@@ -271,7 +275,7 @@ export async function createTenant(input: NewTenant): Promise<Tenant> {
 		client.release();
 	}
 
-	cached.delete(values.id);
+	forgetTenant(values.id);
 	const created = await tenantById(values.id);
 	if (!created) throw new Error(`Tenant ${values.id} was not written.`);
 	return created;
@@ -283,25 +287,65 @@ export type TenantOutcome<T> =
 
 export type TenantLoop<T> = { tenants: TenantOutcome<T>[] };
 
+export type TenantLoopOptions = {
+	concurrency?: number;
+	budgetMs?: number;
+};
+
 export async function forEachTenant<T>(
 	fn: () => Promise<T>,
+	options: TenantLoopOptions = {},
 ): Promise<T | TenantLoop<T>> {
 	if (!isHosted()) return fn();
 
-	const tenants: TenantOutcome<T>[] = [];
+	const concurrency = options.concurrency ?? TENANCY.loop.concurrency;
+	const budgetMs = options.budgetMs ?? TENANCY.loop.budgetMs;
+	const tenants = await activeTenants();
+	const outcomes: TenantOutcome<T>[] = [];
+	let next = 0;
 
-	for (const current of await activeTenants()) {
-		try {
-			const result = await runAsTenant(current, fn);
-			tenants.push({ tenantId: current.id, ok: true, result });
-		} catch (error) {
-			tenants.push({
-				tenantId: current.id,
-				ok: false,
-				error: error instanceof Error ? error.message : String(error),
-			});
+	const worker = async () => {
+		while (next < tenants.length) {
+			const index = next;
+			next += 1;
+			const current = tenants[index];
+			if (!current) return;
+			outcomes[index] = await withinBudget(current, fn, budgetMs);
 		}
-	}
+	};
 
-	return { tenants };
+	await Promise.all(
+		Array.from({ length: Math.min(concurrency, tenants.length) }, worker),
+	);
+
+	return { tenants: outcomes };
+}
+
+async function withinBudget<T>(
+	current: Tenant,
+	fn: () => Promise<T>,
+	budgetMs: number,
+): Promise<TenantOutcome<T>> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const expired = new Promise<never>((_, reject) => {
+		timer = setTimeout(
+			() => reject(new Error(`Tenant budget of ${budgetMs} ms exceeded`)),
+			budgetMs,
+		);
+	});
+
+	try {
+		const work = runAsTenant(current, fn);
+		work.catch(() => {});
+		const result = await Promise.race([work, expired]);
+		return { tenantId: current.id, ok: true, result };
+	} catch (error) {
+		return {
+			tenantId: current.id,
+			ok: false,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	} finally {
+		clearTimeout(timer);
+	}
 }

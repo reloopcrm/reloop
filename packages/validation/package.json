@@ -12,6 +12,7 @@
 		"./agent-task-payload": "./src/agent-task-payload.ts",
 		"./builder-question": "./src/builder-question.ts",
 		"./chatgpt-login": "./src/chatgpt-login.ts",
+		"./conversations": "./src/conversations.ts",
 		"./deal-stage-names": "./src/deal-stage-names.ts",
 		"./draft-style": "./src/draft-style.ts",
 		"./enrichment-queue": "./src/enrichment-queue.ts",

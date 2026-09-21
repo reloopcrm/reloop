@@ -51,17 +51,21 @@ export function Plan() {
 	const current = plan.data.plan ?? NONE;
 	const chosen = draft ?? current;
 	const unchanged = chosen === current;
-	const { limits } = plan.data;
+	const { limits, usage } = plan.data;
 
 	const never = t("No limit");
+	const limitOf = (limit: number | null) =>
+		limit === null ? never : String(limit);
+	const usedOf = (used: number, limit: number | null) =>
+		limit === null ? String(used) : t("{used} of {limit}", { used, limit });
 	const rows = [
 		{
 			what: t("Contacts"),
-			value: limits.contacts === null ? never : String(limits.contacts),
+			value: usedOf(usage.contacts, limits.contacts),
 		},
 		{
 			what: t("Mailboxes"),
-			value: limits.mailboxes === null ? never : String(limits.mailboxes),
+			value: usedOf(usage.mailboxes, limits.mailboxes),
 		},
 		{
 			what: t("Mail history"),
@@ -71,11 +75,12 @@ export function Plan() {
 					: t("{count} months", { count: limits.importMonths }),
 		},
 		{
+			what: t("Imported conversations"),
+			value: limitOf(limits.importThreads),
+		},
+		{
 			what: t("Research runs per hour"),
-			value:
-				limits.researchPerHour === null
-					? never
-					: String(limits.researchPerHour),
+			value: limitOf(limits.researchPerHour),
 		},
 		{
 			what: t("Company research"),
@@ -83,10 +88,18 @@ export function Plan() {
 		},
 		{
 			what: t("Conversations read per month"),
+			value: usedOf(usage.insightsThisMonth, limits.insightsPerMonth),
+		},
+		{
+			what: t("Email drafts per month"),
+			value: usedOf(usage.draftsThisMonth, limits.draftsPerMonth),
+		},
+		{
+			what: t("Storage"),
 			value:
-				limits.insightsPerMonth === null
+				limits.storageGb === null
 					? never
-					: String(limits.insightsPerMonth),
+					: t("{count} GB", { count: limits.storageGb }),
 		},
 	];
 

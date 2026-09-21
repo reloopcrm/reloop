@@ -4,12 +4,26 @@ import {
 	type MailboxSyncModel as MailboxSync,
 	type Prisma,
 } from "@crm/db";
+import { limitsOf, type PlanLimits } from "@crm/db/plans";
+import { readPlan } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { serialiseBackfill, stoppedBackfill } from "./backfill-cursor";
-import type { MailboxSource } from "./mailbox.constants";
+import { MAILBOX_SOURCES, type MailboxSource } from "./mailbox.constants";
 
 export const SYNC_LEASE_MS = 300_000;
+
+export async function countMailboxes(db: Db): Promise<number> {
+	const [synced, imap] = await Promise.all([
+		db.mailboxSync.count({ where: { source: { in: [...MAILBOX_SOURCES] } } }),
+		db.imapAccount.count(),
+	]);
+	return synced + imap;
+}
+
+export function mailboxLimitMessage(limits: PlanLimits): string {
+	return `The ${limits.label} plan carries ${limits.mailboxes} mailbox${limits.mailboxes === 1 ? "" : "es"}. Remove one first, or move up a plan.`;
+}
 
 @Injectable()
 export class SyncStateService {
@@ -62,6 +76,12 @@ export class SyncStateService {
 		});
 	}
 
+	async mailboxLimitReached(): Promise<PlanLimits | null> {
+		const limits = limitsOf(await readPlan(this.db));
+		if (limits.mailboxes === null) return null;
+		return (await countMailboxes(this.db)) >= limits.mailboxes ? limits : null;
+	}
+
 	async ensure(
 		userId: string,
 		source: MailboxSource,
@@ -70,7 +90,22 @@ export class SyncStateService {
 			createWithoutReply?: boolean;
 			createFrom?: string;
 		},
-	): Promise<MailboxSync> {
+	): Promise<MailboxSync | null> {
+		const isMailbox = (MAILBOX_SOURCES as readonly string[]).includes(source);
+		if (isMailbox && !(await this.get(userId, source))) {
+			const limits = await this.mailboxLimitReached();
+			if (limits) {
+				this.logger.warn({
+					message: "Mailbox not connected: the plan's mailbox limit is reached",
+					userId,
+					source,
+					plan: limits.label,
+					allowed: limits.mailboxes,
+				});
+				return null;
+			}
+		}
+
 		return this.db.mailboxSync.upsert({
 			where: { userId_source: { userId, source } },
 			create: {

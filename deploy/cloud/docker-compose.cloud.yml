@@ -1,0 +1,67 @@
+x-tenancy-env: &tenancy-env
+  RELOOP_REGISTRY_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop_registry
+  RELOOP_TENANT_DATABASE_URL_TEMPLATE: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/{db}
+
+services:
+  migrate:
+    image: ghcr.io/reloopcrm/reloop-api:${RELOOP_VERSION:-latest}
+    restart: "no"
+    labels:
+      com.centurylinklabs.watchtower.scope: reloop
+    environment:
+      <<: *tenancy-env
+      DATABASE_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop
+      BETTER_AUTH_SECRET:
+    command: ["sh", "-c", "cd /app/apps/api && bun scripts/tenant.ts migrate-all"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    environment:
+      <<: *tenancy-env
+      RELOOP_BACKUP_DIR: /backups
+      RELOOP_PLANS: "true"
+      RELOOP_MANAGED: "true"
+    volumes:
+      - backups:/backups
+    command: ["sh", "-c", "cd /app/apps/api && exec bun dist/main.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  app:
+    environment:
+      <<: *tenancy-env
+      RELOOP_PLANS: "true"
+      RELOOP_MANAGED: "true"
+
+  agent:
+    environment:
+      <<: *tenancy-env
+
+  backup:
+    build:
+      context: .
+      dockerfile: backup.Dockerfile
+    restart: "no"
+    profiles: ["backup"]
+    environment:
+      PGHOST: postgres
+      PGUSER: reloop
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      REGISTRY_DB: reloop_registry
+      BACKUP_DIR: /backups
+      RELOOP_BACKUP_REMOTE:
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+    volumes:
+      - backups:/backups
+      - ${RCLONE_CONFIG_DIR:-./rclone}:/config/rclone:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  backups:

@@ -178,6 +178,12 @@ export function openClients(): string[] {
 	return [...clients.keys()];
 }
 
+export async function disconnectTenant(tenantId: string): Promise<void> {
+	const open = clients.get(tenantId);
+	clients.delete(tenantId);
+	await open?.$disconnect();
+}
+
 export async function disconnectAll(): Promise<void> {
 	const open = [...clients.values()];
 	clients.clear();

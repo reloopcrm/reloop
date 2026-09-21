@@ -41,7 +41,7 @@ All four run on CI, and `bun run format` fixes most of what `lint` complains abo
 
 **The suite runs against `TEST_DATABASE_URL`, never `DATABASE_URL`, and refuses to start without it.** `bun run db:test` creates the database and migrates it; the name has to end in `_test`. These tests write and delete real rows, so never point `TEST_DATABASE_URL` at a database you care about.
 
-**The tenancy specs create three more databases next to it**: `reloop_registry_test`, `crm_tenant_a_test` and `crm_tenant_b_test`, on the same server as `TEST_DATABASE_URL`, migrated on first use. They prove that two workspaces in hosted mode never see each other's rows.
+**The tenancy specs create three more databases next to it**: `reloop_registry_test`, `crm_tenant_a_test` and `crm_tenant_b_test`, on the same server as `TEST_DATABASE_URL`, migrated on first use. They prove that two workspaces in hosted mode never see each other's rows. The provisioning and signup specs create short-lived `crm_*_test` databases next to them and drop them when they finish.
 
 **A test may not delete a row it did not create.** Where a spec needs state it cannot own, it asserts the precondition and fails, rather than clearing whatever is in the way.
 

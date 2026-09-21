@@ -127,6 +127,11 @@ function harness(options: {
 				return { plan: options.plan ?? null };
 			},
 		},
+		emailThread: {
+			async count() {
+				return 0;
+			},
+		},
 	} as unknown as Db;
 
 	const tokens = {

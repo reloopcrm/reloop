@@ -39,6 +39,7 @@
 		"./sample-data": "./src/sample-data.ts",
 		"./secrets": "./src/secrets.ts",
 		"./plans": "./src/plans.ts",
+		"./provision": "./src/provision.ts",
 		"./settings": "./src/settings.ts",
 		"./tenancy": "./src/tenancy.ts",
 		"./tenancy-config": "./src/tenancy-config.ts",

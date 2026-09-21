@@ -66,6 +66,11 @@ export class EnvironmentVariables {
 	RELOOP_TENANT_DATABASE_URL_TEMPLATE?: string;
 
 	@IsOptional()
+	@IsString()
+	@MinLength(1)
+	RELOOP_BACKUP_DIR?: string;
+
+	@IsOptional()
 	@IsIn(["0", "1"], {
 		message:
 			'PASSWORD_SIGN_IN takes "1" to allow sign-in with an email address and a password, and "0" or nothing to refuse it.',

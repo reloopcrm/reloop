@@ -4,11 +4,14 @@ import { TENANCY } from "./tenancy-config";
 import { isHosted, runAsTenant } from "./tenant-context";
 
 export const TENANT_STATUSES = [
+	"pending",
 	"active",
 	"suspended",
 	"migration_failed",
 	"deleted",
 ] as const;
+
+export type TenantStatus = (typeof TENANT_STATUSES)[number];
 
 export const tenantId = z
 	.string()
@@ -27,6 +30,7 @@ export const tenant = z.object({
 	signIn: z.string().min(1),
 	createdAt: z.date(),
 	trialEndsAt: z.date().nullable(),
+	suspendedAt: z.date().nullable(),
 	deletedAt: z.date().nullable(),
 	allowList: z.array(z.string().min(1)),
 });
@@ -44,6 +48,7 @@ const tenantRow = z
 		sign_in: z.string(),
 		created_at: z.date(),
 		trial_ends_at: z.date().nullable(),
+		suspended_at: z.date().nullish(),
 		deleted_at: z.date().nullable(),
 		allow_list: z.array(z.string()).nullable(),
 	})
@@ -58,6 +63,7 @@ const tenantRow = z
 			signIn: row.sign_in,
 			createdAt: row.created_at,
 			trialEndsAt: row.trial_ends_at,
+			suspendedAt: row.suspended_at ?? null,
 			deletedAt: row.deleted_at,
 			allowList: row.allow_list ?? [],
 		}),
@@ -69,6 +75,7 @@ export const newTenant = tenant
 	.pick({ id: true, slug: true, dbName: true, allowList: true })
 	.extend({
 		plan: z.string().min(1).default("trial"),
+		status: z.enum(TENANT_STATUSES).default("active"),
 		aiMode: z.string().min(1).default("operator"),
 		signIn: z.string().min(1).default("google"),
 		trialEndsAt: z.date().nullable().default(null),
@@ -100,6 +107,7 @@ CREATE TABLE IF NOT EXISTS tenant (
 	trial_ends_at timestamptz,
 	deleted_at timestamptz
 );
+ALTER TABLE tenant ADD COLUMN IF NOT EXISTS suspended_at timestamptz;
 CREATE TABLE IF NOT EXISTS tenant_sign_in (
 	entry text PRIMARY KEY,
 	tenant_id text NOT NULL REFERENCES tenant(id) ON DELETE CASCADE
@@ -227,6 +235,75 @@ export async function activeTenants(): Promise<Tenant[]> {
 	return selectTenants("t.status = 'active' ORDER BY t.created_at, t.id", []);
 }
 
+export async function allTenants(): Promise<Tenant[]> {
+	return selectTenants("true ORDER BY t.created_at, t.id", []);
+}
+
+export async function pendingTenantsBefore(before: Date): Promise<Tenant[]> {
+	return selectTenants("t.status = 'pending' AND t.created_at < $1", [
+		before.toISOString(),
+	]);
+}
+
+export async function expiredTrials(now: Date): Promise<Tenant[]> {
+	return selectTenants(
+		"t.status = 'active' AND t.plan = 'trial' AND t.trial_ends_at IS NOT NULL AND t.trial_ends_at < $1",
+		[now.toISOString()],
+	);
+}
+
+export async function suspendedBefore(before: Date): Promise<Tenant[]> {
+	return selectTenants(
+		"t.status = 'suspended' AND t.suspended_at IS NOT NULL AND t.suspended_at < $1",
+		[before.toISOString()],
+	);
+}
+
+export async function setTenantStatus(
+	id: string,
+	status: TenantStatus,
+): Promise<void> {
+	await registryPool().query(
+		`UPDATE tenant SET status = $2,
+		   suspended_at = CASE WHEN $2 = 'suspended' THEN now() ELSE NULL END
+		 WHERE id = $1`,
+		[id, status],
+	);
+	forgetTenant(id);
+}
+
+export async function activateTenant(
+	id: string,
+	entries: readonly string[],
+): Promise<void> {
+	const client = await registryPool().connect();
+	try {
+		await client.query("BEGIN");
+		await client.query(
+			"UPDATE tenant SET status = 'active' WHERE id = $1 AND status = 'pending'",
+			[id],
+		);
+		for (const entry of entries) {
+			await client.query(
+				"INSERT INTO tenant_sign_in (entry, tenant_id) VALUES ($1, $2) ON CONFLICT (entry) DO NOTHING",
+				[entry.trim().toLowerCase().replace(/^@/, ""), id],
+			);
+		}
+		await client.query("COMMIT");
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
+	forgetTenant(id);
+}
+
+export async function removeTenant(id: string): Promise<void> {
+	await registryPool().query("DELETE FROM tenant WHERE id = $1", [id]);
+	forgetTenant(id);
+}
+
 export async function createTenant(input: NewTenant): Promise<Tenant> {
 	const values = newTenant.parse(input);
 	const client = await registryPool().connect();
@@ -234,16 +311,18 @@ export async function createTenant(input: NewTenant): Promise<Tenant> {
 	try {
 		await client.query("BEGIN");
 		await client.query(
-			`INSERT INTO tenant (id, slug, db_name, plan, ai_mode, sign_in, trial_ends_at)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7)
+			`INSERT INTO tenant (id, slug, db_name, plan, status, ai_mode, sign_in, trial_ends_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			 ON CONFLICT (id) DO UPDATE SET slug = EXCLUDED.slug, db_name = EXCLUDED.db_name,
 			   plan = EXCLUDED.plan, ai_mode = EXCLUDED.ai_mode, sign_in = EXCLUDED.sign_in,
-			   trial_ends_at = EXCLUDED.trial_ends_at, status = 'active', deleted_at = NULL`,
+			   trial_ends_at = EXCLUDED.trial_ends_at, status = EXCLUDED.status,
+			   suspended_at = NULL, deleted_at = NULL`,
 			[
 				values.id,
 				values.slug,
 				values.dbName,
 				values.plan,
+				values.status,
 				values.aiMode,
 				values.signIn,
 				values.trialEndsAt,

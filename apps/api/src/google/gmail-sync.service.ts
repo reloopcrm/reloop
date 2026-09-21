@@ -11,6 +11,7 @@ import {
 	advancePhase,
 	backfillBefore,
 	backfillFloor,
+	finishBackfill,
 	isBackfillRunning,
 	type MailboxBackfill,
 	planBackfill,
@@ -19,6 +20,7 @@ import {
 	restartBackfill,
 	serialiseBackfill,
 } from "../mailbox/backfill-cursor";
+import { importCapReached } from "../mailbox/import-cap";
 import { MAILBOX } from "../mailbox/mailbox.config";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
@@ -284,8 +286,14 @@ export class GmailSyncService {
 
 		let left = budget;
 		let written = 0;
+		const limits = limitsOf(await readPlan(this.db));
 
 		while (left > 0 && isBackfillRunning(plan)) {
+			if (await importCapReached(this.db, limits)) {
+				plan = finishBackfill(plan);
+				break;
+			}
+
 			const page = await this.gmail.listMessages(accessToken, {
 				after: backfillFloor(plan) ?? undefined,
 				before: backfillBefore(plan),

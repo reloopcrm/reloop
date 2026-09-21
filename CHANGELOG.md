@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/reloopcrm/reloop/compare/v0.18.0...v0.18.1) (2026-09-21)
+
+
+### Fixes
+
+* **app:** the app image builds again, no client component reaches pg or async_hooks ([#46](https://github.com/reloopcrm/reloop/issues/46)) ([dc9729d](https://github.com/reloopcrm/reloop/commit/dc9729d4239bf5692e406ba75b41e6f0646f4264))
+
 ## [0.18.0](https://github.com/reloopcrm/reloop/compare/v0.17.0...v0.18.0) (2026-09-21)
 
 

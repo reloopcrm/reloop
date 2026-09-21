@@ -2,6 +2,7 @@ import "@crm/env/load";
 
 import { createHash } from "node:crypto";
 import { db } from "@crm/db";
+import { currentTenantId } from "@crm/db/tenant-context";
 import { crmVersion } from "./version";
 
 export const INSTALL_ID = "install";
@@ -20,35 +21,48 @@ const SELECT = {
 	lastRollupAt: true,
 } as const;
 
-let cached: Install | null = null;
+type Remembered = { install: Install | null; missingSince: number };
+
+const remembered = new Map<string, Remembered>();
 
 const MISSING_FOR_MS = 30_000;
 
-let missingSince = 0;
+function state(): Remembered {
+	const key = currentTenantId() ?? "";
+	let entry = remembered.get(key);
+	if (!entry) {
+		entry = { install: null, missingSince: 0 };
+		remembered.set(key, entry);
+	}
+	return entry;
+}
 
 export async function readInstall(): Promise<Install | null> {
-	if (cached) return cached;
-	if (missingSince && Date.now() - missingSince < MISSING_FOR_MS) return null;
+	let entry: Remembered | undefined;
 
 	try {
+		entry = state();
+		if (entry.install) return entry.install;
+		if (entry.missingSince && Date.now() - entry.missingSince < MISSING_FOR_MS)
+			return null;
+
 		const row = await db.install.findUnique({
 			where: { id: INSTALL_ID },
 			select: SELECT,
 		});
 
-		if (row) cached = row;
-		missingSince = row ? 0 : Date.now();
+		if (row) entry.install = row;
+		entry.missingSince = row ? 0 : Date.now();
 
 		return row;
 	} catch {
-		missingSince = Date.now();
+		if (entry) entry.missingSince = Date.now();
 		return null;
 	}
 }
 
 export function forgetInstall(): void {
-	cached = null;
-	missingSince = 0;
+	remembered.clear();
 }
 
 export async function syncVersion(
@@ -63,8 +77,9 @@ export async function syncVersion(
 			select: SELECT,
 		});
 
-		cached = row;
-		missingSince = 0;
+		const entry = state();
+		entry.install = row;
+		entry.missingSince = 0;
 
 		return row;
 	} catch {
@@ -188,7 +203,7 @@ export async function claimRollup(
 				return { claimed: false, reason: "already sent today" };
 			}
 
-			cached = await tx.install.update({
+			state().install = await tx.install.update({
 				where: { id: INSTALL_ID },
 				data: { lastRollupAt: at },
 				select: SELECT,
@@ -203,7 +218,7 @@ export async function claimRollup(
 
 export async function releaseRollup(previous: Date | null): Promise<void> {
 	try {
-		cached = await db.install.update({
+		state().install = await db.install.update({
 			where: { id: INSTALL_ID },
 			data: { lastRollupAt: previous },
 			select: SELECT,

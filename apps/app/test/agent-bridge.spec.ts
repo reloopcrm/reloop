@@ -39,6 +39,21 @@ describe("mintBridgeToken", () => {
 		expect(result.ok && result.sessionAuth.attributes?.email).toBe(rep.email);
 	});
 
+	it("carries the tenant only when one is given", async () => {
+		const hosted = await mintBridgeToken(rep, { tenantId: "acme" });
+		const single = await mintBridgeToken(rep);
+		const withTenant = await verifyJwtHmac(hosted, CONFIG);
+		const withoutTenant = await verifyJwtHmac(single, CONFIG);
+
+		expect(withTenant.ok && withTenant.sessionAuth.attributes?.tenantId).toBe(
+			"acme",
+		);
+		expect(
+			withoutTenant.ok &&
+				"tenantId" in (withoutTenant.sessionAuth.attributes ?? {}),
+		).toBe(false);
+	});
+
 	it("is rejected by a different secret", async () => {
 		const token = await mintBridgeToken(rep);
 		const result = await verifyJwtHmac(token, {

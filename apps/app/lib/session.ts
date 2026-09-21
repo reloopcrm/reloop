@@ -8,12 +8,16 @@ import { db } from "@crm/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { inTenant } from "@/lib/tenant";
 
-export const getSession = cache(async (): Promise<Session | null> => {
-	const session = await auth.api.getSession({ headers: await headers() });
-	if (!session) return null;
-	return (await isSignInAllowed(session.user.email)) ? session : null;
-});
+export const getSession = cache(
+	async (): Promise<Session | null> =>
+		inTenant(async () => {
+			const session = await auth.api.getSession({ headers: await headers() });
+			if (!session) return null;
+			return (await isSignInAllowed(session.user.email)) ? session : null;
+		}),
+);
 
 export async function requireSession(): Promise<Session> {
 	const session = await getSession();
@@ -25,11 +29,14 @@ export async function requireSession(): Promise<Session> {
 	return session;
 }
 
-export const signInAccounts = cache(async (userId: string) =>
-	db.account.findMany({
-		where: { userId },
-		select: { providerId: true, scope: true },
-	}),
+export const signInAccounts = cache(
+	async (userId: string) =>
+		(await inTenant(() =>
+			db.account.findMany({
+				where: { userId },
+				select: { providerId: true, scope: true },
+			}),
+		)) ?? [],
 );
 
 export async function requireMailboxAccess(): Promise<Session> {

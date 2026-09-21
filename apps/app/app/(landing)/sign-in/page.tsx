@@ -1,4 +1,5 @@
 import type { MailboxProviderId } from "@crm/auth/scopes";
+import { isHosted } from "@crm/db/tenant-context";
 import { Alert, AlertTitle } from "@crm/ui/components/alert";
 import type { Metadata } from "next";
 import { redirect, unstable_rethrow } from "next/navigation";
@@ -11,6 +12,7 @@ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { PasswordSignIn } from "./password-sign-in";
 import { SocialSignIn } from "./social-sign-in";
 import { type SsoProvider, SsoSignIn } from "./sso-sign-in";
+import { WorkspaceLookup } from "./workspace-lookup";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -71,14 +73,38 @@ async function SignIn({
 	searchParams,
 }: Pick<PageProps<"/sign-in">, "searchParams">) {
 	const t = await getT();
+	const hosted = isHosted();
 	const [session, options, { method, error }] = await Promise.all([
 		currentSession(),
-		signInOptions(),
+		hosted ? null : signInOptions(),
 		searchParams,
 	]);
 
 	if (session) {
 		redirect("/");
+	}
+
+	const failure = signInErrorText(Array.isArray(error) ? undefined : error);
+
+	if (hosted) {
+		return (
+			<>
+				<AuthHeading
+					title={t("Welcome back")}
+					description={t(
+						"Enter your work email address and we find your workspace.",
+					)}
+				/>
+
+				{failure ? (
+					<Alert variant="destructive">
+						<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
+					</Alert>
+				) : null}
+
+				<WorkspaceLookup />
+			</>
+		);
 	}
 
 	const configured: MailboxProviderId[] = [];
@@ -123,7 +149,6 @@ async function SignIn({
 	}
 
 	const socialLeads = !showSso && !showPassword;
-	const failure = signInErrorText(Array.isArray(error) ? undefined : error);
 
 	return (
 		<>

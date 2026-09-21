@@ -1,8 +1,11 @@
+import type { PlanId } from "@crm/db/plans";
+
 export type PlanLimit =
 	| { label: string; count: number }
 	| { label: string; text: string };
 
 export type Plan = {
+	id: PlanId;
 	name: string;
 	tagline: string;
 	monthly: number;
@@ -14,11 +17,13 @@ export type Plan = {
 export const PRICING = {
 	href: {
 		start: "/get-started",
+		planParam: "plan",
 		selfHosted: "/self-hosted-crm",
 	},
 	yearlyDiscountPercent: 15,
 	included: [
 		{
+			id: "start",
 			name: "Start",
 			tagline: "For two people with one mailbox",
 			monthly: 39,
@@ -32,6 +37,7 @@ export const PRICING = {
 			],
 		},
 		{
+			id: "standard",
 			name: "Standard",
 			tagline: "For most businesses",
 			monthly: 79,
@@ -46,6 +52,7 @@ export const PRICING = {
 			],
 		},
 		{
+			id: "plus",
 			name: "Plus",
 			tagline: "Two mailboxes, more mail",
 			monthly: 149,
@@ -59,6 +66,7 @@ export const PRICING = {
 			],
 		},
 		{
+			id: "team",
 			name: "Team",
 			tagline: "Several departments",
 			monthly: 299,
@@ -72,6 +80,7 @@ export const PRICING = {
 			],
 		},
 		{
+			id: "office",
 			name: "Office",
 			tagline: "Large business",
 			monthly: 599,
@@ -87,6 +96,7 @@ export const PRICING = {
 	],
 	ownKey: [
 		{
+			id: "hosting",
 			name: "Hosting",
 			tagline: "From one seat, no minimum",
 			monthly: 19,
@@ -100,6 +110,7 @@ export const PRICING = {
 			],
 		},
 		{
+			id: "hosting-pro",
 			name: "Hosting Pro",
 			tagline: "More mailboxes, priority support",
 			monthly: 29,

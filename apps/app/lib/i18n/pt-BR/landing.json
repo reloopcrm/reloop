@@ -141,5 +141,21 @@
 	"Trial": "Teste",
 	"14 days, 1,000 mail conversations, no card. The same for every plan.": "14 dias, 1.000 conversas de e-mail, sem cartão. Igual para todo plano.",
 	"Prefer to run it yourself? Reloop is open source under the GNU AGPL v3.": "Prefere hospedar você mesmo? O Reloop é código aberto sob a GNU AGPL v3.",
-	"The CRM that wins old customers back.": "O CRM que traz de volta os antigos clientes."
+	"The CRM that wins old customers back.": "O CRM que traz de volta os antigos clientes.",
+	"Enter your work email address and we find your workspace.": "Digite seu e-mail de trabalho e nós encontramos seu espaço de trabalho.",
+	"Use a different email address": "Usar outro endereço de e-mail",
+	"Work email": "E-mail de trabalho",
+	"Create one": "Criar um",
+	"No workspace for this address.": "Não há espaço de trabalho para este endereço.",
+	"A workspace for this address already exists.": "Já existe um espaço de trabalho para este endereço.",
+	"Check the address and try again.": "Verifique o endereço e tente de novo.",
+	"Create your Reloop CRM workspace. 14 days free, no card, every plan.": "Crie seu espaço de trabalho no Reloop CRM. 14 dias grátis, sem cartão, em todos os planos.",
+	"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.": "Seu próprio Reloop CRM em um minuto. 14 dias grátis, sem cartão. Você escolhe o plano depois.",
+	"Your workspace is ready. Sign in to open it.": "Seu espaço de trabalho está pronto. Entre para abri-lo.",
+	"Plan: {plan}.": "Plano: {plan}.",
+	"Change plan": "Mudar de plano",
+	"Check your details and try again.": "Verifique seus dados e tente de novo.",
+	"That did not work. Try again in a moment.": "Isso não funcionou. Tente de novo em instantes.",
+	"The trial of this workspace has ended. Write to us and we switch it back on.": "O período de teste deste espaço de trabalho acabou. Escreva para nós e nós o reativamos.",
+	"This server has no hosted workspaces.": "Este servidor não tem espaços de trabalho hospedados."
 }

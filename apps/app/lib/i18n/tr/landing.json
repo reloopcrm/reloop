@@ -141,5 +141,21 @@
 	"Trial": "Deneme",
 	"14 days, 1,000 mail conversations, no card. The same for every plan.": "14 gün, 1.000 e-posta konuşması, kart yok. Her paket için aynı.",
 	"Prefer to run it yourself? Reloop is open source under the GNU AGPL v3.": "Kendin barındırmayı mı tercih edersin? Reloop, GNU AGPL v3 altında açık kaynaktır.",
-	"The CRM that wins old customers back.": "Eski müşterileri geri kazandıran CRM."
+	"The CRM that wins old customers back.": "Eski müşterileri geri kazandıran CRM.",
+	"Enter your work email address and we find your workspace.": "İş e-posta adresini gir, çalışma alanını biz bulalım.",
+	"Use a different email address": "Başka bir e-posta adresi kullan",
+	"Work email": "İş e-postası",
+	"Create one": "Bir tane oluştur",
+	"No workspace for this address.": "Bu adres için çalışma alanı yok.",
+	"A workspace for this address already exists.": "Bu adres için zaten bir çalışma alanı var.",
+	"Check the address and try again.": "Adresi kontrol et ve tekrar dene.",
+	"Create your Reloop CRM workspace. 14 days free, no card, every plan.": "Reloop CRM çalışma alanını oluştur. 14 gün ücretsiz, kart gerekmez, her planda.",
+	"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.": "Bir dakikada kendi Reloop CRM'in. 14 gün ücretsiz, kart gerekmez. Planı sonra seçersin.",
+	"Your workspace is ready. Sign in to open it.": "Çalışma alanın hazır. Açmak için giriş yap.",
+	"Plan: {plan}.": "Plan: {plan}.",
+	"Change plan": "Planı değiştir",
+	"Check your details and try again.": "Bilgilerini kontrol et ve tekrar dene.",
+	"That did not work. Try again in a moment.": "Bu işe yaramadı. Birazdan tekrar dene.",
+	"The trial of this workspace has ended. Write to us and we switch it back on.": "Bu çalışma alanının deneme süresi bitti. Bize yaz, tekrar açalım.",
+	"This server has no hosted workspaces.": "Bu sunucuda barındırılan çalışma alanı yok."
 }

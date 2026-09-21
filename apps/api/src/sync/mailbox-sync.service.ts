@@ -1,3 +1,5 @@
+import { TENANCY } from "@crm/db/tenancy-config";
+import { isHosted } from "@crm/db/tenant-context";
 import { syncError } from "@crm/telemetry";
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -16,6 +18,9 @@ import { MicrosoftConnectionService } from "../microsoft/microsoft-connection.se
 import { MicrosoftSyncService } from "../microsoft/microsoft-sync.service";
 
 const TICK_BUDGET_MS = 60_000;
+
+const tickBudgetMs = () =>
+	isHosted() ? TENANCY.loop.budgetMs : TICK_BUDGET_MS;
 
 export type TickSummary = {
 	attempted: number;
@@ -77,7 +82,7 @@ export class MailboxSyncService {
 		const due = await this.state.due(new Date());
 
 		for (const [index, row] of due.entries()) {
-			if (Date.now() - startedAt > TICK_BUDGET_MS) {
+			if (Date.now() - startedAt > tickBudgetMs()) {
 				this.logger.log({
 					message: "Sync tick budget reached",
 					remaining: due.length - index,

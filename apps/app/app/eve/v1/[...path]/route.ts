@@ -1,4 +1,5 @@
 import { db } from "@crm/db";
+import { CONVERSATIONS } from "@crm/validation/conversations";
 import { connection } from "next/server";
 import { z } from "zod";
 import {
@@ -198,7 +199,7 @@ export {
 const CREATE_SESSION_PATH = "/eve/v1/session";
 const RESET_SESSION_PATH = "/eve/v1/session/reset";
 const SESSION_ID_HEADER = "x-eve-session-id";
-const TITLE_LENGTH = 120;
+const TITLE_LENGTH = CONVERSATIONS.title.maxLength;
 
 function cuid(value: string | null): string | undefined {
 	return value && /^[a-z0-9]{20,32}$/.test(value) ? value : undefined;

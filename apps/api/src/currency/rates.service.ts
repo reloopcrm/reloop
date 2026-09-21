@@ -10,9 +10,11 @@ import {
 	readReportingCurrency,
 	writeRatesRefreshedAt,
 } from "@crm/db/settings";
+import { forEachTenant } from "@crm/db/tenancy";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { InjectDatabase } from "../database/database.constants";
+import { ConversionService } from "./conversion.service";
 
 export const RATES_PROVIDER = "open.er-api.com";
 
@@ -31,6 +33,10 @@ export interface RateRefresh {
 	asOf: string | null;
 	reason: string | null;
 }
+
+type Quotes = { rates: Map<string, Prisma.Decimal>; asOf: Date };
+
+export type RateFeed = (base: string) => Promise<Quotes | null>;
 
 const UNREADABLE_FEED = {
 	result: "",
@@ -66,15 +72,45 @@ function wait(ms: number): Promise<void> {
 export class RatesService {
 	private readonly logger = new Logger(RatesService.name);
 
-	constructor(@InjectDatabase() private readonly db: Db) {}
+	constructor(
+		@InjectDatabase() private readonly db: Db,
+		private readonly conversion: ConversionService,
+	) {}
 
 	async refreshedAt(): Promise<Date | null> {
 		return readRatesRefreshedAt(this.db);
 	}
 
-	async refresh(): Promise<RateRefresh> {
+	feedOnce(): RateFeed {
+		const inflight = new Map<string, Promise<Quotes | null>>();
+		return (base) => {
+			const known = inflight.get(base);
+			if (known) return known;
+			const fetched = this.fetch(base);
+			inflight.set(base, fetched);
+			return fetched;
+		};
+	}
+
+	async refreshAll() {
+		const feed = this.feedOnce();
+		return forEachTenant(async () => {
+			const refresh = await this.refresh(feed);
+			if (!refresh.ok) return refresh;
+			const filled = await this.conversion.fillMissing();
+			return {
+				...refresh,
+				converted: filled.converted,
+				missing: filled.missing,
+			};
+		});
+	}
+
+	async refresh(
+		feed: RateFeed = (base) => this.fetch(base),
+	): Promise<RateRefresh> {
 		const base = await readReportingCurrency(this.db);
-		const quotes = await this.fetch(base);
+		const quotes = await feed(base);
 
 		if (!quotes) {
 			return {
@@ -159,9 +195,7 @@ export class RatesService {
 		return written;
 	}
 
-	private async fetch(
-		base: string,
-	): Promise<{ rates: Map<string, Prisma.Decimal>; asOf: Date } | null> {
+	private async fetch(base: string): Promise<Quotes | null> {
 		for (let attempt = 1; attempt <= RATES_ATTEMPTS; attempt += 1) {
 			const quotes = await this.attempt(base, attempt);
 			if (quotes) return quotes;
@@ -172,10 +206,7 @@ export class RatesService {
 		return null;
 	}
 
-	private async attempt(
-		base: string,
-		attempt: number,
-	): Promise<{ rates: Map<string, Prisma.Decimal>; asOf: Date } | null> {
+	private async attempt(base: string, attempt: number): Promise<Quotes | null> {
 		try {
 			const response = await fetch(`${RATES_URL}/${encodeURIComponent(base)}`, {
 				headers: { accept: "application/json" },

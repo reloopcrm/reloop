@@ -1,4 +1,5 @@
 import { forEachTenant } from "@crm/db/tenancy";
+import { currentTenantId } from "@crm/db/tenant-context";
 import {
 	Injectable,
 	Logger,
@@ -7,7 +8,6 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { EnvironmentVariables } from "../config/env.validation";
-import { ConversionService } from "../currency/conversion.service";
 import { RatesService } from "../currency/rates.service";
 import { WinBackFollowUpService } from "../reactivation/win-back-follow-up.service";
 import { MailboxSyncService } from "./mailbox-sync.service";
@@ -20,12 +20,11 @@ export class MailboxSyncHeartbeatService
 	private readonly logger = new Logger(MailboxSyncHeartbeatService.name);
 	private readonly timers: ReturnType<typeof selfHostTimers>;
 	private readonly handles: ReturnType<typeof setInterval>[] = [];
-	private running = false;
+	private readonly running = new Set<string>();
 
 	constructor(
 		private readonly sync: MailboxSyncService,
 		private readonly rates: RatesService,
-		private readonly conversion: ConversionService,
 		private readonly winBack: WinBackFollowUpService,
 		config: ConfigService<EnvironmentVariables, true>,
 	) {
@@ -79,18 +78,25 @@ export class MailboxSyncHeartbeatService
 	}
 
 	private async tick(): Promise<void> {
-		if (this.running) return;
-		this.running = true;
-
 		try {
-			await forEachTenant(() => this.sync.runDue());
+			await forEachTenant(() => this.tickTenant());
 		} catch (error) {
 			this.logger.error(
 				{ message: "Mailbox sync heartbeat failed" },
 				error instanceof Error ? error.stack : String(error),
 			);
+		}
+	}
+
+	private async tickTenant(): Promise<void> {
+		const key = currentTenantId() ?? "";
+		if (this.running.has(key)) return;
+		this.running.add(key);
+
+		try {
+			await this.sync.runDue();
 		} finally {
-			this.running = false;
+			this.running.delete(key);
 		}
 	}
 
@@ -107,10 +113,7 @@ export class MailboxSyncHeartbeatService
 
 	private async refreshRates(): Promise<void> {
 		try {
-			await forEachTenant(async () => {
-				const refresh = await this.rates.refresh();
-				if (refresh.ok) await this.conversion.fillMissing();
-			});
+			await this.rates.refreshAll();
 		} catch (error) {
 			this.logger.error(
 				{ message: "Exchange rate heartbeat failed" },

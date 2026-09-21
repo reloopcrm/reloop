@@ -55,7 +55,14 @@ export function tenantMiddleware() {
 			return;
 		}
 
-		runAsTenant(tenant, () => next());
+		await runAsTenant(
+			tenant,
+			() =>
+				new Promise<void>((settled) => {
+					response.once("close", settled);
+					next();
+				}),
+		);
 	};
 }
 

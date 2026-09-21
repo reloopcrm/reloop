@@ -192,5 +192,10 @@
 	"Who you are, and how this workspace works.": "Wer du bist und wie dieser Arbeitsbereich funktioniert.",
 	"Share": "Anteil",
 	"Model calls of the last {days} days. 1 USD = {rate} EUR.": "Modellaufrufe der letzten {days} Tage. 1 USD = {rate} EUR.",
-	"Convertible": "Umrechenbar"
+	"Convertible": "Umrechenbar",
+	"{used} of {limit}": "{used} von {limit}",
+	"Imported conversations": "Importierte Unterhaltungen",
+	"Email drafts per month": "E-Mail-Entwürfe pro Monat",
+	"Storage": "Speicher",
+	"{count} GB": "{count} GB"
 }

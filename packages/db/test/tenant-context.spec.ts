@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { db } from "../src/client";
+import { db, disconnectAll, openClients } from "../src/client";
 import type { Tenant } from "../src/tenancy";
+import { TENANCY } from "../src/tenancy-config";
 import {
 	currentTenant,
+	holdTenant,
 	runAsTenant,
 	TenantContextMissing,
+	tenantHeld,
 	tenantScopedKey,
 } from "../src/tenant-context";
 
@@ -37,9 +40,85 @@ async function* pagedIds(): AsyncGenerator<string> {
 describe("the tenant context under Bun", () => {
 	const registry = process.env.RELOOP_REGISTRY_URL;
 
+	const template = process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE;
+
 	afterEach(() => {
 		if (registry === undefined) delete process.env.RELOOP_REGISTRY_URL;
 		else process.env.RELOOP_REGISTRY_URL = registry;
+		if (template === undefined)
+			delete process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE;
+		else process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE = template;
+	});
+
+	it("holds the tenant while its work runs, and detached work holds it too", async () => {
+		let finish = () => {};
+		const work = new Promise<void>((resolve) => {
+			finish = resolve;
+		});
+
+		expect(tenantHeld(A.id)).toBe(false);
+		const running = runAsTenant(A, () => work);
+		expect(tenantHeld(A.id)).toBe(true);
+
+		let finishDetached = () => {};
+		const detached = runAsTenant(B, () =>
+			holdTenant(
+				() =>
+					new Promise<void>((resolve) => {
+						finishDetached = resolve;
+					}),
+			),
+		);
+		expect(tenantHeld(B.id)).toBe(true);
+
+		finish();
+		await running;
+		expect(tenantHeld(A.id)).toBe(false);
+		expect(tenantHeld(B.id)).toBe(true);
+
+		finishDetached();
+		await detached;
+		expect(tenantHeld(B.id)).toBe(false);
+
+		expect(runAsTenant(A, () => 42)).toBe(42);
+		expect(tenantHeld(A.id)).toBe(false);
+		expect(holdTenant(() => "no tenant")).toBe("no tenant");
+	});
+
+	it("never evicts a client a tenant still holds", async () => {
+		process.env.RELOOP_REGISTRY_URL = "postgresql://registry.invalid/registry";
+		process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE = `postgresql://nobody@db.invalid/${TENANCY.template.placeholder}`;
+
+		const touch = (tenant: Tenant) =>
+			runAsTenant(tenant, () => typeof db.$queryRaw);
+
+		try {
+			let finish = () => {};
+			const held = runAsTenant(A, async () => {
+				touch(A);
+				await new Promise<void>((resolve) => {
+					finish = resolve;
+				});
+			});
+
+			const others = Array.from(
+				{ length: TENANCY.clients.max + 1 },
+				(_, index) => tenantOf(`evict-${index}`),
+			);
+			for (const other of others) expect(touch(other)).toBe("function");
+
+			expect(openClients()).toHaveLength(TENANCY.clients.max);
+			expect(openClients()).toContain(A.id);
+			expect(openClients()).not.toContain(others[0]?.id);
+
+			finish();
+			await held;
+			touch(tenantOf("evict-last"));
+
+			expect(openClients()).not.toContain(A.id);
+		} finally {
+			await disconnectAll();
+		}
 	});
 
 	it("survives a $transaction callback", async () => {

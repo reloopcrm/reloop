@@ -105,9 +105,18 @@ export const planOutput = z.object({
 		contacts: z.number().nullable(),
 		mailboxes: z.number().nullable(),
 		importMonths: z.number().nullable(),
+		importThreads: z.number().nullable(),
 		researchPerHour: z.number().nullable(),
 		companyResearch: z.boolean(),
 		insightsPerMonth: z.number().nullable(),
+		draftsPerMonth: z.number().nullable(),
+		storageGb: z.number().nullable(),
+	}),
+	usage: z.object({
+		contacts: z.number(),
+		mailboxes: z.number(),
+		insightsThisMonth: z.number(),
+		draftsThisMonth: z.number(),
 	}),
 	options: z.array(z.object({ id: z.string(), label: z.string() })),
 });

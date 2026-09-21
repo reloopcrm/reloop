@@ -192,5 +192,10 @@
 	"Who you are, and how this workspace works.": "你是谁，以及这个工作区如何运作。",
 	"Share": "占比",
 	"Model calls of the last {days} days. 1 USD = {rate} EUR.": "最近 {days} 天的模型调用。1 USD = {rate} EUR。",
-	"Convertible": "可换算"
+	"Convertible": "可换算",
+	"{used} of {limit}": "{used} / {limit}",
+	"Imported conversations": "已导入的往来邮件",
+	"Email drafts per month": "每月邮件草稿数",
+	"Storage": "存储",
+	"{count} GB": "{count} GB"
 }

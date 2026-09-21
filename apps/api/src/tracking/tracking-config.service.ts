@@ -25,7 +25,7 @@ export interface CompiledConfig {
 export class TrackingConfigService {
 	private readonly logger = new Logger(TrackingConfigService.name);
 
-	private generation = 0;
+	private readonly generations = new Map<string, number>();
 
 	constructor(
 		@InjectDatabase() private readonly db: Db,
@@ -38,13 +38,13 @@ export class TrackingConfigService {
 		);
 		if (cached) return cached;
 
-		const read = this.generation;
+		const read = this.generation();
 		const config = await readTrackingConfig(this.db);
 		if (!config) return null;
 
 		const compiled = { config, hash: configHash(config) };
 
-		if (read === this.generation && (await this.current(compiled.hash))) {
+		if (read === this.generation() && (await this.current(compiled.hash))) {
 			await this.cache.set(
 				tenantScopedKey(CONFIG_KEY),
 				compiled,
@@ -69,9 +69,13 @@ export class TrackingConfigService {
 		return compiled?.config.siteId === siteId ? compiled : null;
 	}
 
+	private generation(): number {
+		return this.generations.get(tenantScopedKey(CONFIG_KEY)) ?? 0;
+	}
+
 	async invalidate(): Promise<void> {
-		this.generation += 1;
-		const written = this.generation;
+		const written = this.generation() + 1;
+		this.generations.set(tenantScopedKey(CONFIG_KEY), written);
 
 		await this.cache.del(tenantScopedKey(CONFIG_KEY));
 
@@ -93,7 +97,7 @@ export class TrackingConfigService {
 			data: { trackingConfigHash: hash },
 		});
 
-		if (written !== this.generation) return;
+		if (written !== this.generation()) return;
 		if (!(await this.current(hash))) return;
 
 		await this.cache.set(

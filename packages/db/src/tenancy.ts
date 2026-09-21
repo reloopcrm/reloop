@@ -334,10 +334,9 @@ async function withinBudget<T>(
 		);
 	});
 
-	const work = runAsTenant(current, fn);
-	work.catch(() => {});
-
 	try {
+		const work = runAsTenant(current, fn);
+		work.catch(() => {});
 		const result = await Promise.race([work, expired]);
 		return { tenantId: current.id, ok: true, result };
 	} catch (error) {

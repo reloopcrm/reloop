@@ -41,7 +41,13 @@ Hosted mode does not change that: a customer gets a whole database, and `db` fro
 tenant is resolved once per request in `apps/api/src/tenancy/tenant.middleware.ts`
 and never travels as a parameter. A process-wide cache key that is per workspace
 goes through `tenantScopedKey()` (`@crm/db/tenant-context`), and a cron route that
-serves every workspace loops through `forEachTenant()` (`@crm/db/tenancy`). The
+serves every workspace loops through `forEachTenant()` (`@crm/db/tenancy`). The loop
+runs `TENANCY.loop.concurrency` tenants at once with `TENANCY.loop.budgetMs` each
+(`packages/db/src/tenancy-config.ts`); a tenant past its budget is reported as
+failed and the others carry on. Work that outlives its request, a detached
+`void (async …)()`, wraps itself in `holdTenant()` so the pool never disconnects
+the client under it. The exchange-rate loop fetches the feed once per base
+currency (`RatesService.refreshAll`) and writes it to every tenant. The
 variables and the rules are in `docs/environment.md`.
 
 A **singleton workspace** exists — Better Auth's `organization` plugin, one row with

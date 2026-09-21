@@ -156,10 +156,18 @@ export async function eachActiveTenant(
 		return [];
 	}
 
-	const tenants = only
-		? [await tenantFromId(only)].filter((entry): entry is Tenant => !!entry)
-		: rotated(await activeTenants(), rotation++);
 	const outcomes: TenantRun[] = [];
+	let tenants: Tenant[];
+	try {
+		tenants = only
+			? [await tenantFromId(only)].filter((entry): entry is Tenant => !!entry)
+			: rotated(await activeTenants(), rotation++);
+	} catch (error) {
+		console.error(
+			`[agent] ${label} could not list the tenants: ${error instanceof Error ? error.message : String(error)}`,
+		);
+		return outcomes;
+	}
 
 	await runLimited(DISPATCH.tenants.concurrency, tenants, async (tenant) => {
 		const outcome: TenantRun = {

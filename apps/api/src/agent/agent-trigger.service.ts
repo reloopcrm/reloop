@@ -67,6 +67,14 @@ async function runWithConcurrency<T>(
 
 const TENANT_HEADER = "x-reloop-tenant";
 
+function tenantOfThisRequest(): string | null {
+	try {
+		return currentTenantId();
+	} catch {
+		return null;
+	}
+}
+
 @Injectable()
 export class AgentTriggerService {
 	private readonly logger = new Logger(AgentTriggerService.name);
@@ -754,7 +762,7 @@ export class AgentTriggerService {
 				authorization: `Bearer ${agent.secret}`,
 			});
 			if (body) headers.set("content-type", "application/json");
-			const tenantId = currentTenantId();
+			const tenantId = tenantOfThisRequest();
 			if (tenantId) headers.set(TENANT_HEADER, tenantId);
 
 			const response = await fetch(agent.url(path), {

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.16.0](https://github.com/reloopcrm/reloop/compare/v0.15.1...v0.16.0) (2026-09-21)
+
+
+### Features
+
+* **connections:** set Google, Microsoft and Slack from the web ([#28](https://github.com/reloopcrm/reloop/issues/28)) ([d9c2664](https://github.com/reloopcrm/reloop/commit/d9c2664f5f411ef333f7025664ac55c4d90a43a2))
+* **landing:** a louder start page that leads with winning customers back ([#30](https://github.com/reloopcrm/reloop/issues/30)) ([acc7ad5](https://github.com/reloopcrm/reloop/commit/acc7ad583830f5650d7380ad373308701291dfb3))
+
+
+### Fixes
+
+* **deploy:** leave the agent's memory alone unless a host asks ([#29](https://github.com/reloopcrm/reloop/issues/29)) ([8bc439c](https://github.com/reloopcrm/reloop/commit/8bc439c98905e38c6d8903d7b7a8705be777b48c))
+* **deploy:** let the updater speak a Docker API the engine accepts ([#31](https://github.com/reloopcrm/reloop/issues/31)) ([5fb0132](https://github.com/reloopcrm/reloop/commit/5fb0132fbffeb739d9e69c2259b8316609b5d430))
+
 ## [0.15.1](https://github.com/reloopcrm/reloop/compare/v0.15.0...v0.15.1) (2026-09-20)
 
 

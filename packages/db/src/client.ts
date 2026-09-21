@@ -2,9 +2,13 @@ import "@crm/env/load";
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { type Prisma, PrismaClient } from "./generated/prisma/client";
+import { type Tenant, tenantDatabaseUrl } from "./tenancy";
+import { TENANCY } from "./tenancy-config";
+import { currentTenant, isHosted } from "./tenant-context";
 
-const connectionString =
-	process.env.NODE_ENV === "test" ? testDatabase() : liveDatabase();
+function connectionString(): string {
+	return process.env.NODE_ENV === "test" ? testDatabase() : liveDatabase();
+}
 
 function liveDatabase(): string {
 	const url = process.env.DATABASE_URL;
@@ -98,9 +102,9 @@ const logDefinitions: Prisma.LogDefinition[] = [
 		: []),
 ];
 
-const createPrismaClient = () => {
+const createPrismaClient = (connectionString: string, max?: number) => {
 	const client = new PrismaClient({
-		adapter: new PrismaPg({ connectionString }),
+		adapter: new PrismaPg({ connectionString, max }),
 		log: logDefinitions,
 	});
 
@@ -120,14 +124,70 @@ const createPrismaClient = () => {
 	return client;
 };
 
+export type Db = ReturnType<typeof createPrismaClient>;
+
 declare global {
-	var prisma: ReturnType<typeof createPrismaClient> | undefined;
+	var prisma: Db | undefined;
 }
 
-export const db = globalThis.prisma ?? createPrismaClient();
+let single: Db | undefined = isHosted() ? undefined : singleClient();
 
-if (process.env.NODE_ENV !== "production") {
-	globalThis.prisma = db;
+function singleClient(): Db {
+	const client = globalThis.prisma ?? createPrismaClient(connectionString());
+	if (process.env.NODE_ENV !== "production") globalThis.prisma = client;
+	return client;
 }
 
-export type Db = typeof db;
+const clients = new Map<string, Db>();
+
+function clientFor(tenant: Tenant): Db {
+	const existing = clients.get(tenant.id);
+	if (existing) {
+		clients.delete(tenant.id);
+		clients.set(tenant.id, existing);
+		return existing;
+	}
+
+	const client = createPrismaClient(
+		tenantDatabaseUrl(tenant.dbName),
+		TENANCY.pool.api,
+	);
+	clients.set(tenant.id, client);
+
+	if (clients.size > TENANCY.clients.max) {
+		const oldest = clients.entries().next().value;
+		if (oldest) {
+			clients.delete(oldest[0]);
+			void oldest[1].$disconnect();
+		}
+	}
+
+	return client;
+}
+
+function resolve(): Db {
+	if (isHosted()) return clientFor(currentTenant());
+	single ??= singleClient();
+	return single;
+}
+
+export async function disconnectAll(): Promise<void> {
+	const open = [...clients.values()];
+	clients.clear();
+	if (single) open.push(single);
+	await Promise.all(open.map((client) => client.$disconnect()));
+}
+
+export const db: Db = new Proxy({} as Db, {
+	get(target, property, receiver) {
+		if (Reflect.has(target, property)) {
+			return Reflect.get(target, property, receiver);
+		}
+		const client = resolve();
+		const value = Reflect.get(client, property, client);
+		return value instanceof Function ? value.bind(client) : value;
+	},
+	has(target, property) {
+		return Reflect.has(target, property) || Reflect.has(resolve(), property);
+	},
+});

@@ -7,7 +7,7 @@
 		"prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
 		"build": "turbo run build",
 		"dev": "turbo run dev",
-		"lint": "turbo run lint",
+		"lint": "turbo run lint && bun tools/tenancy-guard.ts",
 		"lint:slop": "oxlint",
 		"lint:dead": "knip --no-progress",
 		"format": "biome format --write .",

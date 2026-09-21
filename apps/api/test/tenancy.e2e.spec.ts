@@ -18,6 +18,7 @@ import { MailboxSyncHeartbeatService } from "../src/sync/mailbox-sync-heartbeat.
 
 const runId = process.env.TEST_RUN_ID ?? "spec";
 const password = "ein-sehr-langes-passwort-fuer-tenants";
+const PREPARE_TIMEOUT_MS = 120_000;
 
 const userOf = (tenant: { id: string; domain: string }) => ({
 	id: `tenancy-${tenant.id}-${runId}`,
@@ -115,7 +116,7 @@ describe("hosted mode resolves the tenant on every request", () => {
 			.filter((part) => part.includes("session_token"))
 			.join("; ");
 		expect(sessionOfB).toContain("session_token");
-	});
+	}, PREPARE_TIMEOUT_MS);
 
 	afterAll(async () => {
 		try {

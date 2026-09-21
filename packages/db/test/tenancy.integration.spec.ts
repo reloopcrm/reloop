@@ -19,6 +19,8 @@ const prefix = `tenancy-${runId}-`;
 
 const ROWS = 50;
 
+const PREPARE_TIMEOUT_MS = 120_000;
+
 describe("two tenant databases behind one db", () => {
 	const saved = {
 		registry: process.env.RELOOP_REGISTRY_URL,
@@ -36,7 +38,7 @@ describe("two tenant databases behind one db", () => {
 	beforeAll(async () => {
 		({ a, b, registryUrl } = await prepareTestTenants());
 		await Promise.all([clean(a), clean(b)]);
-	});
+	}, PREPARE_TIMEOUT_MS);
 
 	afterAll(async () => {
 		await Promise.all([clean(a), clean(b)]);

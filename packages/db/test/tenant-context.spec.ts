@@ -89,8 +89,7 @@ describe("the tenant context under Bun", () => {
 		process.env.RELOOP_REGISTRY_URL = "postgresql://registry.invalid/registry";
 		process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE = `postgresql://nobody@db.invalid/${TENANCY.template.placeholder}`;
 
-		const touch = (tenant: Tenant) =>
-			runAsTenant(tenant, () => typeof db.$queryRaw);
+		const touch = (tenant: Tenant) => runAsTenant(tenant, () => db.$queryRaw);
 
 		try {
 			let finish = () => {};
@@ -105,7 +104,7 @@ describe("the tenant context under Bun", () => {
 				{ length: TENANCY.clients.max + 1 },
 				(_, index) => tenantOf(`evict-${index}`),
 			);
-			for (const other of others) expect(touch(other)).toBe("function");
+			for (const other of others) expect(touch(other)).toBeInstanceOf(Function);
 
 			expect(openClients()).toHaveLength(TENANCY.clients.max);
 			expect(openClients()).toContain(A.id);

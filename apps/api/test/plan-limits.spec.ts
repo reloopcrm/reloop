@@ -119,7 +119,7 @@ describe("plan limits in the API", () => {
 		expect(plan.usage.draftsThisMonth).toBeGreaterThanOrEqual(
 			PLANS.trial.draftsPerMonth,
 		);
-		expect(typeof plan.usage.mailboxes).toBe("number");
-		expect(typeof plan.usage.insightsThisMonth).toBe("number");
+		expect(plan.usage.mailboxes).toBeGreaterThanOrEqual(0);
+		expect(plan.usage.insightsThisMonth).toBeGreaterThanOrEqual(0);
 	});
 });

@@ -30,14 +30,6 @@ function hold(id: string): () => void {
 	};
 }
 
-function isThenable(value: unknown): value is PromiseLike<unknown> {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		typeof (value as { then?: unknown }).then === "function"
-	);
-}
-
 export function runAsTenant<T>(tenant: Tenant, fn: () => T): T {
 	const release = hold(tenant.id);
 	let result: T;
@@ -47,8 +39,8 @@ export function runAsTenant<T>(tenant: Tenant, fn: () => T): T {
 		release();
 		throw error;
 	}
-	if (isThenable(result)) {
-		result.then(release, release);
+	if (result instanceof Object && "then" in result) {
+		(result as PromiseLike<T>).then(release, release);
 	} else {
 		release();
 	}

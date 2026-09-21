@@ -153,7 +153,11 @@ export function PricingPlans() {
 								size="pill"
 								asChild
 							>
-								<NextLink href={PRICING.href.start}>{t("Try it now")}</NextLink>
+								<NextLink
+									href={`${PRICING.href.start}?${PRICING.href.planParam}=${plan.id}`}
+								>
+									{t("Try it now")}
+								</NextLink>
 							</Button>
 						</div>
 					</li>

@@ -141,5 +141,20 @@
 	"Trial": "试用",
 	"14 days, 1,000 mail conversations, no card. The same for every plan.": "14 天，1,000 个邮件会话，无需银行卡。每个套餐都一样。",
 	"Prefer to run it yourself? Reloop is open source under the GNU AGPL v3.": "想自己部署？Reloop 是 GNU AGPL v3 许可的开源软件。",
-	"The CRM that wins old customers back.": "帮你赢回老客户的 CRM。"
+	"The CRM that wins old customers back.": "帮你赢回老客户的 CRM。",
+	"Enter your work email address and we find your workspace.": "输入你的工作邮箱，我们会找到你的工作区。",
+	"Use a different email address": "使用其他邮箱地址",
+	"Work email": "工作邮箱",
+	"Create one": "创建一个",
+	"No workspace for this address.": "此地址没有对应的工作区。",
+	"A workspace for this address already exists.": "此地址已有一个工作区。",
+	"Check the address and try again.": "请检查地址后重试。",
+	"Create your Reloop CRM workspace. 14 days free, no card, every plan.": "创建你的 Reloop CRM 工作区。14 天免费，无需银行卡，所有套餐均可。",
+	"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.": "一分钟拥有你自己的 Reloop CRM。14 天免费，无需银行卡。套餐之后再选。",
+	"Your workspace is ready. Sign in to open it.": "你的工作区已就绪。登录即可打开。",
+	"Check your inbox. We sent a sign-in link to {email}.": "请查看收件箱。我们已向 {email} 发送登录链接。",
+	"Plan: {plan}.": "套餐：{plan}。",
+	"Change plan": "更改套餐",
+	"Check your details and try again.": "请检查你的信息后重试。",
+	"That did not work. Try again in a moment.": "操作失败。请稍后重试。"
 }

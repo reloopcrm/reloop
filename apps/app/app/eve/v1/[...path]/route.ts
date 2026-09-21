@@ -1,4 +1,5 @@
 import { db } from "@crm/db";
+import { currentTenantId } from "@crm/db/tenant-context";
 import { CONVERSATIONS } from "@crm/validation/conversations";
 import { connection } from "next/server";
 import { z } from "zod";
@@ -8,6 +9,10 @@ import {
 	mintBridgeToken,
 } from "@/lib/agent-bridge";
 import { getSession } from "@/lib/session";
+import { inTenant } from "@/lib/tenant";
+
+const NOT_SIGNED_IN = () =>
+	Response.json({ error: "Not signed in." }, { status: 401 });
 
 async function handler(request: Request): Promise<Response> {
 	await connection();
@@ -19,10 +24,12 @@ async function handler(request: Request): Promise<Response> {
 		);
 	}
 
+	return (await inTenant(() => bridge(request))) ?? NOT_SIGNED_IN();
+}
+
+async function bridge(request: Request): Promise<Response> {
 	const session = await getSession();
-	if (!session) {
-		return Response.json({ error: "Not signed in." }, { status: 401 });
-	}
+	if (!session) return NOT_SIGNED_IN();
 
 	const url = new URL(request.url);
 	const target = `${AGENT_URL}${url.pathname}${url.search}`;
@@ -101,6 +108,7 @@ async function handler(request: Request): Promise<Response> {
 				contactId: cuid(contactId),
 				companyId: cuid(companyId),
 				dealId: cuid(dealId),
+				tenantId: currentTenantId() ?? undefined,
 			},
 		)}`,
 	);

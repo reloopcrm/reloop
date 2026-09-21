@@ -141,5 +141,20 @@
 	"Trial": "Prueba",
 	"14 days, 1,000 mail conversations, no card. The same for every plan.": "14 días, 1.000 conversaciones de correo, sin tarjeta. Igual para todos los planes.",
 	"Prefer to run it yourself? Reloop is open source under the GNU AGPL v3.": "¿Prefieres alojarlo tú? Reloop es código abierto bajo la GNU AGPL v3.",
-	"The CRM that wins old customers back.": "El CRM que recupera a los antiguos clientes."
+	"The CRM that wins old customers back.": "El CRM que recupera a los antiguos clientes.",
+	"Enter your work email address and we find your workspace.": "Introduce tu correo de trabajo y encontramos tu espacio de trabajo.",
+	"Use a different email address": "Usar otra dirección de correo",
+	"Work email": "Correo de trabajo",
+	"Create one": "Crear uno",
+	"No workspace for this address.": "No hay espacio de trabajo para esta dirección.",
+	"A workspace for this address already exists.": "Ya existe un espacio de trabajo para esta dirección.",
+	"Check the address and try again.": "Revisa la dirección e inténtalo de nuevo.",
+	"Create your Reloop CRM workspace. 14 days free, no card, every plan.": "Crea tu espacio de trabajo de Reloop CRM. 14 días gratis, sin tarjeta, en todos los planes.",
+	"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.": "Tu propio Reloop CRM en un minuto. 14 días gratis, sin tarjeta. El plan lo eliges después.",
+	"Your workspace is ready. Sign in to open it.": "Tu espacio de trabajo está listo. Inicia sesión para abrirlo.",
+	"Check your inbox. We sent a sign-in link to {email}.": "Revisa tu bandeja de entrada. Enviamos un enlace de acceso a {email}.",
+	"Plan: {plan}.": "Plan: {plan}.",
+	"Change plan": "Cambiar plan",
+	"Check your details and try again.": "Revisa tus datos e inténtalo de nuevo.",
+	"That did not work. Try again in a moment.": "Eso no funcionó. Inténtalo de nuevo en un momento."
 }

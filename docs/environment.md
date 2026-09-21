@@ -155,6 +155,15 @@ Both are unset on a self-hosted install, which then runs as one workspace on
   `packages/auth/src/workspace.ts` reads the tenant's `tenant_sign_in` rows.
 - **Off in hosted mode**: the stored OAuth credentials (`loadStoredOAuthApps`), the
   self-restart after saving them (`unavailable`), and Google's `hd` hint.
+- **The app resolves the tenant from the `crm.tenant` cookie** in
+  `apps/app/lib/tenant.ts`: `inTenant()` runs every direct `db` read of the app
+  (`lib/session.ts`, `lib/mailbox-connection.ts`, the eve bridge route) inside
+  `runAsTenant`, and answers `null` without a cookie. The bridge token carries
+  `tenantId`. Signing in is email first: `/sign-in` posts the address to
+  `POST /api/tenant/lookup`, which sets the cookie and names the sign-in methods
+  of that workspace. `/get-started` is the sign-up form and posts to
+  `POST /api/tenant/signup`; without hosted mode it stays the waitlist. Both
+  bodies and answers are parsed with `@crm/validation/tenant-signup`.
 - **The guard `tools/tenancy-guard.ts`** runs with `bun run lint` and refuses
   `new PrismaClient` outside `packages/db/src/client.ts` and a
   `process.env.ALLOWED_SIGN_IN` read outside `workspace.ts`.

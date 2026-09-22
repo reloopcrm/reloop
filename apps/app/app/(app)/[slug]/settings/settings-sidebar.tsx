@@ -12,6 +12,15 @@ type SettingsNavItem = {
 	title: string;
 	href: string;
 	cloudOwner?: boolean;
+	hosted?: boolean;
+	selfHosted?: boolean;
+	admin?: boolean;
+};
+
+export type SettingsNavAudience = {
+	cloudOwner: boolean;
+	hosted?: boolean;
+	admin?: boolean;
 };
 
 const ROOT = "/settings";
@@ -20,7 +29,14 @@ const ITEMS: SettingsNavItem[] = [
 	{ title: "General", href: ROOT },
 	{ title: "Tracking & Analytics", href: `${ROOT}/tracking` },
 	{ title: "Connections", href: `${ROOT}/connections` },
-	{ title: "AI", href: `${ROOT}/ai` },
+	{ title: "AI", href: `${ROOT}/ai`, selfHosted: true },
+	{ title: "Usage", href: `${ROOT}/ai`, hosted: true },
+	{
+		title: "Plan & billing",
+		href: `${ROOT}/billing`,
+		hosted: true,
+		admin: true,
+	},
 	{ title: "Functions", href: `${ROOT}/functions` },
 	{ title: "Currencies", href: `${ROOT}/currencies` },
 	{ title: "Members", href: `${ROOT}/members` },
@@ -29,8 +45,16 @@ const ITEMS: SettingsNavItem[] = [
 	{ title: "Waitlist", href: `${ROOT}/waitlist`, cloudOwner: true },
 ];
 
-export function settingsNavItems(cloudOwner: boolean): SettingsNavItem[] {
-	return ITEMS.filter((item) => cloudOwner || !item.cloudOwner);
+export function settingsNavItems(who: SettingsNavAudience): SettingsNavItem[] {
+	const hosted = who.hosted ?? false;
+	const admin = who.admin ?? false;
+	return ITEMS.filter(
+		(item) =>
+			(who.cloudOwner || !item.cloudOwner) &&
+			(hosted || !item.hosted) &&
+			(!hosted || !item.selfHosted) &&
+			(admin || !item.admin),
+	);
 }
 
 function isActive(href: string, root: string, pathname: string): boolean {
@@ -80,7 +104,7 @@ export function SettingsSidebarFallback() {
 					aria-busy="true"
 					className="flex flex-col gap-0.5 p-3"
 				>
-					{settingsNavItems(false).map((item) => (
+					{settingsNavItems({ cloudOwner: false }).map((item) => (
 						<Button
 							key={item.href}
 							variant="ghost"
@@ -98,7 +122,7 @@ export function SettingsSidebarFallback() {
 				aria-busy="true"
 				className="flex gap-1 overflow-x-auto border-b p-2 md:hidden [view-transition-name:settings-sidebar]"
 			>
-				{settingsNavItems(false).map((item) => (
+				{settingsNavItems({ cloudOwner: false }).map((item) => (
 					<Button
 						key={item.href}
 						variant="ghost"
@@ -113,7 +137,11 @@ export function SettingsSidebarFallback() {
 	);
 }
 
-export function SettingsSidebar({ cloudOwner }: { cloudOwner: boolean }) {
+export function SettingsSidebar({
+	cloudOwner,
+	hosted,
+	admin,
+}: SettingsNavAudience) {
 	const t = useT();
 	const pathname = usePathname();
 	const workspaceUrl = useWorkspaceUrl();
@@ -121,11 +149,11 @@ export function SettingsSidebar({ cloudOwner }: { cloudOwner: boolean }) {
 	const root = workspaceUrl(ROOT);
 	const items = useMemo(
 		() =>
-			settingsNavItems(cloudOwner).map((item) => ({
+			settingsNavItems({ cloudOwner, hosted, admin }).map((item) => ({
 				...item,
 				href: workspaceUrl(item.href),
 			})),
-		[workspaceUrl, cloudOwner],
+		[workspaceUrl, cloudOwner, hosted, admin],
 	);
 
 	return (

@@ -46,6 +46,11 @@ on *go* or *stop* and skimming past the rest.
 removes the meaning of the first. Lime is never decoration, never a border, never a
 hover state.
 
+`--success` (`#27a644`) and `--warning` are **status colours, never action
+colours**: a usage meter that is fine, near its limit, or full; a badge that
+reports a state. Neither is ever a button fill, a border or a hover state. Lime
+stays the one action colour.
+
 `--primary` and `--destructive` hold the **same value in both themes**. A brand
 colour that changes per theme is not one colour, it is two, and both then need
 maintaining. `--primary-foreground` is `#08090a` in both themes, so the accent

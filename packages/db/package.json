@@ -39,6 +39,7 @@
 		"./sample-data": "./src/sample-data.ts",
 		"./secrets": "./src/secrets.ts",
 		"./plans": "./src/plans.ts",
+		"./pricing": "./src/pricing.ts",
 		"./provision": "./src/provision.ts",
 		"./plan-usage": "./src/plan-usage.ts",
 		"./settings": "./src/settings.ts",

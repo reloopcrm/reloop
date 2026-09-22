@@ -1,4 +1,5 @@
 import type { PlanId } from "@crm/db/plans";
+import { PRICING_EUR } from "@crm/db/pricing";
 
 export type PlanLimit =
 	| { label: string; count: number }
@@ -21,14 +22,14 @@ export const PRICING = {
 		planParam: "plan",
 		selfHosted: "/self-hosted-crm",
 	},
-	yearlyDiscountPercent: 15,
+	yearlyDiscountPercent: PRICING_EUR.yearlyDiscountPercent,
 	included: [
 		{
 			id: "start",
 			name: "Start",
 			tagline: "For two people with one mailbox",
-			monthly: 39,
-			yearly: 33,
+			monthly: PRICING_EUR.plans.start.monthly,
+			yearly: PRICING_EUR.plans.start.yearly,
 			limits: [
 				{ label: "Seats", text: "Unlimited" },
 				{ label: "Mailboxes", count: 1 },
@@ -41,8 +42,8 @@ export const PRICING = {
 			id: "standard",
 			name: "Standard",
 			tagline: "For most businesses",
-			monthly: 79,
-			yearly: 67,
+			monthly: PRICING_EUR.plans.standard.monthly,
+			yearly: PRICING_EUR.plans.standard.yearly,
 			popular: true,
 			limits: [
 				{ label: "Seats", text: "Unlimited" },
@@ -56,8 +57,8 @@ export const PRICING = {
 			id: "plus",
 			name: "Plus",
 			tagline: "Two mailboxes, more mail",
-			monthly: 149,
-			yearly: 127,
+			monthly: PRICING_EUR.plans.plus.monthly,
+			yearly: PRICING_EUR.plans.plus.yearly,
 			limits: [
 				{ label: "Seats", text: "Unlimited" },
 				{ label: "Mailboxes", count: 2 },
@@ -70,8 +71,8 @@ export const PRICING = {
 			id: "team",
 			name: "Team",
 			tagline: "Several departments",
-			monthly: 299,
-			yearly: 254,
+			monthly: PRICING_EUR.plans.team.monthly,
+			yearly: PRICING_EUR.plans.team.yearly,
 			limits: [
 				{ label: "Seats", text: "Unlimited" },
 				{ label: "Mailboxes", count: 4 },
@@ -84,8 +85,8 @@ export const PRICING = {
 			id: "office",
 			name: "Office",
 			tagline: "Large business",
-			monthly: 599,
-			yearly: 509,
+			monthly: PRICING_EUR.plans.office.monthly,
+			yearly: PRICING_EUR.plans.office.yearly,
 			limits: [
 				{ label: "Seats", text: "Unlimited" },
 				{ label: "Mailboxes", count: 8 },
@@ -100,8 +101,8 @@ export const PRICING = {
 			id: "hosting",
 			name: "Hosting",
 			tagline: "From one seat, no minimum",
-			monthly: 19,
-			yearly: 16,
+			monthly: PRICING_EUR.plans.hosting.monthly,
+			yearly: PRICING_EUR.plans.hosting.yearly,
 			limits: [
 				{ label: "Mailboxes", count: 2 },
 				{ label: "Contacts", count: 10000 },
@@ -114,8 +115,8 @@ export const PRICING = {
 			id: "hosting-pro",
 			name: "Hosting Pro",
 			tagline: "More mailboxes, priority support",
-			monthly: 29,
-			yearly: 25,
+			monthly: PRICING_EUR.plans["hosting-pro"].monthly,
+			yearly: PRICING_EUR.plans["hosting-pro"].yearly,
 			limits: [
 				{ label: "Mailboxes", count: 6 },
 				{ label: "Contacts", count: 50000 },
@@ -126,11 +127,23 @@ export const PRICING = {
 		},
 	],
 	addOns: [
-		{ label: "1,000 mail conversations", price: 29 },
-		{ label: "100 mail drafts", price: 19 },
-		{ label: "50 company research runs", price: 19 },
-		{ label: "1 extra mailbox per month", price: 29 },
-		{ label: "50 GB extra storage per month", price: 9 },
+		{
+			label: PRICING_EUR.addOns.conversations.label,
+			price: PRICING_EUR.addOns.conversations.monthly,
+		},
+		{
+			label: PRICING_EUR.addOns.drafts.label,
+			price: PRICING_EUR.addOns.drafts.monthly,
+		},
+		{
+			label: PRICING_EUR.addOns.research.label,
+			price: PRICING_EUR.addOns.research.monthly,
+		},
+		{
+			label: PRICING_EUR.addOns.mailbox.label,
+			price: PRICING_EUR.addOns.mailbox.monthly,
+		},
+		{ label: PRICING_EUR.storage.label, price: PRICING_EUR.storage.monthly },
 	],
 } as const satisfies {
 	href: Record<string, string>;

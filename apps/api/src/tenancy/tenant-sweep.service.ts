@@ -5,6 +5,7 @@ import { readPlan } from "@crm/db/settings";
 import {
 	expiredTrials,
 	forgetTenants,
+	graceExpired,
 	pendingTenantsBefore,
 	setTenantStatus,
 	suspendedBefore,
@@ -25,6 +26,7 @@ import { InjectDatabase } from "../database/database.constants";
 export type SweepReport = {
 	removedPending: number;
 	suspended: number;
+	unpaid: number;
 	deleted: number;
 	kept: number;
 };
@@ -88,6 +90,7 @@ export class TenantSweepService
 		const report: SweepReport = {
 			removedPending: 0,
 			suspended: 0,
+			unpaid: 0,
 			deleted: 0,
 			kept: 0,
 		};
@@ -108,6 +111,12 @@ export class TenantSweepService
 			await setTenantStatus(tenant.id, "suspended");
 			report.suspended += 1;
 			this.logger.log({ message: "Trial ended", tenantId: tenant.id });
+		}
+
+		for (const tenant of await graceExpired(now)) {
+			await setTenantStatus(tenant.id, "suspended");
+			report.unpaid += 1;
+			this.logger.log({ message: "Payment grace ended", tenantId: tenant.id });
 		}
 
 		const dueForDeletion = new Date(

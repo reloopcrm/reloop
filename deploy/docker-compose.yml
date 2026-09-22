@@ -71,6 +71,8 @@ services:
       IS_MARKETING:
       RESEND_API_KEY:
       MAIL_FROM:
+      STRIPE_SECRET_KEY:
+      STRIPE_WEBHOOK_SECRET:
     depends_on:
       postgres:
         condition: service_healthy

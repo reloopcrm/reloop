@@ -1,0 +1,237 @@
+import { describe, expect, it } from "bun:test";
+import type { Db } from "@crm/db";
+import { addOnsOf } from "@crm/db/plan-usage";
+import {
+	DRAFT_KIND,
+	INSIGHT_KIND,
+	limitsOf,
+	monthlyBudget,
+	NO_ADD_ONS,
+	RESEARCH_RUN_KIND,
+	withAddOns,
+} from "@crm/db/plans";
+import { addOnLookupKey, parseLookupKey, planLookupKey } from "@crm/db/pricing";
+import { NO_BILLING, type Tenant } from "@crm/db/tenancy";
+import type Stripe from "stripe";
+import {
+	BillingService,
+	billingStateOf,
+	subscriptionState,
+} from "../src/billing/billing.service";
+
+const tenant = (over: Partial<Tenant> = {}): Tenant => ({
+	id: "acme",
+	slug: "acme",
+	dbName: "crm_acme",
+	plan: "trial",
+	status: "active",
+	aiMode: "operator",
+	signIn: "google",
+	createdAt: new Date(0),
+	trialEndsAt: null,
+	suspendedAt: null,
+	deletedAt: null,
+	allowList: [],
+	paidUntil: null,
+	graceUntil: null,
+	billing: NO_BILLING,
+	...over,
+});
+
+function item(lookupKey: string, quantity = 1) {
+	return {
+		id: `si_${lookupKey}`,
+		quantity,
+		current_period_end: 1_800_000_000,
+		price: { id: `price_${lookupKey}`, lookup_key: lookupKey },
+	};
+}
+
+function subscription(
+	over: Omit<Partial<Stripe.Subscription>, "items"> & {
+		items?: { data: ReturnType<typeof item>[] };
+	},
+): Stripe.Subscription {
+	return {
+		id: "sub_1",
+		customer: "cus_1",
+		status: "active",
+		cancel_at: null,
+		metadata: { tenantId: "acme" },
+		items: { data: [item(planLookupKey("standard", "month"))] },
+		...over,
+	} as unknown as Stripe.Subscription;
+}
+
+describe("add-ons raise the monthly budgets", () => {
+	it("adds the bought amount to the plan's limit", () => {
+		const raised = withAddOns(limitsOf("standard"), {
+			conversations: 2,
+			drafts: 1,
+			research: 3,
+			mailbox: 1,
+		});
+		expect(monthlyBudget(INSIGHT_KIND, raised)).toBe(3_000 + 2_000);
+		expect(monthlyBudget(DRAFT_KIND, raised)).toBe(100 + 100);
+		expect(monthlyBudget(RESEARCH_RUN_KIND, raised)).toBe(150 + 150);
+		expect(raised.mailboxes).toBe(2);
+		expect(raised.contacts).toBe(25_000);
+	});
+
+	it("leaves an unlimited counter unlimited", () => {
+		const raised = withAddOns(limitsOf("hosting"), { drafts: 5 });
+		expect(raised.draftsPerMonth).toBeNull();
+	});
+
+	it("changes nothing without add-ons", () => {
+		expect(withAddOns(limitsOf("start"), NO_ADD_ONS)).toEqual(
+			limitsOf("start"),
+		);
+	});
+
+	it("knows no add-ons on a single-tenant install", () => {
+		const saved = process.env.RELOOP_REGISTRY_URL;
+		delete process.env.RELOOP_REGISTRY_URL;
+		try {
+			expect(addOnsOf()).toEqual(NO_ADD_ONS);
+		} finally {
+			if (saved !== undefined) process.env.RELOOP_REGISTRY_URL = saved;
+		}
+	});
+});
+
+describe("lookup keys", () => {
+	it("round trip for plans and add-ons", () => {
+		expect(parseLookupKey(planLookupKey("team", "year"))).toEqual({
+			kind: "plan",
+			plan: "team",
+			interval: "year",
+		});
+		expect(parseLookupKey(addOnLookupKey("drafts", "month"))).toEqual({
+			kind: "addon",
+			addOn: "drafts",
+			interval: "month",
+		});
+		expect(parseLookupKey("reloop:plan:trial:month")).toBeNull();
+		expect(parseLookupKey("other:plan:start:month")).toBeNull();
+		expect(parseLookupKey(null)).toBeNull();
+	});
+});
+
+describe("a Stripe subscription becomes a billing state", () => {
+	it("reads the plan, the interval, the period end and the add-ons", () => {
+		const state = subscriptionState(
+			subscription({
+				items: {
+					data: [
+						item(planLookupKey("plus", "year")),
+						item(addOnLookupKey("conversations", "year"), 2),
+						item(addOnLookupKey("mailbox", "year")),
+					],
+				},
+			}),
+		);
+		expect(state.plan).toBe("plus");
+		expect(state.interval).toBe("year");
+		expect(state.paidUntil?.toISOString()).toBe(
+			new Date(1_800_000_000 * 1000).toISOString(),
+		);
+		expect(state.addOns).toEqual({
+			conversations: 2,
+			drafts: 0,
+			research: 0,
+			mailbox: 1,
+		});
+		expect(state.status).toBe("active");
+		expect(state.customerId).toBe("cus_1");
+	});
+
+	it("maps Stripe's statuses onto ours", () => {
+		const of = (status: Stripe.Subscription.Status) =>
+			subscriptionState(subscription({ status })).status;
+		expect(of("trialing")).toBe("active");
+		expect(of("past_due")).toBe("past_due");
+		expect(of("unpaid")).toBe("past_due");
+		expect(of("canceled")).toBe("canceled");
+		expect(of("incomplete")).toBe("none");
+	});
+
+	it("keeps the cancel date", () => {
+		const state = subscriptionState(subscription({ cancel_at: 1_800_000_000 }));
+		expect(state.cancelAt?.getTime()).toBe(1_800_000_000 * 1000);
+	});
+});
+
+describe("the page state of a tenant", () => {
+	it("is trial, active, canceling, past due or none", () => {
+		expect(billingStateOf(tenant())).toBe("trial");
+		expect(billingStateOf(tenant({ plan: "standard" }))).toBe("none");
+		expect(
+			billingStateOf(
+				tenant({
+					plan: "standard",
+					billing: { ...NO_BILLING, status: "active" },
+				}),
+			),
+		).toBe("active");
+		expect(
+			billingStateOf(
+				tenant({
+					plan: "standard",
+					billing: { ...NO_BILLING, status: "active", cancelAt: new Date() },
+				}),
+			),
+		).toBe("canceling");
+		expect(
+			billingStateOf(
+				tenant({
+					plan: "standard",
+					billing: { ...NO_BILLING, status: "past_due" },
+				}),
+			),
+		).toBe("past_due");
+	});
+});
+
+describe("billing authorization", () => {
+	const service = (role: string | null) => {
+		const db = {
+			member: { findUnique: async () => (role ? { role } : null) },
+		} as unknown as Db;
+		const config = { get: () => undefined } as never;
+		return new BillingService(db, null, config);
+	};
+
+	it("rejects a member before any Stripe call", async () => {
+		const member = service("member");
+		const calls = [
+			() => member.overview("member"),
+			() => member.checkout("member", { plan: "start", interval: "month" }),
+			() => member.setAddOn("member", { addOn: "drafts", quantity: 1 }),
+			() => member.cancel("member"),
+			() => member.resume("member"),
+			() => member.portal("member", { flow: "billing" }),
+		];
+		for (const call of calls)
+			await expect(call()).rejects.toThrow("Only a workspace admin");
+	});
+
+	it("refuses a mutation on a single-tenant install", async () => {
+		const saved = process.env.RELOOP_REGISTRY_URL;
+		delete process.env.RELOOP_REGISTRY_URL;
+		try {
+			await expect(
+				service("owner").checkout("owner", {
+					plan: "start",
+					interval: "month",
+				}),
+			).rejects.toThrow("only offered on the hosted Cloud");
+		} finally {
+			if (saved !== undefined) process.env.RELOOP_REGISTRY_URL = saved;
+		}
+	});
+
+	it("is not configured without a key", () => {
+		expect(service("owner").configured).toBe(false);
+	});
+});

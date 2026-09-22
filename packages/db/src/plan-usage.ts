@@ -1,12 +1,15 @@
 import { DIRECT_KINDS } from "./agent-tasks";
 import type { Db } from "./client";
 import {
+	type AddOnQuantities,
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	limitsOf,
+	NO_ADD_ONS,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
 	startOfMonth,
+	withAddOns,
 } from "./plans";
 import { readPlan } from "./settings";
 import { currentTenant, isHosted } from "./tenant-context";
@@ -21,8 +24,12 @@ export function fixedAiFor(plan: string | null | undefined): boolean {
 	return isHosted() && limitsOf(plan).aiIncluded;
 }
 
+export function addOnsOf(): AddOnQuantities {
+	return isHosted() ? currentTenant().billing.addOns : NO_ADD_ONS;
+}
+
 export async function planLimitsOf(db: Db): Promise<PlanLimits> {
-	return limitsOf(await planIdOf(db));
+	return withAddOns(limitsOf(await planIdOf(db)), addOnsOf());
 }
 
 export async function fixedAiWith(db: Db): Promise<boolean> {

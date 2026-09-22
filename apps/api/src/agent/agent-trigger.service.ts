@@ -7,10 +7,9 @@ import {
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { planIdOf } from "@crm/db/plan-usage";
+import { planLimitsOf } from "@crm/db/plan-usage";
 import {
 	allowsCompanyResearch,
-	limitsOf,
 	monthlyBudget,
 	startOfMonth,
 } from "@crm/db/plans";
@@ -611,7 +610,7 @@ export class AgentTriggerService {
 	}
 
 	private async planAllows(kind: string): Promise<boolean> {
-		const limits = limitsOf(await planIdOf(this.db));
+		const limits = await planLimitsOf(this.db);
 
 		if (!allowsCompanyResearch(kind, limits)) {
 			this.logger.log({

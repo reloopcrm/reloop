@@ -564,6 +564,25 @@ such thread that still has no deal. **It classifies nothing and queues no
   from a `demo-` thread carries a real id, so every `demo-` guard in
   `AgentTriggerService` stops seeing it.
 
+## Billing is a webhook, not a form
+
+`apps/api/src/billing` sells the hosted plans through Stripe and nothing else
+touches a plan. `billing.overview` reads the registry row and, when a customer
+exists, Stripe's customer and invoices; `billing.checkout`, `setAddOn`,
+`cancel`, `resume` and `portal` write to Stripe and apply the returned
+subscription at once. `POST /api/billing/webhook` is the source of truth: it
+verifies the signature, fetches the subscription named by the event and calls
+the one writer, `BillingService.applySubscription`, which sets registry
+`plan`, `paid_until`, `grace_until` and `billing`, and `AppSetting.plan` in
+the tenant database. Every event, in any order, twice, lands on the same
+state, because the state comes from Stripe's subscription and never from the
+event body. The raw body is mounted in `create-app.ts` before Nest, the path
+is open in `tenantMiddleware`, and the tenant comes from the subscription's
+`metadata.tenantId` or from the customer id in `billing`. Every `billing.*`
+mutation takes `SessionOnlyMiddleware` and the owner or admin role. A
+self-hosted install answers `configured: false` and refuses every mutation.
+`docs/environment.md` has the variables, the script and what stays by hand.
+
 ## Money
 
 A deal is sold in one currency and reported in another, and **only `baseAmount` may

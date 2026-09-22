@@ -11,7 +11,8 @@ import { isHosted, runAsTenant } from "@crm/db/tenant-context";
 import { Logger } from "@nestjs/common";
 import type { NextFunction, Request, Response } from "express";
 
-const OPEN_PATH = /^\/(health$|internal\/|api\/tenant\/)/;
+const OPEN_PATH =
+	/^\/(health$|internal\/|api\/tenant\/|api\/billing\/webhook$)/;
 const SITE_CONFIG_PATH = /^\/api\/t\/config\/([^/]+)$/;
 const COLLECTOR_PATH = "/api/t/e";
 

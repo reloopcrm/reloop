@@ -20,6 +20,7 @@ import { readModelSpend } from "@crm/db/model-spend";
 import {
 	fixedAiWith,
 	planIdOf,
+	planLimitsOf,
 	readMonthlyUsage,
 	usageLines,
 } from "@crm/db/plan-usage";
@@ -27,7 +28,6 @@ import {
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	isPlanId,
-	limitsOf,
 	PLAN_IDS,
 	PLANS,
 	startOfMonth,
@@ -154,17 +154,22 @@ export class SettingsService {
 	}
 
 	async aiUsage(): Promise<AiUsageSettings> {
-		const [plan, usage, fixed] = await Promise.all([
-			planIdOf(this.db),
+		const [limits, usage, fixed, contacts, mailboxes] = await Promise.all([
+			planLimitsOf(this.db),
 			readMonthlyUsage(this.db),
 			fixedAiWith(this.db),
+			this.db.contact.count({ where: { archivedAt: null } }),
+			countMailboxes(this.db),
 		]);
-		const limits = limitsOf(plan);
 
 		return {
 			fixed,
 			label: limits.label,
 			month: startOfMonth().toISOString(),
+			capacity: [
+				{ counter: "contacts", used: contacts, limit: limits.contacts },
+				{ counter: "mailboxes", used: mailboxes, limit: limits.mailboxes },
+			],
 			lines: usageLines(usage, limits),
 		};
 	}
@@ -204,8 +209,10 @@ export class SettingsService {
 	}
 
 	async plan(): Promise<PlanSettings> {
-		const plan = await planIdOf(this.db);
-		const limits = limitsOf(plan);
+		const [plan, limits] = await Promise.all([
+			planIdOf(this.db),
+			planLimitsOf(this.db),
+		]);
 		const month = startOfMonth();
 		const usedThisMonth = (kind: string) =>
 			this.db.agentTask.count({ where: { kind, createdAt: { gte: month } } });

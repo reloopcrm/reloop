@@ -44,7 +44,7 @@ services:
 
   backup:
     build:
-      context: .
+      context: ./cloud
       dockerfile: backup.Dockerfile
     restart: "no"
     profiles: ["backup"]
@@ -54,7 +54,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       REGISTRY_DB: reloop_registry
       BACKUP_DIR: /backups
-      RELOOP_BACKUP_REMOTE:
+      RELOOP_BACKUP_REMOTE: ${RELOOP_BACKUP_REMOTE:-}
       RCLONE_CONFIG: /config/rclone/rclone.conf
     volumes:
       - backups:/backups

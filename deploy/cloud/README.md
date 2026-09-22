@@ -84,8 +84,15 @@ Add to the host crontab:
 
 `backup.sh` dumps the registry and every tenant database with `pg_dump | gzip`
 into `daily/`, copies Sunday's files into `weekly/`, keeps 14 daily and 8 weekly
-files, then `rclone sync`s the folder to `RELOOP_BACKUP_REMOTE`. A missing
+files, then `rclone copy`s the folder to `RELOOP_BACKUP_REMOTE`. A missing
 remote or a missing rclone is a warning, never a failure.
+
+The copy never deletes on the remote, so a wiped or compromised host cannot
+wipe the off-site dumps with it. Give the remote an account that can write but
+not delete (for SFTP: `ForceCommand internal-sftp -P remove,rmdir,rename,symlink,posix-rename`
+in a `Match User` block with a `ChrootDirectory`), and prune old dumps with a
+job on the remote host itself, for example
+`find <dir> -name '*.sql.gz' -mtime +60 -delete`.
 
 Restore one tenant:
 

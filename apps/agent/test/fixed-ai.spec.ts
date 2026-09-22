@@ -1,9 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { AgentProviderSetting } from "@crm/db/settings";
+import type { LanguageModel } from "ai";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { inLane, type KeyBucket, type Lane } from "../agent/lib/key-bucket";
 import {
 	candidatesFor,
+	fallbackModel,
 	fixedCandidates,
 	openrouterKeyOf,
 	pinnedBody,
@@ -36,6 +39,25 @@ describe("the fixed AI chain", () => {
 	it("has no candidate without the operator key", () => {
 		expect(fixedCandidates({}, "chat")).toEqual([]);
 		expect(fixedCandidates({ OPENROUTER_API_KEY: "  " }, "draft")).toEqual([]);
+	});
+
+	it("sends the compiled fallback through the shared key bucket before any request", async () => {
+		const taken: Lane[] = [];
+		const bucket = {
+			take: (lane: Lane) => {
+				taken.push(lane);
+				throw new Error("bucket consulted");
+			},
+		} as unknown as KeyBucket;
+		const model = fallbackModel(() => bucket) as Exclude<LanguageModel, string>;
+
+		await expect(model.doGenerate({ prompt: [] } as never)).rejects.toThrow(
+			"bucket consulted",
+		);
+		await expect(
+			inLane("slow", () => model.doStream({ prompt: [] } as never)),
+		).rejects.toThrow("bucket consulted");
+		expect(taken).toEqual(["fast", "slow"]);
 	});
 
 	it("recognises vendor words in an error a customer would read", () => {

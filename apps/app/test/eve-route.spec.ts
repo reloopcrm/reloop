@@ -15,8 +15,10 @@ let upstreamCalls: string[] = [];
 let upstream: () => Response = () => Response.json({ ok: true });
 let contactId: string;
 let handler: (request: Request) => Promise<Response>;
+let nextServer: typeof import("next/server");
 
 const realFetch = globalThis.fetch;
+const realAgentUrl = process.env.AGENT_URL;
 const session = { ...(await import("@/lib/session")) };
 const planUsage = { ...(await import("@crm/db/plan-usage")) };
 
@@ -24,7 +26,7 @@ beforeAll(async () => {
 	process.env.AGENT_BRIDGE_SECRET = "eve-route-spec-secret";
 	process.env.AGENT_URL = "http://agent.test";
 
-	const nextServer = await import("next/server");
+	nextServer = { ...(await import("next/server")) };
 	mock.module("next/server", () => ({
 		...nextServer,
 		connection: async () => {},
@@ -70,6 +72,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	globalThis.fetch = realFetch;
+	if (realAgentUrl === undefined) delete process.env.AGENT_URL;
+	else process.env.AGENT_URL = realAgentUrl;
+	mock.module("next/server", () => nextServer);
 	mock.module("@/lib/session", () => session);
 	mock.module("@crm/db/plan-usage", () => planUsage);
 	await cleanup();

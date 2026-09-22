@@ -1,12 +1,9 @@
 import { db } from "@crm/db";
 import { DIRECT_KINDS } from "@crm/db/agent-tasks";
-import { clampResearchPerHour, limitsOf, startOfMonth } from "@crm/db/plans";
-import {
-	AGENT_RESEARCH_PER_HOUR,
-	readAgentProvider,
-	readPlan,
-} from "@crm/db/settings";
+import { clampResearchPerHour, startOfMonth } from "@crm/db/plans";
+import { AGENT_RESEARCH_PER_HOUR, readAgentProvider } from "@crm/db/settings";
 import { modelUnavailable, providersExhausted } from "./model";
+import { planLimits } from "./plan-limits";
 
 const HOUR_MS = 3_600_000;
 
@@ -30,7 +27,7 @@ export async function researchAllowance(
 		};
 	}
 
-	const limits = limitsOf(await readPlan(db));
+	const limits = await planLimits();
 
 	const perHour =
 		clampResearchPerHour(setting.researchPerHour, limits) ??

@@ -140,6 +140,7 @@ settings page says so.
 | --- | --- | --- |
 | `insightsPerMonth` | `queueUnreadThreads` | queues at most the room left, then nothing until next month |
 | `draftsPerMonth` | `handleDirect` for `email-draft` | `postponeTask` to the next month; the draft dialog shows the wait |
+| `researchSessionsPerMonth` | `researchAllowance` in `lib/research-throttle.ts` | the lane starts at most the room left this month, then nothing until next month |
 | `researchPerMonth` | `runResearchLane` | `company-profile` rows past the room are postponed, the rest run |
 | `chatPerMonth`, `builderPerMonth` | `instructions/task.ts` | the session answers with the limit sentence and calls no tool |
 

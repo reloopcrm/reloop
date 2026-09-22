@@ -2,10 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
 import { disconnectAll } from "@crm/db/client";
 import { readMonthlyUsage } from "@crm/db/plan-usage";
-import { DRAFT_KIND, INSIGHT_KIND, nextMonthStart } from "@crm/db/plans";
+import { DRAFT_KIND, INSIGHT_KIND, nextMonthStart, PLANS } from "@crm/db/plans";
 import { closeRegistry, type Tenant } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants } from "@crm/db/test-tenants";
+import {
+	LIMIT_REACHED_INSTRUCTION,
+	limitReached,
+} from "../agent/instructions/task";
 import { runDirect } from "../agent/lib/dispatch";
 import {
 	historyRetentionDays,
@@ -170,6 +174,27 @@ describe("the monthly plan limits inside the agent, on the trial plan of the reg
 			const usage = await readMonthlyUsage(db);
 			expect(usage.chat).toBeGreaterThanOrEqual(1);
 			expect(usage.builder).toBeGreaterThanOrEqual(1);
+		}));
+
+	it("stops the builder at the plan's monthly messages and says so", () =>
+		inTenant(async () => {
+			const sessionId = `${reason}-BUILDER`;
+			const limit = PLANS.trial.builderPerMonth ?? 0;
+			await db.agentEvent.createMany({
+				data: Array.from({ length: limit }, (_, index) => ({
+					id: `${sessionId}-limit-${index}`,
+					sessionId,
+					type: "message.received",
+					data: {},
+					emittedAt: new Date(),
+				})),
+			});
+
+			const usage = await readMonthlyUsage(db);
+			expect(usage.builder).toBeGreaterThanOrEqual(limit);
+			expect((await limitReached("builder"))?.markdown).toBe(
+				LIMIT_REACHED_INSTRUCTION,
+			);
 		}));
 
 	it("prunes old events and finished tasks, and keeps the recent ones", () =>

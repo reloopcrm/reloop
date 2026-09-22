@@ -258,5 +258,7 @@
 	"A note or a task cannot be empty.": "笔记或任务不能为空。",
 	"A task needs a subject. It is the thing to do.": "任务需要一个主题，也就是要做的事。",
 	"Only an owner or an admin can change the TypeSafe connection.": "只有所有者或管理员可以更改 TypeSafe 连接。",
-	"Only an owner or an admin can change the sign-in credentials.": "只有所有者或管理员能改登录凭据。"
+	"Only an owner or an admin can change the sign-in credentials.": "只有所有者或管理员能改登录凭据。",
+	"The agent researches contacts, reads mail and writes drafts. Use your own API key. The CRM also works without AI.": "代理会研究联系人、阅读邮件并撰写草稿。使用你自己的 API 密钥。没有 AI，CRM 也能工作。",
+	"A ChatGPT sign-in is not offered on a hosted install.": "托管安装不提供 ChatGPT 登录。"
 }

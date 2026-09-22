@@ -48,6 +48,7 @@ import {
 	writeAgentProvider,
 	writeArchiveRetentionDays,
 } from "@crm/db/settings";
+import { isHosted } from "@crm/db/tenant-context";
 import {
 	AGENT_FUNCTIONS,
 	isAgentFunction,
@@ -135,6 +136,14 @@ export class SettingsService {
 	private async assertModelChoice(): Promise<void> {
 		if (await fixedAiWith(this.db)) {
 			throw new ForbiddenException(FIXED_AI_REFUSAL);
+		}
+	}
+
+	private assertChatgptOffered(): void {
+		if (isHosted()) {
+			throw new ForbiddenException(
+				"A ChatGPT sign-in is not offered on a hosted install.",
+			);
 		}
 	}
 
@@ -390,6 +399,7 @@ export class SettingsService {
 		input: SetAgentProviderInput,
 	): Promise<AgentProviderSettings> {
 		await this.assertManager(userId);
+		if (input.provider === "chatgpt") this.assertChatgptOffered();
 		await this.assertModelChoice();
 		const current = await readAgentProvider(this.db);
 
@@ -455,6 +465,7 @@ export class SettingsService {
 		action: ChatgptLoginAction,
 	): Promise<ChatgptLoginSettings> {
 		await this.assertManager(userId);
+		this.assertChatgptOffered();
 		await this.assertModelChoice();
 		return this.researchKeys.chatgptLogin(action);
 	}

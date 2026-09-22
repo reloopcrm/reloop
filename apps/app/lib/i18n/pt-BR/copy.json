@@ -258,5 +258,7 @@
 	"A note or a task cannot be empty.": "Uma nota ou tarefa não pode ficar vazia.",
 	"A task needs a subject. It is the thing to do.": "Uma tarefa precisa de um assunto. É o que precisa ser feito.",
 	"Only an owner or an admin can change the TypeSafe connection.": "Só um proprietário ou um administrador pode alterar a conexão TypeSafe.",
-	"Only an owner or an admin can change the sign-in credentials.": "Só quem é dono ou admin pode mudar as credenciais de acesso."
+	"Only an owner or an admin can change the sign-in credentials.": "Só quem é dono ou admin pode mudar as credenciais de acesso.",
+	"The agent researches contacts, reads mail and writes drafts. Use your own API key. The CRM also works without AI.": "O agente pesquisa contatos, lê e-mails e escreve rascunhos. Use sua própria chave de API. O CRM também funciona sem IA.",
+	"A ChatGPT sign-in is not offered on a hosted install.": "O login com ChatGPT não está disponível em uma instalação hospedada."
 }

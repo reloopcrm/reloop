@@ -187,7 +187,10 @@ function UsageBar({
 	);
 }
 
-export function AgentProvider() {
+export function AgentProvider({ chatgpt }: { chatgpt: boolean }) {
+	const providers = chatgpt
+		? PROVIDERS
+		: PROVIDERS.filter((entry) => entry.id !== "chatgpt");
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
@@ -204,7 +207,10 @@ export function AgentProvider() {
 		refetchInterval: waiting ? 3_000 : 30_000,
 		refetchIntervalInBackground: waiting,
 	});
-	const chatgptLogin = useQuery(trpc.settings.chatgptLogin.queryOptions());
+	const chatgptLogin = useQuery({
+		...trpc.settings.chatgptLogin.queryOptions(),
+		enabled: chatgpt,
+	});
 	const usageReadAt = settings.data?.usage?.updatedAt ?? "";
 	const probe = settings.data?.probe ?? null;
 	const probeAt = probe?.finishedAt ?? "";
@@ -555,13 +561,13 @@ export function AgentProvider() {
 						wrap
 						value={shown}
 						onValueChange={(value) => {
-							const next = PROVIDERS.find((entry) => entry.id === value);
+							const next = providers.find((entry) => entry.id === value);
 							if (!next) return;
 							forget();
 							setTab(next.id);
 						}}
 					>
-						{PROVIDERS.map((entry) => (
+						{providers.map((entry) => (
 							<ToggleGroupItem
 								key={entry.id}
 								value={entry.id}

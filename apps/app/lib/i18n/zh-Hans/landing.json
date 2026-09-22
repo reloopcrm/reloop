@@ -157,5 +157,7 @@
 	"Check your details and try again.": "请检查你的信息后重试。",
 	"That did not work. Try again in a moment.": "操作失败。请稍后重试。",
 	"The trial of this workspace has ended. Write to us and we switch it back on.": "此工作区的试用已结束。给我们写信，我们会重新开通。",
-	"This server has no hosted workspaces.": "此服务器没有托管的工作区。"
+	"This server has no hosted workspaces.": "此服务器没有托管的工作区。",
+	"Rather run it on your own server? Reloop CRM is open source.": "想在自己的服务器上运行？Reloop CRM 是开源的。",
+	"Read what self-hosting takes.": "了解自托管需要什么。"
 }

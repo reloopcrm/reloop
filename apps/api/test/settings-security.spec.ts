@@ -30,6 +30,24 @@ describe("workspace settings authorization", () => {
 		for (const write of writes)
 			await expect(write()).rejects.toThrow("Only a workspace admin");
 	});
+	it("refuses a ChatGPT sign-in on a hosted install", async () => {
+		const saved = process.env.RELOOP_REGISTRY_URL;
+		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
+		try {
+			const service = settings("owner");
+			const attempts = [
+				() => service.chatgptLogin("owner", "start"),
+				() => service.chatgptLogin("owner", "status"),
+				() =>
+					service.setAgentProvider("owner", { provider: "chatgpt" } as never),
+			];
+			for (const attempt of attempts)
+				await expect(attempt()).rejects.toThrow("not offered on a hosted");
+		} finally {
+			if (saved === undefined) delete process.env.RELOOP_REGISTRY_URL;
+			else process.env.RELOOP_REGISTRY_URL = saved;
+		}
+	});
 	it("does not let an owner remove commercial limits through the API", async () => {
 		await expect(settings("owner").setPlan("owner", null)).rejects.toThrow(
 			"Only the server operator",

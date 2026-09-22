@@ -81,7 +81,12 @@ export default async function GetStartedPage({
 						pricingHref={marketingUrl(PRICING.href.pricing)}
 					/>
 				</BentoCard>
-				<SelfHostNote />
+				<SelfHostNote
+					text={t(
+						"Rather run it on your own server? Reloop CRM is open source.",
+					)}
+					link={t("Read what self-hosting takes.")}
+				/>
 			</Band>
 		</LandingShell>
 	);

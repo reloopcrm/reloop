@@ -200,6 +200,11 @@ never an error to the customer. The lane travels in `AsyncLocalStorage`
 (`inLane`, `currentLane`); everything defaults to fast, and the slow lane is only
 the backfill claim above. Self-hosting with an own key has no bucket.
 
+`queueUnreadThreads` queues the conversations that never came back in the slow lane
+too, at the backfill priority with origin `backfill`: it is a catch-up sweep, and
+nobody is waiting on a row it writes. The forward task a stored thread gets is what
+carries a person's wait.
+
 Fairness between tenants is the per-tenant share plus the rotation in
 `eachActiveTenant`: a tenant's backfill can only ever drain its own share, so one
 tenant with a large mailbox slows nobody else.

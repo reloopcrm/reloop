@@ -157,5 +157,7 @@
 	"Check your details and try again.": "Bilgilerini kontrol et ve tekrar dene.",
 	"That did not work. Try again in a moment.": "Bu işe yaramadı. Birazdan tekrar dene.",
 	"The trial of this workspace has ended. Write to us and we switch it back on.": "Bu çalışma alanının deneme süresi bitti. Bize yaz, tekrar açalım.",
-	"This server has no hosted workspaces.": "Bu sunucuda barındırılan çalışma alanı yok."
+	"This server has no hosted workspaces.": "Bu sunucuda barındırılan çalışma alanı yok.",
+	"Rather run it on your own server? Reloop CRM is open source.": "Kendi sunucunda mı çalıştırmak istiyorsun? Reloop CRM açık kaynaklıdır.",
+	"Read what self-hosting takes.": "Kendi sunucunda barındırmak için ne gerektiğini oku."
 }

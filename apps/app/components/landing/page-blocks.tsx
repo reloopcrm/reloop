@@ -137,12 +137,18 @@ export function ProseHeading({ children }: { children: React.ReactNode }) {
 	);
 }
 
-export function SelfHostNote() {
+export function SelfHostNote({
+	text = "Rather run it on your own server? Reloop CRM is open source.",
+	link = "Read what self-hosting takes.",
+}: {
+	text?: string;
+	link?: string;
+}) {
 	return (
 		<p className="text-center text-muted-foreground text-sm/6">
-			Rather run it on your own server? Reloop CRM is open source.{" "}
+			{text}{" "}
 			<Link variant="quiet" href={marketingUrl("/self-hosted-crm")}>
-				Read what self-hosting takes.
+				{link}
 			</Link>
 		</p>
 	);

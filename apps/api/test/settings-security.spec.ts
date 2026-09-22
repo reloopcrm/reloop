@@ -30,6 +30,51 @@ describe("workspace settings authorization", () => {
 		for (const write of writes)
 			await expect(write()).rejects.toThrow("Only a workspace admin");
 	});
+	it("refuses a ChatGPT sign-in on a hosted install", async () => {
+		const saved = process.env.RELOOP_REGISTRY_URL;
+		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
+		try {
+			const service = settings("owner");
+			const attempts = [
+				() => service.chatgptLogin("owner", "start"),
+				() => service.chatgptLogin("owner", "status"),
+				() =>
+					service.setAgentProvider("owner", { provider: "chatgpt" } as never),
+			];
+			for (const attempt of attempts)
+				await expect(attempt()).rejects.toThrow("not offered on a hosted");
+		} finally {
+			if (saved === undefined) delete process.env.RELOOP_REGISTRY_URL;
+			else process.env.RELOOP_REGISTRY_URL = saved;
+		}
+	});
+	it("never lends the operator's OpenRouter key to a hosted own-key plan", async () => {
+		const db = {
+			member: { findUnique: async () => ({ role: "owner" }) },
+			appSetting: { findUnique: async () => ({ plan: "hosting" }) },
+		} as unknown as Db;
+		const config = { get: () => "sk-or-operator" } as never;
+		const service = new SettingsService(
+			db,
+			undefined as never,
+			config,
+			undefined as never,
+		);
+		const attempt = () =>
+			service.setAgentProvider("owner", { provider: "openrouter" } as never);
+
+		const saved = process.env.RELOOP_REGISTRY_URL;
+		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
+		try {
+			await expect(attempt()).rejects.toThrow("Paste an OpenRouter API key");
+		} finally {
+			if (saved === undefined) delete process.env.RELOOP_REGISTRY_URL;
+			else process.env.RELOOP_REGISTRY_URL = saved;
+		}
+
+		const single = await attempt().catch((error: Error) => error);
+		expect(String(single)).not.toContain("Paste an OpenRouter API key");
+	});
 	it("does not let an owner remove commercial limits through the API", async () => {
 		await expect(settings("owner").setPlan("owner", null)).rejects.toThrow(
 			"Only the server operator",

@@ -19,22 +19,18 @@ import { ChatgptDeviceLogin } from "@/app/(app)/[slug]/settings/ai/chatgpt-devic
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { useTRPC } from "@/lib/trpc/client";
+import { AI_STEP, type AiChoice, type AiStep } from "./ai-config";
 
-type Choice = "openai" | "anthropic" | "chatgpt";
+type KeyedChoice = Exclude<AiChoice, "chatgpt">;
 
-const CHOICES: { id: Choice; label: string }[] = [
-	{ id: "openai", label: "OpenAI API key" },
-	{ id: "anthropic", label: "Anthropic API key" },
-	{ id: "chatgpt", label: "ChatGPT subscription" },
-];
-
-export function AiForm() {
+export function AiForm({ step }: { step: Exclude<AiStep, "hidden"> }) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const router = useRouter();
 	const keyId = useId();
-	const [choice, setChoice] = useState<Choice>("openai");
+	const choices = AI_STEP.choices[step];
+	const [choice, setChoice] = useState<AiChoice>(choices[0]);
 
 	const next = () => {
 		router.refresh();
@@ -55,13 +51,13 @@ export function AiForm() {
 				wrap
 				value={choice}
 				onValueChange={(value) => {
-					const picked = CHOICES.find((entry) => entry.id === value);
-					if (picked) setChoice(picked.id);
+					const picked = choices.find((entry) => entry === value);
+					if (picked) setChoice(picked);
 				}}
 			>
-				{CHOICES.map((entry) => (
-					<ToggleGroupItem key={entry.id} value={entry.id}>
-						{t(entry.label)}
+				{choices.map((entry) => (
+					<ToggleGroupItem key={entry} value={entry}>
+						{t(AI_STEP.labels[entry])}
 					</ToggleGroupItem>
 				))}
 			</ToggleGroup>
@@ -79,56 +75,15 @@ export function AiForm() {
 					<ChatgptDeviceLogin onConnected={next} />
 				</div>
 			) : (
-				<form
+				<KeyForm
 					key={choice}
-					className="flex flex-col gap-6"
-					onSubmit={(event) => {
-						event.preventDefault();
-						const apiKey = String(
-							new FormData(event.currentTarget).get("apiKey") ?? "",
-						).trim();
-						save.mutate(
-							choice === "openai"
-								? { provider: "openai", openaiKey: apiKey }
-								: { provider: "anthropic", anthropicKey: apiKey },
-						);
-					}}
-				>
-					<FieldGroup>
-						<Field>
-							<FieldLabel htmlFor={keyId}>
-								{choice === "openai"
-									? t("OpenAI API key")
-									: t("Anthropic API key")}
-							</FieldLabel>
-							<Input
-								id={keyId}
-								name="apiKey"
-								type="password"
-								placeholder={
-									choice === "openai"
-										? t("sk-… from platform.openai.com")
-										: t("sk-ant-… from console.anthropic.com")
-								}
-								autoComplete="off"
-								autoCapitalize="off"
-								autoCorrect="off"
-								spellCheck={false}
-								required
-								autoFocus
-							/>
-							<FieldDescription>
-								{t(
-									"The agent checks the key before it is saved. It is stored encrypted and never shown again.",
-								)}
-							</FieldDescription>
-						</Field>
-					</FieldGroup>
-					<Button type="submit" disabled={save.isPending}>
-						{save.isPending ? <Spinner data-icon="inline-start" /> : null}
-						{t("Continue")}
-					</Button>
-				</form>
+					choice={choice}
+					keyId={keyId}
+					pending={save.isPending}
+					onSubmit={(apiKey) =>
+						save.mutate({ provider: choice, [`${choice}Key`]: apiKey })
+					}
+				/>
 			)}
 
 			<Button
@@ -140,5 +95,58 @@ export function AiForm() {
 				{t("Continue without AI")}
 			</Button>
 		</div>
+	);
+}
+
+function KeyForm({
+	choice,
+	keyId,
+	pending,
+	onSubmit,
+}: {
+	choice: KeyedChoice;
+	keyId: string;
+	pending: boolean;
+	onSubmit: (apiKey: string) => void;
+}) {
+	const t = useT();
+
+	return (
+		<form
+			className="flex flex-col gap-6"
+			onSubmit={(event) => {
+				event.preventDefault();
+				onSubmit(
+					String(new FormData(event.currentTarget).get("apiKey") ?? "").trim(),
+				);
+			}}
+		>
+			<FieldGroup>
+				<Field>
+					<FieldLabel htmlFor={keyId}>{t(AI_STEP.labels[choice])}</FieldLabel>
+					<Input
+						id={keyId}
+						name="apiKey"
+						type="password"
+						placeholder={t(AI_STEP.placeholders[choice])}
+						autoComplete="off"
+						autoCapitalize="off"
+						autoCorrect="off"
+						spellCheck={false}
+						required
+						autoFocus
+					/>
+					<FieldDescription>
+						{t(
+							"The agent checks the key before it is saved. It is stored encrypted and never shown again.",
+						)}
+					</FieldDescription>
+				</Field>
+			</FieldGroup>
+			<Button type="submit" disabled={pending}>
+				{pending ? <Spinner data-icon="inline-start" /> : null}
+				{t("Continue")}
+			</Button>
+		</form>
 	);
 }

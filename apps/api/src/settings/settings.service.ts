@@ -48,6 +48,7 @@ import {
 	writeAgentProvider,
 	writeArchiveRetentionDays,
 } from "@crm/db/settings";
+import { isHosted } from "@crm/db/tenant-context";
 import {
 	AGENT_FUNCTIONS,
 	isAgentFunction,
@@ -97,9 +98,6 @@ import type {
 	SpendSettings,
 } from "./settings.contracts";
 
-const FIXED_AI_REFUSAL =
-	"The AI is included in this plan. There is no model to choose.";
-
 const PASSWORD_REFUSALS = {
 	"sign-in-off":
 		'Password sign-in is off. Set PASSWORD_SIGN_IN="1" in the root .env file and restart.',
@@ -134,7 +132,17 @@ export class SettingsService {
 
 	private async assertModelChoice(): Promise<void> {
 		if (await fixedAiWith(this.db)) {
-			throw new ForbiddenException(FIXED_AI_REFUSAL);
+			throw new ForbiddenException(
+				"The AI is included in this plan. There is no model to choose.",
+			);
+		}
+	}
+
+	private assertChatgptOffered(): void {
+		if (isHosted()) {
+			throw new ForbiddenException(
+				"A ChatGPT sign-in is not offered on a hosted install.",
+			);
 		}
 	}
 
@@ -390,6 +398,7 @@ export class SettingsService {
 		input: SetAgentProviderInput,
 	): Promise<AgentProviderSettings> {
 		await this.assertManager(userId);
+		if (input.provider === "chatgpt") this.assertChatgptOffered();
 		await this.assertModelChoice();
 		const current = await readAgentProvider(this.db);
 
@@ -455,11 +464,13 @@ export class SettingsService {
 		action: ChatgptLoginAction,
 	): Promise<ChatgptLoginSettings> {
 		await this.assertManager(userId);
+		this.assertChatgptOffered();
 		await this.assertModelChoice();
 		return this.researchKeys.chatgptLogin(action);
 	}
 
 	private openrouterEnvKey(): boolean {
+		if (isHosted()) return false;
 		return Boolean(
 			this.config.get("OPENROUTER_API_KEY", { infer: true })?.trim(),
 		);

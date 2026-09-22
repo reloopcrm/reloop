@@ -1,4 +1,5 @@
 import { isWorkspaceAdmin } from "@crm/auth";
+import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
@@ -78,7 +79,7 @@ async function Ai() {
 		<HydrateClient>
 			<div className="flex max-w-3xl flex-col gap-6">
 				<fieldset disabled={!canManage} className="contents">
-					<AgentProvider />
+					<AgentProvider chatgpt={!isHosted()} />
 				</fieldset>
 				<Spend />
 				<Typesafe />

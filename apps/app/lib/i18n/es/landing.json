@@ -157,5 +157,7 @@
 	"Check your details and try again.": "Revisa tus datos e inténtalo de nuevo.",
 	"That did not work. Try again in a moment.": "Eso no funcionó. Inténtalo de nuevo en un momento.",
 	"The trial of this workspace has ended. Write to us and we switch it back on.": "La prueba de este espacio de trabajo ha terminado. Escríbenos y lo volvemos a activar.",
-	"This server has no hosted workspaces.": "Este servidor no tiene espacios de trabajo alojados."
+	"This server has no hosted workspaces.": "Este servidor no tiene espacios de trabajo alojados.",
+	"Rather run it on your own server? Reloop CRM is open source.": "¿Prefieres ejecutarlo en tu propio servidor? Reloop CRM es de código abierto.",
+	"Read what self-hosting takes.": "Lee lo que requiere alojarlo tú mismo."
 }

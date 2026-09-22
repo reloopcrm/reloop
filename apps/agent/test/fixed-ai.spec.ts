@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
+import type { AgentProviderSetting } from "@crm/db/settings";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { fixedCandidates, pinnedBody } from "../agent/lib/model";
+import {
+	candidatesFor,
+	fixedCandidates,
+	openrouterKeyOf,
+	pinnedBody,
+} from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
 import { rotated, tenantTool } from "../agent/lib/tenant";
 
@@ -66,5 +72,44 @@ describe("the tenant wrappers in single mode", () => {
 		expect(rotated(["a", "b", "c"], 1)).toEqual(["b", "c", "a"]);
 		expect(rotated(["a", "b", "c"], 5)).toEqual(["c", "a", "b"]);
 		expect(rotated([], 3)).toEqual([]);
+	});
+});
+
+describe("the operator's OpenRouter key on an own-key plan", () => {
+	const setting: AgentProviderSetting = {
+		provider: "openrouter",
+		openrouterModel: "openai/gpt-5.6-luna",
+		chatgptModel: "gpt-5.6-sol",
+		openaiModel: "gpt-5.6-terra",
+		anthropicModel: "claude-haiku-4-5",
+		openrouterKey: null,
+		openaiKey: null,
+		anthropicKey: null,
+		researchPerHour: null,
+		readingModel: null,
+		draftModel: null,
+	};
+	const env = {
+		OPENROUTER_API_KEY: "sk-or-operator",
+		CODEX_HOME: "/nonexistent",
+	};
+
+	it("is never read on a hosted install", () => {
+		const saved = process.env.RELOOP_REGISTRY_URL;
+		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
+		try {
+			expect(openrouterKeyOf(setting, env)).toBeNull();
+			expect(candidatesFor(setting, env)).toEqual([]);
+		} finally {
+			if (saved === undefined) delete process.env.RELOOP_REGISTRY_URL;
+			else process.env.RELOOP_REGISTRY_URL = saved;
+		}
+	});
+
+	it("still serves a single-tenant install", () => {
+		expect(openrouterKeyOf(setting, env)).toBe("sk-or-operator");
+		expect(candidatesFor(setting, env).map((entry) => entry.provider)).toEqual([
+			"openrouter",
+		]);
 	});
 });

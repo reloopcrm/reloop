@@ -135,6 +135,7 @@ export const aiUsageOutput = z.object({
 			counter: z.enum(USAGE_COUNTERS),
 			used: z.number(),
 			limit: z.number().nullable(),
+			included: z.boolean(),
 			reached: z.boolean(),
 		}),
 	),

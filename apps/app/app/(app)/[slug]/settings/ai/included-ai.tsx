@@ -15,6 +15,7 @@ import { useT } from "@/lib/i18n/client";
 export type UsageCounter =
 	| "insights"
 	| "drafts"
+	| "sessions"
 	| "research"
 	| "chat"
 	| "builder";
@@ -23,12 +24,14 @@ export type UsageLine = {
 	counter: UsageCounter;
 	used: number;
 	limit: number | null;
+	included: boolean;
 	reached: boolean;
 };
 
 const COUNTER_LABEL = {
 	insights: "Conversations read",
 	drafts: "Email drafts",
+	sessions: "Contact research sessions",
 	research: "Company research runs",
 	chat: "Chat messages",
 	builder: "Agent builder messages",
@@ -81,7 +84,11 @@ export function IncludedAi({
 							<TableCell>{t(COUNTER_LABEL[line.counter])}</TableCell>
 							<TableCell className="text-right">{String(line.used)}</TableCell>
 							<TableCell className="text-right text-muted-foreground">
-								{line.limit === null ? t("No limit") : String(line.limit)}
+								{!line.included
+									? t("Not included")
+									: line.limit === null
+										? t("No limit")
+										: String(line.limit)}
 							</TableCell>
 						</SimpleTableRow>
 					))}

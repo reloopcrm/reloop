@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { MODEL_PRICES } from "../src/model-prices";
-import { fixedAiFor } from "../src/plan-usage";
+import { fixedAiFor, usageLines } from "../src/plan-usage";
 import {
 	allowsCompanyResearch,
 	COMPANY_RESEARCH_KINDS,
@@ -18,6 +18,8 @@ import {
 	nextMonthStart,
 	PLAN_IDS,
 	PLANS,
+	type PlanId,
+	type PlanLimits,
 	RESEARCH_RUN_KIND,
 	startOfMonth,
 	TRIAL_DAYS,
@@ -71,6 +73,29 @@ const PRICING_PAGE = {
 		storageGb: 25,
 	},
 } as const;
+
+const AI_COUNTERS = {
+	trial: { researchPerMonth: null, builderPerMonth: 100 },
+	start: { researchPerMonth: 50, builderPerMonth: 200 },
+	standard: { researchPerMonth: 150, builderPerMonth: 500 },
+	plus: { researchPerMonth: 300, builderPerMonth: 1_000 },
+	team: { researchPerMonth: 800, builderPerMonth: 2_000 },
+	office: { researchPerMonth: 2_000, builderPerMonth: 5_000 },
+	hosting: { researchPerMonth: null, builderPerMonth: null },
+	"hosting-pro": { researchPerMonth: null, builderPerMonth: null },
+} as const satisfies Record<
+	PlanId,
+	Pick<PlanLimits, "researchPerMonth" | "builderPerMonth">
+>;
+
+const NO_USAGE = {
+	insights: 0,
+	drafts: 0,
+	sessions: 0,
+	research: 0,
+	chat: 0,
+	builder: 0,
+};
 
 describe("an install without a plan", () => {
 	it("has no limit at all", () => {
@@ -215,6 +240,59 @@ describe("the monthly budgets", () => {
 		expect(monthlyBudget(INSIGHT_KIND, PLANS.standard)).toBe(3_000);
 		expect(monthlyBudget(DRAFT_KIND, PLANS.standard)).toBe(100);
 		expect(monthlyBudget("identify", PLANS.standard)).toBeNull();
+	});
+
+	for (const [id, expected] of Object.entries(AI_COUNTERS)) {
+		it(`cap research runs and builder messages on the ${id} plan`, () => {
+			const limits = PLANS[id as PlanId];
+			expect(limits).toMatchObject(expected);
+			expect(monthlyBudget(RESEARCH_RUN_KIND, limits)).toBe(
+				expected.researchPerMonth,
+			);
+		});
+	}
+});
+
+describe("the usage lines", () => {
+	it("say company research is not included on the trial", () => {
+		const lines = usageLines(NO_USAGE, PLANS.trial);
+		expect(lines.find((line) => line.counter === "research")).toEqual({
+			counter: "research",
+			used: 0,
+			limit: null,
+			included: false,
+			reached: false,
+		});
+		expect(lines.find((line) => line.counter === "sessions")).toMatchObject({
+			limit: 100,
+			included: true,
+		});
+		expect(lines.find((line) => line.counter === "builder")).toMatchObject({
+			limit: 100,
+			included: true,
+		});
+	});
+
+	it("keep no limit only where the plan has none", () => {
+		for (const line of usageLines(NO_USAGE, NO_PLAN)) {
+			expect(line).toMatchObject({ limit: null, included: true });
+		}
+		const start = usageLines(NO_USAGE, PLANS.start);
+		expect(start.find((line) => line.counter === "sessions")).toMatchObject({
+			limit: null,
+			included: true,
+		});
+		expect(start.find((line) => line.counter === "research")).toMatchObject({
+			limit: 50,
+			included: true,
+		});
+	});
+
+	it("mark a counter reached at its limit", () => {
+		const lines = usageLines({ ...NO_USAGE, builder: 100 }, PLANS.trial);
+		expect(lines.find((line) => line.counter === "builder")?.reached).toBe(
+			true,
+		);
 	});
 });
 

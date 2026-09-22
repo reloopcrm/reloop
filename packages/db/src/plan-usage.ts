@@ -1,3 +1,4 @@
+import { DIRECT_KINDS } from "./agent-tasks";
 import type { Db } from "./client";
 import {
 	DRAFT_KIND,
@@ -31,6 +32,7 @@ export async function fixedAiWith(db: Db): Promise<boolean> {
 export const USAGE_COUNTERS = [
 	"insights",
 	"drafts",
+	"sessions",
 	"research",
 	"chat",
 	"builder",
@@ -44,12 +46,14 @@ export type UsageLine = {
 	counter: UsageCounter;
 	used: number;
 	limit: number | null;
+	included: boolean;
 	reached: boolean;
 };
 
 const LIMIT_OF = {
 	insights: (limits: PlanLimits) => limits.insightsPerMonth,
 	drafts: (limits: PlanLimits) => limits.draftsPerMonth,
+	sessions: (limits: PlanLimits) => limits.researchSessionsPerMonth,
 	research: (limits: PlanLimits) => limits.researchPerMonth,
 	chat: (limits: PlanLimits) => limits.chatPerMonth,
 	builder: (limits: PlanLimits) => limits.builderPerMonth,
@@ -80,17 +84,24 @@ export async function readMonthlyUsage(
 	const count = (kind: string) =>
 		db.agentTask.count({ where: { kind, createdAt: { gte: since } } });
 
-	const [insights, drafts, research, chat, builder] = await Promise.all([
-		count(INSIGHT_KIND),
-		count(DRAFT_KIND),
-		db.agentTask.count({
-			where: { kind: RESEARCH_RUN_KIND, finishedAt: { gte: since } },
-		}),
-		conversationMessages(db, "RECORD", since),
-		conversationMessages(db, "BUILDER", since),
-	]);
+	const [insights, drafts, sessions, research, chat, builder] =
+		await Promise.all([
+			count(INSIGHT_KIND),
+			count(DRAFT_KIND),
+			db.agentTask.count({
+				where: {
+					kind: { notIn: [...DIRECT_KINDS] },
+					startedAt: { gte: since },
+				},
+			}),
+			db.agentTask.count({
+				where: { kind: RESEARCH_RUN_KIND, finishedAt: { gte: since } },
+			}),
+			conversationMessages(db, "RECORD", since),
+			conversationMessages(db, "BUILDER", since),
+		]);
 
-	return { insights, drafts, research, chat, builder };
+	return { insights, drafts, sessions, research, chat, builder };
 }
 
 export function limitOf(
@@ -100,6 +111,10 @@ export function limitOf(
 	return LIMIT_OF[counter](limits);
 }
 
+export function includedIn(counter: UsageCounter, limits: PlanLimits): boolean {
+	return counter === "research" ? limits.companyResearch : true;
+}
+
 export function usageLines(
 	usage: MonthlyUsage,
 	limits: PlanLimits,
@@ -107,7 +122,13 @@ export function usageLines(
 	return USAGE_COUNTERS.map((counter) => {
 		const limit = limitOf(counter, limits);
 		const used = usage[counter];
-		return { counter, used, limit, reached: limit !== null && used >= limit };
+		return {
+			counter,
+			used,
+			limit,
+			included: includedIn(counter, limits),
+			reached: limit !== null && used >= limit,
+		};
 	});
 }
 

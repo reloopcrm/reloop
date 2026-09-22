@@ -80,7 +80,7 @@ async function sessionInstructions(
 export const LIMIT_REACHED_INSTRUCTION =
 	"The monthly limit of this workspace's plan for this kind of conversation is reached. Answer with one sentence: the limit is reached, the conversation continues next month, and an upgrade of the plan continues it now. Call no tool and do nothing else.";
 
-async function limitReached(
+export async function limitReached(
 	counter: "chat" | "builder",
 ): Promise<{ markdown: string } | null> {
 	try {

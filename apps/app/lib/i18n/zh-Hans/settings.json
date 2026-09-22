@@ -201,6 +201,8 @@
 	"Conversations read": "已读取的往来邮件",
 	"Email drafts": "邮件草稿",
 	"Company research runs": "公司调研次数",
+	"Not included": "不包含",
+	"Contact research sessions": "联系人调研次数",
 	"Chat messages": "聊天消息",
 	"Agent builder messages": "代理构建器消息",
 	"{used} of {limit}": "{used} / {limit}",

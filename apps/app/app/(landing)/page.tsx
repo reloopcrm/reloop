@@ -11,14 +11,18 @@ import { LandingShell } from "@/components/landing/landing-shell";
 import { StructuredData } from "@/components/landing/structured-data";
 import { getT } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-	title: {
-		absolute: "Reloop CRM: the open-source CRM that wins customers back",
-	},
-	description:
-		"Reloop CRM reads the mailbox you already have and shows which old customers are worth a call. Gmail, Outlook or any IMAP mailbox. Open source, on your own server.",
-	alternates: { canonical: "/" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+	const t = await getT();
+	return {
+		title: {
+			absolute: t("Reloop CRM: the open-source CRM that wins customers back"),
+		},
+		description: t(
+			"Reloop CRM reads the mailbox you already have and shows which old customers are worth a call. Gmail, Outlook or any IMAP mailbox. Open source, on your own server.",
+		),
+		alternates: { canonical: "/" },
+	};
+}
 
 export default async function Home() {
 	const t = await getT();

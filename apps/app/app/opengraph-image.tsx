@@ -1,12 +1,14 @@
 import { BRAND } from "@crm/ui/lib/brand";
 import { WORDMARK_PATH } from "@crm/ui/lib/wordmark-path";
 import { ImageResponse } from "next/og";
+import { getT } from "@/lib/i18n/server";
 
 export const alt = `${BRAND.name}: ${BRAND.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+	const t = await getT();
 	return new ImageResponse(
 		<div
 			style={{
@@ -33,7 +35,7 @@ export default function OpengraphImage() {
 						maxWidth: "900px",
 					}}
 				>
-					{BRAND.tagline}
+					{t(BRAND.tagline)}
 				</div>
 				<div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
 					<div
@@ -45,7 +47,7 @@ export default function OpengraphImage() {
 						}}
 					/>
 					<div style={{ color: "#8a8f98", fontSize: "30px" }}>
-						The open-source, self-hosted CRM
+						{t("The open-source, self-hosted CRM")}
 					</div>
 				</div>
 			</div>

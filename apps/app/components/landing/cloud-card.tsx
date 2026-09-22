@@ -1,20 +1,23 @@
 import { Badge } from "@crm/ui/components/badge";
-import { BentoCard, CardBody, CardTitle } from "./bento-card";
+import { getT } from "@/lib/i18n/server";
+import { CardBody, CardTitle } from "./bento-card";
+import { FormCard } from "./page-blocks";
 import { WaitlistForm } from "./waitlist-form";
 
-export function CloudCard() {
+export async function CloudCard() {
+	const t = await getT();
 	return (
-		<BentoCard className="w-full max-w-(--container-narrow) gap-6">
+		<FormCard>
 			<div className="flex flex-col gap-2">
 				<div className="flex items-center gap-2">
-					<CardTitle>Cloud</CardTitle>
-					<Badge variant="secondary">Soon</Badge>
+					<CardTitle>{t("Cloud")}</CardTitle>
+					<Badge variant="secondary">{t("Soon")}</Badge>
 				</div>
 				<CardBody>
-					A hosted Reloop CRM, with updates and backups handled for you.
+					{t("A hosted Reloop CRM, with updates and backups handled for you.")}
 				</CardBody>
 			</div>
 			<WaitlistForm />
-		</BentoCard>
+		</FormCard>
 	);
 }

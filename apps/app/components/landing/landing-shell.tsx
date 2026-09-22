@@ -5,11 +5,14 @@ import NextLink from "next/link";
 import type * as React from "react";
 import { getT } from "@/lib/i18n/server";
 import { marketingUrl, signUpUrl } from "@/lib/site-links";
+import { LanguageSwitcher } from "./language-switcher";
 import { REPO_URL } from "./site";
 
 export async function LandingShell({
+	cta = true,
 	children,
 }: {
+	cta?: boolean;
 	children: React.ReactNode;
 }) {
 	const t = await getT();
@@ -33,7 +36,7 @@ export async function LandingShell({
 	];
 
 	const companyLinks = [
-		{ href: marketingUrl("/about"), label: t("About") },
+		{ href: marketingUrl("/about"), label: t("About Reloop CRM") },
 		{ href: marketingUrl("/contact"), label: t("Contact") },
 		{ href: marketingUrl("/privacy"), label: t("Privacy") },
 	];
@@ -55,11 +58,13 @@ export async function LandingShell({
 					<Link variant="quiet" href="/sign-in">
 						{t("Sign in")}
 					</Link>
-					<Button size="pill-sm" asChild>
-						<NextLink href={marketingUrl("/pricing")}>
-							{t("Start free trial")}
-						</NextLink>
-					</Button>
+					{cta ? (
+						<Button size="pill-sm" asChild>
+							<NextLink href={marketingUrl("/pricing")}>
+								{t("Start free trial")}
+							</NextLink>
+						</Button>
+					) : null}
 				</nav>
 			</header>
 
@@ -72,6 +77,9 @@ export async function LandingShell({
 						<p className="text-[13px]/[21px] text-muted-foreground">
 							{t("The CRM that wins old customers back.")}
 						</p>
+						<div className="text-muted-foreground">
+							<LanguageSwitcher />
+						</div>
 					</div>
 
 					<div className="flex shrink-0 gap-12">

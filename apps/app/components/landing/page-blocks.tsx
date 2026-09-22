@@ -4,13 +4,14 @@ import { Link } from "@crm/ui/components/link";
 import { cn } from "@crm/ui/lib/utils";
 import NextLink from "next/link";
 import type * as React from "react";
+import { getT } from "@/lib/i18n/server";
 import { marketingUrl } from "@/lib/site-links";
+import { BentoCard } from "./bento-card";
+import { LandingShell } from "./landing-shell";
 import { SectionHeading } from "./section-heading";
 
 export const PRICING = {
 	href: "/pricing",
-	primary: "Start free trial",
-	secondary: "See pricing",
 } as const;
 
 export type Tone = "default" | "secondary";
@@ -41,15 +42,18 @@ export function Band({
 	);
 }
 
-export function PricingActions({ secondary }: { secondary?: PageLink }) {
+export async function PricingActions({ secondary }: { secondary?: PageLink }) {
+	const t = await getT();
 	const link = secondary ?? {
 		href: marketingUrl(PRICING.href),
-		label: PRICING.secondary,
+		label: t("See pricing"),
 	};
 	return (
 		<div className="flex flex-wrap items-center justify-center gap-6">
 			<Button size="pill" asChild>
-				<NextLink href={marketingUrl(PRICING.href)}>{PRICING.primary}</NextLink>
+				<NextLink href={marketingUrl(PRICING.href)}>
+					{t("Start free trial")}
+				</NextLink>
 			</Button>
 			<Button variant="link" size="pill" asChild>
 				<NextLink href={link.href}>{link.label}</NextLink>
@@ -82,19 +86,20 @@ export function PageHero({
 	);
 }
 
-export function CloudBanner() {
+export async function CloudBanner() {
+	const t = await getT();
 	return (
 		<Band className="pt-0 md:pt-0">
 			<div className="flex w-full flex-col items-center gap-6 text-center">
 				<Display size="title" asChild>
-					<h2>Rather not run a server?</h2>
+					<h2>{t("Rather not run a server?")}</h2>
 				</Display>
 				<p className="max-w-(--container-sheet) text-body-foreground text-lg md:text-xl">
-					Reloop Cloud does it for you.
+					{t("Reloop Cloud does it for you.")}
 				</p>
 				<Button size="pill" asChild>
 					<NextLink href={marketingUrl(PRICING.href)}>
-						{PRICING.secondary}
+						{t("See pricing")}
 					</NextLink>
 				</Button>
 			</div>
@@ -137,18 +142,13 @@ export function ProseHeading({ children }: { children: React.ReactNode }) {
 	);
 }
 
-export function SelfHostNote({
-	text = "Rather run it on your own server? Reloop CRM is open source.",
-	link = "Read what self-hosting takes.",
-}: {
-	text?: string;
-	link?: string;
-}) {
+export async function SelfHostNote() {
+	const t = await getT();
 	return (
 		<p className="text-center text-muted-foreground text-sm/6">
-			{text}{" "}
+			{t("Rather run it on your own server? Reloop CRM is open source.")}{" "}
 			<Link variant="quiet" href={marketingUrl("/self-hosted-crm")}>
-				{link}
+				{t("Read what self-hosting takes.")}
 			</Link>
 		</p>
 	);
@@ -201,4 +201,37 @@ export function ClosingCta({
 			</div>
 		</Band>
 	);
+}
+
+export function FormPage({ children }: { children: React.ReactNode }) {
+	return (
+		<LandingShell cta={false}>
+			<section className="flex w-full grow flex-col items-center px-6 pt-20 pb-24 md:pt-24 md:pb-32">
+				<div className="flex w-full max-w-(--container-narrow) flex-col items-center gap-10">
+					{children}
+				</div>
+			</section>
+		</LandingShell>
+	);
+}
+
+export function FormHeading({
+	title,
+	lede,
+}: {
+	title: string;
+	lede: React.ReactNode;
+}) {
+	return (
+		<div className="flex w-full flex-col items-center gap-4 text-center">
+			<Display size="title" asChild>
+				<h1>{title}</h1>
+			</Display>
+			<p className="text-pretty text-body-foreground text-lg">{lede}</p>
+		</div>
+	);
+}
+
+export function FormCard({ children }: { children: React.ReactNode }) {
+	return <BentoCard className="w-full gap-6">{children}</BentoCard>;
 }

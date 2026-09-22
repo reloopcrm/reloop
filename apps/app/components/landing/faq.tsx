@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { getT } from "@/lib/i18n/server";
 import { BentoCard, CardHeading } from "./bento-card";
 import { Band, type Tone } from "./page-blocks";
 import { SectionHeading } from "./section-heading";
@@ -17,7 +18,7 @@ function faqEntry(items: readonly FaqItem[]) {
 	};
 }
 
-export function Faq({
+export async function Faq({
 	id,
 	items,
 	tone,
@@ -26,12 +27,13 @@ export function Faq({
 	items: readonly FaqItem[];
 	tone?: Tone;
 }) {
+	const t = await getT();
 	return (
 		<Band tone={tone}>
 			<Script id={id} type="application/ld+json">
 				{JSON.stringify(faqEntry(items))}
 			</Script>
-			<SectionHeading title="Questions people ask" />
+			<SectionHeading title={t("Questions people ask")} />
 			<div className="grid w-full gap-4 md:grid-cols-2">
 				{items.map((item) => (
 					<BentoCard key={item.question}>

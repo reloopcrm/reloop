@@ -44,10 +44,10 @@ if [ -z "${RELOOP_BACKUP_REMOTE:-}" ]; then
 	echo "WARNING: RELOOP_BACKUP_REMOTE is not set. The dumps stay on this host only." >&2
 elif ! command -v rclone >/dev/null 2>&1; then
 	echo "WARNING: rclone is not installed. The dumps stay on this host only." >&2
-elif ! rclone sync "$BACKUP_DIR" "$RELOOP_BACKUP_REMOTE"; then
-	echo "WARNING: rclone sync to $RELOOP_BACKUP_REMOTE failed. The dumps stay on this host only." >&2
+elif ! rclone copy "$BACKUP_DIR" "$RELOOP_BACKUP_REMOTE"; then
+	echo "WARNING: rclone copy to $RELOOP_BACKUP_REMOTE failed. The dumps stay on this host only." >&2
 else
-	echo "synced $BACKUP_DIR -> $RELOOP_BACKUP_REMOTE"
+	echo "copied $BACKUP_DIR -> $RELOOP_BACKUP_REMOTE"
 fi
 
 echo "backup finished, $failed failed"

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.19.0](https://github.com/reloopcrm/reloop/compare/v0.18.1...v0.19.0) (2026-09-22)
+
+
+### Features
+
+* **api:** the mailbox backfill reads more per tick, and every size is tunable by env ([#54](https://github.com/reloopcrm/reloop/issues/54)) ([dfbc071](https://github.com/reloopcrm/reloop/commit/dfbc071efe09d8a53a5e005043f78929941f6c71))
+* **app:** the hosted cloud links marketing pages to the marketing site ([#51](https://github.com/reloopcrm/reloop/issues/51)) ([7f5ede3](https://github.com/reloopcrm/reloop/commit/7f5ede338f5873954d4c04aa6ca2b75d2addf8b6))
+* **app:** the marketing site sends sign-ups to the hosted cloud ([#50](https://github.com/reloopcrm/reloop/issues/50)) ([dd785b2](https://github.com/reloopcrm/reloop/commit/dd785b2a6c463e059f00128d3e073081370ecaae))
+* **plans:** cap company research runs and builder messages per plan ([#56](https://github.com/reloopcrm/reloop/issues/56)) ([b3c8d23](https://github.com/reloopcrm/reloop/commit/b3c8d230cbc2bce2c7ac1bc7f0ea788cf9e5ab3b))
+
+
+### Fixes
+
+* **app:** read the workspace role inside the tenant, and guard every app db read ([#53](https://github.com/reloopcrm/reloop/issues/53)) ([38816e6](https://github.com/reloopcrm/reloop/commit/38816e6832dca8c108535c6e0bd2cc8e2bc8323e))
+* **app:** the hosted cloud hides or trims the onboarding AI step ([#52](https://github.com/reloopcrm/reloop/issues/52)) ([fbf8a6f](https://github.com/reloopcrm/reloop/commit/fbf8a6f9251c3b3be3c444e1bcf168e323ed69a0))
+* **db:** the trial costs little: 500 conversations, 20 drafts, 100 research sessions, 200 chat messages ([#48](https://github.com/reloopcrm/reloop/issues/48)) ([a96fff3](https://github.com/reloopcrm/reloop/commit/a96fff359f42c24bb5be7e113f53e2173dc40a0a))
+* **deploy:** the agent container gets TYPESAFE_API_KEY ([#55](https://github.com/reloopcrm/reloop/issues/55)) ([291db98](https://github.com/reloopcrm/reloop/commit/291db9844de3f3b4f71d916cd66445c9cdbf3fc4))
+
 ## [0.18.1](https://github.com/reloopcrm/reloop/compare/v0.18.0...v0.18.1) (2026-09-21)
 
 

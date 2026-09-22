@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { DOCS, docPath } from "@/components/landing/docs-config";
 import { PRICING } from "@/components/landing/pricing/config";
 import { REPO_URL } from "@/components/landing/site";
@@ -153,7 +154,9 @@ ${links(SOURCE)}
 `;
 }
 
-export function GET(): Response {
+export async function GET(): Promise<Response> {
+	await connection();
+
 	return new Response(llmsTxt(), {
 		headers: {
 			"content-type": "text/plain; charset=utf-8",

@@ -1,14 +1,21 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { GET } from "../app/llms.txt/route";
 import { DOCS, docPath } from "../components/landing/docs-config";
+
+const nextServer = await import("next/server");
+mock.module("next/server", () => ({
+	...nextServer,
+	connection: async () => {},
+}));
+
+const { GET } = await import("../app/llms.txt/route");
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
 const LINK = /^- \[[^\]]+\]\(([^)]+)\): .+$/;
 
-const body = await (await Promise.resolve(GET())).text();
+const body = await (await GET()).text();
 
 const hrefs = body
 	.split("\n")
@@ -21,8 +28,10 @@ function landingFile(path: string): string {
 }
 
 describe("/llms.txt", () => {
-	it("is served as plain text", () => {
-		expect(GET().headers.get("content-type")).toBe("text/plain; charset=utf-8");
+	it("is served as plain text", async () => {
+		expect((await GET()).headers.get("content-type")).toBe(
+			"text/plain; charset=utf-8",
+		);
 	});
 
 	it("opens with the name and a blockquote summary", () => {
@@ -104,7 +113,7 @@ describe("/llms.txt with a hosted cloud elsewhere", () => {
 	});
 
 	async function pages(): Promise<string[]> {
-		const text = await GET().text();
+		const text = await (await GET()).text();
 		return text
 			.split("\n")
 			.map((line) => LINK.exec(line)?.[1])

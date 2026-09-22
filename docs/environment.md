@@ -362,6 +362,25 @@ backwards from that moment. Calendar reads from `now` and never looks back. How
 far back mail goes is `MailboxSync.importSince`, asked on the connection page and
 clamped by the plan. See `docs/connections.md`.
 
+**`MAILBOX_SYNC_MAX_PER_TICK`** (1000), **`MAILBOX_SYNC_BACKFILL_CHUNK`** (500)
+and **`MAILBOX_SYNC_PAGE_SIZE`** (200) size one tick per mailbox, all optional,
+positive integers, parsed once by `mailboxSyncConfig` in
+`apps/api/src/mailbox/mailbox.config.ts`. `MAX_PER_TICK` caps the messages one
+tick stores for Outlook and IMAP; Gmail is clamped lower by its API quota
+(`GMAIL_QUOTA`: 6,000 units per user per minute, `messages.get` costs 20, 80 %
+used, so 240 per tick), whatever the variable says, because a tick runs at most
+once a minute and a higher number only buys 429s. `BACKFILL_CHUNK` is the ids one
+Gmail `messages.list` call asks for (its maximum is 500) and the width of one
+IMAP `FETCH` range. `PAGE_SIZE` is the Graph `$top` for Outlook, bodies
+included: Graph allows 1000, and its own docs warn a page of hundreds of full
+bodies can time out with a 504. The forward read keeps its fixed share of 120
+and always runs first. The tick budget (30 s per tenant hosted, 60 s otherwise)
+and the plan's `importThreads` cap still apply on top, so a bigger number never
+runs a tenant past its budget or a trial past 500 threads. Based on the Gmail
+API quota page, the Graph `user-list-messages` reference, and the Graph
+throttling limits (10,000 requests per mailbox per app per 10 minutes, 4
+concurrent) as of September 2026.
+
 **`CRON_SECRET`** (min 16 chars) guards `POST /internal/sync/mailboxes` and
 `/internal/sync/rates`; both **fail closed when unset**. `/internal/sync/google` is
 kept as an alias of the first, so an existing deployment's cron does not break on

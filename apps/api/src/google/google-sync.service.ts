@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { NO_DEADLINE } from "../mailbox/mailbox.config";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { CalendarSyncService } from "./calendar-sync.service";
 import { GmailSyncService } from "./gmail-sync.service";
@@ -12,13 +13,17 @@ export class GoogleSyncService {
 		private readonly gmail: GmailSyncService,
 	) {}
 
-	async runOne(userId: string, source: GoogleSyncSource) {
+	async runOne(
+		userId: string,
+		source: GoogleSyncSource,
+		deadlineAt: number = NO_DEADLINE,
+	) {
 		const row = await this.state.get(userId, source);
 		if (!row) return null;
 
 		return source === "calendar"
 			? this.calendar.sync(row)
-			: this.gmail.sync(row);
+			: this.gmail.sync(row, deadlineAt);
 	}
 
 	async runForUser(userId: string): Promise<void> {

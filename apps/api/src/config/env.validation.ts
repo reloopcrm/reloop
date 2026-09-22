@@ -145,6 +145,24 @@ export class EnvironmentVariables {
 	MAILBOX_SYNC_INTERVAL_MS?: number;
 
 	@IsOptional()
+	@Type(() => Number)
+	@IsInt()
+	@Min(1)
+	MAILBOX_SYNC_MAX_PER_TICK?: number;
+
+	@IsOptional()
+	@Type(() => Number)
+	@IsInt()
+	@Min(1)
+	MAILBOX_SYNC_BACKFILL_CHUNK?: number;
+
+	@IsOptional()
+	@Type(() => Number)
+	@IsInt()
+	@Min(1)
+	MAILBOX_SYNC_PAGE_SIZE?: number;
+
+	@IsOptional()
 	@IsUrl(
 		{ require_tld: false, require_protocol: true },
 		{

@@ -341,10 +341,23 @@ the largest attachment upload the conversation contracts accept.
   means no backfill is planned yet, so an existing row starts one on its next
   tick. `MailboxSync.importSince` is what the person asked for; the plan clamps it
   through `clampImportSince`. Both directions share one budget per tick
-  (`MAILBOX.sync` in `mailbox/mailbox.config.ts`), and **the forward read takes
-  its share first**, so new mail is filed within one tick of arriving however long
-  the backfill runs. A rate limit persists the position and pauses, it never
-  resets it.
+  (`MAILBOX.sync` in `mailbox/mailbox.config.ts`, sizes from
+  `MAILBOX_SYNC_MAX_PER_TICK`, `MAILBOX_SYNC_BACKFILL_CHUNK` and
+  `MAILBOX_SYNC_PAGE_SIZE`, see `docs/environment.md`), and **the forward read
+  takes its share first**, so new mail is filed within one tick of arriving
+  however long the backfill runs. Gmail's share is clamped by its API quota
+  (`GMAIL_QUOTA`, 240 `messages.get` per tick at 80 % of 6,000 units a minute),
+  so the operator's cap raises Outlook and IMAP only. **Every mailbox also gets a
+  deadline**: `runDue` splits the tick budget (`TENANCY.loop.budgetMs` hosted,
+  `SYNC_TICK.selfHostBudgetMs` otherwise, minus a settle reserve) evenly over the
+  mailboxes still due, and each provider stops between two messages when its
+  deadline passes, persists the position and returns. That is what keeps one
+  tenant's first import inside its `forEachTenant` budget, so the tenant is never
+  reported as failed and the next tick's forward read is never held behind a
+  detached backfill. **The plan's `importThreads` cap holds exactly**:
+  `importCapRemaining` is read before every page and each batch is cut to the
+  threads still allowed, and a message opens at most one thread. A rate limit
+  persists the position and pauses, it never resets it.
 - **Microsoft has no token-revocation endpoint.** `revoke` clears the columns and the
   UI says the consent itself is removed in the user's Microsoft account. Google's still
   posts to `oauth2.googleapis.com/revoke` and refuses to clear if that fails.

@@ -20,8 +20,8 @@ import {
 	restartBackfill,
 	serialiseBackfill,
 } from "../mailbox/backfill-cursor";
-import { importCapReached } from "../mailbox/import-cap";
-import { MAILBOX } from "../mailbox/mailbox.config";
+import { importCapRemaining } from "../mailbox/import-cap";
+import { MAILBOX, NO_DEADLINE, pastDeadline } from "../mailbox/mailbox.config";
 import type { MailboxResult } from "../mailbox/mailbox-api.client";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
@@ -88,7 +88,10 @@ export class OutlookSyncService {
 		private readonly threads: ThreadWriterService,
 	) {}
 
-	async sync(row: MailboxSync): Promise<OutlookSyncOutcome> {
+	async sync(
+		row: MailboxSync,
+		deadlineAt: number = NO_DEADLINE,
+	): Promise<OutlookSyncOutcome> {
 		const initializedAt = new Date();
 
 		const token = await this.tokens.accessTokenFor(row.userId, "outlook");
@@ -142,7 +145,13 @@ export class OutlookSyncService {
 			return this.start(row, initializedAt);
 		}
 
-		return this.incremental(row, token.accessToken, mailbox, row.cursor);
+		return this.incremental(
+			row,
+			token.accessToken,
+			mailbox,
+			row.cursor,
+			deadlineAt,
+		);
 	}
 
 	private async start(
@@ -173,6 +182,7 @@ export class OutlookSyncService {
 		accessToken: string,
 		mailbox: string,
 		cursor: string,
+		deadlineAt: number,
 	): Promise<OutlookSyncOutcome> {
 		const from = new Date(cursor);
 		if (Number.isNaN(from.getTime())) {
@@ -205,13 +215,19 @@ export class OutlookSyncService {
 			const remaining = MAILBOX.sync.forwardMax - seen;
 			const messages = (page.data.value ?? []).slice(0, Math.max(remaining, 0));
 
-			const run = await this.file(row, mailbox, messages, excluded);
-			seen += messages.length;
+			const run = await this.file(row, mailbox, messages, excluded, deadlineAt);
+			seen += run.processed;
 			written += run.written;
 			if (run.newest && run.newest > furthest) furthest = run.newest;
 
 			const nextLink = page.data["@odata.nextLink"];
-			if (!nextLink || seen >= MAILBOX.sync.forwardMax) break;
+			if (
+				!nextLink ||
+				seen >= MAILBOX.sync.forwardMax ||
+				run.processed < messages.length
+			) {
+				break;
+			}
 
 			page = await this.graph.nextPage(accessToken, nextLink);
 		}
@@ -226,6 +242,7 @@ export class OutlookSyncService {
 			mailbox,
 			excluded,
 			MAILBOX.sync.maxMessagesPerTick - seen,
+			deadlineAt,
 		);
 
 		await this.state.settle(row.id, {
@@ -262,6 +279,7 @@ export class OutlookSyncService {
 		mailbox: string,
 		excluded: Set<string>,
 		budget: number,
+		deadlineAt: number,
 	): Promise<Backfilled> {
 		const read = readBackfill(row.backfill);
 
@@ -290,8 +308,9 @@ export class OutlookSyncService {
 		let written = 0;
 		const limits = limitsOf(await readPlan(this.db));
 
-		while (left > 0 && isBackfillRunning(plan)) {
-			if (await importCapReached(this.db, limits)) {
+		while (left > 0 && isBackfillRunning(plan) && !pastDeadline(deadlineAt)) {
+			const remaining = await importCapRemaining(this.db, limits);
+			if (remaining === 0) {
 				plan = finishBackfill(plan);
 				break;
 			}
@@ -330,14 +349,14 @@ export class OutlookSyncService {
 				continue;
 			}
 
-			const messages = all.slice(0, left);
-			const run = await this.file(row, mailbox, messages, excluded);
+			const messages = all.slice(0, Math.min(left, remaining));
+			const run = await this.file(row, mailbox, messages, excluded, deadlineAt);
 			if (run.oldest) plan = reachedBack(plan, run.oldest);
 
 			written += run.written;
-			left -= Math.max(messages.length, 1);
+			left -= Math.max(run.processed, 1);
 
-			if (messages.length < all.length) break;
+			if (run.processed < all.length) break;
 
 			const next = page.data["@odata.nextLink"] ?? null;
 			plan = next ? { ...plan, position: next } : advancePhase(plan);
@@ -351,13 +370,23 @@ export class OutlookSyncService {
 		mailbox: string,
 		messages: readonly GraphMessage[],
 		excluded: Set<string>,
-	): Promise<{ written: number; oldest: Date | null; newest: Date | null }> {
+		deadlineAt: number,
+	): Promise<{
+		written: number;
+		processed: number;
+		oldest: Date | null;
+		newest: Date | null;
+	}> {
 		let context: MatchContext | null = null;
 		let written = 0;
+		let processed = 0;
 		let oldest: Date | null = null;
 		let newest: Date | null = null;
 
 		for (const message of messages) {
+			if (pastDeadline(deadlineAt)) break;
+			processed += 1;
+
 			const receivedAt = message.receivedDateTime
 				? new Date(message.receivedDateTime)
 				: null;
@@ -385,7 +414,7 @@ export class OutlookSyncService {
 			if (stored) written += 1;
 		}
 
-		return { written, oldest, newest };
+		return { written, processed, oldest, newest };
 	}
 
 	private async floorFor(row: MailboxSync): Promise<Date | null> {

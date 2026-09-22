@@ -8,7 +8,8 @@ import { clampImportSince, limitsOf } from "@crm/db/plans";
 import { readPlan } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
-import { importCapReached } from "../mailbox/import-cap";
+import { importCapRemaining } from "../mailbox/import-cap";
+import { NO_DEADLINE, pastDeadline } from "../mailbox/mailbox.config";
 import {
 	type ImapSyncSource,
 	imapAccountIdOf,
@@ -65,14 +66,21 @@ export class ImapSyncService {
 		private readonly threads: ThreadWriterService,
 	) {}
 
-	async runOne(userId: string, source: ImapSyncSource) {
+	async runOne(
+		userId: string,
+		source: ImapSyncSource,
+		deadlineAt: number = NO_DEADLINE,
+	) {
 		const row = await this.state.get(userId, source);
 		if (!row) return null;
 
-		return this.sync(row);
+		return this.sync(row, deadlineAt);
 	}
 
-	async sync(row: MailboxSync): Promise<ImapSyncOutcome> {
+	async sync(
+		row: MailboxSync,
+		deadlineAt: number = NO_DEADLINE,
+	): Promise<ImapSyncOutcome> {
 		if (!isImapSyncSource(row.source)) {
 			return {
 				source: row.source as ImapSyncSource,
@@ -131,7 +139,13 @@ export class ImapSyncService {
 		const cursor = parseImapCursor(row.cursor);
 
 		try {
-			const written = await this.walk(session, row, account, cursor);
+			const written = await this.walk(
+				session,
+				row,
+				account,
+				cursor,
+				deadlineAt,
+			);
 
 			await this.state.settle(row.id, {
 				cursor: serialiseImapCursor(cursor),
@@ -182,6 +196,7 @@ export class ImapSyncService {
 		row: MailboxSync,
 		account: ImapAccount,
 		cursor: ImapCursor,
+		deadlineAt: number,
 	): Promise<number> {
 		const mailbox = account.email.toLowerCase();
 		const base = await this.threads.context();
@@ -203,7 +218,7 @@ export class ImapSyncService {
 		const plan = planFolders(await session.folders());
 
 		for (const folder of plan) {
-			if (budget <= 0) break;
+			if (budget <= 0 || pastDeadline(deadlineAt)) break;
 
 			const opened = await session.open(folder.path);
 			const newest = opened.uidNext - 1;
@@ -233,7 +248,11 @@ export class ImapSyncService {
 				context,
 			};
 
-			while (entry.lastUid < newest && budget > 0) {
+			while (
+				entry.lastUid < newest &&
+				budget > 0 &&
+				!pastDeadline(deadlineAt)
+			) {
 				const from = entry.lastUid + 1;
 				const to = Math.min(newest, from + IMAP.sync.forwardChunk - 1);
 
@@ -243,14 +262,20 @@ export class ImapSyncService {
 				entry.lastUid = to;
 			}
 
-			while (entry.backfillUid !== null && budget > 0) {
-				if (await importCapReached(this.db, limits)) {
+			while (
+				entry.backfillUid !== null &&
+				budget > 0 &&
+				!pastDeadline(deadlineAt)
+			) {
+				const remaining = await importCapRemaining(this.db, limits);
+				if (remaining === 0) {
 					entry.backfillUid = null;
 					break;
 				}
 
 				const to = entry.backfillUid;
-				const from = Math.max(entry.floorUid, to - IMAP.sync.backfillChunk + 1);
+				const size = Math.min(IMAP.sync.backfillChunk, budget, remaining);
+				const from = Math.max(entry.floorUid, to - size + 1);
 
 				const result = await this.ingest(run, `${from}:${to}`);
 				budget -= Math.max(result.seen, 1);

@@ -15,6 +15,7 @@ let contactId: string;
 let handler: (request: Request) => Promise<Response>;
 
 const realFetch = globalThis.fetch;
+const session = { ...(await import("@/lib/session")) };
 
 beforeAll(async () => {
 	process.env.AGENT_BRIDGE_SECRET = "eve-route-spec-secret";
@@ -26,6 +27,7 @@ beforeAll(async () => {
 		connection: async () => {},
 	}));
 	mock.module("@/lib/session", () => ({
+		...session,
 		getSession: async () => ({
 			user: { id: signedIn, email: `${signedIn}@example.test`, name: signedIn },
 		}),
@@ -59,6 +61,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	globalThis.fetch = realFetch;
+	mock.module("@/lib/session", () => session);
 	await cleanup();
 });
 

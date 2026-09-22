@@ -1,4 +1,3 @@
-import { workspaceRoleOf } from "@crm/auth";
 import { Button } from "@crm/ui/components/button";
 import {
 	Empty,
@@ -29,7 +28,7 @@ import {
 import { isMarketing } from "@/lib/env";
 import { dateFormat } from "@/lib/i18n/format";
 import { getLocale, getT } from "@/lib/i18n/server";
-import { requireSession } from "@/lib/session";
+import { requireSession, workspaceRole } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -66,7 +65,7 @@ async function Signups() {
 	if (!isMarketing()) notFound();
 
 	const session = await requireSession();
-	if ((await workspaceRoleOf(session.user.id)) !== "owner") notFound();
+	if ((await workspaceRole(session.user.id)) !== "owner") notFound();
 
 	const [t, locale, { rows, csv }] = await Promise.all([
 		getT(),

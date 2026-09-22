@@ -185,7 +185,11 @@ Both are unset on a self-hosted install, which then runs as one workspace on
   bodies and answers are parsed with `@crm/validation/tenant-signup`.
 - **The guard `tools/tenancy-guard.ts`** runs with `bun run lint` and refuses
   `new PrismaClient` outside `packages/db/src/client.ts` and a
-  `process.env.ALLOWED_SIGN_IN` read outside `workspace.ts`.
+  `process.env.ALLOWED_SIGN_IN` read outside `workspace.ts`. In `apps/app` it
+  also refuses `db`, a db-reading `@crm/auth` helper and a db-reading `@crm/db`
+  module outside `lib/session.ts`, `lib/mailbox-connection.ts` and the eve
+  route: the app renders outside `runAsTenant()`, so every read goes through a
+  `cache()`d helper that wraps `inTenant()`.
 - **A customer registers through `POST /api/tenant/signup`** and looks their
   workspace up through `POST /api/tenant/lookup` (`apps/api/src/tenancy`). Both
   are open paths in `tenantMiddleware`, rate limited per address and per IP in

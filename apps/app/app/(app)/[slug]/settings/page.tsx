@@ -1,4 +1,4 @@
-import { isWorkspaceAdmin, workspaceRoleOf } from "@crm/auth";
+import { isWorkspaceAdmin } from "@crm/auth";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
 import { managedInstall, plansOffered } from "@/lib/operator";
-import { requireSession } from "@/lib/session";
+import { requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { ArchiveRetention } from "./archive-retention";
@@ -54,7 +54,7 @@ export default async function GeneralSettingsPage() {
 
 async function Settings() {
 	const session = await requireSession();
-	const canManage = isWorkspaceAdmin(await workspaceRoleOf(session.user.id));
+	const canManage = isWorkspaceAdmin(await workspaceRole(session.user.id));
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();

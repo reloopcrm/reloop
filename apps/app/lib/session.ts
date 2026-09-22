@@ -3,6 +3,8 @@ import {
 	isSignInAllowed,
 	needsMailboxGrant,
 	type Session,
+	type WorkspaceRole,
+	workspaceRoleOf,
 } from "@crm/auth";
 import { db } from "@crm/db";
 import { headers } from "next/headers";
@@ -37,6 +39,11 @@ export const signInAccounts = cache(
 				select: { providerId: true, scope: true },
 			}),
 		)) ?? [],
+);
+
+export const workspaceRole = cache(
+	async (userId: string): Promise<WorkspaceRole | null> =>
+		(await inTenant(() => workspaceRoleOf(userId))) ?? null,
 );
 
 export async function requireMailboxAccess(): Promise<Session> {

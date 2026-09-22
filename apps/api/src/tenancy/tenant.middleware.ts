@@ -1,5 +1,6 @@
 import {
 	API_KEY_HEADER,
+	AUTH_COOKIE_PREFIX,
 	cookieValue,
 	readTenantCookie,
 	TENANT_COOKIE_NAME,
@@ -29,6 +30,7 @@ export function tenantMiddleware() {
 
 		const path = request.path;
 		if (OPEN_PATH.test(path) || path === COLLECTOR_PATH) {
+			withoutSession(request);
 			next();
 			return;
 		}
@@ -80,4 +82,26 @@ async function resolveTenant(request: Request): Promise<Tenant | null> {
 	if (siteId) return tenantBySite(decodeURIComponent(siteId));
 
 	return null;
+}
+
+const SECURE_PREFIX = /^__(Secure|Host)-/;
+
+function isSessionCookie(name: string): boolean {
+	const bare = name.replace(SECURE_PREFIX, "");
+	return (
+		bare.startsWith(`${AUTH_COOKIE_PREFIX}.`) && bare !== TENANT_COOKIE_NAME
+	);
+}
+
+function withoutSession(request: Request): void {
+	const header = request.headers.cookie;
+	if (!header) return;
+
+	const kept = header
+		.split(";")
+		.map((part) => part.trim())
+		.filter((part) => part && !isSessionCookie(part.split("=")[0] ?? ""));
+
+	if (kept.length) request.headers.cookie = kept.join("; ");
+	else delete request.headers.cookie;
 }

@@ -134,6 +134,16 @@ describe("hosted mode resolves the tenant on every request", () => {
 		}
 	});
 
+	it("ignores a real session cookie without a tenant on the open tenant routes", async () => {
+		const response = await request(server)
+			.post("/api/tenant/lookup")
+			.set("cookie", sessionOfB)
+			.send({ email: "nobody@unknown-open-route.example" });
+
+		expect(response.status).toBe(404);
+		expect(response.body.code).toBe("NO_WORKSPACE");
+	});
+
 	it("answers 401 TENANT_REQUIRED on tRPC without a tenant", async () => {
 		const response = await request(server).get("/api/trpc/sso.signInOptions");
 

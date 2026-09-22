@@ -1,5 +1,6 @@
 import pg from "pg";
 import { z } from "zod";
+import { ADD_ON_IDS, NO_ADD_ONS } from "./plans";
 import { TENANCY } from "./tenancy-config";
 import { isHosted, runAsTenant } from "./tenant-context";
 
@@ -20,6 +21,34 @@ export const tenantId = z
 		"A tenant id is lower case, no underscore.",
 	);
 
+export const BILLING_STATUSES = [
+	"none",
+	"active",
+	"past_due",
+	"canceled",
+] as const;
+
+export type BillingStatus = (typeof BILLING_STATUSES)[number];
+
+const addOnQuantities = z.object(
+	Object.fromEntries(
+		ADD_ON_IDS.map((id) => [id, z.number().int().min(0).default(0)]),
+	) as Record<(typeof ADD_ON_IDS)[number], z.ZodDefault<z.ZodNumber>>,
+);
+
+export const tenantBilling = z.object({
+	customerId: z.string().min(1).nullable().default(null),
+	subscriptionId: z.string().min(1).nullable().default(null),
+	status: z.enum(BILLING_STATUSES).default("none"),
+	interval: z.enum(["month", "year"]).nullable().default(null),
+	cancelAt: z.coerce.date().nullable().default(null),
+	addOns: addOnQuantities.default(NO_ADD_ONS),
+});
+
+export type TenantBilling = z.infer<typeof tenantBilling>;
+
+export const NO_BILLING: TenantBilling = tenantBilling.parse({});
+
 export const tenant = z.object({
 	id: tenantId,
 	slug: z.string().min(1).max(63),
@@ -33,6 +62,9 @@ export const tenant = z.object({
 	suspendedAt: z.date().nullable(),
 	deletedAt: z.date().nullable(),
 	allowList: z.array(z.string().min(1)),
+	paidUntil: z.date().nullable(),
+	graceUntil: z.date().nullable(),
+	billing: tenantBilling,
 });
 
 export type Tenant = z.infer<typeof tenant>;
@@ -51,6 +83,9 @@ const tenantRow = z
 		suspended_at: z.date().nullish(),
 		deleted_at: z.date().nullable(),
 		allow_list: z.array(z.string()).nullable(),
+		paid_until: z.date().nullish(),
+		grace_until: z.date().nullish(),
+		billing: z.unknown().nullish(),
 	})
 	.transform((row) =>
 		tenant.parse({
@@ -66,6 +101,9 @@ const tenantRow = z
 			suspendedAt: row.suspended_at ?? null,
 			deletedAt: row.deleted_at,
 			allowList: row.allow_list ?? [],
+			paidUntil: row.paid_until ?? null,
+			graceUntil: row.grace_until ?? null,
+			billing: tenantBilling.parse(row.billing ?? {}),
 		}),
 	);
 
@@ -109,6 +147,9 @@ CREATE TABLE IF NOT EXISTS tenant (
 	deleted_at timestamptz
 );
 ALTER TABLE tenant ADD COLUMN IF NOT EXISTS suspended_at timestamptz;
+ALTER TABLE tenant ADD COLUMN IF NOT EXISTS paid_until timestamptz;
+ALTER TABLE tenant ADD COLUMN IF NOT EXISTS grace_until timestamptz;
+ALTER TABLE tenant ADD COLUMN IF NOT EXISTS billing jsonb;
 CREATE TABLE IF NOT EXISTS tenant_sign_in (
 	entry text PRIMARY KEY,
 	tenant_id text NOT NULL REFERENCES tenant(id) ON DELETE CASCADE
@@ -266,6 +307,47 @@ export async function expiredTrials(now: Date): Promise<Tenant[]> {
 	);
 }
 
+export async function graceExpired(now: Date): Promise<Tenant[]> {
+	return selectTenants(
+		"t.status = 'active' AND t.grace_until IS NOT NULL AND t.grace_until < $1",
+		[now.toISOString()],
+	);
+}
+
+export async function tenantByCustomer(
+	customerId: string,
+): Promise<Tenant | null> {
+	const [found] = await selectTenants("t.billing->>'customerId' = $1", [
+		customerId,
+	]);
+	return found ? remember(found) : null;
+}
+
+export type TenantBillingWrite = {
+	plan: string;
+	paidUntil: Date | null;
+	graceUntil: Date | null;
+	billing: TenantBilling;
+};
+
+export async function writeTenantBilling(
+	id: string,
+	write: TenantBillingWrite,
+): Promise<void> {
+	await registryPool().query(
+		`UPDATE tenant SET plan = $2, paid_until = $3, grace_until = $4, billing = $5::jsonb
+		 WHERE id = $1`,
+		[
+			id,
+			write.plan,
+			write.paidUntil,
+			write.graceUntil,
+			JSON.stringify(tenantBilling.parse(write.billing)),
+		],
+	);
+	forgetTenant(id);
+}
+
 export async function suspendedBefore(before: Date): Promise<Tenant[]> {
 	return selectTenants(
 		"t.status = 'suspended' AND t.suspended_at IS NOT NULL AND t.suspended_at < $1",
@@ -330,7 +412,8 @@ export async function createTenant(input: NewTenant): Promise<Tenant> {
 			 ON CONFLICT (id) DO UPDATE SET slug = EXCLUDED.slug, db_name = EXCLUDED.db_name,
 			   plan = EXCLUDED.plan, ai_mode = EXCLUDED.ai_mode, sign_in = EXCLUDED.sign_in,
 			   trial_ends_at = EXCLUDED.trial_ends_at, status = EXCLUDED.status,
-			   suspended_at = NULL, deleted_at = NULL`,
+			   suspended_at = NULL, deleted_at = NULL,
+			   paid_until = NULL, grace_until = NULL, billing = NULL`,
 			[
 				values.id,
 				values.slug,

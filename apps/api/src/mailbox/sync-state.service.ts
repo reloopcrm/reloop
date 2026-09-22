@@ -4,8 +4,8 @@ import {
 	type MailboxSyncModel as MailboxSync,
 	type Prisma,
 } from "@crm/db";
-import { limitsOf, type PlanLimits } from "@crm/db/plans";
-import { readPlan } from "@crm/db/settings";
+import { planLimitsOf } from "@crm/db/plan-usage";
+import type { PlanLimits } from "@crm/db/plans";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { serialiseBackfill, stoppedBackfill } from "./backfill-cursor";
@@ -77,7 +77,7 @@ export class SyncStateService {
 	}
 
 	async mailboxLimitReached(): Promise<PlanLimits | null> {
-		const limits = limitsOf(await readPlan(this.db));
+		const limits = await planLimitsOf(this.db);
 		if (limits.mailboxes === null) return null;
 		return (await countMailboxes(this.db)) >= limits.mailboxes ? limits : null;
 	}

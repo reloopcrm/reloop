@@ -126,10 +126,19 @@ export const planOutput = z.object({
 
 export type PlanSettings = z.infer<typeof planOutput>;
 
+export const CAPACITY_COUNTERS = ["contacts", "mailboxes"] as const;
+
 export const aiUsageOutput = z.object({
 	fixed: z.boolean(),
 	label: z.string(),
 	month: z.string(),
+	capacity: z.array(
+		z.object({
+			counter: z.enum(CAPACITY_COUNTERS),
+			used: z.number(),
+			limit: z.number().nullable(),
+		}),
+	),
 	lines: z.array(
 		z.object({
 			counter: z.enum(USAGE_COUNTERS),

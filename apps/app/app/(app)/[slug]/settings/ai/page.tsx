@@ -16,41 +16,46 @@ import { requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AgentProvider } from "./agent-model";
-import { IncludedAi } from "./included-ai";
 import { Spend } from "./spend";
 import { Typesafe } from "./typesafe";
+import { Usage } from "./usage";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
-	return { title: t("AI") };
+	return { title: isHosted() ? t("Usage") : t("AI") };
 }
 
 export default async function AiSettingsPage() {
 	const t = await getT();
+	const hosted = isHosted();
 
 	return (
 		<PageShell>
 			<PageShellHeader>
 				<PageShellHeading>
-					<PageShellTitle>{t("AI")}</PageShellTitle>
+					<PageShellTitle>{hosted ? t("Usage") : t("AI")}</PageShellTitle>
 					<PageShellDescription>
-						{t(
-							"The model the agent thinks with, what it costs, and what makes it cheaper.",
-						)}
+						{hosted
+							? t(
+									"What your workspace used this month, and where the limits of your plan are.",
+								)
+							: t(
+									"The model the agent thinks with, what it costs, and what makes it cheaper.",
+								)}
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
 
 			<PageShellContent>
 				<Suspense fallback={<PageShellLoading />}>
-					<Ai />
+					<Ai hosted={hosted} />
 				</Suspense>
 			</PageShellContent>
 		</PageShell>
 	);
 }
 
-async function Ai() {
+async function Ai({ hosted }: { hosted: boolean }) {
 	const session = await requireSession();
 	const canManage = isWorkspaceAdmin(await workspaceRole(session.user.id));
 
@@ -61,12 +66,20 @@ async function Ai() {
 		trpc.settings.aiUsage.queryOptions(),
 	);
 
+	const usageCard = hosted ? (
+		<Usage
+			label={usage.label}
+			capacity={usage.capacity.map((line) => ({
+				...line,
+				included: true,
+				reached: line.limit !== null && line.used >= line.limit,
+			}))}
+			lines={usage.lines}
+		/>
+	) : null;
+
 	if (usage.fixed) {
-		return (
-			<div className="flex max-w-3xl flex-col gap-6">
-				<IncludedAi label={usage.label} lines={usage.lines} />
-			</div>
-		);
+		return <div className="flex max-w-3xl flex-col gap-6">{usageCard}</div>;
 	}
 
 	await Promise.all([
@@ -78,8 +91,9 @@ async function Ai() {
 	return (
 		<HydrateClient>
 			<div className="flex max-w-3xl flex-col gap-6">
+				{usageCard}
 				<fieldset disabled={!canManage} className="contents">
-					<AgentProvider chatgpt={!isHosted()} />
+					<AgentProvider chatgpt={!hosted} />
 				</fieldset>
 				<Spend />
 				<Typesafe />

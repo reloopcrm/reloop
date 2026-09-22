@@ -1,4 +1,5 @@
 import { isWorkspaceAdmin } from "@crm/auth";
+import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
@@ -65,7 +66,9 @@ async function Settings() {
 		queryClient.prefetchQuery(trpc.settings.archiveRetention.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.dealStages.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.passwordSignIn.queryOptions()),
-		queryClient.prefetchQuery(trpc.settings.plan.queryOptions()),
+		...(plansOffered() && !isHosted()
+			? [queryClient.prefetchQuery(trpc.settings.plan.queryOptions())]
+			: []),
 	]);
 
 	return (
@@ -75,7 +78,7 @@ async function Settings() {
 				<Language />
 				<WorkspaceForm />
 				<PasswordSignIn />
-				{plansOffered() ? (
+				{plansOffered() && !isHosted() ? (
 					<fieldset disabled className="contents">
 						<Plan />
 					</fieldset>

@@ -1,3 +1,5 @@
+import { isWorkspaceAdmin } from "@crm/auth/roles";
+import { isHosted } from "@crm/db/tenant-context";
 import { Suspense } from "react";
 import { isMarketing } from "@/lib/env";
 import { requireSession, workspaceRole } from "@/lib/session";
@@ -22,5 +24,11 @@ async function Sidebar() {
 	const session = await requireSession();
 	const role = await workspaceRole(session.user.id);
 
-	return <SettingsSidebar cloudOwner={isMarketing() && role === "owner"} />;
+	return (
+		<SettingsSidebar
+			cloudOwner={isMarketing() && role === "owner"}
+			hosted={isHosted()}
+			admin={isWorkspaceAdmin(role)}
+		/>
+	);
 }

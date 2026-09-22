@@ -11,7 +11,7 @@ import {
 	type NestExpressApplication,
 } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import type { NextFunction, Request, Response } from "express";
+import { type NextFunction, type Request, type Response, raw } from "express";
 import helmet from "helmet";
 import { AppRouterHost } from "nestjs-trpc";
 import {
@@ -19,6 +19,7 @@ import {
 	generateOpenApiDocument,
 } from "trpc-to-openapi";
 import { AppModule } from "./app.module";
+import { BILLING } from "./billing/billing.config";
 import { NodeEnv } from "./config/env.validation";
 import { REQUEST_SIZE } from "./http/http-config";
 import {
@@ -46,6 +47,10 @@ export async function createApp(): Promise<NestExpressApplication> {
 
 	app.use(requestSizeLimit());
 	app.use(REQUEST_SIZE.trpc.path, trpcBodyLimit());
+	app.use(
+		BILLING.webhook.path,
+		raw({ type: "application/json", limit: BILLING.webhook.maxBytes }),
+	);
 	app.use(helmet());
 	app.use(tenantMiddleware());
 	app.useGlobalPipes(

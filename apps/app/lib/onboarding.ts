@@ -6,9 +6,15 @@ export const ONBOARDING_PATH = "/onboarding";
 
 export const CONNECTIONS_PATH = "/settings/connections";
 
+export const PAUSED_PATH = "/paused";
+
+const SUSPENDED = { status: 403, message: "TENANT_SUSPENDED" } as const;
+
+const refusal = z.object({ message: z.string() }).catch({ message: "" });
+
 const GATE_TIMEOUT_MS = 2_000;
 
-export type Gate = "settled" | "required" | "unknown";
+export type Gate = "settled" | "required" | "suspended" | "unknown";
 
 const procedureResult = z
 	.object({ result: z.object({ data: z.json() }).catch({ data: null }) })
@@ -34,6 +40,11 @@ async function read(request: NextRequest, procedure: string) {
 			signal: AbortSignal.timeout(GATE_TIMEOUT_MS),
 		});
 
+		if (response.status === SUSPENDED.status) {
+			const body = refusal.parse(await response.json().catch(() => ({})));
+			return body.message === SUSPENDED.message ? SUSPENDED.message : null;
+		}
+
 		if (!response.ok) return null;
 
 		return procedureResult.parse(await response.json()).result.data;
@@ -47,7 +58,10 @@ export type WorkspaceGate = { gate: Gate; slug: string | null };
 export async function readWorkspaceGate(
 	request: NextRequest,
 ): Promise<WorkspaceGate> {
-	const workspace = workspaceAnswer.parse(await read(request, "workspace.get"));
+	const answer = await read(request, "workspace.get");
+	if (answer === SUSPENDED.message) return { gate: "suspended", slug: null };
+
+	const workspace = workspaceAnswer.parse(answer);
 
 	const slug = workspace.slug;
 

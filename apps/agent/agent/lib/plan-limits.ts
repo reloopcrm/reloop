@@ -1,9 +1,8 @@
 import { db, type Prisma } from "@crm/db";
-import { fixedAiFor, planIdOf } from "@crm/db/plan-usage";
+import { fixedAiFor, planIdOf, planLimitsOf } from "@crm/db/plan-usage";
 import {
 	DRAFT_KIND,
 	INSIGHT_KIND,
-	limitsOf,
 	monthlyBudget,
 	nextMonthStart,
 	type PlanLimits,
@@ -16,7 +15,7 @@ export function planId(): Promise<string | null> {
 }
 
 export async function planLimits(): Promise<PlanLimits> {
-	return limitsOf(await planId());
+	return planLimitsOf(db);
 }
 
 export async function fixedAi(): Promise<boolean> {

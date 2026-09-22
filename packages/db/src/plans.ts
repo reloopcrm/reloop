@@ -229,6 +229,60 @@ export function limitsOf(plan: string | null | undefined): PlanLimits {
 	return PLANS[canonicalPlanId(plan) ?? "trial"];
 }
 
+export const ADD_ON_IDS = [
+	"conversations",
+	"drafts",
+	"research",
+	"mailbox",
+] as const;
+
+export type AddOnId = (typeof ADD_ON_IDS)[number];
+
+export type AddOnQuantities = Record<AddOnId, number>;
+
+export const NO_ADD_ONS: AddOnQuantities = {
+	conversations: 0,
+	drafts: 0,
+	research: 0,
+	mailbox: 0,
+};
+
+export const ADD_ONS = {
+	conversations: { limit: "insightsPerMonth", adds: 1_000 },
+	drafts: { limit: "draftsPerMonth", adds: 100 },
+	research: { limit: "researchPerMonth", adds: 50 },
+	mailbox: { limit: "mailboxes", adds: 1 },
+} as const satisfies Record<
+	AddOnId,
+	{
+		limit:
+			| "insightsPerMonth"
+			| "draftsPerMonth"
+			| "researchPerMonth"
+			| "mailboxes";
+		adds: number;
+	}
+>;
+
+export function isAddOnId(value: string): value is AddOnId {
+	return (ADD_ON_IDS as readonly string[]).includes(value);
+}
+
+export function withAddOns(
+	limits: PlanLimits,
+	addOns: Partial<AddOnQuantities>,
+): PlanLimits {
+	const raised = { ...limits };
+	for (const id of ADD_ON_IDS) {
+		const quantity = addOns[id] ?? 0;
+		const { limit, adds } = ADD_ONS[id];
+		const current = raised[limit];
+		if (quantity > 0 && current !== null)
+			raised[limit] = current + quantity * adds;
+	}
+	return raised;
+}
+
 export function startOfMonth(now = new Date()): Date {
 	const month = new Date(now);
 	month.setUTCDate(1);

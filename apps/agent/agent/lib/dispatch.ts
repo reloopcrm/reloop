@@ -235,18 +235,23 @@ export async function slowLaneRoom(): Promise<number> {
 export type InsightLaneDeps = {
 	room: () => Promise<number>;
 	handle: (task: LeasedTask) => Promise<void>;
+	exhausted: () => Promise<boolean>;
 };
 
 export async function runInsightLane(
 	signal?: AbortSignal,
-	deps: InsightLaneDeps = { room: slowLaneRoom, handle: runDirect },
+	deps: InsightLaneDeps = {
+		room: slowLaneRoom,
+		handle: runDirect,
+		exhausted: providersExhausted,
+	},
 ): Promise<number> {
 	let handled = 0;
 
 	while (handled < DISPATCH.insight.batch) {
 		if (signal?.aborted) break;
 
-		if (await providersExhausted()) {
+		if (await deps.exhausted()) {
 			handled += await runGateLane(DISPATCH.insight.gate.batch, signal);
 			break;
 		}

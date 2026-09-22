@@ -65,7 +65,11 @@ describe("the fast lane and the slow lane", () => {
 		const forward = await seed("forward", 1);
 		const { handled, handle } = recorder();
 
-		await runInsightLane(undefined, { room: async () => 0, handle });
+		await runInsightLane(undefined, {
+			room: async () => 0,
+			handle,
+			exhausted: async () => false,
+		});
 
 		const mine = handled.filter((entry) => entry.task.reason === reason);
 		expect(mine.map((entry) => entry.task.id)).toEqual(forward);
@@ -79,11 +83,10 @@ describe("the fast lane and the slow lane", () => {
 	});
 
 	it("reads only as many backfill rows as the bucket allows, in the slow lane", async () => {
-		const before = await db.agentTask.findMany({
+		await seed("backfill", 3);
+		const before = await db.agentTask.count({
 			where: { reason, finishedAt: null },
-			select: { id: true },
 		});
-		expect(before).toHaveLength(3);
 		const { handled, handle } = recorder();
 		let asked = 0;
 
@@ -93,6 +96,7 @@ describe("the fast lane and the slow lane", () => {
 				return asked === 1 ? 2 : 0;
 			},
 			handle,
+			exhausted: async () => false,
 		});
 
 		const mine = handled.filter((entry) => entry.task.reason === reason);
@@ -103,6 +107,8 @@ describe("the fast lane and the slow lane", () => {
 				(entry) => readAgentTaskOrigin(entry.task.payload) === "backfill",
 			),
 		).toBe(true);
-		expect(await open(before.map((row) => row.id))).toHaveLength(1);
+		expect(
+			await db.agentTask.count({ where: { reason, finishedAt: null } }),
+		).toBe(before - 2);
 	});
 });

@@ -28,7 +28,12 @@ import {
 import { experimental_chatgpt } from "eve/models/openai";
 import { z } from "zod";
 import { chatgptLoginExists } from "./codex-binary";
-import { type SharedKeyTenant, withKeyBucket } from "./key-bucket";
+import {
+	type KeyBucket,
+	keyBucket,
+	type SharedKeyTenant,
+	withKeyBucket,
+} from "./key-bucket";
 import { MODEL } from "./model-config";
 import { fixedAi } from "./plan-limits";
 import { withSpendMeter } from "./spend-meter";
@@ -195,10 +200,16 @@ export function openrouterModel(apiKey: string, model: string): ModelObject {
 	}).chat(model);
 }
 
-export function fallbackModel(): LanguageModel {
-	return openrouterModel(
-		process.env.OPENROUTER_API_KEY?.trim() || "unset",
-		AGENT_PROVIDER_DEFAULTS.openrouter.model,
+export function fallbackModel(
+	bucket: () => KeyBucket = keyBucket,
+): LanguageModel {
+	return withKeyBucket(
+		openrouterModel(
+			process.env.OPENROUTER_API_KEY?.trim() || "unset",
+			AGENT_PROVIDER_DEFAULTS.openrouter.model,
+		),
+		sharedKeyTenant,
+		bucket,
 	);
 }
 

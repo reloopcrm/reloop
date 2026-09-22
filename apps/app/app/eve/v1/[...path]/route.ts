@@ -6,7 +6,7 @@ import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { connection } from "next/server";
 import { z } from "zod";
 import {
-	AGENT_URL,
+	agentUrl,
 	bridgeConfigured,
 	mintBridgeToken,
 } from "@/lib/agent-bridge";
@@ -34,7 +34,7 @@ async function bridge(request: Request): Promise<Response> {
 	if (!session) return NOT_SIGNED_IN();
 
 	const url = new URL(request.url);
-	const target = `${AGENT_URL}${url.pathname}${url.search}`;
+	const target = `${agentUrl()}${url.pathname}${url.search}`;
 
 	const headers = new Headers(request.headers);
 

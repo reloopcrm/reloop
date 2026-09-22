@@ -1,4 +1,5 @@
-const MINUTE_MS = 60_000;
+const SECOND_MS = 1_000;
+const MINUTE_MS = 60 * SECOND_MS;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
 export const DISPATCH = {
@@ -76,6 +77,24 @@ export const DISPATCH = {
 	tenants: {
 		concurrency: 8,
 		budgetMs: 3 * MINUTE_MS,
+	},
+
+	bucket: {
+		envVar: "AGENT_SHARED_KEY_PER_MINUTE",
+		perMinute: 300,
+		fastReserve: 0.3,
+		waitMaxMs: 30 * SECOND_MS,
+		share: {
+			byPlan: {
+				trial: 0.05,
+				start: 0.1,
+				standard: 0.15,
+				plus: 0.2,
+				team: 0.3,
+				office: 0.4,
+			},
+			other: 0.1,
+		},
 	},
 
 	retention: {

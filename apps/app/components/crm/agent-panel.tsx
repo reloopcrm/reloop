@@ -45,6 +45,7 @@ import {
 } from "@crm/ui/components/message-scroller";
 import { Spinner } from "@crm/ui/components/spinner";
 import Wordmark from "@crm/ui/components/wordmark";
+import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEveAgent } from "eve/react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -366,6 +367,9 @@ function Idle({
 
 function Failure({ message }: { message: string }) {
 	const t = useT();
+	const known = Object.values(PLAN_LIMIT_MESSAGES).includes(
+		message as (typeof PLAN_LIMIT_MESSAGES)[keyof typeof PLAN_LIMIT_MESSAGES],
+	);
 	const hint = message.includes("not reachable")
 		? t("Start it with `bun run dev`, or check AGENT_URL.")
 		: message.includes("not configured")
@@ -374,7 +378,9 @@ function Failure({ message }: { message: string }) {
 
 	return (
 		<div className="border-t px-4 py-3 text-xs sm:px-5">
-			<p className="wrap-break-word text-destructive">{message}</p>
+			<p className="wrap-break-word text-destructive">
+				{known ? t(message) : message}
+			</p>
 			{hint ? (
 				<p className="wrap-break-word text-muted-foreground text-xs">{hint}</p>
 			) : null}

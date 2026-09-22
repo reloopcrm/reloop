@@ -13,6 +13,7 @@
 		"./builder-question": "./src/builder-question.ts",
 		"./chatgpt-login": "./src/chatgpt-login.ts",
 		"./conversations": "./src/conversations.ts",
+		"./plan-limit-reason": "./src/plan-limit-reason.ts",
 		"./deal-stage-names": "./src/deal-stage-names.ts",
 		"./draft-style": "./src/draft-style.ts",
 		"./enrichment-queue": "./src/enrichment-queue.ts",

@@ -23,6 +23,8 @@ const microsoftSyncStatusOutput = z.enum(
 );
 
 export const backfillProgressOutput = z.object({
+	state: z.enum(["running", "done"]),
+	before: z.string(),
 	reached: z.string().nullable(),
 	floor: z.string().nullable(),
 });

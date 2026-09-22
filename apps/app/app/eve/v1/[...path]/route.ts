@@ -1,6 +1,8 @@
 import { db } from "@crm/db";
+import { planLimitsOf, readMonthlyUsage, roomFor } from "@crm/db/plan-usage";
 import { currentTenantId } from "@crm/db/tenant-context";
 import { CONVERSATIONS } from "@crm/validation/conversations";
+import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { connection } from "next/server";
 import { z } from "zod";
 import {
@@ -94,6 +96,13 @@ async function bridge(request: Request): Promise<Response> {
 				{ status: 404 },
 			);
 		}
+	}
+
+	if (sendsMessage(request.method, url.pathname)) {
+		const refusal = await limitRefusal(
+			builderConversationId ? "builder" : "chat",
+		);
+		if (refusal) return Response.json({ error: refusal }, { status: 429 });
 	}
 
 	headers.set(
@@ -216,6 +225,23 @@ function cuid(value: string | null): string | undefined {
 function recordId(value: string | null): string | undefined {
 	const trimmed = value?.trim();
 	return trimmed ? trimmed : undefined;
+}
+
+function sendsMessage(method: string, pathname: string): boolean {
+	if (method !== "POST" || pathname === RESET_SESSION_PATH) return false;
+	return pathname === CREATE_SESSION_PATH || sessionFromPath(pathname) !== null;
+}
+
+async function limitRefusal(
+	counter: "chat" | "builder",
+): Promise<string | null> {
+	try {
+		const limits = await planLimitsOf(db);
+		const room = roomFor(counter, await readMonthlyUsage(db), limits);
+		return room !== null && room <= 0 ? PLAN_LIMIT_MESSAGES[counter] : null;
+	} catch {
+		return null;
+	}
 }
 
 function sessionFromPath(pathname: string): string | null {

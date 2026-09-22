@@ -5,6 +5,7 @@ import {
 } from "@crm/db";
 import { clampImportSince, limitsOf } from "@crm/db/plans";
 import { readPlan } from "@crm/db/settings";
+import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import {
@@ -215,7 +216,14 @@ export class OutlookSyncService {
 			const remaining = MAILBOX.sync.forwardMax - seen;
 			const messages = (page.data.value ?? []).slice(0, Math.max(remaining, 0));
 
-			const run = await this.file(row, mailbox, messages, excluded, deadlineAt);
+			const run = await this.file(
+				row,
+				mailbox,
+				messages,
+				excluded,
+				deadlineAt,
+				"forward",
+			);
 			seen += run.processed;
 			written += run.written;
 			if (run.newest && run.newest > furthest) furthest = run.newest;
@@ -350,7 +358,14 @@ export class OutlookSyncService {
 			}
 
 			const messages = all.slice(0, Math.min(left, remaining));
-			const run = await this.file(row, mailbox, messages, excluded, deadlineAt);
+			const run = await this.file(
+				row,
+				mailbox,
+				messages,
+				excluded,
+				deadlineAt,
+				"backfill",
+			);
 			if (run.oldest) plan = reachedBack(plan, run.oldest);
 
 			written += run.written;
@@ -371,6 +386,7 @@ export class OutlookSyncService {
 		messages: readonly GraphMessage[],
 		excluded: Set<string>,
 		deadlineAt: number,
+		lane: AgentTaskOrigin,
 	): Promise<{
 		written: number;
 		processed: number;
@@ -407,7 +423,7 @@ export class OutlookSyncService {
 
 			const stored = await this.threads.store(
 				row,
-				{ mailbox, origin: "outlook" },
+				{ mailbox, origin: "outlook", lane },
 				parsed,
 				context,
 			);

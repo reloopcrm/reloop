@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { db } from "@crm/db";
+import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 
 const suffix = process.env.TEST_RUN_ID ?? "eve-route-spec";
 const owner = `eve-route-owner-${suffix}`;
@@ -9,6 +10,7 @@ const orphanSession = `ses_${suffix}_orphan`;
 const mintedSession = `ses_${suffix}_minted`;
 
 let signedIn = owner;
+let chatRoom: number | null = null;
 let upstreamCalls: string[] = [];
 let upstream: () => Response = () => Response.json({ ok: true });
 let contactId: string;
@@ -16,6 +18,7 @@ let handler: (request: Request) => Promise<Response>;
 
 const realFetch = globalThis.fetch;
 const session = { ...(await import("@/lib/session")) };
+const planUsage = { ...(await import("@crm/db/plan-usage")) };
 
 beforeAll(async () => {
 	process.env.AGENT_BRIDGE_SECRET = "eve-route-spec-secret";
@@ -25,6 +28,12 @@ beforeAll(async () => {
 	mock.module("next/server", () => ({
 		...nextServer,
 		connection: async () => {},
+	}));
+	mock.module("@crm/db/plan-usage", () => ({
+		...planUsage,
+		planLimitsOf: async () => ({ chatPerMonth: chatRoom }),
+		readMonthlyUsage: async () => ({ chat: 0 }),
+		roomFor: () => chatRoom,
 	}));
 	mock.module("@/lib/session", () => ({
 		...session,
@@ -62,6 +71,7 @@ beforeAll(async () => {
 afterAll(async () => {
 	globalThis.fetch = realFetch;
 	mock.module("@/lib/session", () => session);
+	mock.module("@crm/db/plan-usage", () => planUsage);
 	await cleanup();
 });
 
@@ -139,6 +149,31 @@ describe("eve bridge route", () => {
 		signedIn = stranger;
 		const foreign = await call(`/eve/v1/session/${mintedSession}/stream`);
 		expect(foreign.status).toBe(404);
+	});
+
+	it("refuses a message over the plan's chat limit with the reason, before the agent is called", async () => {
+		signedIn = owner;
+		chatRoom = 0;
+		upstream = () => Response.json({ ok: true });
+		try {
+			const response = await call(`/eve/v1/session/${ownedSession}`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ message: "One more question" }),
+			});
+
+			expect(response.status).toBe(429);
+			expect(await response.json()).toEqual({
+				error: PLAN_LIMIT_MESSAGES.chat,
+			});
+			expect(upstreamCalls).toEqual([]);
+
+			upstream = () => new Response("event-stream", { status: 200 });
+			const stream = await call(`/eve/v1/session/${ownedSession}/stream`);
+			expect(stream.status).toBe(200);
+		} finally {
+			chatRoom = null;
+		}
 	});
 
 	it("does not treat the reset route as a session id", async () => {

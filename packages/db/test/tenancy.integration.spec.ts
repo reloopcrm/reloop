@@ -186,6 +186,23 @@ describe("two tenant databases behind one db", () => {
 		});
 	});
 
+	it("aborts the signal of a tenant past its budget, so the work stops instead of running on", async () => {
+		const signals = new Map<string, AbortSignal>();
+
+		await forEachTenant(
+			async (signal) => {
+				signals.set(currentTenant().id, signal);
+				if (currentTenant().id === a.id) {
+					await new Promise((resolve) => setTimeout(resolve, 600));
+				}
+			},
+			{ budgetMs: 200 },
+		);
+
+		expect(signals.get(a.id)?.aborted).toBe(true);
+		expect(signals.get(b.id)?.aborted).toBe(false);
+	});
+
 	it("runs one tenant at a time when asked, in registry order", async () => {
 		const order: string[] = [];
 

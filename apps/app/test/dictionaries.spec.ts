@@ -4,6 +4,7 @@ import { USAGE_PROBE_OUTCOMES } from "@crm/db/agent-tasks";
 import { LOCALE, LOCALES } from "@crm/db/locale";
 import { AGENT_MODEL_OPTIONS } from "@crm/db/settings";
 import { BRAND } from "@crm/ui/lib/brand";
+import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import ts from "typescript";
 import {
 	GRANT_ACCESS_COPY,
@@ -207,6 +208,7 @@ describe("the texts that reach t() through a variable", () => {
 		...Object.values(GRANT_ACCESS_COPY),
 		GRANT_ACCESS_COPY_BOTH,
 		...Object.values(USAGE_PROBE_OUTCOMES),
+		...Object.values(PLAN_LIMIT_MESSAGES),
 		BRAND.tagline,
 	];
 

@@ -1,4 +1,5 @@
 import { forEachTenant } from "@crm/db/tenancy";
+import { TENANCY } from "@crm/db/tenancy-config";
 import { currentTenantId } from "@crm/db/tenant-context";
 import {
 	Injectable,
@@ -11,7 +12,7 @@ import type { EnvironmentVariables } from "../config/env.validation";
 import { RatesService } from "../currency/rates.service";
 import { WinBackFollowUpService } from "../reactivation/win-back-follow-up.service";
 import { MailboxSyncService } from "./mailbox-sync.service";
-import { selfHostTimers } from "./sync.config";
+import { MAILBOX_SYNC, selfHostTimers } from "./sync.config";
 
 @Injectable()
 export class MailboxSyncHeartbeatService
@@ -20,7 +21,7 @@ export class MailboxSyncHeartbeatService
 	private readonly logger = new Logger(MailboxSyncHeartbeatService.name);
 	private readonly timers: ReturnType<typeof selfHostTimers>;
 	private readonly handles: ReturnType<typeof setInterval>[] = [];
-	private readonly running = new Set<string>();
+	private readonly running = new Map<string, number>();
 
 	constructor(
 		private readonly sync: MailboxSyncService,
@@ -79,7 +80,7 @@ export class MailboxSyncHeartbeatService
 
 	private async tick(): Promise<void> {
 		try {
-			await forEachTenant(() => this.tickTenant());
+			await forEachTenant((signal) => this.tickTenant(signal));
 		} catch (error) {
 			this.logger.error(
 				{ message: "Mailbox sync heartbeat failed" },
@@ -88,16 +89,25 @@ export class MailboxSyncHeartbeatService
 		}
 	}
 
-	private async tickTenant(): Promise<void> {
+	private async tickTenant(signal: AbortSignal): Promise<void> {
 		const key = currentTenantId() ?? "";
-		if (this.running.has(key)) return;
-		this.running.add(key);
+		const now = Date.now();
+		const leasedUntil = this.running.get(key);
+		if (leasedUntil !== undefined && leasedUntil > now) return;
+		this.running.set(
+			key,
+			now + TENANCY.loop.budgetMs + MAILBOX_SYNC.heartbeat.leaseGraceMs,
+		);
 
 		try {
-			await this.sync.runDue();
+			await this.sync.runDue(signal);
 		} finally {
 			this.running.delete(key);
 		}
+	}
+
+	leaseOf(tenantId: string): number | null {
+		return this.running.get(tenantId) ?? null;
 	}
 
 	private async writeFollowUps(): Promise<void> {

@@ -1,6 +1,7 @@
 import { EnrichmentStatus } from "@crm/db";
-import { waitsForPerson } from "@crm/db/agent-tasks";
+import { PRIORITY, waitsForPerson } from "@crm/db/agent-tasks";
 import { RESEARCH_RUN_KIND } from "@crm/db/plans";
+import { currentTenantId } from "@crm/db/tenant-context";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import { AGENT_FUNCTION_OFF_OUTCOME } from "@crm/validation/agent-functions";
 import {
@@ -40,6 +41,7 @@ import {
 } from "./insight";
 import { typesafeKey } from "./jev";
 import { drainGateCounts, gateCounts } from "./jev-meter";
+import { inLane, keyBucket, type Lane } from "./key-bucket";
 import {
 	isExhaustion,
 	modelUnavailable,
@@ -48,7 +50,13 @@ import {
 	readProviderFailure,
 	resumeAt,
 } from "./model";
-import { limitOutcome, monthlyRoom, resumeNextMonth } from "./plan-limits";
+import {
+	fixedAi,
+	limitOutcome,
+	monthlyRoom,
+	planId,
+	resumeNextMonth,
+} from "./plan-limits";
 import { runPlaybookLearn } from "./playbook";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
@@ -216,7 +224,23 @@ async function runGateLane(
 	return cleared;
 }
 
-export async function runInsightLane(signal?: AbortSignal): Promise<number> {
+export const BACKFILL_PRIORITY = PRIORITY.threadInsightBackfill;
+
+export async function slowLaneRoom(): Promise<number> {
+	if (!(await fixedAi())) return Number.POSITIVE_INFINITY;
+
+	return keyBucket().slowAllowance(currentTenantId(), await planId());
+}
+
+export type InsightLaneDeps = {
+	room: () => Promise<number>;
+	handle: (task: LeasedTask) => Promise<void>;
+};
+
+export async function runInsightLane(
+	signal?: AbortSignal,
+	deps: InsightLaneDeps = { room: slowLaneRoom, handle: runDirect },
+): Promise<number> {
 	let handled = 0;
 
 	while (handled < DISPATCH.insight.batch) {
@@ -227,15 +251,36 @@ export async function runInsightLane(signal?: AbortSignal): Promise<number> {
 			break;
 		}
 
-		const tasks = await claimDue(
-			Math.min(DISPATCH.insight.concurrency, DISPATCH.insight.batch - handled),
+		const want = Math.min(
+			DISPATCH.insight.concurrency,
+			DISPATCH.insight.batch - handled,
+		);
+		let lane: Lane = "fast";
+		let tasks = await claimDue(
+			want,
 			{ only: [...MODEL_KINDS] },
 			DISPATCH.insight.leaseMs,
+			{ above: BACKFILL_PRIORITY },
 		);
 
-		if (tasks.length === 0) break;
+		if (tasks.length === 0) {
+			const allowed = Math.min(want, await deps.room());
+			if (allowed <= 0) break;
 
-		await runLimited(DISPATCH.insight.concurrency, tasks, runDirect, signal);
+			lane = "slow";
+			tasks = await claimDue(
+				allowed,
+				{ only: [INSIGHT_KIND] },
+				DISPATCH.insight.leaseMs,
+				{ atMost: BACKFILL_PRIORITY },
+			);
+			if (tasks.length === 0) break;
+		}
+
+		const batch = tasks;
+		await inLane(lane, () =>
+			runLimited(DISPATCH.insight.concurrency, batch, deps.handle, signal),
+		);
 		handled += tasks.length;
 	}
 
@@ -710,12 +755,14 @@ const drains = tenantState(() => collapsing(sweepOnce));
 
 export function drainAll(
 	start: (task: LeasedTask) => Promise<{ id: string }>,
+	outer?: AbortSignal,
 ): Promise<void> {
-	return drains()(start);
+	return drains()(start, outer);
 }
 
 async function sweepOnce(
 	start: (task: LeasedTask) => Promise<{ id: string }>,
+	outer?: AbortSignal,
 ): Promise<void> {
 	const state = health();
 	const { unsettledSweeps } = state;
@@ -732,6 +779,9 @@ async function sweepOnce(
 
 	const controller = new AbortController();
 	const signal = controller.signal;
+	const stop = () => controller.abort();
+	if (outer?.aborted) stop();
+	else outer?.addEventListener("abort", stop, { once: true });
 
 	const sweep = (async () => {
 		await Promise.all([
@@ -806,6 +856,7 @@ async function sweepOnce(
 		throw error;
 	} finally {
 		clearTimeout(timer);
+		outer?.removeEventListener("abort", stop);
 		state.lastSweepFinishedAt = new Date();
 	}
 }

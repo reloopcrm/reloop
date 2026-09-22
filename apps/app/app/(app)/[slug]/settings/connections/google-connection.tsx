@@ -43,6 +43,7 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
+import { importProgressOf } from "@/lib/import-progress";
 import { isSyncing, SYNC_POLL_MS } from "@/lib/sync-status";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -50,9 +51,9 @@ import {
 	DEFAULT_IMPORT_HISTORY,
 	historyOf,
 	ImportHistoryField,
-	ImportHistoryProgress,
 	ImportHistoryRow,
 	type ImportHistoryValue,
+	ImportProgress,
 	importSinceFor,
 } from "./import-history";
 import { OAuthAppCard } from "./oauth-app-card";
@@ -246,7 +247,8 @@ export function GoogleConnection({
 		...trpc.google.status.queryOptions(),
 		refetchInterval: (query) =>
 			query.state.data?.sources.some(
-				(source) => isSyncing(source.status) || source.backfill !== null,
+				(source) =>
+					isSyncing(source.status) || source.backfill?.state === "running",
 			)
 				? SYNC_POLL_MS
 				: false,
@@ -343,7 +345,8 @@ export function GoogleConnection({
 
 	const healthy = failing.length === 0 && hasRefreshToken;
 	const mail = sources.find((source) => source.source === "gmail");
-	const reading = healthy && mail?.backfill != null;
+	const progress = importProgressOf(mail?.backfill);
+	const reading = healthy && mail?.backfill?.state === "running";
 
 	return (
 		<Card>
@@ -433,14 +436,10 @@ export function GoogleConnection({
 						) : (
 							t("Waiting for the first check")
 						)}
-						{mail?.backfill ? (
-							<>
-								{" · "}
-								<ImportHistoryProgress reached={mail.backfill.reached} />
-							</>
-						) : null}
 					</p>
 				)}
+
+				{healthy && progress ? <ImportProgress progress={progress} /> : null}
 
 				{sources.map((source) => {
 					const copy = SOURCES[source.source];

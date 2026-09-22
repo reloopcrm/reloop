@@ -15,8 +15,15 @@ import type {
 	FieldDefinitionWithOptions,
 	FieldValueJson,
 } from "@crm/db/fields";
-import { fixedAiWith } from "@crm/db/plan-usage";
+import { fixedAiWith, planLimitsOf } from "@crm/db/plan-usage";
+import {
+	DRAFT_KIND,
+	monthlyBudget,
+	nextMonthStart,
+	startOfMonth,
+} from "@crm/db/plans";
 import { readDraftRole } from "@crm/validation/draft-style";
+import type { LimitReason } from "@crm/validation/plan-limit-reason";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 import {
 	ConflictException,
@@ -780,9 +787,16 @@ export class ContactsService {
 			orderBy: { dueAt: "asc" },
 			select: { dueAt: true },
 		});
-		const held = open && open.dueAt.getTime() > Date.now() ? open.dueAt : null;
+		const now = new Date();
+		const held =
+			open && open.dueAt.getTime() > now.getTime() ? open.dueAt : null;
 		const queued = open !== null && held === null;
-		const waitingUntil = held?.toISOString() ?? null;
+		const planReached = await this.draftLimitReached(now);
+		const waitingUntil =
+			held?.toISOString() ??
+			(planReached && !queued ? nextMonthStart(now).toISOString() : null);
+		const limit: LimitReason | null =
+			waitingUntil === null ? null : planReached ? "plan" : "provider";
 
 		const stored = contact.emailDraft;
 		if (!stored) {
@@ -798,7 +812,14 @@ export class ContactsService {
 					},
 				})) > 0;
 
-			return { contactId: id, queued, waitingUntil, failed, draft: null };
+			return {
+				contactId: id,
+				queued,
+				waitingUntil,
+				limit,
+				failed,
+				draft: null,
+			};
 		}
 
 		const newest = await this.db.emailThread.aggregate({
@@ -811,6 +832,7 @@ export class ContactsService {
 			contactId: id,
 			queued,
 			waitingUntil,
+			limit,
 			failed: false,
 			draft: {
 				subject: stored.subject,
@@ -839,8 +861,20 @@ export class ContactsService {
 			throw new NotFoundException(`No contact with id ${id}.`);
 		}
 
-		await this.agent.emailDraftRequested(id, instruction?.trim() || null);
+		if (!(await this.draftLimitReached(new Date()))) {
+			await this.agent.emailDraftRequested(id, instruction?.trim() || null);
+		}
 		return this.draft(id);
+	}
+
+	private async draftLimitReached(now: Date): Promise<boolean> {
+		const budget = monthlyBudget(DRAFT_KIND, await planLimitsOf(this.db));
+		if (budget === null) return false;
+
+		const used = await this.db.agentTask.count({
+			where: { kind: DRAFT_KIND, createdAt: { gte: startOfMonth(now) } },
+		});
+		return used >= budget;
 	}
 
 	async enrich(id: string): Promise<{ id: string; queued: boolean }> {

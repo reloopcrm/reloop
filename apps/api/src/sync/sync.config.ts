@@ -4,7 +4,7 @@ const SECOND_MS = 1_000;
 const HOUR_MS = 3_600 * SECOND_MS;
 
 export const MAILBOX_SYNC = {
-	heartbeat: { minIntervalMs: 15 * SECOND_MS },
+	heartbeat: { minIntervalMs: 15 * SECOND_MS, leaseGraceMs: 60 * SECOND_MS },
 	rates: { everyMs: 24 * HOUR_MS },
 } as const;
 

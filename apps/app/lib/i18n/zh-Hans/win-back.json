@@ -313,5 +313,7 @@
 	"How many {unit} per order count as serious.": "每笔订单达到多少{unit}算作认真。",
 	"A task to get back to {name} is due in {count} days.": "已创建任务，{count} 天后提醒你联系 {name}。",
 	"Get back to {name}": "再次联系 {name}",
-	"Remind me in {count} days": "{count} 天后提醒我"
+	"Remind me in {count} days": "{count} 天后提醒我",
+	"The monthly limit of your plan for chat is reached. The conversation continues next month. Upgrade your plan to continue now.": "你的套餐本月的聊天额度已用完。对话下个月继续。升级套餐即可现在继续。",
+	"The monthly limit of your plan for the agent builder is reached. The conversation continues next month. Upgrade your plan to continue now.": "你的套餐本月的代理构建器额度已用完。对话下个月继续。升级套餐即可现在继续。"
 }

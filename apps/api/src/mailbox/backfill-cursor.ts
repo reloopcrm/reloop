@@ -100,6 +100,8 @@ export function isBackfillRunning(backfill: MailboxBackfill): boolean {
 }
 
 export type BackfillProgress = {
+	state: MailboxBackfill["state"];
+	before: string;
 	reached: string | null;
 	floor: string | null;
 };
@@ -108,7 +110,8 @@ export function backfillProgress(
 	raw: string | null | undefined,
 ): BackfillProgress | null {
 	const read = readBackfill(raw);
-	if (read.outcome !== "ok" || !isBackfillRunning(read.backfill)) return null;
+	if (read.outcome !== "ok") return null;
 
-	return { reached: read.backfill.reached, floor: read.backfill.floor };
+	const { state, before, reached, floor } = read.backfill;
+	return { state, before, reached, floor };
 }

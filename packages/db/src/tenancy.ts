@@ -372,10 +372,10 @@ export type TenantLoopOptions = {
 };
 
 export async function forEachTenant<T>(
-	fn: () => Promise<T>,
+	fn: (signal: AbortSignal) => Promise<T>,
 	options: TenantLoopOptions = {},
 ): Promise<T | TenantLoop<T>> {
-	if (!isHosted()) return fn();
+	if (!isHosted()) return fn(new AbortController().signal);
 
 	const concurrency = options.concurrency ?? TENANCY.loop.concurrency;
 	const budgetMs = options.budgetMs ?? TENANCY.loop.budgetMs;
@@ -402,19 +402,20 @@ export async function forEachTenant<T>(
 
 async function withinBudget<T>(
 	current: Tenant,
-	fn: () => Promise<T>,
+	fn: (signal: AbortSignal) => Promise<T>,
 	budgetMs: number,
 ): Promise<TenantOutcome<T>> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	const controller = new AbortController();
 	const expired = new Promise<never>((_, reject) => {
-		timer = setTimeout(
-			() => reject(new Error(`Tenant budget of ${budgetMs} ms exceeded`)),
-			budgetMs,
-		);
+		timer = setTimeout(() => {
+			controller.abort();
+			reject(new Error(`Tenant budget of ${budgetMs} ms exceeded`));
+		}, budgetMs);
 	});
 
 	try {
-		const work = runAsTenant(current, fn);
+		const work = runAsTenant(current, () => fn(controller.signal));
 		work.catch(() => {});
 		const result = await Promise.race([work, expired]);
 		return { tenantId: current.id, ok: true, result };

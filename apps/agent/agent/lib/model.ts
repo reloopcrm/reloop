@@ -18,7 +18,7 @@ import {
 	readAgentProvider,
 	readingModelFor,
 } from "@crm/db/settings";
-import { isHosted } from "@crm/db/tenant-context";
+import { currentTenant, isHosted } from "@crm/db/tenant-context";
 import {
 	type LanguageModel,
 	type LanguageModelMiddleware,
@@ -28,6 +28,7 @@ import {
 import { experimental_chatgpt } from "eve/models/openai";
 import { z } from "zod";
 import { chatgptLoginExists } from "./codex-binary";
+import { withKeyBucket } from "./key-bucket";
 import { MODEL } from "./model-config";
 import { fixedAi } from "./plan-limits";
 import { withSpendMeter } from "./spend-meter";
@@ -94,9 +95,22 @@ export function fixedCandidates(
 			label: `Included AI (${model})`,
 			model,
 			contextWindowTokens: MODEL.fixed.contextWindowTokens,
-			build: () => withSpendMeter(openrouterModel(key, model), model, kind),
+			build: () =>
+				withKeyBucket(
+					withSpendMeter(openrouterModel(key, model), model, kind),
+					sharedKeyTenant,
+				),
 		},
 	];
+}
+
+function sharedKeyTenant(): { id: string | null; plan: string | null } {
+	try {
+		const tenant = currentTenant();
+		return { id: tenant.id, plan: tenant.plan };
+	} catch {
+		return { id: null, plan: null };
+	}
 }
 
 async function chainFor(

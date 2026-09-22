@@ -44,13 +44,20 @@ export async function taskKindEnabled(kind: string): Promise<boolean> {
 	}
 }
 
+export type PriorityBound = { above?: number; atMost?: number };
+
+const PRIORITY_RANGE = { min: -2_147_483_648, max: 2_147_483_647 } as const;
+
 export async function claimDue(
 	limit: number,
 	kinds: { only: readonly string[] } | { except: readonly string[] },
 	leaseMs = LEASE_MS,
+	priority: PriorityBound = {},
 ): Promise<LeasedTask[]> {
 	const now = new Date();
 	const until = new Date(now.getTime() + leaseMs);
+	const above = priority.above ?? PRIORITY_RANGE.min;
+	const atMost = priority.atMost ?? PRIORITY_RANGE.max;
 
 	const list = "only" in kinds ? [...kinds.only] : [...kinds.except];
 	if ("only" in kinds && list.length === 0) return [];
@@ -68,6 +75,8 @@ export async function claimDue(
 				AND t2."dueAt" <= ${now}
 				AND (t2."leasedUntil" IS NULL OR t2."leasedUntil" < ${now})
 				AND t2."attempts" < ${MAX_ATTEMPTS}
+				AND t2."priority" > ${above}
+				AND t2."priority" <= ${atMost}
 				AND CASE
 					WHEN ${onlyMode}::boolean THEN t2.kind = ANY(${list}::text[])
 					ELSE t2.kind <> ALL(${list}::text[])

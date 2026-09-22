@@ -99,6 +99,7 @@ export const PRIORITY = {
 	slackPeople: 150,
 	slackJoin: 950,
 	threadInsight: 700,
+	threadInsightBackfill: 10,
 	threadDigest: 760,
 	rulesTune: 650,
 	usageProbe: 990,

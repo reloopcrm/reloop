@@ -25,6 +25,7 @@ import { Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
 import { Spinner } from "@crm/ui/components/spinner";
 import { Textarea } from "@crm/ui/components/textarea";
+import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -99,6 +100,7 @@ export function EmailDraftDialog({
 	const draft = state.data?.draft ?? null;
 	const failed = state.data?.failed === true;
 	const held = state.data?.waitingUntil ?? null;
+	const planLimit = state.data?.limit === "plan";
 	const waiting = learning || write.isPending;
 	const blocked = waiting || held !== null;
 	const rules = style.data?.rules ?? [];
@@ -113,7 +115,12 @@ export function EmailDraftDialog({
 			const current = await queries.fetchQuery(
 				trpc.contacts.draft.queryOptions({ id: contactId }),
 			);
-			if (!current.draft && !current.queued && !current.waitingUntil)
+			if (
+				!current.draft &&
+				!current.queued &&
+				!current.waitingUntil &&
+				current.limit === null
+			)
 				write.mutate({ id: contactId });
 		} catch (error) {
 			toast.error(
@@ -177,10 +184,16 @@ export function EmailDraftDialog({
 
 				{held && !draft ? (
 					<p className="py-8 text-muted-foreground text-sm">
-						{t(
-							"The subscription limit is reached. The agent writes this draft when the limit resets, in",
-						)}{" "}
-						<LocalRelativeTime date={held} />
+						{planLimit ? (
+							t(PLAN_LIMIT_MESSAGES.drafts)
+						) : (
+							<>
+								{t(
+									"The subscription limit is reached. The agent writes this draft when the limit resets, in",
+								)}{" "}
+								<LocalRelativeTime date={held} />
+							</>
+						)}
 					</p>
 				) : waiting && !draft ? (
 					<div className="flex items-center gap-2 py-8 text-muted-foreground text-sm">

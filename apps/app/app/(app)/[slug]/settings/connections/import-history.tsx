@@ -2,6 +2,7 @@
 
 import { Field, FieldDescription, FieldLabel } from "@crm/ui/components/field";
 import { Label } from "@crm/ui/components/label";
+import { Progress } from "@crm/ui/components/progress";
 import {
 	Select,
 	SelectContent,
@@ -11,6 +12,7 @@ import {
 } from "@crm/ui/components/select";
 import { LocalDay } from "@/components/local-date-time";
 import { useT } from "@/lib/i18n/client";
+import type { ImportProgress as ImportProgressState } from "@/lib/import-progress";
 
 export const IMPORT_HISTORY = [
 	{ value: "all", label: "Everything in the mailbox" },
@@ -131,14 +133,42 @@ export function ImportHistoryRow({
 	);
 }
 
-export function ImportHistoryProgress({ reached }: { reached: string | null }) {
+export function ImportProgress({
+	progress,
+}: {
+	progress: ImportProgressState;
+}) {
 	const t = useT();
 
-	if (!reached) return <>{t("Reading the history, starting now")}</>;
+	if (progress.done) {
+		return (
+			<p className="text-muted-foreground text-xs">
+				{t("The mailbox history is imported. Every conversation is in.")}
+			</p>
+		);
+	}
 
 	return (
-		<>
-			{t("Reading the history, back to")} <LocalDay date={reached} />
-		</>
+		<div className="flex flex-col gap-2">
+			<p className="text-muted-foreground text-xs">
+				{progress.reached ? (
+					<>
+						{t("Reading the history, back to")}{" "}
+						<LocalDay date={progress.reached} />
+					</>
+				) : (
+					t("Reading the history, starting now")
+				)}
+				{progress.percent !== null ? (
+					<>
+						{" · "}
+						{t("{percent}% done", { percent: progress.percent })}
+					</>
+				) : null}
+			</p>
+			{progress.percent !== null ? (
+				<Progress value={progress.percent} aria-label={t("Import progress")} />
+			) : null}
+		</div>
 	);
 }

@@ -86,7 +86,14 @@ day it is connected, and keeps reading new mail at the same time.
   sync tick, so it costs nothing.
 - **The card says what is happening while it happens.** The status reads
   `Reading mail` and the line under it reads `Reading the history, back to
-  <date>`. Never a percentage: the API cannot count a mailbox it has not read.
+  <date>`, with a percentage and a bar when the backfill has a floor. The
+  percentage is a share of time, `(before - reached) / (before - floor)`, never
+  a count: the API cannot count a mailbox it has not read. Everything in the
+  mailbox has no floor, so it gets the sentence and no bar.
+  `apps/app/lib/import-progress.ts` is the one place that computes it, the
+  connections index and both mailbox cards render it through `ImportProgress`,
+  and a finished backfill says so for seven days. `backfillProgress` in the API
+  carries `state` so the card can tell done from never started.
 - **Changing the answer replans the backfill**, because the floor moved.
   Everything already filed stays.
 - **Deleting synced data ends the backfill.** Google and Outlook promise that

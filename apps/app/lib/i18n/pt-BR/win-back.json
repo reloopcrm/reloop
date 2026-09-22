@@ -313,5 +313,7 @@
 	"How many {unit} per order count as serious.": "A quantidade de {unit} por pedido que conta como séria.",
 	"A task to get back to {name} is due in {count} days.": "Uma tarefa vai te lembrar de {name} em {count} dias.",
 	"Get back to {name}": "Retomar contato com {name}",
-	"Remind me in {count} days": "Me lembrar em {count} dias"
+	"Remind me in {count} days": "Me lembrar em {count} dias",
+	"The monthly limit of your plan for chat is reached. The conversation continues next month. Upgrade your plan to continue now.": "O limite mensal do seu plano para o chat foi atingido. A conversa continua no mês que vem. Faça upgrade do plano para continuar agora.",
+	"The monthly limit of your plan for the agent builder is reached. The conversation continues next month. Upgrade your plan to continue now.": "O limite mensal do seu plano para o construtor de agentes foi atingido. A conversa continua no mês que vem. Faça upgrade do plano para continuar agora."
 }

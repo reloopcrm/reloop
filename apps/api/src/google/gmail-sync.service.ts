@@ -5,6 +5,7 @@ import {
 } from "@crm/db";
 import { clampImportSince, limitsOf } from "@crm/db/plans";
 import { readPlan } from "@crm/db/settings";
+import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import {
@@ -217,6 +218,7 @@ export class GmailSyncService {
 			[...ids],
 			MAILBOX.sync.forwardMax,
 			deadlineAt,
+			"forward",
 		);
 
 		const cursor =
@@ -351,6 +353,7 @@ export class GmailSyncService {
 				ids,
 				Math.min(left, remaining),
 				deadlineAt,
+				"backfill",
 			);
 			if (run.oldest) plan = reachedBack(plan, run.oldest);
 
@@ -389,6 +392,7 @@ export class GmailSyncService {
 		ids: readonly string[],
 		cap: number,
 		deadlineAt: number,
+		lane: AgentTaskOrigin,
 	): Promise<Ingested> {
 		const empty: Ingested = {
 			written: 0,
@@ -446,7 +450,7 @@ export class GmailSyncService {
 
 			const stored = await this.threads.store(
 				row,
-				{ mailbox, origin: "gmail" },
+				{ mailbox, origin: "gmail", lane },
 				parsed,
 				context,
 			);

@@ -1,4 +1,5 @@
 import { afterAll, afterEach, expect, it, mock } from "bun:test";
+import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
 GlobalRegistrator.register();
@@ -48,10 +49,17 @@ mock.module("../lib/trpc/client", () => ({
 		},
 	}),
 }));
-const draftState = () => ({
-	draft: { subject, body, role: "buyer" },
-	queued: false,
-});
+let limit: "plan" | "provider" | null = null;
+const draftState = () =>
+	limit
+		? {
+				draft: null,
+				queued: false,
+				waitingUntil: "2026-10-01T00:00:00.000Z",
+				limit,
+				failed: false,
+			}
+		: { draft: { subject, body, role: "buyer" }, queued: false, limit: null };
 mock.module("@tanstack/react-query", () => ({
 	...reactQuery,
 	useQuery: ({ queryKey }: { queryKey: string[] }) => ({
@@ -76,6 +84,7 @@ afterEach(async () => {
 	document.body.innerHTML = "";
 	copied.length = 0;
 	refuseCopy = false;
+	limit = null;
 	success.mockClear();
 	error.mockClear();
 	info.mockClear();
@@ -103,6 +112,16 @@ async function openDraft() {
 	);
 	await act(async () => container.querySelector("button")?.click());
 }
+
+it("says that the plan's monthly draft limit is reached, not that a subscription ran out", async () => {
+	limit = "plan";
+	await openDraft();
+	const dialog = document.querySelector("[role=dialog]");
+	expect(dialog?.textContent).toContain(PLAN_LIMIT_MESSAGES.drafts);
+	expect(dialog?.textContent).not.toContain(
+		"The subscription limit is reached",
+	);
+});
 
 it("keeps the complete subject and body in the mail link", async () => {
 	body = "Vollständiger Entwurf mit Umlauten: Größe und Stückzahl.";

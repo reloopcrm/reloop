@@ -82,7 +82,7 @@ describe("who becomes a contact from an inbound email", () => {
 		const person = `first@${domain}`;
 		const stored = await threads.store(
 			repliedOnly,
-			{ mailbox, origin: "imap" },
+			{ mailbox, origin: "imap", lane: "forward" },
 			inbound(person, `<replied-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -95,7 +95,7 @@ describe("who becomes a contact from an inbound email", () => {
 		const person = `second@${domain}`;
 		const stored = await threads.store(
 			everyone,
-			{ mailbox, origin: "imap" },
+			{ mailbox, origin: "imap", lane: "forward" },
 			inbound(person, `<everyone-${suffix}@mail.test>`),
 			await threads.context(),
 		);

@@ -16,7 +16,7 @@ type Args = Parameters<
 >[0];
 
 const tick = collapsing(async ({ receive, appAuth }: Args) => {
-	await eachActiveTenant("dispatch tick", async () => {
+	await eachActiveTenant("dispatch tick", async (_tenant, signal) => {
 		const auth = { ...appAuth, attributes: tenantAttributes() };
 
 		await Promise.all([
@@ -24,13 +24,16 @@ const tick = collapsing(async ({ receive, appAuth }: Args) => {
 
 			(async () => {
 				await reconcileStaleTasks();
-				await drainAll((task) =>
-					receive(crm, {
-						message: brief(task),
-						target: { taskId: task.id },
-						auth: taskAuth(task, auth),
-					}),
+				await drainAll(
+					(task) =>
+						receive(crm, {
+							message: brief(task),
+							target: { taskId: task.id },
+							auth: taskAuth(task, auth),
+						}),
+					signal,
 				);
+				if (signal.aborted) return;
 				await queueDueAgentRuns();
 				const [builderIds, runIds] = await Promise.all([
 					pendingBuilderSubmissionIds(),

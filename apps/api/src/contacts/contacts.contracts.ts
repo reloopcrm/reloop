@@ -10,6 +10,7 @@ import { CONTACT_WORTH } from "@crm/db/contact-worth";
 import { FIELD_ENTITIES, FIELD_TYPES } from "@crm/db/fields";
 import { INSIGHT_OUTCOMES, INSIGHT_SIDES } from "@crm/db/insights";
 import { DRAFT_STYLE, draftRole } from "@crm/validation/draft-style";
+import { limitReason } from "@crm/validation/plan-limit-reason";
 import { z } from "zod";
 import { bulkIdsInput } from "../crm/bulk";
 import {
@@ -287,6 +288,7 @@ export const contactDraftStateOutput = z.object({
 	contactId: z.string(),
 	queued: z.boolean(),
 	waitingUntil: z.string().nullable(),
+	limit: limitReason.nullable(),
 	failed: z.boolean(),
 	draft: contactDraftOutput.nullable(),
 });

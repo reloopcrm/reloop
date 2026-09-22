@@ -10,7 +10,6 @@ import type { TenantSignupResult } from "@crm/validation/tenant-signup";
 import NextLink from "next/link";
 import { useId, useState } from "react";
 import { SocialSignIn } from "@/app/(landing)/sign-in/social-sign-in";
-import { PRICING } from "@/components/landing/page-blocks";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { PROXY } from "@/lib/proxy-config";
 import { signUpWorkspace, type TenantRefusal } from "@/lib/tenant-api";
@@ -27,7 +26,13 @@ const REFUSALS = {
 
 const OAUTH_PROVIDERS = ["google", "microsoft"] as const;
 
-export function SignupForm({ plan }: { plan: PlanId }) {
+export function SignupForm({
+	plan,
+	pricingHref,
+}: {
+	plan: PlanId;
+	pricingHref: string;
+}) {
 	const t = useT();
 	const locale = useLocale();
 	const id = useId();
@@ -141,7 +146,7 @@ export function SignupForm({ plan }: { plan: PlanId }) {
 			<p className="text-muted-foreground text-sm/6">
 				{t("Plan: {plan}.", { plan: t(PLANS[plan].label) })}{" "}
 				<Link variant="inline" asChild>
-					<NextLink href={PRICING.href}>{t("Change plan")}</NextLink>
+					<NextLink href={pricingHref}>{t("Change plan")}</NextLink>
 				</Link>
 			</p>
 

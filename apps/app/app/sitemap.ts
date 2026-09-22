@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { DOCS, docPath } from "@/components/landing/docs-config";
+import { PRICING } from "@/components/landing/pricing/config";
 import { siteAddress } from "@/lib/site-address";
+import { cloudUrl } from "@/lib/site-links";
 
 const PAGES = [
 	"/",
@@ -25,7 +27,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
 	const now = new Date();
 
-	return [...PAGES, ...DOC_PAGES].map((page) => ({
+	const pages = PAGES.filter(
+		(page) => page !== PRICING.href.start || !cloudUrl(),
+	);
+
+	return [...pages, ...DOC_PAGES].map((page) => ({
 		url: new URL(page, site).toString(),
 		lastModified: now,
 		changeFrequency: page === "/" ? "weekly" : "monthly",

@@ -1,6 +1,9 @@
+import { connection } from "next/server";
 import { DOCS, docPath } from "@/components/landing/docs-config";
+import { PRICING } from "@/components/landing/pricing/config";
 import { REPO_URL } from "@/components/landing/site";
 import { siteAddress } from "@/lib/site-address";
+import { cloudUrl } from "@/lib/site-links";
 
 type Entry = { title: string; path: string; note: string };
 
@@ -26,7 +29,7 @@ const PAGES: readonly Entry[] = [
 	},
 	{
 		title: "Get started",
-		path: "/get-started",
+		path: PRICING.href.start,
 		note: "How to start with Reloop CRM, hosted or on your own server.",
 	},
 	{
@@ -143,7 +146,7 @@ ${links(GUIDES)}
 
 ## Pages
 
-${links(PAGES)}
+${links(PAGES.filter((page) => page.path !== PRICING.href.start || !cloudUrl()))}
 
 ## Source
 
@@ -151,7 +154,9 @@ ${links(SOURCE)}
 `;
 }
 
-export function GET(): Response {
+export async function GET(): Promise<Response> {
+	await connection();
+
 	return new Response(llmsTxt(), {
 		headers: {
 			"content-type": "text/plain; charset=utf-8",

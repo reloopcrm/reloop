@@ -4,6 +4,7 @@ import { Link } from "@crm/ui/components/link";
 import { cn } from "@crm/ui/lib/utils";
 import NextLink from "next/link";
 import type * as React from "react";
+import { marketingUrl } from "@/lib/site-links";
 import { SectionHeading } from "./section-heading";
 
 export const PRICING = {
@@ -41,11 +42,14 @@ export function Band({
 }
 
 export function PricingActions({ secondary }: { secondary?: PageLink }) {
-	const link = secondary ?? { href: PRICING.href, label: PRICING.secondary };
+	const link = secondary ?? {
+		href: marketingUrl(PRICING.href),
+		label: PRICING.secondary,
+	};
 	return (
 		<div className="flex flex-wrap items-center justify-center gap-6">
 			<Button size="pill" asChild>
-				<NextLink href={PRICING.href}>{PRICING.primary}</NextLink>
+				<NextLink href={marketingUrl(PRICING.href)}>{PRICING.primary}</NextLink>
 			</Button>
 			<Button variant="link" size="pill" asChild>
 				<NextLink href={link.href}>{link.label}</NextLink>
@@ -89,7 +93,9 @@ export function CloudBanner() {
 					Reloop Cloud does it for you.
 				</p>
 				<Button size="pill" asChild>
-					<NextLink href={PRICING.href}>{PRICING.secondary}</NextLink>
+					<NextLink href={marketingUrl(PRICING.href)}>
+						{PRICING.secondary}
+					</NextLink>
 				</Button>
 			</div>
 		</Band>
@@ -135,7 +141,7 @@ export function SelfHostNote() {
 	return (
 		<p className="text-center text-muted-foreground text-sm/6">
 			Rather run it on your own server? Reloop CRM is open source.{" "}
-			<Link variant="quiet" href="/self-hosted-crm">
+			<Link variant="quiet" href={marketingUrl("/self-hosted-crm")}>
 				Read what self-hosting takes.
 			</Link>
 		</p>

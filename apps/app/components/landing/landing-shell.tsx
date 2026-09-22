@@ -4,7 +4,7 @@ import Wordmark from "@crm/ui/components/wordmark";
 import NextLink from "next/link";
 import type * as React from "react";
 import { getT } from "@/lib/i18n/server";
-import { signUpUrl } from "@/lib/sign-up-url";
+import { marketingUrl, signUpUrl } from "@/lib/site-links";
 import { REPO_URL } from "./site";
 
 export async function LandingShell({
@@ -15,24 +15,27 @@ export async function LandingShell({
 	const t = await getT();
 
 	const productLinks = [
-		{ href: "/pricing", label: t("Pricing") },
+		{ href: marketingUrl("/pricing"), label: t("Pricing") },
 		{ href: "/docs", label: t("Docs") },
 		{ href: signUpUrl(), label: t("Get started") },
 		{ href: "/sign-in", label: t("Sign in") },
 	];
 
 	const readingLinks = [
-		{ href: "/self-hosted-crm", label: t("Self-hosted CRM") },
-		{ href: "/open-source-crm", label: t("Open source CRM") },
-		{ href: "/vs/hubspot", label: t("Reloop vs HubSpot") },
-		{ href: "/for/freight-forwarding", label: t("For freight forwarding") },
-		{ href: "/open-source", label: t("Open source") },
+		{ href: marketingUrl("/self-hosted-crm"), label: t("Self-hosted CRM") },
+		{ href: marketingUrl("/open-source-crm"), label: t("Open source CRM") },
+		{ href: marketingUrl("/vs/hubspot"), label: t("Reloop vs HubSpot") },
+		{
+			href: marketingUrl("/for/freight-forwarding"),
+			label: t("For freight forwarding"),
+		},
+		{ href: marketingUrl("/open-source"), label: t("Open source") },
 	];
 
 	const companyLinks = [
-		{ href: "/about", label: t("About") },
-		{ href: "/contact", label: t("Contact") },
-		{ href: "/privacy", label: t("Privacy") },
+		{ href: marketingUrl("/about"), label: t("About") },
+		{ href: marketingUrl("/contact"), label: t("Contact") },
+		{ href: marketingUrl("/privacy"), label: t("Privacy") },
 	];
 
 	return (
@@ -43,7 +46,7 @@ export async function LandingShell({
 						<Wordmark className="h-5 w-auto" />
 					</NextLink>
 					<div className="grow" />
-					<Link variant="quiet" href="/pricing">
+					<Link variant="quiet" href={marketingUrl("/pricing")}>
 						{t("Pricing")}
 					</Link>
 					<Link variant="quiet" href="/docs">
@@ -53,7 +56,9 @@ export async function LandingShell({
 						{t("Sign in")}
 					</Link>
 					<Button size="pill-sm" asChild>
-						<NextLink href="/pricing">{t("Start free trial")}</NextLink>
+						<NextLink href={marketingUrl("/pricing")}>
+							{t("Start free trial")}
+						</NextLink>
 					</Button>
 				</nav>
 			</header>

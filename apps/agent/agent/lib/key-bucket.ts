@@ -7,6 +7,8 @@ import { DISPATCH } from "./dispatch-config";
 
 export type Lane = "fast" | "slow";
 
+export type SharedKeyTenant = { id: string | null; plan: string | null };
+
 type ModelObject = Exclude<LanguageModel, string>;
 
 type Bucket = { tokens: number; cap: number; at: number };
@@ -120,7 +122,7 @@ const sleep = (ms: number) =>
 
 export function withKeyBucket(
 	model: ModelObject,
-	tenant: () => { id: string | null; plan: string | null },
+	tenant: () => SharedKeyTenant,
 	bucket: () => KeyBucket = keyBucket,
 ): ModelObject {
 	const wait = async () => {

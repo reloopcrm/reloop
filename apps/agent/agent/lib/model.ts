@@ -28,7 +28,7 @@ import {
 import { experimental_chatgpt } from "eve/models/openai";
 import { z } from "zod";
 import { chatgptLoginExists } from "./codex-binary";
-import { withKeyBucket } from "./key-bucket";
+import { type SharedKeyTenant, withKeyBucket } from "./key-bucket";
 import { MODEL } from "./model-config";
 import { fixedAi } from "./plan-limits";
 import { withSpendMeter } from "./spend-meter";
@@ -104,7 +104,7 @@ export function fixedCandidates(
 	];
 }
 
-function sharedKeyTenant(): { id: string | null; plan: string | null } {
+function sharedKeyTenant(): SharedKeyTenant {
 	try {
 		const tenant = currentTenant();
 		return { id: tenant.id, plan: tenant.plan };

@@ -5,6 +5,11 @@ Reloop CRM speaks seven languages: English, German, Spanish, French, Portuguese
 Settings > General. The choice is that person's, not the workspace's, so two people
 in one CRM read two different languages.
 
+A visitor on the public site gets the language of the browser's `Accept-Language`
+header, or English when the browser asks for a language the CRM does not have. The
+switcher in the site footer stores the choice in the `crm.locale` cookie, and that
+cookie wins over the header from then on, on the public site and in the app.
+
 English and German are written by people. The other five are machine translated.
 Every screen says so under the language select and links to the repository, because
 a better word from a native speaker is the point of shipping them.
@@ -106,6 +111,12 @@ folder, and the rest is text.
   a file that does not parse, a key English does not have, a placeholder that does
   not match, a dash, or an empty value. A missing key is allowed and the test
   prints the coverage of each language.
+
+`apps/app/test/public-pages.spec.tsx` guards the public site. It fails when a public
+page holds an English sentence outside `t()`, exports a static `metadata` object, or
+looks up a key that one of the six dictionaries does not hold, and it renders every
+public page under the German cookie and fails on any English text node or English
+metadata.
 
 That split is on purpose. A structural fault is a bug, and anybody fixes it in a
 minute. A missing key is a gap in a translation that already falls back to English,

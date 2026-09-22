@@ -260,5 +260,6 @@
 	"Only an owner or an admin can change the TypeSafe connection.": "TypeSafe bağlantısını yalnızca bir sahip veya yönetici değiştirebilir.",
 	"Only an owner or an admin can change the sign-in credentials.": "Giriş kimlik bilgilerini sadece sahip veya yönetici değiştirir.",
 	"The agent researches contacts, reads mail and writes drafts. Use your own API key. The CRM also works without AI.": "Ajan kişileri araştırır, postaları okur ve taslak yazar. Kendi API anahtarını kullan. CRM yapay zeka olmadan da çalışır.",
-	"A ChatGPT sign-in is not offered on a hosted install.": "Barındırılan kurulumda ChatGPT girişi sunulmuyor."
+	"A ChatGPT sign-in is not offered on a hosted install.": "Barındırılan kurulumda ChatGPT girişi sunulmuyor.",
+	"The AI is included in this plan. There is no model to choose.": "Yapay zeka bu plana dahil. Seçilecek bir model yok."
 }

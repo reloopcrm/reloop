@@ -98,9 +98,6 @@ import type {
 	SpendSettings,
 } from "./settings.contracts";
 
-const FIXED_AI_REFUSAL =
-	"The AI is included in this plan. There is no model to choose.";
-
 const PASSWORD_REFUSALS = {
 	"sign-in-off":
 		'Password sign-in is off. Set PASSWORD_SIGN_IN="1" in the root .env file and restart.',
@@ -135,7 +132,9 @@ export class SettingsService {
 
 	private async assertModelChoice(): Promise<void> {
 		if (await fixedAiWith(this.db)) {
-			throw new ForbiddenException(FIXED_AI_REFUSAL);
+			throw new ForbiddenException(
+				"The AI is included in this plan. There is no model to choose.",
+			);
 		}
 	}
 
@@ -471,6 +470,7 @@ export class SettingsService {
 	}
 
 	private openrouterEnvKey(): boolean {
+		if (isHosted()) return false;
 		return Boolean(
 			this.config.get("OPENROUTER_API_KEY", { infer: true })?.trim(),
 		);

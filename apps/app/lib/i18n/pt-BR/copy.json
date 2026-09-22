@@ -260,5 +260,6 @@
 	"Only an owner or an admin can change the TypeSafe connection.": "Só um proprietário ou um administrador pode alterar a conexão TypeSafe.",
 	"Only an owner or an admin can change the sign-in credentials.": "Só quem é dono ou admin pode mudar as credenciais de acesso.",
 	"The agent researches contacts, reads mail and writes drafts. Use your own API key. The CRM also works without AI.": "O agente pesquisa contatos, lê e-mails e escreve rascunhos. Use sua própria chave de API. O CRM também funciona sem IA.",
-	"A ChatGPT sign-in is not offered on a hosted install.": "O login com ChatGPT não está disponível em uma instalação hospedada."
+	"A ChatGPT sign-in is not offered on a hosted install.": "O login com ChatGPT não está disponível em uma instalação hospedada.",
+	"The AI is included in this plan. There is no model to choose.": "A IA está incluída neste plano. Não há modelo para escolher."
 }

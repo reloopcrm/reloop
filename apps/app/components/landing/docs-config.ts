@@ -66,7 +66,7 @@ const PAGES: readonly DocPage[] = [
 		slug: "ai",
 		title: "Set up AI",
 		description:
-			"Give the Reloop CRM agent a model through OpenRouter, your own API key or a ChatGPT subscription.",
+			"Give the Reloop CRM agent a model through OpenRouter or your own API key. A ChatGPT subscription works on a self-hosted install only, not in Reloop Cloud.",
 		file: "selfHost",
 		from: "set-up-ai",
 		to: "update",

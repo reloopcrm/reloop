@@ -159,5 +159,21 @@
 	"The trial of this workspace has ended. Write to us and we switch it back on.": "Bu çalışma alanının deneme süresi bitti. Bize yaz, tekrar açalım.",
 	"This server has no hosted workspaces.": "Bu sunucuda barındırılan çalışma alanı yok.",
 	"Rather run it on your own server? Reloop CRM is open source.": "Kendi sunucunda mı çalıştırmak istiyorsun? Reloop CRM açık kaynaklıdır.",
-	"Read what self-hosting takes.": "Kendi sunucunda barındırmak için ne gerektiğini oku."
+	"Read what self-hosting takes.": "Kendi sunucunda barındırmak için ne gerektiğini oku.",
+	"This server sends no mail. Continue with Google or Microsoft.": "Bu sunucu e-posta göndermez. Google veya Microsoft ile devam et.",
+	"This server sends no mail.": "Bu sunucu e-posta göndermez.",
+	"That code is not right. Check the mail and try again.": "Bu kod doğru değil. E-postayı kontrol et ve tekrar dene.",
+	"That code has expired. Ask for a new one.": "Bu kodun süresi doldu. Yeni bir kod iste.",
+	"Too many wrong codes. Ask for a new one.": "Çok fazla yanlış kod. Yeni bir kod iste.",
+	"We sent a code to {email}. Enter it here.": "{email} adresine bir kod gönderdik. Buraya gir.",
+	"Code from the mail": "E-postadaki kod",
+	"A new code is on its way.": "Yeni bir kod yolda.",
+	"Open workspace": "Çalışma alanını aç",
+	"Send the code again": "Kodu tekrar gönder",
+	"No mail? Sign in with the same address instead.": "E-posta gelmedi mi? Bunun yerine aynı adresle giriş yap.",
+	"Forgot your password?": "Şifreni mi unuttun?",
+	"We mail a code to {email}. With it you set a new password.": "{email} adresine bir kod gönderiyoruz. Onunla yeni bir şifre belirlersin.",
+	"Send me a code": "Bana kod gönder",
+	"If {email} has a password, a code is on its way. Enter it here.": "{email} için bir şifre varsa, bir kod yolda. Buraya gir.",
+	"Set password and sign in": "Şifreyi belirle ve giriş yap"
 }

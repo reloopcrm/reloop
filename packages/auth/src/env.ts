@@ -1,5 +1,7 @@
 import "@crm/env/load";
 
+import { isHosted } from "@crm/db/tenant-context";
+
 const DEFAULT_API_URL = "http://localhost:3001";
 const DEFAULT_APP_URL = "http://localhost:3000";
 const DEFAULT_MICROSOFT_TENANT = "common";
@@ -107,7 +109,9 @@ export const env = {
 	get slack() {
 		return resolved().slack;
 	},
-	password: environmentOnly("PASSWORD_SIGN_IN") === "1",
+	get password() {
+		return environmentOnly("PASSWORD_SIGN_IN") === "1" || isHosted();
+	},
 	cookieDomain: environmentOnly("AUTH_COOKIE_DOMAIN"),
 	trustedOrigins: [...new Set([...appUrls, apiUrl])],
 	secureCookies: appUrl.startsWith("https://"),

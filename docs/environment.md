@@ -214,11 +214,29 @@ Both are unset on a self-hosted install, which then runs as one workspace on
   memory (`TENANCY.signup.rate`). Signup provisions the database at once
   (`provisionTenant`, `packages/db/src/provision.ts`: create, migrate, registry
   row, `AppSetting.plan`, all rolled back on failure) with status `pending` and
-  the one address in `tenant_sign_in`. The API sends no mail, so activation is
-  the first Google or Microsoft sign-in with that exact address:
-  `TenantActivationHooks` runs on session create, sets `active`, and registers
-  the company domain when the address is not free mail. A tenant still
-  `pending` after `TENANCY.signup.pendingTtlMs` (48 hours) is removed.
+  the one address in `tenant_sign_in`. Activation is the first Google or
+  Microsoft sign-in with that exact address: `TenantActivationHooks` runs on
+  session create, sets `active`, and registers the company domain when the
+  address is not free mail. With mail on (below) the form also takes a
+  password, and a six digit code by mail activates the tenant instead. A
+  tenant still `pending` after `TENANCY.signup.pendingTtlMs` (48 hours) is
+  removed.
+- **`RESEND_API_KEY` and `MAIL_FROM`** turn mail on, both together. `MailService`
+  (`apps/api/src/mail`) is the one place that talks to Resend, over its HTTP
+  API with `fetch`. `GET /api/tenant/options` tells the sign-up form whether a
+  password is offered. The code is six digits, valid 15 minutes, five tries,
+  a new one after 60 seconds (`SIGNUP.code`, `apps/api/src/tenancy/tenancy.config.ts`).
+  It is stored in the registry table `tenant_code` as an HMAC with
+  `BETTER_AUTH_SECRET`, next to the name and the password hash, and the user
+  is created in the tenant database only when the code is right
+  (`POST /api/tenant/verify`). `POST /api/tenant/reset` and `reset/confirm` are
+  "Forgot password" with the same code and the same limits; `reset` answers
+  200 whether the address exists or not. `POST /api/tenant/lookup` names
+  `"email"` as a sign-in method only when mail is on and that person has a
+  password. The mail is plain text plus minimal HTML in the customer's
+  language (`mail-copy.ts`, all seven). Password sign-in is always enabled in
+  hosted mode; `PASSWORD_SIGN_IN` is for a self-hosted install. With either
+  variable unset nothing is sent and sign-up is Google and Microsoft only.
 - **Trials end by a daily sweep** (`TenantSweepService`, in-process in
   production, or `POST /internal/tenants/sweep` with `CRON_SECRET`): `trial`
   past `trial_ends_at` becomes `suspended` (sign-in answers 403

@@ -11,6 +11,8 @@ import { useState } from "react";
 import { PRICING } from "@/components/landing/pricing/config";
 import { useT } from "@/lib/i18n/client";
 import { lookupWorkspace, type TenantRefusal } from "@/lib/tenant-api";
+import { PasswordReset } from "./password-reset";
+import { PasswordSignIn } from "./password-sign-in";
 import { SocialSignIn } from "./social-sign-in";
 
 const REFUSALS = {
@@ -18,6 +20,10 @@ const REFUSALS = {
 	WORKSPACE_EXISTS: "A workspace for this address already exists.",
 	TOO_MANY_REQUESTS: "Too many tries. Wait a moment, then start again.",
 	NOT_HOSTED: "This server has no hosted workspaces.",
+	NO_MAIL: "This server sends no mail.",
+	CODE_INVALID: "That code is not right. Check the mail and try again.",
+	CODE_EXPIRED: "That code has expired. Ask for a new one.",
+	CODE_LOCKED: "Too many wrong codes. Ask for a new one.",
 	INVALID: "Check the address and try again.",
 	FAILED: "Could not reach the sign-in service.",
 } satisfies Record<TenantRefusal, string>;
@@ -28,6 +34,7 @@ export function WorkspaceLookup() {
 	const [pending, setPending] = useState(false);
 	const [refusal, setRefusal] = useState<TenantRefusal | null>(null);
 	const [found, setFound] = useState<TenantLookupResult | null>(null);
+	const [resetting, setResetting] = useState(false);
 
 	async function handleSubmit() {
 		setPending(true);
@@ -44,6 +51,8 @@ export function WorkspaceLookup() {
 		const providers = found.signIn.filter(
 			(method): method is "google" | "microsoft" => method !== "email",
 		);
+		const withPassword = found.signIn.includes("email");
+		const address = email.trim();
 
 		return (
 			<div className="flex flex-col gap-4">
@@ -53,22 +62,39 @@ export function WorkspaceLookup() {
 							"The trial of this workspace has ended. Write to us and we switch it back on.",
 						)}
 					</p>
+				) : resetting ? (
+					<PasswordReset email={address} refusals={REFUSALS} />
 				) : (
-					<div className="flex flex-col gap-3">
-						{providers.map((provider, index) => (
-							<SocialSignIn
-								key={provider}
-								provider={provider}
-								only={index === 0}
-							/>
-						))}
-					</div>
+					<>
+						{withPassword ? <PasswordSignIn email={address} /> : null}
+						{withPassword ? (
+							<Button
+								type="button"
+								variant="ghost"
+								onClick={() => {
+									setResetting(true);
+								}}
+							>
+								{t("Forgot your password?")}
+							</Button>
+						) : null}
+						<div className="flex flex-col gap-3">
+							{providers.map((provider, index) => (
+								<SocialSignIn
+									key={provider}
+									provider={provider}
+									only={!withPassword && index === 0}
+								/>
+							))}
+						</div>
+					</>
 				)}
 				<Button
 					type="button"
 					variant="ghost"
 					onClick={() => {
 						setFound(null);
+						setResetting(false);
 					}}
 				>
 					{t("Use a different email address")}

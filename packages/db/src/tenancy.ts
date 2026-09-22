@@ -118,6 +118,19 @@ CREATE TABLE IF NOT EXISTS tenant_site (
 	tenant_id text NOT NULL REFERENCES tenant(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS tenant_site_tenant_id ON tenant_site(tenant_id);
+CREATE TABLE IF NOT EXISTS tenant_code (
+	email text NOT NULL,
+	purpose text NOT NULL,
+	tenant_id text NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+	code_hash text NOT NULL,
+	expires_at timestamptz NOT NULL,
+	sent_at timestamptz NOT NULL DEFAULT now(),
+	attempts integer NOT NULL DEFAULT 0,
+	locale text NOT NULL DEFAULT 'en',
+	name text,
+	password_hash text,
+	PRIMARY KEY (email, purpose)
+);
 `;
 
 const SELECT_TENANT = `
@@ -129,7 +142,7 @@ WHERE t.deleted_at IS NULL`;
 
 let registry: { url: string; pool: pg.Pool } | undefined;
 
-function registryPool(): pg.Pool {
+export function registryPool(): pg.Pool {
 	const url = process.env.RELOOP_REGISTRY_URL;
 	if (!url) {
 		throw new Error(

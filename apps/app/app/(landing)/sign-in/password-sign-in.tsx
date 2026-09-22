@@ -11,10 +11,10 @@ import { toast } from "sonner";
 import { useT } from "@/lib/i18n/client";
 import { signInFailureText } from "@/lib/sign-in-errors";
 
-export function PasswordSignIn() {
+export function PasswordSignIn({ email: known }: { email?: string }) {
 	const t = useT();
 	const [pending, setPending] = useState(false);
-	const [email, setEmail] = useState("");
+	const [email, setEmail] = useState(known ?? "");
 	const [password, setPassword] = useState("");
 
 	function fail(failure?: { code?: string; status?: number }) {
@@ -44,18 +44,20 @@ export function PasswordSignIn() {
 				handleSubmit().catch(() => fail());
 			}}
 		>
-			<Field>
-				<FieldLabel htmlFor="sign-in-email">{t("Email address")}</FieldLabel>
-				<Input
-					id="sign-in-email"
-					name="email"
-					type="email"
-					autoComplete="username"
-					required
-					value={email}
-					onChange={(event) => setEmail(event.target.value)}
-				/>
-			</Field>
+			{known === undefined ? (
+				<Field>
+					<FieldLabel htmlFor="sign-in-email">{t("Email address")}</FieldLabel>
+					<Input
+						id="sign-in-email"
+						name="email"
+						type="email"
+						autoComplete="username"
+						required
+						value={email}
+						onChange={(event) => setEmail(event.target.value)}
+					/>
+				</Field>
+			) : null}
 
 			<Field>
 				<FieldLabel htmlFor="sign-in-password">{t("Password")}</FieldLabel>
@@ -67,6 +69,7 @@ export function PasswordSignIn() {
 					required
 					minLength={PASSWORD_RULES.minLength}
 					maxLength={PASSWORD_RULES.maxLength}
+					autoFocus={known !== undefined}
 					value={password}
 					onChange={(event) => setPassword(event.target.value)}
 				/>

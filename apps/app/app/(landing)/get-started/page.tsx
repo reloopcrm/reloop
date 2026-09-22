@@ -9,8 +9,10 @@ import { LandingShell } from "@/components/landing/landing-shell";
 import { Band, PageHero, SelfHostNote } from "@/components/landing/page-blocks";
 import { PRICING } from "@/components/landing/pricing/config";
 import { SignupForm } from "@/components/landing/signup-form";
+import { API_URL } from "@/lib/env";
 import { getT } from "@/lib/i18n/server";
 import { cloudUrl, marketingUrl, signUpUrl } from "@/lib/site-links";
+import { signupOptions } from "@/lib/tenant-api";
 
 const chosenPlan = z.enum(PLAN_IDS).catch("trial");
 
@@ -61,7 +63,7 @@ export default async function GetStartedPage({
 		);
 	}
 
-	const t = await getT();
+	const [t, options] = await Promise.all([getT(), signupOptions(API_URL)]);
 
 	return (
 		<LandingShell>
@@ -79,6 +81,8 @@ export default async function GetStartedPage({
 					<SignupForm
 						plan={plan}
 						pricingHref={marketingUrl(PRICING.href.pricing)}
+						withPassword={options?.password ?? false}
+						signInMethods={options?.signIn ?? []}
 					/>
 				</BentoCard>
 				<SelfHostNote

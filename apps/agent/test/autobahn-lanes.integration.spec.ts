@@ -100,31 +100,6 @@ describe("the fast lane and the slow lane", () => {
 		});
 
 		const mine = handled.filter((entry) => entry.task.reason === reason);
-		if (mine.length !== 2) {
-			console.error(
-				JSON.stringify({
-					asked,
-					handled: handled.map((entry) => ({
-						id: entry.task.id,
-						reason: entry.task.reason,
-						priority: entry.task.priority,
-						attempts: entry.task.attempts,
-						lane: entry.lane,
-					})),
-					rows: await db.agentTask.findMany({
-						where: { reason },
-						select: {
-							id: true,
-							priority: true,
-							attempts: true,
-							leasedUntil: true,
-							finishedAt: true,
-							outcome: true,
-						},
-					}),
-				}),
-			);
-		}
 		expect(mine).toHaveLength(2);
 		expect(mine.every((entry) => entry.lane === "slow")).toBe(true);
 		expect(

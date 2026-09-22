@@ -1,4 +1,3 @@
-import { workspaceRoleOf } from "@crm/auth";
 import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
@@ -12,7 +11,11 @@ import { MobileNavProvider } from "@/components/mobile-nav";
 import { SampleDataBanner } from "@/components/sample-data";
 import { UpdateBanner } from "@/components/update-banner";
 import { demoOffered, managedInstall } from "@/lib/operator";
-import { requireMailboxAccess, requireSession } from "@/lib/session";
+import {
+	requireMailboxAccess,
+	requireSession,
+	workspaceRole,
+} from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { workspaceLabel } from "@/lib/workspace-label";
@@ -73,7 +76,7 @@ async function UpdateNotice() {
 	await connection();
 	const session = await requireSession();
 
-	if ((await workspaceRoleOf(session.user.id)) !== "owner") return null;
+	if ((await workspaceRole(session.user.id)) !== "owner") return null;
 
 	return <UpdateBanner />;
 }

@@ -1,7 +1,6 @@
-import { workspaceRoleOf } from "@crm/auth";
 import { Suspense } from "react";
 import { isMarketing } from "@/lib/env";
-import { requireSession } from "@/lib/session";
+import { requireSession, workspaceRole } from "@/lib/session";
 import { SettingsSidebar, SettingsSidebarFallback } from "./settings-sidebar";
 
 export default function SettingsLayout({
@@ -21,7 +20,7 @@ export default function SettingsLayout({
 
 async function Sidebar() {
 	const session = await requireSession();
-	const role = await workspaceRoleOf(session.user.id);
+	const role = await workspaceRole(session.user.id);
 
 	return <SettingsSidebar cloudOwner={isMarketing() && role === "owner"} />;
 }

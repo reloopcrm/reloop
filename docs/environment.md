@@ -366,10 +366,10 @@ clamped by the plan. See `docs/connections.md`.
 and **`MAILBOX_SYNC_PAGE_SIZE`** (200) size one tick per mailbox, all optional,
 positive integers, parsed once by `mailboxSyncConfig` in
 `apps/api/src/mailbox/mailbox.config.ts`. `MAX_PER_TICK` caps the messages one
-tick stores for Outlook and IMAP; Gmail is clamped lower by its API quota
+tick stores for Outlook and IMAP; Gmail never goes above its API quota share
 (`GMAIL_QUOTA`: 6,000 units per user per minute, `messages.get` costs 20, 80 %
-used, so 240 per tick), whatever the variable says, because a tick runs at most
-once a minute and a higher number only buys 429s. `BACKFILL_CHUNK` is the ids one
+used, so 240 per tick), because a tick runs at most once a minute and a higher
+number only buys 429s. A lower cap lowers Gmail too. `BACKFILL_CHUNK` is the ids one
 Gmail `messages.list` call asks for (its maximum is 500) and the width of one
 IMAP `FETCH` range. `PAGE_SIZE` is the Graph `$top` for Outlook, bodies
 included: Graph allows 1000, and its own docs warn a page of hundreds of full

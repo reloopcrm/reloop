@@ -129,11 +129,7 @@ async function ensurePrices(
 	products: Map<string, string>,
 ): Promise<void> {
 	const existing = await stripe.prices
-		.list({
-			active: true,
-			lookup_keys: wanted.map((price) => price.lookupKey),
-			limit: 100,
-		})
+		.list({ active: true, limit: 100 })
 		.autoPagingToArray({ limit: 1000 });
 	for (const price of wanted) {
 		if (

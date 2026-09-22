@@ -63,14 +63,14 @@ const OPEN_COLUMNS: TranslatableColumn[] = [
 	{
 		id: "stage",
 		header: "Stage",
-		width: "w-32",
-		className: "hidden lg:table-cell",
+		width: "w-36",
+		className: "hidden @lg/panel:table-cell",
 	},
 	{
 		id: "share",
 		srLabel: "Share of the largest",
-		width: "w-24",
-		className: "hidden sm:table-cell",
+		width: "w-20",
+		className: "hidden @sm/panel:table-cell",
 	},
 	{ id: "value", header: "Value", width: "w-20", align: "right" },
 ];
@@ -207,10 +207,14 @@ export function DashboardSummary() {
 												meta={<LocalRelativeTime date={deal.stageChangedAt} />}
 											/>
 										</TableCell>
-										<TableCell className={`${CELL} hidden lg:table-cell`}>
-											<DealStageIndicator stage={deal.stage} />
+										<TableCell
+											className={`${CELL} hidden @lg/panel:table-cell`}
+										>
+											<DealStageIndicator stage={deal.stage} className="flex" />
 										</TableCell>
-										<TableCell className={`${CELL} hidden sm:table-cell`}>
+										<TableCell
+											className={`${CELL} hidden @sm/panel:table-cell`}
+										>
 											<ValueMeter
 												share={
 													largestOpenCents > 0

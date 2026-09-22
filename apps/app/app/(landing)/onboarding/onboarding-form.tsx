@@ -23,7 +23,13 @@ import { toast } from "sonner";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
 
-export function OnboardingForm({ placeholder }: { placeholder: string }) {
+export function OnboardingForm({
+	placeholder,
+	known,
+}: {
+	placeholder: string;
+	known: { name: string; slug: string };
+}) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
@@ -32,8 +38,8 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
 	const nameId = useId();
 	const slugId = useId();
 	const websiteId = useId();
-	const [name, setName] = useState("");
-	const [slug, setSlug] = useState("");
+	const [name, setName] = useState(known.name);
+	const [slug, setSlug] = useState(known.slug);
 	const slugEdited = useRef(false);
 
 	const propose = useMutation(trpc.settings.proposeBusiness.mutationOptions());

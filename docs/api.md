@@ -81,6 +81,9 @@ here, what do we sell.
 - **The name starts as `DEFAULT_WORKSPACE_NAME` (`CRM`), a placeholder not an
   answer.** The header renders `<name> CRM`, so `workspaceLabel` tests the name rather
   than comparing to the default.
+  A hosted sign-up already asked for the company, so `provisionTenant` writes that
+  name and its slug into the new tenant's row, and `/onboarding` pre-fills both.
+  Only `onboardedAt` settles the gate, so the website step still runs.
 - **The website queues the agent's `workspace-profile` task** and goes through
   `normalizeDomain`, rejecting null. Stored canonical, so re-saving uncanonically
   counts as a change and re-queues research.

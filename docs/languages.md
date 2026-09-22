@@ -122,6 +122,10 @@ and one unfinished language must never hold up a release.
   are Chinese.
 - **What the agent writes.** The agent writes English, or German with
   `RELOOP_GERMAN`. See `docs/environment.md`.
+- **The sample data follows the reader.** `sampleData.load` takes the locale of
+  the person who clicks, and `apps/api/src/demo/demo-copy.ts` holds the German
+  lines keyed by the English text. Every other language gets English.
+  `apps/api/test/demo-copy.spec.ts` fails when a seeded text has no German line.
 
 ## Text outside the dictionaries
 

@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, isLocale } from "@crm/db/locale";
 import { DEMO_DATA } from "../src/demo/demo.config";
 import {
 	demoCounts,
@@ -14,8 +15,10 @@ async function main(): Promise<void> {
 		console.log(`Removed demo rows: ${JSON.stringify(removed)}`);
 	} else {
 		const owner = await resolveDemoOwner(db);
-		console.log(`Seeding demo rows owned by ${owner.email}.`);
-		await db.$transaction((tx) => seedDemoData(db, tx, owner), {
+		const wanted = process.argv[process.argv.indexOf("--locale") + 1];
+		const locale = isLocale(wanted) ? wanted : DEFAULT_LOCALE;
+		console.log(`Seeding demo rows owned by ${owner.email} in ${locale}.`);
+		await db.$transaction((tx) => seedDemoData(db, tx, owner, locale), {
 			timeout: DEMO_DATA.write.timeoutMs,
 			maxWait: DEMO_DATA.write.maxWaitMs,
 		});

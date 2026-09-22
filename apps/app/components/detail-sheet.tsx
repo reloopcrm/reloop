@@ -172,7 +172,7 @@ export function DetailSheetStat({
 }) {
 	return (
 		<div className={cn("flex min-w-0 flex-1 flex-col gap-1 py-3", GUTTER)}>
-			<dt className="truncate text-muted-foreground text-xs/5">{label}</dt>
+			<dt className="text-pretty text-muted-foreground text-xs/5">{label}</dt>
 			<dd
 				title={title}
 				className="min-w-0 truncate font-medium text-foreground text-sm/5"
@@ -211,7 +211,10 @@ export function DetailSheetTabs({
 		>
 			<TabsList
 				variant="line"
-				className={cn("w-full shrink-0 justify-start gap-6 border-b", GUTTER)}
+				className={cn(
+					"w-full shrink-0 justify-start gap-6 overflow-x-auto border-b",
+					GUTTER,
+				)}
 			>
 				{tabs.map((tab) => (
 					<TabsTrigger

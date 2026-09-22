@@ -1,9 +1,18 @@
 import { Inject } from "@nestjs/common";
-import { Ctx, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
+import {
+	Ctx,
+	Input,
+	Mutation,
+	Query,
+	Router,
+	UseMiddlewares,
+} from "nestjs-trpc";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
+	type SampleDataLoadInput,
+	sampleDataLoadInput,
 	sampleDataResultOutput,
 	sampleDataStatusOutput,
 } from "./demo.contracts";
@@ -23,15 +32,18 @@ export class DemoRouter {
 	}
 
 	@Mutation({
+		input: sampleDataLoadInput,
 		output: sampleDataResultOutput,
 		meta: restMeta("POST", "/sample-data/load", ["Sample data"]),
 	})
-	async load(@Ctx() ctx: AuthedTrpcContext) {
-		return this.demo.load({
-			id: ctx.user.id,
-			name: ctx.user.name,
-			email: ctx.user.email,
-		});
+	async load(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: SampleDataLoadInput,
+	) {
+		return this.demo.load(
+			{ id: ctx.user.id, name: ctx.user.name, email: ctx.user.email },
+			input.locale,
+		);
 	}
 
 	@Mutation({

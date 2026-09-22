@@ -43,12 +43,12 @@ function PageShellHeader({
 		<header
 			data-slot="page-shell-header"
 			className={cn(
-				"flex flex-col gap-3 [view-transition-name:page-header]",
+				"@container/page-header flex flex-col gap-3 [view-transition-name:page-header]",
 				className,
 			)}
 			{...props}
 		>
-			<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2">
+			<div className="grid grid-cols-[minmax(0,1fr)] items-center gap-x-4 gap-y-2 @lg/page-header:grid-cols-[minmax(0,1fr)_auto]">
 				{children}
 			</div>
 		</header>
@@ -105,7 +105,7 @@ function PageShellActions({
 		<div
 			data-slot="page-shell-actions"
 			className={cn(
-				"col-start-2 row-start-1 flex flex-wrap items-center gap-2 self-center justify-self-end",
+				"col-start-1 row-start-3 flex flex-wrap items-center gap-2 self-center justify-self-start @lg/page-header:col-start-2 @lg/page-header:row-start-1 @lg/page-header:justify-self-end",
 				className,
 			)}
 			{...props}

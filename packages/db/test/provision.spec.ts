@@ -29,6 +29,7 @@ import {
 } from "../src/tenancy";
 import { runAsTenant } from "../src/tenant-context";
 import { prepareTestTenants } from "../src/test-tenants";
+import { WORKSPACE_ID } from "../src/workspace";
 
 const runId = (process.env.TEST_RUN_ID ?? "spec")
 	.toLowerCase()
@@ -94,10 +95,19 @@ describe("provisionTenant", () => {
 			dbName: dbNameOf(ids.pending),
 			allowList: [`owner@${ids.pending}.example`],
 			status: "pending",
+			name: "Musterpack GmbH",
 		});
 
 		expect(tenant.status).toBe("pending");
 		expect(tenant.plan).toBe("trial");
+		expect(
+			await runAsTenant(tenant, () =>
+				db.organization.findUnique({
+					where: { id: WORKSPACE_ID },
+					select: { name: true, slug: true },
+				}),
+			),
+		).toEqual({ name: "Musterpack GmbH", slug: "musterpack-gmbh" });
 		expect(tenant.dbName.endsWith("_test")).toBe(true);
 		const trialEnds = tenant.trialEndsAt?.getTime() ?? 0;
 		expect(trialEnds).toBeGreaterThanOrEqual(before + TRIAL_DAYS * DAY_MS);

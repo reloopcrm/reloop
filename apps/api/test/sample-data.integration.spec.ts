@@ -114,9 +114,9 @@ describe("the sample data", () => {
 			loadable: false,
 		});
 
-		await expect(service.load({ ...owner, id: memberId })).rejects.toThrow(
-			"Only an owner",
-		);
+		await expect(
+			service.load({ ...owner, id: memberId }, "en"),
+		).rejects.toThrow("Only an owner");
 		await expect(service.remove(memberId)).rejects.toThrow("Only an owner");
 		expect(await hasDemoData(db)).toBe(false);
 	});
@@ -128,7 +128,7 @@ describe("the sample data", () => {
 
 		expect(await hasRealData(db)).toBe(true);
 		expect(await service.status(ownerId)).toMatchObject({ loadable: false });
-		await expect(service.load(owner)).rejects.toThrow(
+		await expect(service.load(owner, "en")).rejects.toThrow(
 			"only loads into an empty CRM",
 		);
 		expect(await hasDemoData(db)).toBe(false);
@@ -197,7 +197,44 @@ describe("the sample data", () => {
 		});
 
 		expect(strays).toBe(0);
-		await expect(service.load(owner)).rejects.toThrow("already loaded");
+		await expect(service.load(owner, "en")).rejects.toThrow("already loaded");
+
+		await removeDemoData(db);
+	});
+
+	it("writes German copy for a German workspace", async () => {
+		await db.$transaction((tx) => seedDemoData(db, tx, owner, "de"), {
+			timeout: DEMO_DATA.write.timeoutMs,
+		});
+
+		const deal = await db.deal.findUniqueOrThrow({
+			where: { id: `${DEMO.prefix}deal-5` },
+			select: { name: true },
+		});
+		const contact = await db.contact.findUniqueOrThrow({
+			where: { id: `${DEMO.prefix}ct-nordkap-1` },
+			select: { title: true, company: { select: { industry: true } } },
+		});
+		const english = await db.emailMessage.count({
+			where: {
+				id: { startsWith: DEMO.prefix },
+				OR: [
+					{ body: { startsWith: "Hello " } },
+					{ body: { startsWith: "Hi " } },
+					{ subject: { startsWith: "Request for quotation" } },
+				],
+			},
+		});
+		const task = await db.activity.findFirstOrThrow({
+			where: { id: `${DEMO.prefix}act-task-nordkap-1` },
+			select: { subject: true },
+		});
+
+		expect(deal.name).toBe("Rahmenvertrag Wellpappkartons");
+		expect(contact.title).toBe("Leitung Einkauf");
+		expect(contact.company?.industry).toBe("Spedition");
+		expect(task.subject).toBe("Q4-Preisliste an Henrik schicken");
+		expect(english).toBe(0);
 
 		await removeDemoData(db);
 	});

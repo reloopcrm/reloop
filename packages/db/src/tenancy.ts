@@ -80,6 +80,7 @@ export const newTenant = tenant
 		signIn: z.string().min(1).default("google"),
 		trialEndsAt: z.date().nullable().default(null),
 		siteIds: z.array(z.string().min(1)).default([]),
+		name: z.string().trim().min(1).max(120).optional(),
 	});
 
 export type NewTenant = z.input<typeof newTenant>;

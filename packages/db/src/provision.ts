@@ -20,6 +20,7 @@ import {
 import { TENANCY } from "./tenancy-config";
 import { runAsTenant } from "./tenant-context";
 import { databaseName, isTestDatabaseName } from "./test-database";
+import { WORKSPACE_ID, workspaceSlug } from "./workspace";
 
 const DB_DIR = dirname(import.meta.dirname);
 const MIGRATIONS = join(DB_DIR, "prisma", "migrations");
@@ -187,7 +188,10 @@ export async function provisionTenant(input: NewTenant): Promise<Tenant> {
 	try {
 		await migrateDatabase(url);
 		const tenant = await createTenant({ ...input, plan, trialEndsAt });
-		await runAsTenant(tenant, () => writePlan(db, plan));
+		await runAsTenant(tenant, async () => {
+			await writePlan(db, plan);
+			if (input.name) await nameWorkspace(input.name);
+		});
 		return tenant;
 	} catch (error) {
 		await disconnectTenant(input.id);
@@ -195,6 +199,19 @@ export async function provisionTenant(input: NewTenant): Promise<Tenant> {
 		if (created) await dropDatabase(url).catch(() => undefined);
 		throw error;
 	}
+}
+
+async function nameWorkspace(name: string): Promise<void> {
+	await db.organization.upsert({
+		where: { id: WORKSPACE_ID },
+		create: {
+			id: WORKSPACE_ID,
+			name,
+			slug: workspaceSlug(name),
+			createdAt: new Date(),
+		},
+		update: {},
+	});
 }
 
 export async function migrateTenant(tenant: Tenant): Promise<boolean> {

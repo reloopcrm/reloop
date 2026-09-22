@@ -25,7 +25,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useErrorMessage, useT } from "@/lib/i18n/client";
+import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -48,6 +48,7 @@ export function LoadSampleData() {
 	const cache = useCrmCache();
 	const router = useRouter();
 	const errorMessage = useErrorMessage();
+	const locale = useLocale();
 	const status = useSampleDataStatus();
 	const [confirming, setConfirming] = useState(false);
 
@@ -63,7 +64,9 @@ export function LoadSampleData() {
 		}),
 	);
 
-	const loadAction = useAsyncAction({ action: () => load.mutateAsync() });
+	const loadAction = useAsyncAction({
+		action: () => load.mutateAsync({ locale }),
+	});
 
 	if (!status.data?.loadable) return null;
 

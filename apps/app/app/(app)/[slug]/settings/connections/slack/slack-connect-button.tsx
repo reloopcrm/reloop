@@ -84,7 +84,7 @@ export function SlackConnectButton({
 	const failure = connectError ? CONNECT_ERRORS.get(connectError) : undefined;
 
 	return (
-		<div className="flex min-w-0 flex-col gap-2">
+		<div className="flex shrink-0 flex-col gap-2">
 			<Button onClick={() => void connect()} disabled={!configured || pending}>
 				{pending
 					? t("Opening Slack…")

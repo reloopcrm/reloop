@@ -1,4 +1,9 @@
+import { LOCALES } from "@crm/db/locale";
 import { z } from "zod";
+
+export const sampleDataLoadInput = z.object({ locale: z.enum(LOCALES) });
+
+export type SampleDataLoadInput = z.infer<typeof sampleDataLoadInput>;
 
 export const sampleDataStatusOutput = z.object({
 	present: z.boolean(),

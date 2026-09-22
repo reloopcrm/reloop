@@ -1,5 +1,6 @@
 import { canLoadSampleData, workspaceRoleOf } from "@crm/auth";
 import { type Db, Prisma } from "@crm/db";
+import type { Locale } from "@crm/db/locale";
 import {
 	ConflictException,
 	ForbiddenException,
@@ -44,7 +45,7 @@ export class DemoService {
 		};
 	}
 
-	async load(actor: Actor): Promise<SampleDataResult> {
+	async load(actor: Actor, locale: Locale): Promise<SampleDataResult> {
 		if (!(await this.mayManage(actor.id))) {
 			throw new ForbiddenException("Only an owner loads the sample data.");
 		}
@@ -67,7 +68,7 @@ export class DemoService {
 					);
 				}
 
-				return seedDemoData(this.db, tx, actor);
+				return seedDemoData(this.db, tx, actor, locale);
 			},
 			{
 				timeout: DEMO_DATA.write.timeoutMs,
@@ -75,7 +76,7 @@ export class DemoService {
 			},
 		);
 
-		this.logger.log({ message: "Loaded the sample data", counts });
+		this.logger.log({ message: "Loaded the sample data", locale, counts });
 
 		return { present: true, rows: rowsIn(counts) };
 	}

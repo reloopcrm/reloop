@@ -14,10 +14,12 @@ import {
 } from "@crm/db/contact-standing";
 import type { QuantityRule, ThreadSignal } from "@crm/db/contact-worth";
 import { convertToBase } from "@crm/db/fx";
+import { DEFAULT_LOCALE, type Locale } from "@crm/db/locale";
 import { SAMPLE_DATA } from "@crm/db/sample-data";
 import { readReportingCurrency } from "@crm/db/settings";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
+import { type DemoCopy, demoCopy } from "./demo-copy";
 
 const DAY_MS = 86_400_000;
 
@@ -996,209 +998,180 @@ type Voice = {
 	ref: string;
 };
 
-type Line = { direction: EmailDirection; text: (v: Voice) => string };
+type Line = { direction: EmailDirection; text: string };
 
 type ThreadTemplate = {
-	subject: (v: Voice) => string;
+	subject: string;
 	lines: Line[];
 	outcome: string;
 };
 
 const THREADS = {
 	inquiry: {
-		subject: (v) => `Request for quotation: ${v.product}`,
+		subject: "Request for quotation: {product}",
 		outcome: "OPEN_INQUIRY_THEIRS",
 		lines: [
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Hello ${v.owner}, we are looking for ${v.qty} of ${v.product.toLowerCase()} for our ${v.city} site within the next six weeks. Could you send us a quotation including transport?`,
+				text: "Hello {owner}, we are looking for {qty} of {product} for our {city} site within the next six weeks. Could you send us a quotation including transport?",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Hi ${v.contact}, thanks for the request. Attached is our offer for ${v.qty} of ${v.product.toLowerCase()}, delivered DAP ${v.city}. Prices are valid for 30 days.`,
+				text: "Hi {contact}, thanks for the request. Attached is our offer for {qty} of {product}, delivered DAP {city}. Prices are valid for 30 days.",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: () =>
-					`Thank you. Is a split delivery in two lots possible, and what is the lead time for the first lot? Purchasing wants to decide this month.`,
+				text: "Thank you. Is a split delivery in two lots possible, and what is the lead time for the first lot? Purchasing wants to decide this month.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Yes, two lots work for ${v.company}. The first lot ships within ten working days after the order, the second four weeks later.`,
+				text: "Yes, two lots work for {company}. The first lot ships within ten working days after the order, the second four weeks later.",
 			},
 		],
 	},
 	deal: {
-		subject: (v) => `Purchase order ${v.ref}: ${v.product}`,
+		subject: "Purchase order {ref}: {product}",
 		outcome: "DEAL_DONE",
 		lines: [
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Hello ${v.owner}, please find our purchase order ${v.ref} for ${v.qty} of ${v.product.toLowerCase()}. Delivery as discussed to ${v.city}.`,
+				text: "Hello {owner}, please find our purchase order {ref} for {qty} of {product}. Delivery as discussed to {city}.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Hi ${v.contact}, order ${v.ref} is confirmed. Dispatch is planned for the week after next, you get the tracking details the day before.`,
+				text: "Hi {contact}, order {ref} is confirmed. Dispatch is planned for the week after next, you get the tracking details the day before.",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: () =>
-					`Received in good condition, thank you. We will come back to you for the next call off.`,
+				text: "Received in good condition, thank you. We will come back to you for the next call off.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Great to hear. I will send the updated price list for ${v.product.toLowerCase()} before the next call off.`,
+				text: "Great to hear. I will send the updated price list for {product} before the next call off.",
 			},
 		],
 	},
 	followup: {
-		subject: (v) => `Offer ${v.ref} for ${v.product}`,
+		subject: "Offer {ref} for {product}",
 		outcome: "OPEN_OFFER_OURS",
 		lines: [
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Hi ${v.contact}, following up on our call. Our offer ${v.ref} for ${v.product.toLowerCase()} is attached, ${v.qty} per month with a fixed price for six months.`,
+				text: "Hi {contact}, following up on our call. Our offer {ref} for {product} is attached, {qty} per month with a fixed price for six months.",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Thanks ${v.owner}. We are reviewing it with purchasing and will get back to you by the end of the month.`,
+				text: "Thanks {owner}. We are reviewing it with purchasing and will get back to you by the end of the month.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: () =>
-					`Sounds good. If the volume changes, the price per pallet stays the same up to 20 percent more.`,
+				text: "Sounds good. If the volume changes, the price per pallet stays the same up to 20 percent more.",
 			},
 		],
 	},
 	customs: {
-		subject: (v) => `Customs documents for shipment ${v.ref}`,
+		subject: "Customs documents for shipment {ref}",
 		outcome: "OTHER",
 		lines: [
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Hello ${v.owner}, for shipment ${v.ref} we still need the EUR.1 certificate and the packing list before the truck can leave.`,
+				text: "Hello {owner}, for shipment {ref} we still need the EUR.1 certificate and the packing list before the truck can leave.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Hi ${v.contact}, both documents are attached. Let me know if the broker needs anything else.`,
+				text: "Hi {contact}, both documents are attached. Let me know if the broker needs anything else.",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: () =>
-					`All good, the shipment cleared this morning. Thanks for the quick turnaround.`,
+				text: "All good, the shipment cleared this morning. Thanks for the quick turnaround.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Perfect. The next ${v.product.toLowerCase()} shipment to ${v.city} gets the same paperwork upfront.`,
+				text: "Perfect. The next {product} shipment to {city} gets the same paperwork upfront.",
 			},
 		],
 	},
 	delivery: {
-		subject: (v) => `Delivery note for shipment ${v.ref}`,
+		subject: "Delivery note for shipment {ref}",
 		outcome: "OTHER",
 		lines: [
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Hello ${v.owner}, the delivery note for shipment ${v.ref} lists 22 pallets but the truck delivered 24. Can you send a corrected note so we can book the goods in?`,
+				text: "Hello {owner}, the delivery note for shipment {ref} lists 22 pallets but the truck delivered 24. Can you send a corrected note so we can book the goods in?",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Hi ${v.contact}, sorry about that. The corrected delivery note with 24 pallets of ${v.product.toLowerCase()} is attached.`,
+				text: "Hi {contact}, sorry about that. The corrected delivery note with 24 pallets of {product} is attached.",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: () =>
-					`Received, the goods are booked in. Thanks for the quick fix.`,
+				text: "Received, the goods are booked in. Thanks for the quick fix.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: () =>
-					`Glad it is sorted. The next delivery gets a double check before dispatch.`,
+				text: "Glad it is sorted. The next delivery gets a double check before dispatch.",
 			},
 		],
 	},
 	invoice: {
-		subject: (v) => `Invoice ${v.ref}`,
+		subject: "Invoice {ref}",
 		outcome: "OTHER",
 		lines: [
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Hi ${v.contact}, invoice ${v.ref} for the last ${v.product.toLowerCase()} delivery is attached. Payment terms are 30 days as agreed.`,
+				text: "Hi {contact}, invoice {ref} for the last {product} delivery is attached. Payment terms are 30 days as agreed.",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Thanks ${v.owner}. Accounting needs our purchase order number on the invoice before they can release it.`,
+				text: "Thanks {owner}. Accounting needs our purchase order number on the invoice before they can release it.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: () =>
-					`Understood, the corrected invoice with your order number is attached.`,
+				text: "Understood, the corrected invoice with your order number is attached.",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: () => `Perfect, it is approved for payment on the next run.`,
+				text: "Perfect, it is approved for payment on the next run.",
 			},
 		],
 	},
 	claim: {
-		subject: (v) => `Claim: damaged pallets in shipment ${v.ref}`,
+		subject: "Claim: damaged pallets in shipment {ref}",
 		outcome: "OTHER",
 		lines: [
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Hello ${v.owner}, 12 pallets of ${v.product.toLowerCase()} from shipment ${v.ref} arrived with torn wrapping and crushed corners. Photos are attached. How do we proceed?`,
+				text: "Hello {owner}, 12 pallets of {product} from shipment {ref} arrived with torn wrapping and crushed corners. Photos are attached. How do we proceed?",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Hi ${v.contact}, sorry to see that. We can send a credit note or replace the 12 pallets next week. Which do you prefer?`,
+				text: "Hi {contact}, sorry to see that. We can send a credit note or replace the 12 pallets next week. Which do you prefer?",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Replacement please, we need the stock for the ${v.city} site.`,
+				text: "Replacement please, we need the stock for the {city} site.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: () =>
-					`Done, the 12 replacement pallets ship on Monday at no charge.`,
+				text: "Done, the 12 replacement pallets ship on Monday at no charge.",
 			},
 		],
 	},
 	meeting: {
-		subject: (v) => `Meeting request: ${v.ref}`,
+		subject: "Meeting request: {ref}",
 		outcome: "OTHER",
 		lines: [
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: (v) =>
-					`Hi ${v.contact}, could we meet in ${v.city} in the coming weeks for a review of the Q4 volumes and the price list for next year?`,
+				text: "Hi {contact}, could we meet in {city} in the coming weeks for a review of the Q4 volumes and the price list for next year?",
 			},
 			{
 				direction: EmailDirection.INBOUND,
-				text: (v) =>
-					`Hi ${v.owner}, Tuesday at 10:00 works for us. Come to the main office, I will book the meeting room.`,
+				text: "Hi {owner}, Tuesday at 10:00 works for us. Come to the main office, I will book the meeting room.",
 			},
 			{
 				direction: EmailDirection.OUTBOUND,
-				text: () =>
-					`Tuesday 10:00 is confirmed. I will bring the volume overview and the draft price list.`,
+				text: "Tuesday 10:00 is confirmed. I will bring the volume overview and the draft price list.",
 			},
 		],
 	},
@@ -1242,6 +1215,8 @@ const SHOWCASE_NOTES: Note[] = [
 
 let seedNow = Date.now();
 
+let copy: DemoCopy = demoCopy(DEFAULT_LOCALE);
+
 function daysAgo(days: number, hour = 9): Date {
 	const date = new Date(seedNow - days * DAY_MS);
 	date.setUTCHours(hour, 15, 0, 0);
@@ -1270,8 +1245,8 @@ function firstSentence(text: string): string {
 
 function quantityText(qty: number | null): string {
 	return qty === null
-		? "a first batch"
-		: `${qty.toLocaleString("en-US")} pallets`;
+		? copy.t("a first batch")
+		: copy.t("{qty} pallets", { qty: copy.number(qty) });
 }
 
 function linesOf(spec: ThreadSpec): Line[] {
@@ -1414,9 +1389,9 @@ async function writeCompanies(
 			name: company.name,
 			domain: company.domain,
 			website: `https://www.${company.domain}`,
-			industry: company.industry,
+			industry: copy.t(company.industry),
 			city: company.city,
-			country: company.country,
+			country: copy.t(company.country),
 			countryCode: company.countryCode,
 			ownerId: owner.id,
 			standing: verdict.standing,
@@ -1448,7 +1423,7 @@ async function writeContacts(
 			firstName: ref.person.first,
 			lastName: ref.person.last,
 			email: emailOf(ref.person, ref.company.domain),
-			title: ref.person.title,
+			title: copy.t(ref.person.title),
 			companyId: id("co", ref.company.key),
 			ownerId: owner.id,
 			standing: verdict?.standing ?? null,
@@ -1487,7 +1462,7 @@ async function writeDeals(
 		const closedAt =
 			deal.closedDaysAgo === null ? null : daysAgo(deal.closedDaysAgo, 16);
 		const data = {
-			name: deal.name,
+			name: copy.t(deal.name),
 			companyId: id("co", deal.company),
 			ownerId: owner.id,
 			stage: deal.stage,
@@ -1497,7 +1472,7 @@ async function writeDeals(
 			expectedCloseDate:
 				deal.closesInDays === null ? null : daysAhead(deal.closesInDays),
 			closedAt,
-			closedReason: deal.closedReason,
+			closedReason: deal.closedReason ? copy.t(deal.closedReason) : null,
 			baseAmount: fx?.baseAmount ?? null,
 			baseCurrency: fx?.baseCurrency ?? null,
 			fxRate: fx?.fxRate ?? null,
@@ -1514,8 +1489,8 @@ async function writeDeals(
 		});
 		await db.dealContact.upsert({
 			where: { dealId_contactId: { dealId, contactId: contact.id } },
-			create: { dealId, contactId: contact.id, role: "Buyer" },
-			update: {},
+			create: { dealId, contactId: contact.id, role: copy.t("Buyer") },
+			update: { role: copy.t("Buyer") },
 		});
 	}
 }
@@ -1528,17 +1503,18 @@ async function writeThread(
 	threadId: string,
 ): Promise<Date> {
 	const template = THREADS[spec.kind];
+	const product = copy.t(spec.product);
 	const voice: Voice = {
 		owner: owner.name.split(" ")[0] ?? owner.name,
 		contact: ref.person.first,
 		company: ref.company.name,
 		city: ref.company.city,
-		product: spec.product,
+		product: copy.inSentence(product),
 		qty: quantityText(spec.qty),
-		ref: spec.ref,
+		ref: copy.t(spec.ref),
 	};
 	const lines = linesOf(spec);
-	const subject = template.subject(voice);
+	const subject = copy.t(template.subject, { ...voice, product });
 	const contactEmail = emailOf(ref.person, ref.company.domain);
 	const contactName = `${ref.person.first} ${ref.person.last}`;
 	const rootMessageId = `<${id("msg", bare(threadId), 1)}@${ref.company.domain}>`;
@@ -1570,7 +1546,7 @@ async function writeThread(
 
 	for (const [index, line] of lines.entries()) {
 		const outbound = line.direction === EmailDirection.OUTBOUND;
-		const body = line.text(voice);
+		const body = copy.t(line.text, voice);
 		const messageId = id("msg", bare(threadId), index + 1);
 		const data = {
 			threadId,
@@ -1614,15 +1590,18 @@ async function writeThread(
 	const insight = {
 		threadId,
 		relevant: signal.relevant,
-		topics: [spec.product],
+		topics: [product],
 		side: "THEY_BUY",
-		products: [spec.product],
+		products: [product],
 		quantityPallets: signal.quantityPallets,
 		loads: null,
 		outcome: signal.outcome,
 		unansweredByUs: signal.unansweredByUs,
-		summary: `${ref.company.name} and ${voice.owner} about ${spec.product.toLowerCase()}, ${voice.qty}, reference ${spec.ref}.`,
-		evidence: [firstSentence(lines[0]?.text(voice) ?? "")],
+		summary: copy.t(
+			"{company} and {owner} about {product}, {qty}, reference {ref}.",
+			voice,
+		),
+		evidence: [firstSentence(lines[0] ? copy.t(lines[0].text, voice) : "")],
 		modelId: DEMO.modelId,
 		lastMessageAt: last,
 		createdAt: last,
@@ -1638,7 +1617,9 @@ async function writeThread(
 	const activity = {
 		type: ActivityType.EMAIL,
 		subject,
-		body: lastLine ? lastLine.text(voice).slice(0, DEMO.snippetChars) : null,
+		body: lastLine
+			? copy.t(lastLine.text, voice).slice(0, DEMO.snippetChars)
+			: null,
 		occurredAt: last,
 		companyId: id("co", ref.company.key),
 		contactId: ref.id,
@@ -1667,8 +1648,8 @@ async function writeShowcaseNotes(
 		const activityId = id("act", note.key, DEMO.showcase.contact);
 		const data = {
 			type: note.type,
-			subject: note.subject,
-			body: note.body,
+			subject: copy.t(note.subject),
+			body: copy.t(note.body),
 			occurredAt: note.dueInDays === null ? at : null,
 			dueAt: note.dueInDays === null ? null : daysAhead(note.dueInDays),
 			completedAt: null,
@@ -1719,11 +1700,11 @@ async function writeConversations(
 		const memoryId = id("mem", candidate.contact);
 		const memory = {
 			contactId: ref.id,
-			summary: candidate.memory.summary,
+			summary: copy.t(candidate.memory.summary),
 			didBusiness: candidate.memory.didBusiness,
 			openInquiries: candidate.memory.openInquiries,
 			maxPallets: candidate.memory.maxPallets,
-			products: candidate.memory.products,
+			products: candidate.memory.products.map((item) => copy.t(item)),
 			lastOutcome: candidate.memory.lastOutcome,
 			coveredThreadIds: threadIds,
 			modelId: DEMO.modelId,
@@ -1750,6 +1731,41 @@ async function writeConversations(
 			data: { lastActivityAt },
 		});
 	}
+}
+
+export function demoTexts(): string[] {
+	const texts = new Set<string>([
+		"a first batch",
+		"{qty} pallets",
+		"{company} and {owner} about {product}, {qty}, reference {ref}.",
+		"Buyer",
+	]);
+	for (const company of COMPANIES) {
+		texts.add(company.industry);
+		texts.add(company.country);
+		for (const person of company.people) texts.add(person.title);
+	}
+	for (const candidate of CANDIDATES) {
+		texts.add(candidate.memory.summary);
+		for (const item of candidate.memory.products) texts.add(item);
+		for (const thread of candidate.threads) {
+			texts.add(thread.product);
+			if (/[a-z]/.test(thread.ref)) texts.add(thread.ref);
+		}
+	}
+	for (const deal of DEALS) {
+		texts.add(deal.name);
+		if (deal.closedReason) texts.add(deal.closedReason);
+	}
+	for (const template of Object.values(THREADS)) {
+		texts.add(template.subject);
+		for (const line of template.lines) texts.add(line.text);
+	}
+	for (const note of SHOWCASE_NOTES) {
+		texts.add(note.subject);
+		texts.add(note.body);
+	}
+	return [...texts];
 }
 
 const PREFIXED = { id: { startsWith: DEMO.prefix } };
@@ -1830,8 +1846,10 @@ export async function seedDemoData(
 	reader: Db,
 	db: DemoDb,
 	owner: Owner,
+	locale: Locale = DEFAULT_LOCALE,
 ): Promise<Record<string, number>> {
 	seedNow = Date.now();
+	copy = demoCopy(locale);
 	const contacts = contactsOf();
 	const verdicts = await verdictsOf(reader);
 

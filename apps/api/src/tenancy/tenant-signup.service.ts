@@ -137,6 +137,7 @@ export class TenantSignupService {
 			allowList: [input.email],
 			status: "pending",
 			plan: "trial",
+			name: input.company,
 		});
 
 		this.logger.log({

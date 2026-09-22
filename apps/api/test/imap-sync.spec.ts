@@ -69,6 +69,7 @@ function harness(options: {
 	cursor?: string | null;
 	sinceUids?: number[];
 	plan?: string | null;
+	threads?: number;
 }) {
 	const plan = options.plan ?? null;
 
@@ -175,7 +176,9 @@ function harness(options: {
 		imapAccount: { findUnique: async () => account },
 		mailboxSync: { update: async () => undefined },
 		appSetting: { findUnique: async () => ({ plan }) },
-		emailThread: { count: async () => 0 },
+		emailThread: {
+			count: async () => (options.threads ?? 0) + stored.length,
+		},
 	} as unknown as Db;
 
 	const service = new ImapSyncService(db, clients, credentials, state, threads);
@@ -377,6 +380,47 @@ describe("ImapSyncService", () => {
 		expect(h.stored.map((entry) => entry.message.rfcMessageId)).toEqual([
 			"m-2@example.com",
 		]);
+	});
+
+	it("narrows the backfill range to the threads the plan still allows", async () => {
+		const all = Array.from({ length: 10 }, (_, at) =>
+			message(at + 1, `p${at}@acme.com`, "rep@example.com"),
+		);
+		const h = harness({
+			folders: gmail({ sent: [], all }),
+			plan: "test",
+			threads: 496,
+			sinceUids: [1],
+		});
+
+		await h.service.sync(row());
+
+		expect(h.stored.map((entry) => entry.message.rfcMessageId)).toEqual([
+			"m-7@example.com",
+			"m-8@example.com",
+			"m-9@example.com",
+			"m-10@example.com",
+		]);
+		expect(h.fetched.map((entry) => entry.range)).toEqual(["7:10"]);
+
+		const cursor = parseImapCursor(h.settled.at(-1)?.cursor);
+		expect(cursor.folders["[Gmail]/All Mail"]?.backfillUid).toBeNull();
+	});
+
+	it("stops cleanly when its deadline has passed", async () => {
+		const h = harness({
+			folders: gmail({
+				sent: [],
+				all: [message(1, "ada@acme.com", "rep@example.com")],
+			}),
+		});
+
+		const outcome = await h.service.sync(row(), Date.now() - 1);
+
+		expect(outcome.status).toBe("synced");
+		expect(h.stored).toHaveLength(0);
+		expect(h.opened).toEqual([]);
+		expect(h.closed()).toBe(1);
 	});
 
 	it("marks a refused sign-in as needing reconnect", async () => {

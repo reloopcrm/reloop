@@ -1,3 +1,5 @@
+import { MAILBOX } from "../mailbox/mailbox.config";
+
 const SECOND_MS = 1_000;
 const KB = 1_024;
 
@@ -8,9 +10,13 @@ export const IMAP = {
 		socketTimeoutMs: 120 * SECOND_MS,
 	},
 	sync: {
-		maxMessagesPerTick: 250,
+		get maxMessagesPerTick() {
+			return MAILBOX.sync.maxMessagesPerTick;
+		},
 		forwardChunk: 100,
-		backfillChunk: 100,
+		get backfillChunk() {
+			return MAILBOX.sync.backfillChunk;
+		},
 		sourceMaxBytes: 512 * KB,
 	},
 	folders: {

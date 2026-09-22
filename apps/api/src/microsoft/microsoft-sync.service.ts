@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { NO_DEADLINE } from "../mailbox/mailbox.config";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import {
 	MICROSOFT_SYNC_SOURCES,
@@ -13,11 +14,15 @@ export class MicrosoftSyncService {
 		private readonly outlook: OutlookSyncService,
 	) {}
 
-	async runOne(userId: string, source: MicrosoftSyncSource) {
+	async runOne(
+		userId: string,
+		source: MicrosoftSyncSource,
+		deadlineAt: number = NO_DEADLINE,
+	) {
 		const row = await this.state.get(userId, source);
 		if (!row) return null;
 
-		return this.outlook.sync(row);
+		return this.outlook.sync(row, deadlineAt);
 	}
 
 	async runForUser(userId: string): Promise<void> {

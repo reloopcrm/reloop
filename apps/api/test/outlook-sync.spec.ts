@@ -54,6 +54,7 @@ function harness(options: {
 	sentPages?: GraphMessage[][];
 	backfillPage?: (link: string | null) => Ok<GraphPage> | NotOk;
 	plan?: string | null;
+	threads?: number;
 	meDelayMs?: number;
 }): Harness {
 	const stored: IncomingMessage[] = [];
@@ -129,7 +130,7 @@ function harness(options: {
 		},
 		emailThread: {
 			async count() {
-				return 0;
+				return (options.threads ?? 0) + stored.length;
 			},
 		},
 	} as unknown as Db;
@@ -392,6 +393,36 @@ describe("OutlookSyncService budget", () => {
 		expect(kit.stored[119]?.rfcMessageId).toBe("m-119@acme.com");
 		expect(kit.settled.at(-1)?.cursor).toBe(lastProcessed);
 	});
+
+	it("cuts a backfill page to the threads the plan still allows", async () => {
+		const kit = harness({
+			backfillPages: [bulk(200, 0), bulk(200, 200)],
+			plan: "test",
+			threads: 470,
+		});
+
+		await kit.service.sync(row);
+
+		expect(kit.stored).toHaveLength(30);
+		expect(kit.backfillLinks).toEqual([null, null]);
+
+		const plan = readBackfill(kit.settled.at(-1)?.backfill);
+		expect(plan.outcome === "ok" && plan.backfill.state).toBe("running");
+	});
+
+	it("stops cleanly when its deadline has passed and keeps both positions", async () => {
+		const kit = harness({
+			pages: [bulk(50, 0)],
+			backfillPages: [bulk(50, 500)],
+		});
+
+		const outcome = await kit.service.sync(row, Date.now() - 1);
+
+		expect(outcome.status).toBe("synced");
+		expect(kit.stored).toHaveLength(0);
+		expect(kit.backfillLinks).toHaveLength(0);
+		expect(kit.settled.at(-1)?.cursor).toBe(row.cursor);
+	});
 });
 
 describe("OutlookSyncService first run", () => {
@@ -464,12 +495,12 @@ describe("OutlookSyncService backfill", () => {
 
 	it("stops on the tick budget and keeps the page it stopped on", async () => {
 		const kit = harness({
-			backfillPages: [older(100, 0), older(100, 100), older(100, 200)],
+			backfillPages: [older(400, 0), older(400, 400), older(400, 800)],
 		});
 
 		await kit.service.sync(row);
 
-		expect(kit.stored).toHaveLength(250);
+		expect(kit.stored).toHaveLength(1000);
 
 		const plan = planOf(kit.settled.at(-1)?.backfill);
 		expect(plan.state).toBe("running");
@@ -478,18 +509,18 @@ describe("OutlookSyncService backfill", () => {
 
 	it("resumes from the stored page on the next tick", async () => {
 		const first = harness({
-			backfillPages: [older(100, 0), older(100, 100), older(100, 200)],
+			backfillPages: [older(400, 0), older(400, 400), older(400, 800)],
 		});
 		await first.service.sync(row);
 		const carried = first.settled.at(-1)?.backfill ?? null;
 
 		const second = harness({
-			backfillPages: [older(100, 0), older(100, 100), older(100, 200)],
+			backfillPages: [older(400, 0), older(400, 400), older(400, 800)],
 		});
 		await second.service.sync({ ...row, backfill: carried } as MailboxSync);
 
 		expect(second.backfillLinks).toEqual(["back-2"]);
-		expect(second.stored.at(0)?.rfcMessageId).toBe("old-200@acme.com");
+		expect(second.stored.at(0)?.rfcMessageId).toBe("old-800@acme.com");
 		expect(planOf(second.settled.at(-1)?.backfill).state).toBe("done");
 	});
 

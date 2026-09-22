@@ -8,6 +8,10 @@ import type {
 import { SENT_MAIL_QUERY } from "../src/google/gmail.client";
 import { GmailSyncService } from "../src/google/gmail-sync.service";
 import { readBackfill } from "../src/mailbox/backfill-cursor";
+import {
+	mailboxSyncConfig,
+	MAILBOX as SYNC_CONFIG,
+} from "../src/mailbox/mailbox.config";
 import type { SyncOrigin } from "../src/mailbox/mailbox.constants";
 import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import type { SyncStateService } from "../src/mailbox/sync-state.service";
@@ -71,6 +75,7 @@ function harness(options: {
 	threads?: number;
 	alreadyFiled?: string[];
 	getMessage?: (id: string) => NotOk | null;
+	delayMs?: (id: string) => number;
 }) {
 	const pages = options.pages ?? [[]];
 	const sentPages = options.sentPages ?? [[]];
@@ -126,6 +131,9 @@ function harness(options: {
 			const failure = options.getMessage?.(id);
 			if (failure) return failure;
 
+			const delay = options.delayMs?.(id) ?? 0;
+			if (delay > 0) await Bun.sleep(delay);
+
 			fetched.push(id);
 			return ok(gmailMessage(id, new Date(Date.UTC(2024, 0, 1))));
 		},
@@ -150,7 +158,7 @@ function harness(options: {
 		},
 		emailThread: {
 			async count() {
-				return options.threads ?? 0;
+				return (options.threads ?? 0) + stored.length;
 			},
 		},
 	} as unknown as Db;
@@ -267,14 +275,15 @@ describe("GmailSyncService backfill", () => {
 		expect(backfillOf(kit.settled.at(-1)?.backfill).state).toBe("done");
 	});
 
-	it("stops on the tick budget and keeps the page it stopped on", async () => {
+	it("stops on the Gmail quota share and keeps the page it stopped on", async () => {
 		const kit = harness({
 			pages: [ids(100, 0), ids(100, 100), ids(100, 200), ids(100, 300)],
 		});
 
 		await kit.service.sync(row());
 
-		expect(kit.stored).toHaveLength(250);
+		expect(SYNC_CONFIG.sync.gmail.maxMessagesPerTick).toBe(240);
+		expect(kit.stored).toHaveLength(240);
 
 		const plan = backfillOf(kit.settled.at(-1)?.backfill);
 		expect(plan.state).toBe("running");
@@ -358,6 +367,83 @@ describe("GmailSyncService backfill", () => {
 		expect(
 			kit.stored.slice(0, 120).map((message) => message.gmailMessageId),
 		).toEqual(ids(120, 900));
-		expect(kit.stored).toHaveLength(250);
+		expect(kit.stored).toHaveLength(240);
+	});
+
+	it("never stores past the plan's thread cap, even inside one chunk", async () => {
+		const kit = harness({
+			pages: [ids(100, 0), ids(100, 100)],
+			plan: "test",
+			threads: 450,
+		});
+
+		await kit.service.sync(row());
+
+		expect(kit.stored).toHaveLength(50);
+		expect(backfillOf(kit.settled.at(-1)?.backfill).state).toBe("running");
+
+		const again = harness({
+			pages: [ids(100, 0), ids(100, 100)],
+			plan: "test",
+			threads: 500,
+		});
+		await again.service.sync(row({ backfill: kit.settled.at(-1)?.backfill }));
+
+		expect(again.stored).toHaveLength(0);
+		expect(backfillOf(again.settled.at(-1)?.backfill).state).toBe("done");
+	});
+
+	it("stops cleanly at the deadline after the forward read, keeping the position", async () => {
+		const kit = harness({
+			historyIds: ids(3, 900),
+			pages: [ids(100, 0), ids(100, 100)],
+			delayMs: (id) => (id === "old-902" ? 400 : 0),
+		});
+
+		const outcome = await kit.service.sync(row(), Date.now() + 300);
+
+		expect(outcome.status).toBe("synced");
+		expect(kit.stored.map((message) => message.gmailMessageId)).toEqual(
+			ids(3, 900),
+		);
+		expect(kit.listed).toHaveLength(0);
+
+		const plan = backfillOf(kit.settled.at(-1)?.backfill);
+		expect(plan.state).toBe("running");
+		expect(plan.position).toBeNull();
+		expect(kit.settled.at(-1)?.cursor).toBe("1001");
+	});
+});
+
+describe("mailboxSyncConfig", () => {
+	it("uses the raised defaults and clamps Gmail to its quota", () => {
+		const config = mailboxSyncConfig({});
+
+		expect(config.maxMessagesPerTick).toBe(1000);
+		expect(config.backfillChunk).toBe(500);
+		expect(config.pageSize).toBe(200);
+		expect(config.gmail.maxMessagesPerTick).toBe(240);
+	});
+
+	it("takes every size from the environment", () => {
+		const config = mailboxSyncConfig({
+			MAILBOX_SYNC_MAX_PER_TICK: "50",
+			MAILBOX_SYNC_BACKFILL_CHUNK: "10",
+			MAILBOX_SYNC_PAGE_SIZE: "20",
+		});
+
+		expect(config.maxMessagesPerTick).toBe(50);
+		expect(config.backfillChunk).toBe(10);
+		expect(config.pageSize).toBe(20);
+		expect(config.gmail.maxMessagesPerTick).toBe(50);
+	});
+
+	it("refuses a size that is not a positive integer", () => {
+		expect(() =>
+			mailboxSyncConfig({ MAILBOX_SYNC_MAX_PER_TICK: "0" }),
+		).toThrow();
+		expect(() =>
+			mailboxSyncConfig({ MAILBOX_SYNC_PAGE_SIZE: "many" }),
+		).toThrow();
 	});
 });

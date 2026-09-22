@@ -20,8 +20,8 @@ import {
 	restartBackfill,
 	serialiseBackfill,
 } from "../mailbox/backfill-cursor";
-import { importCapReached } from "../mailbox/import-cap";
-import { MAILBOX } from "../mailbox/mailbox.config";
+import { importCapRemaining } from "../mailbox/import-cap";
+import { MAILBOX, NO_DEADLINE, pastDeadline } from "../mailbox/mailbox.config";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import {
@@ -88,7 +88,10 @@ export class GmailSyncService {
 		private readonly threads: ThreadWriterService,
 	) {}
 
-	async sync(row: MailboxSync): Promise<GmailSyncOutcome> {
+	async sync(
+		row: MailboxSync,
+		deadlineAt: number = NO_DEADLINE,
+	): Promise<GmailSyncOutcome> {
 		const token = await this.tokens.accessTokenFor(row.userId, "gmail");
 
 		if (token.outcome === "not-connected") {
@@ -132,7 +135,13 @@ export class GmailSyncService {
 			return this.start(row, profile.data.historyId ?? null);
 		}
 
-		return this.incremental(row, token.accessToken, mailbox, row.cursor);
+		return this.incremental(
+			row,
+			token.accessToken,
+			mailbox,
+			row.cursor,
+			deadlineAt,
+		);
 	}
 
 	private async start(
@@ -173,6 +182,7 @@ export class GmailSyncService {
 		accessToken: string,
 		mailbox: string,
 		startHistoryId: string,
+		deadlineAt: number,
 	): Promise<GmailSyncOutcome> {
 		const history = await this.gmail.listHistory(accessToken, {
 			startHistoryId,
@@ -206,6 +216,7 @@ export class GmailSyncService {
 			mailbox,
 			[...ids],
 			MAILBOX.sync.forwardMax,
+			deadlineAt,
 		);
 
 		const cursor =
@@ -225,7 +236,8 @@ export class GmailSyncService {
 			row,
 			accessToken,
 			mailbox,
-			MAILBOX.sync.maxMessagesPerTick - forward.fetched,
+			MAILBOX.sync.gmail.maxMessagesPerTick - forward.fetched,
+			deadlineAt,
 		);
 
 		await this.state.settle(row.id, {
@@ -261,6 +273,7 @@ export class GmailSyncService {
 		accessToken: string,
 		mailbox: string,
 		budget: number,
+		deadlineAt: number,
 	): Promise<Backfilled> {
 		const read = readBackfill(row.backfill);
 
@@ -288,8 +301,9 @@ export class GmailSyncService {
 		let written = 0;
 		const limits = limitsOf(await readPlan(this.db));
 
-		while (left > 0 && isBackfillRunning(plan)) {
-			if (await importCapReached(this.db, limits)) {
+		while (left > 0 && isBackfillRunning(plan) && !pastDeadline(deadlineAt)) {
+			const remaining = await importCapRemaining(this.db, limits);
+			if (remaining === 0) {
 				plan = finishBackfill(plan);
 				break;
 			}
@@ -330,7 +344,14 @@ export class GmailSyncService {
 				continue;
 			}
 
-			const run = await this.ingest(row, accessToken, mailbox, ids, left);
+			const run = await this.ingest(
+				row,
+				accessToken,
+				mailbox,
+				ids,
+				Math.min(left, remaining),
+				deadlineAt,
+			);
 			if (run.oldest) plan = reachedBack(plan, run.oldest);
 
 			written += run.written;
@@ -367,6 +388,7 @@ export class GmailSyncService {
 		mailbox: string,
 		ids: readonly string[],
 		cap: number,
+		deadlineAt: number,
 	): Promise<Ingested> {
 		const empty: Ingested = {
 			written: 0,
@@ -397,6 +419,8 @@ export class GmailSyncService {
 		let oldest: Date | null = null;
 
 		for (const id of batch) {
+			if (pastDeadline(deadlineAt)) break;
+
 			const message = await this.gmail.getMessage(accessToken, id);
 
 			if (
@@ -429,7 +453,12 @@ export class GmailSyncService {
 			if (stored) written += 1;
 		}
 
-		return { written, fetched, remaining, oldest };
+		return {
+			written,
+			fetched,
+			remaining: remaining + batch.length - fetched,
+			oldest,
+		};
 	}
 
 	private parse(message: GmailMessage): IncomingMessage | null {

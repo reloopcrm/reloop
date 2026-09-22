@@ -8,6 +8,7 @@ import type { GoogleConnectionService } from "../src/google/google-connection.se
 import type { GoogleSyncService } from "../src/google/google-sync.service";
 import type { ImapConnectionService } from "../src/imap/imap-connection.service";
 import type { ImapSyncService } from "../src/imap/imap-sync.service";
+import { SYNC_TICK } from "../src/mailbox/mailbox.config";
 import {
 	SYNC_LEASE_MS,
 	type SyncStateService,
@@ -15,7 +16,10 @@ import {
 import type { ThreadAdoptionService } from "../src/mailbox/thread-adoption.service";
 import type { MicrosoftConnectionService } from "../src/microsoft/microsoft-connection.service";
 import type { MicrosoftSyncService } from "../src/microsoft/microsoft-sync.service";
-import { MailboxSyncService } from "../src/sync/mailbox-sync.service";
+import {
+	MailboxSyncService,
+	mailboxDeadline,
+} from "../src/sync/mailbox-sync.service";
 
 type Outcome = {
 	source: string;
@@ -117,7 +121,11 @@ const noConnections = {
 
 function build(
 	state: FakeState,
-	runOne: (userId: string, source: string) => Promise<Outcome | null>,
+	runOne: (
+		userId: string,
+		source: string,
+		deadlineAt: number,
+	) => Promise<Outcome | null>,
 ): MailboxSyncService {
 	const provider = { runOne } as unknown as GoogleSyncService;
 
@@ -255,6 +263,40 @@ describe("runDue always resolves the lease", () => {
 		expect(summary.failed).toBe(1);
 		expect(state.rows.get("a")?.status).toBe(GoogleSyncStatus.FAILED);
 		expect(state.rows.get("a")?.retryAfter).toBeNull();
+	});
+});
+
+describe("runDue hands every mailbox a share of the tick budget", () => {
+	it("passes a deadline inside the tick budget", async () => {
+		state.add("a", "gmail");
+		state.add("b", "outlook");
+
+		const startedAt = Date.now();
+		const deadlines: number[] = [];
+
+		const service = build(state, async (userId, source, deadlineAt) => {
+			deadlines.push(deadlineAt);
+			return { source, userId, status: "synced" };
+		});
+
+		await service.runDue();
+
+		expect(deadlines).toHaveLength(2);
+		for (const deadlineAt of deadlines) {
+			expect(deadlineAt).toBeGreaterThan(startedAt);
+			expect(deadlineAt).toBeLessThanOrEqual(
+				startedAt + SYNC_TICK.selfHostBudgetMs,
+			);
+		}
+	});
+
+	it("splits what is left evenly over the mailboxes still due", () => {
+		const now = 1_000_000;
+		const tickEndsAt = now + SYNC_TICK.settleReserveMs + 20_000;
+
+		expect(mailboxDeadline(now, tickEndsAt, 2)).toBe(now + 10_000);
+		expect(mailboxDeadline(now, tickEndsAt, 1)).toBe(now + 20_000);
+		expect(mailboxDeadline(tickEndsAt + 1, tickEndsAt, 3)).toBe(tickEndsAt + 1);
 	});
 });
 

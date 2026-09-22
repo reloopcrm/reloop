@@ -7,6 +7,7 @@ import { GoogleConnectionService } from "../google/google-connection.service";
 import { GoogleSyncService } from "../google/google-sync.service";
 import { ImapConnectionService } from "../imap/imap-connection.service";
 import { ImapSyncService } from "../imap/imap-sync.service";
+import { SYNC_TICK } from "../mailbox/mailbox.config";
 import {
 	isGoogleSyncSource,
 	isImapSyncSource,
@@ -17,10 +18,17 @@ import { ThreadAdoptionService } from "../mailbox/thread-adoption.service";
 import { MicrosoftConnectionService } from "../microsoft/microsoft-connection.service";
 import { MicrosoftSyncService } from "../microsoft/microsoft-sync.service";
 
-const TICK_BUDGET_MS = 60_000;
-
 const tickBudgetMs = () =>
-	isHosted() ? TENANCY.loop.budgetMs : TICK_BUDGET_MS;
+	isHosted() ? TENANCY.loop.budgetMs : SYNC_TICK.selfHostBudgetMs;
+
+export function mailboxDeadline(
+	now: number,
+	tickEndsAt: number,
+	mailboxesLeft: number,
+): number {
+	const usable = tickEndsAt - SYNC_TICK.settleReserveMs - now;
+	return now + Math.max(usable, 0) / Math.max(mailboxesLeft, 1);
+}
 
 export type TickSummary = {
 	attempted: number;
@@ -80,9 +88,10 @@ export class MailboxSyncService {
 		}
 
 		const due = await this.state.due(new Date());
+		const tickEndsAt = startedAt + tickBudgetMs();
 
 		for (const [index, row] of due.entries()) {
-			if (Date.now() - startedAt > tickBudgetMs()) {
+			if (Date.now() > tickEndsAt) {
 				this.logger.log({
 					message: "Sync tick budget reached",
 					remaining: due.length - index,
@@ -95,7 +104,11 @@ export class MailboxSyncService {
 			summary.attempted += 1;
 
 			try {
-				const outcome = await this.runOne(row.userId, row.source);
+				const outcome = await this.runOne(
+					row.userId,
+					row.source,
+					mailboxDeadline(Date.now(), tickEndsAt, due.length - index),
+				);
 
 				if (outcome === null || outcome.status === "skipped") {
 					summary.skipped += 1;
@@ -144,14 +157,18 @@ export class MailboxSyncService {
 		return summary;
 	}
 
-	private async runOne(userId: string, source: string) {
-		if (isGoogleSyncSource(source)) return this.google.runOne(userId, source);
-
-		if (isMicrosoftSyncSource(source)) {
-			return this.microsoft.runOne(userId, source);
+	private async runOne(userId: string, source: string, deadlineAt: number) {
+		if (isGoogleSyncSource(source)) {
+			return this.google.runOne(userId, source, deadlineAt);
 		}
 
-		if (isImapSyncSource(source)) return this.imap.runOne(userId, source);
+		if (isMicrosoftSyncSource(source)) {
+			return this.microsoft.runOne(userId, source, deadlineAt);
+		}
+
+		if (isImapSyncSource(source)) {
+			return this.imap.runOne(userId, source, deadlineAt);
+		}
 
 		return null;
 	}

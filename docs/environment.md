@@ -251,7 +251,8 @@ Hosted mode only. The number of model calls per minute the operator's
 `apps/agent/agent/lib/key-bucket.ts`. `DISPATCH.bucket` keeps 30 % of it for the
 fast lane and shares the rest between the tenants' backfills by plan. A value
 that is not a positive integer counts as the default. Declared in the agent's
-`turbo.json`, not in the API's schema, because only the agent reads it.
+`turbo.json` and passed to the agent container by `deploy/docker-compose.yml`,
+not in the API's schema, because only the agent reads it.
 
 ## `RELOOP_DEMO`, off by default
 

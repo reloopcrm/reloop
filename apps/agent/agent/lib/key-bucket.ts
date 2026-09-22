@@ -115,10 +115,6 @@ export function keyBucket(): KeyBucket {
 	return shared;
 }
 
-export function resetKeyBucket(bucket: KeyBucket | null = null): void {
-	shared = bucket;
-}
-
 const sleep = (ms: number) =>
 	new Promise<void>((resolve) => setTimeout(resolve, ms));
 

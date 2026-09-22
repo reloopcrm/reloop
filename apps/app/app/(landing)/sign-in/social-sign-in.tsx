@@ -12,15 +12,10 @@ import { toast } from "sonner";
 import { useT } from "@/lib/i18n/client";
 import { signInFailureText } from "@/lib/sign-in-errors";
 
-type ProviderChoice = {
-	label: string;
-	Logo: FC<SVGProps<SVGSVGElement>>;
-};
-
-const PROVIDERS = {
-	google: { label: "Continue with Google", Logo: GoogleLogo },
-	microsoft: { label: "Continue with Microsoft", Logo: MicrosoftLogo },
-} as const satisfies Record<MailboxProviderId, ProviderChoice>;
+const LOGOS = {
+	google: GoogleLogo,
+	microsoft: MicrosoftLogo,
+} as const satisfies Record<MailboxProviderId, FC<SVGProps<SVGSVGElement>>>;
 
 export function SocialSignIn({
 	provider,
@@ -32,7 +27,11 @@ export function SocialSignIn({
 	const t = useT();
 	const [pending, setPending] = useState(false);
 
-	const { label, Logo } = PROVIDERS[provider];
+	const Logo = LOGOS[provider];
+	const label =
+		provider === "google"
+			? t("Continue with Google")
+			: t("Continue with Microsoft");
 
 	function fail(failure?: { code?: string; status?: number }) {
 		setPending(false);
@@ -70,7 +69,7 @@ export function SocialSignIn({
 			) : (
 				<Logo data-icon="inline-start" className="size-4" />
 			)}
-			{t(label)}
+			{label}
 		</Button>
 	);
 }

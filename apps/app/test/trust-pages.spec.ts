@@ -27,9 +27,13 @@ async function parse(file: string): Promise<ts.SourceFile> {
 function visibleText(source: ts.SourceFile): string {
 	const parts: string[] = [];
 	const visit = (node: ts.Node): void => {
-		if (ts.isJsxText(node)) {
-			const text = node.text.replace(/\s+/g, " ").trim();
-			if (text) parts.push(text);
+		if (
+			ts.isCallExpression(node) &&
+			ts.isIdentifier(node.expression) &&
+			node.expression.text === "t"
+		) {
+			const first = node.arguments[0];
+			if (first && ts.isStringLiteral(first)) parts.push(first.text);
 		}
 		ts.forEachChild(node, visit);
 	};
@@ -41,16 +45,20 @@ function metadataFields(source: ts.SourceFile): string[] {
 	const fields: string[] = [];
 	const visit = (node: ts.Node): void => {
 		if (
-			ts.isVariableDeclaration(node) &&
-			ts.isIdentifier(node.name) &&
-			node.name.text === "metadata" &&
-			node.initializer &&
-			ts.isObjectLiteralExpression(node.initializer)
+			ts.isFunctionDeclaration(node) &&
+			node.name?.text === "generateMetadata"
 		) {
-			for (const property of node.initializer.properties) {
-				if (property.name && ts.isIdentifier(property.name))
-					fields.push(property.name.text);
-			}
+			const collect = (inner: ts.Node): void => {
+				if (ts.isReturnStatement(inner) && inner.expression) {
+					const returned = inner.expression;
+					if (ts.isObjectLiteralExpression(returned))
+						for (const property of returned.properties)
+							if (property.name && ts.isIdentifier(property.name))
+								fields.push(property.name.text);
+				}
+				ts.forEachChild(inner, collect);
+			};
+			collect(node);
 		}
 		ts.forEachChild(node, visit);
 	};

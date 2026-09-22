@@ -8,12 +8,16 @@ import { PricingPlans } from "@/components/landing/pricing/pricing-plans";
 import { getT } from "@/lib/i18n/server";
 import { signUpUrl } from "@/lib/site-links";
 
-export const metadata: Metadata = {
-	title: "Pricing",
-	description:
-		"Reloop CRM pricing. Every plan does everything, only the amount differs. AI included from €39 a month, or bring your own AI key from €19 a seat. 14 days free, no card.",
-	alternates: { canonical: "/pricing" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+	const t = await getT();
+	return {
+		title: t("Pricing"),
+		description: t(
+			"Reloop CRM pricing. Every plan does everything, only the amount differs. AI included from €39 a month, or bring your own AI key from €19 a seat. 14 days free, no card.",
+		),
+		alternates: { canonical: "/pricing" },
+	};
+}
 
 export default async function PricingPage() {
 	const t = await getT();

@@ -3,10 +3,13 @@ import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { BentoCard } from "@/components/landing/bento-card";
 import { CloudCard } from "@/components/landing/cloud-card";
-import { LandingShell } from "@/components/landing/landing-shell";
-import { Band, PageHero, SelfHostNote } from "@/components/landing/page-blocks";
+import {
+	FormCard,
+	FormHeading,
+	FormPage,
+	SelfHostNote,
+} from "@/components/landing/page-blocks";
 import { PRICING } from "@/components/landing/pricing/config";
 import { SignupForm } from "@/components/landing/signup-form";
 import { API_URL } from "@/lib/env";
@@ -17,15 +20,17 @@ import { signupOptions } from "@/lib/tenant-api";
 const chosenPlan = z.enum(PLAN_IDS).catch("trial");
 
 export async function generateMetadata(): Promise<Metadata> {
+	const t = await getT();
+
 	if (!isHosted()) {
 		return {
-			title: "Get started",
-			description:
+			title: t("Get started"),
+			description: t(
 				"Join the waitlist for Reloop Cloud and hear the day your trial can start.",
+			),
 		};
 	}
 
-	const t = await getT();
 	return {
 		title: t("Start free trial"),
 		description: t(
@@ -45,53 +50,42 @@ export default async function GetStartedPage({
 
 	if (!isHosted() && cloudUrl()) redirect(signUpUrl(plan));
 
+	const t = await getT();
+
 	if (!isHosted()) {
 		return (
-			<LandingShell>
-				<PageHero
-					title="Get started"
-					size="title"
-					lede="Reloop Cloud opens soon. Leave your email and we send you one message the day your trial can start."
-					actions={null}
+			<FormPage>
+				<FormHeading
+					title={t("Get started")}
+					lede={t(
+						"Reloop Cloud opens soon. Leave your email and we send you one message the day your trial can start.",
+					)}
 				/>
-
-				<Band tone="secondary">
-					<CloudCard />
-					<SelfHostNote />
-				</Band>
-			</LandingShell>
+				<CloudCard />
+				<SelfHostNote />
+			</FormPage>
 		);
 	}
 
-	const [t, options] = await Promise.all([getT(), signupOptions(API_URL)]);
+	const options = await signupOptions(API_URL);
 
 	return (
-		<LandingShell>
-			<PageHero
+		<FormPage>
+			<FormHeading
 				title={t("Start free trial")}
-				size="title"
 				lede={t(
 					"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.",
 				)}
-				actions={null}
 			/>
-
-			<Band tone="secondary">
-				<BentoCard className="w-full max-w-(--container-narrow) gap-6">
-					<SignupForm
-						plan={plan}
-						pricingHref={marketingUrl(PRICING.href.pricing)}
-						withPassword={options?.password ?? false}
-						signInMethods={options?.signIn ?? []}
-					/>
-				</BentoCard>
-				<SelfHostNote
-					text={t(
-						"Rather run it on your own server? Reloop CRM is open source.",
-					)}
-					link={t("Read what self-hosting takes.")}
+			<FormCard>
+				<SignupForm
+					plan={plan}
+					pricingHref={marketingUrl(PRICING.href.pricing)}
+					withPassword={options?.password ?? false}
+					signInMethods={options?.signIn ?? []}
 				/>
-			</Band>
-		</LandingShell>
+			</FormCard>
+			<SelfHostNote />
+		</FormPage>
 	);
 }

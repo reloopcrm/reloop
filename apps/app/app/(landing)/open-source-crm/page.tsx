@@ -11,87 +11,108 @@ import {
 	PageSection,
 	Prose,
 } from "@/components/landing/page-blocks";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-	title: "What an open source CRM gives you",
-	description:
-		"An open source CRM lets you read the code, run it on your server and keep your data. What that buys you, where it stops, and where Reloop CRM fits.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+	const t = await getT();
+	return {
+		title: t("What an open source CRM gives you"),
+		description: t(
+			"An open source CRM lets you read the code, run it on your server and keep your data. What that buys you, where it stops, and where Reloop CRM fits.",
+		),
+	};
+}
 
-const GAINS = [
-	{
-		title: "The data stays on your server",
-		body: "Your customer list lives in a Postgres database you can open, dump and move. There is no export button with a row limit.",
-	},
-	{
-		title: "No price change you did not agree to",
-		body: "A hosted CRM can raise the price per seat or retire the plan you are on. The version you run today runs at the same cost tomorrow.",
-	},
-	{
-		title: "You can read what it does with your mail",
-		body: "With a hosted product you trust a privacy page. Here, you or someone you hire reads the code that touches each message.",
-	},
-	{
-		title: "It outlives the company behind it",
-		body: "If the maintainers stop, the code stays public and anyone can fork it. A hosted CRM that shuts down gives you a deadline.",
-	},
-] as const;
+export default async function OpenSourceCrmPage() {
+	const t = await getT();
 
-const FAQ = [
-	{
-		question: "Is an open source CRM really free?",
-		answer:
-			"The software is. The licence fee is zero for any number of users. You pay for the server it runs on and for optional AI credits.",
-	},
-	{
-		question: "Do I have to publish my changes?",
-		answer:
-			"Only if you change the code and give the changed version to other people over a network. Running it inside your own company creates no duty to publish.",
-	},
-	{
-		question: "Can I move my data out later?",
-		answer:
-			"Yes. Everything sits in one Postgres database on your server. A pg_dump gives you a complete copy in one file.",
-	},
-] as const;
+	const gains = [
+		{
+			title: t("The data stays on your server"),
+			body: t(
+				"Your customer list lives in a Postgres database you can open, dump and move. There is no export button with a row limit.",
+			),
+		},
+		{
+			title: t("No price change you did not agree to"),
+			body: t(
+				"A hosted CRM can raise the price per seat or retire the plan you are on. The version you run today runs at the same cost tomorrow.",
+			),
+		},
+		{
+			title: t("You can read what it does with your mail"),
+			body: t(
+				"With a hosted product you trust a privacy page. Here, you or someone you hire reads the code that touches each message.",
+			),
+		},
+		{
+			title: t("It outlives the company behind it"),
+			body: t(
+				"If the maintainers stop, the code stays public and anyone can fork it. A hosted CRM that shuts down gives you a deadline.",
+			),
+		},
+	];
 
-export default function OpenSourceCrmPage() {
+	const faq = [
+		{
+			question: t("Is an open source CRM really free?"),
+			answer: t(
+				"The software is. The licence fee is zero for any number of users. You pay for the server it runs on and for optional AI credits.",
+			),
+		},
+		{
+			question: t("Do I have to publish my changes?"),
+			answer: t(
+				"Only if you change the code and give the changed version to other people over a network. Running it inside your own company creates no duty to publish.",
+			),
+		},
+		{
+			question: t("Can I move my data out later?"),
+			answer: t(
+				"Yes. Everything sits in one Postgres database on your server. A pg_dump gives you a complete copy in one file.",
+			),
+		},
+	];
+
 	return (
 		<LandingShell>
 			<PageHero
-				title="An open source CRM is one you can read, run and keep"
-				lede="The code is public, the licence lets you run it on your own server, and nobody can switch it off. Here is what that buys you and where it stops."
+				title={t("An open source CRM is one you can read, run and keep")}
+				lede={t(
+					"The code is public, the licence lets you run it on your own server, and nobody can switch it off. Here is what that buys you and where it stops.",
+				)}
 				actions={null}
 			/>
 
 			<CloudBanner />
 
-			<PageSection title="What the licence says" tone="secondary">
+			<PageSection title={t("What the licence says")} tone="secondary">
 				<Prose>
 					<p>
-						Reloop CRM uses the GNU Affero General Public License, version 3.
-						You run it for any purpose and for any number of users, without a
-						licence fee. If you change the code and offer the changed version to
-						other people over a network, you publish your changes under the same
-						licence. Using it inside your own company creates no such duty. The
-						full text is on the{" "}
-						<Link href="/open-source">open source page</Link>, and that text is
-						the source, not this summary.
+						{t(
+							"Reloop CRM uses the GNU Affero General Public License, version 3. You run it for any purpose and for any number of users, without a licence fee. If you change the code and offer the changed version to other people over a network, you publish your changes under the same licence. Using it inside your own company creates no such duty.",
+						)}{" "}
+						<Link href="/open-source">
+							{t("The full text is on the open source page.")}
+						</Link>{" "}
+						{t("That text is the source, not this summary.")}
 					</p>
 					<p>
-						Open source is not the same as free of cost. Someone still pays for
-						the server, the backups and the hours. The difference is who
-						decides.
+						{t(
+							"Open source is not the same as free of cost. Someone still pays for the server, the backups and the hours. The difference is who decides.",
+						)}
 					</p>
 				</Prose>
 			</PageSection>
 
 			<PageSection
-				title="What it gives you that a hosted CRM does not"
-				lede="Four things you get from the licence, not from a feature list."
+				title={t("What it gives you that a hosted CRM does not")}
+				lede={t(
+					"Four things you get from the licence, not from a feature list.",
+				)}
 			>
 				<CardGrid>
-					{GAINS.map((gain) => (
+					{gains.map((gain) => (
 						<BentoCard key={gain.title}>
 							<CardHeading title={gain.title} body={gain.body} />
 						</BentoCard>
@@ -99,50 +120,56 @@ export default function OpenSourceCrmPage() {
 				</CardGrid>
 			</PageSection>
 
-			<PageSection title="Where the limits are" tone="secondary">
+			<PageSection title={t("Where the limits are")} tone="secondary">
 				<Prose>
 					<p>
-						Nobody runs it for you. You need a server, a domain and a person who
-						is comfortable with a terminal for one afternoon. Updates are your
-						job too. The{" "}
-						<Link href="/self-hosted-crm">self-hosted CRM page</Link> lists what
-						that takes in money and time.
+						{t(
+							"Nobody runs it for you. You need a server, a domain and a person who is comfortable with a terminal for one afternoon. Updates are your job too.",
+						)}{" "}
+						<Link href="/self-hosted-crm">
+							{t(
+								"The self-hosted CRM page lists what that takes in money and time.",
+							)}
+						</Link>
 					</p>
 					<p>
-						Support is the issue tracker, not a phone number, and the ecosystem
-						is smaller than a large hosted CRM's. The{" "}
-						<Link href="/vs/hubspot">comparison with HubSpot</Link> spells that
-						out.
+						{t(
+							"Support is the issue tracker, not a phone number, and the ecosystem is smaller than a large hosted CRM's.",
+						)}{" "}
+						<Link href="/vs/hubspot">
+							{t("The comparison with HubSpot spells that out.")}
+						</Link>
 					</p>
 				</Prose>
 			</PageSection>
 
-			<PageSection title="Where Reloop CRM fits">
+			<PageSection title={t("Where Reloop CRM fits")}>
 				<Prose>
 					<p>
-						Reloop CRM is for a small sales team that already has years of
-						email. It connects to Gmail, Microsoft 365 or any IMAP mailbox,
-						reads the history once, and builds companies, contacts and deals
-						from real conversations. Then it tells you which past customers went
-						quiet and why they are worth a new call. It started inside a{" "}
-						<Link href="/for/freight-forwarding">freight forwarding</Link>{" "}
-						company, and that is still the clearest example of the job it does.
+						{t(
+							"Reloop CRM is for a small sales team that already has years of email. It connects to Gmail, Microsoft 365 or any IMAP mailbox, reads the history once, and builds companies, contacts and deals from real conversations. Then it tells you which past customers went quiet and why they are worth a new call.",
+						)}{" "}
+						<Link href="/for/freight-forwarding">
+							{t(
+								"It started inside a freight forwarding company, and that is still the clearest example of the job it does.",
+							)}
+						</Link>
 					</p>
 					<p>
-						The honest limits: it sends no email campaigns and no sequences, and
-						there is no mobile app. It is a young project, so read the changelog
-						before an update.
+						{t(
+							"The honest limits: it sends no email campaigns and no sequences, and there is no mobile app. It is a young project, so read the changelog before an update.",
+						)}
 					</p>
 				</Prose>
 			</PageSection>
 
-			<Faq id="open-source-crm-faq" items={FAQ} tone="secondary" />
+			<Faq id="open-source-crm-faq" items={faq} tone="secondary" />
 
 			<ClosingCta
-				title="Read the code. Run it. Keep it."
+				title={t("Read the code. Run it. Keep it.")}
 				secondary={{
 					href: "/self-hosted-crm",
-					label: "What self-hosting takes",
+					label: t("What self-hosting takes"),
 				}}
 			/>
 		</LandingShell>

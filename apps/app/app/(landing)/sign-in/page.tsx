@@ -4,7 +4,11 @@ import { Alert, AlertTitle } from "@crm/ui/components/alert";
 import type { Metadata } from "next";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
-import { AuthHeading, AuthShell } from "@/components/auth-shell";
+import {
+	FormCard,
+	FormHeading,
+	FormPage,
+} from "@/components/landing/page-blocks";
 import { getT } from "@/lib/i18n/server";
 import { getSession } from "@/lib/session";
 import { signInErrorText } from "@/lib/sign-in-errors";
@@ -16,7 +20,10 @@ import { WorkspaceLookup } from "./workspace-lookup";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
-	return { title: t("Sign in") };
+	return {
+		title: t("Sign in"),
+		description: t("Sign in to your Reloop CRM workspace."),
+	};
 }
 
 type SignInOptions = {
@@ -54,18 +61,18 @@ export default async function SignInPage({
 	const t = await getT();
 
 	return (
-		<AuthShell>
+		<FormPage>
 			<Suspense
 				fallback={
-					<AuthHeading
+					<FormHeading
 						title={t("Welcome back")}
-						description={t("Sign in with your account to continue.")}
+						lede={t("Sign in with your account to continue.")}
 					/>
 				}
 			>
 				<SignIn searchParams={searchParams} />
 			</Suspense>
-		</AuthShell>
+		</FormPage>
 	);
 }
 
@@ -89,20 +96,20 @@ async function SignIn({
 	if (hosted) {
 		return (
 			<>
-				<AuthHeading
+				<FormHeading
 					title={t("Welcome back")}
-					description={t(
-						"Enter your work email address and we find your workspace.",
-					)}
+					lede={t("Enter your work email address and we find your workspace.")}
 				/>
 
-				{failure ? (
-					<Alert variant="destructive">
-						<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
-					</Alert>
-				) : null}
+				<FormCard>
+					{failure ? (
+						<Alert variant="destructive">
+							<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
+						</Alert>
+					) : null}
 
-				<WorkspaceLookup />
+					<WorkspaceLookup />
+				</FormCard>
 			</>
 		);
 	}
@@ -126,24 +133,26 @@ async function SignIn({
 	if (!showSso && !showPassword && social.length === 0) {
 		return (
 			<>
-				<AuthHeading
+				<FormHeading
 					title={t("No way in yet")}
-					description={t(
+					lede={t(
 						"This CRM has no sign-in method configured, so nobody can get in, including you.",
 					)}
 				/>
 
-				<p className="text-pretty text-muted-foreground text-sm/5">
-					{t(
-						"Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET, in the root .env file and restart. Your own identity provider can be added from Settings once somebody is signed in.",
-					)}
-				</p>
+				<FormCard>
+					<p className="text-pretty text-muted-foreground text-sm/5">
+						{t(
+							"Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET, in the root .env file and restart. Your own identity provider can be added from Settings once somebody is signed in.",
+						)}
+					</p>
 
-				<p className="text-pretty text-muted-foreground text-sm/5">
-					{t(
-						'Without an identity provider, set PASSWORD_SIGN_IN="1" in the same file and give yourself a password with the set-password script.',
-					)}
-				</p>
+					<p className="text-pretty text-muted-foreground text-sm/5">
+						{t(
+							'Without an identity provider, set PASSWORD_SIGN_IN="1" in the same file and give yourself a password with the set-password script.',
+						)}
+					</p>
+				</FormCard>
 			</>
 		);
 	}
@@ -152,29 +161,31 @@ async function SignIn({
 
 	return (
 		<>
-			<AuthHeading
+			<FormHeading
 				title={t("Welcome back")}
-				description={t("Sign in with your account to continue.")}
+				lede={t("Sign in with your account to continue.")}
 			/>
 
-			{failure ? (
-				<Alert variant="destructive">
-					<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
-				</Alert>
-			) : null}
+			<FormCard>
+				{failure ? (
+					<Alert variant="destructive">
+						<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
+					</Alert>
+				) : null}
 
-			{showPassword ? <PasswordSignIn /> : null}
+				{showPassword ? <PasswordSignIn /> : null}
 
-			<div className="flex flex-col gap-3">
-				{showSso ? <SsoSignIn providers={providers} /> : null}
-				{social.map((provider, index) => (
-					<SocialSignIn
-						key={provider}
-						provider={provider}
-						only={socialLeads && index === 0}
-					/>
-				))}
-			</div>
+				<div className="flex flex-col gap-3">
+					{showSso ? <SsoSignIn providers={providers} /> : null}
+					{social.map((provider, index) => (
+						<SocialSignIn
+							key={provider}
+							provider={provider}
+							only={socialLeads && index === 0}
+						/>
+					))}
+				</div>
+			</FormCard>
 		</>
 	);
 }

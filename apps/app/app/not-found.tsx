@@ -1,4 +1,5 @@
 import { Button } from "@crm/ui/components/button";
+import { Display } from "@crm/ui/components/display";
 import { Link } from "@crm/ui/components/link";
 import NextLink from "next/link";
 import { LandingShell } from "@/components/landing/landing-shell";
@@ -9,25 +10,22 @@ export default async function NotFound() {
 
 	return (
 		<LandingShell>
-			<section className="flex w-full grow flex-col items-center justify-center gap-7 px-6 py-20">
-				<div className="flex w-full max-w-(--container-sheet) flex-col items-center gap-4">
+			<section className="flex w-full grow flex-col items-center justify-center gap-10 px-6 pt-20 pb-24 md:pt-24 md:pb-32">
+				<div className="flex w-full max-w-(--container-page) flex-col items-center gap-6 text-center">
 					<p className="font-mono text-muted-foreground text-sm">404</p>
-
-					<h1 className="text-balance text-center font-semibold text-4xl/[42px] tracking-tight md:text-[44px]/[50px]">
-						{t("This page does not exist")}
-					</h1>
-
-					<p className="text-pretty text-center text-lg/[28px] text-muted-foreground">
+					<Display size="section" asChild>
+						<h1>{t("This page does not exist")}</h1>
+					</Display>
+					<p className="max-w-(--container-sheet) text-pretty text-body-foreground text-lg md:text-2xl">
 						{t("The address is wrong, or the page moved.")}
 					</p>
 				</div>
 
-				<div className="flex flex-wrap items-center justify-center gap-3">
-					<Button size="xl" asChild>
+				<div className="flex flex-wrap items-center justify-center gap-6">
+					<Button variant="outline" size="pill" asChild>
 						<NextLink href="/">{t("Go to the home page")}</NextLink>
 					</Button>
-
-					<Button variant="outline" size="xl" asChild>
+					<Button variant="link" size="pill" asChild>
 						<NextLink href="/docs">{t("Read the docs")}</NextLink>
 					</Button>
 				</div>
@@ -36,7 +34,6 @@ export default async function NotFound() {
 					<Link variant="quiet" href="/sitemap.xml">
 						{t("Sitemap")}
 					</Link>
-
 					<Link variant="quiet" href="/llms.txt">
 						{"llms.txt"}
 					</Link>

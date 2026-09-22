@@ -159,5 +159,21 @@
 	"The trial of this workspace has ended. Write to us and we switch it back on.": "此工作区的试用已结束。给我们写信，我们会重新开通。",
 	"This server has no hosted workspaces.": "此服务器没有托管的工作区。",
 	"Rather run it on your own server? Reloop CRM is open source.": "想在自己的服务器上运行？Reloop CRM 是开源的。",
-	"Read what self-hosting takes.": "了解自托管需要什么。"
+	"Read what self-hosting takes.": "了解自托管需要什么。",
+	"This server sends no mail. Continue with Google or Microsoft.": "此服务器不发送邮件。请使用 Google 或 Microsoft 继续。",
+	"This server sends no mail.": "此服务器不发送邮件。",
+	"That code is not right. Check the mail and try again.": "验证码不正确。请查看邮件后重试。",
+	"That code has expired. Ask for a new one.": "验证码已过期。请申请新的验证码。",
+	"Too many wrong codes. Ask for a new one.": "错误验证码次数过多。请申请新的验证码。",
+	"We sent a code to {email}. Enter it here.": "我们已向 {email} 发送验证码。请在此输入。",
+	"Code from the mail": "邮件中的验证码",
+	"A new code is on its way.": "新的验证码正在发送。",
+	"Open workspace": "打开工作区",
+	"Send the code again": "重新发送验证码",
+	"No mail? Sign in with the same address instead.": "没有收到邮件？改用同一地址登录。",
+	"Forgot your password?": "忘记密码？",
+	"We mail a code to {email}. With it you set a new password.": "我们会向 {email} 发送验证码。用它设置新密码。",
+	"Send me a code": "给我发送验证码",
+	"If {email} has a password, a code is on its way. Enter it here.": "如果 {email} 设有密码，验证码正在发送。请在此输入。",
+	"Set password and sign in": "设置密码并登录"
 }

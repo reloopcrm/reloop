@@ -159,5 +159,21 @@
 	"The trial of this workspace has ended. Write to us and we switch it back on.": "Die Probezeit dieses Workspace ist vorbei. Schreib uns und wir schalten ihn wieder frei.",
 	"This server has no hosted workspaces.": "Auf diesem Server gibt es keine gehosteten Workspaces.",
 	"Rather run it on your own server? Reloop CRM is open source.": "Lieber auf dem eigenen Server? Reloop CRM ist Open Source.",
-	"Read what self-hosting takes.": "Lies, was Self-Hosting braucht."
+	"Read what self-hosting takes.": "Lies, was Self-Hosting braucht.",
+	"This server sends no mail. Continue with Google or Microsoft.": "Dieser Server verschickt keine Mail. Mach mit Google oder Microsoft weiter.",
+	"This server sends no mail.": "Dieser Server verschickt keine Mail.",
+	"That code is not right. Check the mail and try again.": "Der Code stimmt nicht. Prüfe die Mail und versuche es noch einmal.",
+	"That code has expired. Ask for a new one.": "Der Code ist abgelaufen. Fordere einen neuen an.",
+	"Too many wrong codes. Ask for a new one.": "Zu viele falsche Codes. Fordere einen neuen an.",
+	"We sent a code to {email}. Enter it here.": "Wir haben einen Code an {email} geschickt. Gib ihn hier ein.",
+	"Code from the mail": "Code aus der Mail",
+	"A new code is on its way.": "Ein neuer Code ist unterwegs.",
+	"Open workspace": "Workspace öffnen",
+	"Send the code again": "Code noch einmal senden",
+	"No mail? Sign in with the same address instead.": "Keine Mail? Melde dich stattdessen mit derselben Adresse an.",
+	"Forgot your password?": "Passwort vergessen?",
+	"We mail a code to {email}. With it you set a new password.": "Wir schicken einen Code an {email}. Damit setzt du ein neues Passwort.",
+	"Send me a code": "Code schicken",
+	"If {email} has a password, a code is on its way. Enter it here.": "Wenn {email} ein Passwort hat, ist ein Code unterwegs. Gib ihn hier ein.",
+	"Set password and sign in": "Passwort setzen und anmelden"
 }

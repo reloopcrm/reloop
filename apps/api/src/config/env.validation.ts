@@ -71,6 +71,14 @@ export class EnvironmentVariables {
 	RELOOP_BACKUP_DIR?: string;
 
 	@IsOptional()
+	@IsString()
+	RESEND_API_KEY?: string;
+
+	@IsOptional()
+	@IsString()
+	MAIL_FROM?: string;
+
+	@IsOptional()
 	@IsIn(["0", "1"], {
 		message:
 			'PASSWORD_SIGN_IN takes "1" to allow sign-in with an email address and a password, and "0" or nothing to refuse it.',

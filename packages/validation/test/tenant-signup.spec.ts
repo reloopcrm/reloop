@@ -75,7 +75,11 @@ describe("tenant signup", () => {
 
 	it("names every refusal", () => {
 		expect(Object.values(TENANT_SIGNUP_CODES).sort()).toEqual([
+			"CODE_EXPIRED",
+			"CODE_INVALID",
+			"CODE_LOCKED",
 			"NOT_HOSTED",
+			"NO_MAIL",
 			"NO_WORKSPACE",
 			"TOO_MANY_REQUESTS",
 			"WORKSPACE_EXISTS",

@@ -69,6 +69,8 @@ services:
       RELOOP_UPDATE_CHECK:
       RELOOP_MANAGED:
       IS_MARKETING:
+      RESEND_API_KEY:
+      MAIL_FROM:
     depends_on:
       postgres:
         condition: service_healthy

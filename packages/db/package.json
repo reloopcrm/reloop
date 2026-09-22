@@ -44,6 +44,7 @@
 		"./settings": "./src/settings.ts",
 		"./tenancy": "./src/tenancy.ts",
 		"./tenancy-config": "./src/tenancy-config.ts",
+		"./tenant-codes": "./src/tenant-codes.ts",
 		"./tenant-context": "./src/tenant-context.ts",
 		"./test-database": "./src/test-database.ts",
 		"./test-tenants": "./src/test-tenants.ts",

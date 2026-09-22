@@ -1,6 +1,15 @@
+const SECOND_MS = 1_000;
+const MINUTE_MS = 60 * SECOND_MS;
+
 export const SIGNUP = {
 	hint: {
 		google: ["gmail.com", "googlemail.com"],
 		microsoft: ["outlook.com", "hotmail.com", "live.com", "msn.com"],
+	},
+	code: {
+		digits: 6,
+		ttlMs: 15 * MINUTE_MS,
+		maxAttempts: 5,
+		resendAfterMs: 60 * SECOND_MS,
 	},
 } as const;

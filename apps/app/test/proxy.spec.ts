@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { NextRequest } from "next/server";
+import { PROXY } from "../lib/proxy-config";
 import { proxy } from "../proxy";
 
 const ORIGIN = "https://reloopcrm.com";
@@ -75,7 +76,7 @@ describe("an address the app does not serve", () => {
 
 			expect(response.status, `marketing=${on}`).toBe(404);
 			expect(locationOf(response)).toBeNull();
-			expect(rewriteOf(response)).toBe("/_not-found");
+			expect(rewriteOf(response)).toBe(PROXY.path.notFound);
 			expect(varyOf(response)).toContain("Accept");
 		}
 	});
@@ -87,7 +88,7 @@ describe("an address the app does not serve", () => {
 
 		expect(response.status).toBe(404);
 		expect(locationOf(response)).toBeNull();
-		expect(rewriteOf(response)).toBe("/_not-found");
+		expect(rewriteOf(response)).toBe(PROXY.path.notFound);
 	});
 
 	it("answers 404 in Markdown to a client that asks for Markdown", async () => {
@@ -184,7 +185,7 @@ describe("the marketing pages", () => {
 
 			expect(response.status, path).toBe(404);
 			expect(locationOf(response), path).toBeNull();
-			expect(rewriteOf(response), path).toBe("/_not-found");
+			expect(rewriteOf(response), path).toBe(PROXY.path.notFound);
 		}
 	});
 });

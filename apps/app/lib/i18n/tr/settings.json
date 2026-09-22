@@ -281,5 +281,17 @@
 	"Billing is only offered on the hosted Cloud.": "Faturalama yalnızca barındırılan Cloud'da sunulur.",
 	"Choose a plan first. Add-ons and billing details follow the first payment.": "Önce bir plan seç. Ek paketler ve fatura bilgileri ilk ödemeden sonra gelir.",
 	"A yearly plan is paid by card. Add a card under Payment first.": "Yıllık plan kartla ödenir. Önce Ödeme altında bir kart ekle.",
-	"Your subscription has no plan item. Contact support.": "Aboneliğinde plan öğesi yok. Destekle iletişime geç."
+	"Your subscription has no plan item. Contact support.": "Aboneliğinde plan öğesi yok. Destekle iletişime geç.",
+	"This workspace is paused. Sign in to choose a plan and continue.": "Bu çalışma alanı duraklatıldı. Bir plan seçip devam etmek için giriş yap.",
+	"Workspace paused": "Çalışma alanı duraklatıldı",
+	"Your workspace is paused": "Çalışma alanın duraklatıldı",
+	"Nothing is lost yet. A plan switches the workspace back on at once.": "Henüz hiçbir şey kaybolmadı. Bir plan çalışma alanını hemen yeniden açar.",
+	"Ask a workspace owner or admin to choose a plan.": "Bir plan seçmesi için çalışma alanının sahibinden veya yöneticisinden iste.",
+	"Your trial has ended.": "Deneme süren bitti.",
+	"The last payment failed.": "Son ödeme başarısız oldu.",
+	"Your plan has ended.": "Planın sona erdi.",
+	"All its data is deleted for good on {date}.": "Tüm verileri {date} tarihinde kalıcı olarak silinir.",
+	"Choose a plan to continue": "Devam etmek için plan seç",
+	"Fix payment method": "Ödeme yöntemini düzelt",
+	"You keep your trial until {date}, the first payment is on {date}.": "Deneme süren {date} tarihine kadar devam eder, ilk ödeme {date} tarihinde."
 }

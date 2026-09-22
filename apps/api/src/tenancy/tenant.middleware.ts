@@ -13,6 +13,16 @@ import type { NextFunction, Request, Response } from "express";
 
 const OPEN_PATH =
 	/^\/(health$|internal\/|api\/tenant\/|api\/billing\/webhook$)/;
+const AUTH_PATH = "/api/auth/";
+const TRPC_PATH = "/api/trpc/";
+const PAUSED_PROCEDURES = /^billing\./;
+
+export function openWhileSuspended(path: string): boolean {
+	if (path.startsWith(AUTH_PATH)) return true;
+	if (!path.startsWith(TRPC_PATH)) return false;
+	const procedures = path.slice(TRPC_PATH.length).split(",");
+	return procedures.every((procedure) => PAUSED_PROCEDURES.test(procedure));
+}
 const SITE_CONFIG_PATH = /^\/api\/t\/config\/([^/]+)$/;
 const COLLECTOR_PATH = "/api/t/e";
 
@@ -53,7 +63,8 @@ export function tenantMiddleware() {
 			return;
 		}
 
-		if (tenant.status !== "active" && tenant.status !== "pending") {
+		const paused = tenant.status === "suspended" && openWhileSuspended(path);
+		if (tenant.status !== "active" && tenant.status !== "pending" && !paused) {
 			response.status(403).json({ message: "TENANT_SUSPENDED" });
 			return;
 		}

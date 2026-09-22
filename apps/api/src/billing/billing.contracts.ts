@@ -27,6 +27,9 @@ export const billingOverviewOutput = z.object({
 	paidUntil: isoDate,
 	cancelAt: isoDate,
 	graceUntil: isoDate,
+	suspended: z.boolean(),
+	deleteAt: isoDate,
+	trialKeptUntil: isoDate,
 	deletionDays: z.number(),
 	addOns: z.record(z.enum(ADD_ON_IDS), z.number()),
 	limits: z.object({

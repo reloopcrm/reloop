@@ -298,7 +298,13 @@ function PlanCard({
 	);
 }
 
-function PlanPicker({ data, onDone }: { data: Overview; onDone: () => void }) {
+export function PlanPicker({
+	data,
+	onDone,
+}: {
+	data: Overview;
+	onDone: () => void;
+}) {
 	const t = useT();
 	const locale = useLocale();
 	const trpc = useTRPC();
@@ -404,6 +410,15 @@ function PlanPicker({ data, onDone }: { data: Overview; onDone: () => void }) {
 					);
 				})}
 			</ul>
+
+			{data.trialKeptUntil && !hasSubscription ? (
+				<p className="text-muted-foreground text-sm" data-trial-kept>
+					{t(
+						"You keep your trial until {date}, the first payment is on {date}.",
+						{ date: longDay(data.trialKeptUntil, locale) },
+					)}
+				</p>
+			) : null}
 
 			<div className="flex flex-wrap justify-end gap-2">
 				<Button type="button" variant="ghost" onClick={onDone}>

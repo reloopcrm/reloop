@@ -14,7 +14,9 @@ export const requestTenant = cache(async (): Promise<Tenant | null> => {
 	if (!tenantId) return null;
 
 	const tenant = await tenantById(tenantId);
-	return tenant?.status === "active" ? tenant : null;
+	return tenant?.status === "active" || tenant?.status === "suspended"
+		? tenant
+		: null;
 });
 
 export async function inTenant<T>(fn: () => Promise<T>): Promise<T | null> {

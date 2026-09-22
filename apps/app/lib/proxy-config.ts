@@ -26,7 +26,7 @@ export const PROXY = {
 		"/pricing",
 	],
 	hosted: ["/get-started"],
-	ungated: ["/grant-access", "/eve"],
+	ungated: ["/grant-access", "/eve", "/paused"],
 	sections: ["/companies", "/contacts", "/deals", "/win-back", "/settings"],
 	workspaceSegments: ["agents", "chat"],
 } as const;

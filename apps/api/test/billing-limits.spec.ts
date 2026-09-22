@@ -12,12 +12,16 @@ import {
 } from "@crm/db/plans";
 import { addOnLookupKey, parseLookupKey, planLookupKey } from "@crm/db/pricing";
 import { NO_BILLING, type Tenant } from "@crm/db/tenancy";
+import { TENANCY } from "@crm/db/tenancy-config";
 import type Stripe from "stripe";
 import {
 	BillingService,
 	billingStateOf,
+	checkoutTrialEnd,
+	deleteAtOf,
 	subscriptionState,
 } from "../src/billing/billing.service";
+import { openWhileSuspended } from "../src/tenancy/tenant.middleware";
 
 const tenant = (over: Partial<Tenant> = {}): Tenant => ({
 	id: "acme",
@@ -233,5 +237,60 @@ describe("billing authorization", () => {
 
 	it("is not configured without a key", () => {
 		expect(service("owner").configured).toBe(false);
+	});
+});
+
+describe("a subscription during the trial keeps the trial", () => {
+	const now = new Date("2026-10-01T12:00:00.000Z");
+	const trial = (endsAt: Date, over: Partial<Tenant> = {}) =>
+		tenant({ trialEndsAt: endsAt, ...over });
+
+	it("passes the trial end to Checkout when it is more than 48 hours away", () => {
+		const endsAt = new Date("2026-10-10T12:00:00.000Z");
+		expect(checkoutTrialEnd(trial(endsAt), now)?.toISOString()).toBe(
+			endsAt.toISOString(),
+		);
+	});
+
+	it("charges now when the trial ends within 48 hours", () => {
+		expect(
+			checkoutTrialEnd(trial(new Date("2026-10-03T11:00:00.000Z")), now),
+		).toBeNull();
+		expect(
+			checkoutTrialEnd(trial(new Date("2026-09-30T12:00:00.000Z")), now),
+		).toBeNull();
+	});
+
+	it("charges now for a suspended workspace or a paid plan", () => {
+		const endsAt = new Date("2026-10-10T12:00:00.000Z");
+		expect(
+			checkoutTrialEnd(trial(endsAt, { status: "suspended" }), now),
+		).toBeNull();
+		expect(checkoutTrialEnd(trial(endsAt, { plan: "start" }), now)).toBeNull();
+		expect(checkoutTrialEnd(tenant(), now)).toBeNull();
+	});
+});
+
+describe("a paused workspace", () => {
+	it("is deleted a fixed time after the suspension", () => {
+		const suspendedAt = new Date("2026-10-01T00:00:00.000Z");
+		expect(deleteAtOf({ status: "suspended", suspendedAt })?.getTime()).toBe(
+			suspendedAt.getTime() + TENANCY.trial.suspendedTtlMs,
+		);
+		expect(deleteAtOf({ status: "active", suspendedAt })).toBeNull();
+	});
+
+	it("reaches sign-in and billing, nothing else", () => {
+		expect(openWhileSuspended("/api/auth/sign-in/email")).toBe(true);
+		expect(openWhileSuspended("/api/trpc/billing.overview")).toBe(true);
+		expect(
+			openWhileSuspended("/api/trpc/billing.overview,billing.portal"),
+		).toBe(true);
+		expect(openWhileSuspended("/api/trpc/billing.overview,contacts.list")).toBe(
+			false,
+		);
+		expect(openWhileSuspended("/api/trpc/users.me")).toBe(false);
+		expect(openWhileSuspended("/api/rest/billing")).toBe(false);
+		expect(openWhileSuspended("/api/trpc/billingx.read")).toBe(false);
 	});
 });

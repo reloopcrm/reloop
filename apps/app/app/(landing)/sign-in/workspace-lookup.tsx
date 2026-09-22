@@ -59,10 +59,11 @@ export function WorkspaceLookup() {
 				{found.status === "suspended" ? (
 					<p role="status" className="text-body-foreground text-sm/6">
 						{t(
-							"The trial of this workspace has ended. Write to us and we switch it back on.",
+							"This workspace is paused. Sign in to choose a plan and continue.",
 						)}
 					</p>
-				) : resetting ? (
+				) : null}
+				{resetting ? (
 					<PasswordReset email={address} refusals={REFUSALS} />
 				) : (
 					<>

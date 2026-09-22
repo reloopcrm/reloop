@@ -281,5 +281,17 @@
 	"Billing is only offered on the hosted Cloud.": "账单功能仅在托管云上提供。",
 	"Choose a plan first. Add-ons and billing details follow the first payment.": "请先选择套餐。附加包和账单信息在首次付款后可用。",
 	"A yearly plan is paid by card. Add a card under Payment first.": "年付套餐以银行卡支付。请先在“付款”中添加银行卡。",
-	"Your subscription has no plan item. Contact support.": "你的订阅没有套餐项目。请联系支持。"
+	"Your subscription has no plan item. Contact support.": "你的订阅没有套餐项目。请联系支持。",
+	"This workspace is paused. Sign in to choose a plan and continue.": "此工作区已暂停。登录后选择套餐即可继续。",
+	"Workspace paused": "工作区已暂停",
+	"Your workspace is paused": "你的工作区已暂停",
+	"Nothing is lost yet. A plan switches the workspace back on at once.": "目前尚未丢失任何数据。选择套餐后工作区将立即恢复。",
+	"Ask a workspace owner or admin to choose a plan.": "请工作区所有者或管理员选择套餐。",
+	"Your trial has ended.": "你的试用已结束。",
+	"The last payment failed.": "上次付款失败。",
+	"Your plan has ended.": "你的套餐已结束。",
+	"All its data is deleted for good on {date}.": "其所有数据将于 {date} 被永久删除。",
+	"Choose a plan to continue": "选择套餐以继续",
+	"Fix payment method": "修正付款方式",
+	"You keep your trial until {date}, the first payment is on {date}.": "你的试用将保留至 {date}，首次付款日期为 {date}。"
 }

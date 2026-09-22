@@ -130,6 +130,31 @@ export function subscriptionState(
 	};
 }
 
+export function checkoutTrialEnd(
+	tenant: Pick<Tenant, "plan" | "status" | "trialEndsAt" | "billing">,
+	now: Date = new Date(),
+): Date | null {
+	if (tenant.status !== "active") return null;
+	if (canonicalPlanId(tenant.plan) !== "trial") return null;
+	if (
+		tenant.billing.status === "active" ||
+		tenant.billing.status === "past_due"
+	)
+		return null;
+	const trialEndsAt = tenant.trialEndsAt;
+	if (!trialEndsAt) return null;
+	return trialEndsAt.getTime() - now.getTime() > BILLING.checkout.trialLeadMs
+		? trialEndsAt
+		: null;
+}
+
+export function deleteAtOf(
+	tenant: Pick<Tenant, "status" | "suspendedAt">,
+): Date | null {
+	if (tenant.status !== "suspended" || !tenant.suspendedAt) return null;
+	return new Date(tenant.suspendedAt.getTime() + TENANCY.trial.suspendedTtlMs);
+}
+
 export function billingStateOf(tenant: Tenant): BillingState {
 	const { status, cancelAt } = tenant.billing;
 	if (status === "active") return cancelAt ? "canceling" : "active";
@@ -306,6 +331,9 @@ export class BillingService {
 			paidUntil: tenant.paidUntil?.toISOString() ?? null,
 			cancelAt: tenant.billing.cancelAt?.toISOString() ?? null,
 			graceUntil: tenant.graceUntil?.toISOString() ?? null,
+			suspended: tenant.status === "suspended",
+			deleteAt: deleteAtOf(tenant)?.toISOString() ?? null,
+			trialKeptUntil: checkoutTrialEnd(tenant)?.toISOString() ?? null,
 			deletionDays: Math.round(TENANCY.trial.suspendedTtlMs / DAY_MS),
 			addOns: tenant.billing.addOns,
 			limits: this.limitsSummary(limits),
@@ -405,6 +433,7 @@ export class BillingService {
 			select: { email: true },
 		});
 		const customerId = tenant.billing.customerId;
+		const trialEnd = checkoutTrialEnd(tenant);
 		const session = await stripe.checkout.sessions.create({
 			mode: "subscription",
 			line_items: [{ price, quantity: 1 }],
@@ -415,7 +444,10 @@ export class BillingService {
 				: undefined,
 			client_reference_id: tenant.id,
 			metadata: { tenantId: tenant.id },
-			subscription_data: { metadata: { tenantId: tenant.id } },
+			subscription_data: {
+				metadata: { tenantId: tenant.id },
+				trial_end: trialEnd ? Math.floor(trialEnd.getTime() / 1000) : undefined,
+			},
 			automatic_tax: { enabled: true },
 			billing_address_collection: "required",
 			tax_id_collection: { enabled: true },
@@ -657,6 +689,9 @@ export class BillingService {
 			paidUntil: null,
 			cancelAt: null,
 			graceUntil: null,
+			suspended: false,
+			deleteAt: null,
+			trialKeptUntil: null,
 			deletionDays: Math.round(TENANCY.trial.suspendedTtlMs / DAY_MS),
 			addOns: { ...NO_ADD_ONS },
 			limits: this.limitsSummary(limits),

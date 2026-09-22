@@ -580,7 +580,10 @@ event body. The raw body is mounted in `create-app.ts` before Nest, the path
 is open in `tenantMiddleware`, and the tenant comes from the subscription's
 `metadata.tenantId` or from the customer id in `billing`. Every `billing.*`
 mutation takes `SessionOnlyMiddleware` and the owner or admin role. A
-self-hosted install answers `configured: false` and refuses every mutation.
+self-hosted install answers `configured: false` and refuses every mutation. A
+suspended tenant reaches `/api/auth/*` and `billing.*` only (`openWhileSuspended`
+in `tenant.middleware.ts`), which is how a paused workspace pays its way back
+in; `applySubscription` sets it `active` again.
 `docs/environment.md` has the variables, the script and what stays by hand.
 
 ## Money

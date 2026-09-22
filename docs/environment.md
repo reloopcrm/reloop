@@ -292,6 +292,18 @@ self-hosted install has no plan and never sees the page.
   plan is card only. A plan change or an add-on on an existing subscription
   is `subscriptions.update` with an immediate invoice, applied at once and
   again by the webhook. Cancel is `cancel_at_period_end`, undone until then.
+- **A paused workspace can still pay.** A suspended tenant (trial ended,
+  grace ended, plan ended) passes `tenantMiddleware` only for `/api/auth/*`
+  and tRPC batches made of `billing.*` alone; everything else stays 403
+  `TENANT_SUSPENDED`. The app's proxy reads that 403 as the `suspended` gate
+  and sends every page to `/paused`, a slim page with the reason, the deletion
+  date, the plan picker and the portal button. The webhook sets the tenant
+  `active` again on the first paid subscription. Members see a note to ask an
+  owner.
+- **A subscription during the trial keeps the trial.** When the trial ends
+  more than `BILLING.checkout.trialLeadMs` (48 hours) from now, Checkout gets
+  `subscription_data.trial_end`, so the first charge is at trial end; nearer
+  than that it charges now. The picker says which.
 - **Still by hand in the Dashboard**: activating Stripe Tax (origin address,
   registrations) and the payment methods offered on monthly plans.
 

@@ -281,5 +281,17 @@
 	"Billing is only offered on the hosted Cloud.": "La facturación solo se ofrece en la nube alojada.",
 	"Choose a plan first. Add-ons and billing details follow the first payment.": "Elige un plan primero. Los complementos y los datos de facturación llegan tras el primer pago.",
 	"A yearly plan is paid by card. Add a card under Payment first.": "Un plan anual se paga con tarjeta. Añade primero una tarjeta en Pago.",
-	"Your subscription has no plan item. Contact support.": "Tu suscripción no tiene ningún plan. Contacta con el soporte."
+	"Your subscription has no plan item. Contact support.": "Tu suscripción no tiene ningún plan. Contacta con el soporte.",
+	"This workspace is paused. Sign in to choose a plan and continue.": "Este espacio de trabajo está en pausa. Inicia sesión para elegir un plan y continuar.",
+	"Workspace paused": "Espacio de trabajo en pausa",
+	"Your workspace is paused": "Tu espacio de trabajo está en pausa",
+	"Nothing is lost yet. A plan switches the workspace back on at once.": "Aún no se ha perdido nada. Un plan vuelve a activar el espacio de trabajo al instante.",
+	"Ask a workspace owner or admin to choose a plan.": "Pide a un propietario o administrador del espacio de trabajo que elija un plan.",
+	"Your trial has ended.": "Tu prueba ha terminado.",
+	"The last payment failed.": "El último pago falló.",
+	"Your plan has ended.": "Tu plan ha terminado.",
+	"All its data is deleted for good on {date}.": "Todos sus datos se borran para siempre el {date}.",
+	"Choose a plan to continue": "Elegir un plan para continuar",
+	"Fix payment method": "Corregir método de pago",
+	"You keep your trial until {date}, the first payment is on {date}.": "Conservas tu prueba hasta el {date}, el primer pago es el {date}."
 }

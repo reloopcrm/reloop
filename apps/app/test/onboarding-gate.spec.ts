@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import {
 	CONNECTIONS_PATH,
 	ONBOARDING_PATH,
+	PAUSED_PATH,
 	readWorkspaceGate,
 } from "../lib/onboarding";
 import { proxy } from "../proxy";
@@ -499,5 +500,50 @@ describe("where the last setup step sends a stranger", () => {
 		expect(await settle("/onboarding/business")).toBe("/onboarding/business");
 		expect(await settle("/onboarding/ai")).toBe("/onboarding/ai");
 		expect(await settle(CONNECTIONS_PATH)).toBe(`/${SLUG}${CONNECTIONS_PATH}`);
+	});
+});
+
+describe("a suspended workspace", () => {
+	const suspended = () =>
+		stub(async () =>
+			json({ error: { message: "TENANT_SUSPENDED" } } as never, 403),
+		);
+
+	it("reads as the suspended gate", async () => {
+		globalThis.fetch = (async () =>
+			new Response(JSON.stringify({ message: "TENANT_SUSPENDED" }), {
+				status: 403,
+				headers: { "content-type": "application/json" },
+			})) as unknown as typeof fetch;
+
+		expect(await gateOf("/")).toBe("suspended");
+	});
+
+	it("sends every app page to the paused page", async () => {
+		globalThis.fetch = (async () =>
+			new Response(JSON.stringify({ message: "TENANT_SUSPENDED" }), {
+				status: 403,
+				headers: { "content-type": "application/json" },
+			})) as unknown as typeof fetch;
+
+		for (const path of ["/", "/contacts", "/acme/settings/billing"]) {
+			const response = await proxy(request(path, [SESSION_COOKIE]));
+			expect(redirectedTo(response)).toBe(PAUSED_PATH);
+		}
+	});
+
+	it("lets the paused page through without asking the gate", async () => {
+		const calls = setup();
+		const response = await proxy(request(PAUSED_PATH, [SESSION_COOKIE]));
+
+		expect(response.status).toBe(200);
+		expect(calls.workspace).toBe(0);
+	});
+
+	it("still asks a stranger to sign in", async () => {
+		suspended();
+		const response = await proxy(request(PAUSED_PATH));
+
+		expect(redirectedTo(response)).toBe("/sign-in");
 	});
 });

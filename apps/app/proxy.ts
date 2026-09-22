@@ -9,7 +9,11 @@ import {
 	notFoundMarkdown,
 	prefersMarkdown,
 } from "@/lib/markdown-negotiation";
-import { ONBOARDING_PATH, readWorkspaceGate } from "@/lib/onboarding";
+import {
+	ONBOARDING_PATH,
+	PAUSED_PATH,
+	readWorkspaceGate,
+} from "@/lib/onboarding";
 import { PROXY } from "@/lib/proxy-config";
 import { workspaceUrl } from "@/lib/workspace-url";
 
@@ -46,6 +50,8 @@ export async function proxy(request: NextRequest) {
 	const workspace = await readWorkspaceGate(request);
 
 	if (workspace.gate === "required") return sendTo(ONBOARDING_PATH, request);
+
+	if (workspace.gate === "suspended") return sendTo(PAUSED_PATH, request);
 
 	if (workspace.gate !== "settled" || !workspace.slug) {
 		return NextResponse.next();

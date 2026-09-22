@@ -1,4 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import {
+	ensureWorkspaceMembership,
+	setPasswordFor,
+	TENANT_COOKIE_NAME,
+	tenantCookieValue,
+} from "@crm/auth";
 import { db } from "@crm/db";
 import { planLimitsOf } from "@crm/db/plan-usage";
 import { addOnLookupKey, planLookupKey } from "@crm/db/pricing";
@@ -12,18 +18,24 @@ import {
 	writeTenantBilling,
 } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
-import { prepareTestTenants } from "@crm/db/test-tenants";
+import { prepareTestTenants, registryQuery } from "@crm/db/test-tenants";
 import type Stripe from "stripe";
 import request from "supertest";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
 import { BackfillService } from "../src/backfill/backfill.service";
 import { BILLING } from "../src/billing/billing.config";
+import { BillingService } from "../src/billing/billing.service";
 import { STRIPE } from "../src/billing/stripe.provider";
 import { MailboxSyncHeartbeatService } from "../src/sync/mailbox-sync-heartbeat.service";
 
 const PREPARE_TIMEOUT_MS = 120_000;
 const SECRET = "whsec_test_only_never_real";
 const PERIOD_END = 1_800_000_000;
+const PASSWORD = "ein-sehr-langes-passwort-fuer-billing";
+const OWNER = {
+	id: "billing-owner-a",
+	email: "billing-owner@tenant-a.example",
+};
 
 function item(lookupKey: string, quantity = 1) {
 	return {
@@ -71,6 +83,19 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 	let stripe: Stripe;
 	let a: Tenant;
 	let current: Stripe.Subscription;
+	let sessionCookie = "";
+	let billing: BillingService;
+
+	const tenantCookie = () =>
+		`${TENANT_COOKIE_NAME}=${tenantCookieValue(a.id, process.env.BETTER_AUTH_SECRET ?? "")}`;
+
+	const cleanOwner = () =>
+		runAsTenant(a, async () => {
+			await db.session.deleteMany({ where: { userId: OWNER.id } });
+			await db.account.deleteMany({ where: { userId: OWNER.id } });
+			await db.member.deleteMany({ where: { userId: OWNER.id } });
+			await db.user.deleteMany({ where: { id: OWNER.id } });
+		});
 
 	const post = async (
 		type: string,
@@ -111,6 +136,25 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		process.env.STRIPE_WEBHOOK_SECRET = SECRET;
 		({ a } = await prepareTestTenants());
 		await reset();
+		await cleanOwner();
+		await runAsTenant(a, async () => {
+			await db.user.create({
+				data: {
+					id: OWNER.id,
+					email: OWNER.email,
+					name: "Billing owner",
+					emailVerified: true,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				},
+			});
+			await ensureWorkspaceMembership(OWNER.id);
+			await db.member.updateMany({
+				where: { userId: OWNER.id },
+				data: { role: "owner" },
+			});
+			await setPasswordFor(OWNER.id, PASSWORD);
+		});
 
 		spies.push(
 			spyOn(
@@ -130,6 +174,7 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		app = await createApp();
 		server = app.getHttpServer();
 		stripe = app.get<Stripe>(STRIPE);
+		billing = app.get(BillingService);
 		current = subscriptionFixture(a.id);
 		spies.push(
 			spyOn(stripe.subscriptions, "retrieve").mockImplementation(
@@ -141,6 +186,7 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 	afterAll(async () => {
 		try {
 			await reset();
+			await cleanOwner();
 			await app?.close();
 			await closeRegistry();
 		} finally {
@@ -258,6 +304,39 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		}
 	});
 
+	it("lets a suspended workspace sign in and reach billing, nothing else", async () => {
+		const signIn = await request(server)
+			.post("/api/auth/sign-in/email")
+			.set("cookie", tenantCookie())
+			.send({ email: OWNER.email, password: PASSWORD });
+		expect(signIn.status).toBe(200);
+		sessionCookie = String(signIn.headers["set-cookie"])
+			.split(",")
+			.map((part) => part.split(";")[0]?.trim() ?? "")
+			.filter((part) => part.includes("session_token"))
+			.join("; ");
+		expect(sessionCookie).toContain("session_token");
+
+		const cookies = `${tenantCookie()}; ${sessionCookie}`;
+		const overview = await request(server)
+			.get("/api/trpc/billing.overview")
+			.set("cookie", cookies);
+		expect(overview.status).toBe(200);
+		expect(overview.body.result.data.suspended).toBe(true);
+		expect(overview.body.result.data.deleteAt).not.toBeNull();
+
+		const me = await request(server)
+			.get("/api/trpc/users.me")
+			.set("cookie", cookies);
+		expect(me.status).toBe(403);
+		expect(me.body.message).toBe("TENANT_SUSPENDED");
+
+		const mixed = await request(server)
+			.get("/api/trpc/billing.overview,users.me?batch=1&input={}")
+			.set("cookie", cookies);
+		expect(mixed.status).toBe(403);
+	});
+
 	it("reactivates a suspended workspace when a subscription is active again", async () => {
 		current = subscriptionFixture(a.id);
 		expect((await post("customer.subscription.updated", current)).status).toBe(
@@ -266,6 +345,67 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		const tenant = await tenantById(a.id);
 		expect(tenant?.status).toBe("active");
 		expect(tenant?.plan).toBe("standard");
+	});
+
+	it("keeps a trial that ends in more than 48 hours, charges now otherwise", async () => {
+		await reset();
+		const createdSessions: Stripe.Checkout.SessionCreateParams[] = [];
+		const created = spyOn(
+			stripe.checkout.sessions,
+			"create",
+		).mockImplementation((async (
+			params: Stripe.Checkout.SessionCreateParams,
+		) => {
+			createdSessions.push(params);
+			return { url: "https://checkout.stripe.test/cs_spec" };
+		}) as never);
+		const listed = spyOn(stripe.prices, "list").mockImplementation(
+			(async () => ({ data: [{ id: "price_spec" }] })) as never,
+		);
+		try {
+			const inTenDays = new Date(Date.now() + 10 * 24 * 60 * 60_000);
+			await registryQuery(
+				"UPDATE tenant SET trial_ends_at = $2 WHERE id = $1",
+				[a.id, inTenDays.toISOString()],
+			);
+			const tenant = await tenantById(a.id);
+			if (!tenant) throw new Error("tenant a missing");
+			const kept = await runAsTenant(tenant, () =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			expect(kept.url).toBe("https://checkout.stripe.test/cs_spec");
+			expect(createdSessions[0]?.subscription_data?.trial_end).toBe(
+				Math.floor(inTenDays.getTime() / 1000),
+			);
+			expect(createdSessions[0]?.subscription_data?.metadata?.tenantId).toBe(
+				a.id,
+			);
+
+			const overview = await runAsTenant(tenant, () =>
+				billing.overview(OWNER.id),
+			);
+			expect(overview.trialKeptUntil).toBe(inTenDays.toISOString());
+
+			const inOneDay = new Date(Date.now() + 24 * 60 * 60_000);
+			await registryQuery(
+				"UPDATE tenant SET trial_ends_at = $2 WHERE id = $1",
+				[a.id, inOneDay.toISOString()],
+			);
+			const soon = await tenantById(a.id);
+			if (!soon) throw new Error("tenant a missing");
+			await runAsTenant(soon, () =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "year" }),
+			);
+			expect(createdSessions[1]?.subscription_data?.trial_end).toBeUndefined();
+			expect(createdSessions[1]?.payment_method_types).toEqual(["card"]);
+		} finally {
+			created.mockRestore();
+			listed.mockRestore();
+			await registryQuery(
+				"UPDATE tenant SET trial_ends_at = NULL WHERE id = $1",
+				[a.id],
+			);
+		}
 	});
 
 	it("ignores an event for an unknown subscription", async () => {

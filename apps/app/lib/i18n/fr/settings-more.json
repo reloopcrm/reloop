@@ -470,5 +470,8 @@
 	"The values in the .env file take over again.": "Les valeurs du fichier .env reprennent la main.",
 	"Nobody can connect until you paste new values.": "Personne ne peut se connecter tant que tu ne colles pas de nouvelles valeurs.",
 	"Paste the Directory (tenant) ID from the Overview page. Leave it empty only if the registration accepts accounts from any organisation.": "Colle l'ID d'annuaire (locataire) depuis la page Vue d'ensemble. Ne le laisse vide que si l'inscription accepte les comptes de n'importe quelle organisation.",
-	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "Enregistrer redémarre l'app pour tout le monde. Elle est injoignable quelques secondes."
+	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "Enregistrer redémarre l'app pour tout le monde. Elle est injoignable quelques secondes.",
+	"The mailbox history is imported. Every conversation is in.": "L'historique de la boîte mail est importé. Toutes les conversations sont là.",
+	"{percent}% done": "{percent}% terminé",
+	"Import progress": "Progression de l'import"
 }

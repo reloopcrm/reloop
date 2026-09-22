@@ -171,9 +171,44 @@ make one direct model call to read the homepage it fetched, which is not a sessi
 not a conversation; with no provider it falls back to the page's own metadata rather
 than failing.
 
-**Priority**: `brand` 900 · `portrait` 800 · `workspace` 500 · `requested` 300 ·
-`meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 · `recheck` 0. The
-top two are what a rep reads *before* deciding what to open.
+**Priority**: `brand` 900 · `portrait` 800 · `threadInsight` 700 · `workspace` 500 ·
+`requested` 300 · `meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 ·
+`threadInsightBackfill` 10 · `recheck` 0. The top two are what a rep reads *before*
+deciding what to open.
+
+### The fast lane and the slow lane
+
+A mailbox sync stores a thread with a lane, `forward` for mail that just arrived and
+`backfill` for the history it reads behind it (`ThreadWriterService.store`, every
+sync names it). `AgentTriggerService.threadStored` writes the origin into the task
+payload (`agentTaskThreadPayload`, `@crm/validation/agent-task-payload`) and gives a
+backfill row `PRIORITY.threadInsightBackfill`. A forward mail on a thread whose
+backfill row is still waiting lifts that row to `threadInsight`, so today's reply
+never queues behind ten thousand old ones.
+
+`runInsightLane` claims in two steps. First everything above the backfill priority,
+which is the fast lane: a conversation a person is waiting for. Only when that claim
+is empty does it claim backfill rows, and at most `slowLaneRoom()` of them. A row
+that is not claimed keeps its place and its attempt; nothing is postponed.
+
+**The operator's key is one bucket for every tenant.** `lib/key-bucket.ts` holds a
+process-wide token bucket, `DISPATCH.bucket` its numbers: `perMinute` calls
+(`AGENT_SHARED_KEY_PER_MINUTE`), `fastReserve` 0.3 that only the fast lane may use,
+and a `share` of the rest per tenant by plan. `withKeyBucket` wraps the shared key's
+model in `fixedCandidates`, so every call through it, direct or in a session, takes
+a token, and a call with no token waits for the next one, `waitMaxMs` at most. It is
+never an error to the customer. The lane travels in `AsyncLocalStorage`
+(`inLane`, `currentLane`); everything defaults to fast, and the slow lane is only
+the backfill claim above. Self-hosting with an own key has no bucket.
+
+`queueUnreadThreads` queues the conversations that never came back in the slow lane
+too, at the backfill priority with origin `backfill`: it is a catch-up sweep, and
+nobody is waiting on a row it writes. The forward task a stored thread gets is what
+carries a person's wait.
+
+Fairness between tenants is the per-tenant share plus the rotation in
+`eachActiveTenant`: a tenant's backfill can only ever drain its own share, so one
+tenant with a large mailbox slows nobody else.
 
 **`claimDue` sorts what it claims** — Postgres does not order `UPDATE … RETURNING` by
 its sub-select's `ORDER BY`.

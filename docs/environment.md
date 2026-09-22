@@ -244,6 +244,16 @@ dispatch tick. The record sheet's offline transcript reaches back that far. A
 value that is not a positive integer counts as off. Declared in the root and the
 agent's `turbo.json`.
 
+## `AGENT_SHARED_KEY_PER_MINUTE`, 300 by default
+
+Hosted mode only. The number of model calls per minute the operator's
+`OPENROUTER_API_KEY` carries across every tenant, read by `keyBucket()` in
+`apps/agent/agent/lib/key-bucket.ts`. `DISPATCH.bucket` keeps 30 % of it for the
+fast lane and shares the rest between the tenants' backfills by plan. A value
+that is not a positive integer counts as the default. Declared in the agent's
+`turbo.json` and passed to the agent container by `deploy/docker-compose.yml`,
+not in the API's schema, because only the agent reads it.
+
 ## `RELOOP_DEMO`, off by default
 
 A floating Play demo button drives a scripted tour of the real app with a fake

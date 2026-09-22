@@ -44,13 +44,20 @@ export async function taskKindEnabled(kind: string): Promise<boolean> {
 	}
 }
 
+export type PriorityBound = { above?: number; atMost?: number };
+
+const PRIORITY_RANGE = { min: -2_147_483_648, max: 2_147_483_647 } as const;
+
 export async function claimDue(
 	limit: number,
 	kinds: { only: readonly string[] } | { except: readonly string[] },
 	leaseMs = LEASE_MS,
+	priority: PriorityBound = {},
 ): Promise<LeasedTask[]> {
 	const now = new Date();
 	const until = new Date(now.getTime() + leaseMs);
+	const above = priority.above ?? PRIORITY_RANGE.min;
+	const atMost = priority.atMost ?? PRIORITY_RANGE.max;
 
 	const list = "only" in kinds ? [...kinds.only] : [...kinds.except];
 	if ("only" in kinds && list.length === 0) return [];
@@ -58,16 +65,14 @@ export async function claimDue(
 	const onlyMode = "only" in kinds;
 
 	const claimed = await db.$queryRaw<LeasedTask[]>`
-		UPDATE "agentTask" AS t
-		SET "leasedUntil" = ${until},
-			"startedAt" = COALESCE(t."startedAt", ${now}),
-			"attempts" = t."attempts" + 1
-		FROM (
+		WITH due AS MATERIALIZED (
 			SELECT t2.id FROM "agentTask" AS t2
 			WHERE t2."finishedAt" IS NULL
 				AND t2."dueAt" <= ${now}
 				AND (t2."leasedUntil" IS NULL OR t2."leasedUntil" < ${now})
 				AND t2."attempts" < ${MAX_ATTEMPTS}
+				AND t2."priority" > ${above}
+				AND t2."priority" <= ${atMost}
 				AND CASE
 					WHEN ${onlyMode}::boolean THEN t2.kind = ANY(${list}::text[])
 					ELSE t2.kind <> ALL(${list}::text[])
@@ -78,7 +83,12 @@ export async function claimDue(
 			ORDER BY t2."priority" DESC, t2."dueAt" ASC
 			LIMIT ${limit}
 			FOR UPDATE SKIP LOCKED
-		) AS due
+		)
+		UPDATE "agentTask" AS t
+		SET "leasedUntil" = ${until},
+			"startedAt" = COALESCE(t."startedAt", ${now}),
+			"attempts" = t."attempts" + 1
+		FROM due
 		WHERE t.id = due.id
 		RETURNING t.id, t."contactId", t."companyId", t."dealId", t.kind, t.reason, t.payload,
 			t.budget, t.attempts, t.priority, t."dueAt";

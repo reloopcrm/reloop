@@ -115,9 +115,12 @@ export async function queueUnreadThreads(): Promise<number> {
 		await scheduleTask({
 			kind: "thread-insight",
 			reason: "Read a conversation that never came back",
-			payload: { threadId: thread.id } satisfies AgentTaskThreadPayload,
+			payload: {
+				threadId: thread.id,
+				origin: "backfill",
+			} satisfies AgentTaskThreadPayload,
 			dueAt: new Date(),
-			priority: PRIORITY.threadInsight,
+			priority: PRIORITY.threadInsightBackfill,
 			budget: 1,
 		});
 		started += 1;

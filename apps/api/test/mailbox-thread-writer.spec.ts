@@ -90,7 +90,7 @@ describe("storing a synced email", () => {
 	it("writes the message, the counts and the activity together", async () => {
 		const stored = await threads.store(
 			row,
-			{ mailbox, origin: "gmail" },
+			{ mailbox, origin: "gmail", lane: "forward" },
 			message(`<one-${suffix}@mail.test>`, new Date("2026-01-01T10:00:00Z")),
 			await threads.context(),
 		);
@@ -125,7 +125,7 @@ describe("storing a synced email", () => {
 
 		const stored = await threads.store(
 			row,
-			{ mailbox, origin: "gmail" },
+			{ mailbox, origin: "gmail", lane: "forward" },
 			message(`<one-${suffix}@mail.test>`, new Date("2026-01-01T10:00:00Z")),
 			await threads.context(),
 		);
@@ -149,8 +149,18 @@ describe("storing a synced email", () => {
 		const context = await threads.context();
 
 		const results = await Promise.all([
-			threads.store(row, { mailbox, origin: "gmail" }, parsed, context),
-			threads.store(row, { mailbox, origin: "outlook" }, parsed, context),
+			threads.store(
+				row,
+				{ mailbox, origin: "gmail", lane: "forward" },
+				parsed,
+				context,
+			),
+			threads.store(
+				row,
+				{ mailbox, origin: "outlook", lane: "forward" },
+				parsed,
+				context,
+			),
 		]);
 
 		expect(results.filter(Boolean)).toHaveLength(1);
@@ -184,7 +194,7 @@ describe("storing a synced email", () => {
 
 		const stored = await threads.store(
 			row,
-			{ mailbox, origin: "outlook" },
+			{ mailbox, origin: "outlook", lane: "forward" },
 			message(
 				`<race-${suffix}@mail.test>`,
 				new Date("2026-01-02T10:00:00Z"),

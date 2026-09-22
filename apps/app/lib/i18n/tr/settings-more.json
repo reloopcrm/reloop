@@ -470,5 +470,8 @@
 	"The values in the .env file take over again.": ".env dosyasındaki değerler yeniden geçerli olur.",
 	"Nobody can connect until you paste new values.": "Sen yeni değerler yapıştırana kadar kimse bağlanamaz.",
 	"Paste the Directory (tenant) ID from the Overview page. Leave it empty only if the registration accepts accounts from any organisation.": "Genel Bakış sayfasındaki dizin (kiracı) kimliğini yapıştır. Yalnızca kayıt her kuruluştan hesabı kabul ediyorsa boş bırak.",
-	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "Kaydetmek uygulamayı herkes için yeniden başlatır. Birkaç saniye erişilemez."
+	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "Kaydetmek uygulamayı herkes için yeniden başlatır. Birkaç saniye erişilemez.",
+	"The mailbox history is imported. Every conversation is in.": "Posta kutusunun geçmişi içe aktarıldı. Her konuşma içeride.",
+	"{percent}% done": "%{percent} tamamlandı",
+	"Import progress": "İçe aktarma ilerlemesi"
 }

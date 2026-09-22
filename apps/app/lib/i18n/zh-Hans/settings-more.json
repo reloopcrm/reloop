@@ -470,5 +470,8 @@
 	"The values in the .env file take over again.": ".env 文件里的值重新生效。",
 	"Nobody can connect until you paste new values.": "在你粘贴新的值之前没人能连接。",
 	"Paste the Directory (tenant) ID from the Overview page. Leave it empty only if the registration accepts accounts from any organisation.": "把概述页上的目录（租户）ID 粘贴进来。只有当这个注册接受任何组织的账号时才留空。",
-	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "保存会为所有人重启应用。它会有几秒钟无法访问。"
+	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "保存会为所有人重启应用。它会有几秒钟无法访问。",
+	"The mailbox history is imported. Every conversation is in.": "邮箱历史已导入。每一段对话都在里面了。",
+	"{percent}% done": "已完成 {percent}%",
+	"Import progress": "导入进度"
 }

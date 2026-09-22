@@ -55,7 +55,7 @@ export class MailboxSyncService {
 		private readonly agent: AgentTriggerService,
 	) {}
 
-	async runDue(): Promise<TickSummary> {
+	async runDue(signal?: AbortSignal): Promise<TickSummary> {
 		const startedAt = Date.now();
 		const summary: TickSummary = {
 			attempted: 0,
@@ -91,7 +91,7 @@ export class MailboxSyncService {
 		const tickEndsAt = startedAt + tickBudgetMs();
 
 		for (const [index, row] of due.entries()) {
-			if (Date.now() > tickEndsAt) {
+			if (signal?.aborted || Date.now() > tickEndsAt) {
 				this.logger.log({
 					message: "Sync tick budget reached",
 					remaining: due.length - index,

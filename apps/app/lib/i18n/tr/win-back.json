@@ -313,5 +313,7 @@
 	"How many {unit} per order count as serious.": "Sipariş başına ciddi sayılan {unit} miktarı.",
 	"A task to get back to {name} is due in {count} days.": "{name} ile ilgili görev {count} gün sonra seni hatırlatacak.",
 	"Get back to {name}": "{name} ile tekrar iletişime geç",
-	"Remind me in {count} days": "{count} gün sonra hatırlat"
+	"Remind me in {count} days": "{count} gün sonra hatırlat",
+	"The monthly limit of your plan for chat is reached. The conversation continues next month. Upgrade your plan to continue now.": "Planının sohbet için aylık sınırına ulaşıldı. Konuşma gelecek ay devam eder. Şimdi devam etmek için planını yükselt.",
+	"The monthly limit of your plan for the agent builder is reached. The conversation continues next month. Upgrade your plan to continue now.": "Planının ajan oluşturucu için aylık sınırına ulaşıldı. Konuşma gelecek ay devam eder. Şimdi devam etmek için planını yükselt."
 }

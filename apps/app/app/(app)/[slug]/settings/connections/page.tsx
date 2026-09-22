@@ -10,9 +10,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 import type { Translate } from "@/lib/i18n/locale";
 import { getT } from "@/lib/i18n/server";
+import { type ImportProgress, importProgressOf } from "@/lib/import-progress";
 import { requireSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AddConnectionDialog } from "./add-connection-dialog";
+import { ImportProgress as ImportProgressView } from "./import-history";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -48,16 +50,26 @@ async function ConnectionsSettingsPageContent({
 		queryClient.fetchQuery(trpc.imap.status.queryOptions()),
 		queryClient.fetchQuery(trpc.webhooks.status.queryOptions()),
 	]);
+	const now = new Date();
+	const gmail = importProgressOf(
+		google.sources.find((source) => source.source === "gmail")?.backfill,
+		now,
+	);
+	const outlook = importProgressOf(
+		microsoft.sources.find((source) => source.source === "outlook")?.backfill,
+		now,
+	);
 	const rows = [
 		...(google.linked
 			? [
 					{
 						name: "Google Workspace",
-						status: t("Connected"),
+						status: mailboxStatus(gmail, t),
 						bringsIn: t("Emails, meetings and the people on them"),
 						sends: t("Nothing yet"),
 						href: `/${slug}/settings/connections/google`,
 						logo: GoogleLogo,
+						progress: gmail,
 					},
 				]
 			: []),
@@ -79,11 +91,12 @@ async function ConnectionsSettingsPageContent({
 			? [
 					{
 						name: "Microsoft 365",
-						status: t("Connected"),
+						status: mailboxStatus(outlook, t),
 						bringsIn: t("Outlook email and the people on it"),
 						sends: t("Nothing yet"),
 						href: `/${slug}/settings/connections/microsoft`,
 						logo: MicrosoftLogo,
+						progress: outlook,
 					},
 				]
 			: []),
@@ -232,6 +245,7 @@ async function ConnectionCard({
 	sends,
 	href,
 	logo: Logo,
+	progress = null,
 }: {
 	name: string;
 	status: string;
@@ -239,6 +253,7 @@ async function ConnectionCard({
 	sends: string;
 	href: string;
 	logo: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+	progress?: ImportProgress | null;
 }) {
 	const t = await getT();
 
@@ -258,6 +273,11 @@ async function ConnectionCard({
 				<CapabilityRow label={t("Brings in")} value={bringsIn} />
 				<CapabilityRow label={t("Sends")} value={sends} />
 			</div>
+			{progress ? (
+				<div className="pl-8">
+					<ImportProgressView progress={progress} />
+				</div>
+			) : null}
 		</section>
 	);
 }
@@ -296,6 +316,10 @@ async function StarterRow({
 			</Button>
 		</div>
 	);
+}
+
+function mailboxStatus(progress: ImportProgress | null, t: Translate): string {
+	return progress && !progress.done ? t("Reading mail") : t("Connected");
 }
 
 function webhookStatus(

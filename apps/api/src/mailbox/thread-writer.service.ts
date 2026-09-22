@@ -9,6 +9,7 @@ import {
 } from "@crm/db";
 import { THREAD_CLASSIFICATION } from "@crm/db/insights";
 import { isAutoReply, isReplySubject } from "@crm/db/message-text";
+import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -71,7 +72,7 @@ export class ThreadWriterService {
 
 	async store(
 		row: MailboxSync,
-		options: { mailbox: string; origin: SyncOrigin },
+		options: { mailbox: string; origin: SyncOrigin; lane: AgentTaskOrigin },
 		parsed: IncomingMessage,
 		context: MatchContext,
 	): Promise<boolean> {
@@ -229,7 +230,11 @@ export class ThreadWriterService {
 			);
 		}
 
-		await this.agent.threadStored(occurredAt.id, "New email in the thread");
+		await this.agent.threadStored(
+			occurredAt.id,
+			"New email in the thread",
+			options.lane,
+		);
 
 		return !repair;
 	}

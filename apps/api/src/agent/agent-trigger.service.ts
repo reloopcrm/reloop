@@ -24,6 +24,7 @@ import {
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskDraftPayload,
+	type AgentTaskOrigin,
 	type AgentTaskThreadPayload,
 } from "@crm/validation/agent-task-payload";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
@@ -156,14 +157,33 @@ export class AgentTriggerService {
 		);
 	}
 
-	async threadStored(threadId: string, reason: string): Promise<void> {
-		await this.enqueue({
+	async threadStored(
+		threadId: string,
+		reason: string,
+		origin: AgentTaskOrigin = "forward",
+	): Promise<void> {
+		const priority =
+			origin === "backfill"
+				? PRIORITY.threadInsightBackfill
+				: PRIORITY.threadInsight;
+		const created = await this.enqueue({
 			kind: "thread-insight",
 			reason,
-			priority: PRIORITY.threadInsight,
+			priority,
 			budget: 1,
-			payload: { threadId } satisfies AgentTaskThreadPayload,
+			payload: { threadId, origin } satisfies AgentTaskThreadPayload,
 			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
+		});
+		if (created || origin === "backfill") return;
+
+		await this.db.agentTask.updateMany({
+			where: {
+				kind: "thread-insight",
+				finishedAt: null,
+				priority: { lt: priority },
+				payload: { path: [AGENT_TASK_THREAD_ID_KEY], equals: threadId },
+			},
+			data: { priority, reason },
 		});
 	}
 

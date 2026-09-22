@@ -117,11 +117,11 @@ export type TenantRun = {
 
 export async function eachActiveTenant(
 	label: string,
-	run: (tenant: Tenant | null) => Promise<unknown>,
+	run: (tenant: Tenant | null, signal: AbortSignal) => Promise<unknown>,
 	only: string | null = null,
 ): Promise<TenantRun[]> {
 	if (!isHosted()) {
-		await run(null);
+		await run(null, new AbortController().signal);
 		return [];
 	}
 
@@ -146,7 +146,8 @@ export async function eachActiveTenant(
 			error: null,
 		};
 
-		const work = runAsTenant(tenant, () => run(tenant)).then(
+		const controller = new AbortController();
+		const work = runAsTenant(tenant, () => run(tenant, controller.signal)).then(
 			() => undefined,
 			(cause: unknown) => {
 				outcome.ok = false;
@@ -160,6 +161,7 @@ export async function eachActiveTenant(
 		const finished = await settledWithin(work, DISPATCH.tenants.budgetMs);
 		if (!finished.settled) {
 			outcome.settled = false;
+			controller.abort();
 			console.error(
 				`[agent] ${label} for tenant ${tenant.id} passed its ${DISPATCH.tenants.budgetMs}ms budget; the others go on`,
 			);

@@ -6,6 +6,7 @@ import {
 } from "@crm/db";
 import { clampImportSince, limitsOf } from "@crm/db/plans";
 import { readPlan } from "@crm/db/settings";
+import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { importCapRemaining } from "../mailbox/import-cap";
@@ -256,7 +257,7 @@ export class ImapSyncService {
 				const from = entry.lastUid + 1;
 				const to = Math.min(newest, from + IMAP.sync.forwardChunk - 1);
 
-				const result = await this.ingest(run, `${from}:${to}`);
+				const result = await this.ingest(run, `${from}:${to}`, "forward");
 				budget -= Math.max(result.seen, 1);
 				written += result.written;
 				entry.lastUid = to;
@@ -277,7 +278,7 @@ export class ImapSyncService {
 				const size = Math.min(IMAP.sync.backfillChunk, budget, remaining);
 				const from = Math.max(entry.floorUid, to - size + 1);
 
-				const result = await this.ingest(run, `${from}:${to}`);
+				const result = await this.ingest(run, `${from}:${to}`, "backfill");
 				budget -= Math.max(result.seen, 1);
 				written += result.written;
 				entry.backfillUid = from > entry.floorUid ? from - 1 : null;
@@ -289,7 +290,11 @@ export class ImapSyncService {
 		return written;
 	}
 
-	private async ingest(run: FolderRun, range: string): Promise<Ingest> {
+	private async ingest(
+		run: FolderRun,
+		range: string,
+		lane: AgentTaskOrigin,
+	): Promise<Ingest> {
 		let seen = 0;
 		let written = 0;
 
@@ -317,7 +322,7 @@ export class ImapSyncService {
 
 			const stored = await this.threads.store(
 				run.row,
-				{ mailbox: run.mailbox, origin: "imap" },
+				{ mailbox: run.mailbox, origin: "imap", lane },
 				parsed,
 				run.context,
 			);

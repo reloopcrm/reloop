@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { marketingUrl, signUpUrl } from "./site-links";
+import { marketingUrl, signInUrl, signUpUrl } from "./site-links";
 
 const saved = {
 	cloud: process.env.RELOOP_CLOUD_URL,
@@ -60,5 +60,19 @@ describe("marketingUrl", () => {
 		expect(marketingUrl("/vs/hubspot")).toBe(
 			"https://reloopcrm.com/vs/hubspot",
 		);
+	});
+});
+
+describe("signInUrl", () => {
+	it("stays on this site without a cloud address", () => {
+		delete process.env.RELOOP_CLOUD_URL;
+
+		expect(signInUrl()).toBe("/sign-in");
+	});
+
+	it("sends visitors to the cloud sign-in when the address is set", () => {
+		process.env.RELOOP_CLOUD_URL = "https://app.reloopcrm.com/";
+
+		expect(signInUrl()).toBe("https://app.reloopcrm.com/sign-in");
 	});
 });

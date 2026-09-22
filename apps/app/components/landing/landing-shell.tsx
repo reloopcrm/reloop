@@ -4,7 +4,7 @@ import Wordmark from "@crm/ui/components/wordmark";
 import NextLink from "next/link";
 import type * as React from "react";
 import { getT } from "@/lib/i18n/server";
-import { marketingUrl, signUpUrl } from "@/lib/site-links";
+import { marketingUrl, signInUrl, signUpUrl } from "@/lib/site-links";
 import { LanguageSwitcher } from "./language-switcher";
 import { REPO_URL } from "./site";
 
@@ -21,7 +21,7 @@ export async function LandingShell({
 		{ href: marketingUrl("/pricing"), label: t("Pricing") },
 		{ href: "/docs", label: t("Docs") },
 		{ href: signUpUrl(), label: t("Get started") },
-		{ href: "/sign-in", label: t("Sign in") },
+		{ href: signInUrl(), label: t("Sign in") },
 	];
 
 	const readingLinks = [
@@ -55,7 +55,7 @@ export async function LandingShell({
 					<Link variant="quiet" href="/docs">
 						{t("Docs")}
 					</Link>
-					<Link variant="quiet" href="/sign-in">
+					<Link variant="quiet" href={signInUrl()}>
 						{t("Sign in")}
 					</Link>
 					{cta ? (

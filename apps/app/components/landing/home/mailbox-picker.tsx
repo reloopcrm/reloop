@@ -4,6 +4,7 @@ import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import { Button } from "@crm/ui/components/button";
 import NextLink from "next/link";
 import type { Translate } from "@/lib/i18n/locale";
+import { signInUrl } from "@/lib/site-links";
 import { HOME } from "./config";
 
 export function MailboxPicker({ t }: { t: Translate }) {
@@ -16,7 +17,7 @@ export function MailboxPicker({ t }: { t: Translate }) {
 				<GoogleLogo width={HOME.iconSize} height={HOME.iconSize} />
 				<span className="grow font-medium">Gmail</span>
 				<Button variant="outline-ghost" size="pill-sm" asChild>
-					<NextLink href={HOME.href.change}>{t("Change mailbox")}</NextLink>
+					<NextLink href={signInUrl()}>{t("Change mailbox")}</NextLink>
 				</Button>
 			</li>
 			<li className="flex min-h-15 items-center gap-3 border-border border-b py-2">

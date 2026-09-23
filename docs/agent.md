@@ -14,7 +14,7 @@ are in `docs/setup.md`.
 Four providers pay for the model, and Settings → AI picks one: OpenRouter, a
 ChatGPT subscription, an OpenAI key, an Anthropic key. Every provider's default model
 is `AGENT_PROVIDER_DEFAULTS` in `@crm/db/settings`, because the agent and the API both
-need it. OpenRouter is the default provider and `openai/gpt-5.6-luna` its default
+need it. OpenRouter is the default provider and `openai/gpt-6-luna` its default
 model: cheap, fast, tool-using, and on the local price list so spend rows carry a cost.
 
 - **A row (`AppSetting`), not an env var**, via `defineDynamic` on `step.started`.

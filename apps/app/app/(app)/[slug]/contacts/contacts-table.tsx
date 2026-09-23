@@ -45,9 +45,8 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		header: "Name",
 		sortable: true,
 		hideable: false,
-		width: "w-[22%]",
 		cell: (row) => (
-			<span className="flex min-w-0 items-center gap-2">
+			<span className="flex min-w-0 items-center gap-2.5">
 				<PersonAvatar
 					src={row.imageUrl}
 					name={contactName(row)}
@@ -62,7 +61,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		id: "standing",
 		header: "Status",
 		sortable: true,
-		width: "w-[11%]",
+		width: "w-[12%]",
 		hideBelow: "sm",
 		cell: (row) => <StandingCell standing={row.standing} />,
 	},
@@ -70,16 +69,18 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		id: "potential",
 		header: "Potential",
 		sortable: true,
-		width: "w-[8%]",
-		hideBelow: "md",
+		width: "w-[9%]",
+		cellClassName: "text-2sm",
+		hideBelow: "xl",
 		cell: (row) => <PotentialCell potential={row.potential} />,
 	},
 	{
 		id: "title",
 		header: "Title",
 		sortable: true,
-		width: "w-[20%]",
-		hideBelow: "lg",
+		width: "w-[13%]",
+		hideBelow: "xl",
+		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.title ? (
 				<span className="truncate">{row.title}</span>
@@ -91,8 +92,9 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		id: "email",
 		header: "Email",
 		sortable: true,
-		width: "w-[20%]",
-		hideBelow: "md",
+		width: "w-[17%]",
+		hideBelow: "lg",
+		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.email ? (
 				<span className="truncate text-muted-foreground">{row.email}</span>
@@ -104,14 +106,16 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		id: "company",
 		header: "Company",
 		sortable: true,
-		width: "w-[16%]",
+		width: "w-[15%]",
+		cellClassName: "text-2sm",
 		cell: (row) => <CompanyCell company={row.company} />,
 	},
 	{
 		id: "owner",
 		header: "Owner",
 		sortable: true,
-		width: "w-[16%]",
+		width: "w-[14%]",
+		cellClassName: "text-2sm",
 		hideBelow: "md",
 		defaultHidden: true,
 		cell: (row) => <OwnerCell owner={row.owner} />,
@@ -124,6 +128,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		align: "right",
 		width: "w-[10%]",
 		defaultHidden: true,
+		cellClassName: "text-2sm",
 		cell: (row) => (
 			<span className="text-muted-foreground">
 				<LocalRelativeTime date={row.createdAt} />
@@ -135,8 +140,9 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		header: "Last activity",
 		sortable: true,
 		align: "right",
-		width: "w-[12%]",
+		width: "w-[13%]",
 		hideBelow: "sm",
+		cellClassName: "text-2sm",
 		cell: (row) => (
 			<span className="text-muted-foreground">
 				{row.lastActivityAt ? (
@@ -156,7 +162,8 @@ const ARCHIVED_COLUMNS: LabeledColumn<ContactRow>[] = [
 		label: "Archived date",
 		sortable: true,
 		align: "right",
-		width: "w-[12%]",
+		width: "w-[13%]",
+		cellClassName: "text-2sm",
 		cell: (row) => (
 			<span className="text-muted-foreground">
 				{row.archivedAt ? (

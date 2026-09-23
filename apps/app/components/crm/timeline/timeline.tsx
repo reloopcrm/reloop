@@ -204,7 +204,7 @@ function WaitingLine({ entry }: { entry: TimelineEntryData }) {
 	return (
 		<div
 			role="status"
-			className="flex shrink-0 flex-wrap items-center gap-3 border-border-strong border-b px-5 py-3"
+			className="flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-4"
 		>
 			<IndicatorDot tone="neutral" aria-hidden="true" />
 			<p className="min-w-0 flex-1">
@@ -287,7 +287,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-			<div className="flex shrink-0 flex-col gap-2 border-b px-5 py-3">
+			<div className="flex shrink-0 flex-col gap-3 border-b px-5 py-4">
 				<ActivityComposer anchor={anchor} />
 
 				<ToggleGroup
@@ -307,9 +307,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 							<ToggleGroupItem key={option} value={option}>
 								{t(TAB_LABELS[option])}
 								{count === null ? null : (
-									<span className="font-mono text-faint-foreground text-xs tabular-nums">
-										{count}
-									</span>
+									<span className="tabular-nums">{count}</span>
 								)}
 							</ToggleGroupItem>
 						);

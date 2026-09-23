@@ -25,9 +25,11 @@ export function exportFilename(
 export function ExportButton({
 	entity,
 	input,
+	variant = "outline",
 }: {
 	entity: ExportEntity;
 	input: unknown;
+	variant?: "outline" | "link";
 }) {
 	const t = useT();
 	const locale = useLocale();
@@ -75,7 +77,7 @@ export function ExportButton({
 
 	return (
 		<Button
-			variant="outline"
+			variant={variant}
 			size="sm"
 			align="toolbar"
 			onClick={() => action.run()}
@@ -86,7 +88,7 @@ export function ExportButton({
 				pendingLabel={t("Preparing…")}
 				successLabel={t("Downloaded")}
 			>
-				<Download data-icon="inline-start" />
+				{variant === "link" ? null : <Download data-icon="inline-start" />}
 				{t("Export CSV")}
 			</AsyncButtonContent>
 		</Button>

@@ -19,8 +19,12 @@ export const SEARCH_PARAM = {
 		entity: "manageFields",
 		field: "manageField",
 	},
+	deals: {
+		view: "view",
+	},
 	dialog: {
 		create: "new",
+		createStage: "newStage",
 		switcher: "k",
 		closeDeal: "closeDeal",
 		closeStage: "closeStage",

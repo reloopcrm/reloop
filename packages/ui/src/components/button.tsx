@@ -24,6 +24,8 @@ const buttonVariants = cva(
 				contrast:
 					"bg-foreground text-background hover:bg-foreground/90 active:bg-foreground/80",
 				link: "text-body-foreground underline decoration-border-strong underline-offset-3 hover:text-foreground hover:decoration-foreground",
+				dashed:
+					"rounded-lg border-border border-dashed bg-transparent font-normal text-2sm text-muted-foreground hover:bg-muted hover:text-foreground",
 			},
 			size: {
 				default:

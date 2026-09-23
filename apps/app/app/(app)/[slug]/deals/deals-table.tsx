@@ -145,13 +145,15 @@ const ARCHIVED_COLUMNS: LabeledColumn<DealRow>[] = [
 	},
 ];
 
-export function DealsTable() {
+export function DealsTable({ status }: { status?: "closed" }) {
 	const t = useT();
 	const locale = useLocale();
 	const openRecord = useOpenRecord();
 	const trpc = useTRPC();
 	const prefetchRecord = usePrefetchRecord();
-	const { query, input, setArchived } = useTableQuery(dealsSearchParams);
+	const table = useTableQuery(dealsSearchParams);
+	const { query, setArchived } = table;
+	const input = status ? { ...table.input, status } : table.input;
 
 	const deals = useQuery({
 		...trpc.deals.list.queryOptions(input),
@@ -258,14 +260,18 @@ export function DealsTable() {
 			total={deals.data?.total ?? 0}
 			facetCounts={facetCounts}
 			facets={facets}
-			tabs={{
-				id: "status",
-				allLabel: t("All deals"),
-				options: [
-					{ value: "open", label: t("Open") },
-					{ value: "closed", label: t("Closed") },
-				],
-			}}
+			tabs={
+				status
+					? undefined
+					: {
+							id: "status",
+							allLabel: t("All deals"),
+							options: [
+								{ value: "open", label: t("Open") },
+								{ value: "closed", label: t("Closed") },
+							],
+						}
+			}
 			selection={{
 				state: selection,
 				actions: (

@@ -132,5 +132,17 @@
 	"Preparing…": "Hazırlanıyor…",
 	"Downloaded": "İndirildi",
 	"The export did not finish. Try again.": "Dışa aktarma tamamlanmadı. Tekrar dene.",
-	"Your session ended. Sign in again.": "Oturumun bitti. Yeniden giriş yap."
+	"Your session ended. Sign in again.": "Oturumun bitti. Yeniden giriş yap.",
+	"Pipeline": "Pipeline",
+	"List": "Liste",
+	"Deals view": "Anlaşma görünümü",
+	"Deal or company": "Anlaşma veya şirket",
+	"All owners": "Tüm sorumlular",
+	"{count} more": "{count} tane daha",
+	"Create a deal here": "Buraya anlaşma ekle",
+	"{days} d in stage": "{days} gündür bu aşamada",
+	"Recently closed": "Son kapananlar",
+	"{count} open": "{count} açık",
+	"{amount} in the pipeline": "pipeline içinde {amount}",
+	"{won} won and {lost} lost in the last 90 days": "son 90 günde {won} kazanıldı ve {lost} kaybedildi"
 }

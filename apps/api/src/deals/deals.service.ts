@@ -61,7 +61,8 @@ import type {
 	DealUpdateInput,
 	SetStageInput,
 } from "./deals.contracts";
-import { CLOSING_WINDOWS } from "./deals.contracts";
+import { CLOSING_WINDOWS, type DealCard } from "./deals.contracts";
+import { DEALS } from "./deals-config";
 
 const OWNER_SELECT = {
 	id: true,
@@ -90,6 +91,36 @@ const CONTACT_SELECT = {
 } as const;
 
 const LOSING = new Set<DealStage>(LOSING_DEAL_STAGES);
+
+const CARD_SELECT = {
+	id: true,
+	name: true,
+	stage: true,
+	amount: true,
+	currency: true,
+	baseAmount: true,
+	stageChangedAt: true,
+	expectedCloseDate: true,
+	closedAt: true,
+	company: { select: { id: true, name: true } },
+} satisfies Prisma.DealSelect;
+
+type CardRow = Prisma.DealGetPayload<{ select: typeof CARD_SELECT }>;
+
+function toCard(row: CardRow): DealCard {
+	return {
+		id: row.id,
+		name: row.name,
+		stage: row.stage,
+		currency: row.currency,
+		company: row.company,
+		amountCents: toCents(row.amount),
+		baseAmountCents: toCents(row.baseAmount),
+		stageChangedAt: row.stageChangedAt.toISOString(),
+		expectedCloseDate: row.expectedCloseDate?.toISOString() ?? null,
+		closedAt: row.closedAt?.toISOString() ?? null,
+	};
+}
 
 const SORTABLE: OrderByColumns<Prisma.DealOrderByWithRelationInput[]> = {
 	name: (dir) => [{ name: dir }],
@@ -214,6 +245,93 @@ export class DealsService {
 			openValueCents: number | null;
 			reportingCurrency: string;
 			unconverted: { count: number; currencies: string[] };
+		};
+	}
+
+	async board(input: DealListInput) {
+		const filterableFields = await this.fields.filterableFieldsFor("DEAL");
+		const openWhere = this.buildWhere(
+			{ ...input, status: "open" },
+			filterableFields,
+		);
+		const closedWhere = this.buildWhere(
+			{ ...input, status: "closed" },
+			filterableFields,
+		);
+		const base = await this.conversion.reportingCurrency();
+		const counted = this.conversion.countedWhere(base);
+		const closedSince = new Date(Date.now() - DEALS.board.closedWindowMs);
+
+		const [columns, counts, sums, closedCounts, recentClosed, unconverted] =
+			await Promise.all([
+				Promise.all(
+					OPEN_DEAL_STAGES.map((stage) =>
+						this.db.deal.findMany({
+							where: { AND: [openWhere, { stage }] },
+							orderBy: [{ stageChangedAt: "desc" }, { name: "asc" }],
+							take: DEALS.board.columnLimit,
+							select: CARD_SELECT,
+						}),
+					),
+				),
+				this.db.deal.groupBy({
+					by: ["stage"],
+					where: openWhere,
+					_count: { _all: true },
+				}),
+				this.db.deal.groupBy({
+					by: ["stage"],
+					where: { AND: [openWhere, counted] },
+					_sum: { baseAmount: true },
+				}),
+				this.db.deal.groupBy({
+					by: ["stage"],
+					where: { AND: [closedWhere, { closedAt: { gte: closedSince } }] },
+					_count: { _all: true },
+				}),
+				this.db.deal.findMany({
+					where: { AND: [closedWhere, { closedAt: { not: null } }] },
+					orderBy: { closedAt: "desc" },
+					take: DEALS.board.recentClosed,
+					select: CARD_SELECT,
+				}),
+				this.conversion.unconverted(openWhere),
+			]);
+
+		const countByStage = countsByKey(counts, "stage");
+		const sumByStage = new Map(
+			sums.map((group) => [group.stage, toCents(group._sum.baseAmount)]),
+		);
+		const closedByStage = countsByKey(closedCounts, "stage");
+
+		let openValueCents: number | null = null;
+		for (const stage of OPEN_DEAL_STAGES) {
+			const sum = sumByStage.get(stage);
+			if (sum !== null && sum !== undefined) {
+				openValueCents = (openValueCents ?? 0) + sum;
+			}
+		}
+
+		return {
+			columns: OPEN_DEAL_STAGES.map((stage, index) => ({
+				stage,
+				count: countByStage[stage] ?? 0,
+				sumCents: sumByStage.get(stage) ?? null,
+				deals: (columns[index] ?? []).map(toCard),
+			})),
+			openCount: OPEN_DEAL_STAGES.reduce(
+				(total, stage) => total + (countByStage[stage] ?? 0),
+				0,
+			),
+			openValueCents,
+			wonCount: closedByStage.CLOSED_WON ?? 0,
+			lostCount: LOSING_DEAL_STAGES.reduce(
+				(total, stage) => total + (closedByStage[stage] ?? 0),
+				0,
+			),
+			recentClosed: recentClosed.map(toCard),
+			reportingCurrency: base,
+			unconverted,
 		};
 	}
 

@@ -22,7 +22,7 @@ const PRESENTATION: DealStagePresentation = {
 		color: "var(--chart-2)",
 	},
 	QUALIFIED_TO_BUY: {
-		tone: "info",
+		tone: "success",
 		color: "var(--chart-3)",
 	},
 	DECISION_MAKER_BOUGHT_IN: {

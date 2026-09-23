@@ -18,7 +18,7 @@ export function StandingCell({
 	const t = useT();
 	if (!standing) return <EmptyCellValue />;
 
-	return <Badge variant="secondary">{t(standingLabel(standing))}</Badge>;
+	return <Badge>{t(standingLabel(standing))}</Badge>;
 }
 
 export function PotentialCell({

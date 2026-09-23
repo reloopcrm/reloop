@@ -13,7 +13,6 @@ import {
 } from "@crm/ui/components/empty";
 import type { CarbonIcon } from "@crm/ui/components/icon";
 import { Icon } from "@crm/ui/components/icon";
-import { Separator } from "@crm/ui/components/separator";
 import type { SheetSize } from "@crm/ui/components/sheet";
 import {
 	Tabs,
@@ -75,7 +74,7 @@ export function DetailSheet({
 					event.preventDefault();
 					content.current?.focus();
 				}}
-				className={cn("flex flex-col gap-0 p-0", className)}
+				className={cn("flex flex-col gap-0 p-0 outline-none", className)}
 			>
 				{children}
 			</SheetContent>
@@ -103,28 +102,30 @@ export function DetailSheetHeader({
 	const t = useT();
 
 	return (
-		<SheetHeader className={cn("gap-0 border-b py-3", GUTTER)}>
-			<div className="flex items-start gap-3">
-				{onBack ? (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="ghost" size="icon-sm" onClick={onBack}>
-								<Icon icon={ArrowLeft} />
-								<span className="sr-only">{t("Back")}</span>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>{t("Back")}</TooltipContent>
-					</Tooltip>
-				) : null}
+		<SheetHeader className={cn("gap-0 border-b py-4", GUTTER)}>
+			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3.5 gap-y-3 sm:flex">
+				<div className="flex items-start gap-3.5">
+					{onBack ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button variant="outline-ghost" size="icon-sm" onClick={onBack}>
+									<Icon icon={ArrowLeft} />
+									<span className="sr-only">{t("Back")}</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>{t("Back")}</TooltipContent>
+						</Tooltip>
+					) : null}
 
-				{media}
+					{media}
+				</div>
 
-				<div className="min-w-0 flex-1 space-y-1 pt-0.5">
+				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
 					<SheetTitle size="lg" className="wrap-anywhere">
 						{title}
 					</SheetTitle>
 					{description ? (
-						<SheetDescription className="wrap-anywhere">
+						<SheetDescription className="truncate text-2sm">
 							{description}
 						</SheetDescription>
 					) : null}
@@ -135,21 +136,22 @@ export function DetailSheetHeader({
 					) : null}
 				</div>
 
-				<div className="flex shrink-0 items-center gap-1">
-					{actions}
-					{actions ? (
-						<Separator orientation="vertical" className="mx-1 h-5" />
-					) : null}
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						onClick={onClose}
-						data-demo={DEMO.mark.sheetClose}
-					>
-						<Icon icon={Close} />
-						<span className="sr-only">{t("Close")}</span>
-					</Button>
-				</div>
+				{actions ? (
+					<div className="col-span-full row-start-2 flex flex-wrap items-center gap-2 sm:col-auto sm:row-auto sm:shrink-0">
+						{actions}
+					</div>
+				) : null}
+
+				<Button
+					variant="outline-ghost"
+					size="icon-sm"
+					onClick={onClose}
+					data-demo={DEMO.mark.sheetClose}
+					className="col-start-3 row-start-1 sm:col-auto sm:row-auto"
+				>
+					<Icon icon={Close} />
+					<span className="sr-only">{t("Close")}</span>
+				</Button>
 			</div>
 		</SheetHeader>
 	);
@@ -157,7 +159,9 @@ export function DetailSheetHeader({
 
 export function DetailSheetStats({ children }: { children: ReactNode }) {
 	return (
-		<dl className="flex shrink-0 divide-x border-b bg-muted/40">{children}</dl>
+		<dl className="grid shrink-0 grid-cols-2 border-b sm:flex sm:divide-x">
+			{children}
+		</dl>
 	);
 }
 
@@ -171,12 +175,9 @@ export function DetailSheetStat({
 	children: ReactNode;
 }) {
 	return (
-		<div className={cn("flex min-w-0 flex-1 flex-col gap-1 py-3", GUTTER)}>
+		<div className={cn("flex min-w-0 flex-col gap-1 py-4 sm:flex-1", GUTTER)}>
 			<dt className="text-pretty text-muted-foreground text-xs/5">{label}</dt>
-			<dd
-				title={title}
-				className="min-w-0 truncate font-medium text-foreground text-sm/5"
-			>
+			<dd title={title} className="min-w-0 truncate text-foreground text-sm/5">
 				{children}
 			</dd>
 		</div>

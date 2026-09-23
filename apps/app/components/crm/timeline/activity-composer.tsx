@@ -98,7 +98,11 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 
 	if (!open) {
 		return (
-			<Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+			<Button
+				variant="outline-ghost"
+				className="w-full"
+				onClick={() => setOpen(true)}
+			>
 				<Icon icon={Add} data-icon="inline-start" />
 				{t(PLACEHOLDER.NOTE)}
 			</Button>

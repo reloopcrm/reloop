@@ -132,5 +132,17 @@
 	"Preparing…": "Preparando…",
 	"Downloaded": "Descargado",
 	"The export did not finish. Try again.": "La exportación no terminó. Inténtalo otra vez.",
-	"Your session ended. Sign in again.": "Tu sesión ha terminado. Inicia sesión otra vez."
+	"Your session ended. Sign in again.": "Tu sesión ha terminado. Inicia sesión otra vez.",
+	"Pipeline": "Pipeline",
+	"List": "Lista",
+	"Deals view": "Vista de negocios",
+	"Deal or company": "Negocio o empresa",
+	"All owners": "Todos los responsables",
+	"{count} more": "{count} más",
+	"Create a deal here": "Crear un negocio aquí",
+	"{days} d in stage": "{days} d en esta fase",
+	"Recently closed": "Cerrados recientemente",
+	"{count} open": "{count} abiertos",
+	"{amount} in the pipeline": "{amount} en el pipeline",
+	"{won} won and {lost} lost in the last 90 days": "{won} ganados y {lost} perdidos en los últimos 90 días"
 }

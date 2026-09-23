@@ -51,7 +51,6 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		header: "Company",
 		sortable: true,
 		hideable: false,
-		width: "w-[26%]",
 		cell: (row) => (
 			<span className="flex min-w-0 items-center gap-2.5">
 				<EntityLogo
@@ -69,7 +68,7 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		id: "standing",
 		header: "Status",
 		sortable: true,
-		width: "w-[11%]",
+		width: "w-[12%]",
 		hideBelow: "sm",
 		cell: (row) => <StandingCell standing={row.standing} />,
 	},
@@ -77,16 +76,18 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		id: "potential",
 		header: "Potential",
 		sortable: true,
-		width: "w-[8%]",
-		hideBelow: "md",
+		width: "w-[9%]",
+		cellClassName: "text-2sm",
+		hideBelow: "xl",
 		cell: (row) => <PotentialCell potential={row.potential} />,
 	},
 	{
 		id: "domain",
 		header: "Domain",
 		sortable: true,
-		width: "w-[14%]",
+		width: "w-[15%]",
 		hideBelow: "md",
+		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.domain ? (
 				<span className="truncate text-muted-foreground">{row.domain}</span>
@@ -99,7 +100,8 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		header: "Industry",
 		sortable: true,
 		width: "w-[14%]",
-		hideBelow: "lg",
+		hideBelow: "xl",
+		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.industry ? (
 				<span className="truncate">{row.industry}</span>
@@ -114,6 +116,7 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		width: "w-[14%]",
 		hideBelow: "md",
 		defaultHidden: true,
+		cellClassName: "text-2sm",
 		cell: (row) => <OwnerCell owner={row.owner} />,
 	},
 	{
@@ -121,8 +124,9 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		header: "Contacts",
 		sortable: true,
 		align: "right",
-		width: "w-[9%]",
+		width: "w-[8%]",
 		hideBelow: "lg",
+		cellClassName: "text-2sm",
 		cell: (row) => <span className="tabular-nums">{row.contactCount}</span>,
 	},
 	{
@@ -130,7 +134,8 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		header: "Open deals",
 		sortable: true,
 		align: "right",
-		width: "w-[9%]",
+		width: "w-[8%]",
+		cellClassName: "text-2sm",
 		cell: (row) => <span className="tabular-nums">{row.openDealCount}</span>,
 	},
 	{
@@ -141,6 +146,7 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		align: "right",
 		width: "w-[10%]",
 		defaultHidden: true,
+		cellClassName: "text-2sm",
 		cell: (row) => (
 			<span className="text-muted-foreground">
 				<LocalRelativeTime date={row.createdAt} />
@@ -152,8 +158,9 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		header: "Last activity",
 		sortable: true,
 		align: "right",
-		width: "w-[12%]",
+		width: "w-[13%]",
 		hideBelow: "sm",
+		cellClassName: "text-2sm",
 		cell: (row) => (
 			<span className="text-muted-foreground">
 				{row.lastActivityAt ? (
@@ -183,7 +190,8 @@ const ARCHIVED_COLUMNS: LabeledColumn<CompanyRow>[] = [
 		label: "Archived date",
 		sortable: true,
 		align: "right",
-		width: "w-[12%]",
+		width: "w-[13%]",
+		cellClassName: "text-2sm",
 		cell: (row) => (
 			<span className="text-muted-foreground">
 				{row.archivedAt ? (

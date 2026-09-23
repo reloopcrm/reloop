@@ -6,7 +6,7 @@ function Evidence({ className, ...props }: React.ComponentProps<"blockquote">) {
 		<blockquote
 			data-slot="evidence"
 			className={cn(
-				"rounded-md border bg-muted px-4 py-3 text-body-foreground text-sm",
+				"rounded-lg border bg-card px-4 py-3.5 text-body-foreground text-sm",
 				className,
 			)}
 			{...props}
@@ -29,7 +29,7 @@ function EvidenceFooter({ className, ...props }: React.ComponentProps<"footer">)
 		<footer
 			data-slot="evidence-footer"
 			className={cn(
-				"mt-1 flex flex-wrap items-baseline gap-x-2 font-mono text-muted-foreground text-xs",
+				"mt-1.5 flex flex-wrap items-baseline gap-x-2 text-muted-foreground text-xs",
 				className,
 			)}
 			{...props}

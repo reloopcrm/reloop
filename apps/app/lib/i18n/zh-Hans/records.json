@@ -132,5 +132,17 @@
 	"Preparing…": "准备中…",
 	"Downloaded": "已下载",
 	"The export did not finish. Try again.": "导出没有完成。重试。",
-	"Your session ended. Sign in again.": "你的会话已结束。重新登录。"
+	"Your session ended. Sign in again.": "你的会话已结束。重新登录。",
+	"Pipeline": "管道",
+	"List": "列表",
+	"Deals view": "交易视图",
+	"Deal or company": "交易或公司",
+	"All owners": "所有负责人",
+	"{count} more": "还有 {count} 个",
+	"Create a deal here": "在此创建交易",
+	"{days} d in stage": "处于此阶段 {days} 天",
+	"Recently closed": "最近关闭",
+	"{count} open": "{count} 个进行中",
+	"{amount} in the pipeline": "管道中 {amount}",
+	"{won} won and {lost} lost in the last 90 days": "最近 90 天内赢得 {won} 个，失去 {lost} 个"
 }

@@ -9,13 +9,16 @@ function StatGroup({
 	return (
 		<div
 			data-slot="stat-group"
-			className={cn("@container/stats overflow-hidden border", className)}
+			className={cn(
+				"@container/stats overflow-hidden rounded-lg border bg-card",
+				className,
+			)}
 			{...props}
 		>
 			<div
 				className={cn(
 					"grid grid-cols-2 @2xl/stats:grid-cols-4",
-					"[&:nth-child(2n)]:border-l [&:nth-child(n+3)]:border-t",
+					"[&>*:nth-child(2n)]:border-l [&>*:nth-child(n+3)]:border-t",
 					"@2xl/stats:[&>*]:border-t-0 @2xl/stats:[&>*]:border-l @2xl/stats:[&>*:first-child]:border-l-0",
 				)}
 			>
@@ -24,6 +27,12 @@ function StatGroup({
 		</div>
 	);
 }
+
+const ROW_SPLIT = {
+	hero: "@3xl/dashboard:grid-cols-[2fr_1fr]",
+	wide: "@3xl/dashboard:grid-cols-[3fr_2fr]",
+	even: "@3xl/dashboard:grid-cols-2",
+} as const;
 
 const GRID_COLS = {
 	2: "@md/dashboard:grid-cols-2",
@@ -51,7 +60,7 @@ function DashboardRow({
 	className,
 	split = "hero",
 	...props
-}: React.ComponentProps<"div"> & { split?: "hero" | "even" }) {
+}: React.ComponentProps<"div"> & { split?: keyof typeof ROW_SPLIT }) {
 	return (
 		<div className="@container/dashboard">
 			<div
@@ -59,9 +68,7 @@ function DashboardRow({
 				className={cn(
 					"grid grid-cols-1 gap-4",
 					"@3xl/dashboard:has-[>[data-slot=card]]:grid-rows-[auto_1fr] @3xl/dashboard:[&>[data-slot=card]]:row-span-2 @3xl/dashboard:[&>[data-slot=card]]:grid @3xl/dashboard:[&>[data-slot=card]]:grid-rows-subgrid",
-					split === "hero"
-						? "@3xl/dashboard:grid-cols-[2fr_1fr]"
-						: "@3xl/dashboard:grid-cols-2",
+					ROW_SPLIT[split],
 					className,
 				)}
 				{...props}

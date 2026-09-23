@@ -76,20 +76,16 @@ function StatCard({
 			{...props}
 		>
 			{label != null ? (
-				<span className="text-pretty text-sm font-medium text-muted-foreground">
-					{label}
-				</span>
+				<span className="text-pretty text-sm text-body-foreground">{label}</span>
 			) : null}
 			<div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-				<span className="font-medium text-3xl tracking-tight tabular-nums">
+				<span className="font-semibold text-3xl leading-none tracking-tight tabular-nums">
 					{value}
 				</span>
 				{delta ? <StatDeltaText delta={delta} /> : null}
 			</div>
 			{description ? (
-				<p className="text-pretty text-muted-foreground text-xs/relaxed">
-					{description}
-				</p>
+				<p className="text-pretty text-2sm text-muted-foreground">{description}</p>
 			) : null}
 			{children}
 		</div>

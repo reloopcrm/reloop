@@ -33,6 +33,7 @@ const ALIGN_CLASS = {
 const PANEL_SURFACE = {
 	popover: "bg-popover [&_th]:bg-popover",
 	page: "bg-background [&_th]:bg-background",
+	muted: "bg-muted [&_th]:bg-muted",
 } as const;
 
 export function SimpleTable({

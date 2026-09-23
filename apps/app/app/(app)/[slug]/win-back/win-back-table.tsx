@@ -43,7 +43,7 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		header: "Company",
 		sortable: true,
 		hideable: false,
-		width: "w-[30%]",
+		width: "w-[30%] max-sm:w-auto",
 		cell: (row) => <GroupName row={row} />,
 	},
 	{
@@ -51,12 +51,13 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		header: "Potential",
 		sortable: true,
 		width: "w-[10%]",
+		hideBelow: "sm",
 		cell: (row) => <PotentialCell potential={row.potential} />,
 	},
 	{
 		id: "business",
 		header: "What happened",
-		width: "w-[26%]",
+		width: "w-[24%]",
 		hideBelow: "md",
 		cell: (row) => <FactCell source={row} />,
 	},
@@ -67,7 +68,7 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		width: "w-[10%]",
 		hideBelow: "lg",
 		cell: (row) => (
-			<span className="text-muted-foreground tabular-nums">
+			<span className="text-2sm text-body-foreground tabular-nums">
 				{row.people.length}
 			</span>
 		),
@@ -79,7 +80,7 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		width: "w-[12%]",
 		hideBelow: "sm",
 		cell: (row) => (
-			<span className="text-muted-foreground">
+			<span className="text-2sm text-muted-foreground tabular-nums">
 				<LocalRelativeTime date={row.lastContactAt} />
 			</span>
 		),
@@ -88,7 +89,7 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		id: "verdict",
 		header: "Verdict",
 		align: "right",
-		width: "w-[12%]",
+		width: "w-[14%]",
 		hideable: false,
 		cell: (row) => (
 			<WinBackVerdictMenu
@@ -178,7 +179,7 @@ function subCell(person: Person, columnId: string) {
 	if (columnId === "business") return <FactCell source={person} />;
 	if (columnId === "last") {
 		return (
-			<span className="text-muted-foreground">
+			<span className="text-2sm text-muted-foreground tabular-nums">
 				<LocalRelativeTime date={person.lastContactAt} />
 			</span>
 		);
@@ -223,7 +224,7 @@ function ReadingProgress() {
 	const relevant = numberFormat(locale).format(data.relevant);
 
 	return (
-		<p className="text-muted-foreground text-sm">
+		<p className="text-body-foreground text-sm">
 			{data.pending > 0
 				? `${t("Reading your mail in the background: {read} of {threads} conversations read, {relevant} about your business", { read, threads, relevant })}${eta ? `, ${eta}` : ""}${data.paused ? t(". Paused until the subscription limit resets.") : t(". Keeps running when you close this page.")}`
 				: t("{read} conversations read, {relevant} about your business.", {
@@ -250,6 +251,7 @@ export function WinBackTable() {
 	const rows = query.data?.rows ?? [];
 	const facetCounts = query.data?.facetCounts;
 	const people = query.data?.people ?? 0;
+	const shown = rows.reduce((sum, row) => sum + row.people.length, 0);
 	const columns = useLocalizedColumns(COLUMNS);
 
 	const facets: DataTableFacet[] = [
@@ -276,6 +278,7 @@ export function WinBackTable() {
 					<div className="flex items-center gap-2">
 						<ToggleGroup
 							type="single"
+							size="sm"
 							value={scope.scope}
 							onValueChange={(value) => {
 								if (value === "me" || value === "everyone") {
@@ -306,12 +309,17 @@ export function WinBackTable() {
 					query.data ? <WinBackRulesSheet rules={query.data.rules} /> : null
 				}
 				meta={
-					<span className="flex items-center gap-2 text-muted-foreground text-sm">
-						{people === 1
-							? t("1 person")
-							: t("{count} people", {
-									count: numberFormat(locale).format(people),
-								})}
+					<span className="flex items-center gap-2 text-2sm text-muted-foreground">
+						{shown < people
+							? t("{shown} of {total} people", {
+									shown: numberFormat(locale).format(shown),
+									total: numberFormat(locale).format(people),
+								})
+							: people === 1
+								? t("1 person")
+								: t("{count} people", {
+										count: numberFormat(locale).format(people),
+									})}
 					</span>
 				}
 				columns={columns}

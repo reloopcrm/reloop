@@ -78,7 +78,7 @@ function CardPanel({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="card-panel"
 			className={cn(
-				"@container/panel flex min-h-80 flex-col overflow-hidden rounded-lg border bg-card",
+				"@container/panel flex flex-col overflow-hidden rounded-lg border bg-card",
 				className,
 			)}
 			{...props}
@@ -91,7 +91,7 @@ function CardPanelEmpty({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="card-panel-empty"
 			className={cn(
-				"flex flex-1 items-center justify-center p-6 text-center text-muted-foreground text-sm",
+				"flex min-h-50 flex-1 items-center justify-center p-6 text-center text-muted-foreground text-sm",
 				className,
 			)}
 			{...props}

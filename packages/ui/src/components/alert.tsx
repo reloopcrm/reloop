@@ -13,9 +13,15 @@ const alertVariants = cva(
 				warning:
 					"border-warning bg-card text-card-foreground **:[svg]:text-warning **:data-[slot=alert-description]:text-muted-foreground",
 			},
+			size: {
+				default: "",
+				banner:
+					"rounded-lg px-5 py-3.5 text-sm **:data-[slot=alert-description]:text-2sm **:data-[slot=alert-grid]:gap-y-0 **:data-[slot=alert-grid]:has-[>svg]:gap-x-4 [&_[data-slot=alert-grid]>svg]:text-muted-foreground",
+			},
 		},
 		defaultVariants: {
 			variant: "default",
+			size: "default",
 		},
 	},
 );
@@ -26,6 +32,7 @@ const ALERT_GRID =
 function Alert({
 	className,
 	variant,
+	size,
 	attention = 0,
 	children,
 	...props
@@ -39,7 +46,7 @@ function Alert({
 			data-slot="alert"
 			role="alert"
 			className={cn(
-				alertVariants({ variant }),
+				alertVariants({ variant, size }),
 				attention > 0 && "alert-attention",
 				className,
 			)}
@@ -86,7 +93,7 @@ function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="alert-action"
 			className={cn(
-				"row-start-3 mt-1.5 flex items-center gap-2 group-has-[>svg]/alert:col-start-2 @md/alert:-col-end-1 @md/alert:row-span-2 @md/alert:row-start-1 @md/alert:mt-0 @md/alert:self-center @md/alert:justify-self-end",
+				"row-start-3 mt-1.5 flex items-center gap-2 group-has-[>svg]/alert:col-start-2 @md/alert:-col-start-2! @md/alert:-col-end-1 @md/alert:row-span-2 @md/alert:row-start-1 @md/alert:mt-0 @md/alert:self-center @md/alert:justify-self-end",
 				className,
 			)}
 			{...props}

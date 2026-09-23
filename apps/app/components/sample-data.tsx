@@ -147,8 +147,8 @@ export function SampleDataBanner() {
 	if (!status.data?.present) return null;
 
 	return (
-		<div className="border-b px-6 py-2">
-			<Alert>
+		<div className="px-4 pt-4 md:px-(--spacing-page-inline) md:pt-(--spacing-page-top)">
+			<Alert size="banner">
 				<DataTable />
 				<AlertTitle>{t("This CRM shows sample data")}</AlertTitle>
 				<AlertDescription>
@@ -159,8 +159,7 @@ export function SampleDataBanner() {
 				{status.data.canManage ? (
 					<AlertAction>
 						<Button
-							size="sm"
-							variant="secondary"
+							variant="outline"
 							disabled={removeAction.pending}
 							onClick={() => setConfirming(true)}
 						>

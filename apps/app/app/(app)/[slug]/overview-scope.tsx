@@ -24,9 +24,7 @@ export function OverviewScopeToggleFallback() {
 	return (
 		<ToggleGroup
 			type="single"
-			variant="outline"
 			size="sm"
-			spacing={0}
 			disabled
 			aria-label={t("Whose numbers to show")}
 		>
@@ -49,9 +47,7 @@ export function OverviewScopeToggle() {
 	return (
 		<ToggleGroup
 			type="single"
-			variant="outline"
 			size="sm"
-			spacing={0}
 			value={scope}
 			onValueChange={(next) => {
 				if (isScope(next)) void setScope(next);

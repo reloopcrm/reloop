@@ -120,8 +120,8 @@ export function AgentBuilderSidebar({
 											onNavigate?.();
 										}}
 										className={cn(
-											"flex h-7 min-w-0 flex-1 items-center gap-3 rounded-sm pr-8 pl-2 text-xs outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60",
-											active && "bg-muted font-medium",
+											"flex h-7 min-w-0 flex-1 items-center gap-3 rounded-full pr-8 pl-2.5 text-xs outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60",
+											active && "bg-accent font-medium",
 											!active &&
 												conversation.state === "idle" &&
 												"text-muted-foreground",
@@ -193,8 +193,8 @@ function TeamAgents({
 						aria-current={active ? "page" : undefined}
 						onClick={onNavigate}
 						className={cn(
-							"flex h-7 items-center gap-3 rounded-sm px-2 text-xs outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60",
-							active ? "bg-muted font-medium" : "text-muted-foreground",
+							"flex h-7 items-center gap-3 rounded-full px-2.5 text-xs outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60",
+							active ? "bg-accent font-medium" : "text-muted-foreground",
 						)}
 					>
 						<span className="flex size-5 shrink-0 items-center justify-center">

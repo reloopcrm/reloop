@@ -75,14 +75,14 @@ export function ChatReferenceChip({
 	}
 
 	return (
-		<span className="flex min-w-0 max-w-full items-center gap-1 rounded-sm border bg-background py-0.5 pr-1 pl-0.5 text-left">
+		<span className="flex min-w-0 max-w-full items-center gap-1 rounded-full border bg-background py-0.5 pr-1 pl-1 text-left">
 			{identity}
 			{onRemove ? (
 				<button
 					type="button"
 					aria-label={t("Remove {name}", { name: resource.label })}
 					onClick={onRemove}
-					className="flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60"
+					className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60"
 				>
 					<Icon icon={Close} className="size-3" />
 				</button>
@@ -212,7 +212,7 @@ export function ChatCommandChip({
 	}
 
 	return (
-		<span className="flex h-7 items-center gap-1.5 rounded-md bg-primary px-2 text-primary-foreground text-xs">
+		<span className="flex h-7 items-center gap-1.5 rounded-full bg-primary px-2.5 text-primary-foreground text-xs">
 			<Icon icon={icon} className="size-3.5" />
 			<span className="font-medium">{label}</span>
 			{onRemove ? (
@@ -220,7 +220,7 @@ export function ChatCommandChip({
 					type="button"
 					aria-label={t("Remove {name}", { name: label })}
 					onClick={onRemove}
-					className="-mr-1 flex size-5 items-center justify-center rounded-sm outline-none hover:bg-primary-foreground/15 focus-visible:ring-2 focus-visible:ring-primary-foreground/60"
+					className="-mr-1 flex size-5 items-center justify-center rounded-full outline-none hover:bg-primary-foreground/15 focus-visible:ring-2 focus-visible:ring-primary-foreground/60"
 				>
 					<Icon icon={Close} className="size-3" />
 				</button>

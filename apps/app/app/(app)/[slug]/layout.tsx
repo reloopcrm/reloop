@@ -1,3 +1,4 @@
+import { limitsOf } from "@crm/db/plans";
 import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
@@ -16,6 +17,7 @@ import {
 	requireSession,
 	workspaceRole,
 } from "@/lib/session";
+import { hostedCustomer, requestTenant } from "@/lib/tenant";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { workspaceLabel } from "@/lib/workspace-label";
@@ -121,10 +123,19 @@ async function loadChrome(params: LayoutProps<"/[slug]">["params"]) {
 	};
 }
 
+async function planLabel(): Promise<string | null> {
+	if (!(await hostedCustomer())) return null;
+	const tenant = await requestTenant();
+	return tenant ? limitsOf(tenant.plan).label : null;
+}
+
 async function WorkspaceSidebar({
 	params,
 }: Pick<LayoutProps<"/[slug]">, "params">) {
-	const { user, workspaceName } = await loadChrome(params);
+	const [{ user, workspaceName }, plan] = await Promise.all([
+		loadChrome(params),
+		planLabel(),
+	]);
 
 	return (
 		<HydrateClient>
@@ -132,6 +143,7 @@ async function WorkspaceSidebar({
 				managed={managedInstall()}
 				workspaceName={workspaceName}
 				user={user}
+				plan={plan}
 			/>
 		</HydrateClient>
 	);

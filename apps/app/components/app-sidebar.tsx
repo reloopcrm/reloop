@@ -270,10 +270,12 @@ export function AppSidebar({
 	managed,
 	workspaceName,
 	user,
+	plan,
 }: {
 	managed: boolean;
 	workspaceName: string;
 	user: AppUser;
+	plan?: string | null;
 }) {
 	const pathname = usePathname();
 	const workspaceUrl = useWorkspaceUrl();
@@ -365,6 +367,11 @@ export function AppSidebar({
 							<span className="hidden min-w-0 truncate text-2sm text-body-foreground lg:inline">
 								{user.name}
 							</span>
+							{plan ? (
+								<span className="ml-auto hidden shrink-0 text-muted-foreground text-xs lg:inline">
+									{t(plan)}
+								</span>
+							) : null}
 						</button>
 					</UserMenu>
 				</div>

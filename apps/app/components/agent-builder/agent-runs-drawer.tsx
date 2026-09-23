@@ -7,6 +7,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@crm/ui/components/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@crm/ui/components/tabs";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -61,25 +62,22 @@ export function AgentRunsDrawer({
 					</SheetDescription>
 				</SheetHeader>
 
-				<div className="flex h-9 shrink-0 items-end gap-5 border-b px-5">
-					{VIEWS.map((entry) => (
-						<button
-							className={`-mb-px h-9 border-b-2 text-sm ${
-								view === entry.id
-									? "border-foreground font-medium"
-									: "border-transparent text-muted-foreground hover:text-foreground"
-							}`}
-							key={entry.id}
-							onClick={() => setView(entry.id)}
-							type="button"
-						>
-							{t(entry.label)}{" "}
-							<span className="font-mono text-muted-foreground">
-								{entry.id === "runs" ? runs.length : activity.length}
-							</span>
-						</button>
-					))}
-				</div>
+				<Tabs
+					value={view}
+					onValueChange={(value) => setView(value as View)}
+					className="shrink-0 border-b px-5"
+				>
+					<TabsList variant="line">
+						{VIEWS.map((entry) => (
+							<TabsTrigger key={entry.id} value={entry.id}>
+								{t(entry.label)}{" "}
+								<span className="font-mono text-muted-foreground">
+									{entry.id === "runs" ? runs.length : activity.length}
+								</span>
+							</TabsTrigger>
+						))}
+					</TabsList>
+				</Tabs>
 
 				<div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
 					{view === "runs" ? (

@@ -237,14 +237,14 @@ export function AgentCapabilities({
 				<div className="flex flex-wrap gap-2">
 					{shownResources.length === 0 &&
 					capabilities.dataScope?.mode === "WORKSPACE" ? (
-						<span className="flex h-7 items-center rounded-md border px-2.5 text-sm">
+						<span className="flex h-7 items-center rounded-full border px-2.5 text-sm">
 							{t("Every record in the workspace")}
 						</span>
 					) : null}
 
 					{shownResources.map((resource) => (
 						<span
-							className="flex h-7 items-center gap-1.5 rounded-md border pr-1.5 pl-2.5 text-sm"
+							className="flex h-7 items-center gap-1.5 rounded-full border pr-1.5 pl-2.5 text-sm"
 							key={`${resource.kind}:${resource.id}`}
 						>
 							{resource.label}
@@ -345,7 +345,7 @@ function ResourcePicker({ onPick }: { onPick: (resource: Resource) => void }) {
 		<Popover onOpenChange={setOpen} open={open}>
 			<PopoverTrigger asChild>
 				<button
-					className="flex h-7 items-center gap-1.5 rounded-md border border-dashed px-2.5 text-muted-foreground text-sm hover:text-foreground"
+					className="flex h-7 items-center gap-1.5 rounded-full border border-dashed px-2.5 text-muted-foreground text-sm hover:text-foreground"
 					type="button"
 				>
 					<Icon className="size-3" icon={Add} motion="none" />

@@ -16,9 +16,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@crm/ui/components/select";
-import { SimpleTable, SimpleTableRow } from "@crm/ui/components/simple-table";
 import { Spinner } from "@crm/ui/components/spinner";
-import { TableCell } from "@crm/ui/components/table";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -143,20 +141,17 @@ export function Plan() {
 					</SelectContent>
 				</Select>
 
-				<SimpleTable
-					surface="page"
-					columns={[
-						{ id: "what", header: t("Limit") },
-						{ id: "value", header: t(plan.data.label), align: "right" },
-					]}
-				>
+				<dl className="grid grid-cols-1 border-b text-2sm sm:grid-cols-2 sm:gap-x-8">
 					{rows.map((row) => (
-						<SimpleTableRow key={row.what}>
-							<TableCell>{row.what}</TableCell>
-							<TableCell className="text-right">{row.value}</TableCell>
-						</SimpleTableRow>
+						<div
+							key={row.what}
+							className="flex justify-between gap-4 border-t py-2"
+						>
+							<dt className="text-body-foreground">{row.what}</dt>
+							<dd className="tabular-nums">{row.value}</dd>
+						</div>
 					))}
-				</SimpleTable>
+				</dl>
 			</CardContent>
 		</Card>
 	);

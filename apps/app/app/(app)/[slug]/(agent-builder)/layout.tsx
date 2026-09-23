@@ -41,7 +41,7 @@ async function PrefetchedAgentBuilderSidebar() {
 	return (
 		<HydrateClient>
 			<AgentBuilderSidebar
-				className="hidden w-[213px] flex-none border-r md:flex"
+				className="hidden w-(--container-sidebar) flex-none border-r md:flex"
 				initialData={{ conversations, agents, updatedAt }}
 			/>
 		</HydrateClient>

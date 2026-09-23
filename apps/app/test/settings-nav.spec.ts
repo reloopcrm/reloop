@@ -23,11 +23,24 @@ describe("the settings navigation", () => {
 		expect(order).not.toContain("Plan & billing");
 	});
 
-	it("renames AI to Usage and adds billing for a hosted admin", () => {
+	it("renames AI to Usage and adds billing at the end for a hosted admin", () => {
 		const order = titles({ cloudOwner: false, hosted: true, admin: true });
 		expect(order).not.toContain("AI");
-		expect(order.indexOf("Usage")).toBe(order.indexOf("Connections") + 1);
-		expect(order.indexOf("Plan & billing")).toBe(order.indexOf("Usage") + 1);
+		expect(order.indexOf("Usage")).toBe(order.length - 2);
+		expect(order.indexOf("Plan & billing")).toBe(order.length - 1);
+	});
+
+	it("separates Usage and billing from the other entries", () => {
+		const items = settingsNavItems({
+			cloudOwner: false,
+			hosted: true,
+			admin: true,
+		});
+		expect(items.map((item) => item.group)).toEqual([
+			...Array(items.length - 2).fill(undefined),
+			"plan",
+			"plan",
+		]);
 	});
 
 	it("hides billing from a hosted member", () => {

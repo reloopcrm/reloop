@@ -21,16 +21,16 @@ export default async function NotFound() {
 					</p>
 				</div>
 
-				<div className="flex flex-wrap items-center justify-center gap-6">
-					<Button variant="outline" size="pill" asChild>
+				<div className="flex flex-wrap items-center justify-center gap-4">
+					<Button variant="outline" size="xl" asChild>
 						<NextLink href="/">{t("Go to the home page")}</NextLink>
 					</Button>
-					<Button variant="link" size="pill" asChild>
+					<Button variant="link" asChild>
 						<NextLink href="/docs">{t("Read the docs")}</NextLink>
 					</Button>
 				</div>
 
-				<div className="flex flex-wrap items-center justify-center gap-4 text-[13px]/[21px]">
+				<div className="flex flex-wrap items-center justify-center gap-4 text-2sm">
 					<Link variant="quiet" href="/sitemap.xml">
 						{t("Sitemap")}
 					</Link>

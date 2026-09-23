@@ -68,7 +68,7 @@ export default async function PricingPage() {
 					</Display>
 					<ul
 						aria-label={t("Add-ons")}
-						className="flex w-full flex-col rounded-lg bg-background px-4 py-1 text-left text-foreground"
+						className="flex w-full flex-col rounded-lg border border-border bg-card px-4 py-1 text-left text-foreground"
 					>
 						{PRICING.addOns.map((addOn) => (
 							<li

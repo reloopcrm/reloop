@@ -21,6 +21,7 @@ const SHARED_GLOBS = [
 	"components/landing/**/*.tsx",
 	"app/(landing)/sign-in/*.tsx",
 	"app/opengraph-image.tsx",
+	"components/auth-shell.tsx",
 ];
 
 const de = DICTIONARIES.de;

@@ -1,17 +1,13 @@
 import { PLAN_IDS } from "@crm/db/plans";
 import { isHosted } from "@crm/db/tenant-context";
+import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { CloudCard } from "@/components/landing/cloud-card";
-import {
-	FormCard,
-	FormHeading,
-	FormPage,
-	SelfHostNote,
-} from "@/components/landing/page-blocks";
+import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { PRICING } from "@/components/landing/pricing/config";
 import { SignupForm } from "@/components/landing/signup-form";
+import { WaitlistForm } from "@/components/landing/waitlist-form";
 import { API_URL } from "@/lib/env";
 import { getT } from "@/lib/i18n/server";
 import { cloudUrl, marketingUrl, signUpUrl } from "@/lib/site-links";
@@ -54,38 +50,48 @@ export default async function GetStartedPage({
 
 	if (!isHosted()) {
 		return (
-			<FormPage>
-				<FormHeading
+			<AuthShell>
+				<AuthHeading
 					title={t("Get started")}
-					lede={t(
+					description={t(
 						"Reloop Cloud opens soon. Leave your email and we send you one message the day your trial can start.",
 					)}
 				/>
-				<CloudCard />
-				<SelfHostNote />
-			</FormPage>
+				<WaitlistForm />
+				<SelfHostLine />
+			</AuthShell>
 		);
 	}
 
 	const options = await signupOptions(API_URL);
 
 	return (
-		<FormPage>
-			<FormHeading
+		<AuthShell>
+			<AuthHeading
 				title={t("Start free trial")}
-				lede={t(
+				description={t(
 					"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.",
 				)}
 			/>
-			<FormCard>
-				<SignupForm
-					plan={plan}
-					pricingHref={marketingUrl(PRICING.href.pricing)}
-					withPassword={options?.password ?? false}
-					signInMethods={options?.signIn ?? []}
-				/>
-			</FormCard>
-			<SelfHostNote />
-		</FormPage>
+			<SignupForm
+				plan={plan}
+				pricingHref={marketingUrl(PRICING.href.pricing)}
+				withPassword={options?.password ?? false}
+				signInMethods={options?.signIn ?? []}
+			/>
+			<SelfHostLine />
+		</AuthShell>
+	);
+}
+
+async function SelfHostLine() {
+	const t = await getT();
+	return (
+		<p className="text-pretty text-muted-foreground text-sm/5">
+			{t("Rather run it on your own server? Reloop CRM is open source.")}{" "}
+			<Link variant="quiet" href={marketingUrl("/self-hosted-crm")}>
+				{t("Read what self-hosting takes.")}
+			</Link>
+		</p>
 	);
 }

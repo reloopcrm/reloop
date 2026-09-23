@@ -3,6 +3,7 @@ import { BRAND } from "@crm/ui/lib/brand";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AuthShader } from "@/components/auth-shader";
+import { LanguageSwitcher } from "@/components/landing/language-switcher";
 import { getT } from "@/lib/i18n/server";
 
 export async function AuthShell({ children }: { children: ReactNode }) {
@@ -34,6 +35,9 @@ export async function AuthShell({ children }: { children: ReactNode }) {
 			<section className="flex min-h-svh flex-col bg-background px-6 py-8 sm:px-10 lg:px-14">
 				<div className="flex flex-1 items-center justify-center py-12">
 					<div className="flex w-full max-w-sm flex-col gap-8">{children}</div>
+				</div>
+				<div className="flex justify-center text-muted-foreground">
+					<LanguageSwitcher />
 				</div>
 			</section>
 		</main>

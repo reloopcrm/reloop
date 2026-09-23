@@ -151,5 +151,7 @@
 	"From: {sender}": "De: {sender}",
 	"Subject: {subject}": "Asunto: {subject}",
 	"What was read from the mails": "Lo que se leyó en los correos",
-	"Create a task": "Crear una tarea"
+	"Create a task": "Crear una tarea",
+	"Show 1 older mail": "Mostrar 1 correo anterior",
+	"Show {count} older mails": "Mostrar {count} correos anteriores"
 }

@@ -151,5 +151,7 @@
 	"From: {sender}": "发件人：{sender}",
 	"Subject: {subject}": "主题：{subject}",
 	"What was read from the mails": "从邮件中读到的内容",
-	"Create a task": "创建任务"
+	"Create a task": "创建任务",
+	"Show 1 older mail": "显示 1 封更早的邮件",
+	"Show {count} older mails": "显示 {count} 封更早的邮件"
 }

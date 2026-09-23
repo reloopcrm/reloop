@@ -1,6 +1,7 @@
 "use client";
 
 import ArrowRight from "@carbon/icons-react/es/ArrowRight";
+import ChevronDown from "@carbon/icons-react/es/ChevronDown";
 import Reply from "@carbon/icons-react/es/Reply";
 import { Button } from "@crm/ui/components/button";
 import { EventMark, EventRow } from "@crm/ui/components/event-row";
@@ -21,6 +22,7 @@ import { useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { forwardLink } from "./forward-link";
 import type { TimelineAnchor } from "./timeline";
 import { blockMessages } from "./timeline-blocks";
 import { TIMELINE } from "./timeline-config";
@@ -83,20 +85,19 @@ function forwardHref(
 	subject: string | null,
 	t: Translate,
 ): string {
-	const text = message.body ? cleanEmailBody(message.body).text : "";
 	const from = message.fromName?.trim()
 		? `${message.fromName.trim()} <${message.fromEmail}>`
 		: message.fromEmail;
-	const body = [
-		"",
-		t("Forwarded message"),
-		t("From: {sender}", { sender: from }),
-		t("Subject: {subject}", { subject: subject ?? "" }),
-		"",
-		text,
-	].join("\n");
 
-	return `mailto:?subject=${encodeURIComponent(`Fwd: ${subject ?? ""}`)}&body=${encodeURIComponent(body)}`;
+	return forwardLink({
+		subject: `Fwd: ${subject ?? ""}`,
+		intro: [
+			t("Forwarded message"),
+			t("From: {sender}", { sender: from }),
+			t("Subject: {subject}", { subject: subject ?? "" }),
+		],
+		text: message.body ? cleanEmailBody(message.body).text : "",
+	});
 }
 
 function ThreadPanel({
@@ -117,6 +118,7 @@ function ThreadPanel({
 	const t = useT();
 	const trpc = useTRPC();
 	const scrolled = useRef<string | null>(null);
+	const [showOlder, setShowOlder] = useState(false);
 
 	const results = useQueries({
 		queries: threadIds.map((threadId) => ({
@@ -154,6 +156,13 @@ function ThreadPanel({
 	);
 	const newest = messages[0] ?? null;
 	const older = messages.slice(1).reverse();
+	const tucked = older.slice(
+		0,
+		Math.max(0, older.length - TIMELINE.thread.olderShown),
+	);
+	const showTucked =
+		showOlder || tucked.some((message) => message.id === openMessageId);
+	const shownOlder = showTucked ? older : older.slice(tucked.length);
 	const summary =
 		results
 			.map((result) => result.data?.insight?.summary?.trim())
@@ -189,7 +198,20 @@ function ThreadPanel({
 
 			{older.length > 0 ? (
 				<div className="flex flex-col">
-					{older.map((message) => (
+					{tucked.length > 0 && !showTucked ? (
+						<Button
+							variant="ghost"
+							size="xs"
+							align="start"
+							onClick={() => setShowOlder(true)}
+						>
+							<Icon icon={ChevronDown} data-icon="inline-start" />
+							{tucked.length === 1
+								? t("Show 1 older mail")
+								: t("Show {count} older mails", { count: tucked.length })}
+						</Button>
+					) : null}
+					{shownOlder.map((message) => (
 						<ThreadMessage
 							key={message.id}
 							id={messageAnchorId(message.id)}

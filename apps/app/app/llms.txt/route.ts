@@ -53,9 +53,9 @@ const PAGES: readonly Entry[] = [
 		note: "What HubSpot does better, and what Reloop CRM does better.",
 	},
 	{
-		title: "CRM for freight forwarding",
-		path: "/for/freight-forwarding",
-		note: "Quotes, lanes and quantities read out of a forwarder's mailbox.",
+		title: "Win back customers",
+		path: "/win-back-customers",
+		note: "How Reloop CRM finds the customers who went quiet, ranks them, and drafts the mail that brings them back.",
 	},
 	{
 		title: "About",
@@ -115,7 +115,7 @@ function llmsTxt(): string {
 - The user asks which old customers to win back. The win back list ranks quiet companies from facts in their mail, such as an unanswered quote or an order that stopped.
 - The user wants a CRM that fills itself from email. Connect IMAP, Google Workspace or Microsoft 365, and each conversation lands on the right contact and company.
 - The user asks what a thread was about. Every conversation carries a summary, and every message carries one line.
-- The user sells goods and needs the numbers kept. A summary holds the quantity, the product and the price that was quoted. Freight forwarding is the first trade this was built for.
+- The user sells goods and needs the numbers kept. A summary holds the quantity, the product and the price that was quoted.
 - The user must keep customer data on hardware they control. Reloop CRM installs with Docker on one server and holds every record there. The optional AI step is the one exception: it sends mail text to the model vendor whose key the operator supplied.
 - The user wants to read or change the code that touches their mail. The whole source is public.
 

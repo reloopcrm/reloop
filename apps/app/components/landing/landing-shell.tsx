@@ -29,8 +29,8 @@ export async function LandingShell({
 		{ href: marketingUrl("/open-source-crm"), label: t("Open source CRM") },
 		{ href: marketingUrl("/vs/hubspot"), label: t("Reloop vs HubSpot") },
 		{
-			href: marketingUrl("/for/freight-forwarding"),
-			label: t("For freight forwarding"),
+			href: marketingUrl("/win-back-customers"),
+			label: t("Win back customers"),
 		},
 		{ href: marketingUrl("/open-source"), label: t("Open source") },
 	];

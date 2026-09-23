@@ -162,8 +162,8 @@ export default async function HubSpotComparisonPage() {
 			<ClosingCta
 				title={t("Try it on the mailbox you already have")}
 				secondary={{
-					href: "/for/freight-forwarding",
-					label: t("See it in freight"),
+					href: "/win-back-customers",
+					label: t("How win back works"),
 				}}
 			/>
 		</LandingShell>

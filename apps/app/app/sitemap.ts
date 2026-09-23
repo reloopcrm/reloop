@@ -16,7 +16,7 @@ const PAGES = [
 	"/open-source-crm",
 	"/self-hosted-crm",
 	"/vs/hubspot",
-	"/for/freight-forwarding",
+	"/win-back-customers",
 ] as const;
 
 const DOC_PAGES = DOCS.pages.map((page) => docPath(page.slug));

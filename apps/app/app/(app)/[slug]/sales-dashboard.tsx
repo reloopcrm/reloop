@@ -2,6 +2,7 @@
 
 import {
 	Card,
+	CardAction,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -9,7 +10,9 @@ import {
 } from "@crm/ui/components/card";
 import type { ChartConfig } from "@crm/ui/components/chart";
 import { DashboardRow, StatGroup } from "@crm/ui/components/dashboard";
+import { ProgressStack } from "@crm/ui/components/progress";
 import { StatCard, type StatDelta } from "@crm/ui/components/stat-card";
+import { IndicatorDot } from "@crm/ui/components/status-indicator";
 import {
 	formatMoney,
 	formatMoneyCompact,
@@ -17,7 +20,7 @@ import {
 } from "@crm/ui/lib/format";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AreaTrend, DonutStat } from "@/components/dashboard-charts";
+import { BarTrend } from "@/components/dashboard-charts";
 import { dealStageColor } from "@/lib/deal-stage";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { dateFormat, numberFormat } from "@/lib/i18n/format";
@@ -28,8 +31,8 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 type Summary = RouterOutputs["dashboard"]["summary"];
 
 const TREND_CONFIG = {
-	won: { label: "Closed won", color: "var(--chart-3)" },
-	created: { label: "New pipeline", color: "var(--chart-1)" },
+	won: { label: "Closed won", color: "var(--primary)" },
+	created: { label: "New pipeline", color: "var(--border-strong)" },
 } as const;
 
 function changeDelta(
@@ -96,7 +99,6 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 						label: stageLabel(stage.stage),
 						value: stage.valueCents,
 						color: dealStageColor(stage.stage),
-						count: stage.count,
 					},
 				]
 			: [],
@@ -242,17 +244,25 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 					description={t(
 						"Last six months, by the month a deal closed or was created",
 					)}
+					action={
+						<span className="flex items-center gap-4 text-muted-foreground text-xs">
+							{Object.entries(trendConfig).map(([key, series]) => (
+								<span key={key} className="inline-flex items-center gap-1.5">
+									<IndicatorDot color={series.color} bloom="off" aria-hidden />
+									{series.label}
+								</span>
+							))}
+						</span>
+					}
 				>
 					{hasTrend ? (
-						<div className="flex flex-1 flex-col justify-center py-4">
-							<AreaTrend
+						<div className="flex flex-1 flex-col justify-center px-6 pt-5 pb-4">
+							<BarTrend
 								data={trendPoints}
 								config={trendConfig}
 								xKey="month"
-								height={196}
-								variant="gradient"
-								bloom="high"
-								showLegend
+								height={160}
+								showGrid={false}
 								formatValue={exact}
 							/>
 						</div>
@@ -266,33 +276,30 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 					description={t("Where the value sits right now")}
 				>
 					{stageSlices.length > 0 ? (
-						<div className="flex flex-1 flex-col justify-between gap-1 pt-4">
-							<DonutStat
-								data={stageSlices}
-								height={168}
-								centerValue={money(pipeline.totalCents)}
-								centerLabel={t("open")}
-								formatValue={exact}
+						<div className="flex flex-1 flex-col gap-3.5 px-6 py-5">
+							<ProgressStack
+								segments={stageSlices.map((slice) => ({
+									key: slice.key,
+									share: (slice.value / pipeline.totalCents) * 100,
+									color: slice.color,
+								}))}
 							/>
-							<ul className="flex flex-col px-5 pb-1 md:px-6">
+							<ul className="flex flex-col gap-3.5">
 								{stageSlices.map((slice) => (
-									<li key={slice.key} className="border-t first:border-t-0">
+									<li key={slice.key}>
 										<Link
 											href={`${workspaceUrl("/deals")}?stage=${slice.key}`}
-											className="flex items-center gap-2.5 py-2 text-xs hover:underline"
+											className="flex items-center gap-2 text-2sm hover:underline"
 										>
-											<span
+											<IndicatorDot
+												color={slice.color}
+												bloom="off"
 												aria-hidden
-												className="size-1.5 shrink-0"
-												style={{ backgroundColor: slice.color }}
 											/>
-											<span className="min-w-0 flex-1 truncate">
+											<span className="min-w-0 flex-1 truncate text-body-foreground">
 												{slice.label}
 											</span>
-											<span className="shrink-0 text-muted-foreground tabular-nums">
-												{slice.count}
-											</span>
-											<span className="w-14 shrink-0 text-right font-medium tabular-nums">
+											<span className="shrink-0 tabular-nums">
 												{money(slice.value)}
 											</span>
 										</Link>
@@ -330,10 +337,12 @@ function WinBackFigure({
 function ChartPanel({
 	title,
 	description,
+	action,
 	children,
 }: {
 	title: string;
 	description?: string;
+	action?: ReactNode;
 	children: ReactNode;
 }) {
 	return (
@@ -341,8 +350,11 @@ function ChartPanel({
 			<CardHeader>
 				<CardTitle>{title}</CardTitle>
 				{description ? <CardDescription>{description}</CardDescription> : null}
+				{action ? <CardAction>{action}</CardAction> : null}
 			</CardHeader>
-			<div className="flex flex-1 flex-col border">{children}</div>
+			<div className="flex flex-1 flex-col rounded-lg border bg-card">
+				{children}
+			</div>
 		</Card>
 	);
 }

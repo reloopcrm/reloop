@@ -45,10 +45,11 @@ function Progress({
 	value,
 	tone,
 	size,
+	color,
 	...props
-}: React.ComponentProps<typeof ProgressPrimitive.Root> &
+}: Omit<React.ComponentProps<typeof ProgressPrimitive.Root>, "color"> &
 	VariantProps<typeof progressIndicatorVariants> &
-	VariantProps<typeof progressVariants>) {
+	VariantProps<typeof progressVariants> & { color?: string }) {
 	return (
 		<ProgressPrimitive.Root
 			data-slot="progress"
@@ -61,10 +62,43 @@ function Progress({
 			<ProgressPrimitive.Indicator
 				data-slot="progress-indicator"
 				className={progressIndicatorVariants({ tone })}
-				style={{ transform: `translateX(-${100 - (value ?? 0)}%)` }}
+				style={{
+					transform: `translateX(-${100 - (value ?? 0)}%)`,
+					backgroundColor: color,
+				}}
 			/>
 		</ProgressPrimitive.Root>
 	);
 }
 
-export { Progress, progressIndicatorVariants };
+function ProgressStack({
+	segments,
+	className,
+	...props
+}: React.ComponentProps<"div"> & {
+	segments: { key: string; share: number; color: string }[];
+}) {
+	return (
+		<div
+			data-slot="progress-stack"
+			className={cn(
+				"flex h-2 w-full gap-0.5 overflow-hidden rounded-full",
+				className,
+			)}
+			{...props}
+		>
+			{segments.map((segment) => (
+				<div
+					key={segment.key}
+					className="h-full min-w-0.5"
+					style={{
+						width: `${segment.share}%`,
+						backgroundColor: segment.color,
+					}}
+				/>
+			))}
+		</div>
+	);
+}
+
+export { Progress, ProgressStack, progressIndicatorVariants };

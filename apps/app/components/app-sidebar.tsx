@@ -37,7 +37,8 @@ import {
 	UserAvatarImage,
 	UserMenu,
 } from "@/components/user-menu";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { numberFormat } from "@/lib/i18n/format";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
@@ -106,7 +107,12 @@ const SETTINGS: NavItem = {
 
 const ITEMS: NavItem[] = [...MAIN, SETTINGS];
 
-const SIDEBAR = { versionStaleMs: 30 * 60 * 1000 } as const;
+const MINUTE_MS = 60 * 1000;
+
+const SIDEBAR = {
+	versionStaleMs: 30 * MINUTE_MS,
+	winBack: { section: "/win-back", staleMs: 5 * MINUTE_MS, pageSize: 1 },
+} as const;
 
 function isActive(item: NavItem, pathname: string): boolean {
 	return (
@@ -120,6 +126,7 @@ function NavLink({
 	item,
 	active,
 	alert,
+	count,
 	labelled,
 	onNavigate,
 	onPrefetch,
@@ -127,11 +134,14 @@ function NavLink({
 	item: NavItem;
 	active: boolean;
 	alert?: string;
+	count?: number;
 	labelled: boolean;
 	onNavigate?: () => void;
 	onPrefetch: () => void;
 }) {
 	const t = useT();
+	const locale = useLocale();
+	const counted = count ? numberFormat(locale).format(count) : null;
 	const link = (
 		<Button
 			asChild
@@ -156,6 +166,17 @@ function NavLink({
 				<span className={labelled ? "truncate" : "hidden truncate lg:inline"}>
 					{t(item.title)}
 				</span>
+				{counted ? (
+					<span
+						className={
+							labelled
+								? "ml-auto text-muted-foreground text-xs tabular-nums"
+								: "ml-auto hidden text-muted-foreground text-xs tabular-nums lg:inline"
+						}
+					>
+						{counted}
+					</span>
+				) : null}
 				{alert ? (
 					<span
 						aria-hidden="true"
@@ -174,6 +195,7 @@ function NavLink({
 			<TooltipTrigger asChild>{link}</TooltipTrigger>
 			<TooltipContent side="right" className="lg:hidden">
 				{t(item.title)}
+				{counted ? ` · ${counted}` : null}
 				{alert ? ` · ${alert}` : null}
 			</TooltipContent>
 		</Tooltip>
@@ -276,6 +298,13 @@ export function AppSidebar({
 		...trpc.system.version.queryOptions(),
 		staleTime: SIDEBAR.versionStaleMs,
 	});
+	const winBack = useQuery({
+		...trpc.reactivation.list.queryOptions({
+			pageSize: SIDEBAR.winBack.pageSize,
+		}),
+		staleTime: SIDEBAR.winBack.staleMs,
+	});
+	const winBackCount = winBack.data?.people ?? 0;
 	const updateReady = !managed && version.data?.updateAvailable === true;
 	const updateAlert = updateReady ? t("Update available") : undefined;
 	const inChat = items.some(
@@ -290,6 +319,11 @@ export function AppSidebar({
 						key={item.href}
 						item={item}
 						active={isActive(item, pathname)}
+						count={
+							item.section === SIDEBAR.winBack.section
+								? winBackCount
+								: undefined
+						}
 						labelled={labelled}
 						onNavigate={onNavigate}
 						onPrefetch={() => prefetchSection(item.section)}

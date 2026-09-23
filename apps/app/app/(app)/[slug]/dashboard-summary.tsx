@@ -19,6 +19,7 @@ import {
 	type EntityLogoTone,
 } from "@crm/ui/components/entity-logo";
 import { Loader } from "@crm/ui/components/loader";
+import { Progress } from "@crm/ui/components/progress";
 import {
 	SimpleTable,
 	type SimpleTableColumn,
@@ -30,7 +31,7 @@ import { formatMoneyCompact } from "@crm/ui/lib/format";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useQueryState } from "nuqs";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { DealStageIndicator } from "@/components/crm/deal-stage";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
@@ -51,8 +52,6 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { OVERVIEW } from "./overview-config";
 import { overviewParsers } from "./overview-search-params";
 import { SalesDashboard } from "./sales-dashboard";
-
-const CELL = "px-3 py-2.5 align-middle";
 
 type TranslatableColumn = Omit<SimpleTableColumn, "header"> & {
 	header?: string;
@@ -168,7 +167,7 @@ export function DashboardSummary() {
 		<div className="flex flex-col gap-6">
 			<SalesDashboard summary={summary} />
 
-			<DashboardRow split="even">
+			<DashboardRow split="wide">
 				<Card className="min-w-0">
 					<CardHeader>
 						<CardTitle>{t("Deals in progress")}</CardTitle>
@@ -178,7 +177,7 @@ export function DashboardSummary() {
 							)}
 						</CardDescription>
 						<CardAction>
-							<Button asChild variant="contrast" size="sm">
+							<Button asChild variant="outline">
 								<Link href={workspaceUrl("/deals")}>{t("Open deals")}</Link>
 							</Button>
 						</CardAction>
@@ -191,7 +190,7 @@ export function DashboardSummary() {
 						) : (
 							<SimpleTable
 								variant="panel"
-								surface="page"
+								surface="muted"
 								columns={localizeColumns(OPEN_COLUMNS, t)}
 							>
 								{biggestOpen.map((deal) => (
@@ -200,21 +199,17 @@ export function DashboardSummary() {
 										clickable
 										onClick={() => openRecord({ kind: "deal", id: deal.id })}
 									>
-										<TableCell className={CELL}>
+										<TableCell>
 											<DealCell
 												name={deal.name}
 												company={deal.company}
 												meta={<LocalRelativeTime date={deal.stageChangedAt} />}
 											/>
 										</TableCell>
-										<TableCell
-											className={`${CELL} hidden @lg/panel:table-cell`}
-										>
+										<TableCell className="hidden @lg/panel:table-cell">
 											<DealStageIndicator stage={deal.stage} className="flex" />
 										</TableCell>
-										<TableCell
-											className={`${CELL} hidden @sm/panel:table-cell`}
-										>
+										<TableCell className="hidden @sm/panel:table-cell">
 											<ValueMeter
 												share={
 													largestOpenCents > 0
@@ -225,7 +220,7 @@ export function DashboardSummary() {
 												color={dealStageColor(deal.stage)}
 											/>
 										</TableCell>
-										<TableCell className={`${CELL} text-right tabular-nums`}>
+										<TableCell className="text-right font-medium tabular-nums">
 											{deal.amountCents === null ? (
 												<EmptyCellValue />
 											) : (
@@ -264,12 +259,12 @@ export function DashboardSummary() {
 						) : (
 							<SimpleTable
 								variant="panel"
-								surface="page"
+								surface="muted"
 								columns={localizeColumns(TASK_COLUMNS, t)}
 							>
 								{overdueTasks.map((task) => (
 									<SimpleTableRow key={task.id}>
-										<TableCell className={CELL}>
+										<TableCell>
 											<Checkbox
 												checked={false}
 												disabled={complete.isPending}
@@ -279,12 +274,12 @@ export function DashboardSummary() {
 												}
 											/>
 										</TableCell>
-										<TableCell className={CELL}>
+										<TableCell>
 											<span className="flex min-w-0 flex-col">
 												<span className="truncate">
 													{task.subject ? t(task.subject) : null}
 												</span>
-												<span className="flex min-w-0 text-muted-foreground">
+												<span className="flex min-w-0 text-muted-foreground text-xs">
 													{task.deal ? (
 														<RecordLink kind="deal" id={task.deal.id}>
 															{task.deal.name}
@@ -297,7 +292,7 @@ export function DashboardSummary() {
 												</span>
 											</span>
 										</TableCell>
-										<TableCell className={`${CELL} text-right`}>
+										<TableCell className="text-right">
 											<StatusIndicator
 												tone="error"
 												label={
@@ -330,12 +325,12 @@ export function DashboardSummary() {
 					) : (
 						<SimpleTable
 							variant="panel"
-							surface="page"
+							surface="muted"
 							columns={localizeColumns(MY_TASK_COLUMNS, t)}
 						>
 							{myTasks.map((task) => (
 								<SimpleTableRow key={task.id}>
-									<TableCell className={CELL}>
+									<TableCell>
 										<Checkbox
 											checked={false}
 											disabled={complete.isPending}
@@ -345,12 +340,12 @@ export function DashboardSummary() {
 											}
 										/>
 									</TableCell>
-									<TableCell className={CELL}>
+									<TableCell>
 										<span className="flex min-w-0 flex-col">
 											<span className="truncate">
 												{task.subject ? t(task.subject) : null}
 											</span>
-											<span className="flex min-w-0 text-muted-foreground">
+											<span className="flex min-w-0 text-muted-foreground text-xs">
 												{task.deal ? (
 													<RecordLink kind="deal" id={task.deal.id}>
 														{task.deal.name}
@@ -367,9 +362,7 @@ export function DashboardSummary() {
 											</span>
 										</span>
 									</TableCell>
-									<TableCell
-										className={`${CELL} text-right text-muted-foreground`}
-									>
+									<TableCell className="text-right text-2sm text-muted-foreground">
 										{task.dueAt ? (
 											<LocalRelativeDate date={task.dueAt} />
 										) : null}
@@ -392,7 +385,7 @@ export function DashboardSummary() {
 							: t("Every note, task and stage change across the workspace")}
 					</CardDescription>
 					<CardAction>
-						<Button asChild variant="contrast" size="sm">
+						<Button asChild variant="outline">
 							<Link href={workspaceUrl("/companies")}>
 								{t("All companies")}
 							</Link>
@@ -405,12 +398,12 @@ export function DashboardSummary() {
 					<SimpleTable columns={localizeColumns(ACTIVITY_COLUMNS, t)}>
 						{recentActivity.map((entry) => (
 							<SimpleTableRow key={entry.id}>
-								<TableCell className={CELL}>
+								<TableCell>
 									<span className="truncate">
 										{entry.subject ?? activityLabel(entry.type)}
 									</span>
 								</TableCell>
-								<TableCell className={`${CELL} hidden md:table-cell`}>
+								<TableCell className="hidden text-2sm text-body-foreground md:table-cell">
 									{entry.company ? (
 										<RecordLink kind="company" id={entry.company.id}>
 											{entry.company.name}
@@ -419,7 +412,7 @@ export function DashboardSummary() {
 										<EmptyCellValue />
 									)}
 								</TableCell>
-								<TableCell className={`${CELL} hidden lg:table-cell`}>
+								<TableCell className="hidden text-2sm text-body-foreground lg:table-cell">
 									{entry.deal ? (
 										<RecordLink kind="deal" id={entry.deal.id}>
 											{entry.deal.name}
@@ -428,14 +421,10 @@ export function DashboardSummary() {
 										<EmptyCellValue />
 									)}
 								</TableCell>
-								<TableCell
-									className={`${CELL} hidden truncate text-muted-foreground md:table-cell`}
-								>
+								<TableCell className="hidden truncate text-2sm text-body-foreground md:table-cell">
 									{entry.createdBy.name}
 								</TableCell>
-								<TableCell
-									className={`${CELL} text-right text-muted-foreground`}
-								>
+								<TableCell className="text-right text-2sm text-muted-foreground tabular-nums">
 									<LocalRelativeTime date={entry.createdAt} />
 								</TableCell>
 							</SimpleTableRow>
@@ -472,7 +461,7 @@ function DealCell({
 			/>
 			<span className="flex min-w-0 flex-col">
 				<span className="truncate font-medium">{name}</span>
-				<span className="truncate text-muted-foreground">
+				<span className="truncate text-muted-foreground text-xs">
 					{meta ? (
 						<>
 							{company.name} · {meta}
@@ -488,19 +477,10 @@ function DealCell({
 
 function ValueMeter({ share, color }: { share: number; color: string }) {
 	return (
-		<span
-			className="bloom-low flex h-1.5 w-full overflow-hidden bg-muted"
-			style={{ "--bloom-color": color } as CSSProperties}
-		>
-			<span
-				className="h-full w-(--share)"
-				style={
-					{
-						backgroundColor: color,
-						"--share": `${Math.round(Math.max(Math.min(share, 100), 0))}%`,
-					} as CSSProperties
-				}
-			/>
-		</span>
+		<Progress
+			size="lg"
+			color={color}
+			value={Math.round(Math.max(Math.min(share, 100), 0))}
+		/>
 	);
 }

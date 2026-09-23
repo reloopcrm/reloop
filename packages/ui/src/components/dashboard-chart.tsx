@@ -383,7 +383,8 @@ function BarTrend({
 	formatX,
 	formatValue,
 	stacked = false,
-}: CartesianProps & { stacked?: boolean }) {
+	showGrid = true,
+}: CartesianProps & { stacked?: boolean; showGrid?: boolean }) {
 	const keys = seriesKeys(config, series);
 
 	return (
@@ -393,7 +394,9 @@ function BarTrend({
 			style={{ height }}
 		>
 			<BarChart data={data} margin={CHART.plot.margin}>
-				<CartesianGrid vertical={false} stroke="var(--border)" />
+				{showGrid ? (
+					<CartesianGrid vertical={false} stroke="var(--border)" />
+				) : null}
 				<XAxis
 					dataKey={xKey}
 					hide={!showXAxis}

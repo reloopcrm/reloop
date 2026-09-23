@@ -4,11 +4,7 @@ import { Alert, AlertTitle } from "@crm/ui/components/alert";
 import type { Metadata } from "next";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
-import {
-	FormCard,
-	FormHeading,
-	FormPage,
-} from "@/components/landing/page-blocks";
+import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { getSession } from "@/lib/session";
 import { signInErrorText } from "@/lib/sign-in-errors";
@@ -61,18 +57,18 @@ export default async function SignInPage({
 	const t = await getT();
 
 	return (
-		<FormPage>
+		<AuthShell>
 			<Suspense
 				fallback={
-					<FormHeading
+					<AuthHeading
 						title={t("Welcome back")}
-						lede={t("Sign in with your account to continue.")}
+						description={t("Sign in with your account to continue.")}
 					/>
 				}
 			>
 				<SignIn searchParams={searchParams} />
 			</Suspense>
-		</FormPage>
+		</AuthShell>
 	);
 }
 
@@ -96,20 +92,20 @@ async function SignIn({
 	if (hosted) {
 		return (
 			<>
-				<FormHeading
+				<AuthHeading
 					title={t("Welcome back")}
-					lede={t("Enter your work email address and we find your workspace.")}
+					description={t(
+						"Enter your work email address and we find your workspace.",
+					)}
 				/>
 
-				<FormCard>
-					{failure ? (
-						<Alert variant="destructive">
-							<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
-						</Alert>
-					) : null}
+				{failure ? (
+					<Alert variant="destructive">
+						<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
+					</Alert>
+				) : null}
 
-					<WorkspaceLookup />
-				</FormCard>
+				<WorkspaceLookup />
 			</>
 		);
 	}
@@ -133,26 +129,24 @@ async function SignIn({
 	if (!showSso && !showPassword && social.length === 0) {
 		return (
 			<>
-				<FormHeading
+				<AuthHeading
 					title={t("No way in yet")}
-					lede={t(
+					description={t(
 						"This CRM has no sign-in method configured, so nobody can get in, including you.",
 					)}
 				/>
 
-				<FormCard>
-					<p className="text-pretty text-muted-foreground text-sm/5">
-						{t(
-							"Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET, in the root .env file and restart. Your own identity provider can be added from Settings once somebody is signed in.",
-						)}
-					</p>
+				<p className="text-pretty text-muted-foreground text-sm/5">
+					{t(
+						"Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET, in the root .env file and restart. Your own identity provider can be added from Settings once somebody is signed in.",
+					)}
+				</p>
 
-					<p className="text-pretty text-muted-foreground text-sm/5">
-						{t(
-							'Without an identity provider, set PASSWORD_SIGN_IN="1" in the same file and give yourself a password with the set-password script.',
-						)}
-					</p>
-				</FormCard>
+				<p className="text-pretty text-muted-foreground text-sm/5">
+					{t(
+						'Without an identity provider, set PASSWORD_SIGN_IN="1" in the same file and give yourself a password with the set-password script.',
+					)}
+				</p>
 			</>
 		);
 	}
@@ -161,31 +155,29 @@ async function SignIn({
 
 	return (
 		<>
-			<FormHeading
+			<AuthHeading
 				title={t("Welcome back")}
-				lede={t("Sign in with your account to continue.")}
+				description={t("Sign in with your account to continue.")}
 			/>
 
-			<FormCard>
-				{failure ? (
-					<Alert variant="destructive">
-						<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
-					</Alert>
-				) : null}
+			{failure ? (
+				<Alert variant="destructive">
+					<AlertTitle>{t(failure.label, failure.vars)}</AlertTitle>
+				</Alert>
+			) : null}
 
-				{showPassword ? <PasswordSignIn /> : null}
+			{showPassword ? <PasswordSignIn /> : null}
 
-				<div className="flex flex-col gap-3">
-					{showSso ? <SsoSignIn providers={providers} /> : null}
-					{social.map((provider, index) => (
-						<SocialSignIn
-							key={provider}
-							provider={provider}
-							only={socialLeads && index === 0}
-						/>
-					))}
-				</div>
-			</FormCard>
+			<div className="flex flex-col gap-3">
+				{showSso ? <SsoSignIn providers={providers} /> : null}
+				{social.map((provider, index) => (
+					<SocialSignIn
+						key={provider}
+						provider={provider}
+						only={socialLeads && index === 0}
+					/>
+				))}
+			</div>
 		</>
 	);
 }

@@ -35,7 +35,6 @@ export function WaitlistForm() {
 				<Input
 					id={id}
 					type="email"
-					size="lg"
 					required
 					autoComplete="email"
 					placeholder={t("you@company.com")}
@@ -44,12 +43,10 @@ export function WaitlistForm() {
 					onChange={(event) => setEmail(event.target.value)}
 					aria-invalid={join.isError || undefined}
 				/>
-				<div className="flex flex-wrap items-center gap-3">
-					<Button type="submit" variant="outline" disabled={join.isPending}>
-						{join.isPending ? <Spinner data-icon="inline-start" /> : null}
-						{t("Notify me")}
-					</Button>
-				</div>
+				<Button type="submit" disabled={join.isPending}>
+					{join.isPending ? <Spinner data-icon="inline-start" /> : null}
+					{t("Notify me")}
+				</Button>
 				{join.isError ? (
 					<FieldError>
 						{t(

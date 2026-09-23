@@ -153,7 +153,7 @@ export function AttentionBlock({ contactId }: { contactId: string }) {
 
 	if (query.isPending) {
 		return (
-			<div className="flex shrink-0 flex-col gap-2 border-border-strong border-b px-5 py-3">
+			<div className="flex shrink-0 flex-col gap-2 border-b px-5 py-4">
 				<Skeleton className="h-4 w-2/5" />
 				<Skeleton className="h-4 w-3/5" />
 			</div>
@@ -172,7 +172,7 @@ export function AttentionProblem() {
 	return (
 		<div
 			role="status"
-			className="flex shrink-0 flex-col gap-2 border-border-strong border-b px-5 py-3"
+			className="flex shrink-0 flex-col gap-2 border-b px-5 py-4"
 		>
 			<p className="text-muted-foreground">
 				{t(
@@ -195,7 +195,7 @@ export function AttentionAnswer({
 	return (
 		<section
 			aria-label={t("What to do about this person")}
-			className="flex shrink-0 flex-col gap-4 border-border-strong border-b px-5 py-4"
+			className="flex shrink-0 flex-col gap-3.5 border-b px-5 py-4"
 		>
 			<Verdict attention={attention} />
 
@@ -453,9 +453,7 @@ function FieldRow({ field }: { field: Field }) {
 			<Row label={label}>
 				<span className="flex flex-wrap gap-1">
 					{field.values.map((value) => (
-						<Badge key={value} variant="token">
-							{value}
-						</Badge>
+						<Badge key={value}>{value}</Badge>
 					))}
 				</span>
 				{field.source ? (

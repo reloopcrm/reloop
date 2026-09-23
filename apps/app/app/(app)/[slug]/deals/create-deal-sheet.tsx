@@ -2,6 +2,7 @@
 
 import Add from "@carbon/icons-react/es/Add";
 import { CURRENCIES } from "@crm/db/currency";
+import type { DealStage } from "@crm/db/enums";
 import { Button } from "@crm/ui/components/button";
 import { DatePicker } from "@crm/ui/components/date-picker";
 import {
@@ -32,7 +33,7 @@ import {
 import { Spinner } from "@crm/ui/components/spinner";
 import { BRAND } from "@crm/ui/lib/brand";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { parseAsBoolean, useQueryState } from "nuqs";
+import { parseAsBoolean, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { type ComponentProps, Suspense, useId, useState } from "react";
 import { toast } from "sonner";
 import { CompanyPicker } from "@/components/crm/company-picker";
@@ -45,6 +46,31 @@ import { useTRPC } from "@/lib/trpc/client";
 import { useDealStageLabel } from "@/lib/use-deal-stage-label";
 
 const UNSET = "";
+
+const createParams = {
+	[SEARCH_PARAM.dialog.create]: parseAsBoolean.withDefault(false),
+	[SEARCH_PARAM.dialog.createStage]: parseAsStringLiteral(OPEN_STAGES),
+};
+
+export function CreateDealHere({ stage }: { stage: DealStage }) {
+	const t = useT();
+	const [, setParams] = useQueryStates(createParams);
+
+	return (
+		<Button
+			variant="dashed"
+			onClick={() =>
+				setParams({
+					[SEARCH_PARAM.dialog.create]: true,
+					[SEARCH_PARAM.dialog.createStage]: stage,
+				})
+			}
+		>
+			<Icon icon={Add} data-icon="inline-start" />
+			{t("Create a deal here")}
+		</Button>
+	);
+}
 
 function AddButton(props: ComponentProps<typeof Button>) {
 	const t = useT();
@@ -73,14 +99,21 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 
-	const [open, setOpen] = useQueryState(
-		SEARCH_PARAM.dialog.create,
-		parseAsBoolean.withDefault(false),
-	);
+	const [params, setParams] = useQueryStates(createParams);
+	const open = params[SEARCH_PARAM.dialog.create];
+	const presetStage = params[SEARCH_PARAM.dialog.createStage];
+	const [chosenStage, setStage] = useState<string | null>(null);
+	const setOpen = (next: boolean | null) => {
+		if (!next) setStage(null);
+		return setParams({
+			[SEARCH_PARAM.dialog.create]: next,
+			[SEARCH_PARAM.dialog.createStage]: null,
+		});
+	};
 	const [name, setName] = useState("");
 	const [company, setCompany] = useState(companyId ?? UNSET);
 	const [ownerId, setOwnerId] = useState(UNSET);
-	const [stage, setStage] = useState<string>("DEMO_BOOKED");
+	const stage = chosenStage ?? presetStage ?? "DEMO_BOOKED";
 	const [amount, setAmount] = useState("");
 	const [currency, setCurrency] = useState("");
 	const [closeDate, setCloseDate] = useState("");
@@ -103,6 +136,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 				await cache.deal(deal.id);
 				toast.success(t("{name} added.", { name: deal.name }));
 				await setOpen(null);
+				setStage(null);
 				setName("");
 				setAmount("");
 				setCurrency("");

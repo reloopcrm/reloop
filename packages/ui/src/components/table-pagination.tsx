@@ -44,7 +44,7 @@ export function TablePagination({
 
 	return (
 		<div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-			<span className="flex items-center gap-2 text-muted-foreground text-xs tabular-nums">
+			<span className="flex items-center gap-2 text-2sm text-muted-foreground tabular-nums">
 				{loading && <Loader size="sm" />}
 				{meta ??
 					(total === 0
@@ -66,7 +66,7 @@ export function TablePagination({
 						<ChevronLeft data-icon="inline-start" />
 						{t("Previous")}
 					</Button>
-					<span className="text-muted-foreground text-xs tabular-nums">
+					<span className="text-2sm text-muted-foreground tabular-nums">
 						{page} / {totalPages}
 					</span>
 					<Button

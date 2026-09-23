@@ -150,7 +150,7 @@ export function RecordActions({
 		<>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" size="icon-sm" disabled={pending}>
+					<Button variant="outline-ghost" size="icon-sm" disabled={pending}>
 						<Icon icon={OverflowMenuVertical} />
 						<span className="sr-only">{t("More actions")}</span>
 					</Button>

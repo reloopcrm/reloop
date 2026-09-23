@@ -70,7 +70,7 @@ export type DataTableColumn<TRow> = {
 	cellClassName?: string;
 	hideable?: boolean;
 	defaultHidden?: boolean;
-	hideBelow?: "sm" | "md" | "lg";
+	hideBelow?: "sm" | "md" | "lg" | "xl";
 };
 
 export type DataTableFacet = {
@@ -131,6 +131,7 @@ const HIDE_BELOW_CLASS = {
 	sm: "hidden sm:table-cell",
 	md: "hidden md:table-cell",
 	lg: "hidden lg:table-cell",
+	xl: "hidden xl:table-cell",
 } as const;
 
 const ALIGN_CLASS = {
@@ -267,6 +268,57 @@ function FacetSubmenu({
 	);
 }
 
+export function availableFacetsOf(
+	facets: DataTableFacet[] | undefined,
+	filters: Record<string, string[]>,
+): DataTableFacet[] {
+	return (facets ?? []).filter(
+		(facet) =>
+			facet.options.length > 0 ||
+			facet.searchable ||
+			(filters[facet.id]?.length ?? 0) > 0,
+	);
+}
+
+export function FacetFilterMenu({
+	facets,
+	filters,
+	onChange,
+}: {
+	facets: DataTableFacet[];
+	filters: Record<string, string[]>;
+	onChange: (id: string, values: string[]) => void;
+}) {
+	const t = useUiT();
+	const active = facets.filter(
+		(facet) => (filters[facet.id]?.length ?? 0) > 0,
+	).length;
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button variant="outline" size="sm" align="toolbar">
+					<Filter data-icon="inline-start" />
+					{t("Filters")}
+					{active > 0 && (
+						<span className="tabular-nums opacity-60">({active})</span>
+					)}
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="min-w-48">
+				{facets.map((facet) => (
+					<FacetSubmenu
+						key={facet.id}
+						facet={facet}
+						selected={filters[facet.id] ?? []}
+						onChange={(values) => onChange(facet.id, values)}
+					/>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
 export function DataTable<TRow, TSub = unknown>({
 	query,
 	columns,
@@ -331,13 +383,7 @@ export function DataTable<TRow, TSub = unknown>({
 	const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
 	const availableFacets = useMemo(
-		() =>
-			(facets ?? []).filter(
-				(facet) =>
-					facet.options.length > 0 ||
-					facet.searchable ||
-					(query.filters[facet.id]?.length ?? 0) > 0,
-			),
+		() => availableFacetsOf(facets, query.filters),
 		[facets, query.filters],
 	);
 
@@ -462,33 +508,11 @@ export function DataTable<TRow, TSub = unknown>({
 
 					<div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center lg:ml-auto">
 						{availableFacets.length > 0 && (
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className="justify-start sm:justify-center"
-									>
-										<Filter data-icon="inline-start" />
-										{t("Filters")}
-										{activeFacetFilterCount > 0 && (
-											<span className="tabular-nums opacity-60">
-												({activeFacetFilterCount})
-											</span>
-										)}
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="start" className="min-w-48">
-									{availableFacets.map((facet) => (
-										<FacetSubmenu
-											key={facet.id}
-											facet={facet}
-											selected={query.filters[facet.id] ?? []}
-											onChange={(values) => query.setFilter(facet.id, values)}
-										/>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
+							<FacetFilterMenu
+								facets={availableFacets}
+								filters={query.filters}
+								onChange={query.setFilter}
+							/>
 						)}
 						{(sortableColumns.length > 0 || anyExpandable) && (
 							<DropdownMenu>
@@ -579,22 +603,22 @@ export function DataTable<TRow, TSub = unknown>({
 
 			<Table
 				className={cn(
-					"table-fixed [&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4",
+					"table-fixed",
 					tableClassName,
 				)}
 				containerClassName="min-h-0 flex-1 overflow-auto rounded-lg border bg-card"
 				overlay={
 					deferredRows.length === 0 ? (
-						<div className="absolute inset-x-0 top-11 bottom-0 flex items-center justify-center px-4 py-8 text-center text-muted-foreground">
+						<div className="absolute inset-x-0 top-10 bottom-0 flex items-center justify-center px-4 py-8 text-center text-muted-foreground">
 							{loading ? <Spinner /> : (empty ?? t("No results found."))}
 						</div>
 					) : null
 				}
 			>
-				<TableHeader className="sticky top-0 z-10 bg-muted [&_th]:bg-muted [&_tr]:border-0 [&_tr]:shadow-[inset_0_-1px_0_var(--border-strong)]">
+				<TableHeader className="sticky top-0 z-10 [&_th]:bg-muted [&_tr]:border-0 [&_tr]:shadow-[inset_0_-1px_0_var(--border)]">
 					<TableRow>
 						{selection && (
-							<TableHead className={cn("h-11 w-10 px-3", HIDE_BELOW_CLASS.sm)}>
+							<TableHead className={cn("w-10", HIDE_BELOW_CLASS.sm)}>
 								<Checkbox
 									checked={
 										selection.state.allSelected
@@ -612,7 +636,7 @@ export function DataTable<TRow, TSub = unknown>({
 							</TableHead>
 						)}
 						{anyExpandable && (
-							<TableHead className="h-11 w-10 px-3">
+							<TableHead className="w-10">
 								<span className="sr-only">{t("Detail")}</span>
 							</TableHead>
 						)}
@@ -622,7 +646,7 @@ export function DataTable<TRow, TSub = unknown>({
 								<TableHead
 									key={column.id}
 									className={cn(
-										"h-11 truncate px-3 font-normal text-muted-foreground",
+										"truncate",
 										column.width,
 										ALIGN_CLASS[column.align ?? "left"],
 										column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
@@ -642,8 +666,8 @@ export function DataTable<TRow, TSub = unknown>({
 											size="xs"
 											onClick={() => query.toggleSort(column.id)}
 											className={cn(
-												"-ml-2 max-w-full min-w-0 font-normal text-muted-foreground hover:text-foreground",
-												column.align === "right" && "-mr-2 ml-0 flex-row-reverse",
+												"-ml-3 max-w-full min-w-0 font-normal text-muted-foreground hover:text-foreground",
+												column.align === "right" && "-mr-3 ml-0 flex-row-reverse",
 												column.align === "center" && "mx-auto",
 											)}
 										>
@@ -696,7 +720,7 @@ export function DataTable<TRow, TSub = unknown>({
 								>
 									{selection && (
 										<TableCell
-											className={cn("w-10 px-3 py-3", HIDE_BELOW_CLASS.sm)}
+											className={cn("w-10", HIDE_BELOW_CLASS.sm)}
 											onClick={(event) => event.stopPropagation()}
 										>
 											<Checkbox
@@ -713,7 +737,7 @@ export function DataTable<TRow, TSub = unknown>({
 										</TableCell>
 									)}
 									{anyExpandable && (
-										<TableCell className="w-10 px-3 py-3 text-center text-muted-foreground">
+										<TableCell className="w-10 text-center text-muted-foreground">
 											{canExpand && (
 												<ChevronRight
 													size={12}
@@ -729,7 +753,7 @@ export function DataTable<TRow, TSub = unknown>({
 										<TableCell
 											key={column.id}
 											className={cn(
-												"truncate px-3 py-3",
+												"truncate",
 												column.width,
 												ALIGN_CLASS[column.align ?? "left"],
 												column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
@@ -764,20 +788,17 @@ export function DataTable<TRow, TSub = unknown>({
 											>
 												{selection && (
 													<TableCell
-														className={cn(
-															"w-10 px-3 py-2.5",
-															HIDE_BELOW_CLASS.sm,
-														)}
+														className={cn("w-10", HIDE_BELOW_CLASS.sm)}
 													/>
 												)}
 												{anyExpandable && (
-													<TableCell className="w-10 px-3 py-2.5" />
+													<TableCell className="w-10" />
 												)}
 												{visibleColumns.map((column) => (
 													<TableCell
 														key={column.id}
 														className={cn(
-															"truncate px-3 py-2.5 align-top",
+															"truncate align-top",
 															column.width,
 															ALIGN_CLASS[column.align ?? "left"],
 															column.hideBelow &&

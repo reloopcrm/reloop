@@ -5,10 +5,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
 const COLUMNS =
-	"grid grid-cols-[var(--event-time)_1rem_var(--event-who)_minmax(0,1fr)_0.75rem] items-center gap-x-2";
+	"grid grid-cols-[var(--event-time)_0.75rem_minmax(0,1fr)_1rem] items-baseline gap-x-2.5";
 
-const PANEL_INSET =
-	"ms-[calc(var(--event-time)+var(--event-who)+2.5rem)] me-5 max-md:mx-0";
+const PANEL_INSET = "ms-[calc(var(--event-time)+1.375rem)] me-4 max-md:mx-0";
 
 export type EventVoice =
 	| "inbound"
@@ -28,43 +27,43 @@ const VOICE_TONE: Record<
 	inbound: {
 		time: "",
 		who: "font-medium text-foreground",
-		subject: "font-medium text-body-foreground",
+		subject: "text-foreground",
 		preview: "",
 	},
 	outbound: {
 		time: "",
-		who: "text-muted-foreground",
-		subject: "text-muted-foreground",
+		who: "text-body-foreground",
+		subject: "text-foreground",
 		preview: "",
 	},
 	note: {
 		time: "",
-		who: "text-muted-foreground",
-		subject: "font-medium text-body-foreground",
+		who: "text-body-foreground",
+		subject: "text-foreground",
 		preview: "text-body-foreground",
 	},
 	call: {
 		time: "",
-		who: "text-muted-foreground",
-		subject: "font-medium text-body-foreground",
+		who: "text-body-foreground",
+		subject: "text-foreground",
 		preview: "text-body-foreground",
 	},
 	meeting: {
 		time: "",
-		who: "text-muted-foreground",
-		subject: "font-medium text-body-foreground",
+		who: "text-body-foreground",
+		subject: "text-foreground",
 		preview: "",
 	},
 	task: {
 		time: "",
-		who: "text-muted-foreground",
-		subject: "font-medium text-body-foreground",
+		who: "text-body-foreground",
+		subject: "text-foreground",
 		preview: "",
 	},
 	"task-overdue": {
 		time: "text-destructive",
-		who: "text-muted-foreground",
-		subject: "font-medium text-body-foreground",
+		who: "text-body-foreground",
+		subject: "text-foreground",
 		preview: "font-medium text-destructive",
 	},
 	"task-done": {
@@ -75,27 +74,30 @@ const VOICE_TONE: Record<
 	},
 	system: {
 		time: "text-faint-foreground",
-		who: "font-mono text-faint-foreground text-xs",
+		who: "text-faint-foreground",
 		subject: "text-faint-foreground",
 		preview: "text-faint-foreground",
 	},
 };
 
-const markVariants = cva("block shrink-0 justify-self-center rounded-xs", {
-	variants: {
-		kind: {
-			inbound: "size-2 bg-body-foreground",
-			outbound: "size-2 border border-muted-foreground",
-			note: "h-1 w-2.5 bg-muted-foreground",
-			call: "size-2.5 rounded-full border border-muted-foreground",
-			meeting: "size-2.5 border border-muted-foreground border-t-2",
-			task: "size-2.5 border border-border-strong",
-			"task-overdue": "size-2.5 border border-destructive",
-			system: "size-1 bg-faint-foreground",
+const markVariants = cva(
+	"block size-2 shrink-0 self-center justify-self-center rounded-full",
+	{
+		variants: {
+			kind: {
+				inbound: "bg-primary",
+				outbound: "bg-border-strong",
+				note: "bg-border-strong",
+				call: "border border-muted-foreground",
+				meeting: "bg-border-strong",
+				task: "border border-border-strong",
+				"task-overdue": "border border-destructive",
+				system: "size-1.5 bg-faint-foreground",
+			},
 		},
+		defaultVariants: { kind: "system" },
 	},
-	defaultVariants: { kind: "system" },
-});
+);
 
 function EventMark({
 	kind,
@@ -117,7 +119,7 @@ function EventList({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="event-list"
 			className={cn(
-				"flex shrink-0 flex-col px-5 pb-4 [--event-time:4rem] [--event-who:8rem] max-md:[--event-time:3.75rem] max-md:[--event-who:5.75rem]",
+				"flex shrink-0 flex-col px-5 pt-2 pb-4 [--event-time:2.75rem]",
 				className,
 			)}
 			{...props}
@@ -138,22 +140,11 @@ function EventDayStrip({
 		<h3
 			data-slot="event-day-strip"
 			data-tone={tone}
-			className="sticky top-0 z-10 flex h-6 items-center justify-between gap-2 bg-popover font-normal"
+			className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-popover pt-2 pb-0.5 font-normal text-muted-foreground text-xs"
 		>
-			<span
-				className={cn(
-					"truncate font-mono text-xs",
-					tone === "pending"
-						? "text-muted-foreground"
-						: "text-faint-foreground",
-				)}
-			>
-				{label}
-			</span>
+			<span className="truncate">{label}</span>
 			{note ? (
-				<span className="shrink-0 font-mono text-faint-foreground text-xs tabular-nums">
-					{note}
-				</span>
+				<span className="shrink-0 text-xs tabular-nums">{note}</span>
 			) : null}
 		</h3>
 	);
@@ -172,10 +163,7 @@ function EventGroup({
 	note?: React.ReactNode;
 }) {
 	return (
-		<section
-			data-slot="event-day"
-			className="mt-2 border-border-strong border-t first:mt-0 first:border-t-0"
-		>
+		<section data-slot="event-day">
 			{label === undefined ? null : (
 				<EventDayStrip
 					label={label}
@@ -183,14 +171,7 @@ function EventGroup({
 					tone={pending ? "pending" : "past"}
 				/>
 			)}
-			<div
-				data-slot="event-group"
-				className={cn(
-					pending && "border-border-strong border-l border-dashed",
-					className,
-				)}
-				{...props}
-			>
+			<div data-slot="event-group" className={className} {...props}>
 				{children}
 			</div>
 		</section>
@@ -230,27 +211,31 @@ function EventRow({
 		<>
 			<span
 				className={cn(
-					"truncate text-right font-mono text-muted-foreground text-xs tabular-nums",
+					"truncate text-muted-foreground text-xs tabular-nums",
 					tone.time,
 				)}
 			>
 				{time}
 			</span>
 			{mark}
-			<span className={cn("truncate", tone.who)}>{who}</span>
 			<span className="min-w-0 truncate text-muted-foreground">
-				{subject ? <span className={tone.subject}>{subject}</span> : null}
-				{subject && preview ? (
-					<span className="mx-1 text-faint-foreground">·</span>
+				<span className={tone.who}>{who}</span>
+				{subject ? (
+					<span className={cn("ms-2.5", tone.subject)}>{subject}</span>
 				) : null}
-				{preview ? <span className={tone.preview}>{preview}</span> : null}
+				{preview ? (
+					<span className={tone.preview}>
+						{" · "}
+						{preview}
+					</span>
+				) : null}
 			</span>
 			<span aria-hidden="true" className="justify-self-center">
 				{panel ? (
 					<Icon
 						icon={ChevronDown}
 						motion="none"
-						className="size-3 text-faint-foreground opacity-40 transition-transform group-hover/event:opacity-100 group-open/event:rotate-180 group-open/event:opacity-100 pointer-coarse:opacity-100"
+						className="size-3 text-muted-foreground opacity-60 transition-transform group-hover/event:opacity-100 group-open/event:rotate-180 group-open/event:opacity-100 pointer-coarse:opacity-100"
 					/>
 				) : null}
 			</span>
@@ -265,7 +250,7 @@ function EventRow({
 				id={anchorId}
 				className={cn(
 					COLUMNS,
-					"h-7 scroll-mt-8 rounded-md text-sm hover:bg-muted max-md:h-11",
+					"scroll-mt-8 rounded-md py-2 text-sm hover:bg-muted",
 					className,
 				)}
 				{...props}
@@ -292,7 +277,7 @@ function EventRow({
 			<summary
 				className={cn(
 					COLUMNS,
-					"h-7 cursor-pointer list-none rounded-md outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 group-open/event:hover:bg-transparent max-md:h-11 [&::-webkit-details-marker]:hidden",
+					"cursor-pointer list-none rounded-md py-2 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 group-open/event:hover:bg-transparent [&::-webkit-details-marker]:hidden",
 				)}
 				{...props}
 			>

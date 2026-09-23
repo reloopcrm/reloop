@@ -36,6 +36,7 @@ import {
 	SheetTitle,
 } from "@/components/responsive-sheet";
 import { useT } from "@/lib/i18n/client";
+import { usePageSettled } from "@/lib/use-page-settled";
 
 const GUTTER = "px-5";
 
@@ -62,9 +63,10 @@ export function DetailSheet({
 	children: ReactNode;
 }) {
 	const content = useRef<HTMLDivElement>(null);
+	const settled = usePageSettled();
 
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
+		<Sheet open={open && settled} onOpenChange={onOpenChange}>
 			<SheetContent
 				ref={content}
 				side="right"
@@ -102,8 +104,10 @@ export function DetailSheetHeader({
 	const t = useT();
 
 	return (
-		<SheetHeader className={cn("gap-0 border-b py-4", GUTTER)}>
-			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3.5 gap-y-3 sm:flex">
+		<SheetHeader
+			className={cn("@container/sheet-header gap-0 border-b py-4", GUTTER)}
+		>
+			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3.5 gap-y-3 @3xl/sheet-header:flex">
 				<div className="flex items-start gap-3.5">
 					{onBack ? (
 						<Tooltip>
@@ -120,8 +124,8 @@ export function DetailSheetHeader({
 					{media}
 				</div>
 
-				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-					<SheetTitle size="lg" className="wrap-anywhere">
+				<div className="flex min-w-0 flex-1 flex-col gap-0.5 @3xl/sheet-header:min-w-1/3">
+					<SheetTitle size="lg" className="wrap-break-word">
 						{title}
 					</SheetTitle>
 					{description ? (
@@ -137,7 +141,7 @@ export function DetailSheetHeader({
 				</div>
 
 				{actions ? (
-					<div className="col-span-full row-start-2 flex flex-wrap items-center gap-2 sm:col-auto sm:row-auto sm:shrink-0">
+					<div className="col-span-full row-start-2 flex min-w-0 flex-wrap items-center gap-2 @3xl/sheet-header:col-auto @3xl/sheet-header:row-auto @3xl/sheet-header:justify-end">
 						{actions}
 					</div>
 				) : null}
@@ -147,7 +151,7 @@ export function DetailSheetHeader({
 					size="icon-sm"
 					onClick={onClose}
 					data-demo={DEMO.mark.sheetClose}
-					className="col-start-3 row-start-1 sm:col-auto sm:row-auto"
+					className="col-start-3 row-start-1 @3xl/sheet-header:col-auto @3xl/sheet-header:row-auto"
 				>
 					<Icon icon={Close} />
 					<span className="sr-only">{t("Close")}</span>

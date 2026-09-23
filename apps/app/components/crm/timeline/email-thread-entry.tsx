@@ -1,7 +1,11 @@
 "use client";
 
+import ArrowRight from "@carbon/icons-react/es/ArrowRight";
+import ChevronDown from "@carbon/icons-react/es/ChevronDown";
+import Reply from "@carbon/icons-react/es/Reply";
 import { Button } from "@crm/ui/components/button";
 import { EventMark, EventRow } from "@crm/ui/components/event-row";
+import { Icon } from "@crm/ui/components/icon";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { ThreadMessage } from "@crm/ui/components/thread-message";
 import {
@@ -18,6 +22,7 @@ import { useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { forwardLink } from "./forward-link";
 import type { TimelineAnchor } from "./timeline";
 import { blockMessages } from "./timeline-blocks";
 import { TIMELINE } from "./timeline-config";
@@ -75,6 +80,26 @@ function messageAnchorId(messageId: string): string {
 	return `message-${messageId}`;
 }
 
+function forwardHref(
+	message: ThreadMessageData,
+	subject: string | null,
+	t: Translate,
+): string {
+	const from = message.fromName?.trim()
+		? `${message.fromName.trim()} <${message.fromEmail}>`
+		: message.fromEmail;
+
+	return forwardLink({
+		subject: `Fwd: ${subject ?? ""}`,
+		intro: [
+			t("Forwarded message"),
+			t("From: {sender}", { sender: from }),
+			t("Subject: {subject}", { subject: subject ?? "" }),
+		],
+		text: message.body ? cleanEmailBody(message.body).text : "",
+	});
+}
+
 function ThreadPanel({
 	head,
 	threadIds,
@@ -93,6 +118,7 @@ function ThreadPanel({
 	const t = useT();
 	const trpc = useTRPC();
 	const scrolled = useRef<string | null>(null);
+	const [showOlder, setShowOlder] = useState(false);
 
 	const results = useQueries({
 		queries: threadIds.map((threadId) => ({
@@ -128,10 +154,22 @@ function ThreadPanel({
 	const messages = blockMessages(
 		results.map((result) => result.data?.messages ?? []),
 	);
-	const lastLoaded = messages[0] ?? null;
-	const to = lastLoaded?.recipients.map((one) => one.email).join(", ") ?? null;
+	const newest = messages[0] ?? null;
+	const older = messages.slice(1).reverse();
+	const tucked = older.slice(
+		0,
+		Math.max(0, older.length - TIMELINE.thread.olderShown),
+	);
+	const showTucked =
+		showOlder || tucked.some((message) => message.id === openMessageId);
+	const shownOlder = showTucked ? older : older.slice(tucked.length);
+	const summary =
+		results
+			.map((result) => result.data?.insight?.summary?.trim())
+			.find((text) => text) ?? null;
+	const to = newest?.recipients.map((one) => one.email).join(", ") ?? null;
 	const source = mailSourceLabel(head.emailThread?.lastMessage?.source ?? null);
-	const reply = lastLoaded ? replyAddress(lastLoaded) : null;
+	const reply = newest ? replyAddress(newest) : null;
 
 	const meta = [
 		to ? t("to {name}", { name: to }) : null,
@@ -140,29 +178,75 @@ function ThreadPanel({
 		.filter(Boolean)
 		.join(" · ");
 
+	const anchorRef = (messageId: string) =>
+		openMessageId === messageId
+			? (node: HTMLElement | null) => {
+					if (!node || scrolled.current === messageId) return;
+					scrolled.current = messageId;
+					node.scrollIntoView({ block: "center" });
+				}
+			: undefined;
+
 	return (
 		<>
-			{messages.map((message) => (
+			{summary ? (
+				<div className="flex flex-col gap-1">
+					<p className="text-muted-foreground text-xs">{t("In short")}</p>
+					<p className="text-pretty text-foreground">{summary}</p>
+				</div>
+			) : null}
+
+			{older.length > 0 ? (
+				<div className="flex flex-col">
+					{tucked.length > 0 && !showTucked ? (
+						<Button
+							variant="ghost"
+							size="xs"
+							align="start"
+							onClick={() => setShowOlder(true)}
+						>
+							<Icon icon={ChevronDown} data-icon="inline-start" />
+							{tucked.length === 1
+								? t("Show 1 older mail")
+								: t("Show {count} older mails", { count: tucked.length })}
+						</Button>
+					) : null}
+					{shownOlder.map((message) => (
+						<ThreadMessage
+							key={message.id}
+							id={messageAnchorId(message.id)}
+							ref={anchorRef(message.id)}
+							collapsed={openMessageId !== message.id}
+							preview={
+								message.body
+									? emailPreview(message.body, TIMELINE.preview.maxChars)
+									: null
+							}
+							from={speaker(message, t)}
+							fromEmail={message.fromEmail}
+							fromImageUrl={message.fromImageUrl}
+							sentAt={<MessageTime date={message.sentAt} day={day} />}
+							direction={message.direction}
+							body={message.body}
+							size="reading"
+						/>
+					))}
+				</div>
+			) : null}
+
+			{newest ? (
 				<ThreadMessage
-					key={message.id}
-					id={messageAnchorId(message.id)}
-					ref={
-						openMessageId === message.id
-							? (node) => {
-									if (!node || scrolled.current === message.id) return;
-									scrolled.current = message.id;
-									node.scrollIntoView({ block: "center" });
-								}
-							: undefined
-					}
-					from={speaker(message, t)}
-					fromEmail={message.fromEmail}
-					fromImageUrl={message.fromImageUrl}
-					sentAt={<MessageTime date={message.sentAt} day={day} />}
-					direction={message.direction}
-					body={message.body}
+					id={messageAnchorId(newest.id)}
+					ref={anchorRef(newest.id)}
+					from={speaker(newest, t)}
+					fromEmail={newest.fromEmail}
+					fromImageUrl={newest.fromImageUrl}
+					sentAt={<MessageTime date={newest.sentAt} day={day} />}
+					direction={newest.direction}
+					body={newest.body}
+					size="reading"
 				/>
-			))}
+			) : null}
 
 			{meta ? (
 				<p className="font-mono text-faint-foreground text-xs wrap-anywhere">
@@ -170,22 +254,29 @@ function ThreadPanel({
 				</p>
 			) : null}
 
-			{reply || lastLoaded?.mailboxUrl ? (
+			{newest ? (
 				<div className="flex flex-wrap items-center gap-2">
 					{reply ? (
 						<Button variant="outline" size="xs" asChild>
 							<a
 								href={`mailto:${reply}?subject=${encodeURIComponent(`Re: ${subject ?? ""}`)}`}
 							>
+								<Icon icon={Reply} data-icon="inline-start" />
 								{t("Reply")}
 							</a>
 						</Button>
 					) : null}
-					{lastLoaded?.mailboxUrl ? (
-						<Button variant="outline" size="xs" asChild>
-							<a href={lastLoaded.mailboxUrl} target="_blank" rel="noreferrer">
+					<Button variant="outline" size="xs" asChild>
+						<a href={forwardHref(newest, subject, t)}>
+							<Icon icon={ArrowRight} data-icon="inline-start" />
+							{t("Forward")}
+						</a>
+					</Button>
+					{newest.mailboxUrl ? (
+						<Button variant="ghost" size="xs" asChild>
+							<a href={newest.mailboxUrl} target="_blank" rel="noreferrer">
 								{t("Open in {mailbox}", {
-									mailbox: lastLoaded.mailboxName ?? "",
+									mailbox: newest.mailboxName ?? "",
 								})}
 							</a>
 						</Button>

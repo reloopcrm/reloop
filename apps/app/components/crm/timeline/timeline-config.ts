@@ -3,6 +3,8 @@ import { TIMELINE_TABS, type TimelineTab } from "./timeline-search-params";
 export const TIMELINE = {
 	pinned: { limit: 10 },
 	preview: { maxChars: 180 },
+	thread: { olderShown: 2 },
+	forward: { headChars: 1_500, stepChars: 100 },
 	counted: TIMELINE_TABS,
 	format: {
 		time: { hour: "numeric", minute: "2-digit" },
@@ -21,6 +23,8 @@ export const TIMELINE = {
 } as const satisfies {
 	pinned: { limit: number };
 	preview: { maxChars: number };
+	thread: { olderShown: number };
+	forward: { headChars: number; stepChars: number };
 	counted: readonly TimelineTab[];
 	format: Record<string, Intl.DateTimeFormatOptions>;
 };

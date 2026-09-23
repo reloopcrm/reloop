@@ -108,6 +108,40 @@ function facts(over: Partial<AttentionFacts> = {}): AttentionFacts {
 	};
 }
 
+describe("the story carries the memory the agent wrote, never a new one", () => {
+	it("hands over the stored summary as it is", () => {
+		const read = attentionOf(
+			facts({
+				candidate: candidate({
+					memory: {
+						...candidate().memory,
+						summary: "Kauft Europaletten, 620 Stück angefragt.",
+					},
+				}),
+			}),
+		);
+
+		expect(read.summary).toBe("Kauft Europaletten, 620 Stück angefragt.");
+	});
+
+	it("says nothing when no memory is stored", () => {
+		expect(attentionOf(facts()).summary).toBeNull();
+		expect(attentionOf(facts({ candidate: null })).summary).toBeNull();
+	});
+
+	it("treats a blank memory as no memory", () => {
+		const read = attentionOf(
+			facts({
+				candidate: candidate({
+					memory: { ...candidate().memory, summary: "  " },
+				}),
+			}),
+		);
+
+		expect(read.summary).toBeNull();
+	});
+});
+
 describe("the block answers what to do about this person", () => {
 	it("says you wait on them when your offer is out and nobody answered", () => {
 		expect(attentionOf(facts()).kind).toBe("waiting");

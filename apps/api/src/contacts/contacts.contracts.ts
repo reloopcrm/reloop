@@ -392,6 +392,7 @@ const attentionField = z.discriminatedUnion("key", [
 export const contactAttentionOutput = z.object({
 	kind: z.enum(ATTENTION_KINDS),
 	name: z.string().nullable(),
+	summary: z.string().nullable(),
 	quietDays: z.number(),
 	emails: z.number(),
 	firstContactAt: z.string().nullable(),

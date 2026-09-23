@@ -41,7 +41,7 @@ import {
 	emailPreview,
 	flatPreview,
 } from "@crm/ui/lib/email-text";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -196,6 +196,7 @@ export function TimelineEntry({
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
+	const me = useQuery(trpc.users.me.queryOptions());
 
 	const complete = useMutation(
 		trpc.activities.complete.mutationOptions({
@@ -297,7 +298,9 @@ export function TimelineEntry({
 					? kind
 					: entry.meta?.agent || entry.meta?.source === "agent"
 						? t("Agent")
-						: entry.createdBy.name
+						: entry.createdBy.id === me.data?.id
+							? t("You")
+							: entry.createdBy.name
 			}
 			subject={subject}
 			preview={detail}

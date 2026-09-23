@@ -100,6 +100,7 @@ export type AttentionPoints = {
 export type ContactAttention = {
 	kind: AttentionKind;
 	name: string | null;
+	summary: string | null;
 	quietDays: number;
 	emails: number;
 	firstContactAt: string | null;
@@ -416,6 +417,7 @@ export function attentionOf(facts: AttentionFacts): ContactAttention {
 	return {
 		kind,
 		name: candidate ? personName(candidate.contact) : null,
+		summary: candidate?.memory.summary?.trim() || null,
 		quietDays: candidate?.quietDays ?? 0,
 		emails:
 			(candidate?.messagesFromThem ?? 0) + (candidate?.messagesFromUs ?? 0),

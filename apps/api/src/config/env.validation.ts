@@ -240,11 +240,21 @@ export class EnvironmentVariables {
 
 export type RawEnvironment = Record<string, string | undefined>;
 
+function withoutEmptyValues(config: RawEnvironment): RawEnvironment {
+	return Object.fromEntries(
+		Object.entries(config).filter(([, value]) => value?.trim() !== ""),
+	);
+}
+
 export function validateEnv(config: RawEnvironment): EnvironmentVariables {
-	const validated = plainToInstance(EnvironmentVariables, config, {
-		enableImplicitConversion: true,
-		exposeDefaultValues: true,
-	});
+	const validated = plainToInstance(
+		EnvironmentVariables,
+		withoutEmptyValues(config),
+		{
+			enableImplicitConversion: true,
+			exposeDefaultValues: true,
+		},
+	);
 
 	const errors = validateSync(validated, {
 		skipMissingProperties: false,

@@ -18,7 +18,7 @@ import {
 	readAgentProvider,
 	readingModelFor,
 } from "@crm/db/settings";
-import { currentTenant, isHosted } from "@crm/db/tenant-context";
+import { currentTenant, isHostedCustomer } from "@crm/db/tenant-context";
 import {
 	type LanguageModel,
 	type LanguageModelMiddleware,
@@ -156,7 +156,7 @@ export function openrouterKeyOf(
 	env: NodeJS.ProcessEnv = process.env,
 ): string | null {
 	const stored = openKey(setting.openrouterKey);
-	if (stored || isHosted()) return stored;
+	if (stored || isHostedCustomer()) return stored;
 	return env.OPENROUTER_API_KEY?.trim() || null;
 }
 

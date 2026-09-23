@@ -2,7 +2,7 @@ import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { isHosted } from "@crm/db/tenant-context";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { isMarketing } from "@/lib/env";
+import { isMarketing, isMarketingHost } from "@/lib/env";
 import {
 	landingMarkdown,
 	markdownHeaders,
@@ -15,6 +15,7 @@ import {
 	readWorkspaceGate,
 } from "@/lib/onboarding";
 import { PROXY } from "@/lib/proxy-config";
+import { cloudUrl } from "@/lib/site-links";
 import { workspaceUrl } from "@/lib/workspace-url";
 
 export const ANONYMOUS_PATHS = PROXY.anonymous;
@@ -24,23 +25,27 @@ export const MARKETING_PATHS = PROXY.marketing;
 export async function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 	const markdown = prefersMarkdown(request.headers.get("accept"));
+	const marketingHost = isMarketingHost(requestHost(request));
+	const marketing = isMarketing() || marketingHost;
 
-	if (markdown && pathname === PROXY.path.landing && isMarketing()) {
+	if (markdown && pathname === PROXY.path.landing && marketing) {
 		return new NextResponse(landingMarkdown(), {
 			headers: markdownHeaders(),
 		});
 	}
 
+	if (marketingHost) return marketingSite(request, markdown);
+
 	if (pathname === PROXY.path.signIn) return NextResponse.next();
 
-	if (isAnonymous(pathname)) return NextResponse.next();
+	if (isAnonymous(pathname, marketing)) return NextResponse.next();
 
 	if (
 		getSessionCookie(request, { cookiePrefix: AUTH_COOKIE_PREFIX }) === null
 	) {
-		if (isPublic(pathname)) return varyOnAccept(NextResponse.next());
+		if (isPublic(pathname, marketing)) return varyOnAccept(NextResponse.next());
 
-		if (!isAppShaped(pathname)) return notFound(request, markdown);
+		if (!isAppShaped(pathname, marketing)) return notFound(request, markdown);
 
 		return NextResponse.redirect(new URL(PROXY.path.signIn, request.nextUrl));
 	}
@@ -58,6 +63,37 @@ export async function proxy(request: NextRequest) {
 	}
 
 	return sendTo(appPath(pathname, workspace.slug), request);
+}
+
+function requestHost(request: NextRequest): string | null {
+	return (
+		request.headers.get("x-forwarded-host") ??
+		request.headers.get("host") ??
+		request.nextUrl.host
+	);
+}
+
+function marketingSite(request: NextRequest, markdown: boolean): NextResponse {
+	const { pathname, search } = request.nextUrl;
+	const cloud = cloudUrl();
+	const toCloud = () =>
+		cloud
+			? NextResponse.redirect(new URL(`${pathname}${search}`, cloud))
+			: null;
+
+	if (PROXY.cloudOnly.some((path) => isUnder(pathname, path))) {
+		return toCloud() ?? NextResponse.next();
+	}
+
+	if (pathname === PROXY.path.landing || isAnonymous(pathname, true)) {
+		return varyOnAccept(NextResponse.next());
+	}
+
+	if (isAppShaped(pathname, true)) {
+		return toCloud() ?? notFound(request, markdown);
+	}
+
+	return notFound(request, markdown);
 }
 
 function notFound(request: NextRequest, markdown: boolean): NextResponse {
@@ -101,8 +137,8 @@ function isUnder(pathname: string, prefix: string): boolean {
 	return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function isPublic(pathname: string): boolean {
-	return pathname === PROXY.path.landing && isMarketing();
+function isPublic(pathname: string, marketing: boolean): boolean {
+	return pathname === PROXY.path.landing && marketing;
 }
 
 function isUngated(pathname: string): boolean {
@@ -113,9 +149,9 @@ function isSection(pathname: string): boolean {
 	return PROXY.sections.some((section) => isUnder(pathname, section));
 }
 
-function isMarketingPath(pathname: string): boolean {
+function isMarketingPath(pathname: string, marketing: boolean): boolean {
 	if (
-		isMarketing() &&
+		marketing &&
 		PROXY.marketing.some((prefix) => isUnder(pathname, prefix))
 	) {
 		return true;
@@ -124,18 +160,18 @@ function isMarketingPath(pathname: string): boolean {
 	return isHosted() && PROXY.hosted.some((prefix) => isUnder(pathname, prefix));
 }
 
-function isAnonymous(pathname: string): boolean {
+function isAnonymous(pathname: string, marketing: boolean): boolean {
 	if (PROXY.anonymous.some((prefix) => isUnder(pathname, prefix))) return true;
 
-	return isMarketingPath(pathname);
+	return isMarketingPath(pathname, marketing);
 }
 
-function isAppShaped(pathname: string): boolean {
+function isAppShaped(pathname: string, marketing: boolean): boolean {
 	if (pathname === PROXY.path.landing) return true;
 
 	if (isSetup(pathname) || isUngated(pathname)) return true;
 
-	if (isMarketingPath(pathname)) return true;
+	if (isMarketingPath(pathname, marketing)) return true;
 
 	if (isSection(pathname)) return true;
 

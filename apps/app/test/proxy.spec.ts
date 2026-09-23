@@ -18,12 +18,38 @@ const realFetch = globalThis.fetch;
 
 const realMarketing = process.env.IS_MARKETING;
 
+const realHosts = process.env.RELOOP_MARKETING_HOST;
+
+const realCloud = process.env.RELOOP_CLOUD_URL;
+
+const CLOUD = "https://app.reloopcrm.com";
+
 afterEach(() => {
 	globalThis.fetch = realFetch;
 
-	if (realMarketing === undefined) delete process.env.IS_MARKETING;
-	else process.env.IS_MARKETING = realMarketing;
+	restore("IS_MARKETING", realMarketing);
+	restore("RELOOP_MARKETING_HOST", realHosts);
+	restore("RELOOP_CLOUD_URL", realCloud);
 });
+
+function restore(name: string, value: string | undefined) {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
+
+function marketingHost(cloud: string | null = CLOUD) {
+	delete process.env.IS_MARKETING;
+	process.env.RELOOP_MARKETING_HOST = "reloopcrm.com, www.reloopcrm.com";
+	restore("RELOOP_CLOUD_URL", cloud ?? undefined);
+}
+
+function onHost(host: string, pathname: string, cookie?: string) {
+	const headers = new Headers({ accept: BROWSER_ACCEPT, host });
+
+	if (cookie) headers.set("cookie", cookie);
+
+	return new NextRequest(new URL(pathname, `https://${host}`), { headers });
+}
 
 function marketing(on: boolean) {
 	if (on) process.env.IS_MARKETING = "true";
@@ -256,5 +282,90 @@ describe("a signed in rep", () => {
 		);
 
 		expect(response.headers.get("x-middleware-next")).toBe("1");
+	});
+});
+
+describe("the marketing host of the cloud", () => {
+	it("serves the landing page and the marketing pages to a stranger", async () => {
+		marketingHost();
+
+		for (const host of ["reloopcrm.com", "www.reloopcrm.com:443"]) {
+			for (const path of ["/", "/pricing", "/about", "/docs", "/llms.txt"]) {
+				const response = await proxy(onHost(host, path));
+
+				expect(response.headers.get("x-middleware-next"), path).toBe("1");
+				expect(locationOf(response), path).toBeNull();
+			}
+		}
+	});
+
+	it("answers the landing page in Markdown", async () => {
+		marketingHost();
+
+		const request = new NextRequest(new URL("/", ORIGIN), {
+			headers: { accept: MARKDOWN_ACCEPT, host: "reloopcrm.com" },
+		});
+		const response = await proxy(request);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toContain("# Reloop CRM");
+	});
+
+	it("sends sign-in and get-started to the cloud with the query", async () => {
+		marketingHost();
+
+		const signIn = await proxy(onHost("reloopcrm.com", "/sign-in"));
+		expect(signIn.headers.get("location")).toBe(`${CLOUD}/sign-in`);
+
+		const start = await proxy(
+			onHost("reloopcrm.com", "/get-started?plan=start"),
+		);
+		expect(start.headers.get("location")).toBe(
+			`${CLOUD}/get-started?plan=start`,
+		);
+	});
+
+	it("sends a signed in rep's app link to the cloud, never to a workspace", async () => {
+		marketingHost();
+		answerWorkspace();
+
+		const response = await proxy(
+			onHost("reloopcrm.com", "/companies", SESSION_COOKIE),
+		);
+
+		expect(response.headers.get("location")).toBe(`${CLOUD}/companies`);
+	});
+
+	it("answers 404 on a page nobody serves", async () => {
+		marketingHost();
+
+		const response = await proxy(onHost("reloopcrm.com", "/no/such-page"));
+
+		expect(response.status).toBe(404);
+		expect(rewriteOf(response)).toBe("/_not-found");
+	});
+
+	it("lets sign-in render when no cloud address is set", async () => {
+		marketingHost(null);
+
+		const response = await proxy(onHost("reloopcrm.com", "/sign-in"));
+
+		expect(response.headers.get("x-middleware-next")).toBe("1");
+	});
+
+	it("changes nothing on the cloud host itself", async () => {
+		marketingHost();
+
+		expect(locationOf(await proxy(onHost("app.reloopcrm.com", "/")))).toBe(
+			"/sign-in",
+		);
+		expect((await proxy(onHost("app.reloopcrm.com", "/about"))).status).toBe(
+			404,
+		);
+		expect(
+			(await proxy(onHost("app.reloopcrm.com", "/sign-in"))).headers.get(
+				"x-middleware-next",
+			),
+		).toBe("1");
 	});
 });

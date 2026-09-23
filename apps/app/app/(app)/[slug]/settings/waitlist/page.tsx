@@ -29,6 +29,7 @@ import { isMarketing } from "@/lib/env";
 import { dateFormat } from "@/lib/i18n/format";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";
+import { operatorTenant } from "@/lib/tenant";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -62,7 +63,7 @@ export default async function WaitlistSettingsPage() {
 }
 
 async function Signups() {
-	if (!isMarketing()) notFound();
+	if (!isMarketing() && !(await operatorTenant())) notFound();
 
 	const session = await requireSession();
 	if ((await workspaceRole(session.user.id)) !== "owner") notFound();

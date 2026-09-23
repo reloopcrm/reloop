@@ -1,6 +1,7 @@
 x-tenancy-env: &tenancy-env
   RELOOP_REGISTRY_URL: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/reloop_registry
   RELOOP_TENANT_DATABASE_URL_TEMPLATE: postgresql://reloop:${POSTGRES_PASSWORD}@postgres:5432/{db}
+  RELOOP_OPERATOR_TENANT: ${RELOOP_OPERATOR_TENANT:-}
 
 services:
   migrate:
@@ -37,6 +38,7 @@ services:
       <<: *tenancy-env
       RELOOP_PLANS: "true"
       RELOOP_MANAGED: "true"
+      RELOOP_MARKETING_HOST: ${RELOOP_MARKETING_HOST:-}
 
   agent:
     environment:

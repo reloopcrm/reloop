@@ -1,5 +1,4 @@
 import { isWorkspaceAdmin } from "@crm/auth";
-import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
@@ -13,6 +12,7 @@ import {
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";
+import { hostedCustomer } from "@/lib/tenant";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AgentProvider } from "./agent-model";
@@ -22,12 +22,12 @@ import { Usage } from "./usage";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
-	return { title: isHosted() ? t("Usage") : t("AI") };
+	return { title: (await hostedCustomer()) ? t("Usage") : t("AI") };
 }
 
 export default async function AiSettingsPage() {
 	const t = await getT();
-	const hosted = isHosted();
+	const hosted = await hostedCustomer();
 
 	return (
 		<PageShell>

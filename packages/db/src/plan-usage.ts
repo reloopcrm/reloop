@@ -12,20 +12,20 @@ import {
 	withAddOns,
 } from "./plans";
 import { readPlan } from "./settings";
-import { currentTenant, isHosted } from "./tenant-context";
+import { currentTenant, isHostedCustomer } from "./tenant-context";
 
 export async function planIdOf(db: Db): Promise<string | null> {
 	const stored = await readPlan(db);
 	if (stored) return stored;
-	return isHosted() ? currentTenant().plan : null;
+	return isHostedCustomer() ? currentTenant().plan : null;
 }
 
 export function fixedAiFor(plan: string | null | undefined): boolean {
-	return isHosted() && limitsOf(plan).aiIncluded;
+	return isHostedCustomer() && limitsOf(plan).aiIncluded;
 }
 
 export function addOnsOf(): AddOnQuantities {
-	return isHosted() ? currentTenant().billing.addOns : NO_ADD_ONS;
+	return isHostedCustomer() ? currentTenant().billing.addOns : NO_ADD_ONS;
 }
 
 export async function planLimitsOf(db: Db): Promise<PlanLimits> {

@@ -1,6 +1,10 @@
 import { readTenantCookie, TENANT_COOKIE_NAME } from "@crm/auth";
 import { type Tenant, tenantById } from "@crm/db/tenancy";
-import { isHosted, runAsTenant } from "@crm/db/tenant-context";
+import {
+	isHosted,
+	isOperatorTenantId,
+	runAsTenant,
+} from "@crm/db/tenant-context";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
@@ -25,3 +29,12 @@ export async function inTenant<T>(fn: () => Promise<T>): Promise<T | null> {
 	const tenant = await requestTenant();
 	return tenant ? runAsTenant(tenant, fn) : null;
 }
+
+export const operatorTenant = cache(async (): Promise<boolean> => {
+	if (!isHosted()) return false;
+	return isOperatorTenantId((await requestTenant())?.id);
+});
+
+export const hostedCustomer = cache(async (): Promise<boolean> => {
+	return isHosted() && !(await operatorTenant());
+});

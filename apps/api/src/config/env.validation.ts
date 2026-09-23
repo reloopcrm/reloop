@@ -72,6 +72,14 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
+	@Matches(/^[a-z0-9][a-z0-9-]{1,62}$/, {
+		message:
+			"RELOOP_OPERATOR_TENANT is a tenant id: lower case letters, digits and dashes.",
+	})
+	RELOOP_OPERATOR_TENANT?: string;
+
+	@IsOptional()
+	@IsString()
 	RESEND_API_KEY?: string;
 
 	@IsOptional()

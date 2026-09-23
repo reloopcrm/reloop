@@ -66,6 +66,23 @@ export function currentTenantId(): string | null {
 	return isHosted() ? currentTenant().id : null;
 }
 
+export function operatorTenantId(): string | null {
+	return process.env.RELOOP_OPERATOR_TENANT?.trim() || null;
+}
+
+export function isOperatorTenantId(id: string | null | undefined): boolean {
+	const operator = operatorTenantId();
+	return operator !== null && id === operator;
+}
+
+export function isOperatorTenant(): boolean {
+	return isHosted() && isOperatorTenantId(storage.getStore()?.id);
+}
+
+export function isHostedCustomer(): boolean {
+	return isHosted() && !isOperatorTenant();
+}
+
 export function tenantScopedKey(key: string): string {
 	const tenantId = currentTenantId();
 	return tenantId ? `${tenantId}:${key}` : key;

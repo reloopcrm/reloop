@@ -1,10 +1,10 @@
-import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { requireMailboxAccess } from "@/lib/session";
+import { hostedCustomer } from "@/lib/tenant";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { aiStepFor } from "./ai-config";
 import { AiForm } from "./ai-form";
@@ -19,7 +19,7 @@ export const instant = false;
 export default async function AiSetupPage() {
 	await requireMailboxAccess();
 
-	const hosted = isHosted();
+	const hosted = await hostedCustomer();
 	const fixed = hosted
 		? (
 				await getServerQueryClient().fetchQuery(

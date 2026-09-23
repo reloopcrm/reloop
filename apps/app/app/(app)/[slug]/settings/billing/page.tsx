@@ -1,5 +1,4 @@
 import { isWorkspaceAdmin } from "@crm/auth";
-import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -14,6 +13,7 @@ import {
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";
+import { hostedCustomer } from "@/lib/tenant";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { Billing } from "./billing";
@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function BillingSettingsPage({
 	searchParams,
 }: PageProps<"/[slug]/settings/billing">) {
-	if (!isHosted()) notFound();
+	if (!(await hostedCustomer())) notFound();
 	const t = await getT();
 	const params = await searchParams;
 	const checkoutDone = params[CHECKOUT_PARAM] === "success";

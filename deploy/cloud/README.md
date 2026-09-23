@@ -69,10 +69,11 @@ The daily sweep runs in-process in production, and also on
 - Suspended for 30 days: the database is dumped, dropped, and the registry rows
   are deleted.
 
-The `api` image has no `pg_dump`. The sweep therefore uses the newest nightly
-dump of that tenant in `/backups` when it is younger than 36 hours. Without such
-a dump the tenant is kept and an error is logged. Keep the nightly backup
-running and deletion works on its own.
+The `api` image carries the Debian `postgresql-client` (version 15) for `psql`.
+Its `pg_dump` refuses the Postgres 17 server, so the sweep uses the newest
+nightly dump of that tenant in `/backups` when it is younger than 36 hours.
+Without such a dump the tenant is kept and an error is logged. Keep the nightly
+backup running and deletion works on its own.
 
 ## Nightly backup
 
@@ -118,3 +119,96 @@ docker compose exec api sh -c 'cd /app/apps/api && bun scripts/tenant.ts delete 
 `create` without `--active` leaves the tenant `pending` until the first
 sign-in. `delete` dumps first (`RELOOP_BACKUP_DIR`, or `--dump-dir`) and refuses
 without a dump.
+
+## Moving a single-tenant install into the Cloud as the operator tenant
+
+The operator's own install (one database, its own `BETTER_AUTH_SECRET`, the
+marketing site on `IS_MARKETING=true`) becomes one tenant of the Cloud, and the
+Cloud serves the marketing site from then on. Nothing is typed in again: the
+mailboxes, the stored keys and the ChatGPT login come along. Sessions do not:
+everyone signs in again. API keys keep their hash but carry no tenant prefix,
+so they are created again in Settings. Stored OAuth app secrets are re-sealed
+but not read on the Cloud; the Cloud's own env pairs apply.
+
+Placeholders below: `<old>` is the old stack's folder, `<cloud>` the Cloud's,
+`<tenant>` the tenant id (for example `reloop`), `<slug>` the workspace slug.
+Both compose files carry `name: reloop`: on one host the two stacks only
+coexist when one of them runs under another project name (`-p`), or their
+volumes collide. On two hosts, `scp` the dump to the Cloud host first.
+
+1. **Dump the old database**, plain SQL, from the old stack:
+
+   ```sh
+   cd <old>/deploy
+   docker compose exec -T postgres pg_dump -U reloop -d reloop --format=plain --no-owner --no-privileges > /root/reloop-single.sql
+   ```
+
+2. **Copy the dump and the old secret into the Cloud's api container.** The old
+   secret goes through the environment, never a flag, never a log:
+
+   ```sh
+   cd <cloud>/deploy
+   docker compose -f docker-compose.yml -f cloud/docker-compose.cloud.yml cp /root/reloop-single.sql api:/tmp/reloop-single.sql
+   export IMPORT_OLD_SECRET="$(grep ^BETTER_AUTH_SECRET= <old>/deploy/.env | cut -d= -f2- | tr -d '"')"
+   ```
+
+3. **Dry run.** Everything happens in `crm_<tenant>_dryrun_test`: restore, the
+   Cloud's migrations, the re-sealing of every secret with the Cloud's
+   `BETTER_AUTH_SECRET`, the report, then the database is dropped. Read the
+   report: every `imapAccount.secret` must say `ok`, and a `failed` line names a
+   value the owner enters again after the move.
+
+   ```sh
+   docker compose -f docker-compose.yml -f cloud/docker-compose.cloud.yml exec -e IMPORT_OLD_SECRET api sh -c 'cd /app/apps/api && bun scripts/import-single-tenant.ts --dump /tmp/reloop-single.sql --tenant <tenant> --slug <slug> --sign-in owner@example.com,example.com --dry-run'
+   ```
+
+4. **Real run.** Same command without `--dry-run`. It refuses when the tenant or
+   the database already exists. On success the tenant is `active` with plan
+   `none`, the sign-in addresses (plus the addresses granted in the old
+   install) are registered, and the old tracking site id is registered too.
+
+5. **Name the operator tenant and the marketing host** in `<cloud>/deploy/.env`,
+   then restart the stack:
+
+   ```
+   RELOOP_OPERATOR_TENANT="<tenant>"
+   RELOOP_MARKETING_HOST="reloopcrm.com,www.reloopcrm.com"
+   RELOOP_SITE_URL="https://reloopcrm.com"
+   RELOOP_CLOUD_URL="https://app.reloopcrm.com"
+   ```
+
+   ```sh
+   docker compose -f docker-compose.yml -f cloud/docker-compose.cloud.yml up -d
+   ```
+
+6. **Copy the Codex login** (the ChatGPT subscription) from the old agent's
+   `CODEX_HOME` volume into the Cloud agent's. Find both names with
+   `docker volume ls` (they end in `_codex`), then:
+
+   ```sh
+   docker run --rm -v <old-codex-volume>:/from:ro -v <cloud-codex-volume>:/to alpine sh -c 'cp -a /from/. /to/ && chown -R 1000:1000 /to'
+   docker compose -f docker-compose.yml -f cloud/docker-compose.cloud.yml restart agent
+   ```
+
+   Across two hosts, pipe a tar through ssh instead:
+
+   ```sh
+   docker run --rm -v <old-codex-volume>:/from:ro alpine tar cf - -C /from . | ssh <cloud-host> docker run --rm -i -v <cloud-codex-volume>:/to alpine sh -c 'tar xf - -C /to && chown -R 1000:1000 /to'
+   ```
+
+7. **Point the marketing domain at the Cloud app.** In the Cloud's Caddyfile,
+   add `reloopcrm.com` and `www.reloopcrm.com` as site addresses with the same
+   block as `app.reloopcrm.com`, including every `handle` or `reverse_proxy`
+   line that sends `/api/*` to `api:3001`: the tracking script on the public
+   site posts to the collector through the marketing host. Reload Caddy, then
+   move the DNS records. The Cloud app answers the marketing pages on those
+   hosts and sends sign-in to `app.reloopcrm.com`.
+
+8. **Stop the old stack, keep it.** `docker compose stop` in `<old>/deploy`,
+   not `down -v`. The old database and volumes stay as the fallback until the
+   move has proven itself: to fall back, point the domain at the old server again
+   and `docker compose start`.
+
+9. **Sign in** at `app.reloopcrm.com` with the owner's address, check Settings >
+   Connections (the five mailboxes), Settings > AI (the ChatGPT login and the
+   keys), and create the API keys again.

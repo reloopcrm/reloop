@@ -5,7 +5,6 @@ import {
 	notFoundMarkdown,
 	prefersMarkdown,
 } from "../lib/markdown-negotiation";
-import { PROXY } from "../lib/proxy-config";
 import { proxy } from "../proxy";
 
 const BROWSER_ACCEPT =
@@ -142,7 +141,7 @@ describe("an unknown path", () => {
 		const response = await proxy(request("/no/such/path", BROWSER_ACCEPT));
 
 		expect(response.headers.get("x-middleware-rewrite")).toContain(
-			PROXY.path.notFound,
+			"/_not-found",
 		);
 		expect(varyOf(response)).toContain("Accept");
 	});
@@ -163,7 +162,7 @@ describe("an unknown path", () => {
 		expect(response.status).toBe(404);
 		expect(response.headers.get("location")).toBeNull();
 		expect(response.headers.get("x-middleware-rewrite")).toContain(
-			PROXY.path.notFound,
+			"/_not-found",
 		);
 	});
 });

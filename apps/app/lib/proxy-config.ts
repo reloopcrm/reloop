@@ -2,7 +2,7 @@ export const PROXY = {
 	path: {
 		landing: "/",
 		signIn: "/sign-in",
-		notFound: "/not-found",
+		notFound: "/_not-found",
 	},
 	anonymous: [
 		"/t",

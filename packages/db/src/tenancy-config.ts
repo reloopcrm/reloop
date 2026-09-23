@@ -1,7 +1,7 @@
 const SECOND_MS = 1_000;
 const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
+export const DAY_MS = 24 * HOUR_MS;
 
 export const TENANCY = {
 	pool: { api: 4, app: 2, agent: 4 },
@@ -14,7 +14,11 @@ export const TENANCY = {
 		pendingTtlMs: 48 * HOUR_MS,
 		rate: { windowMs: MINUTE_MS, perAddress: 5, perIp: 20 },
 	},
-	trial: { suspendedTtlMs: 30 * DAY_MS, sweepEveryMs: DAY_MS },
+	trial: {
+		suspendedTtlMs: 30 * DAY_MS,
+		sweepEveryMs: DAY_MS,
+		checkoutLeadMs: 2 * DAY_MS,
+	},
 	billing: { graceMs: 7 * DAY_MS },
 	backup: { dumpTimeoutMs: 30 * MINUTE_MS, recentDumpMs: 36 * HOUR_MS },
 	operator: { plan: "none" },

@@ -43,6 +43,9 @@ semantics, not by look: `Tabs` switches content, `ToggleGroup` switches a value.
 `TabsList variant="line"` is the other tab: 40px tall text with a 2px lime
 underline under the active item, for the tabs of a record sheet. Those two are the
 only places lime appears without being a button.
+`ToggleGroup variant="quiet"` fills the active segment with `--muted` instead.
+It is for a form that asks several questions on one screen, where lime would mark
+every answer and leave nothing for the one action.
 
 Inputs and select triggers are 36px pills with 14px of inline padding, `--card`
 fill, `--input` hairline, `--faint-foreground` placeholder, no inset shadow.

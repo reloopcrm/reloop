@@ -1,9 +1,14 @@
 import Script from "next/script";
+import type * as React from "react";
 import { getT } from "@/lib/i18n/server";
 import { Band, type Tone } from "./page-blocks";
 import { SectionHeading } from "./section-heading";
 
-export type FaqItem = { question: string; answer: string };
+export type FaqItem = {
+	question: string;
+	answer: string;
+	detail?: React.ReactNode;
+};
 
 function faqEntry(items: readonly FaqItem[]) {
 	return {
@@ -42,7 +47,10 @@ export async function Faq({
 						<dt className="text-balance font-semibold text-foreground text-xl">
 							{item.question}
 						</dt>
-						<dd className="text-body-foreground text-base/7">{item.answer}</dd>
+						<dd className="flex flex-col gap-4 text-body-foreground text-base/7">
+							{item.answer}
+							{item.detail}
+						</dd>
 					</div>
 				))}
 			</dl>

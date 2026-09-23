@@ -1,8 +1,13 @@
 import { isWorkspaceAdmin } from "@crm/auth";
+import { canonicalPlanId, nextMonthStart } from "@crm/db/plans";
+import { Button } from "@crm/ui/components/button";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
+import { LocalDateTime } from "@/components/local-date-time";
 import {
 	PageShell,
+	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
 	PageShellHeader,
@@ -12,22 +17,29 @@ import {
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";
-import { hostedCustomer } from "@/lib/tenant";
+import { hostedCustomer, requestTenant } from "@/lib/tenant";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceUrl } from "@/lib/workspace-url";
 import { AgentProvider } from "./agent-model";
 import { Spend } from "./spend";
 import { Typesafe } from "./typesafe";
 import { Usage } from "./usage";
+import { UsageAddOns } from "./usage-add-ons";
+
+const BILLING_PATH = "/settings/billing";
+const LONG_DAY = { dateStyle: "long" } as const;
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
 	return { title: (await hostedCustomer()) ? t("Usage") : t("AI") };
 }
 
-export default async function AiSettingsPage() {
+export default async function AiSettingsPage({
+	params,
+}: PageProps<"/[slug]/settings/ai">) {
 	const t = await getT();
-	const hosted = await hostedCustomer();
+	const [hosted, { slug }] = await Promise.all([hostedCustomer(), params]);
 
 	return (
 		<PageShell>
@@ -35,29 +47,70 @@ export default async function AiSettingsPage() {
 				<PageShellHeading>
 					<PageShellTitle>{hosted ? t("Usage") : t("AI")}</PageShellTitle>
 					<PageShellDescription>
-						{hosted
-							? t(
-									"What your workspace used this month, and where the limits of your plan are.",
-								)
-							: t(
-									"The model the agent thinks with, what it costs, and what makes it cheaper.",
-								)}
+						{hosted ? (
+							<>
+								{t("What you used this month. The counters reset on")}{" "}
+								<LocalDateTime
+									date={nextMonthStart().toISOString()}
+									options={LONG_DAY}
+								/>
+								.
+							</>
+						) : (
+							t(
+								"The model the agent thinks with, what it costs, and what makes it cheaper.",
+							)
+						)}
 					</PageShellDescription>
 				</PageShellHeading>
+				{hosted ? (
+					<Suspense fallback={null}>
+						<ChoosePlan slug={slug} />
+					</Suspense>
+				) : null}
 			</PageShellHeader>
 
 			<PageShellContent>
 				<Suspense fallback={<PageShellLoading />}>
-					<Ai hosted={hosted} />
+					<Ai hosted={hosted} slug={slug} />
 				</Suspense>
 			</PageShellContent>
 		</PageShell>
 	);
 }
 
-async function Ai({ hosted }: { hosted: boolean }) {
-	const session = await requireSession();
-	const canManage = isWorkspaceAdmin(await workspaceRole(session.user.id));
+async function audience() {
+	const [session, tenant] = await Promise.all([
+		requireSession(),
+		requestTenant(),
+	]);
+	const admin = isWorkspaceAdmin(await workspaceRole(session.user.id));
+	const trial = canonicalPlanId(tenant?.plan) === "trial";
+	return {
+		admin,
+		trial,
+		trialEndsAt: trial ? (tenant?.trialEndsAt?.toISOString() ?? null) : null,
+	};
+}
+
+async function ChoosePlan({ slug }: { slug: string }) {
+	const t = await getT();
+	const { admin, trial } = await audience();
+	if (!admin || !trial) return null;
+
+	return (
+		<PageShellActions>
+			<Button asChild>
+				<Link href={workspaceUrl(slug, BILLING_PATH)}>
+					{t("Choose a plan")}
+				</Link>
+			</Button>
+		</PageShellActions>
+	);
+}
+
+async function Ai({ hosted, slug }: { hosted: boolean; slug: string }) {
+	const { admin, trialEndsAt } = await audience();
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
@@ -67,19 +120,30 @@ async function Ai({ hosted }: { hosted: boolean }) {
 	);
 
 	const usageCard = hosted ? (
-		<Usage
-			label={usage.label}
-			capacity={usage.capacity.map((line) => ({
-				...line,
-				included: true,
-				reached: line.limit !== null && line.used >= line.limit,
-			}))}
-			lines={usage.lines}
-		/>
+		<>
+			<Usage
+				label={usage.label}
+				capacity={usage.capacity.map((line) => ({
+					...line,
+					included: true,
+					reached: line.limit !== null && line.used >= line.limit,
+				}))}
+				lines={usage.lines}
+				plan={{
+					trialEndsAt,
+					billingHref: admin ? workspaceUrl(slug, BILLING_PATH) : null,
+				}}
+			/>
+			{admin ? <UsageAddOns /> : null}
+		</>
 	) : null;
 
 	if (usage.fixed) {
-		return <div className="flex max-w-3xl flex-col gap-6">{usageCard}</div>;
+		return (
+			<HydrateClient>
+				<div className="flex max-w-3xl flex-col gap-8">{usageCard}</div>
+			</HydrateClient>
+		);
 	}
 
 	await Promise.all([
@@ -90,9 +154,9 @@ async function Ai({ hosted }: { hosted: boolean }) {
 
 	return (
 		<HydrateClient>
-			<div className="flex max-w-3xl flex-col gap-6">
+			<div className="flex max-w-3xl flex-col gap-8">
 				{usageCard}
-				<fieldset disabled={!canManage} className="contents">
+				<fieldset disabled={!admin} className="contents">
 					<AgentProvider chatgpt={!hosted} />
 				</fieldset>
 				<Spend />

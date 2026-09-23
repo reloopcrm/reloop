@@ -39,7 +39,9 @@ export default async function BillingSettingsPage({
 				<PageShellHeading>
 					<PageShellTitle>{t("Plan & billing")}</PageShellTitle>
 					<PageShellDescription>
-						{t("Your plan, your add-ons, your invoices, and how you pay.")}
+						{t(
+							"One plan, one price, and what it includes. Add-ons live under Usage.",
+						)}
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
@@ -63,7 +65,7 @@ async function Owner({ checkoutDone }: { checkoutDone: boolean }) {
 
 	return (
 		<HydrateClient>
-			<div className="flex max-w-3xl flex-col gap-6">
+			<div className="flex max-w-3xl flex-1 flex-col gap-8">
 				<Billing checkoutDone={checkoutDone} />
 			</div>
 		</HydrateClient>

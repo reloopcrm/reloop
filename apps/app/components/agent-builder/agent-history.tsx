@@ -17,6 +17,13 @@ import {
 } from "@crm/ui/components/alert-dialog";
 import { Button } from "@crm/ui/components/button";
 import { Icon } from "@crm/ui/components/icon";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@crm/ui/components/select";
 import { cn } from "@crm/ui/lib/utils";
 import { useState } from "react";
 import { z } from "zod";
@@ -95,22 +102,22 @@ export function AgentRuns({
 	return (
 		<div className="flex min-w-0 flex-col gap-4 sm:gap-6">
 			<div className="flex min-h-7 items-center justify-start sm:justify-end">
-				<select
-					value={outcome}
-					onChange={(event) => setOutcome(event.target.value)}
-					aria-label={t("Filter run outcomes")}
-					className="h-7 rounded-md border bg-muted px-2.5 font-medium text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-				>
-					<option value="ALL">{t("All outcomes")}</option>
-					<option value="SUCCEEDED">{t("Succeeded")}</option>
-					<option value="FAILED">{t("Failed")}</option>
-					<option value="RUNNING">{t("Running")}</option>
-					<option value="QUEUED">{t("Queued")}</option>
-					<option value="WAITING_FOR_APPROVAL">
-						{t("Waiting for approval")}
-					</option>
-					<option value="CANCELLED">{t("Cancelled")}</option>
-				</select>
+				<Select value={outcome} onValueChange={setOutcome}>
+					<SelectTrigger size="sm" aria-label={t("Filter run outcomes")}>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="ALL">{t("All outcomes")}</SelectItem>
+						<SelectItem value="SUCCEEDED">{t("Succeeded")}</SelectItem>
+						<SelectItem value="FAILED">{t("Failed")}</SelectItem>
+						<SelectItem value="RUNNING">{t("Running")}</SelectItem>
+						<SelectItem value="QUEUED">{t("Queued")}</SelectItem>
+						<SelectItem value="WAITING_FOR_APPROVAL">
+							{t("Waiting for approval")}
+						</SelectItem>
+						<SelectItem value="CANCELLED">{t("Cancelled")}</SelectItem>
+					</SelectContent>
+				</Select>
 			</div>
 
 			{visible.map((run) => (
@@ -340,7 +347,6 @@ function RunMeta({
 	value: string;
 	last?: boolean;
 }) {
-	const locale = useLocale();
 	return (
 		<span
 			className={cn(
@@ -365,16 +371,16 @@ export function AgentActivity({ activity }: { activity: Activity }) {
 	return (
 		<div className="flex min-w-0 flex-col gap-4 sm:gap-6">
 			<div className="flex min-h-7 flex-wrap items-center justify-start gap-2 sm:justify-end sm:gap-3">
-				<select
-					value={kind}
-					onChange={(event) => setKind(event.target.value)}
-					aria-label={t("Filter activity")}
-					className="h-7 rounded-md border bg-muted px-2.5 font-medium text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-				>
-					<option value="ALL">{t("All changes")}</option>
-					<option value="agent.">{t("Agent changes")}</option>
-					<option value="run.">{t("Run requests")}</option>
-				</select>
+				<Select value={kind} onValueChange={setKind}>
+					<SelectTrigger size="sm" aria-label={t("Filter activity")}>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="ALL">{t("All changes")}</SelectItem>
+						<SelectItem value="agent.">{t("Agent changes")}</SelectItem>
+						<SelectItem value="run.">{t("Run requests")}</SelectItem>
+					</SelectContent>
+				</Select>
 				<Button
 					variant="outline"
 					size="sm"

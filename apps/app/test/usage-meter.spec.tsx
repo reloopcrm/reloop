@@ -38,10 +38,25 @@ const LINES = [
 ] as const;
 
 function shownValue(markup: string, counter: string): string {
-	const match = new RegExp(`data-usage="${counter}"[^>]*>([^<]*)<`).exec(
+	const open = new RegExp(`<span[^>]*data-usage="${counter}"[^>]*>`).exec(
 		markup,
 	);
-	return match?.[1] ?? "";
+	if (!open) return "";
+	let depth = 1;
+	let text = "";
+	const tags = /<\/?span[^>]*>|[^<]+/g;
+	tags.lastIndex = open.index + open[0].length;
+	for (
+		let token = tags.exec(markup);
+		token && depth > 0;
+		token = tags.exec(markup)
+	) {
+		const piece = token[0];
+		if (piece.startsWith("</span")) depth -= 1;
+		else if (piece.startsWith("<span")) depth += 1;
+		else text += piece;
+	}
+	return text;
 }
 
 function toneOf(markup: string, label: string): string | null {

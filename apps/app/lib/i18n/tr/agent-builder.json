@@ -251,5 +251,8 @@
 	"Create one from a private chat, then review its access before deploying it.": "Özel bir sohbetten bir tane oluştur, sonra yayına almadan önce erişimini gözden geçir.",
 	"Open chat": "Sohbeti aç",
 	"{count} run": "{count} çalıştırma",
-	"{count} runs": "{count} çalıştırma"
+	"{count} runs": "{count} çalıştırma",
+	"Brief every deal owner before a renewal call": "Yenileme görüşmesinden önce her fırsat sahibini bilgilendir",
+	"Flag deals with no activity for 14 days": "14 gündür hareket olmayan fırsatları işaretle",
+	"Hand new customers from Sales to Onboarding": "Yeni müşterileri Satıştan Onboarding'e devret"
 }

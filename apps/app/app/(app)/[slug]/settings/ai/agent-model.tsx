@@ -18,6 +18,7 @@ import {
 } from "@crm/ui/components/field";
 import { Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
+import { Progress } from "@crm/ui/components/progress";
 import {
 	Select,
 	SelectContent,
@@ -175,14 +176,11 @@ function UsageBar({
 					) : null}
 				</span>
 			</div>
-			<div className="h-2 w-full overflow-hidden rounded-sm bg-muted">
-				<div
-					className={
-						value >= 100 ? "h-full bg-destructive" : "h-full bg-foreground"
-					}
-					style={{ width: `${value}%` }}
-				/>
-			</div>
+			<Progress
+				value={value}
+				tone={value >= 100 ? "destructive" : "default"}
+				aria-label={label}
+			/>
 		</div>
 	);
 }

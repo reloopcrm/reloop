@@ -22,7 +22,7 @@ export function AgentBuilderSidebarFallback() {
 	const t = useT();
 	return (
 		<aside
-			className="hidden w-[213px] flex-none flex-col border-r p-4 md:flex"
+			className="hidden w-(--container-sidebar) flex-none flex-col border-r p-4 md:flex"
 			aria-busy="true"
 		>
 			<div className="flex h-7 items-center pl-2 font-medium text-xs">

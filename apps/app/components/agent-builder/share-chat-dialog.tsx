@@ -189,7 +189,7 @@ export function ShareChatDialog({
 							/>
 
 							{shared === true ? (
-								<div className="flex h-9 items-center gap-3 rounded-md border bg-background py-[3px] pr-[3px] pl-4">
+								<div className="flex h-9 items-center gap-3 rounded-full border bg-card py-0.75 pr-0.75 pl-4">
 									<span className="min-w-0 flex-1 truncate font-mono text-xs">
 										{shareToken
 											? `${workspaceUrl(`/chat/${shareToken.slice(0, 12)}`)}…`
@@ -284,7 +284,7 @@ function ShareChoice({
 	return (
 		<label
 			className={cn(
-				"flex h-12 w-full cursor-pointer items-center gap-2.5 rounded-md border px-2.5 text-left outline-none focus-within:ring-2 focus-within:ring-ring/60",
+				"flex h-12 w-full cursor-pointer items-center gap-2.5 rounded-lg border px-3 text-left outline-none focus-within:ring-2 focus-within:ring-ring/60",
 				selected && "border-muted-foreground/60 bg-muted",
 				disabled && "cursor-not-allowed opacity-50",
 			)}

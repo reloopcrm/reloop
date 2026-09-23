@@ -38,7 +38,7 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
 type Overview = RouterOutputs["billing"]["overview"];
 type Interval = "month" | "year";
-type PlanOption = Overview["plans"][number];
+type PlanOption = RouterOutputs["billing"]["plans"]["plans"][number];
 type PlanId = PlanOption["id"];
 type Excess = PlanOption["over"][number];
 
@@ -348,17 +348,38 @@ function PlanPanel({
 	);
 }
 
-export function PlanPicker({
-	data,
-	interval: chosenInterval,
-	aiKeyHref,
-	onDone,
-}: {
+type PlanPickerProps = {
 	data: Overview;
 	interval?: Interval;
 	aiKeyHref: string | null;
 	onDone: () => void;
-}) {
+};
+
+export function PlanPicker(props: PlanPickerProps) {
+	const trpc = useTRPC();
+	const errorMessage = useErrorMessage();
+	const plans = useQuery({
+		...trpc.billing.plans.queryOptions(),
+		refetchOnMount: "always",
+	});
+
+	if (plans.error)
+		return (
+			<p className="text-2sm text-muted-foreground">
+				{errorMessage(plans.error.message)}
+			</p>
+		);
+	if (!plans.data) return <Spinner />;
+	return <PlanChoice {...props} options={plans.data.plans} />;
+}
+
+function PlanChoice({
+	data,
+	interval: chosenInterval,
+	aiKeyHref,
+	onDone,
+	options,
+}: PlanPickerProps & { options: PlanOption[] }) {
 	const t = useT();
 	const locale = useLocale();
 	const number = new Intl.NumberFormat(locale);
@@ -369,13 +390,9 @@ export function PlanPicker({
 	);
 	const interval = chosenInterval ?? ownInterval;
 	const [plan, setPlan] = useState<PlanId | null>(
-		data.plans.some(
-			(option) => option.id === data.plan && option.over.length === 0,
-		)
-			? (data.plan as PlanId)
-			: null,
+		options.find((option) => option.id === data.plan)?.id ?? null,
 	);
-	const chosenOption = data.plans.find((option) => option.id === plan) ?? null;
+	const chosenOption = options.find((option) => option.id === plan) ?? null;
 	const losesAi =
 		data.limits.aiIncluded && chosenOption !== null && !chosenOption.aiIncluded;
 
@@ -419,7 +436,7 @@ export function PlanPicker({
 			</p>
 
 			<ul className="flex flex-col" aria-label={t("Plans")}>
-				{data.plans.map((option) => {
+				{options.map((option) => {
 					const chosen = option.id === plan;
 					const blocked = option.over.length > 0;
 					return (

@@ -52,10 +52,11 @@ import type Stripe from "stripe";
 import { z } from "zod";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
-import { countMailboxes } from "../mailbox/sync-state.service";
+import { readCapacityUsage } from "../mailbox/sync-state.service";
 import { BILLING } from "./billing.config";
 import type {
 	BillingOverview,
+	BillingPlans,
 	BillingState,
 	CheckoutInput,
 	PortalInput,
@@ -159,9 +160,11 @@ export function checkoutTrialEnd(
 
 export function planChangeExcess(
 	plan: PaidPlanId,
+	current: string | null,
 	addOns: AddOnQuantities,
 	usage: CapacityUsage,
 ): CapacityExcess[] {
+	if (plan === canonicalPlanId(current)) return [];
 	return capacityExcess(usage, withAddOns(PLANS[plan], addOns));
 }
 
@@ -317,6 +320,7 @@ export class BillingService {
 			billing,
 		});
 		await runAsTenant(tenant, () => writePlan(this.db, plan));
+		if (state.plan) await this.warnBelowUsage(tenant, state.plan, state.addOns);
 		if (tenant.status === "suspended" && state.status === "active") {
 			await setTenantStatus(tenant.id, "active");
 		}
@@ -328,10 +332,7 @@ export class BillingService {
 		if (!isHostedCustomer()) return this.singleTenantOverview();
 
 		const tenant = await this.freshTenant();
-		const [limits, usage] = await Promise.all([
-			planLimitsOf(this.db),
-			this.capacityUsage(),
-		]);
+		const limits = await planLimitsOf(this.db);
 		const plan = canonicalPlanId(tenant.plan);
 		const interval = tenant.billing.interval;
 		const price =
@@ -357,8 +358,6 @@ export class BillingService {
 			deletionDays: Math.round(TENANCY.trial.suspendedTtlMs / DAY_MS),
 			addOns: tenant.billing.addOns,
 			limits: this.limitsSummary(limits),
-			usage,
-			plans: this.planCatalog(tenant.billing.addOns, usage),
 			addOnCatalog: this.addOnCatalog(),
 			paymentMethod: null,
 			address: null,
@@ -402,6 +401,30 @@ export class BillingService {
 		return overview;
 	}
 
+	async plans(userId: string): Promise<BillingPlans> {
+		await this.assertManager(userId);
+		const tenant = isHostedCustomer() ? await this.freshTenant() : null;
+		const usage = await readCapacityUsage(this.db);
+		const addOns = tenant?.billing.addOns ?? NO_ADD_ONS;
+		const current = tenant?.plan ?? null;
+		return {
+			plans: PAID_PLAN_IDS.map((id) => {
+				const limits = withAddOns(PLANS[id], addOns);
+				return {
+					id,
+					label: limits.label,
+					monthly: PRICING_EUR.plans[id].monthly,
+					yearly: PRICING_EUR.plans[id].yearly,
+					aiIncluded: limits.aiIncluded,
+					contacts: limits.contacts,
+					mailboxes: limits.mailboxes,
+					storageGb: limits.storageGb,
+					over: planChangeExcess(id, current, addOns, usage),
+				};
+			}),
+		};
+	}
+
 	async checkout(
 		userId: string,
 		input: CheckoutInput,
@@ -411,8 +434,9 @@ export class BillingService {
 		const tenant = await this.freshTenant();
 		const excess = planChangeExcess(
 			input.plan,
+			tenant.plan,
 			tenant.billing.addOns,
-			await this.capacityUsage(),
+			await readCapacityUsage(this.db),
 		);
 		if (excess.length > 0) {
 			throw new BadRequestException(
@@ -689,32 +713,32 @@ export class BillingService {
 		};
 	}
 
-	private async capacityUsage(): Promise<CapacityUsage> {
-		const [contacts, mailboxes] = await Promise.all([
-			this.db.contact.count(),
-			countMailboxes(this.db),
-		]);
-		return { contacts, mailboxes };
-	}
-
-	private planCatalog(
+	private async warnBelowUsage(
+		tenant: Tenant,
+		plan: PaidPlanId,
 		addOns: AddOnQuantities,
-		usage: CapacityUsage,
-	): BillingOverview["plans"] {
-		return PAID_PLAN_IDS.map((id) => {
-			const limits = withAddOns(PLANS[id], addOns);
-			return {
-				id,
-				label: limits.label,
-				monthly: PRICING_EUR.plans[id].monthly,
-				yearly: PRICING_EUR.plans[id].yearly,
-				aiIncluded: limits.aiIncluded,
-				contacts: limits.contacts,
-				mailboxes: limits.mailboxes,
-				storageGb: limits.storageGb,
-				over: planChangeExcess(id, addOns, usage),
-			};
-		});
+	): Promise<void> {
+		if (plan === canonicalPlanId(tenant.plan)) return;
+		try {
+			const usage = await runAsTenant(tenant, () => readCapacityUsage(this.db));
+			const excess = planChangeExcess(plan, null, addOns, usage);
+			if (excess.length === 0) return;
+			this.logger.warn({
+				message:
+					"Plan applied below current usage. New contacts or mailboxes fail until the workspace shrinks or upgrades.",
+				tenantId: tenant.id,
+				plan,
+				excess,
+			});
+		} catch (error) {
+			this.logger.error(
+				{
+					message: "Usage check after a plan change failed",
+					tenantId: tenant.id,
+				},
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
 	}
 
 	private addOnCatalog(): BillingOverview["addOnCatalog"] {
@@ -726,10 +750,7 @@ export class BillingService {
 	}
 
 	private async singleTenantOverview(): Promise<BillingOverview> {
-		const [limits, usage] = await Promise.all([
-			planLimitsOf(this.db),
-			this.capacityUsage(),
-		]);
+		const limits = await planLimitsOf(this.db);
 		return {
 			configured: false,
 			hosted: false,
@@ -748,8 +769,6 @@ export class BillingService {
 			deletionDays: Math.round(TENANCY.trial.suspendedTtlMs / DAY_MS),
 			addOns: { ...NO_ADD_ONS },
 			limits: this.limitsSummary(limits),
-			usage,
-			plans: this.planCatalog(NO_ADD_ONS, usage),
 			addOnCatalog: this.addOnCatalog(),
 			paymentMethod: null,
 			address: null,

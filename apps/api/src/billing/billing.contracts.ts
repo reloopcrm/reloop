@@ -42,26 +42,6 @@ export const billingOverviewOutput = z.object({
 		companyResearch: z.boolean(),
 		aiIncluded: z.boolean(),
 	}),
-	usage: z.object({ contacts: z.number(), mailboxes: z.number() }),
-	plans: z.array(
-		z.object({
-			id: z.enum(PAID_PLAN_IDS),
-			label: z.string(),
-			monthly: z.number(),
-			yearly: z.number(),
-			aiIncluded: z.boolean(),
-			contacts: z.number().nullable(),
-			mailboxes: z.number().nullable(),
-			storageGb: z.number().nullable(),
-			over: z.array(
-				z.object({
-					counter: z.enum(CAPACITY_COUNTERS),
-					used: z.number(),
-					limit: z.number(),
-				}),
-			),
-		}),
-	),
 	addOnCatalog: z.array(
 		z.object({
 			id: z.enum(ADD_ON_IDS),
@@ -98,6 +78,30 @@ export const billingOverviewOutput = z.object({
 });
 
 export type BillingOverview = z.infer<typeof billingOverviewOutput>;
+
+export const billingPlansOutput = z.object({
+	plans: z.array(
+		z.object({
+			id: z.enum(PAID_PLAN_IDS),
+			label: z.string(),
+			monthly: z.number(),
+			yearly: z.number(),
+			aiIncluded: z.boolean(),
+			contacts: z.number().nullable(),
+			mailboxes: z.number().nullable(),
+			storageGb: z.number().nullable(),
+			over: z.array(
+				z.object({
+					counter: z.enum(CAPACITY_COUNTERS),
+					used: z.number(),
+					limit: z.number(),
+				}),
+			),
+		}),
+	),
+});
+
+export type BillingPlans = z.infer<typeof billingPlansOutput>;
 
 export const checkoutInput = z.object({
 	plan: z.enum(PAID_PLAN_IDS),

@@ -19,6 +19,7 @@ import {
 } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants, registryQuery } from "@crm/db/test-tenants";
+import { Logger } from "@nestjs/common";
 import type Stripe from "stripe";
 import request from "supertest";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
@@ -429,6 +430,7 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		).mockImplementation((async () => ({
 			url: "https://checkout.stripe.test/cs_limit",
 		})) as never);
+		const warned = spyOn(Logger.prototype, "warn");
 		try {
 			expect(await runAsTenant(tenant, () => countMailboxes(db))).toBe(0);
 			await runAsTenant(tenant, () =>
@@ -443,21 +445,34 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			}
 			expect(listed).not.toHaveBeenCalled();
 
-			const overview = await runAsTenant(tenant, () =>
-				billing.overview(OWNER.id),
-			);
-			expect(overview.usage.mailboxes).toBe(3);
+			const options = await runAsTenant(tenant, () => billing.plans(OWNER.id));
 			expect(
-				overview.plans.find((option) => option.id === "hosting")?.over,
+				options.plans.find((option) => option.id === "hosting")?.over,
 			).toEqual([{ counter: "mailboxes", used: 3, limit: 2 }]);
 
 			const team = await runAsTenant(tenant, () =>
 				billing.checkout(OWNER.id, { plan: "team", interval: "month" }),
 			);
 			expect(team.url).toBe("https://checkout.stripe.test/cs_limit");
+
+			current = subscriptionFixture(a.id, {
+				items: { data: [item(planLookupKey("hosting", "month"))] },
+			});
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect((await tenantById(a.id))?.plan).toBe("hosting");
+			expect(
+				warned.mock.calls.some(([entry]) =>
+					JSON.stringify(entry).includes("Plan applied below current usage"),
+				),
+			).toBe(true);
 		} finally {
 			listed.mockRestore();
 			created.mockRestore();
+			warned.mockRestore();
+			current = subscriptionFixture(a.id);
+			await reset();
 			await runAsTenant(tenant, () =>
 				db.imapAccount.deleteMany({
 					where: { email: { in: mailboxes.map((row) => row.email) } },

@@ -80,7 +80,7 @@ import {
 } from "../agent/research-key.service";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
-import { countMailboxes } from "../mailbox/sync-state.service";
+import { readCapacityUsage } from "../mailbox/sync-state.service";
 import { SETTINGS } from "./settings.config";
 import type {
 	AgentFunctionsSettings,
@@ -154,12 +154,11 @@ export class SettingsService {
 	}
 
 	async aiUsage(): Promise<AiUsageSettings> {
-		const [limits, usage, fixed, contacts, mailboxes] = await Promise.all([
+		const [limits, usage, fixed, { contacts, mailboxes }] = await Promise.all([
 			planLimitsOf(this.db),
 			readMonthlyUsage(this.db),
 			fixedAiWith(this.db),
-			this.db.contact.count({ where: { archivedAt: null } }),
-			countMailboxes(this.db),
+			readCapacityUsage(this.db),
 		]);
 
 		return {
@@ -217,10 +216,9 @@ export class SettingsService {
 		const usedThisMonth = (kind: string) =>
 			this.db.agentTask.count({ where: { kind, createdAt: { gte: month } } });
 
-		const [contacts, mailboxes, insightsThisMonth, draftsThisMonth] =
+		const [{ contacts, mailboxes }, insightsThisMonth, draftsThisMonth] =
 			await Promise.all([
-				this.db.contact.count({ where: { archivedAt: null } }),
-				countMailboxes(this.db),
+				readCapacityUsage(this.db),
 				usedThisMonth(INSIGHT_KIND),
 				usedThisMonth(DRAFT_KIND),
 			]);

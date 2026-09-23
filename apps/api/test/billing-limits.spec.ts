@@ -300,23 +300,23 @@ describe("a plan change never lands above a contact or mailbox limit", () => {
 	const usage = { contacts: 12_400, mailboxes: 3 };
 
 	it("refuses Hosting for a workspace above its contacts and mailboxes", () => {
-		expect(planChangeExcess("hosting", NO_ADD_ONS, usage)).toEqual([
+		expect(planChangeExcess("hosting", "trial", NO_ADD_ONS, usage)).toEqual([
 			{ counter: "contacts", used: 12_400, limit: 10_000 },
 			{ counter: "mailboxes", used: 3, limit: 2 },
 		]);
 	});
 
 	it("refuses any smaller plan, not only Hosting", () => {
-		expect(planChangeExcess("start", NO_ADD_ONS, usage)).toEqual([
+		expect(planChangeExcess("start", "team", NO_ADD_ONS, usage)).toEqual([
 			{ counter: "contacts", used: 12_400, limit: 10_000 },
 			{ counter: "mailboxes", used: 3, limit: 1 },
 		]);
 	});
 
 	it("allows a plan that holds the workspace, and a workspace exactly at the limit", () => {
-		expect(planChangeExcess("team", NO_ADD_ONS, usage)).toEqual([]);
+		expect(planChangeExcess("team", "trial", NO_ADD_ONS, usage)).toEqual([]);
 		expect(
-			planChangeExcess("hosting", NO_ADD_ONS, {
+			planChangeExcess("hosting", "trial", NO_ADD_ONS, {
 				contacts: 10_000,
 				mailboxes: 2,
 			}),
@@ -327,9 +327,17 @@ describe("a plan change never lands above a contact or mailbox limit", () => {
 		expect(
 			planChangeExcess(
 				"hosting",
+				"plus",
 				{ ...NO_ADD_ONS, mailbox: 1 },
 				{ contacts: 0, mailboxes: 3 },
 			),
 		).toEqual([]);
+	});
+
+	it("always keeps the current plan, so the interval can still change", () => {
+		expect(planChangeExcess("start", "start", NO_ADD_ONS, usage)).toEqual([]);
+		expect(planChangeExcess("standard", "handel", NO_ADD_ONS, usage)).toEqual(
+			[],
+		);
 	});
 });

@@ -6,6 +6,8 @@ import type { VariantProps } from "class-variance-authority";
 import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 import * as React from "react";
 
+const SEGMENT_GAP = 0.5;
+
 const ToggleGroupContext = React.createContext<
 	VariantProps<typeof toggleVariants> & {
 		spacing?: number;
@@ -14,7 +16,7 @@ const ToggleGroupContext = React.createContext<
 >({
 	size: "default",
 	variant: "default",
-	spacing: 2,
+	spacing: SEGMENT_GAP,
 	orientation: "horizontal",
 });
 
@@ -22,7 +24,7 @@ function ToggleGroup({
 	className,
 	variant,
 	size,
-	spacing = 2,
+	spacing = SEGMENT_GAP,
 	orientation = "horizontal",
 	wrap = false,
 	children,
@@ -46,9 +48,11 @@ function ToggleGroup({
 			data-spacing={spacing}
 			data-orientation={orientation}
 			data-wrap={wrap ? "" : undefined}
-			style={{ "--gap": spacing } as React.CSSProperties}
+			style={
+				{ "--gap": Math.max(spacing, SEGMENT_GAP) } as React.CSSProperties
+			}
 			className={cn(
-				"group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] rounded-md data-[size=sm]:rounded-md data-vertical:w-full data-vertical:flex-col data-vertical:items-stretch data-[wrap]:w-full data-[wrap]:flex-wrap",
+				"group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] rounded-full border bg-card p-0.75 data-vertical:w-full data-vertical:flex-col data-vertical:items-stretch data-vertical:rounded-lg data-[wrap]:w-full data-[wrap]:flex-wrap data-[wrap]:rounded-lg",
 				className,
 			)}
 			{...props}
@@ -77,11 +81,11 @@ function ToggleGroupItem({
 			data-size={context.size || size}
 			data-spacing={context.spacing}
 			className={cn(
-				"shrink-0 group-data-[spacing=0]/toggle-group:rounded-none group-data-[spacing=0]/toggle-group:px-2 focus:z-10 focus-visible:z-10 group-data-[spacing=0]/toggle-group:has-data-[icon=inline-end]:pr-1.5 group-data-[spacing=0]/toggle-group:has-data-[icon=inline-start]:pl-1.5 group-data-horizontal/toggle-group:data-[spacing=0]:first:rounded-l-md group-data-vertical/toggle-group:data-[spacing=0]:first:rounded-t-md group-data-horizontal/toggle-group:data-[spacing=0]:last:rounded-r-md group-data-vertical/toggle-group:data-[spacing=0]:last:rounded-b-md group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:border-l-0 group-data-vertical/toggle-group:data-[spacing=0]:data-[variant=outline]:border-t-0 group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:first:border-l group-data-vertical/toggle-group:data-[spacing=0]:data-[variant=outline]:first:border-t",
 				toggleVariants({
 					variant: context.variant || variant,
 					size: context.size || size,
 				}),
+				"shrink-0 rounded-full border-0 focus:z-10 focus-visible:z-10 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
 				className,
 			)}
 			{...props}

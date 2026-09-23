@@ -5,15 +5,32 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { Progress as ProgressPrimitive } from "radix-ui";
 import type * as React from "react";
 
+const progressVariants = cva(
+	"relative w-full overflow-hidden rounded-full bg-accent",
+	{
+		variants: {
+			size: {
+				sm: "h-0.75",
+				default: "h-1",
+				lg: "h-1.5 border border-border-strong bg-secondary",
+			},
+		},
+		defaultVariants: {
+			size: "default",
+		},
+	},
+);
+
 const progressIndicatorVariants = cva(
-	"h-full w-full flex-1 transition-transform motion-reduce:transition-none",
+	"h-full w-full flex-1 rounded-full transition-transform motion-reduce:transition-none",
 	{
 		variants: {
 			tone: {
-				default: "bg-foreground",
+				default: "bg-border-strong",
 				success: "bg-success",
 				warning: "bg-warning",
 				destructive: "bg-destructive",
+				info: "bg-info",
 			},
 		},
 		defaultVariants: {
@@ -26,17 +43,17 @@ function Progress({
 	className,
 	value,
 	tone,
+	size,
 	...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root> &
-	VariantProps<typeof progressIndicatorVariants>) {
+	VariantProps<typeof progressIndicatorVariants> &
+	VariantProps<typeof progressVariants>) {
 	return (
 		<ProgressPrimitive.Root
 			data-slot="progress"
 			data-tone={tone ?? "default"}
-			className={cn(
-				"relative h-1.5 w-full overflow-hidden rounded-full bg-muted",
-				className,
-			)}
+			data-size={size ?? "default"}
+			className={cn(progressVariants({ size }), className)}
 			value={value}
 			{...props}
 		>
@@ -49,4 +66,4 @@ function Progress({
 	);
 }
 
-export { Progress, progressIndicatorVariants };
+export { Progress, progressIndicatorVariants, progressVariants };

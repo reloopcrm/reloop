@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@crm/ui/components/button";
-import { cn } from "@crm/ui/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
@@ -72,16 +71,7 @@ function NavLink({
 }) {
 	const t = useT();
 	return (
-		<Button
-			asChild
-			variant="ghost"
-			className={cn(
-				"justify-start font-normal text-muted-foreground",
-				active &&
-					"bg-muted text-foreground hover:bg-muted hover:text-foreground",
-				className,
-			)}
-		>
+		<Button asChild variant="nav" className={className}>
 			<Link
 				href={item.href}
 				prefetch
@@ -98,18 +88,21 @@ export function SettingsSidebarFallback() {
 	const t = useT();
 	return (
 		<>
-			<aside className="hidden w-56 shrink-0 border-r md:block [view-transition-name:settings-sidebar]">
+			<aside className="hidden w-(--container-sidebar) shrink-0 border-r md:block [view-transition-name:settings-sidebar]">
 				<nav
 					aria-label={t("Workspace settings")}
 					aria-busy="true"
-					className="flex flex-col gap-0.5 p-3"
+					className="flex flex-col gap-0.5 px-4 pt-(--spacing-page-top) pb-4"
 				>
+					<span className="px-3 pb-3 font-medium text-muted-foreground text-xs">
+						{t("Settings")}
+					</span>
 					{settingsNavItems({ cloudOwner: false }).map((item) => (
 						<Button
 							key={item.href}
-							variant="ghost"
+							variant="nav"
 							disabled
-							className="w-full justify-start px-3 font-normal text-muted-foreground"
+							className="w-full px-3"
 						>
 							{t(item.title)}
 						</Button>
@@ -125,9 +118,9 @@ export function SettingsSidebarFallback() {
 				{settingsNavItems({ cloudOwner: false }).map((item) => (
 					<Button
 						key={item.href}
-						variant="ghost"
+						variant="nav"
 						disabled
-						className="shrink-0 justify-start px-3 font-normal text-muted-foreground"
+						className="shrink-0 px-3"
 					>
 						{t(item.title)}
 					</Button>
@@ -158,11 +151,14 @@ export function SettingsSidebar({
 
 	return (
 		<>
-			<aside className="hidden w-56 shrink-0 border-r md:block [view-transition-name:settings-sidebar]">
+			<aside className="hidden w-(--container-sidebar) shrink-0 border-r md:block [view-transition-name:settings-sidebar]">
 				<nav
 					aria-label={t("Workspace settings")}
-					className="flex flex-col gap-0.5 p-3"
+					className="flex flex-col gap-0.5 px-4 pt-(--spacing-page-top) pb-4"
 				>
+					<span className="px-3 pb-3 font-medium text-muted-foreground text-xs">
+						{t("Settings")}
+					</span>
 					{items.map((item) => (
 						<NavLink
 							key={item.href}

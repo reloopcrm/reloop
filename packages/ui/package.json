@@ -50,6 +50,7 @@
 	"devDependencies": {
 		"@crm/typescript-config": "workspace:*",
 		"@tailwindcss/postcss": "^4",
+		"@types/bun": "^1.3.14",
 		"@types/node": "^24.10.1",
 		"@types/react": "^19.2.18",
 		"@types/react-dom": "^19",

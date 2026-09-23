@@ -47,6 +47,7 @@ import { insideRow } from "@crm/ui/lib/row-click";
 import type { TableQueryState } from "@crm/ui/lib/table-query";
 import { useUiT } from "@crm/ui/lib/i18n";
 import { cn } from "@crm/ui/lib/utils";
+import type { ClassValue } from "clsx";
 import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
 import {
 	Fragment,
@@ -71,6 +72,7 @@ export type DataTableColumn<TRow> = {
 	hideable?: boolean;
 	defaultHidden?: boolean;
 	hideBelow?: "sm" | "md" | "lg" | "xl";
+	control?: boolean;
 };
 
 export type DataTableFacet = {
@@ -139,6 +141,22 @@ const ALIGN_CLASS = {
 	right: "text-right",
 	center: "text-center",
 } as const;
+
+const CONTROL_COLUMN_WIDTH = "w-17";
+
+function columnClass<TRow>(
+	column: DataTableColumn<TRow>,
+	className: ClassValue,
+): string {
+	return cn(
+		column.control
+			? (column.width ?? CONTROL_COLUMN_WIDTH)
+			: ["truncate", column.width],
+		ALIGN_CLASS[column.align ?? "left"],
+		column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
+		className,
+	);
+}
 
 function columnLabel<TRow>(column: DataTableColumn<TRow>): string {
 	if (column.label) return column.label;
@@ -645,13 +663,7 @@ export function DataTable<TRow, TSub = unknown>({
 							return (
 								<TableHead
 									key={column.id}
-									className={cn(
-										"truncate",
-										column.width,
-										ALIGN_CLASS[column.align ?? "left"],
-										column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
-										column.headClassName,
-									)}
+									className={columnClass(column, column.headClassName)}
 									aria-sort={
 										isActive
 											? query.dir === "asc"
@@ -752,13 +764,7 @@ export function DataTable<TRow, TSub = unknown>({
 									{visibleColumns.map((column) => (
 										<TableCell
 											key={column.id}
-											className={cn(
-												"truncate",
-												column.width,
-												ALIGN_CLASS[column.align ?? "left"],
-												column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
-												column.cellClassName,
-											)}
+											className={columnClass(column, column.cellClassName)}
 										>
 											{column.cell(row)}
 										</TableCell>
@@ -797,14 +803,10 @@ export function DataTable<TRow, TSub = unknown>({
 												{visibleColumns.map((column) => (
 													<TableCell
 														key={column.id}
-														className={cn(
-															"truncate align-top",
-															column.width,
-															ALIGN_CLASS[column.align ?? "left"],
-															column.hideBelow &&
-																HIDE_BELOW_CLASS[column.hideBelow],
+														className={columnClass(column, [
+															"align-top",
 															column.cellClassName,
-														)}
+														])}
 													>
 														{expandable.renderSubCell(sub, column.id, row)}
 													</TableCell>

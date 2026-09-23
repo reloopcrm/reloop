@@ -283,6 +283,29 @@ export function withAddOns(
 	return raised;
 }
 
+export const CAPACITY_COUNTERS = ["contacts", "mailboxes"] as const;
+
+export type CapacityCounter = (typeof CAPACITY_COUNTERS)[number];
+
+export type CapacityUsage = Record<CapacityCounter, number>;
+
+export type CapacityExcess = {
+	counter: CapacityCounter;
+	used: number;
+	limit: number;
+};
+
+export function capacityExcess(
+	usage: CapacityUsage,
+	limits: PlanLimits,
+): CapacityExcess[] {
+	return CAPACITY_COUNTERS.flatMap((counter) => {
+		const limit = limits[counter];
+		const used = usage[counter];
+		return limit !== null && used > limit ? [{ counter, used, limit }] : [];
+	});
+}
+
 export function startOfMonth(now = new Date()): Date {
 	const month = new Date(now);
 	month.setUTCDate(1);

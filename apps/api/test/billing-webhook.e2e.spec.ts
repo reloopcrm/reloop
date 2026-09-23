@@ -26,6 +26,7 @@ import { BackfillService } from "../src/backfill/backfill.service";
 import { BILLING } from "../src/billing/billing.config";
 import { BillingService } from "../src/billing/billing.service";
 import { STRIPE } from "../src/billing/stripe.provider";
+import { countMailboxes } from "../src/mailbox/sync-state.service";
 import { MailboxSyncHeartbeatService } from "../src/sync/mailbox-sync-heartbeat.service";
 
 const PREPARE_TIMEOUT_MS = 120_000;
@@ -404,6 +405,63 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			await registryQuery(
 				"UPDATE tenant SET trial_ends_at = NULL WHERE id = $1",
 				[a.id],
+			);
+		}
+	});
+
+	it("refuses a plan too small for the mailboxes before any Stripe call", async () => {
+		await reset();
+		const tenant = await tenantById(a.id);
+		if (!tenant) throw new Error("tenant a missing");
+		const mailboxes = ["one", "two", "three"].map((name) => ({
+			userId: OWNER.id,
+			email: `${name}@billing-limit.example`,
+			host: "imap.billing-limit.example",
+			username: name,
+			secret: "not-a-real-secret",
+		}));
+		const listed = spyOn(stripe.prices, "list").mockImplementation(
+			(async () => ({ data: [{ id: "price_spec" }] })) as never,
+		);
+		const created = spyOn(
+			stripe.checkout.sessions,
+			"create",
+		).mockImplementation((async () => ({
+			url: "https://checkout.stripe.test/cs_limit",
+		})) as never);
+		try {
+			expect(await runAsTenant(tenant, () => countMailboxes(db))).toBe(0);
+			await runAsTenant(tenant, () =>
+				db.imapAccount.createMany({ data: mailboxes }),
+			);
+			for (const plan of ["hosting", "start"] as const) {
+				await expect(
+					runAsTenant(tenant, () =>
+						billing.checkout(OWNER.id, { plan, interval: "month" }),
+					),
+				).rejects.toThrow("more contacts or mailboxes than this plan allows");
+			}
+			expect(listed).not.toHaveBeenCalled();
+
+			const overview = await runAsTenant(tenant, () =>
+				billing.overview(OWNER.id),
+			);
+			expect(overview.usage.mailboxes).toBe(3);
+			expect(
+				overview.plans.find((option) => option.id === "hosting")?.over,
+			).toEqual([{ counter: "mailboxes", used: 3, limit: 2 }]);
+
+			const team = await runAsTenant(tenant, () =>
+				billing.checkout(OWNER.id, { plan: "team", interval: "month" }),
+			);
+			expect(team.url).toBe("https://checkout.stripe.test/cs_limit");
+		} finally {
+			listed.mockRestore();
+			created.mockRestore();
+			await runAsTenant(tenant, () =>
+				db.imapAccount.deleteMany({
+					where: { email: { in: mailboxes.map((row) => row.email) } },
+				}),
 			);
 		}
 	});

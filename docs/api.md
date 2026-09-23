@@ -584,6 +584,10 @@ self-hosted install answers `configured: false` and refuses every mutation. A
 suspended tenant reaches `/api/auth/*` and `billing.*` only (`openWhileSuspended`
 in `tenant.middleware.ts`), which is how a paused workspace pays its way back
 in; `applySubscription` sets it `active` again.
+`billing.checkout` refuses a plan that holds fewer contacts or mailboxes than the
+workspace has now, before any Stripe call. `planChangeExcess` is the rule, and
+`billing.overview` sends its answer per plan, so the list and the refusal agree.
+Contacts count archived rows too, because the contact limit trigger counts them.
 `docs/environment.md` has the variables, the script and what stays by hand.
 
 ## Money

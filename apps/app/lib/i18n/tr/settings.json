@@ -316,5 +316,11 @@
 	"No plan": "Plan yok",
 	"One plan, one price, and what it includes. Add-ons live under Usage.": "Tek plan, tek fiyat ve içerdikleri. Ek paketler Kullanım altında.",
 	"More volume": "Daha fazla hacim",
-	"What you used this month. The counters reset on": "Bu ay kullandıkların. Sayaçlar şu tarihte sıfırlanır:"
+	"What you used this month. The counters reset on": "Bu ay kullandıkların. Sayaçlar şu tarihte sıfırlanır:",
+	"You have {count} contacts, archived ones included. {plan} allows {limit}.": "Arşivlenenler dahil {count} kişin var. {plan} en fazla {limit} kişiye izin veriyor.",
+	"You have {count} mailboxes connected. {plan} allows {limit}.": "{count} bağlı posta kutun var. {plan} en fazla {limit} posta kutusuna izin veriyor.",
+	"You need your own AI key.": "Kendi yapay zeka anahtarına ihtiyacın var.",
+	"{plan} does not include AI. Without your own key, the AI stops working.": "{plan} yapay zeka içermiyor. Kendi anahtarın olmadan yapay zeka çalışmayı durdurur.",
+	"New limits: {contacts} contacts, {mailboxes} mailboxes, {storage} storage.": "Yeni limitler: {contacts} kişi, {mailboxes} posta kutusu, {storage} depolama.",
+	"Where to enter the key": "Anahtarı nereye gireceğin"
 }

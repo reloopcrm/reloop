@@ -19,6 +19,7 @@ import {
 	billingStateOf,
 	checkoutTrialEnd,
 	deleteAtOf,
+	planChangeExcess,
 	subscriptionState,
 } from "../src/billing/billing.service";
 import { openWhileSuspended } from "../src/tenancy/tenant.middleware";
@@ -292,5 +293,43 @@ describe("a paused workspace", () => {
 		expect(openWhileSuspended("/api/trpc/users.me")).toBe(false);
 		expect(openWhileSuspended("/api/rest/billing")).toBe(false);
 		expect(openWhileSuspended("/api/trpc/billingx.read")).toBe(false);
+	});
+});
+
+describe("a plan change never lands above a contact or mailbox limit", () => {
+	const usage = { contacts: 12_400, mailboxes: 3 };
+
+	it("refuses Hosting for a workspace above its contacts and mailboxes", () => {
+		expect(planChangeExcess("hosting", NO_ADD_ONS, usage)).toEqual([
+			{ counter: "contacts", used: 12_400, limit: 10_000 },
+			{ counter: "mailboxes", used: 3, limit: 2 },
+		]);
+	});
+
+	it("refuses any smaller plan, not only Hosting", () => {
+		expect(planChangeExcess("start", NO_ADD_ONS, usage)).toEqual([
+			{ counter: "contacts", used: 12_400, limit: 10_000 },
+			{ counter: "mailboxes", used: 3, limit: 1 },
+		]);
+	});
+
+	it("allows a plan that holds the workspace, and a workspace exactly at the limit", () => {
+		expect(planChangeExcess("team", NO_ADD_ONS, usage)).toEqual([]);
+		expect(
+			planChangeExcess("hosting", NO_ADD_ONS, {
+				contacts: 10_000,
+				mailboxes: 2,
+			}),
+		).toEqual([]);
+	});
+
+	it("counts the mailbox add-on the subscription keeps", () => {
+		expect(
+			planChangeExcess(
+				"hosting",
+				{ ...NO_ADD_ONS, mailbox: 1 },
+				{ contacts: 0, mailboxes: 3 },
+			),
+		).toEqual([]);
 	});
 });

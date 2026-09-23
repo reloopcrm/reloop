@@ -1,4 +1,4 @@
-import { ADD_ON_IDS } from "@crm/db/plans";
+import { ADD_ON_IDS, CAPACITY_COUNTERS } from "@crm/db/plans";
 import { BILLING_INTERVALS, PAID_PLAN_IDS } from "@crm/db/pricing";
 import { z } from "zod";
 import { BILLING } from "./billing.config";
@@ -39,8 +39,10 @@ export const billingOverviewOutput = z.object({
 		draftsPerMonth: z.number().nullable(),
 		researchPerMonth: z.number().nullable(),
 		storageGb: z.number().nullable(),
+		companyResearch: z.boolean(),
 		aiIncluded: z.boolean(),
 	}),
+	usage: z.object({ contacts: z.number(), mailboxes: z.number() }),
 	plans: z.array(
 		z.object({
 			id: z.enum(PAID_PLAN_IDS),
@@ -48,6 +50,16 @@ export const billingOverviewOutput = z.object({
 			monthly: z.number(),
 			yearly: z.number(),
 			aiIncluded: z.boolean(),
+			contacts: z.number().nullable(),
+			mailboxes: z.number().nullable(),
+			storageGb: z.number().nullable(),
+			over: z.array(
+				z.object({
+					counter: z.enum(CAPACITY_COUNTERS),
+					used: z.number(),
+					limit: z.number(),
+				}),
+			),
 		}),
 	),
 	addOnCatalog: z.array(

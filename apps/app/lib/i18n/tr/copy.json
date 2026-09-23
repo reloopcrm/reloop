@@ -261,5 +261,6 @@
 	"Only an owner or an admin can change the sign-in credentials.": "Giriş kimlik bilgilerini sadece sahip veya yönetici değiştirir.",
 	"The agent researches contacts, reads mail and writes drafts. Use your own API key. The CRM also works without AI.": "Ajan kişileri araştırır, postaları okur ve taslak yazar. Kendi API anahtarını kullan. CRM yapay zeka olmadan da çalışır.",
 	"A ChatGPT sign-in is not offered on a hosted install.": "Barındırılan kurulumda ChatGPT girişi sunulmuyor.",
-	"The AI is included in this plan. There is no model to choose.": "Yapay zeka bu plana dahil. Seçilecek bir model yok."
+	"The AI is included in this plan. There is no model to choose.": "Yapay zeka bu plana dahil. Seçilecek bir model yok.",
+	"Your workspace holds more contacts or mailboxes than this plan allows. Remove some first, or choose a bigger plan.": "Çalışma alanında bu planın izin verdiğinden fazla kişi veya posta kutusu var. Önce bazılarını kaldır ya da daha büyük bir plan seç."
 }

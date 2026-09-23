@@ -1,5 +1,6 @@
 import { DealStage } from "@crm/db";
 import { USAGE_COUNTERS } from "@crm/db/plan-usage";
+import { CAPACITY_COUNTERS } from "@crm/db/plans";
 import {
 	MAX_ARCHIVE_RETENTION_DAYS,
 	MIN_ARCHIVE_RETENTION_DAYS,
@@ -125,8 +126,6 @@ export const planOutput = z.object({
 });
 
 export type PlanSettings = z.infer<typeof planOutput>;
-
-export const CAPACITY_COUNTERS = ["contacts", "mailboxes"] as const;
 
 export const aiUsageOutput = z.object({
 	fixed: z.boolean(),

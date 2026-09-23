@@ -265,12 +265,30 @@ export default async function PricingPage() {
 											{price(plan.monthly)}
 										</span>
 									</span>
-									<span className="text-muted-foreground text-sm">
-										{t(plan.tagline)}
+									<span className="grid grid-cols-3 gap-2 text-sm">
+										{[
+											{ label: t("Mailboxes"), value: plan.mailboxes },
+											{ label: t("Conversations"), value: plan.conversations },
+											{ label: t("Contacts"), value: plan.contacts },
+										].map((fact) => (
+											<span key={fact.label} className="flex flex-col">
+												<span className="text-foreground tabular-nums">
+													{fact.value === null
+														? t("Unlimited")
+														: format.format(fact.value)}
+												</span>
+												<span className="hyphens-auto text-muted-foreground text-xs">
+													{fact.label}
+												</span>
+											</span>
+										))}
 									</span>
 								</span>
 							</AccordionTrigger>
-							<AccordionContent>
+							<AccordionContent className="flex flex-col gap-2">
+								<p className="text-muted-foreground text-sm">
+									{t(plan.tagline)}
+								</p>
 								<PlanFacts plan={plan} format={format} t={t} />
 							</AccordionContent>
 						</AccordionItem>

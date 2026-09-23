@@ -45,7 +45,6 @@ function columns(
 			header: t("Name"),
 			sortable: true,
 			hideable: false,
-			width: "w-[28%]",
 			cell: (row) => (
 				<span className="truncate font-medium">
 					{row.name ?? t("Untitled key")}
@@ -117,7 +116,7 @@ function columns(
 			label: t("Actions"),
 			hideable: false,
 			align: "right",
-			width: "w-[6%]",
+			control: true,
 			cell: (row) => (
 				<AlertDialog>
 					<AlertDialogTrigger asChild>

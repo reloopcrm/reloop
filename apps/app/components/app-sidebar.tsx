@@ -215,11 +215,11 @@ function BrandMark() {
 	);
 }
 
-function Brand({ workspaceName }: { workspaceName: string }) {
+function Brand() {
 	const workspaceUrl = useWorkspaceUrl();
 	const t = useT();
 	return (
-		<div className="flex h-9 items-center gap-2.5 px-3 pb-5 max-lg:justify-center max-lg:px-0">
+		<div className="flex h-9 items-center px-3 pb-5 max-lg:justify-center max-lg:px-0">
 			<Link
 				href={workspaceUrl()}
 				aria-label={t("Homepage")}
@@ -228,9 +228,6 @@ function Brand({ workspaceName }: { workspaceName: string }) {
 				<Wordmark className="hidden h-4.5 w-auto lg:block" />
 				<BrandMark />
 			</Link>
-			<span className="ml-auto hidden min-w-0 truncate text-muted-foreground text-xs lg:inline">
-				{workspaceName}
-			</span>
 		</div>
 	);
 }
@@ -268,12 +265,10 @@ export function AppSidebarFallback() {
 
 export function AppSidebar({
 	managed,
-	workspaceName,
 	user,
 	plan,
 }: {
 	managed: boolean;
-	workspaceName: string;
 	user: AppUser;
 	plan?: string | null;
 }) {
@@ -351,7 +346,7 @@ export function AppSidebar({
 				aria-label={t("Primary")}
 				className="hidden w-(--container-rail) shrink-0 flex-col border-r bg-sidebar px-2 pt-5 pb-4 md:flex lg:w-(--container-sidebar) lg:px-3 [view-transition-name:app-rail]"
 			>
-				<Brand workspaceName={workspaceName} />
+				<Brand />
 				{list(false)}
 				<div className="mt-2 flex flex-col gap-2 border-t pt-3">
 					<div className="hidden lg:flex">

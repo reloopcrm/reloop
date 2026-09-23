@@ -119,7 +119,6 @@ async function loadChrome(params: LayoutProps<"/[slug]">["params"]) {
 
 	return {
 		user: { name: user.name, email: user.email, image: user.image ?? null },
-		workspaceName: workspaceLabel(workspace?.name),
 	};
 }
 
@@ -133,19 +132,11 @@ async function planLabel(): Promise<string | null> {
 async function WorkspaceSidebar({
 	params,
 }: Pick<LayoutProps<"/[slug]">, "params">) {
-	const [{ user, workspaceName }, plan] = await Promise.all([
-		loadChrome(params),
-		planLabel(),
-	]);
+	const [{ user }, plan] = await Promise.all([loadChrome(params), planLabel()]);
 
 	return (
 		<HydrateClient>
-			<AppSidebar
-				managed={managedInstall()}
-				workspaceName={workspaceName}
-				user={user}
-				plan={plan}
-			/>
+			<AppSidebar managed={managedInstall()} user={user} plan={plan} />
 		</HydrateClient>
 	);
 }

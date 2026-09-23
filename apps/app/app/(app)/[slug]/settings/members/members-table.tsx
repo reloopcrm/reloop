@@ -59,7 +59,6 @@ function columns(
 			header: t("Name"),
 			sortable: true,
 			hideable: false,
-			width: "w-[34%]",
 			cell: (row) => (
 				<span className="flex min-w-0 items-center gap-2">
 					<PersonAvatar
@@ -114,7 +113,7 @@ function columns(
 			label: t("Actions"),
 			hideable: false,
 			align: "right",
-			width: "w-[6%]",
+			control: true,
 			cell: (row) => {
 				const roles = assignableRoles(viewerRole, row.role);
 				if (roles.length === 0) return null;

@@ -41,7 +41,6 @@ function columns(
 			header: t("Provider"),
 			sortable: true,
 			hideable: false,
-			width: "w-[30%]",
 			cell: (row) => (
 				<span className="flex min-w-0 flex-col">
 					<span className="truncate font-medium">{row.name}</span>
@@ -94,7 +93,7 @@ function columns(
 			label: t("Actions"),
 			hideable: false,
 			align: "right",
-			width: "w-[6%]",
+			control: true,
 			cell: (row) =>
 				canConfigure ? (
 					<AlertDialog>

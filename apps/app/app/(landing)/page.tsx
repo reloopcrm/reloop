@@ -61,12 +61,12 @@ export default async function Home() {
 		<LandingShell>
 			<StructuredData />
 
-			<section className="w-full px-6 pt-20 pb-20 md:pt-24 md:pb-24">
-				<div className="mx-auto flex w-full max-w-(--container-page-wide) flex-col items-center gap-10 text-center">
+			<section className="w-full px-6 py-12">
+				<div className="mx-auto flex w-full max-w-(--container-page-wide) flex-col items-center gap-8 text-center">
 					<Display size="hero" case="upper">
 						{t("Win back old customers.")}
 					</Display>
-					<p className="max-w-(--container-sheet) text-pretty text-body-foreground text-lg md:text-2xl">
+					<p className="max-w-(--container-sheet) text-pretty text-body-foreground text-lg md:text-xl">
 						{t(
 							"Reloop reads the mailbox you already have. And tells you which old customers you should call.",
 						)}

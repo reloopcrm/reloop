@@ -9,7 +9,7 @@ const displayVariants = cva(
   {
     variants: {
       size: {
-        hero: "text-[clamp(3rem,8.6vw,7.5rem)] leading-[0.85]",
+        hero: "text-[length:clamp(2.75rem,min(8.6vw,12svh),7.5rem)] leading-[0.85]",
         section: "text-[clamp(2.5rem,6vw,5.5rem)] leading-[0.88]",
         title: "text-[clamp(2rem,4vw,3rem)] leading-[1.05] tracking-[-0.03em]",
       },

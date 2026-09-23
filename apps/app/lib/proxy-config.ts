@@ -21,7 +21,7 @@ export const PROXY = {
 		"/open-source-crm",
 		"/self-hosted-crm",
 		"/vs/hubspot",
-		"/for/freight-forwarding",
+		"/win-back-customers",
 		"/get-started",
 		"/pricing",
 	],

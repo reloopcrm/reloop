@@ -409,7 +409,7 @@ describe("the public pages", () => {
 			"/open-source-crm",
 			"/self-hosted-crm",
 			"/vs/hubspot",
-			"/for/freight-forwarding",
+			"/win-back-customers",
 		];
 
 		marketing("true");

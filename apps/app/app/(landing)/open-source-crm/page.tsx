@@ -149,9 +149,9 @@ export default async function OpenSourceCrmPage() {
 						{t(
 							"Reloop CRM is for a small sales team that already has years of email. It connects to Gmail, Microsoft 365 or any IMAP mailbox, reads the history once, and builds companies, contacts and deals from real conversations. Then it tells you which past customers went quiet and why they are worth a new call.",
 						)}{" "}
-						<Link href="/for/freight-forwarding">
+						<Link href="/win-back-customers">
 							{t(
-								"It started inside a freight forwarding company, and that is still the clearest example of the job it does.",
+								"The page on winning back customers shows how that works day to day.",
 							)}
 						</Link>
 					</p>

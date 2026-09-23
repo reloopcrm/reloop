@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
 					"https://raw.githubusercontent.com/reloopcrm/reloop/main/install.sh",
 				permanent: false,
 			},
+			{
+				source: "/for/freight-forwarding",
+				destination: "/win-back-customers",
+				permanent: true,
+			},
 		];
 	},
 

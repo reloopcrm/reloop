@@ -143,7 +143,6 @@ export const PRICING = {
 			label: PRICING_EUR.addOns.mailbox.label,
 			price: PRICING_EUR.addOns.mailbox.monthly,
 		},
-		{ label: PRICING_EUR.storage.label, price: PRICING_EUR.storage.monthly },
 	],
 } as const satisfies {
 	href: Record<string, string>;

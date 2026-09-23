@@ -24,14 +24,12 @@ export const PRICING_EUR = {
 		research: { label: "50 company research runs", monthly: 19 },
 		mailbox: { label: "1 extra mailbox per month", monthly: 29 },
 	},
-	storage: { label: "50 GB extra storage per month", monthly: 9 },
 	lookup: { prefix: "reloop" },
 } as const satisfies {
 	currency: string;
 	yearlyDiscountPercent: number;
 	plans: Record<Exclude<PlanId, "trial">, PlanPrice>;
 	addOns: Record<AddOnId, { label: string; monthly: number }>;
-	storage: { label: string; monthly: number };
 	lookup: { prefix: string };
 };
 

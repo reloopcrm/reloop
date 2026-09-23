@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.20.0](https://github.com/reloopcrm/reloop/compare/v0.19.0...v0.20.0) (2026-09-23)
+
+
+### Features
+
+* **agent:** the Autobahn lanes, a shared key bucket per tenant, and import progress for the customer ([#57](https://github.com/reloopcrm/reloop/issues/57)) ([0d33a03](https://github.com/reloopcrm/reloop/commit/0d33a03fac0263aee66821486c90eb9f04b1fe08))
+* **app:** usage meters and a plan and billing page for the hosted Cloud, with Stripe ([#64](https://github.com/reloopcrm/reloop/issues/64)) ([16b5c93](https://github.com/reloopcrm/reloop/commit/16b5c9388c2ad1de3df4bc2d5531a2b061c621be))
+* **cloud:** sign up and sign in with email, password and a mailed code ([#59](https://github.com/reloopcrm/reloop/issues/59)) ([e1fddd6](https://github.com/reloopcrm/reloop/commit/e1fddd68a922c9bb87d27446b4a0c3a8e606deaa))
+* **cloud:** the operator's own workspace as one tenant, and the marketing site served by the cloud ([#67](https://github.com/reloopcrm/reloop/issues/67)) ([7d00410](https://github.com/reloopcrm/reloop/commit/7d00410e7df380ff9fbd7d5ce66146eefdba91cc))
+* **landing:** every public page in the landing design, in seven languages ([#65](https://github.com/reloopcrm/reloop/issues/65)) ([4c5f0c7](https://github.com/reloopcrm/reloop/commit/4c5f0c727cc9013f9b1ee6a65b055e82e649592c))
+
+
+### Fixes
+
+* **api:** the open tenant routes ignore a session cookie from another workspace ([#62](https://github.com/reloopcrm/reloop/issues/62)) ([5f397c8](https://github.com/reloopcrm/reloop/commit/5f397c8f0f22224287497f8c2bc422f2840f1ea7))
+* **app:** sample data in the reader's language, onboarding pre-filled, eleven layout fixes ([#63](https://github.com/reloopcrm/reloop/issues/63)) ([3047a45](https://github.com/reloopcrm/reloop/commit/3047a45e0a939bea12ce2ad413a341159f4b67a0))
+* **app:** the landing sends Sign in to the cloud when RELOOP_CLOUD_URL is set ([#66](https://github.com/reloopcrm/reloop/issues/66)) ([5deec3b](https://github.com/reloopcrm/reloop/commit/5deec3be5d5c9c073b16ef1e67a81bae82fe1d68))
+* **deploy:** the cloud backup copies off-site instead of mirroring, and its image builds ([#58](https://github.com/reloopcrm/reloop/issues/58)) ([feb7548](https://github.com/reloopcrm/reloop/commit/feb75482a11480168e9966e90ba08c54da2f08f6))
+* **test:** read AGENT_URL per request, and bucket the compiled fallback model ([#61](https://github.com/reloopcrm/reloop/issues/61)) ([99d8a1c](https://github.com/reloopcrm/reloop/commit/99d8a1cb4ce86c51b8ad3a6133db439ccd3412f4))
+
 ## [0.19.0](https://github.com/reloopcrm/reloop/compare/v0.18.1...v0.19.0) (2026-09-22)
 
 

@@ -73,19 +73,22 @@ function ToggleGroupItem({
 }: React.ComponentProps<typeof ToggleGroupPrimitive.Item> &
 	VariantProps<typeof toggleVariants>) {
 	const context = React.useContext(ToggleGroupContext);
+	const resolved = context.variant || variant;
 
 	return (
 		<ToggleGroupPrimitive.Item
 			data-slot="toggle-group-item"
-			data-variant={context.variant || variant}
+			data-variant={resolved}
 			data-size={context.size || size}
 			data-spacing={context.spacing}
 			className={cn(
 				toggleVariants({
-					variant: context.variant || variant,
+					variant: resolved,
 					size: context.size || size,
 				}),
-				"shrink-0 rounded-full border-0 focus:z-10 focus-visible:z-10 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
+				"shrink-0 rounded-full border-0 focus:z-10 focus-visible:z-10",
+				resolved !== "quiet" &&
+					"data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
 				className,
 			)}
 			{...props}

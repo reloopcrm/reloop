@@ -153,7 +153,7 @@ export function checkoutTrialEnd(
 		return null;
 	const trialEndsAt = tenant.trialEndsAt;
 	if (!trialEndsAt) return null;
-	return trialEndsAt.getTime() - now.getTime() > BILLING.checkout.trialLeadMs
+	return trialEndsAt.getTime() - now.getTime() > TENANCY.trial.checkoutLeadMs
 		? trialEndsAt
 		: null;
 }

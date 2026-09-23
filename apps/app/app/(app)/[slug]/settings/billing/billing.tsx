@@ -227,7 +227,7 @@ function PlanPanel({
 
 	return (
 		<Card>
-			<CardContent className="gap-5">
+			<CardContent>
 				<div className="flex flex-wrap items-center gap-3">
 					<Badge>{t(STATE_LABEL[data.state])}</Badge>
 					<span className="text-2sm text-muted-foreground">

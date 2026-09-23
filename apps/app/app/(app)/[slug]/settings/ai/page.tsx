@@ -85,10 +85,11 @@ async function audience() {
 		requestTenant(),
 	]);
 	const admin = isWorkspaceAdmin(await workspaceRole(session.user.id));
+	const trial = canonicalPlanId(tenant?.plan) === "trial";
 	return {
 		admin,
-		trial: canonicalPlanId(tenant?.plan) === "trial",
-		trialEndsAt: tenant?.trialEndsAt?.toISOString() ?? null,
+		trial,
+		trialEndsAt: trial ? (tenant?.trialEndsAt?.toISOString() ?? null) : null,
 	};
 }
 

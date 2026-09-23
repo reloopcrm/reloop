@@ -21,10 +21,11 @@ export function AppHeader({ user }: { user: AppUser }) {
 	const t = useT();
 
 	return (
-		<header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3 md:hidden [view-transition-name:app-header]">
+		<header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3 lg:hidden [view-transition-name:app-header]">
 			<Button
 				variant="ghost"
 				size="icon"
+				className="md:hidden"
 				aria-label={t("Open navigation")}
 				onClick={() => setMobileNavOpen(true)}
 			>
@@ -33,7 +34,7 @@ export function AppHeader({ user }: { user: AppUser }) {
 			<Link
 				href={workspaceUrl()}
 				aria-label={t("Homepage")}
-				className="flex h-8 items-center text-foreground"
+				className="flex h-8 items-center text-foreground max-md:hidden md:pl-2"
 			>
 				<Wordmark className="h-4 w-auto" />
 			</Link>
@@ -58,7 +59,7 @@ export function AppHeaderFallback() {
 	const t = useT();
 	return (
 		<header
-			className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3 md:hidden [view-transition-name:app-header]"
+			className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3 lg:hidden [view-transition-name:app-header]"
 			aria-busy="true"
 		>
 			<span className="flex h-8 items-center pl-2 text-foreground">

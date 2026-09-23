@@ -82,7 +82,7 @@ export function UserAvatarImage({
 	);
 }
 
-export function initials(name: string): string {
+function initials(name: string): string {
 	return (
 		name
 			.split(" ")

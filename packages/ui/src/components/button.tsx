@@ -23,7 +23,7 @@ const buttonVariants = cva(
 					"bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklch,var(--destructive),black_12%)] active:bg-[color-mix(in_oklch,var(--destructive),black_22%)] focus-visible:ring-destructive/50",
 				contrast:
 					"bg-foreground text-background hover:bg-foreground/90 active:bg-foreground/80",
-				link: "h-auto rounded-none px-0 text-body-foreground underline decoration-border-strong underline-offset-3 hover:text-foreground hover:decoration-foreground",
+				link: "text-body-foreground underline decoration-border-strong underline-offset-3 hover:text-foreground hover:decoration-foreground",
 			},
 			size: {
 				default:
@@ -44,6 +44,14 @@ const buttonVariants = cva(
 				toolbar: "justify-start sm:justify-center",
 			},
 		},
+		compoundVariants: [
+			{ variant: "link", class: "h-auto rounded-none px-0" },
+			{
+				variant: "nav",
+				size: ["icon", "icon-xs", "icon-sm", "icon-lg"],
+				class: "justify-center px-0",
+			},
+		],
 		defaultVariants: {
 			variant: "default",
 			size: "default",

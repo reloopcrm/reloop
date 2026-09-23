@@ -26,7 +26,8 @@ const progressIndicatorVariants = cva(
 	{
 		variants: {
 			tone: {
-				default: "bg-border-strong",
+				default: "bg-foreground",
+				neutral: "bg-border-strong",
 				success: "bg-success",
 				warning: "bg-warning",
 				destructive: "bg-destructive",
@@ -66,4 +67,4 @@ function Progress({
 	);
 }
 
-export { Progress, progressIndicatorVariants, progressVariants };
+export { Progress, progressIndicatorVariants };

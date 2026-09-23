@@ -124,6 +124,7 @@ async function loadChrome(params: LayoutProps<"/[slug]">["params"]) {
 }
 
 async function planLabel(): Promise<string | null> {
+	await connection();
 	if (!(await hostedCustomer())) return null;
 	const tenant = await requestTenant();
 	return tenant ? limitsOf(tenant.plan).label : null;

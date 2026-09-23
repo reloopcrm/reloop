@@ -251,5 +251,8 @@
 	"Create one from a private chat, then review its access before deploying it.": "从一个私密对话里建一个，发布前先检查它的权限。",
 	"Open chat": "打开对话",
 	"{count} run": "{count} 次运行",
-	"{count} runs": "{count} 次运行"
+	"{count} runs": "{count} 次运行",
+	"Brief every deal owner before a renewal call": "在续约通话前向每位交易负责人做简报",
+	"Flag deals with no activity for 14 days": "标记 14 天无活动的交易",
+	"Hand new customers from Sales to Onboarding": "将新客户从销售移交给入职团队"
 }

@@ -251,5 +251,8 @@
 	"Create one from a private chat, then review its access before deploying it.": "Crie um a partir de um chat privado, depois confira o acesso dele antes de publicar.",
 	"Open chat": "Abrir o chat",
 	"{count} run": "{count} execução",
-	"{count} runs": "{count} execuções"
+	"{count} runs": "{count} execuções",
+	"Brief every deal owner before a renewal call": "Preparar cada responsável por negócio antes de uma ligação de renovação",
+	"Flag deals with no activity for 14 days": "Sinalizar negócios sem atividade há 14 dias",
+	"Hand new customers from Sales to Onboarding": "Passar novos clientes de Vendas para Onboarding"
 }

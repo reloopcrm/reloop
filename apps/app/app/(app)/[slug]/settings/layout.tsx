@@ -1,4 +1,5 @@
 import { isWorkspaceAdmin } from "@crm/auth/roles";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { isMarketing } from "@/lib/env";
 import { requireSession, workspaceRole } from "@/lib/session";
@@ -21,6 +22,7 @@ export default function SettingsLayout({
 }
 
 async function Sidebar() {
+	await connection();
 	const session = await requireSession();
 	const [role, hosted, operator] = await Promise.all([
 		workspaceRole(session.user.id),

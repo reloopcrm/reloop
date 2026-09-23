@@ -2,7 +2,6 @@
 
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
-import { Tabs, TabsList, TabsTrigger } from "@crm/ui/components/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import NextLink from "next/link";
 import { useState } from "react";
@@ -58,17 +57,18 @@ export function PricingPlans({ startHref }: { startHref: string }) {
 	return (
 		<div className="flex w-full flex-col items-center gap-12">
 			<div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
-				<Tabs
+				<ToggleGroup
+					type="single"
+					size="sm"
 					value={mode}
 					onValueChange={(value) => {
 						if (isMode(value)) setMode(value);
 					}}
+					aria-label={t("AI")}
 				>
-					<TabsList aria-label={t("AI")}>
-						<TabsTrigger value="included">{t("AI included")}</TabsTrigger>
-						<TabsTrigger value="ownKey">{t("Own AI key")}</TabsTrigger>
-					</TabsList>
-				</Tabs>
+					<ToggleGroupItem value="included">{t("AI included")}</ToggleGroupItem>
+					<ToggleGroupItem value="ownKey">{t("Own AI key")}</ToggleGroupItem>
+				</ToggleGroup>
 				<ToggleGroup
 					type="single"
 					size="sm"

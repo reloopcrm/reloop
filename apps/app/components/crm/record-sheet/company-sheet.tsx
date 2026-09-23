@@ -116,7 +116,7 @@ function companyConsequence(company: Company, t: Translate): string {
 }
 
 const CONTACT_COLUMNS = [
-	{ id: "primary", srLabel: "Primary", width: "w-10", className: "pl-5" },
+	{ id: "primary", srLabel: "Primary", width: "w-12", className: "pl-5" },
 	{ id: "name", header: "Name", width: "w-[28%]" },
 	{ id: "title", header: "Title", width: "w-[24%]" },
 	{ id: "email", header: "Email", width: "w-[26%]" },
@@ -518,7 +518,7 @@ function CompanyContacts({
 							clickable
 							onClick={() => openRecord({ kind: "contact", id: contact.id })}
 						>
-							<TableCell className="w-10 py-2.5 pl-5">
+							<TableCell className="w-12 py-2.5 pl-5">
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button

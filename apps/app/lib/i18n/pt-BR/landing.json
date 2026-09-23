@@ -420,5 +420,8 @@
 	"The seven languages Reloop CRM speaks, how a person picks one, and how you add your own.": "Os sete idiomas que o Reloop CRM fala, como cada pessoa escolhe um e como você adiciona o seu.",
 	"Environment variables": "Variáveis de ambiente",
 	"Every environment variable Reloop CRM reads, which ones are required, and what each optional one adds.": "Cada variável de ambiente que o Reloop CRM lê, quais são obrigatórias e o que cada opcional acrescenta.",
-	"About Reloop CRM": "Sobre o Reloop CRM"
+	"About Reloop CRM": "Sobre o Reloop CRM",
+	"Already have an account?": "Já tem uma conta?",
+	"No account yet?": "Ainda não tem conta?",
+	"Sign up": "Cadastre-se"
 }

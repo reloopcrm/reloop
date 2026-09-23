@@ -71,7 +71,7 @@ export function WorkspaceLookup() {
 						{withPassword ? (
 							<Button
 								type="button"
-								variant="ghost"
+								variant="link"
 								onClick={() => {
 									setResetting(true);
 								}}

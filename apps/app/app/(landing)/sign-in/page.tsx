@@ -1,6 +1,7 @@
 import type { MailboxProviderId } from "@crm/auth/scopes";
 import { isHosted } from "@crm/db/tenant-context";
 import { Alert, AlertTitle } from "@crm/ui/components/alert";
+import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
@@ -8,6 +9,7 @@ import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { getSession } from "@/lib/session";
 import { signInErrorText } from "@/lib/sign-in-errors";
+import { signUpUrl } from "@/lib/site-links";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { PasswordSignIn } from "./password-sign-in";
 import { SocialSignIn } from "./social-sign-in";
@@ -106,6 +108,10 @@ async function SignIn({
 				) : null}
 
 				<WorkspaceLookup />
+
+				<p className="text-pretty text-muted-foreground text-sm/5">
+					{t("No account yet?")} <Link href={signUpUrl()}>{t("Sign up")}</Link>
+				</p>
 			</>
 		);
 	}

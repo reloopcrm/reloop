@@ -420,5 +420,8 @@
 	"The seven languages Reloop CRM speaks, how a person picks one, and how you add your own.": "Reloop CRM 支持的七种语言，用户如何选择，以及你如何添加自己的语言。",
 	"Environment variables": "环境变量",
 	"Every environment variable Reloop CRM reads, which ones are required, and what each optional one adds.": "Reloop CRM 读取的每个环境变量，哪些是必需的，以及每个可选变量的作用。",
-	"About Reloop CRM": "关于 Reloop CRM"
+	"About Reloop CRM": "关于 Reloop CRM",
+	"Already have an account?": "已有账号？",
+	"No account yet?": "还没有账号？",
+	"Sign up": "注册"
 }

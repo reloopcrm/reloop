@@ -10,7 +10,7 @@ import { SignupForm } from "@/components/landing/signup-form";
 import { WaitlistForm } from "@/components/landing/waitlist-form";
 import { API_URL } from "@/lib/env";
 import { getT } from "@/lib/i18n/server";
-import { cloudUrl, marketingUrl, signUpUrl } from "@/lib/site-links";
+import { cloudUrl, marketingUrl, signInUrl, signUpUrl } from "@/lib/site-links";
 import { signupOptions } from "@/lib/tenant-api";
 
 const chosenPlan = z.enum(PLAN_IDS).catch("trial");
@@ -79,6 +79,10 @@ export default async function GetStartedPage({
 				withPassword={options?.password ?? false}
 				signInMethods={options?.signIn ?? []}
 			/>
+			<p className="text-pretty text-muted-foreground text-sm/5">
+				{t("Already have an account?")}{" "}
+				<Link href={signInUrl()}>{t("Sign in")}</Link>
+			</p>
 			<SelfHostLine />
 		</AuthShell>
 	);

@@ -132,7 +132,8 @@ The Cloud serves `/get-started` and `/docs` inside the landing shell, and the
 shell links to pricing, about, privacy and the reading pages. Those pages answer
 404 on the Cloud, because `IS_MARKETING` is off there. With `RELOOP_SITE_URL` set,
 every link to a marketing page becomes `<RELOOP_SITE_URL>/<page>`, including
-"Change plan" on the sign-up form. Docs, sign-in and the home link stay here.
+"Change plan" on the sign-up form, and the logo on sign-in, sign-up,
+onboarding and grant-access. Docs and sign-in stay here.
 
 - **Unset or empty means off**: the links stay relative. The compose file passes
   `${RELOOP_SITE_URL:-}`.

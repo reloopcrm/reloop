@@ -420,5 +420,8 @@
 	"The seven languages Reloop CRM speaks, how a person picks one, and how you add your own.": "Reloop CRM'in konuştuğu yedi dil, bir kişinin nasıl seçtiği ve kendi dilini nasıl eklediğin.",
 	"Environment variables": "Ortam değişkenleri",
 	"Every environment variable Reloop CRM reads, which ones are required, and what each optional one adds.": "Reloop CRM'in okuduğu her ortam değişkeni, hangilerinin zorunlu olduğu ve her isteğe bağlı olanın ne eklediği.",
-	"About Reloop CRM": "Reloop CRM hakkında"
+	"About Reloop CRM": "Reloop CRM hakkında",
+	"Already have an account?": "Zaten bir hesabın var mı?",
+	"No account yet?": "Henüz hesabın yok mu?",
+	"Sign up": "Kaydol"
 }

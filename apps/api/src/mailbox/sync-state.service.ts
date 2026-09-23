@@ -5,7 +5,7 @@ import {
 	type Prisma,
 } from "@crm/db";
 import { planLimitsOf } from "@crm/db/plan-usage";
-import type { PlanLimits } from "@crm/db/plans";
+import type { CapacityUsage, PlanLimits } from "@crm/db/plans";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { serialiseBackfill, stoppedBackfill } from "./backfill-cursor";
@@ -19,6 +19,14 @@ export async function countMailboxes(db: Db): Promise<number> {
 		db.imapAccount.count(),
 	]);
 	return synced + imap;
+}
+
+export async function readCapacityUsage(db: Db): Promise<CapacityUsage> {
+	const [contacts, mailboxes] = await Promise.all([
+		db.contact.count(),
+		countMailboxes(db),
+	]);
+	return { contacts, mailboxes };
 }
 
 export function mailboxLimitMessage(limits: PlanLimits): string {

@@ -14,6 +14,7 @@ import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middlewa
 import { restMeta } from "../trpc/openapi";
 import {
 	billingOverviewOutput,
+	billingPlansOutput,
 	checkoutInput,
 	doneOutput,
 	portalInput,
@@ -36,6 +37,14 @@ export class BillingRouter {
 	})
 	async overview(@Ctx() ctx: AuthedTrpcContext) {
 		return this.billing.overview(ctx.user.id);
+	}
+
+	@Query({
+		output: billingPlansOutput,
+		meta: restMeta("GET", "/billing/plans", ["Billing"]),
+	})
+	async plans(@Ctx() ctx: AuthedTrpcContext) {
+		return this.billing.plans(ctx.user.id);
 	}
 
 	@Mutation({

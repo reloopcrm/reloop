@@ -1,7 +1,12 @@
 "use client";
 
 import Purchase from "@carbon/icons-react/es/Purchase";
-import { Alert, AlertDescription, AlertTitle } from "@crm/ui/components/alert";
+import {
+	Alert,
+	AlertAction,
+	AlertDescription,
+	AlertTitle,
+} from "@crm/ui/components/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -33,7 +38,9 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
 type Overview = RouterOutputs["billing"]["overview"];
 type Interval = "month" | "year";
-type PlanId = Overview["plans"][number]["id"];
+type PlanOption = RouterOutputs["billing"]["plans"]["plans"][number];
+type PlanId = PlanOption["id"];
+type Excess = PlanOption["over"][number];
 
 const USAGE_PATH = "/settings/ai";
 
@@ -59,6 +66,35 @@ const INVOICE_COLUMNS =
 	"grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 sm:grid-cols-[--spacing(36)_minmax(0,1fr)_--spacing(24)_--spacing(16)]";
 
 export { longDay };
+
+export function researchLimit(
+	t: Translate,
+	limits: Overview["limits"],
+	count: (value: number | null) => string,
+): string {
+	return limits.companyResearch
+		? count(limits.researchPerMonth)
+		: t("Not included");
+}
+
+export function excessReason(
+	t: Translate,
+	number: Intl.NumberFormat,
+	plan: string,
+	excess: Excess,
+): string {
+	const values = {
+		count: number.format(excess.used),
+		limit: number.format(excess.limit),
+		plan,
+	};
+	return excess.counter === "contacts"
+		? t(
+				"You have {count} contacts, archived ones included. {plan} allows {limit}.",
+				values,
+			)
+		: t("You have {count} mailboxes connected. {plan} allows {limit}.", values);
+}
 
 export function cancelWarning(
 	t: Translate,
@@ -209,7 +245,7 @@ function PlanPanel({
 		},
 		{
 			what: t("Company research runs per month"),
-			value: count(data.limits.researchPerMonth),
+			value: researchLimit(t, data.limits, count),
 		},
 		{
 			what: t("Storage"),
@@ -283,6 +319,7 @@ function PlanPanel({
 					<PlanPicker
 						data={data}
 						interval={interval}
+						aiKeyHref={workspaceUrl(USAGE_PATH)}
 						onDone={() => {
 							setPicking(false);
 							onChanged();
@@ -311,17 +348,41 @@ function PlanPanel({
 	);
 }
 
-export function PlanPicker({
-	data,
-	interval: chosenInterval,
-	onDone,
-}: {
+type PlanPickerProps = {
 	data: Overview;
 	interval?: Interval;
+	aiKeyHref: string | null;
 	onDone: () => void;
-}) {
+};
+
+export function PlanPicker(props: PlanPickerProps) {
+	const trpc = useTRPC();
+	const errorMessage = useErrorMessage();
+	const plans = useQuery({
+		...trpc.billing.plans.queryOptions(),
+		refetchOnMount: "always",
+	});
+
+	if (plans.error)
+		return (
+			<p className="text-2sm text-muted-foreground">
+				{errorMessage(plans.error.message)}
+			</p>
+		);
+	if (!plans.data) return <Spinner />;
+	return <PlanChoice {...props} options={plans.data.plans} />;
+}
+
+function PlanChoice({
+	data,
+	interval: chosenInterval,
+	aiKeyHref,
+	onDone,
+	options,
+}: PlanPickerProps & { options: PlanOption[] }) {
 	const t = useT();
 	const locale = useLocale();
+	const number = new Intl.NumberFormat(locale);
 	const trpc = useTRPC();
 	const errorMessage = useErrorMessage();
 	const [ownInterval, setOwnInterval] = useState<Interval>(
@@ -329,10 +390,11 @@ export function PlanPicker({
 	);
 	const interval = chosenInterval ?? ownInterval;
 	const [plan, setPlan] = useState<PlanId | null>(
-		data.plans.some((option) => option.id === data.plan)
-			? (data.plan as PlanId)
-			: null,
+		options.find((option) => option.id === data.plan)?.id ?? null,
 	);
+	const chosenOption = options.find((option) => option.id === plan) ?? null;
+	const losesAi =
+		data.limits.aiIncluded && chosenOption !== null && !chosenOption.aiIncluded;
 
 	const checkout = useMutation(
 		trpc.billing.checkout.mutationOptions({
@@ -374,16 +436,24 @@ export function PlanPicker({
 			</p>
 
 			<ul className="flex flex-col" aria-label={t("Plans")}>
-				{data.plans.map((option) => {
+				{options.map((option) => {
 					const chosen = option.id === plan;
+					const blocked = option.over.length > 0;
 					return (
 						<li key={option.id} className="border-t">
-							<label className="flex cursor-pointer items-center gap-3 py-3">
+							<label
+								className={
+									blocked
+										? "flex cursor-not-allowed items-center gap-3 py-3"
+										: "flex cursor-pointer items-center gap-3 py-3"
+								}
+							>
 								<input
 									type="radio"
 									name="plan"
 									value={option.id}
 									checked={chosen}
+									disabled={blocked}
 									onChange={() => setPlan(option.id)}
 									className="accent-foreground"
 								/>
@@ -397,6 +467,15 @@ export function PlanPicker({
 									<span className="text-2sm text-muted-foreground">
 										{option.aiIncluded ? t("AI included") : t("Own AI key")}
 									</span>
+									{option.over.map((excess) => (
+										<span
+											key={excess.counter}
+											className="text-2sm text-muted-foreground"
+											data-plan-blocked
+										>
+											{excessReason(t, number, t(option.label), excess)}
+										</span>
+									))}
 								</span>
 								<span className="text-sm tabular-nums">
 									{euro(
@@ -412,6 +491,10 @@ export function PlanPicker({
 					);
 				})}
 			</ul>
+
+			{losesAi && chosenOption ? (
+				<OwnKeyWarning option={chosenOption} aiKeyHref={aiKeyHref} />
+			) : null}
 
 			{data.trialKeptUntil && !hasSubscription ? (
 				<p className="text-2sm text-muted-foreground" data-trial-kept>
@@ -438,6 +521,55 @@ export function PlanPicker({
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+function OwnKeyWarning({
+	option,
+	aiKeyHref,
+}: {
+	option: PlanOption;
+	aiKeyHref: string | null;
+}) {
+	const t = useT();
+	const locale = useLocale();
+	const number = new Intl.NumberFormat(locale);
+	const unlimited = t("No limit");
+	const count = (value: number | null) =>
+		value === null ? unlimited : number.format(value);
+
+	return (
+		<Alert variant="warning" data-own-key-warning>
+			<AlertTitle>{t("You need your own AI key.")}</AlertTitle>
+			<AlertDescription>
+				<p>
+					{t(
+						"{plan} does not include AI. Without your own key, the AI stops working.",
+						{ plan: t(option.label) },
+					)}
+				</p>
+				<p>
+					{t(
+						"New limits: {contacts} contacts, {mailboxes} mailboxes, {storage} storage.",
+						{
+							contacts: count(option.contacts),
+							mailboxes: count(option.mailboxes),
+							storage:
+								option.storageGb === null
+									? unlimited
+									: t("{count} GB", { count: option.storageGb }),
+						},
+					)}
+				</p>
+			</AlertDescription>
+			{aiKeyHref ? (
+				<AlertAction>
+					<Button asChild variant="link" size="sm">
+						<Link href={aiKeyHref}>{t("Where to enter the key")}</Link>
+					</Button>
+				</AlertAction>
+			) : null}
+		</Alert>
 	);
 }
 

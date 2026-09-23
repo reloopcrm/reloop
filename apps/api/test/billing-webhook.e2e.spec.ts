@@ -19,6 +19,7 @@ import {
 } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants, registryQuery } from "@crm/db/test-tenants";
+import { Logger } from "@nestjs/common";
 import type Stripe from "stripe";
 import request from "supertest";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
@@ -26,6 +27,7 @@ import { BackfillService } from "../src/backfill/backfill.service";
 import { BILLING } from "../src/billing/billing.config";
 import { BillingService } from "../src/billing/billing.service";
 import { STRIPE } from "../src/billing/stripe.provider";
+import { countMailboxes } from "../src/mailbox/sync-state.service";
 import { MailboxSyncHeartbeatService } from "../src/sync/mailbox-sync-heartbeat.service";
 
 const PREPARE_TIMEOUT_MS = 120_000;
@@ -404,6 +406,77 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			await registryQuery(
 				"UPDATE tenant SET trial_ends_at = NULL WHERE id = $1",
 				[a.id],
+			);
+		}
+	});
+
+	it("refuses a plan too small for the mailboxes before any Stripe call", async () => {
+		await reset();
+		const tenant = await tenantById(a.id);
+		if (!tenant) throw new Error("tenant a missing");
+		const mailboxes = ["one", "two", "three"].map((name) => ({
+			userId: OWNER.id,
+			email: `${name}@billing-limit.example`,
+			host: "imap.billing-limit.example",
+			username: name,
+			secret: "not-a-real-secret",
+		}));
+		const listed = spyOn(stripe.prices, "list").mockImplementation(
+			(async () => ({ data: [{ id: "price_spec" }] })) as never,
+		);
+		const created = spyOn(
+			stripe.checkout.sessions,
+			"create",
+		).mockImplementation((async () => ({
+			url: "https://checkout.stripe.test/cs_limit",
+		})) as never);
+		const warned = spyOn(Logger.prototype, "warn");
+		try {
+			expect(await runAsTenant(tenant, () => countMailboxes(db))).toBe(0);
+			await runAsTenant(tenant, () =>
+				db.imapAccount.createMany({ data: mailboxes }),
+			);
+			for (const plan of ["hosting", "start"] as const) {
+				await expect(
+					runAsTenant(tenant, () =>
+						billing.checkout(OWNER.id, { plan, interval: "month" }),
+					),
+				).rejects.toThrow("more contacts or mailboxes than this plan allows");
+			}
+			expect(listed).not.toHaveBeenCalled();
+
+			const options = await runAsTenant(tenant, () => billing.plans(OWNER.id));
+			expect(
+				options.plans.find((option) => option.id === "hosting")?.over,
+			).toEqual([{ counter: "mailboxes", used: 3, limit: 2 }]);
+
+			const team = await runAsTenant(tenant, () =>
+				billing.checkout(OWNER.id, { plan: "team", interval: "month" }),
+			);
+			expect(team.url).toBe("https://checkout.stripe.test/cs_limit");
+
+			current = subscriptionFixture(a.id, {
+				items: { data: [item(planLookupKey("hosting", "month"))] },
+			});
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect((await tenantById(a.id))?.plan).toBe("hosting");
+			expect(
+				warned.mock.calls.some(([entry]) =>
+					JSON.stringify(entry).includes("Plan applied below current usage"),
+				),
+			).toBe(true);
+		} finally {
+			listed.mockRestore();
+			created.mockRestore();
+			warned.mockRestore();
+			current = subscriptionFixture(a.id);
+			await reset();
+			await runAsTenant(tenant, () =>
+				db.imapAccount.deleteMany({
+					where: { email: { in: mailboxes.map((row) => row.email) } },
+				}),
 			);
 		}
 	});

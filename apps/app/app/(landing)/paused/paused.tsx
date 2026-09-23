@@ -78,7 +78,11 @@ export function Paused({ admin }: { admin: boolean }) {
 					)}
 				</p>
 			) : picking ? (
-				<PlanPicker data={data} onDone={() => setPicking(false)} />
+				<PlanPicker
+					data={data}
+					aiKeyHref={null}
+					onDone={() => setPicking(false)}
+				/>
 			) : (
 				<div className="flex flex-col gap-3">
 					<Button type="button" onClick={() => setPicking(true)}>

@@ -261,5 +261,6 @@
 	"Only an owner or an admin can change the sign-in credentials.": "只有所有者或管理员能改登录凭据。",
 	"The agent researches contacts, reads mail and writes drafts. Use your own API key. The CRM also works without AI.": "代理会研究联系人、阅读邮件并撰写草稿。使用你自己的 API 密钥。没有 AI，CRM 也能工作。",
 	"A ChatGPT sign-in is not offered on a hosted install.": "托管安装不提供 ChatGPT 登录。",
-	"The AI is included in this plan. There is no model to choose.": "此套餐已包含 AI。无需选择模型。"
+	"The AI is included in this plan. There is no model to choose.": "此套餐已包含 AI。无需选择模型。",
+	"Your workspace holds more contacts or mailboxes than this plan allows. Remove some first, or choose a bigger plan.": "你的工作区中的联系人或邮箱多于此套餐允许的数量。请先删除一些，或选择更大的套餐。"
 }

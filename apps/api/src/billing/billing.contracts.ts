@@ -1,4 +1,4 @@
-import { ADD_ON_IDS } from "@crm/db/plans";
+import { ADD_ON_IDS, CAPACITY_COUNTERS } from "@crm/db/plans";
 import { BILLING_INTERVALS, PAID_PLAN_IDS } from "@crm/db/pricing";
 import { z } from "zod";
 import { BILLING } from "./billing.config";
@@ -39,17 +39,9 @@ export const billingOverviewOutput = z.object({
 		draftsPerMonth: z.number().nullable(),
 		researchPerMonth: z.number().nullable(),
 		storageGb: z.number().nullable(),
+		companyResearch: z.boolean(),
 		aiIncluded: z.boolean(),
 	}),
-	plans: z.array(
-		z.object({
-			id: z.enum(PAID_PLAN_IDS),
-			label: z.string(),
-			monthly: z.number(),
-			yearly: z.number(),
-			aiIncluded: z.boolean(),
-		}),
-	),
 	addOnCatalog: z.array(
 		z.object({
 			id: z.enum(ADD_ON_IDS),
@@ -86,6 +78,30 @@ export const billingOverviewOutput = z.object({
 });
 
 export type BillingOverview = z.infer<typeof billingOverviewOutput>;
+
+export const billingPlansOutput = z.object({
+	plans: z.array(
+		z.object({
+			id: z.enum(PAID_PLAN_IDS),
+			label: z.string(),
+			monthly: z.number(),
+			yearly: z.number(),
+			aiIncluded: z.boolean(),
+			contacts: z.number().nullable(),
+			mailboxes: z.number().nullable(),
+			storageGb: z.number().nullable(),
+			over: z.array(
+				z.object({
+					counter: z.enum(CAPACITY_COUNTERS),
+					used: z.number(),
+					limit: z.number(),
+				}),
+			),
+		}),
+	),
+});
+
+export type BillingPlans = z.infer<typeof billingPlansOutput>;
 
 export const checkoutInput = z.object({
 	plan: z.enum(PAID_PLAN_IDS),

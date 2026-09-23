@@ -261,5 +261,6 @@
 	"Only an owner or an admin can change the sign-in credentials.": "Seul un propriétaire ou un admin peut changer les identifiants de connexion.",
 	"The agent researches contacts, reads mail and writes drafts. Use your own API key. The CRM also works without AI.": "L'agent recherche des contacts, lit le courrier et rédige des brouillons. Utilisez votre propre clé d'API. Le CRM fonctionne aussi sans IA.",
 	"A ChatGPT sign-in is not offered on a hosted install.": "La connexion ChatGPT n'est pas proposée sur une installation hébergée.",
-	"The AI is included in this plan. There is no model to choose.": "L'IA est incluse dans ce forfait. Il n'y a aucun modèle à choisir."
+	"The AI is included in this plan. There is no model to choose.": "L'IA est incluse dans ce forfait. Il n'y a aucun modèle à choisir.",
+	"Your workspace holds more contacts or mailboxes than this plan allows. Remove some first, or choose a bigger plan.": "Ton espace de travail contient plus de contacts ou de boîtes aux lettres que ce forfait n'en autorise. Supprimes-en d'abord, ou choisis un forfait plus grand."
 }

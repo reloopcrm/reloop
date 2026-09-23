@@ -316,5 +316,11 @@
 	"No plan": "无套餐",
 	"One plan, one price, and what it includes. Add-ons live under Usage.": "一个套餐，一个价格，以及包含的内容。附加包在“用量”下。",
 	"More volume": "更多用量",
-	"What you used this month. The counters reset on": "你本月的用量。计数器重置于"
+	"What you used this month. The counters reset on": "你本月的用量。计数器重置于",
+	"You have {count} contacts, archived ones included. {plan} allows {limit}.": "你有 {count} 个联系人，包括已归档的。{plan} 最多允许 {limit} 个。",
+	"You have {count} mailboxes connected. {plan} allows {limit}.": "你已连接 {count} 个邮箱。{plan} 最多允许 {limit} 个。",
+	"You need your own AI key.": "你需要自己的 AI 密钥。",
+	"{plan} does not include AI. Without your own key, the AI stops working.": "{plan} 不包含 AI。没有你自己的密钥，AI 将停止工作。",
+	"New limits: {contacts} contacts, {mailboxes} mailboxes, {storage} storage.": "新的上限：{contacts} 个联系人，{mailboxes} 个邮箱，{storage} 存储空间。",
+	"Where to enter the key": "在哪里输入密钥"
 }

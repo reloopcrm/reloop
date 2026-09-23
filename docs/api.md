@@ -584,6 +584,18 @@ self-hosted install answers `configured: false` and refuses every mutation. A
 suspended tenant reaches `/api/auth/*` and `billing.*` only (`openWhileSuspended`
 in `tenant.middleware.ts`), which is how a paused workspace pays its way back
 in; `applySubscription` sets it `active` again.
+`billing.checkout` refuses a plan that holds fewer contacts or mailboxes than the
+workspace has now, before any Stripe call. The current plan is never refused, so
+the interval can always change. `planChangeExcess` is the rule, and
+`billing.plans` sends its answer per plan, so the list and the refusal agree.
+`billing.plans` is a separate query that only the open plan list reads, so the
+paused page's poll of `billing.overview` counts nothing. `readCapacityUsage`
+(`mailbox/sync-state.service.ts`) is the one count, for billing and for the usage
+page. Contacts count archived rows too, because the contact limit trigger counts
+them. The customer portal cannot change a plan (`subscription_update` is off in
+`scripts/stripe-setup.ts`, which also turns it off on an existing configuration).
+A plan that still arrives by webhook below the current usage is applied, because
+Stripe has charged, and `applySubscription` logs a warning.
 `docs/environment.md` has the variables, the script and what stays by hand.
 
 ## Money

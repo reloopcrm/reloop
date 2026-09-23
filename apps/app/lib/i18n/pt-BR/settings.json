@@ -316,5 +316,11 @@
 	"No plan": "Sem plano",
 	"One plan, one price, and what it includes. Add-ons live under Usage.": "Um plano, um preço e o que ele inclui. Os complementos ficam em Uso.",
 	"More volume": "Mais volume",
-	"What you used this month. The counters reset on": "O que você usou neste mês. Os contadores reiniciam em"
+	"What you used this month. The counters reset on": "O que você usou neste mês. Os contadores reiniciam em",
+	"You have {count} contacts, archived ones included. {plan} allows {limit}.": "Você tem {count} contatos, incluindo os arquivados. {plan} permite {limit}.",
+	"You have {count} mailboxes connected. {plan} allows {limit}.": "Você tem {count} caixas de e-mail conectadas. {plan} permite {limit}.",
+	"You need your own AI key.": "Você precisa da sua própria chave de IA.",
+	"{plan} does not include AI. Without your own key, the AI stops working.": "{plan} não inclui IA. Sem a sua própria chave, a IA para de funcionar.",
+	"New limits: {contacts} contacts, {mailboxes} mailboxes, {storage} storage.": "Novos limites: {contacts} contatos, {mailboxes} caixas de e-mail, {storage} de armazenamento.",
+	"Where to enter the key": "Onde informar a chave"
 }

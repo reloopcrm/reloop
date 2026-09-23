@@ -154,6 +154,17 @@ async function ensurePrices(
 	}
 }
 
+export const PORTAL_FEATURES = {
+	invoice_history: { enabled: true },
+	payment_method_update: { enabled: true },
+	customer_update: {
+		enabled: true,
+		allowed_updates: ["name", "email", "address", "tax_id"],
+	},
+	subscription_cancel: { enabled: false },
+	subscription_update: { enabled: false },
+} satisfies Stripe.BillingPortal.ConfigurationCreateParams.Features;
+
 export async function ensurePortal(stripe: Stripe): Promise<string> {
 	const configurations = await stripe.billingPortal.configurations.list({
 		limit: 100,
@@ -164,21 +175,15 @@ export async function ensurePortal(stripe: Stripe): Promise<string> {
 			STRIPE_CATALOG.portal.metadata,
 	);
 	if (found) {
-		console.log(`portal kept      ${found.id}`);
+		await stripe.billingPortal.configurations.update(found.id, {
+			features: PORTAL_FEATURES,
+		});
+		console.log(`portal updated   ${found.id}  plan changes off`);
 		return found.id;
 	}
 	const created = await stripe.billingPortal.configurations.create({
 		metadata: { [STRIPE_CATALOG.metadata.key]: STRIPE_CATALOG.portal.metadata },
-		features: {
-			invoice_history: { enabled: true },
-			payment_method_update: { enabled: true },
-			customer_update: {
-				enabled: true,
-				allowed_updates: ["name", "email", "address", "tax_id"],
-			},
-			subscription_cancel: { enabled: false },
-			subscription_update: { enabled: false },
-		},
+		features: PORTAL_FEATURES,
 		business_profile: { headline: `${STRIPE_CATALOG.productPrefix}` },
 	});
 	console.log(`portal created   ${created.id}`);

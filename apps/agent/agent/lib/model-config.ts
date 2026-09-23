@@ -13,15 +13,16 @@ export const MODEL = {
 			"X-Title": "Reloop CRM",
 		},
 		pins: {
+			"openai/gpt-6-sol": { order: ["openai"], allow_fallbacks: false },
 			"openai/gpt-5.6-sol": { order: ["openai"], allow_fallbacks: false },
 		},
 	},
 	spend: { defaultKind: "agent", researchKind: "research" },
 	fixed: {
 		provider: "openrouter",
-		chat: "openai/gpt-5.6-luna",
-		reading: "openai/gpt-5.6-luna",
-		draft: "openai/gpt-5.6-sol",
+		chat: "openai/gpt-6-luna",
+		reading: "openai/gpt-6-luna",
+		draft: "openai/gpt-6-sol",
 		contextWindowTokens: 200_000,
 		unavailable:
 			"The AI service is not available right now. The work continues when it is back.",

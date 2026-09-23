@@ -197,7 +197,7 @@ OpenRouter is one key for every model vendor and the default for a self-hosted i
 2. Create a key at [openrouter.ai/keys](https://openrouter.ai/keys).
 3. Open **Settings, AI**, choose **OpenRouter**, paste the key and save.
 
-The agent starts on `openai/gpt-5.6-luna`. At the time of writing OpenRouter lists it at 0.20 USD per million input tokens and 1.20 USD per million output tokens. Pick another model in the same panel, any id from [openrouter.ai/models](https://openrouter.ai/models) that supports tools works.
+The agent starts on `openai/gpt-6-luna`. At the time of writing OpenRouter lists it at 0.10 USD per million input tokens and 0.50 USD per million output tokens. Pick another model in the same panel, any id from [openrouter.ai/models](https://openrouter.ai/models) that supports tools works.
 
 To keep the key out of the database, set `OPENROUTER_API_KEY` in `deploy/.env` instead and run `docker compose up -d`. A key pasted in the settings page wins over the variable.
 

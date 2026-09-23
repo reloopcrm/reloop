@@ -44,7 +44,7 @@ export async function LandingShell({
 	return (
 		<div className="dark flex min-h-svh w-full flex-col items-center bg-background font-sans text-foreground">
 			<header className="sticky top-0 z-10 flex h-16 w-full shrink-0 items-center justify-center border-border border-b bg-background">
-				<nav className="flex w-full max-w-(--container-page-wide) items-center gap-4 px-6 text-[13px]/6">
+				<nav className="flex w-full max-w-(--container-page-wide) items-center gap-4 px-6 text-2sm">
 					<NextLink href="/" aria-label={t("Reloop CRM home")}>
 						<Wordmark className="h-5 w-auto" />
 					</NextLink>
@@ -59,7 +59,7 @@ export async function LandingShell({
 						{t("Sign in")}
 					</Link>
 					{cta ? (
-						<Button size="pill-sm" asChild>
+						<Button variant="outline" asChild>
 							<NextLink href={marketingUrl("/pricing")}>
 								{t("Start free trial")}
 							</NextLink>
@@ -74,7 +74,7 @@ export async function LandingShell({
 				<div className="flex w-full max-w-(--container-page-wide) flex-col items-start justify-between gap-12 px-6 py-16 sm:flex-row sm:gap-16">
 					<div className="flex shrink-0 flex-col items-start gap-4">
 						<Wordmark className="h-5 w-auto" />
-						<p className="text-[13px]/[21px] text-muted-foreground">
+						<p className="text-2sm text-muted-foreground">
 							{t("The CRM that wins old customers back.")}
 						</p>
 						<div className="text-muted-foreground">
@@ -83,7 +83,7 @@ export async function LandingShell({
 					</div>
 
 					<div className="flex shrink-0 gap-12">
-						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
+						<nav className="flex flex-col items-start gap-4 text-2sm">
 							{productLinks.map((link) => (
 								<Link variant="quiet" key={link.href} href={link.href}>
 									{link.label}
@@ -99,7 +99,7 @@ export async function LandingShell({
 							</Link>
 						</nav>
 
-						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
+						<nav className="flex flex-col items-start gap-4 text-2sm">
 							{readingLinks.map((link) => (
 								<Link variant="quiet" key={link.href} href={link.href}>
 									{link.label}
@@ -107,7 +107,7 @@ export async function LandingShell({
 							))}
 						</nav>
 
-						<nav className="flex flex-col items-start gap-4 text-[13px]/6">
+						<nav className="flex flex-col items-start gap-4 text-2sm">
 							{companyLinks.map((link) => (
 								<Link variant="quiet" key={link.href} href={link.href}>
 									{link.label}

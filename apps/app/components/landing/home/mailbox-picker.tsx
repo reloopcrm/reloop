@@ -11,12 +11,12 @@ export function MailboxPicker({ t }: { t: Translate }) {
 	return (
 		<ul
 			aria-label={t("Choose a mailbox")}
-			className="flex flex-col rounded-lg bg-secondary px-4 py-1 text-foreground"
+			className="flex flex-col rounded-lg border border-border bg-card px-4 py-1 text-foreground"
 		>
 			<li className="flex min-h-15 items-center gap-3 border-border border-b py-2">
 				<GoogleLogo width={HOME.iconSize} height={HOME.iconSize} />
 				<span className="grow font-medium">Gmail</span>
-				<Button variant="outline-ghost" size="pill-sm" asChild>
+				<Button variant="outline-ghost" size="sm" asChild>
 					<NextLink href={signInUrl()}>{t("Change mailbox")}</NextLink>
 				</Button>
 			</li>

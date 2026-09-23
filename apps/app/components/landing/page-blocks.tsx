@@ -47,13 +47,13 @@ export async function PricingActions({ secondary }: { secondary?: PageLink }) {
 		label: t("See pricing"),
 	};
 	return (
-		<div className="flex flex-wrap items-center justify-center gap-6">
-			<Button size="pill" asChild>
+		<div className="flex flex-wrap items-center justify-center gap-4">
+			<Button size="xl" asChild>
 				<NextLink href={marketingUrl(PRICING.href)}>
 					{t("Start free trial")}
 				</NextLink>
 			</Button>
-			<Button variant="link" size="pill" asChild>
+			<Button variant="link" asChild>
 				<NextLink href={link.href}>{link.label}</NextLink>
 			</Button>
 		</div>
@@ -95,7 +95,7 @@ export async function CloudBanner() {
 				<p className="max-w-(--container-sheet) text-body-foreground text-lg md:text-xl">
 					{t("Reloop Cloud does it for you.")}
 				</p>
-				<Button size="pill" asChild>
+				<Button size="xl" asChild>
 					<NextLink href={marketingUrl(PRICING.href)}>
 						{t("See pricing")}
 					</NextLink>

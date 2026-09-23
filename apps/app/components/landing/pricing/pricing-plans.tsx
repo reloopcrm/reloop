@@ -2,14 +2,27 @@
 
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
+import { Tabs, TabsList, TabsTrigger } from "@crm/ui/components/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import NextLink from "next/link";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { LOCALE } from "@/lib/i18n/locale";
 import { type Plan, PRICING } from "./config";
 
 type Mode = "included" | "ownKey";
 type Billing = "monthly" | "yearly";
+
+const MODES = ["included", "ownKey"] as const;
+const BILLINGS = ["monthly", "yearly"] as const;
+
+function isMode(value: string): value is Mode {
+	return (MODES as readonly string[]).includes(value);
+}
+
+function isBilling(value: string): value is Billing {
+	return (BILLINGS as readonly string[]).includes(value);
+}
 
 const UNIT = {
 	included: {
@@ -21,28 +34,6 @@ const UNIT = {
 		yearly: "per seat per month, billed yearly",
 	},
 } as const;
-
-function SwitchButton({
-	active,
-	onClick,
-	children,
-}: {
-	active: boolean;
-	onClick: () => void;
-	children: ReactNode;
-}) {
-	return (
-		<Button
-			type="button"
-			variant={active ? "outline" : "ghost"}
-			size="pill-sm"
-			aria-pressed={active}
-			onClick={onClick}
-		>
-			{children}
-		</Button>
-	);
-}
 
 export function PricingPlans({ startHref }: { startHref: string }) {
 	const t = useT();
@@ -66,40 +57,35 @@ export function PricingPlans({ startHref }: { startHref: string }) {
 
 	return (
 		<div className="flex w-full flex-col items-center gap-12">
-			<div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-				<fieldset className="flex flex-wrap justify-center gap-2">
-					<legend className="sr-only">{t("AI")}</legend>
-					<SwitchButton
-						active={mode === "included"}
-						onClick={() => setMode("included")}
-					>
-						{t("AI included")}
-					</SwitchButton>
-					<SwitchButton
-						active={mode === "ownKey"}
-						onClick={() => setMode("ownKey")}
-					>
-						{t("Own AI key")}
-					</SwitchButton>
-				</fieldset>
-				<fieldset className="flex flex-wrap justify-center gap-2">
-					<legend className="sr-only">{t("Billing")}</legend>
-					<SwitchButton
-						active={billing === "monthly"}
-						onClick={() => setBilling("monthly")}
-					>
-						{t("Monthly")}
-					</SwitchButton>
-					<SwitchButton
-						active={billing === "yearly"}
-						onClick={() => setBilling("yearly")}
-					>
+			<div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
+				<Tabs
+					value={mode}
+					onValueChange={(value) => {
+						if (isMode(value)) setMode(value);
+					}}
+				>
+					<TabsList aria-label={t("AI")}>
+						<TabsTrigger value="included">{t("AI included")}</TabsTrigger>
+						<TabsTrigger value="ownKey">{t("Own AI key")}</TabsTrigger>
+					</TabsList>
+				</Tabs>
+				<ToggleGroup
+					type="single"
+					size="sm"
+					value={billing}
+					onValueChange={(value) => {
+						if (isBilling(value)) setBilling(value);
+					}}
+					aria-label={t("Billing")}
+				>
+					<ToggleGroupItem value="monthly">{t("Monthly")}</ToggleGroupItem>
+					<ToggleGroupItem value="yearly">
 						{t("Yearly")}
-						<Badge variant="primary">
+						<Badge>
 							{t("{percent}%", { percent: PRICING.yearlyDiscountPercent })}
 						</Badge>
-					</SwitchButton>
-				</fieldset>
+					</ToggleGroupItem>
+				</ToggleGroup>
 			</div>
 
 			<ul
@@ -120,9 +106,7 @@ export function PricingPlans({ startHref }: { startHref: string }) {
 								<h3 className="font-semibold text-foreground text-xl">
 									{t(plan.name)}
 								</h3>
-								{plan.popular ? (
-									<Badge variant="outline">{t("Popular")}</Badge>
-								) : null}
+								{plan.popular ? <Badge>{t("Popular")}</Badge> : null}
 							</div>
 							<p className="text-muted-foreground text-sm">{t(plan.tagline)}</p>
 						</div>
@@ -148,11 +132,7 @@ export function PricingPlans({ startHref }: { startHref: string }) {
 							))}
 						</dl>
 						<div className="mt-auto flex flex-col">
-							<Button
-								variant={plan.popular ? "default" : "outline"}
-								size="pill"
-								asChild
-							>
+							<Button variant={plan.popular ? "default" : "outline"} asChild>
 								<NextLink
 									href={`${startHref}?${PRICING.href.planParam}=${plan.id}`}
 								>

@@ -1,6 +1,5 @@
 import Script from "next/script";
 import { getT } from "@/lib/i18n/server";
-import { BentoCard, CardHeading } from "./bento-card";
 import { Band, type Tone } from "./page-blocks";
 import { SectionHeading } from "./section-heading";
 
@@ -34,13 +33,19 @@ export async function Faq({
 				{JSON.stringify(faqEntry(items))}
 			</Script>
 			<SectionHeading title={t("Questions people ask")} />
-			<div className="grid w-full gap-4 md:grid-cols-2">
+			<dl className="flex w-full max-w-(--container-page) flex-col">
 				{items.map((item) => (
-					<BentoCard key={item.question}>
-						<CardHeading title={item.question} body={item.answer} />
-					</BentoCard>
+					<div
+						key={item.question}
+						className="flex flex-col gap-2 border-border border-b py-6 first:pt-0 last:border-b-0 last:pb-0 md:grid md:grid-cols-2 md:gap-8"
+					>
+						<dt className="text-balance font-semibold text-foreground text-xl">
+							{item.question}
+						</dt>
+						<dd className="text-body-foreground text-base/7">{item.answer}</dd>
+					</div>
 				))}
-			</div>
+			</dl>
 		</Band>
 	);
 }

@@ -258,7 +258,7 @@ export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 				if (block.kind === "table") {
 					const [head = [], ...body] = block.rows;
 					return (
-						<Table key={key}>
+						<Table key={key} containerClassName="rounded-lg border bg-card">
 							<TableHeader>
 								<TableRow>
 									{head.map((cell, cellIndex) => (
@@ -272,7 +272,10 @@ export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 								{body.map((row, rowIndex) => (
 									<TableRow key={`${key}-r${rowIndex}`}>
 										{row.map((cell, cellIndex) => (
-											<TableCell key={`${key}-r${rowIndex}c${cellIndex}`}>
+											<TableCell
+												key={`${key}-r${rowIndex}c${cellIndex}`}
+												className="whitespace-normal"
+											>
 												{inline(cell)}
 											</TableCell>
 										))}

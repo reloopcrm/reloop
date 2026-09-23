@@ -30,7 +30,11 @@ import {
 	writeTenantBilling,
 } from "@crm/db/tenancy";
 import { TENANCY } from "@crm/db/tenancy-config";
-import { currentTenant, isHosted, runAsTenant } from "@crm/db/tenant-context";
+import {
+	currentTenant,
+	isHostedCustomer,
+	runAsTenant,
+} from "@crm/db/tenant-context";
 import {
 	BadRequestException,
 	ForbiddenException,
@@ -308,7 +312,7 @@ export class BillingService {
 
 	async overview(userId: string): Promise<BillingOverview> {
 		await this.assertManager(userId);
-		if (!isHosted()) return this.singleTenantOverview();
+		if (!isHostedCustomer()) return this.singleTenantOverview();
 
 		const tenant = await this.freshTenant();
 		const limits = await planLimitsOf(this.db);
@@ -562,7 +566,7 @@ export class BillingService {
 	}
 
 	private requireHosted(): void {
-		if (!isHosted()) {
+		if (!isHostedCustomer()) {
 			throw new ForbiddenException(
 				"Billing is only offered on the hosted Cloud.",
 			);

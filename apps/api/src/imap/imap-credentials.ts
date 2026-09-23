@@ -3,10 +3,10 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { EnvironmentVariables } from "../config/env.validation";
 
-const PURPOSE = "imap-credentials";
+export const IMAP_CREDENTIALS = { purpose: "imap-credentials" } as const;
 
 export function credentialKey(secret: string): Buffer {
-	return secretKey(secret, PURPOSE);
+	return secretKey(secret, IMAP_CREDENTIALS.purpose);
 }
 
 export { openSecret, sealSecret };

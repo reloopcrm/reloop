@@ -140,6 +140,57 @@ every link to a marketing page becomes `<RELOOP_SITE_URL>/<page>`, including
   hands a plain string to a client component. Declared in `apps/app/turbo.json`
   `passThroughEnv`. The API does not read it.
 
+## `RELOOP_MARKETING_HOST`, unset by default
+
+The hosted Cloud serves the marketing site itself, on a second host name. A
+comma separated list of host names, `reloopcrm.com,www.reloopcrm.com`. A request
+whose `Host` (or `X-Forwarded-Host`) is on the list gets the public pages exactly
+as `IS_MARKETING="true"` does: the landing page at `/`, pricing, about, docs, the
+reading pages, `llms.txt` and the sitemap. Every other host is the app as before.
+
+- **`/sign-in` and `/get-started` on that host redirect to `RELOOP_CLOUD_URL`**,
+  with the query, so `?plan=` survives. Without `RELOOP_CLOUD_URL` they render
+  here.
+- **An app link on that host redirects to `RELOOP_CLOUD_URL` too**, with the same
+  path, so a rep who types `reloopcrm.com/companies` lands in the Cloud. A page
+  nobody serves is a 404.
+- **`siteAddress()` prefers `RELOOP_SITE_URL`** when it is set, so canonical
+  links, the sitemap, `robots.txt`, `llms.txt` and the structured data name the
+  marketing address and not the app's.
+- **Only the app reads it**: `isMarketingHost()` (`apps/app/lib/env.ts`) in the
+  proxy, per request. Declared in `apps/app/turbo.json` `passThroughEnv` and
+  passed by `deploy/cloud/docker-compose.cloud.yml`.
+
+## `RELOOP_OPERATOR_TENANT`, unset by default
+
+The operator's own workspace inside the hosted Cloud, a tenant id. Exactly that
+one tenant runs as a self-hosted install does, every other tenant keeps the
+hosted rules. `isOperatorTenant()` and `isHostedCustomer()`
+(`@crm/db/tenant-context`) are the two predicates; a gate that expresses a
+customer rule reads `isHostedCustomer()`, a gate that expresses infrastructure
+(the registry, the tenant cookie, the loops) keeps `isHosted()`.
+
+- **No plan.** `planIdOf` answers `null`, so `NO_PLAN` applies: no contact,
+  mailbox, import or monthly limit, no add-ons, no included AI. The registry row
+  holds `TENANCY.operator.plan` (`none`), which the trial sweep never matches.
+- **The model choice, the ChatGPT subscription and the operator's
+  `OPENROUTER_API_KEY`** work as on a self-hosted install: `assertChatgptOffered`
+  and `openrouterEnvKey` in `SettingsService`, `chatgptLoginExists` and
+  `openrouterKeyOf` in the agent. The agent's `/internal/crm/chatgpt-login` route
+  runs under the operator tenant, because the API refuses every other tenant
+  before it calls; without an operator tenant it answers `unavailable`.
+- **The settings show the self-hosted AI page** instead of Usage, no Plan &
+  billing page, the Waitlist page for the owner, and the onboarding offers all
+  three AI choices. `hostedCustomer()` and `operatorTenant()`
+  (`apps/app/lib/tenant.ts`) read the tenant cookie for that. The Plan card on
+  the General page stays a self-host feature: hosted mode hides it for everyone.
+- **Billing answers as a self-hosted install** (`configured: false`).
+- Declared in `env.validation.ts`, the root `turbo.json`, `apps/app/turbo.json`,
+  `apps/agent/turbo.json` and `deploy/cloud/docker-compose.cloud.yml`. The
+  import script `apps/api/scripts/import-single-tenant.ts` moves a single-tenant
+  database into the Cloud as that tenant; `deploy/cloud/README.md` has the
+  runbook.
+
 ## `GOOGLE_SITE_VERIFICATION`, unset by default
 
 Google Search Console proves that the site belongs to you. The DNS method needs

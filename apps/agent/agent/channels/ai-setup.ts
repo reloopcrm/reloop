@@ -1,9 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
-import { isHosted } from "@crm/db/tenant-context";
+import { isHosted, operatorTenantId } from "@crm/db/tenant-context";
 import { defineChannel, POST } from "eve/channels";
 import { z } from "zod";
 import { chatgptLogin } from "../lib/chatgpt-login";
 import { verifyProviderKey } from "../lib/provider-key";
+import { asTenant, tenantFromId } from "../lib/tenant";
 
 function authorised(request: Request): boolean {
 	const secret = process.env.AGENT_BRIDGE_SECRET?.trim();
@@ -37,7 +38,7 @@ export default defineChannel({
 				await request.json().catch(() => null),
 			);
 
-			if (isHosted()) {
+			if (isHosted() && operatorTenantId() === null) {
 				return Response.json({
 					status: "unavailable",
 					url: null,
@@ -48,9 +49,16 @@ export default defineChannel({
 				});
 			}
 
-			if (action === "start") return Response.json(await chatgptLogin.start());
-			if (action === "cancel") return Response.json(chatgptLogin.cancel());
-			return Response.json(chatgptLogin.status());
+			const operator = await tenantFromId(operatorTenantId());
+			if (action === "start") {
+				return Response.json(
+					await asTenant(operator, () => chatgptLogin.start()),
+				);
+			}
+			if (action === "cancel") {
+				return Response.json(asTenant(operator, () => chatgptLogin.cancel()));
+			}
+			return Response.json(asTenant(operator, () => chatgptLogin.status()));
 		}),
 
 		POST("/internal/crm/verify-provider-key", async (request) => {

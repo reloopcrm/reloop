@@ -48,7 +48,7 @@ import {
 	writeAgentProvider,
 	writeArchiveRetentionDays,
 } from "@crm/db/settings";
-import { isHosted } from "@crm/db/tenant-context";
+import { isHostedCustomer } from "@crm/db/tenant-context";
 import {
 	AGENT_FUNCTIONS,
 	isAgentFunction,
@@ -139,7 +139,7 @@ export class SettingsService {
 	}
 
 	private assertChatgptOffered(): void {
-		if (isHosted()) {
+		if (isHostedCustomer()) {
 			throw new ForbiddenException(
 				"A ChatGPT sign-in is not offered on a hosted install.",
 			);
@@ -477,7 +477,7 @@ export class SettingsService {
 	}
 
 	private openrouterEnvKey(): boolean {
-		if (isHosted()) return false;
+		if (isHostedCustomer()) return false;
 		return Boolean(
 			this.config.get("OPENROUTER_API_KEY", { infer: true })?.trim(),
 		);

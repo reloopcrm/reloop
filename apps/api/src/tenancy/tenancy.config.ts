@@ -13,3 +13,10 @@ export const SIGNUP = {
 		resendAfterMs: 60 * SECOND_MS,
 	},
 } as const;
+
+export const IMPORT = {
+	dryRunSuffix: "_dryrun_test",
+	oldSecretVar: "IMPORT_OLD_SECRET",
+	restore: { timeoutMs: 60 * MINUTE_MS },
+	contextDev: { purpose: "context-dev-key" },
+} as const;

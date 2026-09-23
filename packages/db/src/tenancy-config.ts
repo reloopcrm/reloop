@@ -17,4 +17,5 @@ export const TENANCY = {
 	trial: { suspendedTtlMs: 30 * DAY_MS, sweepEveryMs: DAY_MS },
 	billing: { graceMs: 7 * DAY_MS },
 	backup: { dumpTimeoutMs: 30 * MINUTE_MS, recentDumpMs: 36 * HOUR_MS },
+	operator: { plan: "none" },
 } as const;

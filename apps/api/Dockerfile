@@ -9,7 +9,7 @@ RUN rm -rf node_modules/.bun/next@* node_modules/.bun/@next+swc-*
 
 FROM node:24-bookworm-slim
 COPY --from=oven/bun:1.3.12 /usr/local/bin/bun /usr/local/bin/bun
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates postgresql-client && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /app /data/codex && chown node:node /app /data/codex
 USER node
 WORKDIR /app

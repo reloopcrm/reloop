@@ -56,6 +56,7 @@ export default async function GeneralSettingsPage() {
 async function Settings() {
 	const session = await requireSession();
 	const canManage = isWorkspaceAdmin(await workspaceRole(session.user.id));
+	const planCard = plansOffered() && !isHosted();
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
@@ -66,7 +67,7 @@ async function Settings() {
 		queryClient.prefetchQuery(trpc.settings.archiveRetention.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.dealStages.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.passwordSignIn.queryOptions()),
-		...(plansOffered() && !isHosted()
+		...(planCard
 			? [queryClient.prefetchQuery(trpc.settings.plan.queryOptions())]
 			: []),
 	]);
@@ -78,7 +79,7 @@ async function Settings() {
 				<Language />
 				<WorkspaceForm />
 				<PasswordSignIn />
-				{plansOffered() && !isHosted() ? (
+				{planCard ? (
 					<fieldset disabled className="contents">
 						<Plan />
 					</fieldset>

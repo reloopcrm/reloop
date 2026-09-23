@@ -13,6 +13,7 @@
 		"./roles": "./src/roles.ts",
 		"./scopes": "./src/scopes.ts",
 		"./sign-in-grants": "./src/sign-in-grants.ts",
+		"./token-seal": "./src/token-seal.ts",
 		"./workspace": "./src/workspace.ts"
 	},
 	"scripts": {

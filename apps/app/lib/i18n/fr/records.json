@@ -144,5 +144,12 @@
 	"Recently closed": "Clôturées récemment",
 	"{count} open": "{count} ouvertes",
 	"{amount} in the pipeline": "{amount} dans le pipeline",
-	"{won} won and {lost} lost in the last 90 days": "{won} gagnées et {lost} perdues au cours des 90 derniers jours"
+	"{won} won and {lost} lost in the last 90 days": "{won} gagnées et {lost} perdues au cours des 90 derniers jours",
+	"In short": "En bref",
+	"Forward": "Transférer",
+	"Forwarded message": "Message transféré",
+	"From: {sender}": "De : {sender}",
+	"Subject: {subject}": "Objet : {subject}",
+	"What was read from the mails": "Ce qui a été lu dans les e-mails",
+	"Create a task": "Créer une tâche"
 }

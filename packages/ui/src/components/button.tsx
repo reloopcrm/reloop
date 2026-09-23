@@ -43,6 +43,7 @@ const buttonVariants = cva(
 			},
 			align: {
 				center: "",
+				start: "justify-start",
 				toolbar: "justify-start sm:justify-center",
 			},
 		},

@@ -16,6 +16,7 @@ import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { cleanSubject } from "@crm/ui/lib/email-text";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { parseAsString, useQueryState } from "nuqs";
+import { useState } from "react";
 import { DetailSheetEmpty } from "@/components/detail-sheet";
 import { LocalDateTime, localDayKey } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -59,7 +60,7 @@ const EMPTY_STATES = {
 	all: {
 		title: "Nothing has happened yet",
 		description:
-			"Calls, notes, emails and meetings all land here. Log the first one above, or wait for Gmail and Calendar to sync.",
+			"Calls, notes, emails and meetings all land here. Log the first one below, or wait for Gmail and Calendar to sync.",
 	},
 	notes: {
 		title: "No notes",
@@ -249,6 +250,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 		parseAsString,
 	);
 	const contactId = "contactId" in anchor ? anchor.contactId : null;
+	const [taskAsked, setTaskAsked] = useState(0);
 
 	const counts = useQuery(trpc.activities.timelineCounts.queryOptions(anchor));
 
@@ -287,9 +289,16 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-			<div className="flex shrink-0 flex-col gap-3 border-b px-5 py-4">
-				<ActivityComposer anchor={anchor} />
+			{contactId ? (
+				<AttentionBlock
+					contactId={contactId}
+					onTask={() => setTaskAsked((count) => count + 1)}
+				/>
+			) : newestEmail ? (
+				<WaitingLine entry={newestEmail} />
+			) : null}
 
+			<div className="flex shrink-0 flex-col px-5 pt-4">
 				<ToggleGroup
 					type="single"
 					wrap
@@ -314,12 +323,6 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					})}
 				</ToggleGroup>
 			</div>
-
-			{contactId ? (
-				<AttentionBlock contactId={contactId} />
-			) : newestEmail ? (
-				<WaitingLine entry={newestEmail} />
-			) : null}
 
 			{history.isPending ? (
 				<div className="flex min-h-0 flex-1 items-center justify-center">
@@ -383,6 +386,14 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 					) : null}
 				</EventList>
 			)}
+
+			<div className="sticky bottom-0 z-20 mt-auto shrink-0 border-t bg-popover px-5 py-3">
+				<ActivityComposer
+					key={taskAsked}
+					anchor={anchor}
+					task={taskAsked > 0}
+				/>
+			</div>
 		</div>
 	);
 }

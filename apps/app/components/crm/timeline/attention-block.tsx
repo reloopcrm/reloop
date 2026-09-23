@@ -1,11 +1,20 @@
 "use client";
 
+import ChevronDown from "@carbon/icons-react/es/ChevronDown";
+import DocumentView from "@carbon/icons-react/es/DocumentView";
 import { Badge } from "@crm/ui/components/badge";
+import { Button } from "@crm/ui/components/button";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@crm/ui/components/collapsible";
 import {
 	Evidence,
 	EvidenceFooter,
 	EvidenceQuote,
 } from "@crm/ui/components/evidence";
+import { Icon } from "@crm/ui/components/icon";
 import { SimpleTable, SimpleTableRow } from "@crm/ui/components/simple-table";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { SourceLink, SourceNote } from "@crm/ui/components/sourced-value";
@@ -145,7 +154,13 @@ function sourceLabel(
 	return subject.length > 0 && !repeats ? subject : t("Open the mail");
 }
 
-export function AttentionBlock({ contactId }: { contactId: string }) {
+export function AttentionBlock({
+	contactId,
+	onTask,
+}: {
+	contactId: string;
+	onTask?: () => void;
+}) {
 	const trpc = useTRPC();
 	const query = useQuery(
 		trpc.contacts.attention.queryOptions({ id: contactId }),
@@ -161,9 +176,20 @@ export function AttentionBlock({ contactId }: { contactId: string }) {
 	}
 
 	if (!query.data) return <AttentionProblem />;
-	if (SILENT_KINDS.some((kind) => kind === query.data.kind)) return null;
+	if (
+		!query.data.summary &&
+		SILENT_KINDS.some((kind) => kind === query.data.kind)
+	) {
+		return null;
+	}
 
-	return <AttentionAnswer attention={query.data} contactId={contactId} />;
+	return (
+		<AttentionAnswer
+			attention={query.data}
+			contactId={contactId}
+			onTask={onTask}
+		/>
+	);
 }
 
 export function AttentionProblem() {
@@ -186,33 +212,74 @@ export function AttentionProblem() {
 export function AttentionAnswer({
 	attention,
 	contactId,
+	onTask,
 }: {
 	attention: Attention;
 	contactId: string;
+	onTask?: () => void;
 }) {
 	const t = useT();
 
 	return (
 		<section
 			aria-label={t("What to do about this person")}
-			className="flex shrink-0 flex-col gap-3.5 border-b px-5 py-4"
+			className="flex shrink-0 flex-col gap-4 border-b px-5 py-5"
 		>
 			<Verdict attention={attention} />
 
-			{attention.points ? <Score points={attention.points} /> : null}
+			<Actions attention={attention} contactId={contactId} onTask={onTask} />
 
-			{attention.fields.length > 0 ? (
-				<DetailSheetProperties columns={1}>
-					{attention.fields.map((field) => (
-						<FieldRow key={field.key} field={field} />
-					))}
-				</DetailSheetProperties>
-			) : null}
-
-			{attention.evidence ? <Quote evidence={attention.evidence} /> : null}
-
-			<Actions attention={attention} contactId={contactId} />
+			<ReadFromMails attention={attention} />
 		</section>
+	);
+}
+
+function ReadFromMails({ attention }: { attention: Attention }) {
+	const t = useT();
+	const read =
+		attention.points !== null ||
+		attention.fields.length > 0 ||
+		attention.evidence !== null;
+
+	if (!read) return null;
+
+	const topics = attention.fields.map((field) => t(FIELD_LABEL[field.key]));
+
+	return (
+		<Collapsible className="group/read flex flex-col gap-3">
+			<CollapsibleTrigger asChild>
+				<Button variant="ghost" size="sm" align="start" className="w-full">
+					<Icon icon={DocumentView} data-icon="inline-start" />
+					<span className="shrink-0">{t("What was read from the mails")}</span>
+					{topics.length > 0 ? (
+						<span className="min-w-0 truncate font-normal text-muted-foreground">
+							{topics.join(", ")}
+						</span>
+					) : null}
+					<Icon
+						icon={ChevronDown}
+						data-icon="inline-end"
+						className="ms-auto transition-transform group-data-[state=open]/read:rotate-180"
+					/>
+				</Button>
+			</CollapsibleTrigger>
+			<CollapsibleContent
+				forceMount
+				className="flex flex-col gap-3.5 data-[state=closed]:hidden"
+			>
+				{attention.evidence ? <Quote evidence={attention.evidence} /> : null}
+
+				{attention.fields.length > 0 ? (
+					<DetailSheetProperties columns={1}>
+						{attention.fields.map((field) => (
+							<FieldRow key={field.key} field={field} />
+						))}
+					</DetailSheetProperties>
+				) : null}
+
+				{attention.points ? <Score points={attention.points} /> : null}
+			</CollapsibleContent>
+		</Collapsible>
 	);
 }
 
@@ -254,12 +321,16 @@ function Verdict({ attention }: { attention: Attention }) {
 			<IndicatorDot
 				tone={TONE_BY_KIND[attention.kind]}
 				aria-hidden="true"
-				className="mt-1.5"
+				className="mt-2"
 			/>
-			<div className="flex min-w-0 flex-1 flex-col gap-1 text-pretty">
-				<p className="font-medium text-foreground">
+			<div className="flex min-w-0 flex-1 flex-col gap-2 text-pretty">
+				<p className="font-semibold text-foreground text-md">
 					{t(CLAIM[attention.kind], { days: attention.quietDays, name })}
 				</p>
+
+				{attention.summary ? (
+					<p className="text-body-foreground">{attention.summary}</p>
+				) : null}
 
 				{bare ? <FirstContact attention={attention} /> : null}
 
@@ -560,24 +631,33 @@ const ACTION = {
 function Actions({
 	attention,
 	contactId,
+	onTask,
 }: {
 	attention: Attention;
 	contactId: string;
+	onTask?: () => void;
 }) {
 	const t = useT();
 	const email = attention.reply.email;
 
-	if (!email) return null;
+	if (!email && !onTask) return null;
 
 	return (
-		<div className="flex flex-wrap items-center gap-2">
-			<EmailDraftDialog
-				contactId={contactId}
-				email={email}
-				name={attention.name ?? email}
-				label={t(ACTION[attention.kind])}
-				variant="default"
-			/>
+		<div className="flex flex-wrap items-center gap-4">
+			{email ? (
+				<EmailDraftDialog
+					contactId={contactId}
+					email={email}
+					name={attention.name ?? email}
+					label={t(ACTION[attention.kind])}
+					variant="default"
+				/>
+			) : null}
+			{onTask ? (
+				<Button variant="link" size="sm" onClick={onTask}>
+					{t("Create a task")}
+				</Button>
+			) : null}
 		</div>
 	);
 }

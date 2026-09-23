@@ -144,5 +144,12 @@
 	"Recently closed": "Cerrados recientemente",
 	"{count} open": "{count} abiertos",
 	"{amount} in the pipeline": "{amount} en el pipeline",
-	"{won} won and {lost} lost in the last 90 days": "{won} ganados y {lost} perdidos en los últimos 90 días"
+	"{won} won and {lost} lost in the last 90 days": "{won} ganados y {lost} perdidos en los últimos 90 días",
+	"In short": "En resumen",
+	"Forward": "Reenviar",
+	"Forwarded message": "Mensaje reenviado",
+	"From: {sender}": "De: {sender}",
+	"Subject: {subject}": "Asunto: {subject}",
+	"What was read from the mails": "Lo que se leyó en los correos",
+	"Create a task": "Crear una tarea"
 }

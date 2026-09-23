@@ -144,5 +144,12 @@
 	"Recently closed": "Son kapananlar",
 	"{count} open": "{count} açık",
 	"{amount} in the pipeline": "pipeline içinde {amount}",
-	"{won} won and {lost} lost in the last 90 days": "son 90 günde {won} kazanıldı ve {lost} kaybedildi"
+	"{won} won and {lost} lost in the last 90 days": "son 90 günde {won} kazanıldı ve {lost} kaybedildi",
+	"In short": "Kısaca",
+	"Forward": "İlet",
+	"Forwarded message": "İletilen ileti",
+	"From: {sender}": "Kimden: {sender}",
+	"Subject: {subject}": "Konu: {subject}",
+	"What was read from the mails": "E-postalardan okunanlar",
+	"Create a task": "Görev oluştur"
 }

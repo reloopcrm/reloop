@@ -144,5 +144,12 @@
 	"Recently closed": "最近关闭",
 	"{count} open": "{count} 个进行中",
 	"{amount} in the pipeline": "管道中 {amount}",
-	"{won} won and {lost} lost in the last 90 days": "最近 90 天内赢得 {won} 个，失去 {lost} 个"
+	"{won} won and {lost} lost in the last 90 days": "最近 90 天内赢得 {won} 个，失去 {lost} 个",
+	"In short": "简而言之",
+	"Forward": "转发",
+	"Forwarded message": "转发的邮件",
+	"From: {sender}": "发件人：{sender}",
+	"Subject: {subject}": "主题：{subject}",
+	"What was read from the mails": "从邮件中读到的内容",
+	"Create a task": "创建任务"
 }

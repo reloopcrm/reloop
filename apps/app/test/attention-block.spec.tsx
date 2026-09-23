@@ -32,11 +32,14 @@ const { AttentionAnswer, AttentionProblem, openThreadRow } = await import(
 type Attention = Parameters<typeof AttentionAnswer>[0]["attention"];
 
 const QUOTE = "haben Sie 620 Europaletten verfügbar?";
+const SUMMARY =
+	"Kauft Europaletten, hat 620 Stück angefragt und wartet auf die Abholung.";
 
 function attention(over: Partial<Attention> = {}): Attention {
 	return {
 		kind: "waiting",
 		name: "Martin Berg",
+		summary: null,
 		quietDays: 0,
 		emails: 4,
 		firstContactAt: null,
@@ -234,13 +237,15 @@ describe("the block scrolls with the timeline, not inside itself", () => {
 });
 
 describe("the action of the block covers nothing", () => {
-	it("sits in the flow, after the evidence it belongs to", () => {
-		const markup = block();
-		const quoted = markup.indexOf(QUOTE);
+	it("sits in the flow, after the story it answers", () => {
+		const markup = block({ summary: SUMMARY });
+		const story = markup.indexOf(SUMMARY);
 		const action = markup.indexOf('data-slot="draft"');
+		const quoted = markup.indexOf(QUOTE);
 
-		expect(quoted).toBeGreaterThan(-1);
-		expect(action).toBeGreaterThan(quoted);
+		expect(story).toBeGreaterThan(-1);
+		expect(action).toBeGreaterThan(story);
+		expect(quoted).toBeGreaterThan(action);
 	});
 
 	it("carries no pinned position that can lie on top of the text", () => {
@@ -307,6 +312,55 @@ describe("a source link never repeats the value beside it", () => {
 		});
 
 		expect(linkTexts(markup)).toContain("Angebot Q4");
+	});
+});
+
+describe("the story tells only what the agent wrote down", () => {
+	it("shows the stored summary under the claim", () => {
+		const markup = block({ summary: SUMMARY });
+
+		expect(markup).toContain(SUMMARY);
+		expect(markup.indexOf("You are waiting on Martin Berg.")).toBeLessThan(
+			markup.indexOf(SUMMARY),
+		);
+	});
+
+	it("writes no paragraph of its own when nothing is stored", () => {
+		const holder = document.createElement("div");
+		holder.innerHTML = block({ summary: null });
+		const claim = holder.querySelector("section p");
+
+		expect(claim?.textContent).toBe("You are waiting on Martin Berg.");
+		expect(claim?.nextElementSibling?.textContent).toContain(
+			"You both wrote last on",
+		);
+	});
+
+	it("keeps what was read out of the mails behind one toggle", () => {
+		const holder = document.createElement("div");
+		holder.innerHTML = block();
+		const trigger = holder.querySelector('[data-slot="collapsible-trigger"]');
+		const content = holder.querySelector('[data-slot="collapsible-content"]');
+
+		expect(trigger?.textContent).toContain("What was read from the mails");
+		expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+		expect(content?.getAttribute("data-state")).toBe("closed");
+		expect(content?.textContent).toContain(QUOTE);
+	});
+
+	it("offers a task beside the answer when the timeline can take one", () => {
+		const markup = renderToStaticMarkup(
+			createElement(AttentionAnswer, {
+				attention: attention(),
+				contactId: "c1",
+				onTask: () => {},
+			}),
+		);
+
+		expect(markup).toContain("Create a task");
+		expect(markup.indexOf("Create a task")).toBeGreaterThan(
+			markup.indexOf('data-slot="draft"'),
+		);
 	});
 });
 

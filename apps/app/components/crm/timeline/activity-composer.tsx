@@ -54,15 +54,21 @@ const LOG_LABEL = {
 	TASK: "Log task",
 } satisfies Record<ComposableType, string>;
 
-export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
+export function ActivityComposer({
+	anchor,
+	task = false,
+}: {
+	anchor: TimelineAnchor;
+	task?: boolean;
+}) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const locale = useLocale();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 
-	const [open, setOpen] = useState(false);
-	const [type, setType] = useState<ComposableType>("NOTE");
+	const [open, setOpen] = useState(task);
+	const [type, setType] = useState<ComposableType>(task ? "TASK" : "NOTE");
 	const [draft, setDraft] = useState("");
 	const [dueAt, setDueAt] = useState<Date | undefined>(undefined);
 

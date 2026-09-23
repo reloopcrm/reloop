@@ -49,12 +49,14 @@ export async function LandingShell({
 						<Wordmark className="h-5 w-auto" />
 					</NextLink>
 					<div className="grow" />
-					<Link variant="quiet" href={marketingUrl("/pricing")}>
-						{t("Pricing")}
-					</Link>
-					<Link variant="quiet" href="/docs">
-						{t("Docs")}
-					</Link>
+					<div className="hidden items-center gap-4 sm:flex">
+						<Link variant="quiet" href={marketingUrl("/pricing")}>
+							{t("Pricing")}
+						</Link>
+						<Link variant="quiet" href="/docs">
+							{t("Docs")}
+						</Link>
+					</div>
 					<Link variant="quiet" href={signInUrl()}>
 						{t("Sign in")}
 					</Link>
@@ -82,7 +84,7 @@ export async function LandingShell({
 						</div>
 					</div>
 
-					<div className="flex shrink-0 gap-12">
+					<div className="flex max-w-full shrink-0 flex-wrap gap-12">
 						<nav className="flex flex-col items-start gap-4 text-2sm">
 							{productLinks.map((link) => (
 								<Link variant="quiet" key={link.href} href={link.href}>

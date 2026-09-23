@@ -81,8 +81,8 @@ export function SimpleTable({
 							key={column.id}
 							aria-label={column.header ? undefined : column.srLabel}
 							className={cn(
-								headerHeight ?? "h-9",
-								"px-3 font-normal text-muted-foreground",
+								headerHeight ?? "h-10",
+								"px-4 font-normal text-muted-foreground",
 								column.width,
 								ALIGN_CLASS[column.align ?? "left"],
 								column.className,

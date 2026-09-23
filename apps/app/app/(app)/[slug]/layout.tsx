@@ -3,7 +3,7 @@ import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AppHeader, AppHeaderFallback } from "@/components/app-header";
-import { AppIconRail, AppIconRailFallback } from "@/components/app-icon-rail";
+import { AppSidebar, AppSidebarFallback } from "@/components/app-sidebar";
 import { QuickSwitcher } from "@/components/crm/quick-switcher";
 import { RecordSheetHost } from "@/components/crm/record-sheet/record-sheet-host";
 import { DemoTour } from "@/components/demo/demo-tour";
@@ -34,22 +34,23 @@ export default function AppLayout({
 }: LayoutProps<"/[slug]">) {
 	return (
 		<MobileNavProvider>
-			<div className="isolate flex h-svh flex-col">
-				<Suspense fallback={<AppHeaderFallback />}>
-					<WorkspaceHeader params={params} />
+			<div className="isolate flex h-svh">
+				<Suspense fallback={<AppSidebarFallback />}>
+					<WorkspaceSidebar params={params} />
 				</Suspense>
 
-				<Suspense fallback={null}>
-					<UpdateNotice />
-				</Suspense>
-
-				<SampleDataBanner />
-
-				<div className="flex min-h-0 flex-1">
-					<Suspense fallback={<AppIconRailFallback />}>
-						<AppIconRail managed={managedInstall()} />
+				<div className="flex min-w-0 flex-1 flex-col">
+					<Suspense fallback={<AppHeaderFallback />}>
+						<WorkspaceHeader params={params} />
 					</Suspense>
-					{children}
+
+					<Suspense fallback={null}>
+						<UpdateNotice />
+					</Suspense>
+
+					<SampleDataBanner />
+
+					<div className="flex min-h-0 flex-1">{children}</div>
 				</div>
 
 				<Suspense fallback={null}>
@@ -103,9 +104,7 @@ async function loadWorkspace() {
 	}
 }
 
-async function WorkspaceHeader({
-	params,
-}: Pick<LayoutProps<"/[slug]">, "params">) {
+async function loadChrome(params: LayoutProps<"/[slug]">["params"]) {
 	await connection();
 	const [{ user }, { slug }, workspace] = await Promise.all([
 		requireMailboxAccess(),
@@ -116,15 +115,36 @@ async function WorkspaceHeader({
 
 	if (workspace && workspace.slug !== slug) notFound();
 
+	return {
+		user: { name: user.name, email: user.email, image: user.image ?? null },
+		workspaceName: workspaceLabel(workspace?.name),
+	};
+}
+
+async function WorkspaceSidebar({
+	params,
+}: Pick<LayoutProps<"/[slug]">, "params">) {
+	const { user, workspaceName } = await loadChrome(params);
+
 	return (
 		<HydrateClient>
-			<AppHeader
-				user={{
-					name: user.name,
-					email: user.email,
-					image: user.image ?? null,
-				}}
+			<AppSidebar
+				managed={managedInstall()}
+				workspaceName={workspaceName}
+				user={user}
 			/>
+		</HydrateClient>
+	);
+}
+
+async function WorkspaceHeader({
+	params,
+}: Pick<LayoutProps<"/[slug]">, "params">) {
+	const { user } = await loadChrome(params);
+
+	return (
+		<HydrateClient>
+			<AppHeader user={user} />
 		</HydrateClient>
 	);
 }

@@ -159,13 +159,15 @@
 @theme inline {
 	--spacing-page-top: 40px;
 	--spacing-page-bottom: 40px;
-	--spacing-page-inline: 24px;
+	--spacing-page-inline: 40px;
 	--spacing-page-gap: 24px;
 	--spacing-block-inline: 20px;
 	--container-page: 820px;
 	--container-page-wide: 1120px;
 	--container-narrow: 560px;
 	--container-sheet: 640px;
+	--container-sidebar: 224px;
+	--container-rail: 56px;
 	--color-dark-card: #0f1011;
 	--color-dark-border: #23252a;
 	--color-dark-ring: #e4f222;
@@ -244,11 +246,14 @@
 	--font-weight-display: 900;
 	--tracking-tight: -0.022em;
 
+	--text-2sm: 0.8125rem;
+	--text-2sm--line-height: 1.25rem;
 	--text-md: 0.9375rem;
+	--text-md--line-height: 1.375rem;
 
 	--radius-xs: 2px;
 	--radius-sm: 4px;
-	--radius-badge: 4px;
+	--radius-badge: 9999px;
 	--radius-md: var(--radius);
 	--radius-lg: 12px;
 	--radius-xl: 12px;

@@ -34,7 +34,7 @@ function ListSearchInput({
 	const [value, setValue] = useSearchInput(committed, commit);
 
 	return (
-		<InputGroup className="w-full sm:w-64">
+		<InputGroup className="w-full sm:w-75">
 			<InputGroupAddon>
 				<Search />
 			</InputGroupAddon>

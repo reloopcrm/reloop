@@ -19,7 +19,7 @@ function Table({
 		>
 			<table
 				data-slot="table"
-				className={cn("w-full caption-bottom text-xs", className)}
+				className={cn("w-full caption-bottom text-sm", className)}
 				{...props}
 			/>
 			{overlay}
@@ -31,7 +31,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
 	return (
 		<thead
 			data-slot="table-header"
-			className={cn("[&_tr]:border-b", className)}
+			className={cn("bg-muted [&_tr]:border-b", className)}
 			{...props}
 		/>
 	);
@@ -78,7 +78,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
 		<th
 			data-slot="table-head"
 			className={cn(
-				"h-9 truncate px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+				"h-10 truncate px-4 text-left align-middle text-xs font-normal text-muted-foreground [&:has([role=checkbox])]:pr-0",
 				className,
 			)}
 			{...props}
@@ -91,7 +91,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 		<td
 			data-slot="table-cell"
 			className={cn(
-				"px-2 py-2.5 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+				"px-4 py-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
 				className,
 			)}
 			{...props}
@@ -106,7 +106,7 @@ function TableCaption({
 	return (
 		<caption
 			data-slot="table-caption"
-			className={cn("mt-4 text-xs text-muted-foreground", className)}
+			className={cn("mt-4 text-2sm text-muted-foreground", className)}
 			{...props}
 		/>
 	);

@@ -95,7 +95,7 @@ export function PricingPlans({ startHref }: { startHref: string }) {
 						onClick={() => setBilling("yearly")}
 					>
 						{t("Yearly")}
-						<Badge>
+						<Badge variant="primary">
 							{t("{percent}%", { percent: PRICING.yearlyDiscountPercent })}
 						</Badge>
 					</SwitchButton>

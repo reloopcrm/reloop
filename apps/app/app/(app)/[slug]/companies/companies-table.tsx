@@ -69,7 +69,7 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		id: "standing",
 		header: "Status",
 		sortable: true,
-		width: "w-[10%]",
+		width: "w-[11%]",
 		hideBelow: "sm",
 		cell: (row) => <StandingCell standing={row.standing} />,
 	},

@@ -48,7 +48,7 @@ function PageShellHeader({
 			)}
 			{...props}
 		>
-			<div className="grid grid-cols-[minmax(0,1fr)] items-center gap-x-4 gap-y-2 @lg/page-header:grid-cols-[minmax(0,1fr)_auto]">
+			<div className="grid grid-cols-[minmax(0,1fr)] items-center gap-x-6 gap-y-1.5 @lg/page-header:grid-cols-[minmax(0,1fr)_auto]">
 				{children}
 			</div>
 		</header>
@@ -73,7 +73,7 @@ function PageShellTitle({ className, ...props }: React.ComponentProps<"h1">) {
 		<h1
 			data-slot="page-shell-title"
 			className={cn(
-				"col-start-1 row-start-1 min-w-0 self-center text-balance font-medium text-2xl tracking-tight",
+				"col-start-1 row-start-1 min-w-0 self-center text-balance font-semibold text-2xl leading-tight tracking-tight",
 				className,
 			)}
 			{...props}
@@ -89,7 +89,7 @@ function PageShellDescription({
 		<p
 			data-slot="page-shell-description"
 			className={cn(
-				"col-span-full row-start-2 text-balance font-normal text-muted-foreground text-sm",
+				"col-span-full row-start-2 max-w-(--container-page) text-pretty font-normal text-muted-foreground text-sm",
 				className,
 			)}
 			{...props}
@@ -105,7 +105,7 @@ function PageShellActions({
 		<div
 			data-slot="page-shell-actions"
 			className={cn(
-				"col-start-1 row-start-3 flex flex-wrap items-center gap-2 self-center justify-self-start @lg/page-header:col-start-2 @lg/page-header:row-start-1 @lg/page-header:justify-self-end",
+				"col-start-1 row-start-3 flex flex-wrap items-center gap-4 self-center justify-self-start @lg/page-header:col-start-2 @lg/page-header:row-start-1 @lg/page-header:justify-self-end",
 				className,
 			)}
 			{...props}

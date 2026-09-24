@@ -22,6 +22,7 @@ import { prepareTestTenants, registryQuery } from "@crm/db/test-tenants";
 import { Logger } from "@nestjs/common";
 import type Stripe from "stripe";
 import request from "supertest";
+import { z } from "zod";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
 import { BackfillService } from "../src/backfill/backfill.service";
 import { BILLING } from "../src/billing/billing.config";
@@ -147,15 +148,15 @@ function scheduleFixture(
 	} as unknown as Stripe.SubscriptionSchedule;
 }
 
+const unixTime = z.number();
+
 function phasesFrom(
 	params: Stripe.SubscriptionScheduleUpdateParams,
 ): Stripe.SubscriptionSchedule["phases"] {
 	let start = PERIOD_START;
 	return (params.phases ?? []).map((phase) => {
-		const from =
-			typeof phase.start_date === "number" ? phase.start_date : start;
-		const to =
-			typeof phase.end_date === "number" ? phase.end_date : from + 2_600_000;
+		const from = unixTime.safeParse(phase.start_date).data ?? start;
+		const to = unixTime.safeParse(phase.end_date).data ?? from + 2_600_000;
 		start = to;
 		return {
 			start_date: from,

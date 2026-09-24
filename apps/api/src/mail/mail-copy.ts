@@ -142,16 +142,20 @@ export type CodeMailInput = {
 	minutes: number;
 };
 
-function fill(text: string, vars: Record<string, string>): string {
+export function fill(text: string, vars: Record<string, string>): string {
 	return text.replace(/\{(\w+)\}/g, (match, key: string) => vars[key] ?? match);
 }
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
 	return text
 		.replaceAll("&", "&amp;")
 		.replaceAll("<", "&lt;")
 		.replaceAll(">", "&gt;")
 		.replaceAll('"', "&quot;");
+}
+
+export function mailHtml(paragraphs: readonly string[]): string {
+	return `<!doctype html><html><body style="font-family:sans-serif">${paragraphs.join("")}</body></html>`;
 }
 
 export function codeMail(input: CodeMailInput): Mail {
@@ -183,6 +187,6 @@ export function codeMail(input: CodeMailInput): Mail {
 		to: input.to,
 		subject: fill(copy.subject, vars),
 		text: lines.join("\n"),
-		html: `<!doctype html><html><body style="font-family:sans-serif">${paragraphs.join("")}</body></html>`,
+		html: mailHtml(paragraphs),
 	};
 }

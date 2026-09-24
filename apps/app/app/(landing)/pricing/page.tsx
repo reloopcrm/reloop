@@ -110,9 +110,8 @@ export default async function PricingPage() {
 				days: TRIAL_DAYS,
 			}),
 			answer: t(
-				"Choose a plan during the trial and you pay from the day the trial ends. Choose it in the last {lead} days and you pay at once. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.",
+				"Choose a plan any time during the trial. You pay from that day, and the trial ends then. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.",
 				{
-					lead: Math.round(TENANCY.trial.checkoutLeadMs / DAY_MS),
 					deletion: Math.round(TENANCY.trial.suspendedTtlMs / DAY_MS),
 				},
 			),

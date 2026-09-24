@@ -119,7 +119,6 @@
 	"You add more on top of your plan. Nothing gets switched off. An add-on renews with your plan until you remove it.": "Você adiciona mais ao seu plano. Nada é desligado. Um adicional é renovado com o seu plano até você removê-lo.",
 	"€{price} a month": "€ {price} por mês",
 	"What happens after the {days} days?": "O que acontece depois dos {days} dias?",
-	"Choose a plan during the trial and you pay from the day the trial ends. Choose it in the last {lead} days and you pay at once. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.": "Se você escolher um plano durante o teste, paga a partir do dia em que ele termina. Se escolher nos últimos {lead} dias, paga na hora. Se não escolher nenhum, o espaço de trabalho é pausado. {deletion} dias depois apagamos os dados dele. Até lá, um administrador ainda pode escolher um plano e continuar.",
 	"Monthly: cancel any month, the plan ends with the paid month. Yearly: cancel any time, the plan ends with the paid year.": "Mensal: cancele em qualquer mês, o plano termina com o mês pago. Anual: cancele quando quiser, o plano termina com o ano pago.",
 	"Monthly plans by card or SEPA direct debit. Yearly plans by card.": "Planos mensais por cartão ou débito direto SEPA. Planos anuais por cartão.",
 	"Every plan does everything. Only the amount differs, never the feature.": "Todo plano faz tudo. Só a quantidade muda, nunca a função.",
@@ -442,5 +441,6 @@
 	"Every customer who went quiet, with a reason to write again": "Cada cliente que parou de escrever, com um motivo para escrever de novo",
 	"Win back customers": "Recuperar clientes",
 	"How win back works": "Como funciona a recuperação",
-	"The page on winning back customers shows how that works day to day.": "A página sobre recuperar clientes mostra como isso funciona no dia a dia."
+	"The page on winning back customers shows how that works day to day.": "A página sobre recuperar clientes mostra como isso funciona no dia a dia.",
+	"Choose a plan any time during the trial. You pay from that day, and the trial ends then. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.": "Escolha um plano quando quiser durante o teste. Você paga a partir desse dia, e o teste termina então. Sem plano, o workspace é pausado. {deletion} dias depois apagamos os dados. Até lá um admin ainda pode escolher um plano e continuar."
 }

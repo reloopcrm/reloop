@@ -119,7 +119,6 @@
 	"You add more on top of your plan. Nothing gets switched off. An add-on renews with your plan until you remove it.": "Tu ajoutes plus à ton offre. Rien n'est coupé. Une option se renouvelle avec ton offre jusqu'à ce que tu la retires.",
 	"€{price} a month": "{price} € par mois",
 	"What happens after the {days} days?": "Que se passe-t-il après les {days} jours ?",
-	"Choose a plan during the trial and you pay from the day the trial ends. Choose it in the last {lead} days and you pay at once. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.": "Si tu choisis une offre pendant l'essai, tu paies à partir du jour où il se termine. Si tu la choisis dans les {lead} derniers jours, tu paies tout de suite. Si tu n'en choisis aucune, l'espace de travail se met en pause. {deletion} jours plus tard, nous supprimons ses données. D'ici là, un administrateur peut encore choisir une offre et continuer.",
 	"Monthly: cancel any month, the plan ends with the paid month. Yearly: cancel any time, the plan ends with the paid year.": "Mensuel : résiliable chaque mois, l'offre se termine avec le mois payé. Annuel : résiliable à tout moment, l'offre se termine avec l'année payée.",
 	"Monthly plans by card or SEPA direct debit. Yearly plans by card.": "Offres mensuelles par carte ou prélèvement SEPA. Offres annuelles par carte.",
 	"Every plan does everything. Only the amount differs, never the feature.": "Chaque offre fait tout. Seule la quantité change, jamais la fonction.",
@@ -442,5 +441,6 @@
 	"Every customer who went quiet, with a reason to write again": "Chaque client qui s'est tu, avec une raison de lui réécrire",
 	"Win back customers": "Reconquérir des clients",
 	"How win back works": "Comment fonctionne la reconquête",
-	"The page on winning back customers shows how that works day to day.": "La page sur la reconquête de clients montre comment cela fonctionne au quotidien."
+	"The page on winning back customers shows how that works day to day.": "La page sur la reconquête de clients montre comment cela fonctionne au quotidien.",
+	"Choose a plan any time during the trial. You pay from that day, and the trial ends then. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.": "Choisis un forfait quand tu veux pendant l'essai. Tu paies à partir de ce jour, et l'essai se termine alors. Sans forfait, l'espace de travail est mis en pause. {deletion} jours plus tard, nous supprimons ses données. Jusque-là, un admin peut encore choisir un forfait et continuer."
 }

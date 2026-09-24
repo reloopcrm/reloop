@@ -173,6 +173,11 @@ CREATE TABLE IF NOT EXISTS tenant_code (
 	password_hash text,
 	PRIMARY KEY (email, purpose)
 );
+CREATE TABLE IF NOT EXISTS billing_mail (
+	key text PRIMARY KEY,
+	tenant_id text NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+	sent_at timestamptz NOT NULL DEFAULT now()
+);
 `;
 
 const SELECT_TENANT = `
@@ -305,6 +310,31 @@ export async function expiredTrials(now: Date): Promise<Tenant[]> {
 		"t.status = 'active' AND t.plan = 'trial' AND t.trial_ends_at IS NOT NULL AND t.trial_ends_at < $1",
 		[now.toISOString()],
 	);
+}
+
+export async function trialsEndingBetween(
+	from: Date,
+	until: Date,
+): Promise<Tenant[]> {
+	return selectTenants(
+		"t.status = 'active' AND t.plan = 'trial' AND t.trial_ends_at > $1 AND t.trial_ends_at <= $2",
+		[from.toISOString(), until.toISOString()],
+	);
+}
+
+export async function claimBillingMail(
+	key: string,
+	tenantId: string,
+): Promise<boolean> {
+	const result = await registryPool().query(
+		"INSERT INTO billing_mail (key, tenant_id) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING RETURNING key",
+		[key, tenantId],
+	);
+	return (result.rowCount ?? 0) > 0;
+}
+
+export async function releaseBillingMail(key: string): Promise<void> {
+	await registryPool().query("DELETE FROM billing_mail WHERE key = $1", [key]);
 }
 
 export async function graceExpired(now: Date): Promise<Tenant[]> {

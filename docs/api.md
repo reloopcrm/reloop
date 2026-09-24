@@ -596,6 +596,35 @@ them. The customer portal cannot change a plan (`subscription_update` is off in
 `scripts/stripe-setup.ts`, which also turns it off on an existing configuration).
 A plan that still arrives by webhook below the current usage is applied, because
 Stripe has charged, and `applySubscription` logs a warning.
+
+**A change is what Stripe bills.** A plan change, an interval switch and a
+bigger add-on count are one `subscriptions.update` with `always_invoice` and
+`payment_behavior: "pending_if_incomplete"`: Stripe charges the proration at
+once, and the change only lands once it is paid. An unpaid change returns the
+hosted invoice URL and the page sends the owner there. A smaller add-on count
+uses `create_prorations`, so the unused time is a credit on the next invoice and
+nothing is charged now. `billing.previewPlan` and `billing.previewAddOn` run the
+same change through `invoices.createPreview`, so the confirmation shows the
+amount Stripe will charge. A yearly plan needs a card, read from the
+subscription's `default_payment_method` first and the customer's default second.
+**Checkout ends the trial.** The session carries no `trial_end`, so billing
+starts the day a trialing workspace pays. The customer is created before the
+session, with the oldest owner's address and `preferred_locales` from the
+workspace language. `checkout.session.completed` and every
+`customer.subscription.updated` set the locale again and copy the subscription's
+card to the customer's `invoice_settings`, so the portal and later invoices use
+it, and a customer created before this rule catches up on its next update.
+
+**Billing mails come from `BillingMailService`** (`mail/billing-mail.service.ts`),
+through the same Resend sender as the sign-up code, in the workspace language, to
+the oldest owner. The webhook sends one for a paid invoice, a failed payment, a
+scheduled end and an ended plan; the tenant sweep sends the trial reminder
+(`TENANCY.trial.reminderLeadMs` before the end), the trial end and the pause
+after the payment grace. Each mail claims a key in the registry's `billing_mail`
+table first (`paid:<invoice>`, `ending:<subscription>:<cancel_at>` and so on), so
+a retried webhook, the mutation path and a second instance send it once. Without
+`RESEND_API_KEY` and `MAIL_FROM` nothing is claimed and nothing throws. Receipts
+and invoice PDFs are Stripe's own mails, switched on in the Stripe Dashboard.
 `docs/environment.md` has the variables, the script and what stays by hand.
 
 ## Money

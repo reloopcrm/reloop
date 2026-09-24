@@ -15,6 +15,7 @@ import { restMeta } from "../trpc/openapi";
 import {
 	billingOverviewOutput,
 	billingPlansOutput,
+	changePreviewOutput,
 	checkoutInput,
 	doneOutput,
 	portalInput,
@@ -47,6 +48,30 @@ export class BillingRouter {
 		return this.billing.plans(ctx.user.id);
 	}
 
+	@Query({
+		input: checkoutInput,
+		output: changePreviewOutput,
+		meta: restMeta("GET", "/billing/preview/plan", ["Billing"]),
+	})
+	async previewPlan(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof checkoutInput>,
+	) {
+		return this.billing.previewPlan(ctx.user.id, input);
+	}
+
+	@Query({
+		input: setAddOnInput,
+		output: changePreviewOutput,
+		meta: restMeta("GET", "/billing/preview/add-on", ["Billing"]),
+	})
+	async previewAddOn(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setAddOnInput>,
+	) {
+		return this.billing.previewAddOn(ctx.user.id, input);
+	}
+
 	@Mutation({
 		input: checkoutInput,
 		output: urlOutput,
@@ -62,7 +87,7 @@ export class BillingRouter {
 
 	@Mutation({
 		input: setAddOnInput,
-		output: doneOutput,
+		output: urlOutput,
 		meta: restMeta("PUT", "/billing/add-ons", ["Billing"]),
 	})
 	@UseMiddlewares(SessionOnlyMiddleware)

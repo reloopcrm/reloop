@@ -119,7 +119,6 @@
 	"You add more on top of your plan. Nothing gets switched off. An add-on renews with your plan until you remove it.": "你可以在套餐之外追加数量。不会停用任何功能。附加包会随套餐续订，直到你移除它。",
 	"€{price} a month": "每月 {price} 欧元",
 	"What happens after the {days} days?": "{days} 天之后会怎样？",
-	"Choose a plan during the trial and you pay from the day the trial ends. Choose it in the last {lead} days and you pay at once. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.": "如果你在试用期内选择套餐，从试用结束那天开始付费。如果在最后 {lead} 天内选择，会立即付费。如果不选择，工作区会暂停。{deletion} 天后我们会删除它的数据。在此之前，管理员仍可选择套餐并继续使用。",
 	"Monthly: cancel any month, the plan ends with the paid month. Yearly: cancel any time, the plan ends with the paid year.": "按月：每月都可取消，套餐在已付费的月份结束时终止。按年：随时可取消，套餐在已付费的年度结束时终止。",
 	"Monthly plans by card or SEPA direct debit. Yearly plans by card.": "按月套餐可用银行卡或 SEPA 直接借记支付。按年套餐用银行卡支付。",
 	"Every plan does everything. Only the amount differs, never the feature.": "每个套餐功能齐全。只有用量不同，功能没有区别。",
@@ -442,5 +441,6 @@
 	"Every customer who went quiet, with a reason to write again": "每一位沉默的客户，都附带一个重新联系的理由",
 	"Win back customers": "赢回客户",
 	"How win back works": "赢回功能如何运作",
-	"The page on winning back customers shows how that works day to day.": "关于赢回客户的页面展示了它在日常中如何运作。"
+	"The page on winning back customers shows how that works day to day.": "关于赢回客户的页面展示了它在日常中如何运作。",
+	"Choose a plan any time during the trial. You pay from that day, and the trial ends then. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.": "试用期间随时可以选择套餐。你从当天开始付费，试用随即结束。如果不选择，工作区将暂停。{deletion} 天后我们会删除其数据。在此之前，管理员仍可选择套餐并继续使用。"
 }

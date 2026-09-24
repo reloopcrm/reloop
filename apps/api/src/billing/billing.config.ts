@@ -31,5 +31,6 @@ export const BILLING = {
 	invoices: { limit: 24 },
 	portal: { metadataKey: "reloop", metadataValue: "portal" },
 	addOns: { maxQuantity: 99 },
+	schedule: { nextPhaseIntervals: 1, endBehavior: "release" },
 	stripe: { locales: STRIPE_LOCALES, centsPerUnit: 100 },
 } as const;

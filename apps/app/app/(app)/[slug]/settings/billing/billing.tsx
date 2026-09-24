@@ -97,6 +97,39 @@ export function excessReason(
 		: t("You have {count} mailboxes connected. {plan} allows {limit}.", values);
 }
 
+export function scheduledLine(
+	t: Translate,
+	locale: string,
+	scheduled: NonNullable<Overview["scheduled"]>,
+	label: string,
+): string {
+	const values = { date: longDay(scheduled.at, locale), plan: label };
+	return scheduled.interval === "year"
+		? t("From {date}: {plan}, billed yearly.", values)
+		: t("From {date}: {plan}, billed monthly.", values);
+}
+
+export function scheduledAddOns(
+	t: Translate,
+	data: Pick<Overview, "addOns" | "addOnCatalog" | "scheduled">,
+): string | null {
+	const scheduled = data.scheduled;
+	if (!scheduled) return null;
+	const changed = data.addOnCatalog
+		.filter(
+			(addOn) => (scheduled.addOns[addOn.id] ?? 0) !== data.addOns[addOn.id],
+		)
+		.map((addOn) =>
+			t("{label}: {count}", {
+				label: t(addOn.label),
+				count: scheduled.addOns[addOn.id] ?? 0,
+			}),
+		);
+	return changed.length > 0
+		? t("Add-ons from then on: {list}", { list: changed.join(", ") })
+		: null;
+}
+
 export function cancelWarning(
 	t: Translate,
 	locale: string,
@@ -304,6 +337,10 @@ function PlanPanel({
 					) : null}
 				</div>
 
+				{data.scheduled ? (
+					<ScheduledChange data={data} onChanged={onChanged} />
+				) : null}
+
 				<dl className="grid grid-cols-1 border-b text-2sm sm:grid-cols-2 sm:gap-x-8">
 					{rows.map((row) => (
 						<div
@@ -346,6 +383,60 @@ function PlanPanel({
 				)}
 			</CardContent>
 		</Card>
+	);
+}
+
+function ScheduledChange({
+	data,
+	onChanged,
+}: {
+	data: Overview;
+	onChanged: () => void;
+}) {
+	const t = useT();
+	const locale = useLocale();
+	const trpc = useTRPC();
+	const errorMessage = useErrorMessage();
+	const scheduled = data.scheduled;
+
+	const undo = useMutation(
+		trpc.billing.cancelScheduledChange.mutationOptions({
+			onSuccess: () => {
+				toast.success(t("Change undone. Your plan continues as it is."));
+				onChanged();
+			},
+			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
+
+	if (!scheduled) return null;
+	const addOns = scheduledAddOns(t, data);
+
+	return (
+		<Alert data-scheduled-change>
+			<AlertTitle>
+				{scheduledLine(t, locale, scheduled, t(scheduled.label))}
+			</AlertTitle>
+			<AlertDescription>
+				{addOns ? <p>{addOns}</p> : null}
+				<p>
+					{t(
+						"Until then your current plan and its limits stay. Nothing is charged now.",
+					)}
+				</p>
+			</AlertDescription>
+			<AlertAction>
+				<Button
+					type="button"
+					variant="link"
+					size="sm"
+					disabled={undo.isPending}
+					onClick={() => undo.mutate()}
+				>
+					{t("Undo change")}
+				</Button>
+			</AlertAction>
+		</Alert>
 	);
 }
 
@@ -405,13 +496,30 @@ function PlanChoice({
 					window.location.assign(url);
 					return;
 				}
-				toast.success(t("Plan changed."));
 				setConfirming(false);
 				onDone();
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
+	const confirmChange = (effectiveAt: string | null) => {
+		if (!chosenOption) return;
+		checkout.mutate(
+			{ plan: chosenOption.id, interval },
+			{
+				onSuccess: ({ url }) => {
+					if (url) return;
+					toast.success(
+						effectiveAt
+							? t("Change scheduled for {date}.", {
+									date: longDay(effectiveAt, locale),
+								})
+							: t("Plan changed."),
+					);
+				},
+			},
+		);
+	};
 
 	const hasSubscription = data.state !== "trial" && data.state !== "none";
 	const unchanged =
@@ -511,8 +619,9 @@ function PlanChoice({
 				<PlanChangeConfirm
 					option={chosenOption}
 					interval={interval}
+					scheduledAt={data.scheduled?.at ?? null}
 					pending={checkout.isPending}
-					onConfirm={() => checkout.mutate({ plan: chosenOption.id, interval })}
+					onConfirm={confirmChange}
 					onClose={() => setConfirming(false)}
 				/>
 			) : null}
@@ -541,14 +650,16 @@ function PlanChoice({
 function PlanChangeConfirm({
 	option,
 	interval,
+	scheduledAt,
 	pending,
 	onConfirm,
 	onClose,
 }: {
 	option: PlanOption;
 	interval: Interval;
+	scheduledAt: string | null;
 	pending: boolean;
-	onConfirm: () => void;
+	onConfirm: (effectiveAt: string | null) => void;
 	onClose: () => void;
 }) {
 	const t = useT();
@@ -561,22 +672,52 @@ function PlanChangeConfirm({
 		interval === "year" ? option.yearly : option.monthly,
 		locale,
 	);
+	const effectiveAt = preview.data?.effectiveAt ?? null;
+	const lines = [
+		interval === "year"
+			? t("New price: {price} per month, billed yearly.", { price })
+			: t("New price: {price} per month, billed monthly.", { price }),
+	];
+	if (effectiveAt) {
+		lines.push(
+			t(
+				"The change applies on {date}. Until then your current plan and its limits stay.",
+				{
+					date: longDay(effectiveAt, locale),
+				},
+			),
+		);
+	}
+	if (scheduledAt) {
+		lines.push(
+			t("This replaces the change scheduled for {date}.", {
+				date: longDay(scheduledAt, locale),
+			}),
+		);
+	}
 
 	return (
 		<BillingChangeDialog
 			title={t("Switch to {plan}?", { plan: t(option.label) })}
-			lines={[
-				interval === "year"
-					? t("New price: {price} per month, billed yearly.", { price })
-					: t("New price: {price} per month, billed monthly.", { price }),
-			]}
-			preview={{ data: preview.data, error: preview.error }}
-			note={t(
-				"The change applies at once. The amount already counts the unused time of your current plan.",
-			)}
+			lines={lines}
+			preview={
+				effectiveAt ? null : { data: preview.data, error: preview.error }
+			}
+			note={
+				effectiveAt
+					? t(
+							"Nothing is charged now. Your workspace must be under the new limits by {date}.",
+							{
+								date: longDay(effectiveAt, locale),
+							},
+						)
+					: t(
+							"The change applies at once. The amount already counts the unused time of your current plan.",
+						)
+			}
 			confirmLabel={t("Switch plan")}
 			pending={pending}
-			onConfirm={onConfirm}
+			onConfirm={() => onConfirm(effectiveAt)}
 			onClose={onClose}
 		/>
 	);

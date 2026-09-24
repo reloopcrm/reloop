@@ -31,6 +31,15 @@ export const billingOverviewOutput = z.object({
 	deleteAt: isoDate,
 	deletionDays: z.number(),
 	addOns: z.record(z.enum(ADD_ON_IDS), z.number()),
+	scheduled: z
+		.object({
+			at: z.string(),
+			plan: z.enum(PAID_PLAN_IDS).nullable(),
+			label: z.string(),
+			interval: z.enum(BILLING_INTERVALS).nullable(),
+			addOns: z.record(z.enum(ADD_ON_IDS), z.number()),
+		})
+		.nullable(),
 	limits: z.object({
 		contacts: z.number().nullable(),
 		mailboxes: z.number().nullable(),
@@ -120,6 +129,7 @@ export const changePreviewOutput = z.object({
 	dueNow: z.number(),
 	credit: z.number(),
 	currency: z.string(),
+	effectiveAt: z.string().nullable(),
 });
 
 export type ChangePreview = z.infer<typeof changePreviewOutput>;

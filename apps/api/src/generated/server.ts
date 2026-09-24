@@ -187,6 +187,9 @@ const appRouter = t.router({
     resume: publicProcedure
       .output(doneOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    cancelScheduledChange: publicProcedure
+      .output(doneOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     portal: publicProcedure
       .input(portalInput)
       .output(portalOutput)

@@ -16,13 +16,19 @@ import { NO_BILLING, type Tenant } from "@crm/db/tenancy";
 import { TENANCY } from "@crm/db/tenancy-config";
 import type Stripe from "stripe";
 import {
+	applyChange,
 	BillingService,
 	billingStateOf,
+	changeTiming,
 	deleteAtOf,
 	paymentMethodOf,
 	pendingPaymentUrl,
+	phaseTax,
 	planChanged,
 	planChangeExcess,
+	type StripeSchedule,
+	sameItems,
+	scheduledChangeOf,
 	subscriptionState,
 } from "../src/billing/billing.service";
 import { openWhileSuspended } from "../src/tenancy/tenant.middleware";
@@ -454,5 +460,139 @@ describe("a plan change never lands above a contact or mailbox limit", () => {
 		expect(planChangeExcess("standard", "handel", NO_ADD_ONS, usage)).toEqual(
 			[],
 		);
+	});
+});
+
+describe("a step up is billed now, a step down waits for the period end", () => {
+	const on = (
+		plan: "start" | "standard" | "plus",
+		interval: "month" | "year",
+	) => ({
+		plan,
+		interval,
+	});
+
+	it("bills a bigger plan and a switch to yearly at once", () => {
+		expect(changeTiming(on("standard", "month"), on("plus", "month"))).toBe(
+			"now",
+		);
+		expect(changeTiming(on("standard", "month"), on("standard", "year"))).toBe(
+			"now",
+		);
+		expect(changeTiming(on("standard", "year"), on("plus", "year"))).toBe(
+			"now",
+		);
+	});
+
+	it("schedules a smaller plan and a switch to monthly", () => {
+		expect(changeTiming(on("standard", "month"), on("start", "month"))).toBe(
+			"period_end",
+		);
+		expect(changeTiming(on("standard", "year"), on("standard", "month"))).toBe(
+			"period_end",
+		);
+		expect(changeTiming(on("standard", "year"), on("plus", "month"))).toBe(
+			"period_end",
+		);
+		expect(changeTiming(on("standard", "month"), on("start", "year"))).toBe(
+			"period_end",
+		);
+	});
+
+	it("bills at once without a plan to keep", () => {
+		expect(
+			changeTiming({ plan: null, interval: null }, on("start", "month")),
+		).toBe("now");
+	});
+});
+
+describe("the scheduled change is the phase after the current one", () => {
+	const price = (key: string) => ({ id: `price_${key}`, lookup_key: key });
+	const schedule = (over: Partial<StripeSchedule> = {}): StripeSchedule => ({
+		id: "sub_sched_1",
+		status: "active",
+		current_phase: { start_date: 100, end_date: 200 },
+		phases: [
+			{
+				start_date: 100,
+				end_date: 200,
+				items: [
+					{ price: price(planLookupKey("standard", "month")), quantity: 1 },
+					{ price: price(addOnLookupKey("drafts", "month")), quantity: 2 },
+				],
+			},
+			{
+				start_date: 200,
+				end_date: 300,
+				items: [
+					{ price: price(planLookupKey("start", "month")), quantity: 1 },
+					{ price: price(addOnLookupKey("drafts", "month")), quantity: 1 },
+				],
+			},
+		],
+		...over,
+	});
+
+	it("reads plan, interval, add-ons and the switch date", () => {
+		expect(scheduledChangeOf(schedule())).toEqual({
+			plan: "start",
+			interval: "month",
+			addOns: { ...NO_ADD_ONS, drafts: 1 },
+			at: new Date(200_000),
+		});
+	});
+
+	it("is nothing without a schedule or once the last phase runs", () => {
+		expect(scheduledChangeOf(null)).toBeNull();
+		expect(
+			scheduledChangeOf(
+				schedule({ current_phase: { start_date: 200, end_date: 300 } }),
+			),
+		).toBeNull();
+	});
+
+	it("applies a change to the current items for a schedule preview", () => {
+		const items = [
+			item(planLookupKey("standard", "month")),
+			item(addOnLookupKey("drafts", "month"), 2),
+		] as unknown as Stripe.SubscriptionItem[];
+		expect(
+			applyChange(items, [
+				{ id: `si_${planLookupKey("standard", "month")}`, price: "price_plus" },
+				{ id: `si_${addOnLookupKey("drafts", "month")}`, quantity: 1 },
+				{ price: "price_research", quantity: 1 },
+			]),
+		).toEqual([
+			{ price: "price_plus", quantity: 1 },
+			{ price: `price_${addOnLookupKey("drafts", "month")}`, quantity: 1 },
+			{ price: "price_research", quantity: 1 },
+		]);
+	});
+
+	it("carries automatic tax onto a phase only when the subscription has it", () => {
+		expect(
+			phaseTax({ automatic_tax: { enabled: true } } as Stripe.Subscription),
+		).toEqual({ enabled: true });
+		expect(
+			phaseTax({ automatic_tax: { enabled: false } } as Stripe.Subscription),
+		).toBeUndefined();
+	});
+
+	it("compares item lists regardless of order", () => {
+		expect(
+			sameItems(
+				[
+					{ price: "a", quantity: 1 },
+					{ price: "b", quantity: 2 },
+				],
+				[
+					{ price: "b", quantity: 2 },
+					{ price: "a", quantity: 1 },
+				],
+			),
+		).toBe(true);
+		expect(
+			sameItems([{ price: "a", quantity: 1 }], [{ price: "a", quantity: 2 }]),
+		).toBe(false);
 	});
 });

@@ -117,6 +117,15 @@ export class BillingRouter {
 	}
 
 	@Mutation({
+		output: doneOutput,
+		meta: restMeta("POST", "/billing/scheduled-change/cancel", ["Billing"]),
+	})
+	@UseMiddlewares(SessionOnlyMiddleware)
+	async cancelScheduledChange(@Ctx() ctx: AuthedTrpcContext) {
+		return this.billing.cancelScheduledChange(ctx.user.id);
+	}
+
+	@Mutation({
 		input: portalInput,
 		output: portalOutput,
 		meta: restMeta("POST", "/billing/portal", ["Billing"]),

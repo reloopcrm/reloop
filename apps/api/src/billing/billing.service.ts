@@ -104,18 +104,46 @@ const stripeInvoice = z.object({
 
 type StripeInvoice = z.infer<typeof stripeInvoice>;
 
+const pricedItem = z.object({
+	price: z.union([
+		z.string().transform((id) => ({ id, lookup_key: null })),
+		z.object({ id: z.string(), lookup_key: z.string().nullable() }),
+	]),
+	quantity: z.number().nullish(),
+});
+
+export type PricedItem = z.infer<typeof pricedItem>;
+
+const stripeSchedule = z.object({
+	id: z.string(),
+	status: z.string(),
+	current_phase: z
+		.object({ start_date: z.number(), end_date: z.number() })
+		.nullable(),
+	phases: z.array(
+		z.object({
+			start_date: z.number(),
+			end_date: z.number(),
+			items: z.array(pricedItem),
+		}),
+	),
+});
+
+export type StripeSchedule = z.infer<typeof stripeSchedule>;
+
+type PhaseItem = { price: string; quantity: number };
+
 type PaymentMethodView = NonNullable<BillingOverview["paymentMethod"]>;
 
 type ChangeItem = {
 	id?: string;
 	price?: string;
 	quantity?: number;
-	deleted?: boolean;
 };
 
 type Change = {
 	items: ChangeItem[];
-	proration_behavior: "always_invoice" | "create_prorations";
+	proration_behavior: "always_invoice";
 	trial_end?: "now";
 };
 
@@ -130,25 +158,126 @@ export type SubscriptionState = {
 	subscriptionId: string;
 };
 
-export function subscriptionState(
-	subscription: Stripe.Subscription,
-): SubscriptionState {
+export type Lineup = {
+	plan: PaidPlanId | null;
+	interval: BillingInterval | null;
+	addOns: AddOnQuantities;
+};
+
+export function lineupOf(items: readonly PricedItem[]): Lineup {
 	const addOns: AddOnQuantities = { ...NO_ADD_ONS };
 	let plan: PaidPlanId | null = null;
 	let interval: BillingInterval | null = null;
-	let paidUntil: Date | null = null;
-
-	for (const item of subscription.items.data) {
+	for (const item of items) {
 		const parsed = parseLookupKey(item.price.lookup_key);
 		if (!parsed) continue;
 		if (parsed.kind === "plan") {
 			plan = parsed.plan;
 			interval = parsed.interval;
-			paidUntil = new Date(item.current_period_end * 1000);
 		} else {
 			addOns[parsed.addOn] += item.quantity ?? 1;
 		}
 	}
+	return { plan, interval, addOns };
+}
+
+export type ScheduledChange = Lineup & { at: Date };
+
+export function nextPhaseOf(
+	schedule: StripeSchedule,
+): StripeSchedule["phases"][number] | null {
+	const end = schedule.current_phase?.end_date;
+	if (!end) return null;
+	return schedule.phases.find((phase) => phase.start_date === end) ?? null;
+}
+
+export function currentPhaseOf(
+	schedule: StripeSchedule,
+): StripeSchedule["phases"][number] | null {
+	const start = schedule.current_phase?.start_date;
+	return (
+		schedule.phases.find((phase) => phase.start_date === start) ??
+		schedule.phases[0] ??
+		null
+	);
+}
+
+export function scheduledChangeOf(
+	schedule: StripeSchedule | null,
+): ScheduledChange | null {
+	const next = schedule ? nextPhaseOf(schedule) : null;
+	if (!next) return null;
+	return { ...lineupOf(next.items), at: new Date(next.start_date * 1000) };
+}
+
+export type ChangeTiming = "now" | "period_end";
+
+export function changeTiming(
+	current: Pick<Lineup, "plan" | "interval">,
+	input: CheckoutInput,
+): ChangeTiming {
+	if (!current.plan || !current.interval) return "now";
+	if (current.interval === "year" && input.interval === "month") {
+		return "period_end";
+	}
+	return PRICING_EUR.plans[input.plan].monthly >=
+		PRICING_EUR.plans[current.plan].monthly
+		? "now"
+		: "period_end";
+}
+
+export function phaseItemsOf(items: readonly PricedItem[]): PhaseItem[] {
+	return items.map((item) => ({
+		price: item.price.id,
+		quantity: item.quantity ?? 1,
+	}));
+}
+
+export function applyChange(
+	items: readonly Stripe.SubscriptionItem[],
+	change: readonly ChangeItem[],
+): PhaseItem[] {
+	const target = items.map((item) => {
+		const changed = change.find((entry) => entry.id === item.id);
+		return {
+			price: changed?.price ?? item.price.id,
+			quantity: changed?.quantity ?? item.quantity ?? 1,
+		};
+	});
+	for (const entry of change) {
+		if (!entry.id && entry.price) {
+			target.push({ price: entry.price, quantity: entry.quantity ?? 1 });
+		}
+	}
+	return target;
+}
+
+export function phaseTax(
+	subscription: Pick<Stripe.Subscription, "automatic_tax">,
+): { enabled: true } | undefined {
+	return subscription.automatic_tax?.enabled ? { enabled: true } : undefined;
+}
+
+export function sameItems(
+	left: readonly PhaseItem[],
+	right: readonly PhaseItem[],
+): boolean {
+	const key = (items: readonly PhaseItem[]) =>
+		items
+			.map((item) => `${item.price}:${item.quantity}`)
+			.sort()
+			.join(",");
+	return key(left) === key(right);
+}
+
+export function subscriptionState(
+	subscription: Stripe.Subscription,
+): SubscriptionState {
+	const { plan, interval, addOns } = lineupOf(subscription.items.data);
+	const base = subscription.items.data.find(
+		(item) => parseLookupKey(item.price.lookup_key)?.kind === "plan",
+	);
+	const paidUntil = base ? new Date(base.current_period_end * 1000) : null;
 
 	const status: BillingStatus =
 		subscription.status === "active" || subscription.status === "trialing"
@@ -410,6 +539,7 @@ export class BillingService {
 			deleteAt: deleteAtOf(tenant)?.toISOString() ?? null,
 			deletionDays: Math.round(TENANCY.trial.suspendedTtlMs / DAY_MS),
 			addOns: tenant.billing.addOns,
+			scheduled: null,
 			limits: this.limitsSummary(limits),
 			addOnCatalog: this.addOnCatalog(),
 			paymentMethod: null,
@@ -440,6 +570,16 @@ export class BillingService {
 			const live = customer.deleted ? null : customer;
 			overview.paymentMethod = paymentMethodOf(subscription, live);
 			if (live) overview.address = addressOf(live);
+			const scheduled = subscription
+				? scheduledChangeOf(await this.scheduleOf(subscription))
+				: null;
+			overview.scheduled = scheduled
+				? {
+						...scheduled,
+						at: scheduled.at.toISOString(),
+						label: scheduled.plan ? PLANS[scheduled.plan].label : limits.label,
+					}
+				: null;
 			overview.invoices = invoices.data.map((invoice) => ({
 				id: invoice.id,
 				date: new Date(invoice.created * 1000).toISOString(),
@@ -491,6 +631,9 @@ export class BillingService {
 		const tenant = await this.freshTenant();
 		await this.assertPlanFits(tenant, input);
 		const subscription = await this.requireSubscription(tenant);
+		if (changeTiming(subscriptionState(subscription), input) === "period_end") {
+			return nothingNow(subscription);
+		}
 		return this.stripeChange(tenant, async () =>
 			this.preview(
 				subscription,
@@ -506,14 +649,11 @@ export class BillingService {
 		await this.assertManager(userId);
 		const tenant = await this.freshTenant();
 		const subscription = await this.requireSubscription(tenant);
-		const change = await this.addOnChange(subscription, input);
-		if (!change || change.proration_behavior !== "always_invoice") {
-			return {
-				dueNow: 0,
-				credit: 0,
-				currency: PRICING_EUR.currency.toUpperCase(),
-			};
+		if (input.quantity <= subscriptionState(subscription).addOns[input.addOn]) {
+			return nothingNow(subscription);
 		}
+		const change = await this.addOnChange(subscription, input);
+		if (!change) return nothingNow(subscription);
 		return this.stripeChange(tenant, () => this.preview(subscription, change));
 	}
 
@@ -528,8 +668,27 @@ export class BillingService {
 		const subscription = await this.activeSubscription(tenant);
 
 		if (subscription) {
+			if (
+				changeTiming(subscriptionState(subscription), input) === "period_end"
+			) {
+				const target = await this.planTarget(subscription.items.data, input);
+				const at = await this.scheduleTarget(
+					tenant,
+					subscription,
+					target,
+					input.interval,
+				);
+				await this.mails.send(
+					tenant,
+					`scheduled:${subscription.id}:${input.plan}:${input.interval}:${at.getTime()}`,
+					"scheduled",
+					{ plan: PLANS[input.plan].label, interval: input.interval, date: at },
+				);
+				return { url: null };
+			}
 			const change = await this.planChange(tenant, subscription, input);
 			const updated = await this.stripeChange(tenant, async () => {
+				await this.releaseSchedule(subscription);
 				if (subscription.cancel_at_period_end) {
 					await stripe.subscriptions.update(subscription.id, {
 						cancel_at_period_end: false,
@@ -575,23 +734,51 @@ export class BillingService {
 		const stripe = this.requireStripe();
 		const tenant = await this.freshTenant();
 		const subscription = await this.requireSubscription(tenant);
+		if (input.quantity <= subscriptionState(subscription).addOns[input.addOn]) {
+			const schedule = await this.stripeChange(tenant, () =>
+				this.scheduleOf(subscription),
+			);
+			const next = schedule ? nextPhaseOf(schedule) : null;
+			const target = await this.addOnTarget(
+				next?.items ?? subscription.items.data,
+				input,
+			);
+			if (sameItems(target, phaseItemsOf(subscription.items.data))) {
+				await this.stripeChange(tenant, () =>
+					this.releaseSchedule(subscription),
+				);
+				return { url: null };
+			}
+			await this.scheduleTarget(
+				tenant,
+				subscription,
+				target,
+				lineupOf(next?.items ?? subscription.items.data).interval ?? "month",
+				schedule,
+			);
+			return { url: null };
+		}
 		const change = await this.addOnChange(subscription, input);
 		if (!change) return { url: null };
 
-		const updated = await this.stripeChange(tenant, () =>
-			stripe.subscriptions.update(
-				subscription.id,
-				change.proration_behavior === "always_invoice"
-					? {
-							...change,
-							payment_behavior: "pending_if_incomplete",
-							expand: ["latest_invoice"],
-						}
-					: change,
-			),
-		);
+		const updated = await this.stripeChange(tenant, async () => {
+			await this.releaseSchedule(subscription);
+			return stripe.subscriptions.update(subscription.id, {
+				...change,
+				payment_behavior: "pending_if_incomplete",
+				expand: ["latest_invoice"],
+			});
+		});
 		await this.applySubscription(tenant, updated);
 		return { url: pendingPaymentUrl(updated) };
+	}
+
+	async cancelScheduledChange(userId: string): Promise<{ ok: true }> {
+		await this.assertManager(userId);
+		const tenant = await this.freshTenant();
+		const subscription = await this.requireSubscription(tenant);
+		await this.stripeChange(tenant, () => this.releaseSchedule(subscription));
+		return { ok: true };
 	}
 
 	async cancel(userId: string): Promise<{ ok: true }> {
@@ -634,11 +821,142 @@ export class BillingService {
 		const tenant = await this.freshTenant();
 		const subscription = await this.requireSubscription(tenant);
 
-		const updated = await stripe.subscriptions.update(subscription.id, {
-			cancel_at_period_end: cancel,
+		const updated = await this.stripeChange(tenant, async () => {
+			await this.releaseSchedule(subscription);
+			return stripe.subscriptions.update(subscription.id, {
+				cancel_at_period_end: cancel,
+			});
 		});
 		await this.applySubscription(tenant, updated);
 		return { ok: true };
+	}
+
+	private async scheduleOf(
+		subscription: Stripe.Subscription,
+	): Promise<StripeSchedule | null> {
+		const id = idOf(subscription.schedule);
+		if (!id) return null;
+		const schedule = stripeSchedule.parse(
+			await this.requireStripe().subscriptionSchedules.retrieve(id, {
+				expand: ["phases.items.price"],
+			}),
+		);
+		return schedule.status === "active" ? schedule : null;
+	}
+
+	private async releaseSchedule(
+		subscription: Stripe.Subscription,
+	): Promise<void> {
+		const id = idOf(subscription.schedule);
+		if (id) await this.requireStripe().subscriptionSchedules.release(id);
+	}
+
+	private async scheduleTarget(
+		tenant: Tenant,
+		subscription: Stripe.Subscription,
+		target: PhaseItem[],
+		interval: BillingInterval,
+		known?: StripeSchedule | null,
+	): Promise<Date> {
+		const stripe = this.requireStripe();
+		return this.stripeChange(tenant, async () => {
+			if (subscription.cancel_at_period_end) {
+				await this.applySubscription(
+					tenant,
+					await stripe.subscriptions.update(subscription.id, {
+						cancel_at_period_end: false,
+					}),
+				);
+			}
+			const schedule =
+				known ??
+				(await this.scheduleOf(subscription)) ??
+				stripeSchedule.parse(
+					await stripe.subscriptionSchedules.create({
+						from_subscription: subscription.id,
+					}),
+				);
+			const current = currentPhaseOf(schedule);
+			if (!current) {
+				throw new BadRequestException(
+					"Stripe refused this change. Nothing was charged. Try again, or contact support.",
+				);
+			}
+			const automatic_tax = phaseTax(subscription);
+			await stripe.subscriptionSchedules.update(schedule.id, {
+				end_behavior: BILLING.schedule.endBehavior,
+				proration_behavior: "none",
+				phases: [
+					{
+						items: phaseItemsOf(current.items),
+						start_date: current.start_date,
+						end_date: current.end_date,
+						automatic_tax,
+					},
+					{
+						items: target,
+						duration: {
+							interval,
+							interval_count: BILLING.schedule.nextPhaseIntervals,
+						},
+						proration_behavior: "none",
+						automatic_tax,
+					},
+				],
+			});
+			return new Date(current.end_date * 1000);
+		});
+	}
+
+	private async planTarget(
+		items: readonly PricedItem[],
+		input: CheckoutInput,
+	): Promise<PhaseItem[]> {
+		const target: PhaseItem[] = [];
+		for (const item of items) {
+			const parsed = parseLookupKey(item.price.lookup_key);
+			if (parsed?.kind === "plan") {
+				target.push({
+					price: await this.priceId(planLookupKey(input.plan, input.interval)),
+					quantity: 1,
+				});
+			} else if (parsed?.kind === "addon") {
+				target.push({
+					price: await this.priceId(
+						addOnLookupKey(parsed.addOn, input.interval),
+					),
+					quantity: item.quantity ?? 1,
+				});
+			}
+		}
+		return target;
+	}
+
+	private async addOnTarget(
+		items: readonly PricedItem[],
+		input: SetAddOnInput,
+	): Promise<PhaseItem[]> {
+		const target: PhaseItem[] = [];
+		let placed = false;
+		for (const item of items) {
+			const parsed = parseLookupKey(item.price.lookup_key);
+			if (parsed?.kind === "addon" && parsed.addOn === input.addOn) {
+				placed = true;
+				if (input.quantity > 0) {
+					target.push({ price: item.price.id, quantity: input.quantity });
+				}
+				continue;
+			}
+			target.push({ price: item.price.id, quantity: item.quantity ?? 1 });
+		}
+		if (!placed && input.quantity > 0) {
+			const interval = lineupOf(items).interval ?? "month";
+			target.push({
+				price: await this.priceId(addOnLookupKey(input.addOn, interval)),
+				quantity: input.quantity,
+			});
+		}
+		return target;
 	}
 
 	private async assertPlanFits(
@@ -710,33 +1028,54 @@ export class BillingService {
 			return parsed?.kind === "addon" && parsed.addOn === input.addOn;
 		});
 		const item: ChangeItem = existing
-			? input.quantity === 0
-				? { id: existing.id, deleted: true }
-				: { id: existing.id, quantity: input.quantity }
+			? { id: existing.id, quantity: input.quantity }
 			: {
 					price: await this.priceId(
 						addOnLookupKey(input.addOn, intervalOf(subscription)),
 					),
 					quantity: input.quantity,
 				};
-		return input.quantity > current
-			? charging(subscription, [item])
-			: { items: [item], proration_behavior: "create_prorations" };
+		return charging(subscription, [item]);
 	}
 
 	private async preview(
 		subscription: Stripe.Subscription,
 		change: Change,
 	): Promise<ChangePreview> {
-		const invoice = await this.requireStripe().invoices.createPreview({
-			customer: idOf(subscription.customer) ?? undefined,
-			subscription: subscription.id,
-			subscription_details: change,
-		});
+		const customer = idOf(subscription.customer) ?? undefined;
+		const schedule = await this.scheduleOf(subscription);
+		const current = schedule ? currentPhaseOf(schedule) : null;
+		const invoice = await this.requireStripe().invoices.createPreview(
+			schedule && current
+				? {
+						customer,
+						schedule: schedule.id,
+						schedule_details: {
+							end_behavior: BILLING.schedule.endBehavior,
+							proration_behavior: change.proration_behavior,
+							phases: [
+								{
+									items: applyChange(subscription.items.data, change.items),
+									start_date: current.start_date,
+									end_date: current.end_date,
+									proration_behavior: change.proration_behavior,
+									automatic_tax: phaseTax(subscription),
+									trial_end: change.trial_end,
+								},
+							],
+						},
+					}
+				: {
+						customer,
+						subscription: subscription.id,
+						subscription_details: change,
+					},
+		);
 		return {
 			dueNow: invoice.amount_due / BILLING.stripe.centsPerUnit,
 			credit: Math.max(0, -invoice.total) / BILLING.stripe.centsPerUnit,
 			currency: invoice.currency.toUpperCase(),
+			effectiveAt: null,
 		};
 	}
 
@@ -1089,6 +1428,7 @@ export class BillingService {
 			deleteAt: null,
 			deletionDays: Math.round(TENANCY.trial.suspendedTtlMs / DAY_MS),
 			addOns: { ...NO_ADD_ONS },
+			scheduled: null,
 			limits: this.limitsSummary(limits),
 			addOnCatalog: this.addOnCatalog(),
 			paymentMethod: null,
@@ -1097,6 +1437,16 @@ export class BillingService {
 			stripeReachable: true,
 		};
 	}
+}
+
+function nothingNow(subscription: Stripe.Subscription): ChangePreview {
+	return {
+		dueNow: 0,
+		credit: 0,
+		currency: PRICING_EUR.currency.toUpperCase(),
+		effectiveAt:
+			subscriptionState(subscription).paidUntil?.toISOString() ?? null,
+	};
 }
 
 function charging(

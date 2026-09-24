@@ -340,6 +340,19 @@
 	"You then have {count}.": "Então você tem {count}.",
 	"Your monthly cost changes by {amount}.": "Seu custo mensal muda em {amount}.",
 	"It applies at once. The limit rises as soon as Stripe confirms.": "Vale na hora. O limite sobe assim que o Stripe confirmar.",
-	"It applies at once. The unused time is credited to your next invoice, nothing is charged now.": "Vale na hora. O tempo não usado é creditado na sua próxima fatura, nada é cobrado agora.",
-	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "O Stripe recusou esta mudança. Nada foi cobrado. Tente de novo ou fale com o suporte."
+	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "O Stripe recusou esta mudança. Nada foi cobrado. Tente de novo ou fale com o suporte.",
+	"From {date}: {plan}, billed yearly.": "A partir de {date}: {plan}, cobrado anualmente.",
+	"From {date}: {plan}, billed monthly.": "A partir de {date}: {plan}, cobrado mensalmente.",
+	"{label}: {count}": "{label}: {count}",
+	"Add-ons from then on: {list}": "Complementos a partir de então: {list}",
+	"Until then your current plan and its limits stay. Nothing is charged now.": "Até lá, seu plano atual e seus limites continuam. Nada é cobrado agora.",
+	"Undo change": "Desfazer a mudança",
+	"Change undone. Your plan continues as it is.": "Mudança desfeita. Seu plano continua como está.",
+	"Change scheduled for {date}.": "Mudança agendada para {date}.",
+	"The change applies on {date}. Until then your current plan and its limits stay.": "A mudança vale a partir de {date}. Até lá, seu plano atual e seus limites continuam.",
+	"This replaces the change scheduled for {date}.": "Isso substitui a mudança agendada para {date}.",
+	"Nothing is charged now. Your workspace must be under the new limits by {date}.": "Nada é cobrado agora. Seu workspace precisa estar abaixo dos novos limites até {date}.",
+	"{count} from {date}": "{count} a partir de {date}",
+	"From {date} you have {count}.": "A partir de {date} você tem {count}.",
+	"It applies at the end of the period. Until then your add-ons stay, and nothing is charged or credited now.": "Vale no fim do período. Até lá, seus complementos continuam, e nada é cobrado nem creditado agora."
 }

@@ -1,4 +1,5 @@
 import { LOCALE, type Locale } from "@crm/db/locale";
+import type { BillingInterval } from "@crm/db/pricing";
 import type { Mail } from "./mail.service";
 import { escapeHtml, fill, mailHtml } from "./mail-copy";
 
@@ -10,6 +11,7 @@ export const BILLING_MAIL_KINDS = [
 	"unpaid",
 	"trialEnding",
 	"trialEnded",
+	"scheduled",
 ] as const;
 
 export type BillingMailKind = (typeof BILLING_MAIL_KINDS)[number];
@@ -23,6 +25,7 @@ type Copy = { subject: string; lines: readonly string[] };
 type Wording = {
 	greeting: string;
 	links: Record<BillingMailLink, string>;
+	intervals: Record<BillingInterval, string>;
 	kinds: Record<BillingMailKind, Copy>;
 };
 
@@ -34,11 +37,13 @@ const LINKS_OF = {
 	unpaid: ["billing"],
 	trialEnding: ["billing"],
 	trialEnded: ["billing"],
+	scheduled: ["billing"],
 } as const satisfies Record<BillingMailKind, readonly BillingMailLink[]>;
 
 const COPY = {
 	en: {
 		greeting: "Hello,",
+		intervals: { month: "monthly", year: "yearly" },
 		links: {
 			invoice: "View the invoice",
 			pdf: "Download the invoice as PDF",
@@ -89,6 +94,14 @@ const COPY = {
 					"Without a plan, your workspace pauses when the trial ends.",
 				],
 			},
+			scheduled: {
+				subject: "Reloop: your plan changes on {date}",
+				lines: [
+					"From {date}, your plan is {plan}, billed {interval}.",
+					"Until then your current plan and its limits stay as they are. Nothing is charged now.",
+					"You can undo this under plan and billing until {date}.",
+				],
+			},
 			trialEnded: {
 				subject: "Reloop: your trial has ended",
 				lines: [
@@ -101,6 +114,7 @@ const COPY = {
 	},
 	de: {
 		greeting: "Hallo,",
+		intervals: { month: "monatlich", year: "jährlich" },
 		links: {
 			invoice: "Rechnung ansehen",
 			pdf: "Rechnung als PDF herunterladen",
@@ -151,6 +165,14 @@ const COPY = {
 					"Ohne Tarif pausiert dein Workspace, wenn die Testphase endet.",
 				],
 			},
+			scheduled: {
+				subject: "Reloop: Dein Tarif wechselt am {date}",
+				lines: [
+					"Ab dem {date} ist dein Tarif {plan}, {interval} abgerechnet.",
+					"Bis dahin bleiben dein jetziger Tarif und seine Grenzen, wie sie sind. Jetzt wird nichts berechnet.",
+					"Bis zum {date} kannst du den Wechsel unter Tarif und Abrechnung zurücknehmen.",
+				],
+			},
 			trialEnded: {
 				subject: "Reloop: Deine Testphase ist beendet",
 				lines: [
@@ -163,6 +185,7 @@ const COPY = {
 	},
 	es: {
 		greeting: "Hola,",
+		intervals: { month: "mensualmente", year: "anualmente" },
 		links: {
 			invoice: "Ver la factura",
 			pdf: "Descargar la factura en PDF",
@@ -213,6 +236,14 @@ const COPY = {
 					"Sin un plan, tu espacio de trabajo se pausa cuando termina la prueba.",
 				],
 			},
+			scheduled: {
+				subject: "Reloop: tu plan cambia el {date}",
+				lines: [
+					"A partir del {date}, tu plan es {plan}, facturado {interval}.",
+					"Hasta entonces, tu plan actual y sus límites se mantienen. Ahora no se cobra nada.",
+					"Puedes deshacer el cambio en plan y facturación hasta el {date}.",
+				],
+			},
 			trialEnded: {
 				subject: "Reloop: tu prueba ha terminado",
 				lines: [
@@ -225,6 +256,7 @@ const COPY = {
 	},
 	fr: {
 		greeting: "Bonjour,",
+		intervals: { month: "mensuellement", year: "annuellement" },
 		links: {
 			invoice: "Voir la facture",
 			pdf: "Télécharger la facture en PDF",
@@ -275,6 +307,14 @@ const COPY = {
 					"Sans forfait, ton espace de travail est mis en pause à la fin de l'essai.",
 				],
 			},
+			scheduled: {
+				subject: "Reloop : ton forfait change le {date}",
+				lines: [
+					"À partir du {date}, ton forfait est {plan}, facturé {interval}.",
+					"D'ici là, ton forfait actuel et ses limites restent inchangés. Rien n'est facturé maintenant.",
+					"Tu peux annuler ce changement dans le forfait et la facturation jusqu'au {date}.",
+				],
+			},
 			trialEnded: {
 				subject: "Reloop : ton essai est terminé",
 				lines: [
@@ -287,6 +327,7 @@ const COPY = {
 	},
 	"pt-BR": {
 		greeting: "Olá,",
+		intervals: { month: "mensalmente", year: "anualmente" },
 		links: {
 			invoice: "Ver a fatura",
 			pdf: "Baixar a fatura em PDF",
@@ -337,6 +378,14 @@ const COPY = {
 					"Sem um plano, seu workspace é pausado quando o teste termina.",
 				],
 			},
+			scheduled: {
+				subject: "Reloop: seu plano muda em {date}",
+				lines: [
+					"A partir de {date}, seu plano é {plan}, cobrado {interval}.",
+					"Até lá, seu plano atual e seus limites continuam como estão. Nada é cobrado agora.",
+					"Você pode desfazer a mudança em plano e cobrança até {date}.",
+				],
+			},
 			trialEnded: {
 				subject: "Reloop: seu teste terminou",
 				lines: [
@@ -349,6 +398,7 @@ const COPY = {
 	},
 	tr: {
 		greeting: "Merhaba,",
+		intervals: { month: "aylık", year: "yıllık" },
 		links: {
 			invoice: "Faturayı görüntüle",
 			pdf: "Faturayı PDF olarak indir",
@@ -399,6 +449,14 @@ const COPY = {
 					"Plan seçmezsen çalışma alanın deneme süresi bitince duraklatılır.",
 				],
 			},
+			scheduled: {
+				subject: "Reloop: planın {date} tarihinde değişiyor",
+				lines: [
+					"{date} itibarıyla planın {plan} olur ve {interval} faturalanır.",
+					"O zamana kadar mevcut planın ve sınırların olduğu gibi kalır. Şimdi hiçbir ücret alınmaz.",
+					"{date} tarihine kadar değişikliği plan ve faturalandırma altında geri alabilirsin.",
+				],
+			},
 			trialEnded: {
 				subject: "Reloop: deneme süren sona erdi",
 				lines: [
@@ -411,6 +469,7 @@ const COPY = {
 	},
 	"zh-Hans": {
 		greeting: "你好，",
+		intervals: { month: "按月", year: "按年" },
 		links: {
 			invoice: "查看发票",
 			pdf: "下载 PDF 发票",
@@ -461,6 +520,14 @@ const COPY = {
 					"如果没有套餐，试用结束时你的工作区将被暂停。",
 				],
 			},
+			scheduled: {
+				subject: "Reloop：你的套餐将于 {date} 变更",
+				lines: [
+					"自 {date} 起，你的套餐为 {plan}，{interval}计费。",
+					"在此之前，你当前的套餐及其限额保持不变。现在不会产生任何费用。",
+					"在 {date} 之前，你可以在套餐与账单中撤销此变更。",
+				],
+			},
 			trialEnded: {
 				subject: "Reloop：你的试用已结束",
 				lines: [
@@ -480,6 +547,7 @@ export type BillingMailDetails = {
 	amount?: MailAmount | null;
 	date?: Date | null;
 	days?: number | null;
+	interval?: BillingInterval | null;
 	invoiceUrl?: string | null;
 	pdfUrl?: string | null;
 	billingUrl: string;
@@ -491,14 +559,21 @@ export type BillingMailInput = BillingMailDetails & {
 	kind: BillingMailKind;
 };
 
-type MailVars = { plan: string; amount: string; date: string; days: string };
+type MailVars = {
+	plan: string;
+	amount: string;
+	date: string;
+	days: string;
+	interval: string;
+};
 
 const PLACEHOLDER = /\{(\w+)\}/g;
 
-function varsOf(input: BillingMailInput): MailVars {
+function varsOf(input: BillingMailInput, wording: Wording): MailVars {
 	const tag = LOCALE.tags[input.locale];
 	return {
 		plan: input.plan ?? "",
+		interval: input.interval ? wording.intervals[input.interval] : "",
 		date: input.date
 			? new Intl.DateTimeFormat(tag, {
 					dateStyle: "long",
@@ -535,7 +610,7 @@ function linkUrl(
 export function billingMail(input: BillingMailInput): Mail {
 	const wording: Wording = COPY[input.locale];
 	const copy = wording.kinds[input.kind];
-	const vars = varsOf(input);
+	const vars = varsOf(input, wording);
 	const lines = copy.lines
 		.filter((line) => complete(line, vars))
 		.map((line) => fill(line, vars));

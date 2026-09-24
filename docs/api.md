@@ -597,18 +597,45 @@ them. The customer portal cannot change a plan (`subscription_update` is off in
 A plan that still arrives by webhook below the current usage is applied, because
 Stripe has charged, and `applySubscription` logs a warning.
 
-**A change is what Stripe bills.** A plan change, an interval switch and a
-bigger add-on count are one `subscriptions.update` with `always_invoice` and
+**A step up is billed now. A step down waits for the paid period.**
+`changeTiming` is the rule: a plan with a higher or equal monthly list price on
+the same interval, and a switch from monthly to yearly, are billed now. A plan
+with a lower price, and every switch from yearly to monthly, wait for
+`current_period_end`. The same holds for add-ons: a bigger count is billed now,
+a smaller count waits.
+
+A change billed now is one `subscriptions.update` with `always_invoice` and
 `payment_behavior: "pending_if_incomplete"`: Stripe charges the proration at
 once, and the change only lands once it is paid. An unpaid change returns the
-hosted invoice URL and the page sends the owner there. A smaller add-on count
-uses `create_prorations`, so the unused time is a credit on the next invoice and
-nothing is charged now. `billing.previewPlan` and `billing.previewAddOn` run the
-same change through `invoices.createPreview`, so the confirmation shows the
-amount Stripe will charge. A Stripe error on a preview or an update is logged
-with Stripe's own message and reaches the page as "Stripe refused this change",
-never as a bare 500. A yearly plan needs a card, read from the
-subscription's `default_payment_method` first and the customer's default second.
+hosted invoice URL and the page sends the owner there. `billing.previewPlan`
+and `billing.previewAddOn` run the same change through `invoices.createPreview`,
+so the confirmation shows the amount Stripe will charge.
+
+A change that waits is a Stripe subscription schedule, never a timer of our
+own. `scheduleTarget` creates the schedule from the subscription
+(`from_subscription`) when none exists, then writes two phases: the current one
+as Stripe returned it, and the target items for one more interval with
+`proration_behavior: "none"` and `end_behavior: "release"`. The registry row
+does not change: the plan, the limits and `billing.addOns` stay what the
+customer paid for. When the phase switches, Stripe changes the subscription's
+items and posts `customer.subscription.updated`, and `applySubscription` writes
+the new plan like any other update. No `subscription_schedule.*` event is
+needed. `billing.overview` reads the schedule live (`scheduled`: the phase after
+`current_phase`, or null), so nothing is stored that could drift. A second pick
+while a change waits updates the same schedule and replaces the target; a
+smaller add-on count keeps a waiting plan and lowers the add-on in its target.
+`billing.cancelScheduledChange` releases the schedule, and so does every change
+billed now, because Stripe refuses a direct item update on a subscription a
+schedule manages: an upgrade, a bigger add-on count and a cancellation drop the
+waiting change, and the page says so in the confirmation. `planChangeExcess`
+runs at scheduling time too, and the confirmation tells the owner the workspace
+must fit the new limits by the switch date. The preview of a waiting change
+answers `effectiveAt` and zero due now, without a Stripe call.
+
+A Stripe error on a preview or an update is logged with Stripe's own message
+and reaches the page as "Stripe refused this change", never as a bare 500. A
+yearly plan needs a card, read from the subscription's `default_payment_method`
+first and the customer's default second.
 **Checkout ends the trial.** The session carries no `trial_end`, so billing
 starts the day a trialing workspace pays. The customer is created before the
 session, with the oldest owner's address and `preferred_locales` from the

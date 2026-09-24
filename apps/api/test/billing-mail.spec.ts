@@ -13,6 +13,7 @@ const details = {
 	amount: { value: 79, currency: "EUR" },
 	date: new Date("2026-10-06T00:00:00.000Z"),
 	days: 30,
+	interval: "month" as const,
 	invoiceUrl: "https://invoice.stripe.test/in_1",
 	pdfUrl: "https://invoice.stripe.test/in_1.pdf",
 	billingUrl: "https://app.example/settings/billing",

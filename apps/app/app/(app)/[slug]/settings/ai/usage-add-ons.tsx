@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { BillingChangeDialog } from "@/components/billing-change-dialog";
-import { euro, signedEuro } from "@/lib/billing-format";
+import { euro, longDay, signedEuro } from "@/lib/billing-format";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -46,6 +46,7 @@ export function UsageAddOns() {
 	const data = overview.data;
 	if (!data?.configured) return null;
 	const hasSubscription = data.state !== "trial" && data.state !== "none";
+	const periodEnd = data.scheduled?.at ?? data.paidUntil;
 
 	return (
 		<section className="flex flex-col">
@@ -62,6 +63,8 @@ export function UsageAddOns() {
 			<ul className="flex flex-col">
 				{data.addOnCatalog.map((addOn) => {
 					const quantity = data.addOns[addOn.id] ?? 0;
+					const later = data.scheduled?.addOns[addOn.id];
+					const base = later ?? quantity;
 					const label = t(addOn.label);
 					return (
 						<li
@@ -78,18 +81,27 @@ export function UsageAddOns() {
 									variant="destructive"
 									size="icon-sm"
 									aria-label={t("One less: {label}", { label })}
-									disabled={!hasSubscription || quantity === 0 || set.isPending}
-									onClick={() =>
-										setStep({ addOn, from: quantity, to: quantity - 1 })
-									}
+									disabled={!hasSubscription || base === 0 || set.isPending}
+									onClick={() => setStep({ addOn, from: base, to: base - 1 })}
 								>
 									<Icon icon={Subtract} />
 								</Button>
 								<span
-									className="min-w-6 text-center text-sm tabular-nums"
+									className="flex min-w-6 flex-col items-center text-center text-sm tabular-nums"
 									data-add-on={addOn.id}
 								>
 									{quantity}
+									{later !== undefined && later !== quantity && periodEnd ? (
+										<span
+											className="text-2sm text-muted-foreground"
+											data-add-on-later={addOn.id}
+										>
+											{t("{count} from {date}", {
+												count: later,
+												date: longDay(periodEnd, locale),
+											})}
+										</span>
+									) : null}
 								</span>
 								<Button
 									type="button"
@@ -111,6 +123,8 @@ export function UsageAddOns() {
 			{step ? (
 				<AddOnConfirm
 					step={step}
+					periodEnd={periodEnd}
+					scheduledAt={data.scheduled?.at ?? null}
 					pending={set.isPending}
 					onConfirm={() =>
 						set.mutate({ addOn: step.addOn.id, quantity: step.to })
@@ -124,11 +138,15 @@ export function UsageAddOns() {
 
 function AddOnConfirm({
 	step,
+	periodEnd,
+	scheduledAt,
 	pending,
 	onConfirm,
 	onClose,
 }: {
 	step: Step;
+	periodEnd: string | null;
+	scheduledAt: string | null;
 	pending: boolean;
 	onConfirm: () => void;
 	onClose: () => void;
@@ -146,24 +164,37 @@ function AddOnConfirm({
 	});
 	const label = t(step.addOn.label);
 	const change = (step.to - step.from) * step.addOn.monthly;
+	const date = periodEnd
+		? longDay(periodEnd, locale)
+		: t("the end of the period");
+	const lines = [
+		adding
+			? t("You then have {count}.", { count: step.to })
+			: t("From {date} you have {count}.", { date, count: step.to }),
+		t("Your monthly cost changes by {amount}.", {
+			amount: signedEuro(change, locale),
+		}),
+	];
+	if (adding && scheduledAt) {
+		lines.push(
+			t("This replaces the change scheduled for {date}.", {
+				date: longDay(scheduledAt, locale),
+			}),
+		);
+	}
 
 	return (
 		<BillingChangeDialog
 			title={
 				adding ? t("Add {label}?", { label }) : t("Remove {label}?", { label })
 			}
-			lines={[
-				t("You then have {count}.", { count: step.to }),
-				t("Your monthly cost changes by {amount}.", {
-					amount: signedEuro(change, locale),
-				}),
-			]}
+			lines={lines}
 			preview={adding ? { data: preview.data, error: preview.error } : null}
 			note={
 				adding
 					? t("It applies at once. The limit rises as soon as Stripe confirms.")
 					: t(
-							"It applies at once. The unused time is credited to your next invoice, nothing is charged now.",
+							"It applies at the end of the period. Until then your add-ons stay, and nothing is charged or credited now.",
 						)
 			}
 			confirmLabel={t("Confirm")}

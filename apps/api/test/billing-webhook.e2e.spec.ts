@@ -35,7 +35,9 @@ import { TenantSweepService } from "../src/tenancy/tenant-sweep.service";
 
 const PREPARE_TIMEOUT_MS = 120_000;
 const SECRET = "whsec_test_only_never_real";
+const PERIOD_START = 1_797_400_000;
 const PERIOD_END = 1_800_000_000;
+const PERIOD_END_ISO = new Date(PERIOD_END * 1000).toISOString();
 const PASSWORD = "ein-sehr-langes-passwort-fuer-billing";
 const OWNER = {
 	id: "billing-owner-a",
@@ -109,6 +111,62 @@ const updatedCustomers: {
 }[] = [];
 const previews: Stripe.InvoiceCreatePreviewParams[] = [];
 const priceLookups: string[] = [];
+const scheduleCalls = {
+	created: [] as Stripe.SubscriptionScheduleCreateParams[],
+	updated: [] as {
+		id: string;
+		params: Stripe.SubscriptionScheduleUpdateParams;
+	}[],
+	released: [] as string[],
+};
+let schedule: Stripe.SubscriptionSchedule | null = null;
+
+function expandedPrice(id: string) {
+	return { id, lookup_key: id.replace(/^price_/, "") };
+}
+
+function scheduleFixture(
+	subscription: Stripe.Subscription,
+): Stripe.SubscriptionSchedule {
+	return {
+		id: "sub_sched_spec",
+		object: "subscription_schedule",
+		status: "active",
+		subscription: subscription.id,
+		current_phase: { start_date: PERIOD_START, end_date: PERIOD_END },
+		phases: [
+			{
+				start_date: PERIOD_START,
+				end_date: PERIOD_END,
+				items: subscription.items.data.map((item) => ({
+					price: expandedPrice(item.price.id),
+					quantity: item.quantity,
+				})),
+			},
+		],
+	} as unknown as Stripe.SubscriptionSchedule;
+}
+
+function phasesFrom(
+	params: Stripe.SubscriptionScheduleUpdateParams,
+): Stripe.SubscriptionSchedule["phases"] {
+	let start = PERIOD_START;
+	return (params.phases ?? []).map((phase) => {
+		const from =
+			typeof phase.start_date === "number" ? phase.start_date : start;
+		const to =
+			typeof phase.end_date === "number" ? phase.end_date : from + 2_600_000;
+		start = to;
+		return {
+			start_date: from,
+			end_date: to,
+			items: (phase.items ?? []).map((item) => ({
+				price: expandedPrice(String(item.price)),
+				quantity: item.quantity,
+			})),
+		} as unknown as Stripe.SubscriptionSchedule["phases"][number];
+	});
+}
 
 function stubStripe(
 	stripe: Stripe,
@@ -160,6 +218,39 @@ function stubStripe(
 			_id: string,
 			params: Stripe.SubscriptionUpdateParams,
 		) => live.update(params)) as never),
+		spyOn(stripe.subscriptionSchedules, "create").mockImplementation((async (
+			params: Stripe.SubscriptionScheduleCreateParams,
+		) => {
+			scheduleCalls.created.push(params);
+			schedule = scheduleFixture(live.current());
+			live.current().schedule = schedule.id;
+			return schedule;
+		}) as never),
+		spyOn(stripe.subscriptionSchedules, "retrieve").mockImplementation((async (
+			id: string,
+		) => {
+			if (!schedule || schedule.id !== id)
+				throw new Error(`No such schedule: ${id}`);
+			return schedule;
+		}) as never),
+		spyOn(stripe.subscriptionSchedules, "update").mockImplementation((async (
+			id: string,
+			params: Stripe.SubscriptionScheduleUpdateParams,
+		) => {
+			if (!schedule || schedule.id !== id)
+				throw new Error(`No such schedule: ${id}`);
+			scheduleCalls.updated.push({ id, params });
+			schedule = { ...schedule, phases: phasesFrom(params) };
+			return schedule;
+		}) as never),
+		spyOn(stripe.subscriptionSchedules, "release").mockImplementation((async (
+			id: string,
+		) => {
+			scheduleCalls.released.push(id);
+			schedule = null;
+			live.current().schedule = null;
+			return { id, status: "released" };
+		}) as never),
 	];
 }
 
@@ -170,147 +261,162 @@ const saved = {
 	secret: process.env.STRIPE_WEBHOOK_SECRET,
 };
 
-describe("the Stripe webhook is the source of truth for the plan", () => {
-	const spies: { mockRestore: () => void }[] = [];
-	let app: Awaited<ReturnType<typeof import("../src/create-app").createApp>>;
-	let server: ReturnType<typeof app.getHttpServer>;
-	let stripe: Stripe;
-	let a: Tenant;
-	let current: Stripe.Subscription;
-	let sessionCookie = "";
-	let billing: BillingService;
-	let mailer: MailService;
-	let next: Stripe.Subscription | null = null;
-	let refuseNext = false;
-	const updates: Stripe.SubscriptionUpdateParams[] = [];
+const spies: { mockRestore: () => void }[] = [];
+let app: Awaited<ReturnType<typeof import("../src/create-app").createApp>>;
+let server: ReturnType<typeof app.getHttpServer>;
+let stripe: Stripe;
+let a: Tenant;
+let current: Stripe.Subscription;
+let sessionCookie = "";
+let billing: BillingService;
+let mailer: MailService;
+let next: Stripe.Subscription | null = null;
+let refuseNext = false;
+const updates: Stripe.SubscriptionUpdateParams[] = [];
 
-	const tenantCookie = () =>
-		`${TENANT_COOKIE_NAME}=${tenantCookieValue(a.id, process.env.BETTER_AUTH_SECRET ?? "")}`;
+const tenantCookie = () =>
+	`${TENANT_COOKIE_NAME}=${tenantCookieValue(a.id, process.env.BETTER_AUTH_SECRET ?? "")}`;
 
-	const cleanOwner = () =>
-		runAsTenant(a, async () => {
-			await db.session.deleteMany({ where: { userId: OWNER.id } });
-			await db.account.deleteMany({ where: { userId: OWNER.id } });
-			await db.member.deleteMany({ where: { userId: OWNER.id } });
-			await db.user.deleteMany({ where: { id: OWNER.id } });
-		});
-
-	const post = async (
-		type: string,
-		object: Stripe.Subscription | Stripe.Invoice | Stripe.Checkout.Session,
-		secret = SECRET,
-		previous?: { items: { data: ReturnType<typeof item>[] } },
-	) => {
-		const payload = JSON.stringify({
-			id: `evt_${type}`,
-			object: "event",
-			type,
-			data: previous ? { object, previous_attributes: previous } : { object },
-		});
-		const header = await stripe.webhooks.generateTestHeaderStringAsync({
-			payload,
-			secret,
-		});
-		return request(server)
-			.post(BILLING.webhook.path)
-			.set("stripe-signature", header)
-			.set("content-type", "application/json")
-			.send(payload)
-			.then((response) => response);
-	};
-
-	const reset = async () => {
-		await writeTenantBilling(a.id, {
-			plan: "trial",
-			paidUntil: null,
-			graceUntil: null,
-			billing: NO_BILLING,
-		});
-		await setTenantStatus(a.id, "active");
-		await runAsTenant(a, () => writePlan(db, "trial"));
-	};
-
-	beforeAll(async () => {
-		process.env.STRIPE_SECRET_KEY = "sk_test_placeholder_never_real";
-		process.env.STRIPE_WEBHOOK_SECRET = SECRET;
-		({ a } = await prepareTestTenants());
-		await reset();
-		await cleanOwner();
-		await runAsTenant(a, async () => {
-			await db.user.create({
-				data: {
-					id: OWNER.id,
-					email: OWNER.email,
-					name: "Billing owner",
-					emailVerified: true,
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				},
-			});
-			await ensureWorkspaceMembership(OWNER.id);
-			await db.member.updateMany({
-				where: { userId: OWNER.id },
-				data: { role: "owner" },
-			});
-			await setPasswordFor(OWNER.id, PASSWORD);
-		});
-
-		spies.push(
-			spyOn(
-				DispatchHeartbeatService.prototype,
-				"onApplicationBootstrap",
-			).mockImplementation(() => {}),
-			spyOn(
-				MailboxSyncHeartbeatService.prototype,
-				"onApplicationBootstrap",
-			).mockImplementation(() => {}),
-			spyOn(BackfillService.prototype, "onModuleInit").mockImplementation(
-				() => {},
-			),
-		);
-
-		const { createApp } = await import("../src/create-app");
-		app = await createApp();
-		server = app.getHttpServer();
-		stripe = app.get<Stripe>(STRIPE);
-		billing = app.get(BillingService);
-		current = subscriptionFixture(a.id);
-		mailer = app.get(MailService);
-		spies.push(
-			...stubStripe(stripe, {
-				current: () => current,
-				update: (params) => {
-					if (refuseNext) {
-						refuseNext = false;
-						throw new Error("This price cannot be added to this subscription.");
-					}
-					updates.push(params);
-					return next ?? current;
-				},
-			}),
-		);
-	}, PREPARE_TIMEOUT_MS);
-
-	afterAll(async () => {
-		try {
-			await reset();
-			await cleanOwner();
-			await app?.close();
-			await closeRegistry();
-		} finally {
-			for (const spy of spies) spy.mockRestore();
-			for (const [name, value] of [
-				["RELOOP_REGISTRY_URL", saved.registry],
-				["RELOOP_TENANT_DATABASE_URL_TEMPLATE", saved.template],
-				["STRIPE_SECRET_KEY", saved.key],
-				["STRIPE_WEBHOOK_SECRET", saved.secret],
-			] as const) {
-				if (value === undefined) delete process.env[name];
-				else process.env[name] = value;
-			}
-		}
+const cleanOwner = () =>
+	runAsTenant(a, async () => {
+		await db.session.deleteMany({ where: { userId: OWNER.id } });
+		await db.account.deleteMany({ where: { userId: OWNER.id } });
+		await db.member.deleteMany({ where: { userId: OWNER.id } });
+		await db.user.deleteMany({ where: { id: OWNER.id } });
 	});
 
+const post = async (
+	type: string,
+	object: Stripe.Subscription | Stripe.Invoice | Stripe.Checkout.Session,
+	secret = SECRET,
+	previous?: { items: { data: ReturnType<typeof item>[] } },
+) => {
+	const payload = JSON.stringify({
+		id: `evt_${type}`,
+		object: "event",
+		type,
+		data: previous ? { object, previous_attributes: previous } : { object },
+	});
+	const header = await stripe.webhooks.generateTestHeaderStringAsync({
+		payload,
+		secret,
+	});
+	return request(server)
+		.post(BILLING.webhook.path)
+		.set("stripe-signature", header)
+		.set("content-type", "application/json")
+		.send(payload)
+		.then((response) => response);
+};
+
+const reset = async () => {
+	schedule = null;
+	await writeTenantBilling(a.id, {
+		plan: "trial",
+		paidUntil: null,
+		graceUntil: null,
+		billing: NO_BILLING,
+	});
+	await setTenantStatus(a.id, "active");
+	await runAsTenant(a, () => writePlan(db, "trial"));
+};
+
+beforeAll(async () => {
+	process.env.STRIPE_SECRET_KEY = "sk_test_placeholder_never_real";
+	process.env.STRIPE_WEBHOOK_SECRET = SECRET;
+	({ a } = await prepareTestTenants());
+	await reset();
+	await cleanOwner();
+	await runAsTenant(a, async () => {
+		await db.user.create({
+			data: {
+				id: OWNER.id,
+				email: OWNER.email,
+				name: "Billing owner",
+				emailVerified: true,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			},
+		});
+		await ensureWorkspaceMembership(OWNER.id);
+		await db.member.updateMany({
+			where: { userId: OWNER.id },
+			data: { role: "owner" },
+		});
+		await setPasswordFor(OWNER.id, PASSWORD);
+	});
+
+	spies.push(
+		spyOn(
+			DispatchHeartbeatService.prototype,
+			"onApplicationBootstrap",
+		).mockImplementation(() => {}),
+		spyOn(
+			MailboxSyncHeartbeatService.prototype,
+			"onApplicationBootstrap",
+		).mockImplementation(() => {}),
+		spyOn(BackfillService.prototype, "onModuleInit").mockImplementation(
+			() => {},
+		),
+	);
+
+	const { createApp } = await import("../src/create-app");
+	app = await createApp();
+	server = app.getHttpServer();
+	stripe = app.get<Stripe>(STRIPE);
+	billing = app.get(BillingService);
+	current = subscriptionFixture(a.id);
+	mailer = app.get(MailService);
+	spies.push(
+		...stubStripe(stripe, {
+			current: () => current,
+			update: (params) => {
+				if (refuseNext) {
+					refuseNext = false;
+					throw new Error("This price cannot be added to this subscription.");
+				}
+				updates.push(params);
+				return next ?? current;
+			},
+		}),
+	);
+}, PREPARE_TIMEOUT_MS);
+
+afterAll(async () => {
+	try {
+		await reset();
+		await cleanOwner();
+		await app?.close();
+		await closeRegistry();
+	} finally {
+		for (const spy of spies) spy.mockRestore();
+		for (const [name, value] of [
+			["RELOOP_REGISTRY_URL", saved.registry],
+			["RELOOP_TENANT_DATABASE_URL_TEMPLATE", saved.template],
+			["STRIPE_SECRET_KEY", saved.key],
+			["STRIPE_WEBHOOK_SECRET", saved.secret],
+		] as const) {
+			if (value === undefined) delete process.env[name];
+			else process.env[name] = value;
+		}
+	}
+});
+
+const onTenant = async <T>(fn: () => Promise<T>): Promise<T> => {
+	const tenant = await tenantById(a.id);
+	if (!tenant) throw new Error("tenant a missing");
+	return runAsTenant(tenant, fn);
+};
+
+const subscribe = async (subscription: Stripe.Subscription) => {
+	current = subscription;
+	next = null;
+	expect((await post("customer.subscription.updated", current)).status).toBe(
+		200,
+	);
+};
+
+describe("the Stripe webhook is the source of truth for the plan", () => {
 	it("rejects a wrong signature and touches nothing", async () => {
 		const response = await post(
 			"customer.subscription.created",
@@ -451,20 +557,6 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		expect(tenant?.plan).toBe("standard");
 	});
 
-	const onTenant = async <T>(fn: () => Promise<T>): Promise<T> => {
-		const tenant = await tenantById(a.id);
-		if (!tenant) throw new Error("tenant a missing");
-		return runAsTenant(tenant, fn);
-	};
-
-	const subscribe = async (subscription: Stripe.Subscription) => {
-		current = subscription;
-		next = null;
-		expect((await post("customer.subscription.updated", current)).status).toBe(
-			200,
-		);
-	};
-
 	it("ends the trial at checkout: no Stripe trial, full limits from the first payment", async () => {
 		await reset();
 		const sessions: Stripe.Checkout.SessionCreateParams[] = [];
@@ -543,7 +635,12 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			const preview = await onTenant(() =>
 				billing.previewPlan(OWNER.id, { plan: "plus", interval: "month" }),
 			);
-			expect(preview).toEqual({ dueNow: 70, credit: 0, currency: "EUR" });
+			expect(preview).toEqual({
+				dueNow: 70,
+				credit: 0,
+				currency: "EUR",
+				effectiveAt: null,
+			});
 			expect(previews.at(-1)?.subscription).toBe("sub_spec");
 			expect(previews.at(-1)?.subscription_details).toEqual({
 				items: [{ id: base, price: plusPrice }],
@@ -558,6 +655,7 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 					],
 				},
 			});
+			const schedulesBefore = scheduleCalls.created.length;
 			const changed = await onTenant(() =>
 				billing.checkout(OWNER.id, { plan: "plus", interval: "month" }),
 			);
@@ -568,6 +666,7 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 				payment_behavior: "pending_if_incomplete",
 				expand: ["latest_invoice"],
 			});
+			expect(scheduleCalls.created.length).toBe(schedulesBefore);
 			expect((await tenantById(a.id))?.plan).toBe("plus");
 
 			current = next;
@@ -673,18 +772,61 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			current = next;
 			next = null;
 			const previewsBefore = previews.length;
+			const updatesBefore = updates.length;
 			const lower = await onTenant(() =>
 				billing.previewAddOn(OWNER.id, { addOn: "drafts", quantity: 1 }),
 			);
-			expect(lower).toEqual({ dueNow: 0, credit: 0, currency: "EUR" });
+			expect(lower).toEqual({
+				dueNow: 0,
+				credit: 0,
+				currency: "EUR",
+				effectiveAt: PERIOD_END_ISO,
+			});
 			expect(previews.length).toBe(previewsBefore);
 			await onTenant(() =>
 				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 1 }),
 			);
-			expect(updates.at(-1)).toEqual({
-				items: [{ id: `si_${addOnLookupKey("drafts", "month")}`, quantity: 1 }],
-				proration_behavior: "create_prorations",
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.created.at(-1)).toEqual({
+				from_subscription: "sub_spec",
 			});
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]).toEqual({
+				items: [
+					{ price: `price_${planLookupKey("standard", "month")}`, quantity: 1 },
+					{ price: `price_${addOnLookupKey("drafts", "month")}`, quantity: 1 },
+					{ price: research, quantity: 1 },
+				],
+				duration: { interval: "month", interval_count: 1 },
+				proration_behavior: "none",
+			});
+			expect((await tenantById(a.id))?.billing.addOns.drafts).toBe(2);
+			const overview = await onTenant(() => billing.overview(OWNER.id));
+			expect(overview.scheduled?.addOns.drafts).toBe(1);
+			expect(overview.scheduled?.plan).toBe("standard");
+
+			const releasedBefore = scheduleCalls.released.length;
+			next = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("standard", "month")),
+						item(addOnLookupKey("drafts", "month"), 3),
+						item(addOnLookupKey("research", "month"), 1),
+					],
+				},
+			});
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 3 }),
+			);
+			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
+			expect(updates.at(-1)).toEqual({
+				items: [{ id: `si_${addOnLookupKey("drafts", "month")}`, quantity: 3 }],
+				proration_behavior: "always_invoice",
+				payment_behavior: "pending_if_incomplete",
+				expand: ["latest_invoice"],
+			});
+			expect((await tenantById(a.id))?.billing.addOns.drafts).toBe(3);
+			current = next;
+			next = null;
 
 			const logged = spyOn(Logger.prototype, "error");
 			refuseNext = true;
@@ -936,5 +1078,233 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		expect((await post("customer.subscription.updated", current)).status).toBe(
 			200,
 		);
+	});
+});
+
+describe("a plan change waits for the paid period", () => {
+	it("schedules a downgrade at the period end and changes nothing now", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const sent: Mail[] = [];
+		const send = spyOn(mailer, "send").mockImplementation(async (mail) => {
+			sent.push(mail);
+			return true;
+		});
+		Object.defineProperty(mailer, "configured", {
+			get: () => true,
+			configurable: true,
+		});
+		const previewsBefore = previews.length;
+		const updatesBefore = updates.length;
+		try {
+			const preview = await onTenant(() =>
+				billing.previewPlan(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			expect(preview).toEqual({
+				dueNow: 0,
+				credit: 0,
+				currency: "EUR",
+				effectiveAt: PERIOD_END_ISO,
+			});
+			expect(previews.length).toBe(previewsBefore);
+
+			for (const _round of [1, 2]) {
+				const changed = await onTenant(() =>
+					billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+				);
+				expect(changed.url).toBeNull();
+			}
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.created.at(-1)).toEqual({
+				from_subscription: "sub_spec",
+			});
+			const update = scheduleCalls.updated.at(-1);
+			expect(update?.id).toBe("sub_sched_spec");
+			expect(update?.params.end_behavior).toBe("release");
+			expect(update?.params.proration_behavior).toBe("none");
+			expect(update?.params.phases).toEqual([
+				{
+					items: [
+						{
+							price: `price_${planLookupKey("standard", "month")}`,
+							quantity: 1,
+						},
+						{
+							price: `price_${addOnLookupKey("drafts", "month")}`,
+							quantity: 2,
+						},
+					],
+					start_date: PERIOD_START,
+					end_date: PERIOD_END,
+				},
+				{
+					items: [
+						{ price: `price_${planLookupKey("start", "month")}`, quantity: 1 },
+						{
+							price: `price_${addOnLookupKey("drafts", "month")}`,
+							quantity: 2,
+						},
+					],
+					duration: { interval: "month", interval_count: 1 },
+					proration_behavior: "none",
+				},
+			]);
+			const tenant = await tenantById(a.id);
+			expect(tenant?.plan).toBe("standard");
+			expect(tenant?.billing.addOns.drafts).toBe(2);
+			expect(await onTenant(() => readPlan(db))).toBe("standard");
+			expect(sent.length).toBe(1);
+			expect(sent[0]?.subject).toContain("2027");
+			expect(sent[0]?.text).toContain("Start");
+
+			const overview = await onTenant(() => billing.overview(OWNER.id));
+			expect(overview.plan).toBe("standard");
+			expect(overview.scheduled).toEqual({
+				at: PERIOD_END_ISO,
+				plan: "start",
+				label: "Start",
+				interval: "month",
+				addOns: { conversations: 0, drafts: 2, research: 0, mailbox: 0 },
+			});
+
+			const createdBefore = scheduleCalls.created.length;
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "hosting", interval: "month" }),
+			);
+			expect(scheduleCalls.created.length).toBe(createdBefore);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: `price_${planLookupKey("hosting", "month")}`, quantity: 1 },
+				{ price: `price_${addOnLookupKey("drafts", "month")}`, quantity: 2 },
+			]);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled?.plan,
+			).toBe("hosting");
+			expect(sent.length).toBe(2);
+
+			const releasedBefore = scheduleCalls.released.length;
+			await onTenant(() => billing.cancelScheduledChange(OWNER.id));
+			expect(scheduleCalls.released).toEqual([
+				...scheduleCalls.released.slice(0, releasedBefore),
+				"sub_sched_spec",
+			]);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled,
+			).toBeNull();
+			expect((await tenantById(a.id))?.plan).toBe("standard");
+		} finally {
+			send.mockRestore();
+			Reflect.deleteProperty(mailer, "configured");
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+
+	it("schedules yearly to monthly, and releases a schedule before an upgrade", async () => {
+		await subscribe(
+			subscriptionFixture(a.id, {
+				default_payment_method: cardOnSubscription(),
+				items: {
+					data: [
+						item(planLookupKey("standard", "year")),
+						item(addOnLookupKey("drafts", "year"), 2),
+					],
+				},
+			} as never),
+		);
+		const updatesBefore = updates.length;
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "standard", interval: "month" }),
+			);
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]).toEqual({
+				items: [
+					{ price: `price_${planLookupKey("standard", "month")}`, quantity: 1 },
+					{ price: `price_${addOnLookupKey("drafts", "month")}`, quantity: 2 },
+				],
+				duration: { interval: "month", interval_count: 1 },
+				proration_behavior: "none",
+			});
+			expect((await tenantById(a.id))?.billing.interval).toBe("year");
+
+			const releasedBefore = scheduleCalls.released.length;
+			next = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("plus", "year")),
+						item(addOnLookupKey("drafts", "year"), 2),
+					],
+				},
+			});
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "plus", interval: "year" }),
+			);
+			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
+			expect(updates.at(-1)?.proration_behavior).toBe("always_invoice");
+			expect((await tenantById(a.id))?.plan).toBe("plus");
+		} finally {
+			next = null;
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+
+	it("applies the scheduled plan once when the phase switches, and mails once", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const sent: Mail[] = [];
+		const send = spyOn(mailer, "send").mockImplementation(async (mail) => {
+			sent.push(mail);
+			return true;
+		});
+		Object.defineProperty(mailer, "configured", {
+			get: () => true,
+			configurable: true,
+		});
+		const invoice = `in_switch_${RUN}`;
+		try {
+			current = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("start", "month")),
+						item(addOnLookupKey("drafts", "month"), 2),
+					],
+				},
+				latest_invoice: invoice,
+			} as never);
+			for (const _round of [1, 2]) {
+				const response = await post(
+					"customer.subscription.updated",
+					current,
+					SECRET,
+					{
+						items: {
+							data: [
+								item(planLookupKey("standard", "month")),
+								item(addOnLookupKey("drafts", "month"), 2),
+							],
+						},
+					},
+				);
+				expect(response.status).toBe(200);
+			}
+			const tenant = await tenantById(a.id);
+			expect(tenant?.plan).toBe("start");
+			expect(tenant?.billing.addOns.drafts).toBe(2);
+			expect(await onTenant(() => readPlan(db))).toBe("start");
+			expect(sent.length).toBe(1);
+			expect(sent[0]?.subject).toContain("Start");
+		} finally {
+			send.mockRestore();
+			Reflect.deleteProperty(mailer, "configured");
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE $2",
+				[a.id, `%${RUN}%`],
+			);
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
 	});
 });

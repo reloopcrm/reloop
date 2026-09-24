@@ -322,5 +322,10 @@
 	"You need your own AI key.": "Necesitas tu propia clave de IA.",
 	"{plan} does not include AI. Without your own key, the AI stops working.": "{plan} no incluye IA. Sin tu propia clave, la IA deja de funcionar.",
 	"New limits: {contacts} contacts, {mailboxes} mailboxes, {storage} storage.": "Nuevos límites: {contacts} contactos, {mailboxes} buzones, {storage} de almacenamiento.",
-	"Where to enter the key": "Dónde introducir la clave"
+	"Where to enter the key": "Dónde introducir la clave",
+	"Agent language": "Idioma del agente",
+	"The agent writes in this language for everyone in this workspace.": "El agente escribe en este idioma para todos en este espacio de trabajo.",
+	"Install default": "Predeterminado de la instalación",
+	"Summaries, notes and business rules follow it. A reply draft keeps the language of its conversation.": "Los resúmenes, las notas y las reglas del negocio lo siguen. Un borrador de respuesta mantiene el idioma de su conversación.",
+	"Agent language saved.": "Idioma del agente guardado."
 }

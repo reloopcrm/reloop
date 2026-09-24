@@ -4,6 +4,7 @@ import { defineDynamic, defineInstructions } from "eve/instructions";
 import { z } from "zod";
 import { builderFeedbackMarkdown } from "../lib/builder-feedback";
 import { focusOn, setBudget } from "../lib/focus";
+import { language } from "../lib/language";
 import { planLimits } from "../lib/plan-limits";
 import { sessionPreamble } from "../lib/preamble";
 import { RESEARCH_INSTRUCTIONS } from "../lib/research-instructions";
@@ -73,8 +74,12 @@ async function sessionInstructions(
 	focusOn({ ...focus, sessionId: ctx.session.id, taskKind: kind });
 
 	return defineInstructions({
-		markdown: `${RESEARCH_INSTRUCTIONS}\n\n${markdown}`,
+		markdown: `${RESEARCH_INSTRUCTIONS}\n\n${languageInstruction()}\n\n${markdown}`,
 	});
+}
+
+export function languageInstruction(): string {
+	return `Write every text you store for this workspace, such as a brief, a note, a summary or a reason, in ${language()}. Keep names, job titles and quotes as the source wrote them. When a person writes to you, answer in the language that person writes in.`;
 }
 
 export const LIMIT_REACHED_INSTRUCTION =

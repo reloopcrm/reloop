@@ -29,6 +29,7 @@ import {
 } from "@crm/db/tenant-codes";
 import { isHosted, runAsTenant } from "@crm/db/tenant-context";
 import { workspaceSlug } from "@crm/db/workspace";
+import { writeAgentLanguage } from "@crm/validation/agent-language";
 import {
 	TENANT_SIGNUP_CODES,
 	type TenantDone,
@@ -139,6 +140,7 @@ export class TenantSignupService {
 			plan: "trial",
 			name: input.company,
 		});
+		await this.setAgentLanguage(tenant, input.locale);
 
 		this.logger.log({
 			message: passwordHash
@@ -355,6 +357,20 @@ export class TenantSignupService {
 				tenantId: tenant.id,
 				purpose,
 			});
+		}
+	}
+
+	private async setAgentLanguage(
+		tenant: Tenant,
+		locale: TenantSignupInput["locale"],
+	): Promise<void> {
+		try {
+			await runAsTenant(tenant, () => writeAgentLanguage(db, locale));
+		} catch (error) {
+			this.logger.error(
+				{ message: "Agent language was not stored", tenantId: tenant.id },
+				error instanceof Error ? error.stack : undefined,
+			);
 		}
 	}
 

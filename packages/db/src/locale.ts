@@ -22,6 +22,15 @@ export const LOCALE = {
 		tr: "Türkçe",
 		"zh-Hans": "简体中文",
 	},
+	englishNames: {
+		en: "English",
+		de: "German",
+		es: "Spanish",
+		fr: "French",
+		"pt-BR": "Brazilian Portuguese",
+		tr: "Turkish",
+		"zh-Hans": "Simplified Chinese",
+	},
 	tags: {
 		en: "en-US",
 		de: "de-DE",
@@ -35,6 +44,7 @@ export const LOCALE = {
 	machineTranslated: ["es", "fr", "pt-BR", "tr", "zh-Hans"],
 } as const satisfies {
 	names: Record<Locale, string>;
+	englishNames: Record<Locale, string>;
 	tags: Record<Locale, string>;
 	writtenByPeople: readonly Locale[];
 	machineTranslated: readonly Locale[];

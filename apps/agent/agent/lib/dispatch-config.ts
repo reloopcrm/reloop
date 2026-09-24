@@ -79,6 +79,10 @@ export const DISPATCH = {
 		budgetMs: 3 * MINUTE_MS,
 	},
 
+	language: {
+		cacheMs: MINUTE_MS,
+	},
+
 	bucket: {
 		envVar: "AGENT_SHARED_KEY_PER_MINUTE",
 		perMinute: 300,

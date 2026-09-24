@@ -136,20 +136,31 @@ export async function runBusinessSetup(
 	const from = setupSource(current.business, threads);
 
 	if (!from) {
-		return say(
-			"The business rules are already set. I changed nothing.",
-			"Die Geschäftsregeln stehen schon. Ich habe nichts geändert.",
-		);
+		return say({
+			en: "The business rules are already set. I changed nothing.",
+			de: "Die Geschäftsregeln stehen schon. Ich habe nichts geändert.",
+			es: "Las reglas del negocio ya están definidas. No he cambiado nada.",
+			fr: "Les règles de l'entreprise sont déjà définies. Je n'ai rien changé.",
+			"pt-BR": "As regras do negócio já estão definidas. Não mudei nada.",
+			tr: "İş kuralları zaten belirlendi. Hiçbir şeyi değiştirmedim.",
+			"zh-Hans": "业务规则已经设定好了。我没有做任何更改。",
+		});
 	}
 
 	const fromMail = from === "mail";
 	const page = !fromMail && us?.website ? await fetchPage(us.website) : null;
 
 	if (!fromMail && !page) {
-		const note = say(
-			`I am still waiting. I need ${BUSINESS_SETUP.minThreads} conversations or a readable website to say what this business sells. There are ${threads} conversations now.`,
-			`Ich warte noch. Erst ab ${BUSINESS_SETUP.minThreads} Verläufen oder mit einer lesbaren Website kann ich sagen, womit hier gehandelt wird. Aktuell sind es ${threads}.`,
-		);
+		const needed = BUSINESS_SETUP.minThreads;
+		const note = say({
+			en: `I am still waiting. I need ${needed} conversations or a readable website to say what this business sells. There are ${threads} conversations now.`,
+			de: `Ich warte noch. Erst ab ${needed} Verläufen oder mit einer lesbaren Website kann ich sagen, womit hier gehandelt wird. Aktuell sind es ${threads}.`,
+			es: `Sigo esperando. Necesito ${needed} conversaciones o un sitio web legible para saber qué vende este negocio. Ahora hay ${threads} conversaciones.`,
+			fr: `J'attends encore. Il me faut ${needed} conversations ou un site web lisible pour dire ce que vend cette entreprise. Il y a ${threads} conversations pour l'instant.`,
+			"pt-BR": `Ainda estou esperando. Preciso de ${needed} conversas ou de um site legível para dizer o que este negócio vende. Agora são ${threads} conversas.`,
+			tr: `Hâlâ bekliyorum. Bu işletmenin ne sattığını söylemek için ${needed} yazışmaya veya okunabilir bir web sitesine ihtiyacım var. Şu anda ${threads} yazışma var.`,
+			"zh-Hans": `我还在等待。需要 ${needed} 个对话或一个可读取的网站，才能判断这家企业卖什么。目前有 ${threads} 个对话。`,
+		});
 		await writeWinBackRulesState(db, { note });
 		return note;
 	}
@@ -172,7 +183,7 @@ export async function runBusinessSetup(
 		"sideProducts: products or services they also offer but value less. Leave it empty when nothing fits.",
 		"boxProducts: the words for goods counted in boxes or containers rather than single units. Leave it empty when nothing fits.",
 		"minPallets: the smallest quantity that counts as a big order for the main products, counted in unit. minBoxes: the same for box goods. Read real numbers out of the source. Use 0 when the source never names quantities.",
-		`unit: the plural word for what minPallets counts, in ${language()}, for example units, projects, licenses or seats.`,
+		`unit: the plural word for what minPallets counts, in ${language()} even when the source uses another language, for example the ${language()} word for units, projects, licenses or seats.`,
 		`note: one or two ${language()} sentences saying what you concluded and from what.`,
 		"Answer with one JSON object only, no prose, no code fences, matching this JSON schema:",
 		JSON.stringify(z.toJSONSchema(businessProposal, { io: "input" })),
@@ -250,10 +261,15 @@ export async function runBusinessSetup(
 		}
 	}
 
-	const note = say(
-		`I could not work out the business rules myself: ${lastError}`,
-		`Ich konnte die Geschäftsregeln nicht selbst finden: ${lastError}`,
-	);
+	const note = say({
+		en: `I could not work out the business rules myself: ${lastError}`,
+		de: `Ich konnte die Geschäftsregeln nicht selbst finden: ${lastError}`,
+		es: `No he podido deducir yo mismo las reglas del negocio: ${lastError}`,
+		fr: `Je n'ai pas pu déterminer moi-même les règles de l'entreprise : ${lastError}`,
+		"pt-BR": `Não consegui descobrir sozinho as regras do negócio: ${lastError}`,
+		tr: `İş kurallarını kendim çıkaramadım: ${lastError}`,
+		"zh-Hans": `我无法自行确定业务规则：${lastError}`,
+	});
 	await writeWinBackRulesState(db, { note });
 
 	return note;

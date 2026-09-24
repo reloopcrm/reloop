@@ -4,6 +4,7 @@ import type { ToolDefinition } from "eve/tools";
 import { z } from "zod";
 import { settledWithin } from "./deadline";
 import { DISPATCH } from "./dispatch-config";
+import { inWorkspaceLanguage } from "./language";
 import { runLimited } from "./pool";
 
 export const TENANT_ATTRIBUTE = "tenantId";
@@ -63,14 +64,14 @@ export async function withTenantId<T>(
 	id: string | null | undefined,
 	fn: () => Promise<T> | T,
 ): Promise<T> {
-	return asTenant(await tenantFromId(id), fn);
+	return asTenant(await tenantFromId(id), () => inWorkspaceLanguage(fn));
 }
 
 export async function withTenant<T>(
 	ctx: AuthContext | null | undefined,
 	fn: () => Promise<T> | T,
 ): Promise<T> {
-	return asTenant(await tenantOf(ctx), fn);
+	return asTenant(await tenantOf(ctx), () => inWorkspaceLanguage(fn));
 }
 
 export function tenantAttributes(): Record<string, string> {
@@ -121,7 +122,7 @@ export async function eachActiveTenant(
 	only: string | null = null,
 ): Promise<TenantRun[]> {
 	if (!isHosted()) {
-		await run(null, new AbortController().signal);
+		await inWorkspaceLanguage(() => run(null, new AbortController().signal));
 		return [];
 	}
 
@@ -147,7 +148,9 @@ export async function eachActiveTenant(
 		};
 
 		const controller = new AbortController();
-		const work = runAsTenant(tenant, () => run(tenant, controller.signal)).then(
+		const work = runAsTenant(tenant, () =>
+			inWorkspaceLanguage(() => run(tenant, controller.signal)),
+		).then(
 			() => undefined,
 			(cause: unknown) => {
 				outcome.ok = false;

@@ -116,6 +116,35 @@ entry point reads the tenant again from `session.auth.attributes.tenantId` and
   queue and the telemetry model id. The boot reads in `agent.ts` are skipped, and a
   ChatGPT login is never a candidate.
 
+### Every workspace has its own language
+
+The agent writes what a customer reads in the workspace's language, never in one
+language for the whole process. `AppSetting.agentLanguage` holds one of the seven
+locales, parsed by `@crm/validation/agent-language`. An admin picks it under Agent
+language in Settings > General, and a hosted sign-up stores the language the person
+signed up in. The API stores and serves the value and does nothing else with it.
+
+- **Resolved at the tenant boundary.** `withTenant`, `withTenantId` and
+  `eachActiveTenant` read it once and run their work inside `inWorkspaceLanguage`, an
+  `AsyncLocalStorage`, so `language()` and `say()` stay synchronous and every tool,
+  lane, hook and instruction resolver already wrapped for the tenant gets it. The value
+  is cached per tenant for `DISPATCH.language.cacheMs`, so a change in Settings reaches
+  the agent within a minute.
+- **The fallback is the old behaviour.** No value, or a value that is not a locale,
+  means `RELOOP_GERMAN`: German for `"true"`, English otherwise. A read that fails logs
+  and uses the same fallback. It never throws.
+- **A prompt names the language in English**, `LOCALE.englishNames` in
+  `@crm/db/locale`. A fixed sentence the agent stores, such as a business setup note,
+  is `say({ en, de, es, fr, "pt-BR", tr, "zh-Hans" })`, and the type requires every
+  locale.
+- **A draft keeps the language of its conversation.** `lib/email-draft.ts` tells the
+  model to answer in the language the thread uses; only the style rule it learns is in
+  the workspace language. A rep's chat answers in the language the rep writes in.
+- **Stored text is not rewritten.** A summary or a unit the agent wrote before stays
+  in the language it was written in; only new runs follow the setting. The business
+  unit and description are edited by hand in Win back, Rules, because business setup
+  keeps a value that is already set.
+
 ### Included AI
 
 A plan with `aiIncluded` (`@crm/db/plans`) fixes the chain: the TypeSafe gate first,

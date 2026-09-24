@@ -57,6 +57,11 @@ import {
 	writeAgentFunction,
 } from "@crm/validation/agent-functions";
 import {
+	type AgentLanguage,
+	readAgentLanguage,
+	writeAgentLanguage,
+} from "@crm/validation/agent-language";
+import {
 	readDealStageNames,
 	writeDealStageNames,
 } from "@crm/validation/deal-stage-names";
@@ -84,6 +89,7 @@ import { readCapacityUsage } from "../mailbox/sync-state.service";
 import { SETTINGS } from "./settings.config";
 import type {
 	AgentFunctionsSettings,
+	AgentLanguageSettings,
 	AgentProviderSettings,
 	AiUsageSettings,
 	ArchiveRetentionSettings,
@@ -514,6 +520,22 @@ export class SettingsService {
 	async proposeBusiness(userId: string): Promise<{ queued: boolean }> {
 		await this.assertManager(userId);
 		return { queued: await this.agent.businessSetupRequested(true) };
+	}
+
+	async agentLanguage(): Promise<AgentLanguageSettings> {
+		return { language: await readAgentLanguage(this.db) };
+	}
+
+	async setAgentLanguage(
+		userId: string,
+		language: AgentLanguage,
+	): Promise<AgentLanguageSettings> {
+		await this.assertManager(userId);
+		const saved = await writeAgentLanguage(this.db, language);
+
+		this.logger.log({ message: "Agent language changed", language: saved });
+
+		return { language: saved };
 	}
 
 	async archiveRetention(): Promise<ArchiveRetentionSettings> {

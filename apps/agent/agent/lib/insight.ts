@@ -14,7 +14,7 @@ import { streamText } from "ai";
 import { z } from "zod";
 import { askJev, type JevAsk, type JevState, typesafeKey } from "./jev";
 import { countGate, countGateFailure } from "./jev-meter";
-import { language, say } from "./language";
+import { language } from "./language";
 import { directModel } from "./model";
 import { MODEL } from "./model-config";
 import { playbookPrompt, readPlaybook } from "./playbook";
@@ -38,7 +38,7 @@ const messageSummary = z.object({
 		.string()
 		.max(MEMORY.messageSummaryMaxChars)
 		.describe(
-			`What this one message says or asks, in ${language()}, no greeting.`,
+			"What this one message says or asks, in the language the instructions name, no greeting.",
 		),
 });
 
@@ -93,7 +93,7 @@ export const threadInsightSchema = z.object({
 		.array(messageSummary)
 		.max(MEMORY.messagesPerThread)
 		.describe(
-			`One ${language()} line for every numbered message in the transcript, each at most 20 words.`,
+			"One line for every numbered message in the transcript, in the language the instructions name, each at most 20 words.",
 		),
 });
 
@@ -365,7 +365,7 @@ async function classifyWithModel(
 			"Every evidence quote is copied from one message and names the number of that message.",
 			`messageSummaries holds one ${language()} line for every numbered message, with its number, each at most 20 words.`,
 			"A message line never names its sender and never starts with WE or THEY. It starts with the verb.",
-			`A message line leaves out the greeting, the sign-off and the signature. Write a range as ${say("'800 to 1000'", "'800 bis 1000'")}, never with a dash.`,
+			`A message line leaves out the greeting, the sign-off and the signature. Write a range with the ${language()} word for to, as in '800 to 1000', never with a dash.`,
 			await businessPrompt(rules),
 		].join("\n"),
 		untrusted(
@@ -655,7 +655,7 @@ export async function runThreadDigest(threadId: string): Promise<string> {
 			"A line never names its sender and never starts with WE or THEY. It starts with the verb.",
 			"Say what the message asks, offers, confirms or answers. Name quantities and products when the message names them.",
 			"Report only what the message says. Never invent a fact.",
-			`Leave out the greeting, the sign-off and the signature. Write a range as ${say("'800 to 1000'", "'800 bis 1000'")}, never with a dash.`,
+			`Leave out the greeting, the sign-off and the signature. Write a range with the ${language()} word for to, as in '800 to 1000', never with a dash.`,
 			"Answer with one line for every numbered message, with its number.",
 		].join("\n"),
 		untrusted(

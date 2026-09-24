@@ -74,8 +74,11 @@ folder, and the rest is text.
    lookup, so one changed character makes the line fall back to English.
 3. **Register the code.** Add your locale to `LOCALES` in
    `packages/db/src/locale.ts`, then add its native name to `LOCALE.names`, its
-   BCP 47 tag to `LOCALE.tags` and the locale to either `writtenByPeople` or
-   `machineTranslated`.
+   English name to `LOCALE.englishNames` (the agent names the language in its
+   prompts with it), its BCP 47 tag to `LOCALE.tags` and the locale to either
+   `writtenByPeople` or `machineTranslated`. The fixed sentences the agent stores
+   are `say({ en, de, … })` calls in `apps/agent/agent/lib`, and each one needs a
+   line for your locale, so `bun run check-types` lists every one you still owe.
 4. **Register the files.** In `apps/app/lib/i18n/dictionaries.ts` add the thirteen
    imports, one block in `DICTIONARY_MODULES` and one line in `DICTIONARIES`. Copy
    the block above yours and change the locale code. Both maps are checked against
@@ -131,8 +134,11 @@ and one unfinished language must never hold up a release.
   as bare bytes, so the stem must be ASCII. Every other language has a Latin stem,
   Chinese keeps `contacts`, `companies` and `deals`. The columns inside the file
   are Chinese.
-- **What the agent writes.** The agent writes English, or German with
-  `RELOOP_GERMAN`. See `docs/environment.md`.
+- **What the agent writes follows the workspace, not the reader.** One language per
+  workspace, `AppSetting.agentLanguage`, picked under Agent language in Settings >
+  General. A hosted sign-up stores the language the person signed up in. With no
+  value the agent writes English, or German with `RELOOP_GERMAN`. See
+  `docs/environment.md` and `docs/agent.md`.
 - **The sample data follows the reader.** `sampleData.load` takes the locale of
   the person who clicks, and `apps/api/src/demo/demo-copy.ts` holds the German
   lines keyed by the English text. Every other language gets English.

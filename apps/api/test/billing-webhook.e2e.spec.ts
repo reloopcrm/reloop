@@ -11,6 +11,7 @@ import { addOnLookupKey, planLookupKey } from "@crm/db/pricing";
 import { readPlan, writePlan } from "@crm/db/settings";
 import {
 	closeRegistry,
+	forgetTenant,
 	NO_BILLING,
 	setTenantStatus,
 	type Tenant,
@@ -577,11 +578,24 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 				"UPDATE tenant SET trial_ends_at = $2 WHERE id = $1",
 				[a.id, inTenDays.toISOString()],
 			);
-			const customersBefore = createdCustomers.length;
-			const started = await onTenant(() =>
-				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			await registryQuery(
+				"UPDATE tenant SET billing = COALESCE(billing, '{}'::jsonb) || $2::jsonb WHERE id = $1",
+				[
+					a.id,
+					JSON.stringify({ wanted: { plan: "start", interval: "month" } }),
+				],
 			);
+			forgetTenant(a.id);
+			const wanted = (await tenantById(a.id))?.billing.wanted;
+			expect(wanted).toEqual({ plan: "start", interval: "month" });
+			if (!wanted) throw new Error("wanted missing");
+			const customersBefore = createdCustomers.length;
+			const started = await onTenant(() => billing.checkout(OWNER.id, wanted));
 			expect(started.url).toBe("https://checkout.stripe.test/cs_spec");
+			expect(sessions[0]?.mode).toBe("subscription");
+			expect(sessions[0]?.line_items).toEqual([
+				{ price: `price_${planLookupKey("start", "month")}`, quantity: 1 },
+			]);
 			expect(sessions[0]?.subscription_data?.trial_end).toBeUndefined();
 			expect(sessions[0]?.customer).toBe("cus_spec");
 			expect(sessions[0]?.subscription_data?.metadata?.tenantId).toBe(a.id);
@@ -605,6 +619,7 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 
 			const tenant = await tenantById(a.id);
 			expect(tenant?.plan).toBe("start");
+			expect(tenant?.billing.wanted).toBeNull();
 			const limits = await onTenant(() => planLimitsOf(db));
 			expect(limits.contacts).toBe(10_000);
 			expect(limits.researchSessionsPerMonth).toBe(100);

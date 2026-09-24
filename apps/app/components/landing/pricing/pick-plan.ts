@@ -3,6 +3,8 @@ export type PricingPlan = {
 	name: string;
 	tagline: string;
 	href: string;
+	buyHref: { month: string; year: string };
+	trialFirst: boolean;
 	monthly: number;
 	yearly: number;
 	aiIncluded: boolean;

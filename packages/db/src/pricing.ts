@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { AddOnId, PlanId } from "./plans";
 
 export const BILLING_INTERVALS = ["month", "year"] as const;
@@ -40,6 +41,13 @@ export const PAID_PLAN_IDS = Object.keys(PRICING_EUR.plans) as PaidPlanId[];
 export function isPaidPlanId(value: string): value is PaidPlanId {
 	return value in PRICING_EUR.plans;
 }
+
+export const planPurchase = z.object({
+	plan: z.enum(PAID_PLAN_IDS),
+	interval: z.enum(BILLING_INTERVALS),
+});
+
+export type PlanPurchase = z.infer<typeof planPurchase>;
 
 export function planLookupKey(plan: PaidPlanId, interval: BillingInterval) {
 	return `${PRICING_EUR.lookup.prefix}:plan:${plan}:${interval}`;

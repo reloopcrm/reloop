@@ -1,6 +1,7 @@
 import pg from "pg";
 import { z } from "zod";
-import { ADD_ON_IDS, NO_ADD_ONS } from "./plans";
+import { ADD_ON_IDS, canonicalPlanId, NO_ADD_ONS } from "./plans";
+import { type PlanPurchase, planPurchase } from "./pricing";
 import { TENANCY } from "./tenancy-config";
 import { isHosted, runAsTenant } from "./tenant-context";
 
@@ -43,6 +44,7 @@ export const tenantBilling = z.object({
 	interval: z.enum(["month", "year"]).nullable().default(null),
 	cancelAt: z.coerce.date().nullable().default(null),
 	addOns: addOnQuantities.default(NO_ADD_ONS),
+	wanted: planPurchase.nullable().default(null),
 });
 
 export type TenantBilling = z.infer<typeof tenantBilling>;
@@ -68,6 +70,13 @@ export const tenant = z.object({
 });
 
 export type Tenant = z.infer<typeof tenant>;
+
+export function unpaidPurchase(tenant: Tenant): PlanPurchase | null {
+	const { status, wanted } = tenant.billing;
+	if (status !== "none" || canonicalPlanId(tenant.plan) !== "trial")
+		return null;
+	return wanted;
+}
 
 const tenantRow = z
 	.object({

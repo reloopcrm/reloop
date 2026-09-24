@@ -29,12 +29,14 @@ const newPassword = "ein-anderes-langes-passwort-danach";
 const company = `Codeco ${runId}`;
 const tenantId = `codeco-${runId}`;
 const owner = `owner@codeco-${runId}.example`;
+const purchase = { plan: "team", interval: "year" } as const;
 const signup = {
 	email: owner,
 	name: "Owner",
 	company,
 	plan: "trial",
 	locale: "de",
+	purchase,
 };
 
 const cookieOf = (response: request.Response): string =>
@@ -117,6 +119,20 @@ describe("tenant sign-up with a mailed code", () => {
 		expect(response.body.password).toBe(true);
 	});
 
+	it("refuses a purchase of the trial or of an unknown plan", async () => {
+		for (const wrong of [
+			{ plan: "trial", interval: "month" },
+			{ plan: "gold", interval: "month" },
+			{ plan: "team", interval: "week" },
+		]) {
+			await request(server)
+				.post("/api/tenant/signup")
+				.send({ ...signup, password, purchase: wrong })
+				.expect(422);
+		}
+		expect(await tenantById(tenantId)).toBeNull();
+	});
+
 	it("registers a pending workspace and mails a German code", async () => {
 		const response = await request(server)
 			.post("/api/tenant/signup")
@@ -127,7 +143,10 @@ describe("tenant sign-up with a mailed code", () => {
 		expect(cookieOf(response)).toStartWith(
 			`${TENANT_COOKIE_NAME}=${tenantId}.`,
 		);
-		expect((await tenantById(tenantId))?.status).toBe("pending");
+		const pending = await tenantById(tenantId);
+		expect(pending?.status).toBe("pending");
+		expect(pending?.plan).toBe("trial");
+		expect(pending?.billing.wanted).toEqual(purchase);
 
 		const mail = outbox.at(-1);
 		expect(mail?.to).toBe(owner);
@@ -219,6 +238,8 @@ describe("tenant sign-up with a mailed code", () => {
 		const activated = await tenantById(tenantId);
 		expect(activated?.status).toBe("active");
 		expect(activated?.allowList).toEqual([`codeco-${runId}.example`, owner]);
+		expect(activated?.plan).toBe("trial");
+		expect(activated?.billing.wanted).toEqual(purchase);
 
 		const again = await request(server)
 			.post("/api/tenant/verify")

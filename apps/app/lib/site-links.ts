@@ -1,3 +1,4 @@
+import type { PlanPurchase } from "@crm/db/pricing";
 import { PRICING } from "@/components/landing/pricing/config";
 
 const SIGN_IN_PATH = "/sign-in";
@@ -18,6 +19,16 @@ export function siteUrl(): string | undefined {
 export function signUpUrl(plan?: string): string {
 	const path = `${cloudUrl() ?? ""}${PRICING.href.start}`;
 	return plan ? `${path}?${PRICING.href.planParam}=${plan}` : path;
+}
+
+export function buyUrl(purchase: PlanPurchase): string {
+	const { planParam, intervalParam, buyParam, buyValue } = PRICING.href;
+	const query = new URLSearchParams({
+		[planParam]: purchase.plan,
+		[intervalParam]: purchase.interval,
+		[buyParam]: buyValue,
+	});
+	return `${cloudUrl() ?? ""}${PRICING.href.start}?${query}`;
 }
 
 export function signInUrl(): string {

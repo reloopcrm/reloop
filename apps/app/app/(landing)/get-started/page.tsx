@@ -1,4 +1,4 @@
-import { PLAN_IDS } from "@crm/db/plans";
+import { PLAN_IDS, PLANS } from "@crm/db/plans";
 import { isHosted } from "@crm/db/tenant-context";
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
@@ -6,11 +6,18 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { PRICING } from "@/components/landing/pricing/config";
+import { purchaseFromParams } from "@/components/landing/pricing/purchase";
 import { SignupForm } from "@/components/landing/signup-form";
 import { WaitlistForm } from "@/components/landing/waitlist-form";
 import { API_URL } from "@/lib/env";
 import { getT } from "@/lib/i18n/server";
-import { cloudUrl, marketingUrl, signInUrl, signUpUrl } from "@/lib/site-links";
+import {
+	buyUrl,
+	cloudUrl,
+	marketingUrl,
+	signInUrl,
+	signUpUrl,
+} from "@/lib/site-links";
 import { signupOptions } from "@/lib/tenant-api";
 
 const chosenPlan = z.enum(PLAN_IDS).catch("trial");
@@ -43,8 +50,11 @@ export default async function GetStartedPage({
 	const plan = chosenPlan.parse(
 		Array.isArray(requested) ? requested[0] : requested,
 	);
+	const purchase = purchaseFromParams(params);
 
-	if (!isHosted() && cloudUrl()) redirect(signUpUrl(plan));
+	if (!isHosted() && cloudUrl()) {
+		redirect(purchase ? buyUrl(purchase) : signUpUrl(plan));
+	}
 
 	const t = await getT();
 
@@ -67,14 +77,24 @@ export default async function GetStartedPage({
 
 	return (
 		<AuthShell>
-			<AuthHeading
-				title={t("Start free trial")}
-				description={t(
-					"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.",
-				)}
-			/>
+			{purchase ? (
+				<AuthHeading
+					title={t("Start {plan} now", { plan: t(PLANS[purchase.plan].label) })}
+					description={t(
+						"Your own Reloop CRM in a minute. Register now, pay in the next step, and the whole plan is active at once.",
+					)}
+				/>
+			) : (
+				<AuthHeading
+					title={t("Start free trial")}
+					description={t(
+						"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.",
+					)}
+				/>
+			)}
 			<SignupForm
 				plan={plan}
+				purchase={purchase}
 				pricingHref={marketingUrl(PRICING.href.pricing)}
 				withPassword={options?.password ?? false}
 				signInMethods={options?.signIn ?? []}

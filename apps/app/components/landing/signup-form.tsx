@@ -3,6 +3,7 @@
 import { signIn } from "@crm/auth/client";
 import { PASSWORD_RULES } from "@crm/auth/password-rules";
 import { PLANS, type PlanId } from "@crm/db/plans";
+import type { PlanPurchase } from "@crm/db/pricing";
 import { Button } from "@crm/ui/components/button";
 import {
 	Field,
@@ -17,6 +18,7 @@ import type {
 	TenantSignInMethod,
 	TenantSignupResult,
 } from "@crm/validation/tenant-signup";
+import { useMutation } from "@tanstack/react-query";
 import NextLink from "next/link";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -30,6 +32,7 @@ import {
 	type TenantRefusal,
 	verifyWorkspace,
 } from "@/lib/tenant-api";
+import { useTRPC } from "@/lib/trpc/client";
 
 const REFUSALS = {
 	NO_WORKSPACE: "No workspace for this address.",
@@ -55,11 +58,13 @@ function providersOf(methods: readonly TenantSignInMethod[]): Provider[] {
 
 export function SignupForm({
 	plan,
+	purchase,
 	pricingHref,
 	withPassword,
 	signInMethods,
 }: {
 	plan: PlanId;
+	purchase: PlanPurchase | null;
 	pricingHref: string;
 	withPassword: boolean;
 	signInMethods: readonly TenantSignInMethod[];
@@ -67,6 +72,8 @@ export function SignupForm({
 	const t = useT();
 	const locale = useLocale();
 	const id = useId();
+	const trpc = useTRPC();
+	const checkout = useMutation(trpc.billing.checkout.mutationOptions());
 	const [email, setEmail] = useState("");
 	const [name, setName] = useState("");
 	const [company, setCompany] = useState("");
@@ -93,6 +100,7 @@ export function SignupForm({
 			plan,
 			locale,
 			password: withPassword ? password : undefined,
+			purchase: purchase ?? undefined,
 		});
 		setPending(false);
 
@@ -110,15 +118,30 @@ export function SignupForm({
 			return;
 		}
 
+		const home = `${window.location.origin}/`;
 		const { error } = await signIn.email({
 			email: email.trim(),
 			password,
-			callbackURL: `${window.location.origin}/`,
+			callbackURL: purchase ? undefined : home,
 		});
 		if (error) {
 			setPending(false);
 			const { label, vars } = signInFailureText(error);
 			toast.error(t(label, vars));
+			return;
+		}
+		if (purchase) window.location.assign(await checkoutUrl(purchase, home));
+	}
+
+	async function checkoutUrl(
+		wanted: PlanPurchase,
+		fallback: string,
+	): Promise<string> {
+		try {
+			const { url } = await checkout.mutateAsync(wanted);
+			return url ?? fallback;
+		} catch {
+			return fallback;
 		}
 	}
 
@@ -179,7 +202,7 @@ export function SignupForm({
 
 				<Button type="submit" disabled={pending}>
 					{pending ? <Spinner data-icon="inline-start" /> : null}
-					{t("Open workspace")}
+					{purchase ? t("Open workspace and pay") : t("Open workspace")}
 				</Button>
 
 				<Button
@@ -310,7 +333,14 @@ export function SignupForm({
 			) : null}
 
 			<p className="text-muted-foreground text-sm/6">
-				{t("Plan: {plan}.", { plan: t(PLANS[plan].label) })}{" "}
+				{purchase
+					? t(
+							purchase.interval === "year"
+								? "Plan: {plan}, billed yearly."
+								: "Plan: {plan}, billed monthly.",
+							{ plan: t(PLANS[purchase.plan].label) },
+						)
+					: t("Plan: {plan}.", { plan: t(PLANS[plan].label) })}{" "}
 				<Link variant="inline" asChild>
 					<NextLink href={pricingHref}>{t("Change plan")}</NextLink>
 				</Link>
@@ -318,7 +348,7 @@ export function SignupForm({
 
 			<Button type="submit" disabled={pending}>
 				{pending ? <Spinner data-icon="inline-start" /> : null}
-				{t("Start free trial")}
+				{purchase ? t("Create workspace") : t("Start free trial")}
 			</Button>
 		</form>
 	);

@@ -1,5 +1,9 @@
 import { ADD_ON_IDS, CAPACITY_COUNTERS } from "@crm/db/plans";
-import { BILLING_INTERVALS, PAID_PLAN_IDS } from "@crm/db/pricing";
+import {
+	BILLING_INTERVALS,
+	PAID_PLAN_IDS,
+	planPurchase,
+} from "@crm/db/pricing";
 import { z } from "zod";
 import { BILLING } from "./billing.config";
 
@@ -111,10 +115,7 @@ export const billingPlansOutput = z.object({
 
 export type BillingPlans = z.infer<typeof billingPlansOutput>;
 
-export const checkoutInput = z.object({
-	plan: z.enum(PAID_PLAN_IDS),
-	interval: z.enum(BILLING_INTERVALS),
-});
+export const checkoutInput = planPurchase;
 
 export type CheckoutInput = z.infer<typeof checkoutInput>;
 

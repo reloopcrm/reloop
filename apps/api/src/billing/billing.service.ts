@@ -474,6 +474,7 @@ export class BillingService {
 			interval: state.interval,
 			cancelAt: state.cancelAt,
 			addOns: state.addOns,
+			wanted: null,
 		};
 
 		if (state.status === "canceled") {

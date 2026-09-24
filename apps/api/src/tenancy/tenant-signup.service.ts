@@ -10,6 +10,7 @@ import {
 } from "@crm/auth";
 import { db } from "@crm/db";
 import { isLocale } from "@crm/db/locale";
+import type { PlanPurchase } from "@crm/db/pricing";
 import { dbNameOf, provisionTenant } from "@crm/db/provision";
 import {
 	activateTenant,
@@ -17,6 +18,7 @@ import {
 	type Tenant,
 	tenantById,
 	tenantBySignIn,
+	writeTenantBilling,
 } from "@crm/db/tenancy";
 import { TENANCY } from "@crm/db/tenancy-config";
 import {
@@ -122,6 +124,7 @@ export class TenantSignupService {
 					HttpStatus.CONFLICT,
 				);
 			}
+			if (input.purchase) await this.rememberPurchase(existing, input.purchase);
 			await this.issueCode(existing, "signup", input.email, input.locale, {
 				sentAt: pending.sentAt,
 			});
@@ -141,6 +144,7 @@ export class TenantSignupService {
 			name: input.company,
 		});
 		await this.setAgentLanguage(tenant, input.locale);
+		if (input.purchase) await this.rememberPurchase(tenant, input.purchase);
 
 		this.logger.log({
 			message: passwordHash
@@ -148,6 +152,7 @@ export class TenantSignupService {
 				: "Tenant signed up, pending first sign-in",
 			tenantId: tenant.id,
 			wantedPlan: input.plan,
+			purchase: input.purchase ?? null,
 			locale: input.locale,
 		});
 
@@ -358,6 +363,18 @@ export class TenantSignupService {
 				purpose,
 			});
 		}
+	}
+
+	private async rememberPurchase(
+		tenant: Tenant,
+		purchase: PlanPurchase,
+	): Promise<void> {
+		await writeTenantBilling(tenant.id, {
+			plan: tenant.plan,
+			paidUntil: tenant.paidUntil,
+			graceUntil: tenant.graceUntil,
+			billing: { ...tenant.billing, wanted: purchase },
+		});
 	}
 
 	private async setAgentLanguage(

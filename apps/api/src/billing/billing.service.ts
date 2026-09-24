@@ -836,9 +836,12 @@ export class BillingService {
 		const stripe = this.requireStripe();
 		return this.stripeChange(tenant, async () => {
 			if (subscription.cancel_at_period_end) {
-				await stripe.subscriptions.update(subscription.id, {
-					cancel_at_period_end: false,
-				});
+				await this.applySubscription(
+					tenant,
+					await stripe.subscriptions.update(subscription.id, {
+						cancel_at_period_end: false,
+					}),
+				);
 			}
 			const schedule =
 				known ??

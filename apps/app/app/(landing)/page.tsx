@@ -3,6 +3,7 @@ import Pen from "@carbon/icons-react/es/Pen";
 import View from "@carbon/icons-react/es/View";
 import { Display } from "@crm/ui/components/display";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { HOME } from "@/components/landing/home/config";
 import { MailboxPicker } from "@/components/landing/home/mailbox-picker";
 import { LandingShell } from "@/components/landing/landing-shell";
@@ -13,7 +14,7 @@ import {
 } from "@/components/landing/page-blocks";
 import { SectionHeading } from "@/components/landing/section-heading";
 import { StructuredData } from "@/components/landing/structured-data";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -30,6 +31,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function Home() {
 	const t = await getT();
+	const locale = await getLocale();
+
+	const heroVideo = locale === "de" ? HOME.heroVideo.de : HOME.heroVideo.en;
+	const heroVideoLabel = t(
+		"A recording of Reloop showing which old customers are worth a call.",
+	);
 
 	const numbers = [
 		{ value: t("13,821"), label: t("Threads read") },
@@ -74,6 +81,32 @@ export default async function Home() {
 					<PricingActions />
 				</div>
 			</section>
+
+			<Band className="pt-0 md:pt-0">
+				<div className="w-full overflow-hidden rounded-lg border bg-card">
+					<video
+						width={HOME.heroVideo.width}
+						height={HOME.heroVideo.height}
+						className="block h-auto w-full motion-reduce:hidden"
+						autoPlay
+						muted
+						loop
+						playsInline
+						preload="metadata"
+						poster={heroVideo.poster}
+						aria-label={heroVideoLabel}
+					>
+						<source src={heroVideo.src} type="video/mp4" />
+					</video>
+					<Image
+						src={heroVideo.poster}
+						alt={heroVideoLabel}
+						width={HOME.heroVideo.width}
+						height={HOME.heroVideo.height}
+						className="hidden h-auto w-full motion-reduce:block"
+					/>
+				</div>
+			</Band>
 
 			<Band className="pt-0 md:pt-0">
 				<div className="grid w-full items-center gap-10 rounded-lg bg-primary p-8 text-primary-foreground md:grid-cols-2 md:gap-16 md:p-10">

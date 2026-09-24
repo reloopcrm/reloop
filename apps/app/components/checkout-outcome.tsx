@@ -13,15 +13,16 @@ export function CheckoutOutcome() {
 	const t = useT();
 	const trpc = useTRPC();
 	const [startedAt] = useState(() => Date.now());
-	const waited = () => Date.now() - startedAt > CHECKOUT.poll.maxMs;
+	const waited = (at: number) => at - startedAt > CHECKOUT.poll.maxMs;
 	const overview = useQuery({
 		...trpc.billing.overview.queryOptions(),
 		refetchInterval: (query) =>
-			query.state.data?.state === "active" || waited()
+			query.state.data?.state === "active" || waited(query.state.dataUpdatedAt)
 				? false
 				: CHECKOUT.poll.intervalMs,
 	});
 	const data = overview.data;
+	const fetchedAt = overview.dataUpdatedAt;
 
 	if (data?.state === "active") {
 		return (
@@ -37,7 +38,7 @@ export function CheckoutOutcome() {
 		);
 	}
 
-	if (data && waited()) {
+	if (data && waited(fetchedAt)) {
 		return (
 			<Alert variant="warning">
 				<Purchase />

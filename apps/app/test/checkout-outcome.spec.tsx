@@ -6,6 +6,7 @@ GlobalRegistrator.register();
 type Overview = { state: "trial" | "active"; label: string };
 
 let overview: Overview = { state: "trial", label: "Trial" };
+let fetchedAt = Date.now();
 
 const client = { ...(await import("../lib/trpc/client")) };
 const reactQuery = { ...(await import("@tanstack/react-query")) };
@@ -20,7 +21,7 @@ mock.module("../lib/trpc/client", () => ({
 }));
 mock.module("@tanstack/react-query", () => ({
 	...reactQuery,
-	useQuery: () => ({ data: overview }),
+	useQuery: () => ({ data: overview, dataUpdatedAt: fetchedAt }),
 }));
 
 const { createElement } = await import("react");
@@ -29,6 +30,7 @@ const { I18nProvider } = await import("../lib/i18n/client");
 const { CheckoutOutcome } = await import("../components/checkout-outcome");
 const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
 const { checkoutNotice } = await import("../lib/checkout-notice");
+const { CHECKOUT } = await import("../lib/checkout-config");
 
 afterAll(() => {
 	mock.restore();
@@ -37,8 +39,13 @@ afterAll(() => {
 	GlobalRegistrator.unregister();
 });
 
-function markupOf(next: Overview, locale: "en" | "de"): string {
+function markupOf(
+	next: Overview,
+	locale: "en" | "de",
+	at: number = Date.now(),
+): string {
 	overview = next;
+	fetchedAt = at;
 	return renderToStaticMarkup(
 		createElement(I18nProvider, {
 			locale,
@@ -53,6 +60,13 @@ describe("the block after a paid checkout", () => {
 		const markup = markupOf({ state: "trial", label: "Trial" }, "de");
 		expect(markup).toContain("Zahlung wird bestätigt.");
 		expect(markup).not.toContain("ist aktiv");
+	});
+
+	it("warns when the plan is still not active after the polling window", () => {
+		const late = Date.now() + CHECKOUT.poll.maxMs + 1;
+		const markup = markupOf({ state: "trial", label: "Trial" }, "de", late);
+		expect(markup).toContain("Die Bestätigung dauert länger als üblich.");
+		expect(markup).not.toContain("Zahlung wird bestätigt.");
 	});
 
 	it("thanks for the plan once it is active", () => {

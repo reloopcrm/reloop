@@ -16,12 +16,14 @@ import { NO_BILLING, type Tenant } from "@crm/db/tenancy";
 import { TENANCY } from "@crm/db/tenancy-config";
 import type Stripe from "stripe";
 import {
+	applyChange,
 	BillingService,
 	billingStateOf,
 	changeTiming,
 	deleteAtOf,
 	paymentMethodOf,
 	pendingPaymentUrl,
+	phaseTax,
 	planChanged,
 	planChangeExcess,
 	type StripeSchedule,
@@ -547,6 +549,33 @@ describe("the scheduled change is the phase after the current one", () => {
 				schedule({ current_phase: { start_date: 200, end_date: 300 } }),
 			),
 		).toBeNull();
+	});
+
+	it("applies a change to the current items for a schedule preview", () => {
+		const items = [
+			item(planLookupKey("standard", "month")),
+			item(addOnLookupKey("drafts", "month"), 2),
+		] as unknown as Stripe.SubscriptionItem[];
+		expect(
+			applyChange(items, [
+				{ id: `si_${planLookupKey("standard", "month")}`, price: "price_plus" },
+				{ id: `si_${addOnLookupKey("drafts", "month")}`, quantity: 1 },
+				{ price: "price_research", quantity: 1 },
+			]),
+		).toEqual([
+			{ price: "price_plus", quantity: 1 },
+			{ price: `price_${addOnLookupKey("drafts", "month")}`, quantity: 1 },
+			{ price: "price_research", quantity: 1 },
+		]);
+	});
+
+	it("carries automatic tax onto a phase only when the subscription has it", () => {
+		expect(
+			phaseTax({ automatic_tax: { enabled: true } } as Stripe.Subscription),
+		).toEqual({ enabled: true });
+		expect(
+			phaseTax({ automatic_tax: { enabled: false } } as Stripe.Subscription),
+		).toBeUndefined();
 	});
 
 	it("compares item lists regardless of order", () => {

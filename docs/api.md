@@ -627,7 +627,14 @@ smaller add-on count keeps a waiting plan and lowers the add-on in its target.
 `billing.cancelScheduledChange` releases the schedule, and so does every change
 billed now, because Stripe refuses a direct item update on a subscription a
 schedule manages: an upgrade, a bigger add-on count and a cancellation drop the
-waiting change, and the page says so in the confirmation. `planChangeExcess`
+waiting change, and the page says so in the confirmation. The preview of such a
+change goes through `schedule_details` while the schedule exists, because
+`subscription_details` is refused on a schedule-managed subscription: the
+current phase with the new items and `always_invoice`, which is the same
+proration the release-then-update charges. A preview never writes. Every phase
+the API writes carries `automatic_tax` explicitly when the subscription has it,
+because nothing in the SDK promises that a phase inherits it from
+`default_settings`. `planChangeExcess`
 runs at scheduling time too, and the confirmation tells the owner the workspace
 must fit the new limits by the switch date. The preview of a waiting change
 answers `effectiveAt` and zero due now, without a Stripe call.

@@ -65,6 +65,7 @@ function subscriptionFixture(
 		object: "subscription",
 		customer: "cus_spec",
 		status: "active",
+		automatic_tax: { enabled: true },
 		cancel_at: null,
 		cancel_at_period_end: false,
 		default_payment_method: null,
@@ -799,6 +800,7 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 				],
 				duration: { interval: "month", interval_count: 1 },
 				proration_behavior: "none",
+				automatic_tax: { enabled: true },
 			});
 			expect((await tenantById(a.id))?.billing.addOns.drafts).toBe(2);
 			const overview = await onTenant(() => billing.overview(OWNER.id));
@@ -1136,6 +1138,7 @@ describe("a plan change waits for the paid period", () => {
 					],
 					start_date: PERIOD_START,
 					end_date: PERIOD_END,
+					automatic_tax: { enabled: true },
 				},
 				{
 					items: [
@@ -1147,6 +1150,7 @@ describe("a plan change waits for the paid period", () => {
 					],
 					duration: { interval: "month", interval_count: 1 },
 					proration_behavior: "none",
+					automatic_tax: { enabled: true },
 				},
 			]);
 			const tenant = await tenantById(a.id);
@@ -1207,6 +1211,7 @@ describe("a plan change waits for the paid period", () => {
 		await subscribe(
 			subscriptionFixture(a.id, {
 				default_payment_method: cardOnSubscription(),
+				automatic_tax: { enabled: false },
 				items: {
 					data: [
 						item(planLookupKey("standard", "year")),
@@ -1229,6 +1234,9 @@ describe("a plan change waits for the paid period", () => {
 				duration: { interval: "month", interval_count: 1 },
 				proration_behavior: "none",
 			});
+			expect(
+				scheduleCalls.updated.at(-1)?.params.phases?.[0]?.automatic_tax,
+			).toBeUndefined();
 			expect((await tenantById(a.id))?.billing.interval).toBe("year");
 
 			const releasedBefore = scheduleCalls.released.length;
@@ -1249,6 +1257,88 @@ describe("a plan change waits for the paid period", () => {
 		} finally {
 			next = null;
 			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+
+	it("previews and bills an upgrade while a downgrade waits", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const standard = `price_${planLookupKey("standard", "month")}`;
+		const plus = `price_${planLookupKey("plus", "month")}`;
+		const drafts = `price_${addOnLookupKey("drafts", "month")}`;
+		const research = `price_${addOnLookupKey("research", "month")}`;
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			expect(current.schedule).toBe("sub_sched_spec");
+
+			const preview = await onTenant(() =>
+				billing.previewPlan(OWNER.id, { plan: "plus", interval: "month" }),
+			);
+			expect(preview.dueNow).toBe(70);
+			expect(previews.at(-1)).toEqual({
+				customer: "cus_spec",
+				schedule: "sub_sched_spec",
+				schedule_details: {
+					end_behavior: "release",
+					proration_behavior: "always_invoice",
+					phases: [
+						{
+							items: [
+								{ price: plus, quantity: 1 },
+								{ price: drafts, quantity: 2 },
+							],
+							start_date: PERIOD_START,
+							end_date: PERIOD_END,
+							proration_behavior: "always_invoice",
+							automatic_tax: { enabled: true },
+							trial_end: undefined,
+						},
+					],
+				},
+			});
+
+			await onTenant(() =>
+				billing.previewAddOn(OWNER.id, { addOn: "research", quantity: 1 }),
+			);
+			expect(previews.at(-1)?.schedule_details?.phases?.[0]?.items).toEqual([
+				{ price: standard, quantity: 1 },
+				{ price: drafts, quantity: 2 },
+				{ price: research, quantity: 1 },
+			]);
+
+			const releasedBefore = scheduleCalls.released.length;
+			next = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("plus", "month")),
+						item(addOnLookupKey("drafts", "month"), 2),
+					],
+				},
+			});
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "plus", interval: "month" }),
+			);
+			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
+			expect(updates.at(-1)?.proration_behavior).toBe("always_invoice");
+			expect((await tenantById(a.id))?.plan).toBe("plus");
+			current = next;
+			next = null;
+			const overview = await onTenant(() => billing.overview(OWNER.id));
+			expect(overview.scheduled).toBeNull();
+			await onTenant(() =>
+				billing.previewPlan(OWNER.id, { plan: "team", interval: "month" }),
+			);
+			expect(previews.at(-1)?.subscription).toBe("sub_spec");
+			expect(previews.at(-1)?.schedule).toBeUndefined();
+		} finally {
+			next = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
 			await reset();
 		}
 	});

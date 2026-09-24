@@ -233,6 +233,31 @@ export function phaseItemsOf(items: readonly PricedItem[]): PhaseItem[] {
 	}));
 }
 
+export function applyChange(
+	items: readonly Stripe.SubscriptionItem[],
+	change: readonly ChangeItem[],
+): PhaseItem[] {
+	const target = items.map((item) => {
+		const changed = change.find((entry) => entry.id === item.id);
+		return {
+			price: changed?.price ?? item.price.id,
+			quantity: changed?.quantity ?? item.quantity ?? 1,
+		};
+	});
+	for (const entry of change) {
+		if (!entry.id && entry.price) {
+			target.push({ price: entry.price, quantity: entry.quantity ?? 1 });
+		}
+	}
+	return target;
+}
+
+export function phaseTax(
+	subscription: Pick<Stripe.Subscription, "automatic_tax">,
+): { enabled: true } | undefined {
+	return subscription.automatic_tax?.enabled ? { enabled: true } : undefined;
+}
+
 export function sameItems(
 	left: readonly PhaseItem[],
 	right: readonly PhaseItem[],
@@ -857,6 +882,7 @@ export class BillingService {
 					"Stripe refused this change. Nothing was charged. Try again, or contact support.",
 				);
 			}
+			const automatic_tax = phaseTax(subscription);
 			await stripe.subscriptionSchedules.update(schedule.id, {
 				end_behavior: BILLING.schedule.endBehavior,
 				proration_behavior: "none",
@@ -865,6 +891,7 @@ export class BillingService {
 						items: phaseItemsOf(current.items),
 						start_date: current.start_date,
 						end_date: current.end_date,
+						automatic_tax,
 					},
 					{
 						items: target,
@@ -873,6 +900,7 @@ export class BillingService {
 							interval_count: BILLING.schedule.nextPhaseIntervals,
 						},
 						proration_behavior: "none",
+						automatic_tax,
 					},
 				],
 			});
@@ -1014,11 +1042,35 @@ export class BillingService {
 		subscription: Stripe.Subscription,
 		change: Change,
 	): Promise<ChangePreview> {
-		const invoice = await this.requireStripe().invoices.createPreview({
-			customer: idOf(subscription.customer) ?? undefined,
-			subscription: subscription.id,
-			subscription_details: change,
-		});
+		const customer = idOf(subscription.customer) ?? undefined;
+		const schedule = await this.scheduleOf(subscription);
+		const current = schedule ? currentPhaseOf(schedule) : null;
+		const invoice = await this.requireStripe().invoices.createPreview(
+			schedule && current
+				? {
+						customer,
+						schedule: schedule.id,
+						schedule_details: {
+							end_behavior: BILLING.schedule.endBehavior,
+							proration_behavior: change.proration_behavior,
+							phases: [
+								{
+									items: applyChange(subscription.items.data, change.items),
+									start_date: current.start_date,
+									end_date: current.end_date,
+									proration_behavior: change.proration_behavior,
+									automatic_tax: phaseTax(subscription),
+									trial_end: change.trial_end,
+								},
+							],
+						},
+					}
+				: {
+						customer,
+						subscription: subscription.id,
+						subscription_details: change,
+					},
+		);
 		return {
 			dueNow: invoice.amount_due / BILLING.stripe.centsPerUnit,
 			credit: Math.max(0, -invoice.total) / BILLING.stripe.centsPerUnit,

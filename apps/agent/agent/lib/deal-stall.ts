@@ -6,10 +6,11 @@ import { SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
 import { streamText } from "ai";
 import { z } from "zod";
 import { type DealHistory, readDealHistory } from "./accounts";
+import { COPY } from "./copy";
 import { DISPATCH } from "./dispatch-config";
 import { askNoul, type JevNoulAsk, type JevQuestion, typesafeKey } from "./jev";
 import { countGate } from "./jev-meter";
-import { language } from "./language";
+import { language, say } from "./language";
 import { directModel } from "./model";
 import { scheduleTask } from "./tasks";
 import { tenantState } from "./tenant";
@@ -150,8 +151,9 @@ export async function queueStalledDeals(now = new Date()): Promise<number> {
 
 export const STALL_GATE = "deal-stall";
 
-export const STALL_SKIPPED =
-	"A follow up on this deal is not worth sending now. No note was written.";
+export function stallSkipped(): string {
+	return say(COPY.deals.skipped);
+}
 
 function lastSaid(history: DealHistory): string {
 	const lines: string[] = [];
@@ -262,22 +264,22 @@ export async function runDealStall(
 		deal?.stage ?? "",
 	);
 	if (!deal || deal.archivedAt || !open) {
-		return "The deal is closed or gone. No note was written.";
+		return say(COPY.deals.closed);
 	}
 	if ((deal.lastActivityAt ?? deal.createdAt) > quietCutoff(now)) {
-		return "The deal moved after it was queued. No note was written.";
+		return say(COPY.deals.moved);
 	}
 
 	const history = await readDealHistory(dealId, {
 		threads: STALL.threads,
 		messagesPerThread: STALL.messagesPerThread,
 	});
-	if (!history) return "The deal is gone. No note was written.";
+	if (!history) return say(COPY.deals.gone);
 	if (history.threads.length === 0 && history.notes.length === 0) {
-		return "There is no mail and no note to read. No note was written.";
+		return say(COPY.deals.nothingToRead);
 	}
 
-	if (!(await worthFollowUp(history, ask))) return STALL_SKIPPED;
+	if (!(await worthFollowUp(history, ask))) return stallSkipped();
 
 	const step = await draft(history);
 
@@ -295,7 +297,7 @@ export async function runDealStall(
 		select: { id: true },
 	});
 
-	return `Wrote the next step: ${step.subject}`;
+	return say(COPY.deals.wrote(step.subject));
 }
 
 async function draftStep(history: DealHistory): Promise<DealStep> {

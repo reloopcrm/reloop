@@ -401,10 +401,13 @@ language of each workspace, `AppSetting.agentLanguage`, which an admin picks und
 **Agent language** in Settings > General and a hosted sign-up fills with the language the
 person signed up in. A workspace with no value, or with a value that is not one of the
 seven locales, falls back to this variable: the literal `"true"` means German, anything
-else English (`apps/agent/agent/lib/language.ts`). A self-hosted install that set it
-before keeps writing German until an admin picks another language. It reaches the agent
-when you run from source. The agent container in `deploy/docker-compose.yml` does not
-receive it.
+else English (`defaultAgentLanguage` in `@crm/validation/agent-language`). A
+self-hosted install that set it before keeps writing German until an admin picks
+another language. The API reads the same variable only to show that default on the
+settings card in hosted mode, and `scripts/tenant.ts create` stores it for a new tenant
+without `--language`. It reaches both when you run from source. Neither container in
+`deploy/docker-compose.yml` receives it, so there the default is English on both sides.
+Declared in `env.validation.ts` and the root `turbo.json`.
 
 ## `RELOOP_UPDATE_CHECK`, on by default
 

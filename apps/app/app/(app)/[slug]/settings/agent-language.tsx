@@ -44,7 +44,10 @@ export function AgentLanguage() {
 
 	if (!current.data) return null;
 
-	const language = current.data.language;
+	const { language, fallback, hosted } = current.data;
+	const unset = hosted
+		? t("{language} (not chosen yet)", { language: LOCALE.names[fallback] })
+		: t("Install default");
 
 	return (
 		<Card>
@@ -68,8 +71,8 @@ export function AgentLanguage() {
 						}}
 					>
 						<SelectTrigger id={fieldId} className="w-60">
-							<SelectValue placeholder={t("Install default")}>
-								{language ? LOCALE.names[language] : t("Install default")}
+							<SelectValue placeholder={unset}>
+								{language ? LOCALE.names[language] : unset}
 							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>

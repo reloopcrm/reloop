@@ -327,5 +327,6 @@
 	"The agent writes in this language for everyone in this workspace.": "El agente escribe en este idioma para todos en este espacio de trabajo.",
 	"Install default": "Predeterminado de la instalación",
 	"Summaries, notes and business rules follow it. A reply draft keeps the language of its conversation.": "Los resúmenes, las notas y las reglas del negocio lo siguen. Un borrador de respuesta mantiene el idioma de su conversación.",
-	"Agent language saved.": "Idioma del agente guardado."
+	"Agent language saved.": "Idioma del agente guardado.",
+	"{language} (not chosen yet)": "{language} (aún sin elegir)"
 }

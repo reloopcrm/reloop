@@ -4,18 +4,19 @@ import { LOCALE, type Locale } from "@crm/db/locale";
 import { currentTenantId } from "@crm/db/tenant-context";
 import {
 	type AgentLanguage,
+	defaultAgentLanguage,
 	readAgentLanguage,
 } from "@crm/validation/agent-language";
 import { DISPATCH } from "./dispatch-config";
 
-type Lines = Record<Locale, string>;
+export type Lines = Record<Locale, string>;
 
 const scope = new AsyncLocalStorage<Locale>();
 
 const cache = new Map<string, { language: Locale; until: number }>();
 
 export function defaultLanguage(env: NodeJS.ProcessEnv = process.env): Locale {
-	return env.RELOOP_GERMAN === "true" ? "de" : "en";
+	return defaultAgentLanguage(env.RELOOP_GERMAN);
 }
 
 export function resolveLanguage(

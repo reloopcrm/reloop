@@ -14,6 +14,7 @@ import {
 } from "@crm/validation/field-proposal";
 import { streamText } from "ai";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { language, say } from "./language";
 import { directModel, modelUnavailable } from "./model";
 
@@ -192,28 +193,11 @@ export async function runFieldProposals(
 	const room = roomFor(fields, offered);
 
 	if (FIELD_ENTITIES.every((entity) => room[entity] === 0)) {
-		const limit = FIELD_LIMITS.perEntity;
-		return say({
-			en: `Every record type already holds ${limit} fields or has that many waiting. I propose nothing until one is archived or dismissed.`,
-			de: `Jeder Datensatztyp hat bereits ${limit} Felder oder so viele offene Vorschläge. Ich schlage nichts vor, bis eines archiviert oder abgelehnt ist.`,
-			es: `Cada tipo de registro ya tiene ${limit} campos o tantas propuestas pendientes. No propongo nada hasta que se archive o se descarte uno.`,
-			fr: `Chaque type de fiche contient déjà ${limit} champs ou autant de propositions en attente. Je ne propose rien tant qu'aucun n'est archivé ou refusé.`,
-			"pt-BR": `Cada tipo de registro já tem ${limit} campos ou essa quantidade de propostas pendentes. Não proponho nada até que um seja arquivado ou descartado.`,
-			tr: `Her kayıt türünde zaten ${limit} alan ya da o kadar bekleyen öneri var. Biri arşivlenene veya reddedilene kadar bir şey önermiyorum.`,
-			"zh-Hans": `每种记录类型都已有 ${limit} 个字段或同样数量的待处理建议。在有字段被归档或拒绝之前，我不会再提出建议。`,
-		});
+		return say(COPY.fields.full(FIELD_LIMITS.perEntity));
 	}
 
 	if (!transcript.trim()) {
-		return say({
-			en: "There is no mail to read yet, so I propose no fields.",
-			de: "Es gibt noch keine Mails zu lesen, deshalb schlage ich keine Felder vor.",
-			es: "Todavía no hay correos que leer, así que no propongo campos.",
-			fr: "Il n'y a encore aucun e-mail à lire, je ne propose donc aucun champ.",
-			"pt-BR": "Ainda não há e-mails para ler, então não proponho campos.",
-			tr: "Henüz okunacak e-posta yok, bu yüzden alan önermiyorum.",
-			"zh-Hans": "目前还没有可读取的邮件，所以我不提出字段建议。",
-		});
+		return say(COPY.fields.noMail);
 	}
 
 	const model = await buildModel("reading", "field-proposal");
@@ -267,29 +251,11 @@ export async function runFieldProposals(
 			await offerFields(chosen);
 
 			if (chosen.length === 0) {
-				const note = parsed.data.note;
-				return say({
-					en: `Nothing in the mail repeats often enough to earn a field. ${note}`,
-					de: `Nichts in den Mails wiederholt sich oft genug für ein eigenes Feld. ${note}`,
-					es: `Nada en los correos se repite lo bastante como para merecer un campo. ${note}`,
-					fr: `Rien dans les e-mails ne revient assez souvent pour mériter un champ. ${note}`,
-					"pt-BR": `Nada nos e-mails se repete o suficiente para merecer um campo. ${note}`,
-					tr: `E-postalarda hiçbir şey bir alanı hak edecek kadar sık tekrarlanmıyor. ${note}`,
-					"zh-Hans": `邮件中没有任何内容重复到值得单独设一个字段。${note}`,
-				});
+				return say(COPY.fields.nothingRepeats(parsed.data.note));
 			}
 
-			const count = chosen.length;
 			const labels = chosen.map((field) => field.payload.label).join(", ");
-			return say({
-				en: `I propose ${count} field(s): ${labels}. Accept or dismiss each one on the Fields sheet.`,
-				de: `Ich schlage ${count} Feld(er) vor: ${labels}. Nimm jedes unter Felder an oder lehne es ab.`,
-				es: `Propongo ${count} campo(s): ${labels}. Acepta o descarta cada uno en Campos.`,
-				fr: `Je propose ${count} champ(s) : ${labels}. Accepte ou refuse chacun dans Champs.`,
-				"pt-BR": `Proponho ${count} campo(s): ${labels}. Aceite ou descarte cada um em Campos.`,
-				tr: `${count} alan öneriyorum: ${labels}. Her birini Alanlar bölümünde kabul et veya reddet.`,
-				"zh-Hans": `我建议 ${count} 个字段：${labels}。请在字段中逐个接受或拒绝。`,
-			});
+			return say(COPY.fields.proposed(chosen.length, labels));
 		} catch (error) {
 			lastError =
 				`not valid JSON (${error instanceof Error ? error.message : String(error)})`.slice(
@@ -299,13 +265,5 @@ export async function runFieldProposals(
 		}
 	}
 
-	return say({
-		en: `I could not read a field proposal out of the mail: ${lastError}`,
-		de: `Ich konnte aus den Mails keinen Feldvorschlag lesen: ${lastError}`,
-		es: `No he podido sacar una propuesta de campo de los correos: ${lastError}`,
-		fr: `Je n'ai pas pu tirer une proposition de champ des e-mails : ${lastError}`,
-		"pt-BR": `Não consegui tirar uma proposta de campo dos e-mails: ${lastError}`,
-		tr: `E-postalardan bir alan önerisi çıkaramadım: ${lastError}`,
-		"zh-Hans": `我无法从邮件中读出字段建议：${lastError}`,
-	});
+	return say(COPY.fields.unreadable(lastError));
 }

@@ -3,6 +3,8 @@ import { queueSlackInventorySync } from "@crm/db/slack-inventory";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import { parse, schemas } from "@crm/validation";
 import { z } from "zod";
+import { COPY } from "./copy";
+import { say } from "./language";
 import { SLACK } from "./slack-config";
 import { slackAccessToken, slackUserToken } from "./slack-connection";
 
@@ -71,7 +73,7 @@ export async function requestStaleSlackInventorySync(): Promise<void> {
 
 export async function runSlackPeopleMatch(): Promise<string> {
 	const accessToken = await slackAccessToken();
-	if (!accessToken) return "Slack is not connected.";
+	if (!accessToken) return say(COPY.slack.notConnected);
 
 	const userToken = await slackUserToken();
 	const [slackMembers, slackChannels] = await Promise.all([
@@ -124,7 +126,7 @@ export async function runSlackPeopleMatch(): Promise<string> {
 		slackChannels,
 		Boolean(userToken),
 	);
-	return `Matched ${matched} workspace ${matched === 1 ? "member" : "members"} by email and found ${availableChannels} available ${availableChannels === 1 ? "channel" : "channels"}.`;
+	return say(COPY.slack.matched(matched, availableChannels));
 }
 
 export async function refreshSlackChannels(): Promise<number> {

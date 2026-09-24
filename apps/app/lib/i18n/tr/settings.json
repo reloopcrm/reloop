@@ -327,5 +327,6 @@
 	"The agent writes in this language for everyone in this workspace.": "Agent bu çalışma alanındaki herkes için bu dilde yazar.",
 	"Install default": "Kurulum varsayılanı",
 	"Summaries, notes and business rules follow it. A reply draft keeps the language of its conversation.": "Özetler, notlar ve iş kuralları bu dili izler. Bir yanıt taslağı kendi yazışmasının dilini korur.",
-	"Agent language saved.": "Agent dili kaydedildi."
+	"Agent language saved.": "Agent dili kaydedildi.",
+	"{language} (not chosen yet)": "{language} (henüz seçilmedi)"
 }

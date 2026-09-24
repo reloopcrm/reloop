@@ -18,6 +18,8 @@ export type ArchiveRetentionSettings = z.infer<typeof archiveRetentionOutput>;
 
 export const agentLanguageOutput = z.object({
 	language: agentLanguage.nullable(),
+	fallback: agentLanguage,
+	hosted: z.boolean(),
 });
 
 export type AgentLanguageSettings = z.infer<typeof agentLanguageOutput>;

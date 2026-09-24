@@ -77,8 +77,9 @@ folder, and the rest is text.
    English name to `LOCALE.englishNames` (the agent names the language in its
    prompts with it), its BCP 47 tag to `LOCALE.tags` and the locale to either
    `writtenByPeople` or `machineTranslated`. The fixed sentences the agent stores
-   are `say({ en, de, … })` calls in `apps/agent/agent/lib`, and each one needs a
-   line for your locale, so `bun run check-types` lists every one you still owe.
+   live in `COPY` in `apps/agent/agent/lib/copy.ts`, one line per locale, and each
+   one needs a line for yours, so `bun run check-types` lists every one you still
+   owe.
 4. **Register the files.** In `apps/app/lib/i18n/dictionaries.ts` add the thirteen
    imports, one block in `DICTIONARY_MODULES` and one line in `DICTIONARIES`. Copy
    the block above yours and change the locale code. Both maps are checked against

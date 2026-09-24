@@ -1,19 +1,28 @@
 import "@crm/env/load";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import {
+	type AgentLanguage,
+	agentLanguageFlag,
+	defaultAgentLanguage,
+	parseAgentLanguage,
+} from "@crm/validation/agent-language";
 import { IMPORT } from "../src/tenancy/tenancy.config";
 
 export const USAGE = [
-	"Usage: bun scripts/import-single-tenant.ts --dump <file.sql> --tenant <id> --slug <slug> --sign-in <address,domain,...> [--dry-run]",
+	"Usage: bun scripts/import-single-tenant.ts --dump <file.sql> --tenant <id> --slug <slug> --sign-in <address,domain,...> [--language <locale>] [--dry-run]",
 	"",
 	"  --dump      a plain pg_dump of the single-tenant database (--format=plain --no-owner --no-privileges)",
 	"  --tenant    the new tenant id, lower case, dashes allowed",
 	"  --slug      the workspace slug in the app",
 	"  --sign-in   the addresses and domains that sign in to this workspace",
+	"  --language  the language the agent writes in for this workspace",
 	"  --dry-run   do everything in <db>_dryrun_test, print the report, drop it",
 	"",
 	`Needs RELOOP_REGISTRY_URL, RELOOP_TENANT_DATABASE_URL_TEMPLATE, BETTER_AUTH_SECRET and ${IMPORT.oldSecretVar}`,
 	`(the old install's BETTER_AUTH_SECRET) in the environment. The old secret is never a flag.`,
+	`Without --language the agent keeps the language stored in the dump. With none stored, it takes German when ${IMPORT.oldGermanVar}`,
+	`(the old install's RELOOP_GERMAN) is "true", else English.`,
 ].join("\n");
 
 export type Command = {
@@ -21,10 +30,17 @@ export type Command = {
 	tenant: string;
 	slug: string;
 	signIn: string[];
+	language: AgentLanguage | null;
 	dryRun: boolean;
 };
 
-const FLAGS = ["--dump", "--tenant", "--slug", "--sign-in"] as const;
+const FLAGS = [
+	"--dump",
+	"--tenant",
+	"--slug",
+	"--sign-in",
+	"--language",
+] as const;
 
 export function parseArgs(argv: readonly string[]): Command {
 	const values = new Map<string, string>();
@@ -52,7 +68,16 @@ export function parseArgs(argv: readonly string[]): Command {
 		.filter(Boolean);
 	if (!dump || !tenant || !slug || signIn.length === 0) throw new Error(USAGE);
 
-	return { dump, tenant, slug, signIn, dryRun };
+	const language = values.get("--language");
+
+	return {
+		dump,
+		tenant,
+		slug,
+		signIn,
+		language: language === undefined ? null : agentLanguageFlag(language),
+		dryRun,
+	};
 }
 
 function requiredEnv(name: string): string {
@@ -96,12 +121,24 @@ export function restoreDump(url: string, file: string): Promise<void> {
 
 type Settled = {
 	plan: string | null;
+	language: AgentLanguage;
 	sessions: number;
 	siteId: string | null;
 	grants: string[];
 };
 
-async function settle(url: string): Promise<Settled> {
+export function importLanguage(
+	flag: AgentLanguage | null,
+	stored: AgentLanguage | null,
+	oldGerman: string | undefined,
+): AgentLanguage {
+	return flag ?? stored ?? defaultAgentLanguage(oldGerman);
+}
+
+async function settle(
+	url: string,
+	language: (stored: AgentLanguage | null) => AgentLanguage,
+): Promise<Settled> {
 	const pg = (await import("pg")).default;
 	const { SETTINGS_ID } = await import("@crm/db/settings");
 	const client = new pg.Client({ connectionString: url });
@@ -111,17 +148,24 @@ async function settle(url: string): Promise<Settled> {
 			plan: string | null;
 			trackingSiteId: string | null;
 			signInAddresses: string[] | null;
+			agentLanguage: string | null;
 		}>(
-			'SELECT plan, "trackingSiteId", "signInAddresses" FROM "appSetting" WHERE id = $1',
+			'SELECT plan, "trackingSiteId", "signInAddresses", "agentLanguage" FROM "appSetting" WHERE id = $1',
 			[SETTINGS_ID],
 		);
 		const row = settings.rows[0];
 		await client.query('UPDATE "appSetting" SET plan = NULL WHERE id = $1', [
 			SETTINGS_ID,
 		]);
+		const chosen = language(parseAgentLanguage(row?.agentLanguage));
+		await client.query(
+			'INSERT INTO "appSetting" (id, "agentLanguage", "updatedAt") VALUES ($1, $2, now()) ON CONFLICT (id) DO UPDATE SET "agentLanguage" = EXCLUDED."agentLanguage"',
+			[SETTINGS_ID, chosen],
+		);
 		const sessions = await client.query('DELETE FROM "session"');
 		return {
 			plan: row?.plan ?? null,
+			language: chosen,
 			sessions: sessions.rowCount ?? 0,
 			siteId: row?.trackingSiteId?.trim() || null,
 			grants: row?.signInAddresses ?? [],
@@ -178,13 +222,20 @@ async function main(): Promise<void> {
 			const lines = await resealDatabase(url, oldSecret, newSecret);
 			for (const line of resealSummary(lines)) console.log(line);
 
-			const settled = await settle(url);
+			const settled = await settle(url, (stored) =>
+				importLanguage(
+					command.language,
+					stored,
+					process.env[IMPORT.oldGermanVar],
+				),
+			);
 			console.log(
 				`AppSetting.plan was ${settled.plan ?? "empty"}, now empty: no limits.`,
 			);
 			console.log(
 				`${settled.sessions} sessions deleted. Everyone signs in again.`,
 			);
+			console.log(`The agent writes in ${settled.language}.`);
 			console.log(
 				"API keys keep their hash, but carry no tenant prefix. Create them again in Settings.",
 			);

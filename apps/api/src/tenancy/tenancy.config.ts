@@ -17,6 +17,7 @@ export const SIGNUP = {
 export const IMPORT = {
 	dryRunSuffix: "_dryrun_test",
 	oldSecretVar: "IMPORT_OLD_SECRET",
+	oldGermanVar: "IMPORT_RELOOP_GERMAN",
 	restore: { timeoutMs: 60 * MINUTE_MS },
 	contextDev: { purpose: "context-dev-key" },
 } as const;

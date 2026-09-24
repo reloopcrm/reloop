@@ -7,6 +7,20 @@ export const agentLanguage = z.enum(LOCALES);
 
 export type AgentLanguage = z.infer<typeof agentLanguage>;
 
+export function defaultAgentLanguage(
+	german: string | undefined,
+): AgentLanguage {
+	return german === "true" ? "de" : "en";
+}
+
+export function agentLanguageFlag(value: string): AgentLanguage {
+	const parsed = agentLanguage.safeParse(value);
+	if (!parsed.success) {
+		throw new Error(`--language takes one of ${LOCALES.join(", ")}.`);
+	}
+	return parsed.data;
+}
+
 export function parseAgentLanguage(value: unknown): AgentLanguage | null {
 	const parsed = agentLanguage.safeParse(value);
 	return parsed.success ? parsed.data : null;

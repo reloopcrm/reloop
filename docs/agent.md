@@ -134,9 +134,22 @@ signed up in. The API stores and serves the value and does nothing else with it.
   means `RELOOP_GERMAN`: German for `"true"`, English otherwise. A read that fails logs
   and uses the same fallback. It never throws.
 - **A prompt names the language in English**, `LOCALE.englishNames` in
-  `@crm/db/locale`. A fixed sentence the agent stores, such as a business setup note,
-  is `say({ en, de, es, fr, "pt-BR", tr, "zh-Hans" })`, and the type requires every
-  locale.
+  `@crm/db/locale`. Every fixed sentence a customer can read lives in `COPY`
+  (`lib/copy.ts`) with one line per locale, and `say(COPY.…)` picks the workspace's
+  line: business setup notes, rules notes, task outcomes, record errors, webhook
+  errors, Slack answers and the "no AI" messages. The type requires every locale and
+  `test/language.spec.ts` refuses an empty line or a dash. Tool results the model
+  reads and log lines stay English. `USAGE_PROBE_OUTCOMES` and `RETIRED_OUTCOME`
+  stay English on purpose: the app translates the first per reader, and telemetry
+  compares the second.
+- **Every tenant gets a value when it is made.** A hosted sign-up stores the sign-up
+  language, `scripts/tenant.ts create --language` and
+  `scripts/import-single-tenant.ts --language` store theirs. Import without the flag
+  keeps a value in the dump, else reads the old install's `RELOOP_GERMAN` from
+  `IMPORT_RELOOP_GERMAN`.
+- **The settings card says what the agent does now.** In hosted mode with no value it
+  shows the fallback language with "not chosen yet", so an owner sees why the agent
+  writes English.
 - **A draft keeps the language of its conversation.** `lib/email-draft.ts` tells the
   model to answer in the language the thread uses; only the style rule it learns is in
   the workspace language. A rep's chat answers in the language the rep writes in.

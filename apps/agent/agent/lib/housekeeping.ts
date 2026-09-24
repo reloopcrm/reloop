@@ -8,7 +8,9 @@ import {
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { DISPATCH } from "./dispatch-config";
+import { say } from "./language";
 import { isDerivedName } from "./names";
 import { limitOutcome, monthlyRoom } from "./plan-limits";
 import { playbookDue } from "./playbook";
@@ -48,7 +50,7 @@ export async function cancelArchivedWork(): Promise<number> {
 		},
 		data: {
 			finishedAt: new Date(),
-			outcome: "Dropped: the record was archived before the work started.",
+			outcome: say(COPY.tasks.droppedArchived),
 		},
 	});
 
@@ -65,8 +67,7 @@ export async function cancelSampleWork(): Promise<number> {
 		},
 		data: {
 			finishedAt: new Date(),
-			outcome:
-				"Dropped: this record is sample data, so nothing was researched and nothing was spent.",
+			outcome: say(COPY.tasks.droppedSample),
 		},
 	});
 

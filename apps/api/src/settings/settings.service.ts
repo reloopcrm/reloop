@@ -48,7 +48,7 @@ import {
 	writeAgentProvider,
 	writeArchiveRetentionDays,
 } from "@crm/db/settings";
-import { isHostedCustomer } from "@crm/db/tenant-context";
+import { isHosted, isHostedCustomer } from "@crm/db/tenant-context";
 import {
 	AGENT_FUNCTIONS,
 	isAgentFunction,
@@ -58,6 +58,7 @@ import {
 } from "@crm/validation/agent-functions";
 import {
 	type AgentLanguage,
+	defaultAgentLanguage,
 	readAgentLanguage,
 	writeAgentLanguage,
 } from "@crm/validation/agent-language";
@@ -523,7 +524,19 @@ export class SettingsService {
 	}
 
 	async agentLanguage(): Promise<AgentLanguageSettings> {
-		return { language: await readAgentLanguage(this.db) };
+		return this.agentLanguageOf(await readAgentLanguage(this.db));
+	}
+
+	private agentLanguageOf(
+		language: AgentLanguage | null,
+	): AgentLanguageSettings {
+		return {
+			language,
+			fallback: defaultAgentLanguage(
+				this.config.get("RELOOP_GERMAN", { infer: true }),
+			),
+			hosted: isHosted(),
+		};
 	}
 
 	async setAgentLanguage(
@@ -535,7 +548,7 @@ export class SettingsService {
 
 		this.logger.log({ message: "Agent language changed", language: saved });
 
-		return { language: saved };
+		return this.agentLanguageOf(saved);
 	}
 
 	async archiveRetention(): Promise<ArchiveRetentionSettings> {

@@ -13,6 +13,7 @@ import {
 } from "@crm/validation/win-back-rules";
 import { streamText } from "ai";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { language, say } from "./language";
 import { directModel } from "./model";
 import { playbookPrompt, readPlaybook } from "./playbook";
@@ -112,71 +113,21 @@ export function rankable(points: WinBackRules["points"]): boolean {
 }
 
 function goodLabel(): string {
-	return say({
-		en: "Worth it",
-		de: "Lohnt sich",
-		es: "Interesante",
-		fr: "Intéressant",
-		"pt-BR": "Vale a pena",
-		tr: "Değer",
-		"zh-Hans": "值得",
-	});
+	return say(COPY.rules.good);
 }
 
 function badLabel(): string {
-	return say({
-		en: "Not for us",
-		de: "Nichts für uns",
-		es: "No es para nosotros",
-		fr: "Pas pour nous",
-		"pt-BR": "Não é para nós",
-		tr: "Bize göre değil",
-		"zh-Hans": "不适合我们",
-	});
+	return say(COPY.rules.bad);
 }
 
 function seenVerdicts(count: number, label: string): string {
-	return count === 1
-		? say({
-				en: `I see 1 verdict, and it says "${label}".`,
-				de: `Ich sehe 1 Urteil, und es sagt "${label}".`,
-				es: `Veo 1 valoración, y dice "${label}".`,
-				fr: `Je vois 1 avis, et il dit "${label}".`,
-				"pt-BR": `Vejo 1 avaliação, e ela diz "${label}".`,
-				tr: `1 değerlendirme görüyorum ve "${label}" diyor.`,
-				"zh-Hans": `我看到 1 条评价，它是"${label}"。`,
-			})
-		: say({
-				en: `I see ${count} verdicts, and all of them say "${label}".`,
-				de: `Ich sehe ${count} Urteile, und alle sagen "${label}".`,
-				es: `Veo ${count} valoraciones, y todas dicen "${label}".`,
-				fr: `Je vois ${count} avis, et tous disent "${label}".`,
-				"pt-BR": `Vejo ${count} avaliações, e todas dizem "${label}".`,
-				tr: `${count} değerlendirme görüyorum ve hepsi "${label}" diyor.`,
-				"zh-Hans": `我看到 ${count} 条评价，全部是"${label}"。`,
-			});
+	return say(
+		count === 1 ? COPY.rules.seenOne(label) : COPY.rules.seenMany(count, label),
+	);
 }
 
 function atLeastPeople(count: number): string {
-	return count === 1
-		? say({
-				en: "at least one person",
-				de: "mindestens eine Person",
-				es: "al menos una persona",
-				fr: "au moins une personne",
-				"pt-BR": "pelo menos uma pessoa",
-				tr: "en az bir kişi",
-				"zh-Hans": "至少一个人",
-			})
-		: say({
-				en: `at least ${count} people`,
-				de: `mindestens ${count} Personen`,
-				es: `al menos ${count} personas`,
-				fr: `au moins ${count} personnes`,
-				"pt-BR": `pelo menos ${count} pessoas`,
-				tr: `en az ${count} kişi`,
-				"zh-Hans": `至少 ${count} 个人`,
-			});
+	return say(count === 1 ? COPY.rules.atLeastOne : COPY.rules.atLeast(count));
 }
 
 export type VerdictCounts = { good: number; bad: number };
@@ -195,43 +146,27 @@ export function oneSidedReason(counts: VerdictCounts): string | null {
 	const [goodName, badName] = [goodLabel(), badLabel()];
 
 	if (good < TUNER.minGoodExamples && bad < TUNER.minBadExamples) {
-		return say({
-			en: `I did not change the rules. There is no verdict yet. In Win-back, first mark people as "${goodName}" or "${badName}".`,
-			de: `Ich habe die Regeln nicht angepasst. Es gibt noch kein Urteil. Markiere in Zurückgewinnen zuerst Personen mit "${goodName}" oder "${badName}".`,
-			es: `No he cambiado las reglas. Todavía no hay ninguna valoración. En Recuperar, marca primero personas como "${goodName}" o "${badName}".`,
-			fr: `Je n'ai pas modifié les règles. Il n'y a encore aucun avis. Dans Reconquête, marque d'abord des personnes comme "${goodName}" ou "${badName}".`,
-			"pt-BR": `Não mudei as regras. Ainda não há nenhuma avaliação. Em Reconquistar, marque primeiro pessoas como "${goodName}" ou "${badName}".`,
-			tr: `Kuralları değiştirmedim. Henüz hiç değerlendirme yok. Geri kazan bölümünde önce kişileri "${goodName}" veya "${badName}" olarak işaretle.`,
-			"zh-Hans": `我没有修改规则。目前还没有任何评价。请先在赢回中把人标记为"${goodName}"或"${badName}"。`,
-		});
+		return say(COPY.rules.noVerdict(goodName, badName));
 	}
 
 	if (good < TUNER.minGoodExamples) {
-		const seen = seenVerdicts(bad, badName);
-		const needed = atLeastPeople(TUNER.minGoodExamples);
-		return say({
-			en: `I did not change the rules. ${seen} I need ${needed} marked "${goodName}". Then I learn what a good contact looks like.`,
-			de: `Ich habe die Regeln nicht angepasst. ${seen} Ich brauche ${needed} mit "${goodName}". Dann lerne ich, wie ein guter Kontakt aussieht.`,
-			es: `No he cambiado las reglas. ${seen} Necesito ${needed} marcadas como "${goodName}". Así aprendo cómo es un buen contacto.`,
-			fr: `Je n'ai pas modifié les règles. ${seen} Il me faut ${needed} marquées "${goodName}". J'apprends alors à quoi ressemble un bon contact.`,
-			"pt-BR": `Não mudei as regras. ${seen} Preciso de ${needed} marcadas como "${goodName}". Assim aprendo como é um bom contato.`,
-			tr: `Kuralları değiştirmedim. ${seen} "${goodName}" olarak işaretlenmiş ${needed} gerekiyor. Böylece iyi bir kişinin nasıl göründüğünü öğrenirim.`,
-			"zh-Hans": `我没有修改规则。${seen}我需要${needed}被标记为"${goodName}"。这样我才能学会好的联系人是什么样子。`,
-		});
+		return say(
+			COPY.rules.needGood(
+				seenVerdicts(bad, badName),
+				atLeastPeople(TUNER.minGoodExamples),
+				goodName,
+			),
+		);
 	}
 
 	if (bad < TUNER.minBadExamples) {
-		const seen = seenVerdicts(good, goodName);
-		const needed = atLeastPeople(TUNER.minBadExamples);
-		return say({
-			en: `I did not change the rules. ${seen} I need ${needed} marked "${badName}". Then I learn whom to leave out.`,
-			de: `Ich habe die Regeln nicht angepasst. ${seen} Ich brauche ${needed} mit "${badName}". Dann lerne ich, wen ich aussortieren soll.`,
-			es: `No he cambiado las reglas. ${seen} Necesito ${needed} marcadas como "${badName}". Así aprendo a quién dejar fuera.`,
-			fr: `Je n'ai pas modifié les règles. ${seen} Il me faut ${needed} marquées "${badName}". J'apprends alors qui laisser de côté.`,
-			"pt-BR": `Não mudei as regras. ${seen} Preciso de ${needed} marcadas como "${badName}". Assim aprendo quem deixar de fora.`,
-			tr: `Kuralları değiştirmedim. ${seen} "${badName}" olarak işaretlenmiş ${needed} gerekiyor. Böylece kimi dışarıda bırakacağımı öğrenirim.`,
-			"zh-Hans": `我没有修改规则。${seen}我需要${needed}被标记为"${badName}"。这样我才能学会该排除谁。`,
-		});
+		return say(
+			COPY.rules.needBad(
+				seenVerdicts(good, goodName),
+				atLeastPeople(TUNER.minBadExamples),
+				badName,
+			),
+		);
 	}
 
 	return null;
@@ -326,7 +261,9 @@ export async function runRulesTune(
 				tunedAt: new Date(),
 			});
 
-			return `Rules tuned from ${samples.length} verdicts: ${parsed.data.note.slice(0, 160)}`;
+			return say(
+				COPY.rules.tuned(samples.length, parsed.data.note.slice(0, 160)),
+			);
 		} catch (error) {
 			lastError =
 				`not valid JSON (${error instanceof Error ? error.message : String(error)})`.slice(

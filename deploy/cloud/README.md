@@ -109,7 +109,7 @@ A `.dump` file written by the API (`pg_dump --format=custom`) restores with
 
 ```sh
 docker compose exec api sh -c 'cd /app/apps/api && bun scripts/tenant.ts list'
-docker compose exec api sh -c 'cd /app/apps/api && bun scripts/tenant.ts create acme acme.com --active --plan standard'
+docker compose exec api sh -c 'cd /app/apps/api && bun scripts/tenant.ts create acme acme.com --active --plan standard --language de'
 docker compose exec api sh -c 'cd /app/apps/api && bun scripts/tenant.ts migrate acme'
 docker compose exec api sh -c 'cd /app/apps/api && bun scripts/tenant.ts migrate-all'
 docker compose exec api sh -c 'cd /app/apps/api && bun scripts/tenant.ts suspend acme'
@@ -117,7 +117,10 @@ docker compose exec api sh -c 'cd /app/apps/api && bun scripts/tenant.ts delete 
 ```
 
 `create` without `--active` leaves the tenant `pending` until the first
-sign-in. `delete` dumps first (`RELOOP_BACKUP_DIR`, or `--dump-dir`) and refuses
+sign-in. `--language` stores the language the agent writes in (`en`, `de`, `es`,
+`fr`, `pt-BR`, `tr`, `zh-Hans`). Without it the tenant gets German when the
+Cloud's `RELOOP_GERMAN` is `"true"`, else English. The owner changes it later in
+Settings, General. `delete` dumps first (`RELOOP_BACKUP_DIR`, or `--dump-dir`) and refuses
 without a dump.
 
 ## Moving a single-tenant install into the Cloud as the operator tenant
@@ -150,7 +153,12 @@ volumes collide. On two hosts, `scp` the dump to the Cloud host first.
    cd <cloud>/deploy
    docker compose -f docker-compose.yml -f cloud/docker-compose.cloud.yml cp /root/reloop-single.sql api:/tmp/reloop-single.sql
    export IMPORT_OLD_SECRET="$(grep ^BETTER_AUTH_SECRET= <old>/deploy/.env | cut -d= -f2- | tr -d '"')"
+   export IMPORT_RELOOP_GERMAN="$(grep ^RELOOP_GERMAN= <old>/deploy/.env | cut -d= -f2- | tr -d '"')"
    ```
+
+   The agent language of the new tenant is `--language` when given, else the
+   value already stored in the dump, else German when `IMPORT_RELOOP_GERMAN` is
+   `"true"`, else English. The report names the result.
 
 3. **Dry run.** Everything happens in `crm_<tenant>_dryrun_test`: restore, the
    Cloud's migrations, the re-sealing of every secret with the Cloud's
@@ -159,7 +167,7 @@ volumes collide. On two hosts, `scp` the dump to the Cloud host first.
    value the owner enters again after the move.
 
    ```sh
-   docker compose -f docker-compose.yml -f cloud/docker-compose.cloud.yml exec -e IMPORT_OLD_SECRET api sh -c 'cd /app/apps/api && bun scripts/import-single-tenant.ts --dump /tmp/reloop-single.sql --tenant <tenant> --slug <slug> --sign-in owner@example.com,example.com --dry-run'
+   docker compose -f docker-compose.yml -f cloud/docker-compose.cloud.yml exec -e IMPORT_OLD_SECRET -e IMPORT_RELOOP_GERMAN api sh -c 'cd /app/apps/api && bun scripts/import-single-tenant.ts --dump /tmp/reloop-single.sql --tenant <tenant> --slug <slug> --sign-in owner@example.com,example.com --dry-run'
    ```
 
 4. **Real run.** Same command without `--dry-run`. It refuses when the tenant or

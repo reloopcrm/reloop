@@ -9,6 +9,7 @@ import {
 } from "@crm/validation/win-back-rules";
 import { streamText } from "ai";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { runFieldProposals } from "./field-proposals";
 import { language, say } from "./language";
 import { directModel } from "./model";
@@ -136,31 +137,14 @@ export async function runBusinessSetup(
 	const from = setupSource(current.business, threads);
 
 	if (!from) {
-		return say({
-			en: "The business rules are already set. I changed nothing.",
-			de: "Die Geschäftsregeln stehen schon. Ich habe nichts geändert.",
-			es: "Las reglas del negocio ya están definidas. No he cambiado nada.",
-			fr: "Les règles de l'entreprise sont déjà définies. Je n'ai rien changé.",
-			"pt-BR": "As regras do negócio já estão definidas. Não mudei nada.",
-			tr: "İş kuralları zaten belirlendi. Hiçbir şeyi değiştirmedim.",
-			"zh-Hans": "业务规则已经设定好了。我没有做任何更改。",
-		});
+		return say(COPY.business.alreadySet);
 	}
 
 	const fromMail = from === "mail";
 	const page = !fromMail && us?.website ? await fetchPage(us.website) : null;
 
 	if (!fromMail && !page) {
-		const needed = BUSINESS_SETUP.minThreads;
-		const note = say({
-			en: `I am still waiting. I need ${needed} conversations or a readable website to say what this business sells. There are ${threads} conversations now.`,
-			de: `Ich warte noch. Erst ab ${needed} Verläufen oder mit einer lesbaren Website kann ich sagen, womit hier gehandelt wird. Aktuell sind es ${threads}.`,
-			es: `Sigo esperando. Necesito ${needed} conversaciones o un sitio web legible para saber qué vende este negocio. Ahora hay ${threads} conversaciones.`,
-			fr: `J'attends encore. Il me faut ${needed} conversations ou un site web lisible pour dire ce que vend cette entreprise. Il y a ${threads} conversations pour l'instant.`,
-			"pt-BR": `Ainda estou esperando. Preciso de ${needed} conversas ou de um site legível para dizer o que este negócio vende. Agora são ${threads} conversas.`,
-			tr: `Hâlâ bekliyorum. Bu işletmenin ne sattığını söylemek için ${needed} yazışmaya veya okunabilir bir web sitesine ihtiyacım var. Şu anda ${threads} yazışma var.`,
-			"zh-Hans": `我还在等待。需要 ${needed} 个对话或一个可读取的网站，才能判断这家企业卖什么。目前有 ${threads} 个对话。`,
-		});
+		const note = say(COPY.business.waiting(BUSINESS_SETUP.minThreads, threads));
 		await writeWinBackRulesState(db, { note });
 		return note;
 	}
@@ -261,15 +245,7 @@ export async function runBusinessSetup(
 		}
 	}
 
-	const note = say({
-		en: `I could not work out the business rules myself: ${lastError}`,
-		de: `Ich konnte die Geschäftsregeln nicht selbst finden: ${lastError}`,
-		es: `No he podido deducir yo mismo las reglas del negocio: ${lastError}`,
-		fr: `Je n'ai pas pu déterminer moi-même les règles de l'entreprise : ${lastError}`,
-		"pt-BR": `Não consegui descobrir sozinho as regras do negócio: ${lastError}`,
-		tr: `İş kurallarını kendim çıkaramadım: ${lastError}`,
-		"zh-Hans": `我无法自行确定业务规则：${lastError}`,
-	});
+	const note = say(COPY.business.failed(lastError));
 	await writeWinBackRulesState(db, { note });
 
 	return note;

@@ -1,7 +1,9 @@
 import { db, EnrichmentStatus } from "@crm/db";
 import { mirrorBrandImages } from "./brand-images";
 import { brandToUpdate, filledFields, stillFillable } from "./brand-mapping";
+import { COPY } from "./copy";
 import { UNLESS_COMPLETE } from "./enrichment";
+import { say } from "./language";
 import { brandFromWebsite } from "./website-brand";
 
 export type BrandResult = {
@@ -48,16 +50,16 @@ export async function runBrand({
 		select: COMPANY_FIELDS,
 	});
 
-	if (!company) return { enriched: false, reason: "No such company." };
+	if (!company) return { enriched: false, reason: say(COPY.brand.noCompany) };
 
 	if (!company.domain) {
 		await settle(
 			companyId,
 			EnrichmentStatus.SKIPPED,
-			"No domain to look up.",
+			say(COPY.brand.noDomainToLookUp),
 			UNLESS_COMPLETE,
 		);
-		return { enriched: false, reason: "No domain on this company." };
+		return { enriched: false, reason: say(COPY.brand.noDomain) };
 	}
 
 	await db.company.updateMany({
@@ -121,7 +123,7 @@ export async function runBrand({
 		return filledFields(data);
 	});
 
-	if (!filled) return { enriched: false, reason: "No such company." };
+	if (!filled) return { enriched: false, reason: say(COPY.brand.noCompany) };
 
 	return {
 		enriched: true,
@@ -137,16 +139,16 @@ function snapshot<T extends { name: string; domain: string | null }>(
 }
 
 export function brandOutcome(result: BrandResult): string {
-	if (!result.enriched) return result.reason ?? "Nothing to fill.";
+	if (!result.enriched) return result.reason ?? say(COPY.brand.nothingToFill);
 
 	const filled = result.filled ?? [];
 	const mirrored = result.mirrored ?? [];
 
 	if (filled.length === 0) {
-		return "Everything found was already on the record.";
+		return say(COPY.brand.alreadyThere);
 	}
 
-	return `Filled ${filled.join(", ")}.${mirrored.length > 0 ? ` Copied ${mirrored.length} image(s) in-house.` : ""}`;
+	return say(COPY.brand.filled(filled.join(", "), mirrored.length));
 }
 
 type SettleGuard =

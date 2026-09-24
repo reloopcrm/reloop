@@ -3,9 +3,11 @@ import { MEMORY } from "@crm/db/insights";
 import { stripQuotedHistory } from "@crm/db/message-text";
 import { streamText } from "ai";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { recordFact } from "./facts";
 import { askNoul, type JevNoulAsk, type JevQuestion, typesafeKey } from "./jev";
 import { countGate } from "./jev-meter";
+import { say } from "./language";
 import { directModel } from "./model";
 import { looksMachineMade, properCase } from "./names";
 import { UNTRUSTED_RULE, untrusted } from "./untrusted";
@@ -22,8 +24,9 @@ const CLEAN = {
 
 export const CLEAN_GATE = "contact-clean";
 
-export const CLEAN_SKIPPED =
-	"Their mail carries no signature block. Nothing changed.";
+export function cleanSkipped(): string {
+	return say(COPY.clean.skipped);
+}
 
 const found = z.object({
 	fullName: z.string().max(120).nullable(),
@@ -186,7 +189,7 @@ export async function runContactClean(
 			company: { select: { id: true, name: true, domain: true } },
 		},
 	});
-	if (!contact?.email) return "No contact or no email address.";
+	if (!contact?.email) return say(COPY.clean.noContact);
 
 	const messages = await db.emailMessage.findMany({
 		where: { fromEmail: contact.email, direction: "INBOUND" },
@@ -203,7 +206,7 @@ export async function runContactClean(
 		return outcome;
 	};
 
-	if (messages.length === 0) return done("No email from them to read.");
+	if (messages.length === 0) return done(say(COPY.clean.noMail));
 
 	const displayNames = [
 		...new Set(
@@ -213,7 +216,7 @@ export async function runContactClean(
 	const bodies = messages.map((m) => tail(m.body ?? m.snippet));
 
 	if (!(await hasSignature({ displayNames, bodies }, ask))) {
-		return done(CLEAN_SKIPPED);
+		return done(cleanSkipped());
 	}
 
 	const ours = await ourIdentity();
@@ -228,7 +231,7 @@ export async function runContactClean(
 		facts.fullName &&
 		ours.names.some((name) => sameName(name, facts.fullName ?? ""))
 	) {
-		return done("The only signature found was our own; nothing changed.");
+		return done(say(COPY.clean.ours));
 	}
 
 	const changes: string[] = [];
@@ -260,8 +263,12 @@ export async function runContactClean(
 			evidence,
 			method: "contact-clean",
 		});
-		if (nameResult.applied) changes.push(`name → ${facts.fullName}`);
-		else if (derived) changes.push(`name proposed: ${facts.fullName}`);
+		if (nameResult.applied)
+			changes.push(`${say(COPY.clean.field.name)} → ${facts.fullName}`);
+		else if (derived)
+			changes.push(
+				`${say(COPY.clean.field.name)} ${say(COPY.clean.proposed)}: ${facts.fullName}`,
+			);
 
 		if (facts.title && !contact.title) {
 			const titleResult = await recordFact({
@@ -271,7 +278,8 @@ export async function runContactClean(
 				evidence,
 				method: "contact-clean",
 			});
-			if (titleResult.applied) changes.push(`title → ${facts.title}`);
+			if (titleResult.applied)
+				changes.push(`${say(COPY.clean.field.title)} → ${facts.title}`);
 		}
 	}
 
@@ -283,8 +291,12 @@ export async function runContactClean(
 			evidence,
 			method: "contact-clean",
 		});
-		if (phoneResult.applied) changes.push(`phone → ${facts.phone}`);
-		else if (phoneResult.stored) changes.push(`phone proposed: ${facts.phone}`);
+		if (phoneResult.applied)
+			changes.push(`${say(COPY.clean.field.phone)} → ${facts.phone}`);
+		else if (phoneResult.stored)
+			changes.push(
+				`${say(COPY.clean.field.phone)} ${say(COPY.clean.proposed)}: ${facts.phone}`,
+			);
 	}
 
 	if (
@@ -296,12 +308,12 @@ export async function runContactClean(
 			where: { id: contact.company.id },
 			data: { name: facts.companyName },
 		});
-		changes.push(`company → ${facts.companyName}`);
+		changes.push(`${say(COPY.clean.field.company)} → ${facts.companyName}`);
 	}
 
 	return done(
 		changes.length
-			? `Cleaned: ${changes.join(", ")}.`
-			: "Signature confirmed what the record already had.",
+			? say(COPY.clean.cleaned(changes.join(", ")))
+			: say(COPY.clean.confirmed),
 	);
 }

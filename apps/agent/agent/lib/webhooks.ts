@@ -5,6 +5,8 @@ import { safeFetch } from "@crm/db/safe-fetch";
 import { openWebhookSecret, signWebhookBody, WEBHOOKS } from "@crm/db/webhooks";
 import { crmEventTask } from "@crm/validation/agent-events";
 import { z } from "zod";
+import { COPY } from "./copy";
+import { say } from "./language";
 import { runLimited } from "./pool";
 import { claimDue, completeTask, type LeasedTask } from "./tasks";
 
@@ -109,7 +111,7 @@ export async function deliverTask(
 ): Promise<void> {
 	const parsed = webhookDelivery.safeParse(task.payload);
 	if (!parsed.success) {
-		await completeTask(task.id, "The queued webhook delivery is unreadable.");
+		await completeTask(task.id, say(COPY.webhooks.unreadable));
 		return;
 	}
 
@@ -117,11 +119,11 @@ export async function deliverTask(
 		where: { id: parsed.data.webhookId },
 	});
 	if (!webhook) {
-		await completeTask(task.id, "The webhook is gone.");
+		await completeTask(task.id, say(COPY.webhooks.gone));
 		return;
 	}
 	if (!webhook.enabled) {
-		await completeTask(task.id, "The webhook is switched off.");
+		await completeTask(task.id, say(COPY.webhooks.off));
 		return;
 	}
 
@@ -145,14 +147,14 @@ export async function deliverTask(
 	});
 
 	if (outcome.delivered) {
-		await completeTask(task.id, `The receiver answered ${outcome.status}.`);
+		await completeTask(task.id, say(COPY.webhooks.answered(outcome.status)));
 		return;
 	}
 
 	if (task.attempts >= MAX_ATTEMPTS) {
 		await completeTask(
 			task.id,
-			`Gave up after ${MAX_ATTEMPTS} attempts: ${outcome.reason}`,
+			say(COPY.webhooks.gaveUp(MAX_ATTEMPTS, outcome.reason)),
 		);
 	}
 }
@@ -173,7 +175,7 @@ async function send(
 		return {
 			delivered: false,
 			status: null,
-			reason: "The stored secret cannot be read. Enter it again.",
+			reason: say(COPY.webhooks.secretUnreadable),
 		};
 	}
 
@@ -204,9 +206,11 @@ async function send(
 		return {
 			delivered: false,
 			status: null,
-			reason: webhook.allowPrivateHost
-				? "The receiver did not answer in time."
-				: "The receiver did not answer in time, or its address is not a public one.",
+			reason: say(
+				webhook.allowPrivateHost
+					? COPY.webhooks.noAnswer
+					: COPY.webhooks.noAnswerOrPrivate,
+			),
 		};
 	}
 
@@ -218,6 +222,6 @@ async function send(
 		: {
 				delivered: false,
 				status,
-				reason: `The receiver answered ${status}.`,
+				reason: say(COPY.webhooks.answered(status)),
 			};
 }

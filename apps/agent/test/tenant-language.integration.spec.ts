@@ -10,6 +10,7 @@ import {
 	writeAgentLanguage,
 } from "@crm/validation/agent-language";
 import { languageInstruction } from "../agent/instructions/task";
+import { stallSkipped } from "../agent/lib/deal-stall";
 import {
 	currentLanguage,
 	forgetWorkspaceLanguages,
@@ -105,7 +106,10 @@ describe("the agent writes in the language of each workspace", () => {
 			await eachActiveTenant(
 				"language spec",
 				async () => {
-					notes.set(tenant.id, oneSidedReason({ good: 0, bad: 0 }));
+					notes.set(
+						tenant.id,
+						`${oneSidedReason({ good: 0, bad: 0 })} ${stallSkipped()}`,
+					);
 				},
 				tenant.id,
 			);
@@ -113,6 +117,8 @@ describe("the agent writes in the language of each workspace", () => {
 
 		expect(notes.get(a.id)).toContain("Ich habe die Regeln nicht angepasst.");
 		expect(notes.get(b.id)).toContain("No he cambiado las reglas.");
+		expect(notes.get(a.id)).toContain("Es wurde keine Notiz geschrieben.");
+		expect(notes.get(b.id)).toContain("No se ha escrito ninguna nota.");
 	});
 
 	it("keeps the env default for a self-hosted install with no setting", async () => {

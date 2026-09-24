@@ -12,9 +12,10 @@ import {
 } from "@crm/validation/win-back-rules";
 import { streamText } from "ai";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { askJev, type JevAsk, type JevState, typesafeKey } from "./jev";
 import { countGate, countGateFailure } from "./jev-meter";
-import { language } from "./language";
+import { language, say } from "./language";
 import { directModel } from "./model";
 import { MODEL } from "./model-config";
 import { playbookPrompt, readPlaybook } from "./playbook";
@@ -497,8 +498,8 @@ export async function runThreadInsight(
 		},
 	});
 
-	if (!thread) return "The thread is gone.";
-	if (thread.messages.length === 0) return "The thread has no messages.";
+	if (!thread) return say(COPY.threads.gone);
+	if (thread.messages.length === 0) return say(COPY.threads.empty);
 
 	const rules = await readWinBackRules(db);
 	const unchanged =
@@ -569,11 +570,11 @@ export async function runThreadInsight(
 
 	if (!verdict.relevant) {
 		const why = verdict.summary.slice(0, 120);
-		return why ? `Not about the business: ${why}` : "Not about the business.";
+		return say(why ? COPY.threads.offTopicBecause(why) : COPY.threads.offTopic);
 	}
 
 	const units = verdict.quantityPallets
-		? `, ${verdict.quantityPallets} units`
+		? `, ${say(COPY.threads.units(verdict.quantityPallets))}`
 		: "";
 	return `${verdict.outcome}${units}: ${verdict.summary.slice(0, 160)}`;
 }
@@ -636,12 +637,12 @@ export async function runThreadDigest(threadId: string): Promise<string> {
 		},
 	});
 
-	if (!thread) return "The thread is gone.";
+	if (!thread) return say(COPY.threads.gone);
 
 	const recent = thread.messages.slice(-MEMORY.messagesPerThread);
-	if (recent.length === 0) return "The thread has no messages.";
+	if (recent.length === 0) return say(COPY.threads.empty);
 	if (recent.every((message) => message.summary !== null)) {
-		return "Every message already has a line.";
+		return say(COPY.threads.allLined);
 	}
 
 	const model = await directModel("reading", "thread-digest");
@@ -665,7 +666,5 @@ export async function runThreadDigest(threadId: string): Promise<string> {
 	);
 
 	const written = await storeMessageSummaries(thread, object.messageSummaries);
-	return written === 1
-		? "1 message now has a line."
-		: `${written} messages now have a line.`;
+	return say(COPY.threads.lined(written));
 }

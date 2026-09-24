@@ -1,5 +1,7 @@
 import { db } from "@crm/db";
 import { blobEnabled, isMirrored, mirror } from "@crm/db/blob";
+import { COPY } from "./copy";
+import { say } from "./language";
 import { findPortrait, type PortraitSource } from "./portrait-sources";
 
 export type PortraitResult = {
@@ -24,7 +26,7 @@ export async function storePortrait({
 		return {
 			stored: false,
 			imageUrl: null,
-			reason: "No photo on the profile.",
+			reason: say(COPY.portraits.noPhoto),
 		};
 	}
 
@@ -32,8 +34,7 @@ export async function storePortrait({
 		return {
 			stored: false,
 			imageUrl: null,
-			reason:
-				"The profile was not established to be this person, so its photo is not theirs to use.",
+			reason: say(COPY.portraits.notTheirs),
 		};
 	}
 
@@ -41,9 +42,7 @@ export async function storePortrait({
 		return {
 			stored: false,
 			imageUrl: null,
-			reason:
-				"This install has no BLOB_READ_WRITE_TOKEN, so there is nowhere to keep a copy. " +
-				"The source URL expires within weeks and is never stored. Retrying will not help.",
+			reason: say(COPY.portraits.noStoreExpiring),
 		};
 	}
 
@@ -53,14 +52,18 @@ export async function storePortrait({
 	});
 
 	if (!contact) {
-		return { stored: false, imageUrl: null, reason: "No such contact." };
+		return {
+			stored: false,
+			imageUrl: null,
+			reason: say(COPY.portraits.noContact),
+		};
 	}
 
 	if (!force && isMirrored(contact.imageUrl)) {
 		return {
 			stored: false,
 			imageUrl: contact.imageUrl,
-			reason: "They already have a photo.",
+			reason: say(COPY.portraits.hasPhoto),
 		};
 	}
 
@@ -70,12 +73,16 @@ export async function storePortrait({
 		return {
 			stored: false,
 			imageUrl: contact.imageUrl,
-			reason: "The photo could not be fetched. The record is unchanged.",
+			reason: say(COPY.portraits.fetchFailed),
 		};
 	}
 
 	if (stored === contact.imageUrl) {
-		return { stored: false, imageUrl: stored, reason: "Unchanged." };
+		return {
+			stored: false,
+			imageUrl: stored,
+			reason: say(COPY.portraits.unchanged),
+		};
 	}
 
 	await db.contact.update({
@@ -97,8 +104,7 @@ export async function runPortrait({
 		return {
 			stored: false,
 			imageUrl: null,
-			reason:
-				"This install has no BLOB_READ_WRITE_TOKEN, so there is nowhere to keep a copy. Retrying will not help.",
+			reason: say(COPY.portraits.noStore),
 		};
 	}
 
@@ -114,14 +120,18 @@ export async function runPortrait({
 	});
 
 	if (!contact) {
-		return { stored: false, imageUrl: null, reason: "No such contact." };
+		return {
+			stored: false,
+			imageUrl: null,
+			reason: say(COPY.portraits.noContact),
+		};
 	}
 
 	if (!force && contact.imageUrl) {
 		return {
 			stored: false,
 			imageUrl: contact.imageUrl,
-			reason: "They already have a photo.",
+			reason: say(COPY.portraits.hasPhoto),
 		};
 	}
 
@@ -136,8 +146,7 @@ export async function runPortrait({
 		return {
 			stored: false,
 			imageUrl: contact.imageUrl,
-			reason:
-				"Nothing on this contact points at a picture. The record carries no GitHub account.",
+			reason: say(COPY.portraits.nothingPoints),
 		};
 	}
 

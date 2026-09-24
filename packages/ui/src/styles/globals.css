@@ -975,16 +975,15 @@
 @layer utilities {
 	.floating-nav {
 		transition:
-			height 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-			padding 400ms cubic-bezier(0.34, 1.25, 0.64, 1);
+			height 400ms cubic-bezier(0.32, 0.72, 0, 1),
+			padding 400ms cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
 	.floating-nav-collapsible {
-		max-width: var(--floating-nav-w, none);
-		overflow: hidden;
+		grid-template-columns: 1fr;
 		transition:
-			max-width 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-			margin 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+			grid-template-columns 400ms cubic-bezier(0.32, 0.72, 0, 1),
+			margin 400ms cubic-bezier(0.32, 0.72, 0, 1),
 			opacity 200ms ease 120ms,
 			visibility 0s linear 0s;
 	}
@@ -1001,14 +1000,13 @@
 			:has([data-state="open"])
 		)
 		.floating-nav-collapsible {
-		max-width: 0;
+		grid-template-columns: 0fr;
 		margin-left: 0;
 		opacity: 0;
 		visibility: hidden;
 		transition:
-			max-width 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-			margin 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
-			padding 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+			grid-template-columns 400ms cubic-bezier(0.32, 0.72, 0, 1),
+			margin 400ms cubic-bezier(0.32, 0.72, 0, 1),
 			opacity 120ms ease,
 			visibility 0s linear 120ms;
 	}

@@ -215,6 +215,18 @@ describe("proxy", () => {
 		).toBe("/onboarding");
 	});
 
+	it("keeps the checkout outcome when it sends a fresh workspace to the form", async () => {
+		setup({ onboarded: false });
+
+		const response = await proxy(
+			request("/settings/billing?checkout=success", [SESSION_COOKIE]),
+		);
+
+		expect(response.headers.get("location")).toBe(
+			"http://localhost:3000/onboarding?checkout=success",
+		);
+	});
+
 	it("lets the form itself render", async () => {
 		setup({ onboarded: false });
 

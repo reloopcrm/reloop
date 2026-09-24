@@ -101,7 +101,11 @@ async function CheckoutNotice() {
 	const session = await requireSession();
 	if (!isWorkspaceAdmin(await workspaceRole(session.user.id))) return null;
 
-	return <CheckoutBanner wanted={wanted} label={PLANS[wanted.plan].label} />;
+	return (
+		<div className="px-4 pt-4 md:px-(--spacing-page-inline) md:pt-(--spacing-page-top)">
+			<CheckoutBanner wanted={wanted} label={PLANS[wanted.plan].label} />
+		</div>
+	);
 }
 
 async function loadDealStages() {

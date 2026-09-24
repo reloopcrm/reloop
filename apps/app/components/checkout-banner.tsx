@@ -31,28 +31,26 @@ export function CheckoutBanner({ wanted, label }: CheckoutBannerProps) {
 	);
 
 	return (
-		<div className="px-4 pt-4 md:px-(--spacing-page-inline) md:pt-(--spacing-page-top)">
-			<Alert size="banner">
-				<Purchase />
-				<AlertTitle>
-					{t("{plan} is chosen but not paid yet.", { plan: t(label) })}
-				</AlertTitle>
-				<AlertDescription>
-					{t(
-						"Your workspace runs on the trial until you pay. The whole plan is active right after.",
-					)}
-				</AlertDescription>
-				<AlertAction>
-					<Button
-						variant="outline"
-						disabled={checkout.isPending}
-						onClick={() => checkout.mutate(wanted)}
-					>
-						{checkout.isPending ? <Spinner data-icon="inline-start" /> : null}
-						{t("Complete the {plan} plan", { plan: t(label) })}
-					</Button>
-				</AlertAction>
-			</Alert>
-		</div>
+		<Alert size="banner">
+			<Purchase />
+			<AlertTitle>
+				{t("{plan} is chosen but not paid yet.", { plan: t(label) })}
+			</AlertTitle>
+			<AlertDescription>
+				{t(
+					"Your workspace runs on the trial until you pay. The whole plan is active right after.",
+				)}
+			</AlertDescription>
+			<AlertAction>
+				<Button
+					variant="outline"
+					disabled={checkout.isPending}
+					onClick={() => checkout.mutate(wanted)}
+				>
+					{checkout.isPending ? <Spinner data-icon="inline-start" /> : null}
+					{t("Complete the {plan} plan", { plan: t(label) })}
+				</Button>
+			</AlertAction>
+		</Alert>
 	);
 }

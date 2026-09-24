@@ -265,5 +265,11 @@
 	"Your workspace holds more contacts or mailboxes than this plan allows. Remove some first, or choose a bigger plan.": "Çalışma alanında bu planın izin verdiğinden fazla kişi veya posta kutusu var. Önce bazılarını kaldır ya da daha büyük bir plan seç.",
 	"{plan} is chosen but not paid yet.": "{plan} seçildi ama henüz ödenmedi.",
 	"Your workspace runs on the trial until you pay. The whole plan is active right after.": "Ödeme yapana kadar çalışma alanın deneme sürümünde kalır. Hemen ardından paketin tamamı açılır.",
-	"Complete the {plan} plan": "{plan} paketini tamamla"
+	"Complete the {plan} plan": "{plan} paketini tamamla",
+	"Thanks, the {plan} plan is active.": "Teşekkürler, {plan} paketi aktif.",
+	"Set up your workspace below. Invoices are under Plan & billing.": "Aşağıda çalışma alanını kur. Faturalar Paket ve faturalandırma altında.",
+	"The confirmation takes longer than usual.": "Onay her zamankinden uzun sürüyor.",
+	"Your payment is safe. The plan shows under Plan & billing as soon as Stripe confirms it.": "Ödemen güvende. Stripe onaylar onaylamaz paket Paket ve faturalandırma altında görünür.",
+	"We are confirming your payment.": "Ödemeni onaylıyoruz.",
+	"Stripe told us you paid. The plan shows here in a moment.": "Stripe ödemeni bildirdi. Paket birazdan burada görünür."
 }

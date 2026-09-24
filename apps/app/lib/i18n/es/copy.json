@@ -265,5 +265,11 @@
 	"Your workspace holds more contacts or mailboxes than this plan allows. Remove some first, or choose a bigger plan.": "Tu espacio de trabajo tiene más contactos o buzones de los que permite este plan. Elimina algunos primero o elige un plan mayor.",
 	"{plan} is chosen but not paid yet.": "{plan} está elegido, pero aún no pagado.",
 	"Your workspace runs on the trial until you pay. The whole plan is active right after.": "Tu espacio de trabajo sigue en la prueba hasta que pagues. Justo después, todo el plan queda activo.",
-	"Complete the {plan} plan": "Completar el plan {plan}"
+	"Complete the {plan} plan": "Completar el plan {plan}",
+	"Thanks, the {plan} plan is active.": "Gracias, el plan {plan} está activo.",
+	"Set up your workspace below. Invoices are under Plan & billing.": "Configura tu espacio de trabajo abajo. Las facturas están en Plan y facturación.",
+	"The confirmation takes longer than usual.": "La confirmación tarda más de lo habitual.",
+	"Your payment is safe. The plan shows under Plan & billing as soon as Stripe confirms it.": "Tu pago está a salvo. El plan aparece en Plan y facturación en cuanto Stripe lo confirme.",
+	"We are confirming your payment.": "Estamos confirmando tu pago.",
+	"Stripe told us you paid. The plan shows here in a moment.": "Stripe nos avisó de tu pago. El plan aparece aquí en un momento."
 }

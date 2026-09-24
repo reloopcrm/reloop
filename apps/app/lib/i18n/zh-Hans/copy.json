@@ -265,5 +265,11 @@
 	"Your workspace holds more contacts or mailboxes than this plan allows. Remove some first, or choose a bigger plan.": "你的工作区中的联系人或邮箱多于此套餐允许的数量。请先删除一些，或选择更大的套餐。",
 	"{plan} is chosen but not paid yet.": "已选择{plan}，但尚未付款。",
 	"Your workspace runs on the trial until you pay. The whole plan is active right after.": "付款前，你的工作区保持试用状态。付款后完整套餐立即生效。",
-	"Complete the {plan} plan": "完成{plan}套餐"
+	"Complete the {plan} plan": "完成{plan}套餐",
+	"Thanks, the {plan} plan is active.": "谢谢，{plan}套餐已生效。",
+	"Set up your workspace below. Invoices are under Plan & billing.": "请在下方设置你的工作区。发票在“套餐与账单”中。",
+	"The confirmation takes longer than usual.": "确认时间比平时长。",
+	"Your payment is safe. The plan shows under Plan & billing as soon as Stripe confirms it.": "你的付款是安全的。Stripe 确认后，套餐会显示在“套餐与账单”中。",
+	"We are confirming your payment.": "我们正在确认你的付款。",
+	"Stripe told us you paid. The plan shows here in a moment.": "Stripe 已通知我们你已付款。套餐稍后会显示在这里。"
 }

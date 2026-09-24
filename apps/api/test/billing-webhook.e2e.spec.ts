@@ -597,6 +597,12 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 				{ price: `price_${planLookupKey("start", "month")}`, quantity: 1 },
 			]);
 			expect(sessions[0]?.subscription_data?.trial_end).toBeUndefined();
+			expect(sessions[0]?.success_url).toEndWith(
+				`${BILLING.return.path}?${BILLING.return.checkoutParam}=success`,
+			);
+			expect(sessions[0]?.cancel_url).toEndWith(
+				`${BILLING.return.path}?${BILLING.return.checkoutParam}=cancel`,
+			);
 			expect(sessions[0]?.customer).toBe("cus_spec");
 			expect(sessions[0]?.subscription_data?.metadata?.tenantId).toBe(a.id);
 			const locale = await onTenant(() => workspaceLocale(db));

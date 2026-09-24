@@ -11,14 +11,13 @@ import {
 	PageShellLoading,
 	PageShellTitle,
 } from "@/components/page-shell";
+import { CHECKOUT } from "@/lib/checkout-config";
 import { getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";
 import { hostedCustomer } from "@/lib/tenant";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { Billing } from "./billing";
-
-const CHECKOUT_PARAM = "checkout";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -31,7 +30,7 @@ export default async function BillingSettingsPage({
 	if (!(await hostedCustomer())) notFound();
 	const t = await getT();
 	const params = await searchParams;
-	const checkoutDone = params[CHECKOUT_PARAM] === "success";
+	const checkoutDone = params[CHECKOUT.param] === CHECKOUT.outcome.success;
 
 	return (
 		<PageShell>

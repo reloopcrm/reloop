@@ -1,5 +1,17 @@
+import type { Locale } from "@crm/db/locale";
+
 const SECOND = 1;
 const MINUTE = 60 * SECOND;
+
+const STRIPE_LOCALES = {
+	en: "en",
+	de: "de",
+	es: "es",
+	fr: "fr",
+	"pt-BR": "pt-BR",
+	tr: "tr",
+	"zh-Hans": "zh",
+} as const satisfies Record<Locale, string>;
 
 export const BILLING = {
 	webhook: {
@@ -19,4 +31,5 @@ export const BILLING = {
 	invoices: { limit: 24 },
 	portal: { metadataKey: "reloop", metadataValue: "portal" },
 	addOns: { maxQuantity: 99 },
+	stripe: { locales: STRIPE_LOCALES, centsPerUnit: 100 },
 } as const;

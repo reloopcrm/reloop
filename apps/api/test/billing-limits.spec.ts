@@ -1,12 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import type { Db } from "@crm/db";
-import { addOnsOf } from "@crm/db/plan-usage";
+import { addOnsOf, roomFor, usageLines } from "@crm/db/plan-usage";
 import {
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	limitsOf,
 	monthlyBudget,
 	NO_ADD_ONS,
+	PLANS,
 	RESEARCH_RUN_KIND,
 	withAddOns,
 } from "@crm/db/plans";
@@ -17,8 +18,10 @@ import type Stripe from "stripe";
 import {
 	BillingService,
 	billingStateOf,
-	checkoutTrialEnd,
 	deleteAtOf,
+	paymentMethodOf,
+	pendingPaymentUrl,
+	planChanged,
 	planChangeExcess,
 	subscriptionState,
 } from "../src/billing/billing.service";
@@ -204,7 +207,7 @@ describe("billing authorization", () => {
 			member: { findUnique: async () => (role ? { role } : null) },
 		} as unknown as Db;
 		const config = { get: () => undefined } as never;
-		return new BillingService(db, null, config);
+		return new BillingService(db, null, config, {} as never);
 	};
 
 	it("rejects a member before any Stripe call", async () => {
@@ -213,6 +216,8 @@ describe("billing authorization", () => {
 			() => member.overview("member"),
 			() => member.checkout("member", { plan: "start", interval: "month" }),
 			() => member.setAddOn("member", { addOn: "drafts", quantity: 1 }),
+			() => member.previewPlan("member", { plan: "start", interval: "year" }),
+			() => member.previewAddOn("member", { addOn: "drafts", quantity: 1 }),
 			() => member.cancel("member"),
 			() => member.resume("member"),
 			() => member.portal("member", { flow: "billing" }),
@@ -241,34 +246,144 @@ describe("billing authorization", () => {
 	});
 });
 
-describe("a subscription during the trial keeps the trial", () => {
-	const now = new Date("2026-10-01T12:00:00.000Z");
-	const trial = (endsAt: Date, over: Partial<Tenant> = {}) =>
-		tenant({ trialEndsAt: endsAt, ...over });
+describe("the payment method comes from the subscription first", () => {
+	const card = (last4: string) =>
+		({
+			id: `pm_${last4}`,
+			object: "payment_method",
+			type: "card",
+			card: { brand: "visa", last4, exp_month: 4, exp_year: 2030 },
+		}) as unknown as Stripe.PaymentMethod;
 
-	it("passes the trial end to Checkout when it is more than 48 hours away", () => {
-		const endsAt = new Date("2026-10-10T12:00:00.000Z");
-		expect(checkoutTrialEnd(trial(endsAt), now)?.toISOString()).toBe(
-			endsAt.toISOString(),
+	it("reads the card Checkout put on the subscription", () => {
+		expect(
+			paymentMethodOf({ default_payment_method: card("4242") }, {
+				invoice_settings: { default_payment_method: null },
+			} as never),
+		).toEqual({
+			kind: "card",
+			brand: "visa",
+			last4: "4242",
+			expires: "04/2030",
+		});
+	});
+
+	it("falls back to the customer's default when the subscription has none", () => {
+		expect(
+			paymentMethodOf({ default_payment_method: null }, {
+				invoice_settings: { default_payment_method: card("1881") },
+			} as never)?.last4,
+		).toBe("1881");
+	});
+
+	it("is null when neither holds an expanded method", () => {
+		expect(
+			paymentMethodOf({ default_payment_method: "pm_not_expanded" }, null),
+		).toBeNull();
+		expect(paymentMethodOf(null, null)).toBeNull();
+	});
+});
+
+describe("the plan active mail follows a plan or interval change only", () => {
+	const previous = (...keys: string[]) => ({
+		items: { data: keys.map((key) => ({ price: { lookup_key: key } })) },
+	});
+	const now = { plan: "standard", interval: "month" } as const;
+
+	it("fires on a new plan or a new interval", () => {
+		expect(planChanged(previous(planLookupKey("start", "month")), now)).toBe(
+			true,
+		);
+		expect(planChanged(previous(planLookupKey("standard", "year")), now)).toBe(
+			true,
 		);
 	});
 
-	it("charges now when the trial ends within 48 hours", () => {
+	it("stays quiet for add-ons, renewals and unrelated updates", () => {
 		expect(
-			checkoutTrialEnd(trial(new Date("2026-10-03T11:00:00.000Z")), now),
-		).toBeNull();
+			planChanged(
+				previous(
+					planLookupKey("standard", "month"),
+					addOnLookupKey("drafts", "month"),
+				),
+				now,
+			),
+		).toBe(false);
+		expect(planChanged({}, now)).toBe(false);
+		expect(planChanged(undefined, now)).toBe(false);
+	});
+});
+
+describe("a change Stripe has not been paid for yet", () => {
+	it("returns the hosted invoice to pay", () => {
 		expect(
-			checkoutTrialEnd(trial(new Date("2026-09-30T12:00:00.000Z")), now),
-		).toBeNull();
+			pendingPaymentUrl(
+				subscription({
+					pending_update: { expires_at: 1 },
+					latest_invoice: {
+						id: "in_open",
+						object: "invoice",
+						hosted_invoice_url: "https://invoice.stripe.test/in_open",
+					},
+				} as never),
+			),
+		).toBe("https://invoice.stripe.test/in_open");
 	});
 
-	it("charges now for a suspended workspace or a paid plan", () => {
-		const endsAt = new Date("2026-10-10T12:00:00.000Z");
+	it("returns nothing once Stripe applied the change", () => {
 		expect(
-			checkoutTrialEnd(trial(endsAt, { status: "suspended" }), now),
+			pendingPaymentUrl(
+				subscription({ pending_update: null, latest_invoice: null } as never),
+			),
 		).toBeNull();
-		expect(checkoutTrialEnd(trial(endsAt, { plan: "start" }), now)).toBeNull();
-		expect(checkoutTrialEnd(tenant(), now)).toBeNull();
+	});
+});
+
+describe("plans with AI included cap research and chat per month", () => {
+	const usage = {
+		insights: 0,
+		drafts: 0,
+		sessions: 100,
+		research: 0,
+		chat: 500,
+		builder: 0,
+	};
+
+	it("stops contact research and chat at the plan's cap", () => {
+		const limits = limitsOf("start");
+		expect(roomFor("sessions", usage, limits)).toBe(0);
+		expect(roomFor("chat", usage, limits)).toBe(0);
+		const lines = usageLines(usage, limits);
+		expect(lines.find((line) => line.counter === "sessions")).toMatchObject({
+			limit: 100,
+			reached: true,
+		});
+		expect(lines.find((line) => line.counter === "chat")).toMatchObject({
+			limit: 500,
+			reached: true,
+		});
+	});
+
+	it("holds the approved caps for every included plan", () => {
+		expect(
+			(["start", "standard", "plus", "team", "office"] as const).map((plan) => [
+				PLANS[plan].researchSessionsPerMonth,
+				PLANS[plan].chatPerMonth,
+			]),
+		).toEqual([
+			[100, 500],
+			[300, 1_500],
+			[600, 3_000],
+			[1_500, 8_000],
+			[4_000, 20_000],
+		]);
+	});
+
+	it("leaves the own key plans without a cap", () => {
+		for (const plan of ["hosting", "hosting-pro"] as const) {
+			expect(roomFor("sessions", usage, limitsOf(plan))).toBeNull();
+			expect(roomFor("chat", usage, limitsOf(plan))).toBeNull();
+		}
 	});
 });
 

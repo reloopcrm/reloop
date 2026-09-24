@@ -29,7 +29,6 @@ export const billingOverviewOutput = z.object({
 	graceUntil: isoDate,
 	suspended: z.boolean(),
 	deleteAt: isoDate,
-	trialKeptUntil: isoDate,
 	deletionDays: z.number(),
 	addOns: z.record(z.enum(ADD_ON_IDS), z.number()),
 	limits: z.object({
@@ -116,6 +115,14 @@ export const setAddOnInput = z.object({
 });
 
 export type SetAddOnInput = z.infer<typeof setAddOnInput>;
+
+export const changePreviewOutput = z.object({
+	dueNow: z.number(),
+	credit: z.number(),
+	currency: z.string(),
+});
+
+export type ChangePreview = z.infer<typeof changePreviewOutput>;
 
 export const PORTAL_FLOWS = ["payment_method", "billing"] as const;
 

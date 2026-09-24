@@ -1,24 +1,43 @@
 "use client";
 
+import Add from "@carbon/icons-react/es/Add";
+import Subtract from "@carbon/icons-react/es/Subtract";
 import { Button } from "@crm/ui/components/button";
+import { Icon } from "@crm/ui/components/icon";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
-import { euro } from "@/lib/billing-format";
+import { BillingChangeDialog } from "@/components/billing-change-dialog";
+import { euro, signedEuro } from "@/lib/billing-format";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
+import type { RouterOutputs } from "@/lib/trpc/types";
+
+type AddOn = RouterOutputs["billing"]["overview"]["addOnCatalog"][number];
+
+type Step = { addOn: AddOn; from: number; to: number };
 
 export function UsageAddOns() {
 	const t = useT();
 	const locale = useLocale();
 	const trpc = useTRPC();
+	const router = useRouter();
 	const errorMessage = useErrorMessage();
 	const overview = useQuery(trpc.billing.overview.queryOptions());
+	const [step, setStep] = useState<Step | null>(null);
 
 	const set = useMutation(
 		trpc.billing.setAddOn.mutationOptions({
-			onSuccess: async () => {
+			onSuccess: async ({ url }) => {
+				if (url) {
+					window.location.assign(url);
+					return;
+				}
+				setStep(null);
 				toast.success(t("Add-ons updated."));
 				await overview.refetch();
+				router.refresh();
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
@@ -35,7 +54,7 @@ export function UsageAddOns() {
 				<p className="text-2sm text-muted-foreground">
 					{hasSubscription
 						? t(
-								"More room on top of your plan, billed with it. A change is invoiced right away.",
+								"More room on top of your plan, billed with it. You see the price before anything changes.",
 							)
 						: t("Choose a plan first. Add-ons come on top of it.")}
 				</p>
@@ -43,56 +62,114 @@ export function UsageAddOns() {
 			<ul className="flex flex-col">
 				{data.addOnCatalog.map((addOn) => {
 					const quantity = data.addOns[addOn.id] ?? 0;
+					const label = t(addOn.label);
 					return (
 						<li
 							key={addOn.id}
 							className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 border-t py-3 sm:grid-cols-[minmax(0,1fr)_--spacing(30)_auto]"
 						>
-							<span className="text-sm">
-								{t(addOn.label)}
-								{quantity > 0 ? (
-									<span
-										className="text-2sm text-muted-foreground tabular-nums"
-										data-add-on={addOn.id}
-									>
-										{" · "}
-										{t("× {count}", { count: quantity })}
-									</span>
-								) : null}
-							</span>
+							<span className="text-sm">{label}</span>
 							<span className="text-right text-sm tabular-nums">
 								{euro(addOn.monthly, locale)} {t("per month")}
 							</span>
-							<span className="col-span-full flex items-center justify-end gap-4 sm:col-span-1">
-								{quantity > 0 ? (
-									<Button
-										type="button"
-										variant="link"
-										size="sm"
-										disabled={!hasSubscription || set.isPending}
-										onClick={() =>
-											set.mutate({ addOn: addOn.id, quantity: quantity - 1 })
-										}
-									>
-										{t("Remove one")}
-									</Button>
-								) : null}
+							<span className="col-span-full flex items-center justify-end gap-3 sm:col-span-1">
 								<Button
 									type="button"
-									variant="link"
-									size="sm"
-									disabled={!hasSubscription || set.isPending}
+									variant="destructive"
+									size="icon-sm"
+									aria-label={t("One less: {label}", { label })}
+									disabled={!hasSubscription || quantity === 0 || set.isPending}
 									onClick={() =>
-										set.mutate({ addOn: addOn.id, quantity: quantity + 1 })
+										setStep({ addOn, from: quantity, to: quantity - 1 })
 									}
 								>
-									{t("Add one")}
+									<Icon icon={Subtract} />
+								</Button>
+								<span
+									className="min-w-6 text-center text-sm tabular-nums"
+									data-add-on={addOn.id}
+								>
+									{quantity}
+								</span>
+								<Button
+									type="button"
+									variant="success"
+									size="icon-sm"
+									aria-label={t("One more: {label}", { label })}
+									disabled={!hasSubscription || set.isPending}
+									onClick={() =>
+										setStep({ addOn, from: quantity, to: quantity + 1 })
+									}
+								>
+									<Icon icon={Add} />
 								</Button>
 							</span>
 						</li>
 					);
 				})}
 			</ul>
+			{step ? (
+				<AddOnConfirm
+					step={step}
+					pending={set.isPending}
+					onConfirm={() =>
+						set.mutate({ addOn: step.addOn.id, quantity: step.to })
+					}
+					onClose={() => setStep(null)}
+				/>
+			) : null}
 		</section>
+	);
+}
+
+function AddOnConfirm({
+	step,
+	pending,
+	onConfirm,
+	onClose,
+}: {
+	step: Step;
+	pending: boolean;
+	onConfirm: () => void;
+	onClose: () => void;
+}) {
+	const t = useT();
+	const locale = useLocale();
+	const trpc = useTRPC();
+	const adding = step.to > step.from;
+	const preview = useQuery({
+		...trpc.billing.previewAddOn.queryOptions({
+			addOn: step.addOn.id,
+			quantity: step.to,
+		}),
+		enabled: adding,
+	});
+	const label = t(step.addOn.label);
+	const change = (step.to - step.from) * step.addOn.monthly;
+
+	return (
+		<BillingChangeDialog
+			title={
+				adding ? t("Add {label}?", { label }) : t("Remove {label}?", { label })
+			}
+			lines={[
+				t("You then have {count}.", { count: step.to }),
+				t("Your monthly cost changes by {amount}.", {
+					amount: signedEuro(change, locale),
+				}),
+			]}
+			preview={adding ? { data: preview.data, error: preview.error } : null}
+			note={
+				adding
+					? t("It applies at once. The limit rises as soon as Stripe confirms.")
+					: t(
+							"It applies at once. The unused time is credited to your next invoice, nothing is charged now.",
+						)
+			}
+			confirmLabel={t("Confirm")}
+			pending={pending}
+			onConfirm={onConfirm}
+			onClose={onClose}
+		/>
 	);
 }

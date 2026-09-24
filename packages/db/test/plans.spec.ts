@@ -279,6 +279,15 @@ describe("the usage lines", () => {
 		}
 		const start = usageLines(NO_USAGE, PLANS.start);
 		expect(start.find((line) => line.counter === "sessions")).toMatchObject({
+			limit: 100,
+			included: true,
+		});
+		expect(start.find((line) => line.counter === "chat")).toMatchObject({
+			limit: 500,
+			included: true,
+		});
+		const hosting = usageLines(NO_USAGE, PLANS.hosting);
+		expect(hosting.find((line) => line.counter === "sessions")).toMatchObject({
 			limit: null,
 			included: true,
 		});

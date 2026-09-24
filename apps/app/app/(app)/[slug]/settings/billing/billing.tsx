@@ -28,6 +28,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { BillingChangeDialog } from "@/components/billing-change-dialog";
 import { LocalDateTime } from "@/components/local-date-time";
 import { euro, longDay } from "@/lib/billing-format";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
@@ -393,6 +394,7 @@ function PlanChoice({
 		options.find((option) => option.id === data.plan)?.id ?? null,
 	);
 	const chosenOption = options.find((option) => option.id === plan) ?? null;
+	const [confirming, setConfirming] = useState(false);
 	const losesAi =
 		data.limits.aiIncluded && chosenOption !== null && !chosenOption.aiIncluded;
 
@@ -404,6 +406,7 @@ function PlanChoice({
 					return;
 				}
 				toast.success(t("Plan changed."));
+				setConfirming(false);
 				onDone();
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
@@ -496,13 +499,22 @@ function PlanChoice({
 				<OwnKeyWarning option={chosenOption} aiKeyHref={aiKeyHref} />
 			) : null}
 
-			{data.trialKeptUntil && !hasSubscription ? (
-				<p className="text-2sm text-muted-foreground" data-trial-kept>
+			{data.state === "trial" ? (
+				<p className="text-2sm text-muted-foreground" data-trial-ends>
 					{t(
-						"You keep your trial until {date}, the first payment is on {date}.",
-						{ date: longDay(data.trialKeptUntil, locale) },
+						"Paying ends the trial. Your plan and its full limits start today.",
 					)}
 				</p>
+			) : null}
+
+			{confirming && chosenOption ? (
+				<PlanChangeConfirm
+					option={chosenOption}
+					interval={interval}
+					pending={checkout.isPending}
+					onConfirm={() => checkout.mutate({ plan: chosenOption.id, interval })}
+					onClose={() => setConfirming(false)}
+				/>
 			) : null}
 
 			<div className="flex flex-wrap items-center gap-4">
@@ -510,7 +522,9 @@ function PlanChoice({
 					type="button"
 					disabled={plan === null || unchanged || checkout.isPending}
 					onClick={() => {
-						if (plan) checkout.mutate({ plan, interval });
+						if (!plan) return;
+						if (hasSubscription) setConfirming(true);
+						else checkout.mutate({ plan, interval });
 					}}
 				>
 					{checkout.isPending ? <Spinner data-icon="inline-start" /> : null}
@@ -521,6 +535,50 @@ function PlanChoice({
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+function PlanChangeConfirm({
+	option,
+	interval,
+	pending,
+	onConfirm,
+	onClose,
+}: {
+	option: PlanOption;
+	interval: Interval;
+	pending: boolean;
+	onConfirm: () => void;
+	onClose: () => void;
+}) {
+	const t = useT();
+	const locale = useLocale();
+	const trpc = useTRPC();
+	const preview = useQuery(
+		trpc.billing.previewPlan.queryOptions({ plan: option.id, interval }),
+	);
+	const price = euro(
+		interval === "year" ? option.yearly : option.monthly,
+		locale,
+	);
+
+	return (
+		<BillingChangeDialog
+			title={t("Switch to {plan}?", { plan: t(option.label) })}
+			lines={[
+				interval === "year"
+					? t("New price: {price} per month, billed yearly.", { price })
+					: t("New price: {price} per month, billed monthly.", { price }),
+			]}
+			preview={{ data: preview.data, error: preview.error }}
+			note={t(
+				"The change applies at once. The amount already counts the unused time of your current plan.",
+			)}
+			confirmLabel={t("Switch plan")}
+			pending={pending}
+			onConfirm={onConfirm}
+			onClose={onClose}
+		/>
 	);
 }
 

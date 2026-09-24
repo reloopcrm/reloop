@@ -21,6 +21,8 @@ const buttonVariants = cva(
 				nav: "justify-start font-normal text-body-foreground hover:bg-muted hover:text-foreground aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-foreground [&_svg]:text-muted-foreground aria-[current=page]:[&_svg]:text-foreground",
 				destructive:
 					"bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklch,var(--destructive),black_12%)] active:bg-[color-mix(in_oklch,var(--destructive),black_22%)] focus-visible:ring-destructive/50",
+				success:
+					"bg-success text-success-foreground hover:bg-[color-mix(in_oklch,var(--success),black_12%)] active:bg-[color-mix(in_oklch,var(--success),black_22%)] focus-visible:ring-success/50",
 				contrast:
 					"bg-foreground text-background hover:bg-foreground/90 active:bg-foreground/80",
 				link: "text-body-foreground underline decoration-border-strong underline-offset-3 hover:text-foreground hover:decoration-foreground",

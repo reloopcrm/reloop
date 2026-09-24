@@ -10,6 +10,7 @@ import {
 	setTenantStatus,
 	suspendedBefore,
 	type Tenant,
+	trialsEndingBetween,
 } from "@crm/db/tenancy";
 import { TENANCY } from "@crm/db/tenancy-config";
 import { isHosted, runAsTenant } from "@crm/db/tenant-context";
@@ -22,9 +23,11 @@ import {
 import { ConfigService } from "@nestjs/config";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
+import { BillingMailService } from "../mail/billing-mail.service";
 
 export type SweepReport = {
 	removedPending: number;
+	reminded: number;
 	suspended: number;
 	unpaid: number;
 	deleted: number;
@@ -44,6 +47,7 @@ export class TenantSweepService
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		config: ConfigService<EnvironmentVariables, true>,
+		private readonly mails: BillingMailService,
 	) {
 		this.dumpDir = config.get("RELOOP_BACKUP_DIR", { infer: true }) ?? null;
 		this.onTimer =
@@ -89,6 +93,7 @@ export class TenantSweepService
 	async sweep(now: Date): Promise<SweepReport> {
 		const report: SweepReport = {
 			removedPending: 0,
+			reminded: 0,
 			suspended: 0,
 			unpaid: 0,
 			deleted: 0,
@@ -102,21 +107,47 @@ export class TenantSweepService
 			else report.kept += 1;
 		}
 
+		const reminderUntil = new Date(
+			now.getTime() + TENANCY.trial.reminderLeadMs,
+		);
+		for (const tenant of await trialsEndingBetween(now, reminderUntil)) {
+			if (!(await this.onTrial(tenant)) || !tenant.trialEndsAt) continue;
+			const sent = await this.mails.send(
+				tenant,
+				`trial-ending:${tenant.id}:${tenant.trialEndsAt.getTime()}`,
+				"trialEnding",
+				{ date: tenant.trialEndsAt },
+			);
+			if (sent) report.reminded += 1;
+		}
+
+		const deleteAt = new Date(now.getTime() + TENANCY.trial.suspendedTtlMs);
 		for (const tenant of await expiredTrials(now)) {
-			const plan = await runAsTenant(tenant, () => readPlan(this.db));
-			if (canonicalPlanId(plan ?? "trial") !== "trial") {
+			if (!(await this.onTrial(tenant))) {
 				report.kept += 1;
 				continue;
 			}
 			await setTenantStatus(tenant.id, "suspended");
 			report.suspended += 1;
 			this.logger.log({ message: "Trial ended", tenantId: tenant.id });
+			await this.mails.send(
+				tenant,
+				`trial-ended:${tenant.id}:${tenant.trialEndsAt?.getTime() ?? 0}`,
+				"trialEnded",
+				{ date: deleteAt },
+			);
 		}
 
 		for (const tenant of await graceExpired(now)) {
 			await setTenantStatus(tenant.id, "suspended");
 			report.unpaid += 1;
 			this.logger.log({ message: "Payment grace ended", tenantId: tenant.id });
+			await this.mails.send(
+				tenant,
+				`unpaid:${tenant.id}:${tenant.graceUntil?.getTime() ?? 0}`,
+				"unpaid",
+				{ date: deleteAt },
+			);
 		}
 
 		const dueForDeletion = new Date(
@@ -130,6 +161,11 @@ export class TenantSweepService
 		forgetTenants();
 		this.logger.log({ message: "Tenant sweep finished", ...report });
 		return report;
+	}
+
+	private async onTrial(tenant: Tenant): Promise<boolean> {
+		const plan = await runAsTenant(tenant, () => readPlan(this.db));
+		return canonicalPlanId(plan ?? "trial") === "trial";
 	}
 
 	private async remove(

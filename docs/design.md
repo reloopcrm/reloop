@@ -96,6 +96,12 @@ colours**: a usage meter that is fine, near its limit, or full; a badge that
 reports a state. Neither is ever a button fill, a border or a hover state. Lime
 stays the one action colour.
 
+One exception, asked for by the owner: a quantity stepper. `Button
+variant="success"` fills the "+" with `--success`, and `variant="destructive"`
+fills the "−" beside it. Both are round icon buttons (`size="icon-sm"`), both
+open a confirmation before anything is billed, and neither appears anywhere
+else. The usage page's add-ons are the only stepper today.
+
 `--primary` and `--destructive` hold the **same value in both themes**. A brand
 colour that changes per theme is not one colour, it is two, and both then need
 maintaining. `--primary-foreground` is `#08090a` in both themes, so the accent

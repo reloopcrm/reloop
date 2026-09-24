@@ -971,3 +971,61 @@
 		animation: alert-attention-ring 1.4s ease-out;
 	}
 }
+
+@layer utilities {
+	.floating-nav {
+		transition:
+			height 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+			padding 400ms cubic-bezier(0.34, 1.25, 0.64, 1);
+	}
+
+	.floating-nav-collapsible {
+		max-width: var(--floating-nav-w, none);
+		overflow: hidden;
+		transition:
+			max-width 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+			margin 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+			opacity 200ms ease 120ms,
+			visibility 0s linear 0s;
+	}
+
+	.floating-nav[data-compact]:not(:hover):not(:focus-within):not(
+		:has([data-state="open"])
+	) {
+		height: 2.5rem;
+		padding-left: 0.75rem;
+		padding-right: 0.25rem;
+	}
+
+	.floating-nav[data-compact]:not(:hover):not(:focus-within):not(
+			:has([data-state="open"])
+		)
+		.floating-nav-collapsible {
+		max-width: 0;
+		margin-left: 0;
+		opacity: 0;
+		visibility: hidden;
+		transition:
+			max-width 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+			margin 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+			padding 400ms cubic-bezier(0.34, 1.25, 0.64, 1),
+			opacity 120ms ease,
+			visibility 0s linear 120ms;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.floating-nav,
+		.floating-nav-collapsible,
+		.floating-nav[data-compact]:not(:hover):not(:focus-within):not(
+				:has([data-state="open"])
+			),
+		.floating-nav[data-compact]:not(:hover):not(:focus-within):not(
+				:has([data-state="open"])
+			)
+			.floating-nav-collapsible {
+			transition:
+				opacity 150ms linear,
+				visibility 150ms linear !important;
+		}
+	}
+}

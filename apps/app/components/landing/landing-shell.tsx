@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import type * as React from "react";
 import { getT } from "@/lib/i18n/server";
 import { marketingUrl, signInUrl, signUpUrl } from "@/lib/site-links";
+import { DynamicIslandNav } from "./dynamic-island-nav";
 import { LanguageSwitcher } from "./language-switcher";
 import { REPO_URL } from "./site";
 
@@ -41,13 +42,17 @@ export async function LandingShell({
 		{ href: marketingUrl("/privacy"), label: t("Privacy") },
 	];
 
+	const homeLink = (
+		<NextLink href="/" aria-label={t("Reloop CRM home")}>
+			<Wordmark className="h-5 w-auto" />
+		</NextLink>
+	);
+
 	return (
 		<div className="dark flex min-h-svh w-full flex-col items-center bg-background font-sans text-foreground">
-			<header className="sticky top-0 z-10 flex h-16 w-full shrink-0 items-center justify-center border-border border-b bg-background">
+			<header className="sticky top-0 z-10 flex h-16 w-full shrink-0 items-center justify-center border-border border-b bg-background md:hidden">
 				<nav className="flex w-full max-w-(--container-page-wide) items-center gap-4 px-6 text-2sm">
-					<NextLink href="/" aria-label={t("Reloop CRM home")}>
-						<Wordmark className="h-5 w-auto" />
-					</NextLink>
+					{homeLink}
 					<div className="grow" />
 					<div className="hidden items-center gap-4 sm:flex">
 						<Link variant="quiet" href={marketingUrl("/pricing")}>
@@ -69,6 +74,37 @@ export async function LandingShell({
 					) : null}
 				</nav>
 			</header>
+			<div
+				aria-hidden="true"
+				className="hidden w-full shrink-0 md:block md:h-20"
+			/>
+
+			<DynamicIslandNav
+				homeLink={homeLink}
+				links={
+					<>
+						<Link variant="quiet" href={marketingUrl("/pricing")}>
+							{t("Pricing")}
+						</Link>
+						<Link variant="quiet" href="/docs">
+							{t("Docs")}
+						</Link>
+						<Link variant="quiet" href={signInUrl()}>
+							{t("Sign in")}
+						</Link>
+					</>
+				}
+				cta={
+					cta ? (
+						<Button variant="outline" size="sm" asChild>
+							<NextLink href={marketingUrl("/pricing")}>
+								{t("Start free trial")}
+							</NextLink>
+						</Button>
+					) : null
+				}
+				language={<LanguageSwitcher />}
+			/>
 
 			{children}
 

@@ -1,10 +1,12 @@
+import { PLANS } from "@crm/db/plans";
+import { unpaidPurchase } from "@crm/db/tenancy";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { requireMailboxAccess } from "@/lib/session";
-import { hostedCustomer } from "@/lib/tenant";
+import { hostedCustomer, requestTenant } from "@/lib/tenant";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { aiStepFor } from "./ai-config";
 import { AiForm } from "./ai-form";
@@ -15,6 +17,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const instant = false;
+
+async function buyingOwnKey(): Promise<boolean> {
+	if (!(await hostedCustomer())) return false;
+	const tenant = await requestTenant();
+	const wanted = tenant ? unpaidPurchase(tenant) : null;
+	return wanted !== null && !PLANS[wanted.plan].aiIncluded;
+}
 
 export default async function AiSetupPage() {
 	await requireMailboxAccess();
@@ -27,7 +36,7 @@ export default async function AiSetupPage() {
 				)
 			).fixed
 		: false;
-	const step = aiStepFor({ hosted, fixed });
+	const step = aiStepFor({ hosted, fixed, buyingOwnKey: await buyingOwnKey() });
 
 	if (step === "hidden") redirect(CONNECTIONS_PATH);
 

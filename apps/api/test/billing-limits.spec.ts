@@ -12,7 +12,7 @@ import {
 	withAddOns,
 } from "@crm/db/plans";
 import { addOnLookupKey, parseLookupKey, planLookupKey } from "@crm/db/pricing";
-import { NO_BILLING, type Tenant } from "@crm/db/tenancy";
+import { NO_BILLING, type Tenant, unpaidPurchase } from "@crm/db/tenancy";
 import { TENANCY } from "@crm/db/tenancy-config";
 import type Stripe from "stripe";
 import {
@@ -204,6 +204,30 @@ describe("the page state of a tenant", () => {
 				}),
 			),
 		).toBe("past_due");
+	});
+});
+
+describe("a plan bought at sign-up but not paid yet", () => {
+	const wanted = { plan: "team", interval: "year" } as const;
+
+	it("is offered again while the workspace runs on the trial", () => {
+		expect(
+			unpaidPurchase(tenant({ billing: { ...NO_BILLING, wanted } })),
+		).toEqual(wanted);
+	});
+
+	it("is nothing once a subscription exists or the trial is over", () => {
+		expect(
+			unpaidPurchase(
+				tenant({ billing: { ...NO_BILLING, wanted, status: "active" } }),
+			),
+		).toBeNull();
+		expect(
+			unpaidPurchase(
+				tenant({ plan: "standard", billing: { ...NO_BILLING, wanted } }),
+			),
+		).toBeNull();
+		expect(unpaidPurchase(tenant())).toBeNull();
 	});
 });
 

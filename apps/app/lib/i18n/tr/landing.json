@@ -99,8 +99,6 @@
 	"per workspace per month, billed yearly": "çalışma alanı başına aylık, yıllık faturalanır",
 	"Pay yearly: €{price} a month, save {percent}%": "Yıllık öde: ayda {price} €, %{percent} tasarruf",
 	"This plan reads {included} mailboxes. Add {count} more for €{price} a month each.": "Bu paket {included} posta kutusu okur. Tanesi ayda {price} € olmak üzere {count} tane daha ekle.",
-	"Try {plan} free for {days} days": "{plan} paketini {days} gün ücretsiz dene",
-	"No card. You pay only once you choose a plan.": "Kart gerekmez. Yalnızca bir paket seçtiğinde ödersin.",
 	"Mail conversations per month": "Aylık e-posta konuşması",
 	"Mail drafts per month": "Aylık e-posta taslağı",
 	"Company research per month": "Aylık şirket araştırması",
@@ -443,5 +441,18 @@
 	"Win back customers": "Müşterileri geri kazan",
 	"How win back works": "Geri kazanım nasıl çalışır",
 	"The page on winning back customers shows how that works day to day.": "Müşterileri geri kazanma sayfası bunun günlük işte nasıl çalıştığını gösterir.",
-	"Choose a plan any time during the trial. You pay from that day, and the trial ends then. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.": "Deneme süresi boyunca istediğin zaman bir plan seç. O günden itibaren ödersin ve deneme süresi o zaman biter. Plan seçmezsen çalışma alanı duraklatılır. {deletion} gün sonra verilerini sileriz. O zamana kadar bir yönetici hâlâ plan seçip devam edebilir."
+	"Choose a plan any time during the trial. You pay from that day, and the trial ends then. Choose none and the workspace pauses. {deletion} days later we delete its data. Until then an admin can still choose a plan and carry on.": "Deneme süresi boyunca istediğin zaman bir plan seç. O günden itibaren ödersin ve deneme süresi o zaman biter. Plan seçmezsen çalışma alanı duraklatılır. {deletion} gün sonra verilerini sileriz. O zamana kadar bir yönetici hâlâ plan seçip devam edebilir.",
+	"Try it free for {days} days": "{days} gün ücretsiz dene",
+	"Buy {plan} directly": "{plan} paketini doğrudan satın al",
+	"No card.": "Kart gerekmez.",
+	"The trial includes {mailboxes} mailbox, {conversations} conversations, {drafts} drafts, no company research.": "Deneme sürümü {mailboxes} posta kutusu, {conversations} yazışma, {drafts} taslak içerir, şirket araştırması yoktur.",
+	"The trial includes {mailboxes} mailbox, {conversations} conversations, {drafts} drafts and company research.": "Deneme sürümü {mailboxes} posta kutusu, {conversations} yazışma, {drafts} taslak ve şirket araştırması içerir.",
+	"Start {plan} now": "{plan} paketini şimdi başlat",
+	"Register, pay, get the whole plan at once.": "Kaydol, öde, paketin tamamı hemen açılsın.",
+	"Try it first? {days} days free": "Önce denemek mi istersin? {days} gün ücretsiz",
+	"Your own Reloop CRM in a minute. Register now, pay in the next step, and the whole plan is active at once.": "Bir dakikada kendi Reloop CRM'in. Şimdi kaydol, sonraki adımda öde, paketin tamamı hemen açılsın.",
+	"Open workspace and pay": "Çalışma alanını aç ve öde",
+	"Plan: {plan}, billed yearly.": "Paket: {plan}, yıllık faturalandırılır.",
+	"Plan: {plan}, billed monthly.": "Paket: {plan}, aylık faturalandırılır.",
+	"Create workspace": "Çalışma alanı oluştur"
 }

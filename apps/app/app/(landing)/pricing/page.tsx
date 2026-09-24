@@ -172,6 +172,12 @@ export default async function PricingPage() {
 							trialDays: TRIAL_DAYS,
 							yearlyDiscountPercent: PRICING_EUR.yearlyDiscountPercent,
 							extraMailboxPrice: PRICING_EUR.addOns.mailbox.monthly,
+							trial: {
+								mailboxes: PLANS.trial.mailboxes,
+								conversations: PLANS.trial.insightsPerMonth,
+								drafts: PLANS.trial.draftsPerMonth,
+								companyResearch: PLANS.trial.companyResearch,
+							},
 						}}
 					/>
 				</div>

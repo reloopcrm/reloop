@@ -27,7 +27,11 @@ export const BILLING = {
 			"invoice.payment_failed",
 		],
 	},
-	return: { path: "/settings/billing", checkoutParam: "checkout" },
+	return: {
+		path: "/settings/billing",
+		checkoutParam: "checkout",
+		outcome: { success: "success", cancel: "cancel" },
+	},
 	invoices: { limit: 24 },
 	portal: { metadataKey: "reloop", metadataValue: "portal" },
 	addOns: { maxQuantity: 99 },

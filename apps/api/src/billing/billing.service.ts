@@ -474,6 +474,7 @@ export class BillingService {
 			interval: state.interval,
 			cancelAt: state.cancelAt,
 			addOns: state.addOns,
+			wanted: null,
 		};
 
 		if (state.status === "canceled") {
@@ -720,8 +721,8 @@ export class BillingService {
 			tax_id_collection: { enabled: true },
 			payment_method_types: input.interval === "year" ? ["card"] : undefined,
 			locale: "auto",
-			success_url: `${this.returnUrl()}?${BILLING.return.checkoutParam}=success`,
-			cancel_url: this.returnUrl(),
+			success_url: this.returnUrl(BILLING.return.outcome.success),
+			cancel_url: this.returnUrl(BILLING.return.outcome.cancel),
 		});
 		return { url: session.url };
 	}
@@ -1357,8 +1358,11 @@ export class BillingService {
 		return this.portalConfiguration;
 	}
 
-	private returnUrl(): string {
-		return `${appUrl}${BILLING.return.path}`;
+	private returnUrl(outcome?: string): string {
+		const path = `${appUrl}${BILLING.return.path}`;
+		return outcome
+			? `${path}?${BILLING.return.checkoutParam}=${outcome}`
+			: path;
 	}
 
 	private limitsSummary(limits: Awaited<ReturnType<typeof planLimitsOf>>) {

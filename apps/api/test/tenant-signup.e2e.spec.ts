@@ -129,13 +129,16 @@ describe("tenant signup, lookup and activation", () => {
 	});
 
 	it("registers a pending workspace, once", async () => {
-		const response = await request(server).post("/api/tenant/signup").send({
-			email: owner,
-			name: "Owner",
-			company,
-			plan: "start",
-			locale: "de",
-		});
+		const response = await request(server)
+			.post("/api/tenant/signup")
+			.send({
+				email: owner,
+				name: "Owner",
+				company,
+				plan: "start",
+				locale: "de",
+				purchase: { plan: "office", interval: "month" },
+			});
 
 		expect(response.status).toBe(201);
 		expect(response.body).toEqual({ tenantId: newId, next: "oauth" });
@@ -144,6 +147,10 @@ describe("tenant signup, lookup and activation", () => {
 		const tenant = await tenantById(newId);
 		expect(tenant?.status).toBe("pending");
 		expect(tenant?.plan).toBe("trial");
+		expect(tenant?.billing.wanted).toEqual({
+			plan: "office",
+			interval: "month",
+		});
 		expect(tenant?.allowList).toEqual([owner]);
 		expect(tenant?.dbName).toBe(dbNameOf(newId));
 

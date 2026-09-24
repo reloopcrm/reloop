@@ -16,6 +16,15 @@ describe("which AI step the onboarding shows", () => {
 		]);
 	});
 
+	it("asks for the key while a bought own-key plan waits for its webhook", () => {
+		expect(aiStepFor({ hosted: true, fixed: true, buyingOwnKey: true })).toBe(
+			"keys-only",
+		);
+		expect(aiStepFor({ hosted: true, fixed: true, buyingOwnKey: false })).toBe(
+			"hidden",
+		);
+	});
+
 	it("keeps all three choices on a single-tenant install", () => {
 		expect(aiStepFor({ hosted: false, fixed: false })).toBe("all");
 		expect(AI_STEP.choices.all).toEqual(["openai", "anthropic", "chatgpt"]);

@@ -23,6 +23,12 @@ export type PickerTerms = {
 	trialDays: number;
 	yearlyDiscountPercent: number;
 	extraMailboxPrice: number;
+	trial: {
+		mailboxes: number;
+		conversations: number;
+		drafts: number;
+		companyResearch: boolean;
+	};
 };
 
 const OWN_KEY = { no: "included", yes: "own" } as const;
@@ -181,20 +187,74 @@ export function PlanPicker({
 						)}
 					</p>
 				) : null}
-				<div className="flex flex-col gap-3">
-					<Button size="lg" asChild>
-						<NextLink href={plan.href}>
-							{t("Try {plan} free for {days} days", {
-								plan: t(plan.name),
-								days: terms.trialDays,
-							})}
-						</NextLink>
-					</Button>
-					<p className="text-pretty text-muted-foreground text-sm">
-						{t("No card. You pay only once you choose a plan.")}
-					</p>
-				</div>
+				<PlanActions
+					plan={plan}
+					interval={yearly ? "year" : "month"}
+					terms={terms}
+				/>
 			</section>
+		</div>
+	);
+}
+
+function PlanActions({
+	plan,
+	interval,
+	terms,
+}: {
+	plan: PricingPlan;
+	interval: "month" | "year";
+	terms: PickerTerms;
+}) {
+	const t = useT();
+	const format = numberFormat(useLocale());
+	const trialLine = t(
+		terms.trial.companyResearch
+			? "The trial includes {mailboxes} mailbox, {conversations} conversations, {drafts} drafts and company research."
+			: "The trial includes {mailboxes} mailbox, {conversations} conversations, {drafts} drafts, no company research.",
+		{
+			mailboxes: format.format(terms.trial.mailboxes),
+			conversations: format.format(terms.trial.conversations),
+			drafts: format.format(terms.trial.drafts),
+		},
+	);
+
+	if (plan.trialFirst) {
+		return (
+			<div className="flex flex-col gap-3">
+				<Button size="lg" asChild>
+					<NextLink href={plan.href}>
+						{t("Try it free for {days} days", { days: terms.trialDays })}
+					</NextLink>
+				</Button>
+				<Button size="lg" variant="outline" asChild>
+					<NextLink href={plan.buyHref[interval]}>
+						{t("Buy {plan} directly", { plan: t(plan.name) })}
+					</NextLink>
+				</Button>
+				<p className="text-pretty text-muted-foreground text-sm">
+					{t("No card.")} {trialLine}
+				</p>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex flex-col gap-3">
+			<Button size="lg" asChild>
+				<NextLink href={plan.buyHref[interval]}>
+					{t("Start {plan} now", { plan: t(plan.name) })}
+				</NextLink>
+			</Button>
+			<p className="text-pretty text-muted-foreground text-sm">
+				{t("Register, pay, get the whole plan at once.")}
+			</p>
+			<Button variant="link" className="self-start" asChild>
+				<NextLink href={plan.href}>
+					{t("Try it first? {days} days free", { days: terms.trialDays })}
+				</NextLink>
+			</Button>
+			<p className="text-pretty text-muted-foreground text-sm">{trialLine}</p>
 		</div>
 	);
 }

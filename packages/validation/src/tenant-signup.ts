@@ -1,5 +1,6 @@
 import { LOCALES } from "@crm/db/locale";
 import { PLAN_IDS } from "@crm/db/plans";
+import { planPurchase } from "@crm/db/pricing";
 import { z } from "zod";
 
 const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
@@ -38,6 +39,7 @@ export const tenantSignupInput = z.object({
 	plan: z.enum(PLAN_IDS),
 	locale: z.enum(LOCALES),
 	password: password.optional(),
+	purchase: planPurchase.optional(),
 });
 
 export type TenantSignupInput = z.infer<typeof tenantSignupInput>;

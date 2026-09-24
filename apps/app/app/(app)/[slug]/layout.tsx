@@ -1,10 +1,13 @@
-import { limitsOf } from "@crm/db/plans";
+import { isWorkspaceAdmin } from "@crm/auth";
+import { limitsOf, PLANS } from "@crm/db/plans";
+import { unpaidPurchase } from "@crm/db/tenancy";
 import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AppHeader, AppHeaderFallback } from "@/components/app-header";
 import { AppSidebar, AppSidebarFallback } from "@/components/app-sidebar";
+import { CheckoutBanner } from "@/components/checkout-banner";
 import { QuickSwitcher } from "@/components/crm/quick-switcher";
 import { RecordSheetHost } from "@/components/crm/record-sheet/record-sheet-host";
 import { DemoTour } from "@/components/demo/demo-tour";
@@ -50,6 +53,10 @@ export default function AppLayout({
 						<UpdateNotice />
 					</Suspense>
 
+					<Suspense fallback={null}>
+						<CheckoutNotice />
+					</Suspense>
+
 					<SampleDataBanner />
 
 					<div className="flex min-h-0 flex-1">{children}</div>
@@ -82,6 +89,23 @@ async function UpdateNotice() {
 	if ((await workspaceRole(session.user.id)) !== "owner") return null;
 
 	return <UpdateBanner />;
+}
+
+async function CheckoutNotice() {
+	await connection();
+	if (!(await hostedCustomer())) return null;
+	const tenant = await requestTenant();
+	const wanted = tenant ? unpaidPurchase(tenant) : null;
+	if (!wanted) return null;
+
+	const session = await requireSession();
+	if (!isWorkspaceAdmin(await workspaceRole(session.user.id))) return null;
+
+	return (
+		<div className="px-4 pt-4 md:px-(--spacing-page-inline) md:pt-(--spacing-page-top)">
+			<CheckoutBanner wanted={wanted} label={PLANS[wanted.plan].label} />
+		</div>
+	);
 }
 
 async function loadDealStages() {

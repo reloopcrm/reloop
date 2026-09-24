@@ -24,7 +24,11 @@ export const AI_STEP = {
 	placeholders: Record<Exclude<AiChoice, "chatgpt">, string>;
 };
 
-export function aiStepFor(input: { hosted: boolean; fixed: boolean }): AiStep {
-	if (input.fixed) return "hidden";
+export function aiStepFor(input: {
+	hosted: boolean;
+	fixed: boolean;
+	buyingOwnKey?: boolean;
+}): AiStep {
+	if (input.fixed && !input.buyingOwnKey) return "hidden";
 	return input.hosted ? "keys-only" : "all";
 }

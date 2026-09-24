@@ -340,5 +340,6 @@
 	"You then have {count}.": "届时你将拥有 {count} 个。",
 	"Your monthly cost changes by {amount}.": "你的每月费用变化 {amount}。",
 	"It applies at once. The limit rises as soon as Stripe confirms.": "立即生效。Stripe 确认后额度即提高。",
-	"It applies at once. The unused time is credited to your next invoice, nothing is charged now.": "立即生效。未使用的时间将抵扣你的下一张发票，现在不收取任何费用。"
+	"It applies at once. The unused time is credited to your next invoice, nothing is charged now.": "立即生效。未使用的时间将抵扣你的下一张发票，现在不收取任何费用。",
+	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "Stripe 拒绝了此更改。未收取任何费用。请重试，或联系支持。"
 }

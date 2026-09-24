@@ -101,13 +101,76 @@ function cardOnSubscription(): Stripe.PaymentMethod {
 	} as unknown as Stripe.PaymentMethod;
 }
 
+const RUN = crypto.randomUUID().slice(0, 8);
+const createdCustomers: Stripe.CustomerCreateParams[] = [];
+const updatedCustomers: {
+	id: string;
+	params: Stripe.CustomerUpdateParams;
+}[] = [];
+const previews: Stripe.InvoiceCreatePreviewParams[] = [];
+const priceLookups: string[] = [];
+
+function stubStripe(
+	stripe: Stripe,
+	live: {
+		current: () => Stripe.Subscription;
+		update: (params: Stripe.SubscriptionUpdateParams) => Stripe.Subscription;
+	},
+) {
+	return [
+		spyOn(stripe.subscriptions, "retrieve").mockImplementation((async () =>
+			live.current()) as never),
+		spyOn(stripe.customers, "create").mockImplementation((async (
+			params: Stripe.CustomerCreateParams,
+		) => {
+			createdCustomers.push(params);
+			return { id: "cus_spec" };
+		}) as never),
+		spyOn(stripe.customers, "update").mockImplementation((async (
+			id: string,
+			params: Stripe.CustomerUpdateParams,
+		) => {
+			updatedCustomers.push({ id, params });
+			return { id };
+		}) as never),
+		spyOn(stripe.customers, "retrieve").mockImplementation((async () => ({
+			id: "cus_spec",
+			object: "customer",
+			invoice_settings: { default_payment_method: null },
+		})) as never),
+		spyOn(stripe.invoices, "list").mockImplementation((async () => ({
+			data: [],
+		})) as never),
+		spyOn(stripe.invoices, "retrieve").mockImplementation((async (id: string) =>
+			invoiceFixture(id, live.current().id)) as never),
+		spyOn(stripe.invoices, "createPreview").mockImplementation((async (
+			params: Stripe.InvoiceCreatePreviewParams,
+		) => {
+			previews.push(params);
+			return { amount_due: 7_000, total: 7_000, currency: "eur" };
+		}) as never),
+		spyOn(stripe.prices, "list").mockImplementation((async (
+			params: Stripe.PriceListParams,
+		) => {
+			const key = params.lookup_keys?.[0] ?? "";
+			priceLookups.push(key);
+			return { data: [{ id: `price_${key}` }] };
+		}) as never),
+		spyOn(stripe.subscriptions, "update").mockImplementation((async (
+			_id: string,
+			params: Stripe.SubscriptionUpdateParams,
+		) => live.update(params)) as never),
+	];
+}
+
+const saved = {
+	registry: process.env.RELOOP_REGISTRY_URL,
+	template: process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE,
+	key: process.env.STRIPE_SECRET_KEY,
+	secret: process.env.STRIPE_WEBHOOK_SECRET,
+};
+
 describe("the Stripe webhook is the source of truth for the plan", () => {
-	const saved = {
-		registry: process.env.RELOOP_REGISTRY_URL,
-		template: process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE,
-		key: process.env.STRIPE_SECRET_KEY,
-		secret: process.env.STRIPE_WEBHOOK_SECRET,
-	};
 	const spies: { mockRestore: () => void }[] = [];
 	let app: Awaited<ReturnType<typeof import("../src/create-app").createApp>>;
 	let server: ReturnType<typeof app.getHttpServer>;
@@ -118,15 +181,8 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 	let billing: BillingService;
 	let mailer: MailService;
 	let next: Stripe.Subscription | null = null;
-	const createdCustomers: Stripe.CustomerCreateParams[] = [];
-	const updatedCustomers: {
-		id: string;
-		params: Stripe.CustomerUpdateParams;
-	}[] = [];
-	const previews: Stripe.InvoiceCreatePreviewParams[] = [];
+	let refuseNext = false;
 	const updates: Stripe.SubscriptionUpdateParams[] = [];
-	const priceLookups: string[] = [];
-	const RUN = crypto.randomUUID().slice(0, 8);
 
 	const tenantCookie = () =>
 		`${TENANT_COOKIE_NAME}=${tenantCookieValue(a.id, process.env.BETTER_AUTH_SECRET ?? "")}`;
@@ -143,12 +199,13 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		type: string,
 		object: Stripe.Subscription | Stripe.Invoice | Stripe.Checkout.Session,
 		secret = SECRET,
+		previous?: { items: { data: ReturnType<typeof item>[] } },
 	) => {
 		const payload = JSON.stringify({
 			id: `evt_${type}`,
 			object: "event",
 			type,
-			data: { object },
+			data: previous ? { object, previous_attributes: previous } : { object },
 		});
 		const header = await stripe.webhooks.generateTestHeaderStringAsync({
 			payload,
@@ -220,50 +277,17 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		current = subscriptionFixture(a.id);
 		mailer = app.get(MailService);
 		spies.push(
-			spyOn(stripe.subscriptions, "retrieve").mockImplementation(
-				(async () => current) as never,
-			),
-			spyOn(stripe.customers, "create").mockImplementation((async (
-				params: Stripe.CustomerCreateParams,
-			) => {
-				createdCustomers.push(params);
-				return { id: "cus_spec" };
-			}) as never),
-			spyOn(stripe.customers, "update").mockImplementation((async (
-				id: string,
-				params: Stripe.CustomerUpdateParams,
-			) => {
-				updatedCustomers.push({ id, params });
-				return { id };
-			}) as never),
-			spyOn(stripe.customers, "retrieve").mockImplementation((async () => ({
-				id: "cus_spec",
-				object: "customer",
-				invoice_settings: { default_payment_method: null },
-			})) as never),
-			spyOn(stripe.invoices, "list").mockImplementation((async () => ({
-				data: [],
-			})) as never),
-			spyOn(stripe.invoices, "createPreview").mockImplementation((async (
-				params: Stripe.InvoiceCreatePreviewParams,
-			) => {
-				previews.push(params);
-				return { amount_due: 7_000, total: 7_000, currency: "eur" };
-			}) as never),
-			spyOn(stripe.prices, "list").mockImplementation((async (
-				params: Stripe.PriceListParams,
-			) => {
-				const key = params.lookup_keys?.[0] ?? "";
-				priceLookups.push(key);
-				return { data: [{ id: `price_${key}` }] };
-			}) as never),
-			spyOn(stripe.subscriptions, "update").mockImplementation((async (
-				_id: string,
-				params: Stripe.SubscriptionUpdateParams,
-			) => {
-				updates.push(params);
-				return next ?? current;
-			}) as never),
+			...stubStripe(stripe, {
+				current: () => current,
+				update: (params) => {
+					if (refuseNext) {
+						refuseNext = false;
+						throw new Error("This price cannot be added to this subscription.");
+					}
+					updates.push(params);
+					return next ?? current;
+				},
+			}),
 		);
 	}, PREPARE_TIMEOUT_MS);
 
@@ -661,6 +685,24 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 				items: [{ id: `si_${addOnLookupKey("drafts", "month")}`, quantity: 1 }],
 				proration_behavior: "create_prorations",
 			});
+
+			const logged = spyOn(Logger.prototype, "error");
+			refuseNext = true;
+			try {
+				await expect(
+					onTenant(() =>
+						billing.setAddOn(OWNER.id, { addOn: "mailbox", quantity: 1 }),
+					),
+				).rejects.toThrow("Stripe refused this change. Nothing was charged.");
+				expect(
+					logged.mock.calls.some(([entry]) =>
+						JSON.stringify(entry).includes("This price cannot be added"),
+					),
+				).toBe(true);
+			} finally {
+				logged.mockRestore();
+				refuseNext = false;
+			}
 		} finally {
 			next = null;
 			current = subscriptionFixture(a.id);
@@ -689,9 +731,13 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			expect((await post(type, object)).status).toBe(200);
 			expect((await post(type, object)).status).toBe(200);
 		};
+		const standard = item(planLookupKey("standard", "month"));
+		const withDrafts = (quantity: number) => ({
+			data: [standard, item(addOnLookupKey("drafts", "month"), quantity)],
+		});
 		try {
-			current = fixture();
-			await twice("invoice.paid", invoice);
+			current = fixture({ latest_invoice: invoice.id });
+			await twice("customer.subscription.created", current);
 			expect(sent.length).toBe(1);
 			expect(sent[0]?.subject).toContain("Standard");
 			expect(sent[0]?.html).toContain(
@@ -700,22 +746,55 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			expect(sent[0]?.html).toContain(
 				`https://invoice.stripe.test/${invoice.id}.pdf`,
 			);
+			await twice("invoice.paid", invoice);
+			expect(sent.length).toBe(1);
+
+			for (const quantity of [1, 2, 3, 4, 5]) {
+				current = fixture({
+					items: withDrafts(quantity),
+					latest_invoice: `in_addon_${RUN}_${quantity}`,
+				} as never);
+				const response = await post(
+					"customer.subscription.updated",
+					current,
+					SECRET,
+					{ items: withDrafts(quantity - 1) },
+				);
+				expect(response.status).toBe(200);
+				await post(
+					"invoice.paid",
+					invoiceFixture(`in_addon_${RUN}_${quantity}`, subscriptionId),
+				);
+			}
+			expect(sent.length).toBe(1);
+
+			current = fixture({
+				items: { data: [item(planLookupKey("plus", "month"))] },
+				latest_invoice: `in_plus_${RUN}`,
+			} as never);
+			for (const _round of [1, 2]) {
+				await post("customer.subscription.updated", current, SECRET, {
+					items: withDrafts(5),
+				});
+			}
+			expect(sent.length).toBe(2);
+			expect(sent[1]?.subject).toContain("Plus");
 
 			current = fixture({ status: "past_due" });
 			await twice("invoice.payment_failed", invoice);
-			expect(sent.length).toBe(2);
+			expect(sent.length).toBe(3);
 			const grace = (await tenantById(a.id))?.graceUntil;
 			expect(grace).not.toBeNull();
-			expect(sent[1]?.text).toContain("79");
+			expect(sent[2]?.text).toContain("79");
 
 			current = fixture({ cancel_at: PERIOD_END, cancel_at_period_end: true });
 			await twice("customer.subscription.updated", current);
-			expect(sent.length).toBe(3);
+			expect(sent.length).toBe(4);
 
 			current = fixture({ status: "canceled" });
 			await twice("customer.subscription.deleted", current);
-			expect(sent.length).toBe(4);
-			expect(new Set(sent.map((mail) => mail.subject)).size).toBe(4);
+			expect(sent.length).toBe(5);
+			expect(new Set(sent.map((mail) => mail.subject)).size).toBe(5);
 		} finally {
 			send.mockRestore();
 			Reflect.deleteProperty(mailer, "configured");
@@ -730,19 +809,13 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 
 	it("sends nothing and throws nothing without mail settings", async () => {
 		const send = spyOn(mailer, "send");
-		try {
-			expect(mailer.configured).toBe(false);
-			current = subscriptionFixture(a.id);
-			const response = await post(
-				"invoice.paid",
-				invoiceFixture(`in_quiet_${RUN}`, current.id),
-			);
-			expect(response.status).toBe(200);
-			expect(send).not.toHaveBeenCalled();
-		} finally {
-			send.mockRestore();
-			await reset();
-		}
+		current = subscriptionFixture(a.id, { latest_invoice: `in_${RUN}` });
+		expect(mailer.configured).toBe(false);
+		const created = await post("customer.subscription.created", current);
+		expect(created.status).toBe(200);
+		expect(send).not.toHaveBeenCalled();
+		send.mockRestore();
+		await reset();
 	});
 
 	it("reminds a trial three days before it ends, once", async () => {

@@ -605,7 +605,9 @@ hosted invoice URL and the page sends the owner there. A smaller add-on count
 uses `create_prorations`, so the unused time is a credit on the next invoice and
 nothing is charged now. `billing.previewPlan` and `billing.previewAddOn` run the
 same change through `invoices.createPreview`, so the confirmation shows the
-amount Stripe will charge. A yearly plan needs a card, read from the
+amount Stripe will charge. A Stripe error on a preview or an update is logged
+with Stripe's own message and reaches the page as "Stripe refused this change",
+never as a bare 500. A yearly plan needs a card, read from the
 subscription's `default_payment_method` first and the customer's default second.
 **Checkout ends the trial.** The session carries no `trial_end`, so billing
 starts the day a trialing workspace pays. The customer is created before the
@@ -617,8 +619,10 @@ it, and a customer created before this rule catches up on its next update.
 
 **Billing mails come from `BillingMailService`** (`mail/billing-mail.service.ts`),
 through the same Resend sender as the sign-up code, in the workspace language, to
-the oldest owner. The webhook sends one for a paid invoice, a failed payment, a
-scheduled end and an ended plan; the tenant sweep sends the trial reminder
+the oldest owner. The webhook sends "plan active" for a new subscription and for
+an update whose `previous_attributes` show a different plan or interval, never
+for an add-on proration or a renewal, which Stripe's own receipt covers. It also
+sends one for a failed payment, a scheduled end and an ended plan; the tenant sweep sends the trial reminder
 (`TENANCY.trial.reminderLeadMs` before the end), the trial end and the pause
 after the payment grace. Each mail claims a key in the registry's `billing_mail`
 table first (`paid:<invoice>`, `ending:<subscription>:<cancel_at>` and so on), so

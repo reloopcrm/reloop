@@ -42,6 +42,7 @@ import {
 import {
 	BadRequestException,
 	ForbiddenException,
+	HttpException,
 	Inject,
 	Injectable,
 	Logger,
@@ -490,9 +491,11 @@ export class BillingService {
 		const tenant = await this.freshTenant();
 		await this.assertPlanFits(tenant, input);
 		const subscription = await this.requireSubscription(tenant);
-		return this.preview(
-			subscription,
-			await this.planChange(tenant, subscription, input),
+		return this.stripeChange(tenant, async () =>
+			this.preview(
+				subscription,
+				await this.planChange(tenant, subscription, input),
+			),
 		);
 	}
 
@@ -511,7 +514,7 @@ export class BillingService {
 				currency: PRICING_EUR.currency.toUpperCase(),
 			};
 		}
-		return this.preview(subscription, change);
+		return this.stripeChange(tenant, () => this.preview(subscription, change));
 	}
 
 	async checkout(
@@ -526,15 +529,17 @@ export class BillingService {
 
 		if (subscription) {
 			const change = await this.planChange(tenant, subscription, input);
-			if (subscription.cancel_at_period_end) {
-				await stripe.subscriptions.update(subscription.id, {
-					cancel_at_period_end: false,
+			const updated = await this.stripeChange(tenant, async () => {
+				if (subscription.cancel_at_period_end) {
+					await stripe.subscriptions.update(subscription.id, {
+						cancel_at_period_end: false,
+					});
+				}
+				return stripe.subscriptions.update(subscription.id, {
+					...change,
+					payment_behavior: "pending_if_incomplete",
+					expand: ["latest_invoice"],
 				});
-			}
-			const updated = await stripe.subscriptions.update(subscription.id, {
-				...change,
-				payment_behavior: "pending_if_incomplete",
-				expand: ["latest_invoice"],
 			});
 			await this.applySubscription(tenant, updated);
 			return { url: pendingPaymentUrl(updated) };
@@ -573,15 +578,17 @@ export class BillingService {
 		const change = await this.addOnChange(subscription, input);
 		if (!change) return { url: null };
 
-		const updated = await stripe.subscriptions.update(
-			subscription.id,
-			change.proration_behavior === "always_invoice"
-				? {
-						...change,
-						payment_behavior: "pending_if_incomplete",
-						expand: ["latest_invoice"],
-					}
-				: change,
+		const updated = await this.stripeChange(tenant, () =>
+			stripe.subscriptions.update(
+				subscription.id,
+				change.proration_behavior === "always_invoice"
+					? {
+							...change,
+							payment_behavior: "pending_if_incomplete",
+							expand: ["latest_invoice"],
+						}
+					: change,
+			),
 		);
 		await this.applySubscription(tenant, updated);
 		return { url: pendingPaymentUrl(updated) };
@@ -792,15 +799,6 @@ export class BillingService {
 		const plan = state.plan ? PLANS[state.plan].label : null;
 
 		switch (event.type) {
-			case "invoice.paid": {
-				const invoice = stripeInvoice.parse(event.data.object);
-				await this.mails.send(tenant, `paid:${invoice.id}`, "paid", {
-					plan,
-					invoiceUrl: invoice.hosted_invoice_url,
-					pdfUrl: invoice.invoice_pdf,
-				});
-				return;
-			}
 			case "invoice.payment_failed": {
 				const invoice = stripeInvoice.parse(event.data.object);
 				await this.mails.send(
@@ -824,7 +822,14 @@ export class BillingService {
 				return;
 			case "customer.subscription.created":
 			case "customer.subscription.updated":
-				if (state.status !== "active" || !state.cancelAt) return;
+				if (state.status !== "active") return;
+				if (
+					event.type === "customer.subscription.created" ||
+					planChanged(parsePreviousItems(event), state)
+				) {
+					await this.mailPlanActive(tenant, subscription, plan);
+				}
+				if (!state.cancelAt) return;
 				await this.mails.send(
 					tenant,
 					`ending:${subscription.id}:${state.cancelAt.getTime()}`,
@@ -838,6 +843,62 @@ export class BillingService {
 				return;
 			default:
 				return;
+		}
+	}
+
+	private async stripeChange<T>(
+		tenant: Tenant,
+		call: () => Promise<T>,
+	): Promise<T> {
+		try {
+			return await call();
+		} catch (error) {
+			if (error instanceof HttpException) throw error;
+			this.logger.error(
+				{
+					message: "Stripe refused the change",
+					tenantId: tenant.id,
+					stripe: error instanceof Error ? error.message : String(error),
+				},
+				error instanceof Error ? error.stack : String(error),
+			);
+			throw new BadRequestException(
+				"Stripe refused this change. Nothing was charged. Try again, or contact support.",
+			);
+		}
+	}
+
+	private async mailPlanActive(
+		tenant: Tenant,
+		subscription: Stripe.Subscription,
+		plan: string | null,
+	): Promise<void> {
+		const invoiceId = idOf(subscription.latest_invoice);
+		const invoice = invoiceId ? await this.invoiceLinks(invoiceId) : null;
+		const state = subscriptionState(subscription);
+		await this.mails.send(
+			tenant,
+			`active:${subscription.id}:${invoiceId ?? `${state.plan}:${state.interval}`}`,
+			"paid",
+			{
+				plan,
+				invoiceUrl: invoice?.hosted_invoice_url,
+				pdfUrl: invoice?.invoice_pdf,
+			},
+		);
+	}
+
+	private async invoiceLinks(id: string): Promise<StripeInvoice | null> {
+		try {
+			return stripeInvoice.parse(
+				await this.requireStripe().invoices.retrieve(id),
+			);
+		} catch (error) {
+			this.logger.error(
+				{ message: "Stripe invoice was not read", invoiceId: id },
+				error instanceof Error ? error.stack : String(error),
+			);
+			return null;
 		}
 	}
 
@@ -1052,6 +1113,40 @@ function amountOf(invoice: StripeInvoice): MailAmount {
 		value: invoice.amount_due / BILLING.stripe.centsPerUnit,
 		currency: invoice.currency.toUpperCase(),
 	};
+}
+
+const previousItems = z
+	.object({
+		items: z
+			.object({
+				data: z.array(
+					z.object({
+						price: z.object({ lookup_key: z.string().nullable() }),
+					}),
+				),
+			})
+			.optional(),
+	})
+	.optional();
+
+export type PreviousItems = z.infer<typeof previousItems>;
+
+export function parsePreviousItems(event: Stripe.Event): PreviousItems {
+	const parsed = previousItems.safeParse(event.data.previous_attributes);
+	return parsed.success ? parsed.data : undefined;
+}
+
+export function planChanged(
+	previous: PreviousItems,
+	state: Pick<SubscriptionState, "plan" | "interval">,
+): boolean {
+	const items = previous?.items;
+	if (!items) return false;
+	const before = items.data
+		.map((item) => parseLookupKey(item.price.lookup_key))
+		.find((key) => key?.kind === "plan");
+	if (before?.kind !== "plan") return false;
+	return before.plan !== state.plan || before.interval !== state.interval;
 }
 
 function intervalOf(subscription: Stripe.Subscription): BillingInterval {

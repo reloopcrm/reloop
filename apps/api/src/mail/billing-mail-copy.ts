@@ -47,10 +47,7 @@ const COPY = {
 		kinds: {
 			paid: {
 				subject: "Your Reloop plan {plan} is active",
-				lines: [
-					"Thank you. Your plan {plan} is active.",
-					"Your invoice is linked below.",
-				],
+				lines: ["Thank you. Your plan {plan} is active."],
 			},
 			failed: {
 				subject: "Reloop: a payment failed",
@@ -112,10 +109,7 @@ const COPY = {
 		kinds: {
 			paid: {
 				subject: "Dein Reloop Tarif {plan} ist aktiv",
-				lines: [
-					"Danke. Dein Tarif {plan} ist aktiv.",
-					"Deine Rechnung findest du unten.",
-				],
+				lines: ["Danke. Dein Tarif {plan} ist aktiv."],
 			},
 			failed: {
 				subject: "Reloop: Eine Zahlung ist fehlgeschlagen",
@@ -177,10 +171,7 @@ const COPY = {
 		kinds: {
 			paid: {
 				subject: "Tu plan de Reloop {plan} está activo",
-				lines: [
-					"Gracias. Tu plan {plan} está activo.",
-					"Abajo tienes el enlace a tu factura.",
-				],
+				lines: ["Gracias. Tu plan {plan} está activo."],
 			},
 			failed: {
 				subject: "Reloop: un pago ha fallado",
@@ -242,10 +233,7 @@ const COPY = {
 		kinds: {
 			paid: {
 				subject: "Ton forfait Reloop {plan} est actif",
-				lines: [
-					"Merci. Ton forfait {plan} est actif.",
-					"Le lien vers ta facture est ci-dessous.",
-				],
+				lines: ["Merci. Ton forfait {plan} est actif."],
 			},
 			failed: {
 				subject: "Reloop : un paiement a échoué",
@@ -307,10 +295,7 @@ const COPY = {
 		kinds: {
 			paid: {
 				subject: "Seu plano Reloop {plan} está ativo",
-				lines: [
-					"Obrigado. Seu plano {plan} está ativo.",
-					"O link da sua fatura está abaixo.",
-				],
+				lines: ["Obrigado. Seu plano {plan} está ativo."],
 			},
 			failed: {
 				subject: "Reloop: um pagamento falhou",
@@ -372,10 +357,7 @@ const COPY = {
 		kinds: {
 			paid: {
 				subject: "Reloop planın {plan} etkin",
-				lines: [
-					"Teşekkürler. {plan} planın etkin.",
-					"Faturanın bağlantısı aşağıda.",
-				],
+				lines: ["Teşekkürler. {plan} planın etkin."],
 			},
 			failed: {
 				subject: "Reloop: bir ödeme başarısız oldu",
@@ -437,7 +419,7 @@ const COPY = {
 		kinds: {
 			paid: {
 				subject: "你的 Reloop 套餐 {plan} 已生效",
-				lines: ["谢谢。你的套餐 {plan} 已生效。", "发票链接在下方。"],
+				lines: ["谢谢。你的套餐 {plan} 已生效。"],
 			},
 			failed: {
 				subject: "Reloop：一笔付款失败",

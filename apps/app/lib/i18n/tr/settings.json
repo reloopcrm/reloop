@@ -340,5 +340,6 @@
 	"You then have {count}.": "O zaman {count} tane olur.",
 	"Your monthly cost changes by {amount}.": "Aylık maliyetin {amount} değişir.",
 	"It applies at once. The limit rises as soon as Stripe confirms.": "Hemen geçerli olur. Stripe onaylar onaylamaz sınır yükselir.",
-	"It applies at once. The unused time is credited to your next invoice, nothing is charged now.": "Hemen geçerli olur. Kullanılmayan süre sonraki faturana alacak yazılır, şimdi bir şey tahsil edilmez."
+	"It applies at once. The unused time is credited to your next invoice, nothing is charged now.": "Hemen geçerli olur. Kullanılmayan süre sonraki faturana alacak yazılır, şimdi bir şey tahsil edilmez.",
+	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "Stripe bu değişikliği reddetti. Hiçbir ücret alınmadı. Tekrar dene ya da destekle iletişime geç."
 }

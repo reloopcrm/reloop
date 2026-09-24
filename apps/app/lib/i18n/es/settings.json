@@ -340,5 +340,6 @@
 	"You then have {count}.": "Entonces tienes {count}.",
 	"Your monthly cost changes by {amount}.": "Tu coste mensual cambia en {amount}.",
 	"It applies at once. The limit rises as soon as Stripe confirms.": "Se aplica al instante. El límite sube en cuanto Stripe lo confirma.",
-	"It applies at once. The unused time is credited to your next invoice, nothing is charged now.": "Se aplica al instante. El tiempo no usado se abona en tu próxima factura, ahora no se cobra nada."
+	"It applies at once. The unused time is credited to your next invoice, nothing is charged now.": "Se aplica al instante. El tiempo no usado se abona en tu próxima factura, ahora no se cobra nada.",
+	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "Stripe rechazó este cambio. No se cobró nada. Inténtalo de nuevo o contacta con soporte."
 }

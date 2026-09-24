@@ -21,6 +21,7 @@ import {
 	deleteAtOf,
 	paymentMethodOf,
 	pendingPaymentUrl,
+	planChanged,
 	planChangeExcess,
 	subscriptionState,
 } from "../src/billing/billing.service";
@@ -280,6 +281,36 @@ describe("the payment method comes from the subscription first", () => {
 			paymentMethodOf({ default_payment_method: "pm_not_expanded" }, null),
 		).toBeNull();
 		expect(paymentMethodOf(null, null)).toBeNull();
+	});
+});
+
+describe("the plan active mail follows a plan or interval change only", () => {
+	const previous = (...keys: string[]) => ({
+		items: { data: keys.map((key) => ({ price: { lookup_key: key } })) },
+	});
+	const now = { plan: "standard", interval: "month" } as const;
+
+	it("fires on a new plan or a new interval", () => {
+		expect(planChanged(previous(planLookupKey("start", "month")), now)).toBe(
+			true,
+		);
+		expect(planChanged(previous(planLookupKey("standard", "year")), now)).toBe(
+			true,
+		);
+	});
+
+	it("stays quiet for add-ons, renewals and unrelated updates", () => {
+		expect(
+			planChanged(
+				previous(
+					planLookupKey("standard", "month"),
+					addOnLookupKey("drafts", "month"),
+				),
+				now,
+			),
+		).toBe(false);
+		expect(planChanged({}, now)).toBe(false);
+		expect(planChanged(undefined, now)).toBe(false);
 	});
 });
 

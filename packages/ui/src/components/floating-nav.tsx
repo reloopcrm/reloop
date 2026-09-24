@@ -2,20 +2,17 @@ import { cn } from "@crm/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
-const floatingNavCollapsibleVariants = cva(
-	"floating-nav-collapsible flex min-w-0 items-center gap-4 whitespace-nowrap",
-	{
-		variants: {
-			variant: {
-				default: "ml-5",
-				tail: "ml-2",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
+const floatingNavCollapsibleVariants = cva("floating-nav-collapsible grid min-w-0", {
+	variants: {
+		variant: {
+			default: "ml-5",
+			tail: "ml-4",
 		},
 	},
-);
+	defaultVariants: {
+		variant: "default",
+	},
+});
 
 const FloatingNav = React.forwardRef<
 	HTMLDivElement,
@@ -34,17 +31,26 @@ const FloatingNav = React.forwardRef<
 ));
 FloatingNav.displayName = "FloatingNav";
 
-const FloatingNavCollapsible = React.forwardRef<
-	HTMLDivElement,
-	React.ComponentProps<"div"> & VariantProps<typeof floatingNavCollapsibleVariants>
->(({ className, variant, ...props }, ref) => (
-	<div
-		ref={ref}
-		data-slot="floating-nav-collapsible"
-		className={cn(floatingNavCollapsibleVariants({ variant, className }))}
-		{...props}
-	/>
-));
-FloatingNavCollapsible.displayName = "FloatingNavCollapsible";
+function FloatingNavCollapsible({
+	className,
+	variant,
+	...props
+}: React.ComponentProps<"div"> &
+	VariantProps<typeof floatingNavCollapsibleVariants>) {
+	return (
+		<div
+			data-slot="floating-nav-collapsible"
+			className={floatingNavCollapsibleVariants({ variant })}
+		>
+			<div
+				className={cn(
+					"flex min-w-0 items-center gap-4 overflow-hidden whitespace-nowrap",
+					className,
+				)}
+				{...props}
+			/>
+		</div>
+	);
+}
 
 export { FloatingNav, FloatingNavCollapsible };

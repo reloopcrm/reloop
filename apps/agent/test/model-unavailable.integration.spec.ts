@@ -14,7 +14,7 @@ import { SETTINGS_ID, writeAgentProvider } from "@crm/db/settings";
 import {
 	forgetProviderCache,
 	modelUnavailable,
-	NO_PROVIDER_MESSAGE,
+	noProviderMessage,
 } from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
 import { type FakeCodexHome, fakeCodexHome } from "./codex-home";
@@ -125,7 +125,7 @@ describe("what a run is told when no model can serve it", () => {
 
 		const said = await modelUnavailable();
 
-		expect(said).toBe(NO_PROVIDER_MESSAGE);
+		expect(said).toBe(noProviderMessage());
 		expect(said).toContain("Settings, AI");
 		expect(said).not.toContain("used up its window");
 	});

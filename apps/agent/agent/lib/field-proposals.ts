@@ -14,6 +14,7 @@ import {
 } from "@crm/validation/field-proposal";
 import { streamText } from "ai";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { language, say } from "./language";
 import { directModel, modelUnavailable } from "./model";
 
@@ -192,17 +193,11 @@ export async function runFieldProposals(
 	const room = roomFor(fields, offered);
 
 	if (FIELD_ENTITIES.every((entity) => room[entity] === 0)) {
-		return say(
-			`Every record type already holds ${FIELD_LIMITS.perEntity} fields or has that many waiting. I propose nothing until one is archived or dismissed.`,
-			`Jeder Datensatztyp hat bereits ${FIELD_LIMITS.perEntity} Felder oder so viele offene Vorschläge. Ich schlage nichts vor, bis eines archiviert oder abgelehnt ist.`,
-		);
+		return say(COPY.fields.full(FIELD_LIMITS.perEntity));
 	}
 
 	if (!transcript.trim()) {
-		return say(
-			"There is no mail to read yet, so I propose no fields.",
-			"Es gibt noch keine Mails zu lesen, deshalb schlage ich keine Felder vor.",
-		);
+		return say(COPY.fields.noMail);
 	}
 
 	const model = await buildModel("reading", "field-proposal");
@@ -256,16 +251,11 @@ export async function runFieldProposals(
 			await offerFields(chosen);
 
 			if (chosen.length === 0) {
-				return say(
-					`Nothing in the mail repeats often enough to earn a field. ${parsed.data.note}`,
-					`Nichts in den Mails wiederholt sich oft genug für ein eigenes Feld. ${parsed.data.note}`,
-				);
+				return say(COPY.fields.nothingRepeats(parsed.data.note));
 			}
 
-			return say(
-				`I propose ${chosen.length} field(s): ${chosen.map((field) => field.payload.label).join(", ")}. Accept or dismiss each one on the Fields sheet.`,
-				`Ich schlage ${chosen.length} Feld(er) vor: ${chosen.map((field) => field.payload.label).join(", ")}. Nimm jedes unter Felder an oder lehne es ab.`,
-			);
+			const labels = chosen.map((field) => field.payload.label).join(", ");
+			return say(COPY.fields.proposed(chosen.length, labels));
 		} catch (error) {
 			lastError =
 				`not valid JSON (${error instanceof Error ? error.message : String(error)})`.slice(
@@ -275,8 +265,5 @@ export async function runFieldProposals(
 		}
 	}
 
-	return say(
-		`I could not read a field proposal out of the mail: ${lastError}`,
-		`Ich konnte aus den Mails keinen Feldvorschlag lesen: ${lastError}`,
-	);
+	return say(COPY.fields.unreadable(lastError));
 }

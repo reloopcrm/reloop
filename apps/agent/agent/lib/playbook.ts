@@ -3,7 +3,8 @@ import { MEMORY } from "@crm/db/insights";
 import { SETTINGS_ID } from "@crm/db/settings";
 import { streamText } from "ai";
 import { z } from "zod";
-import { language } from "./language";
+import { COPY } from "./copy";
+import { language, say } from "./language";
 import { directModel } from "./model";
 
 export const PLAYBOOK = {
@@ -101,7 +102,7 @@ export async function runPlaybookLearn(): Promise<string> {
 	]);
 
 	if (messages.length < PLAYBOOK.minMessages) {
-		return `Only ${messages.length} sent emails so far; nothing to learn yet.`;
+		return say(COPY.playbook.tooFew(messages.length));
 	}
 
 	const existing = await readPlaybook();
@@ -175,7 +176,12 @@ export async function runPlaybookLearn(): Promise<string> {
 				},
 			});
 
-			return `Learned from ${messages.length} sent emails: ${parsed.data.summary.slice(0, 160)}`;
+			return say(
+				COPY.playbook.learned(
+					messages.length,
+					parsed.data.summary.slice(0, 160),
+				),
+			);
 		} catch (error) {
 			lastError =
 				`not valid JSON (${error instanceof Error ? error.message : String(error)})`.slice(

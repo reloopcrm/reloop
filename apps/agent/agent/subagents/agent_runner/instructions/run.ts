@@ -1,4 +1,5 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
+import { language } from "../../../lib/language";
 import { approvedRunInstructions } from "../../../lib/run-runtime";
 import { attribute, purposeOf } from "../../../lib/session-purpose";
 import { withTenant } from "../../../lib/tenant";
@@ -12,7 +13,7 @@ export default defineDynamic({
 
 			return withTenant(ctx, async () =>
 				defineInstructions({
-					markdown: `# Human-approved version instructions\n\n${await approvedRunInstructions(runId)}`,
+					markdown: `Write every note, task and message this run creates in ${language()}, unless the approved instructions name another language.\n\n# Human-approved version instructions\n\n${await approvedRunInstructions(runId)}`,
 				}),
 			);
 		},

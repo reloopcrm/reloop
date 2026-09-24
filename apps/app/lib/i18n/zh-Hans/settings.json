@@ -322,5 +322,11 @@
 	"You need your own AI key.": "你需要自己的 AI 密钥。",
 	"{plan} does not include AI. Without your own key, the AI stops working.": "{plan} 不包含 AI。没有你自己的密钥，AI 将停止工作。",
 	"New limits: {contacts} contacts, {mailboxes} mailboxes, {storage} storage.": "新的上限：{contacts} 个联系人，{mailboxes} 个邮箱，{storage} 存储空间。",
-	"Where to enter the key": "在哪里输入密钥"
+	"Where to enter the key": "在哪里输入密钥",
+	"Agent language": "智能体语言",
+	"The agent writes in this language for everyone in this workspace.": "智能体用这种语言为此工作区的所有人撰写内容。",
+	"Install default": "安装默认值",
+	"Summaries, notes and business rules follow it. A reply draft keeps the language of its conversation.": "摘要、笔记和业务规则都使用这种语言。回复草稿保持其往来邮件的语言。",
+	"Agent language saved.": "智能体语言已保存。",
+	"{language} (not chosen yet)": "{language}（尚未选择）"
 }

@@ -13,6 +13,7 @@ import {
 } from "@crm/validation/win-back-rules";
 import { streamText } from "ai";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { language, say } from "./language";
 import { directModel } from "./model";
 import { playbookPrompt, readPlaybook } from "./playbook";
@@ -112,29 +113,21 @@ export function rankable(points: WinBackRules["points"]): boolean {
 }
 
 function goodLabel(): string {
-	return say("Worth it", "Lohnt sich");
+	return say(COPY.rules.good);
 }
 
 function badLabel(): string {
-	return say("Not for us", "Nichts für uns");
+	return say(COPY.rules.bad);
 }
 
 function seenVerdicts(count: number, label: string): string {
-	return count === 1
-		? say(
-				`I see 1 verdict, and it says "${label}".`,
-				`Ich sehe 1 Urteil, und es sagt "${label}".`,
-			)
-		: say(
-				`I see ${count} verdicts, and all of them say "${label}".`,
-				`Ich sehe ${count} Urteile, und alle sagen "${label}".`,
-			);
+	return say(
+		count === 1 ? COPY.rules.seenOne(label) : COPY.rules.seenMany(count, label),
+	);
 }
 
 function atLeastPeople(count: number): string {
-	return count === 1
-		? say("at least one person", "mindestens eine Person")
-		: say(`at least ${count} people`, `mindestens ${count} Personen`);
+	return say(count === 1 ? COPY.rules.atLeastOne : COPY.rules.atLeast(count));
 }
 
 export type VerdictCounts = { good: number; bad: number };
@@ -153,23 +146,26 @@ export function oneSidedReason(counts: VerdictCounts): string | null {
 	const [goodName, badName] = [goodLabel(), badLabel()];
 
 	if (good < TUNER.minGoodExamples && bad < TUNER.minBadExamples) {
-		return say(
-			`I did not change the rules. There is no verdict yet. In Win-back, first mark people as "${goodName}" or "${badName}".`,
-			`Ich habe die Regeln nicht angepasst. Es gibt noch kein Urteil. Markiere in Zurückgewinnen zuerst Personen mit "${goodName}" oder "${badName}".`,
-		);
+		return say(COPY.rules.noVerdict(goodName, badName));
 	}
 
 	if (good < TUNER.minGoodExamples) {
 		return say(
-			`I did not change the rules. ${seenVerdicts(bad, badName)} I need ${atLeastPeople(TUNER.minGoodExamples)} marked "${goodName}". Then I learn what a good contact looks like.`,
-			`Ich habe die Regeln nicht angepasst. ${seenVerdicts(bad, badName)} Ich brauche ${atLeastPeople(TUNER.minGoodExamples)} mit "${goodName}". Dann lerne ich, wie ein guter Kontakt aussieht.`,
+			COPY.rules.needGood(
+				seenVerdicts(bad, badName),
+				atLeastPeople(TUNER.minGoodExamples),
+				goodName,
+			),
 		);
 	}
 
 	if (bad < TUNER.minBadExamples) {
 		return say(
-			`I did not change the rules. ${seenVerdicts(good, goodName)} I need ${atLeastPeople(TUNER.minBadExamples)} marked "${badName}". Then I learn whom to leave out.`,
-			`Ich habe die Regeln nicht angepasst. ${seenVerdicts(good, goodName)} Ich brauche ${atLeastPeople(TUNER.minBadExamples)} mit "${badName}". Dann lerne ich, wen ich aussortieren soll.`,
+			COPY.rules.needBad(
+				seenVerdicts(good, goodName),
+				atLeastPeople(TUNER.minBadExamples),
+				badName,
+			),
 		);
 	}
 
@@ -265,7 +261,9 @@ export async function runRulesTune(
 				tunedAt: new Date(),
 			});
 
-			return `Rules tuned from ${samples.length} verdicts: ${parsed.data.note.slice(0, 160)}`;
+			return say(
+				COPY.rules.tuned(samples.length, parsed.data.note.slice(0, 160)),
+			);
 		} catch (error) {
 			lastError =
 				`not valid JSON (${error instanceof Error ? error.message : String(error)})`.slice(

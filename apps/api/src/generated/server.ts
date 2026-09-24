@@ -33,7 +33,7 @@ import { oauthAppInput, oauthAppStatusOutput, saveOAuthAppInput, oauthAppRestart
 import { quoteListOutput, quoteThreadInput, quoteCreatedOutput, quoteDismissedOutput } from "../quotes/quotes.contracts";
 import { reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
-import { businessProposalOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, aiUsageOutput, passwordSignInOutput, setPasswordInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput, dealStagesOutput, setDealStageNameInput } from "../settings/settings.contracts";
+import { businessProposalOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, aiUsageOutput, passwordSignInOutput, setPasswordInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentLanguageOutput, setAgentLanguageInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput, dealStagesOutput, setDealStageNameInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
 import { versionOutput, updateOutput } from "../system/system.contracts";
@@ -826,6 +826,13 @@ const appRouter = t.router({
     setArchiveRetention: publicProcedure
       .input(setArchiveRetentionDaysInput)
       .output(archiveRetentionOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    agentLanguage: publicProcedure
+      .output(agentLanguageOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setAgentLanguage: publicProcedure
+      .input(setAgentLanguageInput)
+      .output(agentLanguageOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     agentFunctions: publicProcedure
       .output(agentFunctionsOutput)

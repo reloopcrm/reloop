@@ -1,9 +1,14 @@
 import "@crm/env/load";
+import {
+	type AgentLanguage,
+	agentLanguageFlag,
+	defaultAgentLanguage,
+} from "@crm/validation/agent-language";
 
 export const USAGE = [
 	"Usage: bun scripts/tenant.ts <command> [args]",
 	"",
-	"  create <id> <email-or-domain> [--plan trial] [--active]",
+	"  create <id> <email-or-domain> [--plan trial] [--active] [--language en]",
 	"  migrate <id>",
 	"  migrate-all",
 	"  suspend <id>",
@@ -11,10 +16,18 @@ export const USAGE = [
 	"  list",
 	"",
 	"Needs RELOOP_REGISTRY_URL and RELOOP_TENANT_DATABASE_URL_TEMPLATE.",
+	"--language is the language the agent writes in. Without it: German when RELOOP_GERMAN is true, else English.",
 ].join("\n");
 
 export type Command =
-	| { name: "create"; id: string; entry: string; plan: string; active: boolean }
+	| {
+			name: "create";
+			id: string;
+			entry: string;
+			plan: string;
+			active: boolean;
+			language: AgentLanguage;
+	  }
 	| { name: "migrate"; id: string }
 	| { name: "migrate-all" }
 	| { name: "suspend"; id: string }
@@ -45,6 +58,7 @@ export function parseArgs(
 				entry,
 				plan: flag("--plan") ?? "trial",
 				active: rest.includes("--active"),
+				language: languageFrom(flag("--language"), env),
 			};
 		}
 		case "migrate":
@@ -68,6 +82,25 @@ export function parseArgs(
 		default:
 			throw new Error(USAGE);
 	}
+}
+
+function languageFrom(
+	value: string | null,
+	env: Record<string, string | undefined>,
+): AgentLanguage {
+	return value === null
+		? defaultAgentLanguage(env.RELOOP_GERMAN)
+		: agentLanguageFlag(value);
+}
+
+async function setLanguage(
+	tenant: import("@crm/db/tenancy").Tenant,
+	language: AgentLanguage,
+): Promise<void> {
+	const { db } = await import("@crm/db");
+	const { runAsTenant } = await import("@crm/db/tenant-context");
+	const { writeAgentLanguage } = await import("@crm/validation/agent-language");
+	await runAsTenant(tenant, () => writeAgentLanguage(db, language));
 }
 
 async function main(): Promise<void> {
@@ -98,8 +131,9 @@ async function main(): Promise<void> {
 					plan: command.plan,
 					status: command.active ? "active" : "pending",
 				});
+				await setLanguage(tenant, command.language);
 				console.log(
-					`Tenant ${tenant.id} created: ${tenant.dbName}, plan ${tenant.plan}, status ${tenant.status}.`,
+					`Tenant ${tenant.id} created: ${tenant.dbName}, plan ${tenant.plan}, status ${tenant.status}, agent language ${command.language}.`,
 				);
 				break;
 			}

@@ -4,21 +4,14 @@ import {
 	ownsCompanyStatus,
 	ownsContactStatus,
 } from "@crm/db/agent-tasks";
+import { COPY } from "./copy";
 import { DISPATCH } from "./dispatch-config";
 import { settle } from "./enrichment";
+import { say } from "./language";
 import { retireExhausted, type TaskSubject } from "./tasks";
 import { tenantState } from "./tenant";
 
 const SCAN = DISPATCH.reconcile.scan;
-
-const LANDED_OUTCOME =
-	"The record was already up to date when this was checked again.";
-
-const RETIRED_ERROR =
-	"Research was attempted several times and never completed.";
-
-const UNTARGETED_OUTCOME =
-	"No record was ever attached to this task, so it can never be worked. Retired.";
 
 export type StaleTaskSweep = {
 	scanned: number;
@@ -57,7 +50,11 @@ export async function retireAbandoned(): Promise<TaskSubject[]> {
 	}
 
 	for (const task of abandoned) {
-		await settle(task, EnrichmentStatus.FAILED, RETIRED_ERROR).catch(() => {});
+		await settle(
+			task,
+			EnrichmentStatus.FAILED,
+			say(COPY.tasks.retiredError),
+		).catch(() => {});
 	}
 
 	return abandoned;
@@ -146,7 +143,7 @@ async function runSweep(sweep: StaleTaskSweep): Promise<void> {
 				finishedAt: null,
 				OR: [{ leasedUntil: null }, { leasedUntil: { lt: now } }],
 			},
-			data: { finishedAt: now, outcome: LANDED_OUTCOME },
+			data: { finishedAt: now, outcome: say(COPY.tasks.landed) },
 		});
 
 		sweep.closed = count;
@@ -159,7 +156,7 @@ async function runSweep(sweep: StaleTaskSweep): Promise<void> {
 				finishedAt: null,
 				OR: [{ leasedUntil: null }, { leasedUntil: { lt: now } }],
 			},
-			data: { finishedAt: now, outcome: UNTARGETED_OUTCOME },
+			data: { finishedAt: now, outcome: say(COPY.tasks.untargeted) },
 		});
 
 		sweep.closed += count;

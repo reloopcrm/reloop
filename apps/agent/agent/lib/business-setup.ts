@@ -9,6 +9,7 @@ import {
 } from "@crm/validation/win-back-rules";
 import { streamText } from "ai";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { runFieldProposals } from "./field-proposals";
 import { language, say } from "./language";
 import { directModel } from "./model";
@@ -136,20 +137,14 @@ export async function runBusinessSetup(
 	const from = setupSource(current.business, threads);
 
 	if (!from) {
-		return say(
-			"The business rules are already set. I changed nothing.",
-			"Die Geschäftsregeln stehen schon. Ich habe nichts geändert.",
-		);
+		return say(COPY.business.alreadySet);
 	}
 
 	const fromMail = from === "mail";
 	const page = !fromMail && us?.website ? await fetchPage(us.website) : null;
 
 	if (!fromMail && !page) {
-		const note = say(
-			`I am still waiting. I need ${BUSINESS_SETUP.minThreads} conversations or a readable website to say what this business sells. There are ${threads} conversations now.`,
-			`Ich warte noch. Erst ab ${BUSINESS_SETUP.minThreads} Verläufen oder mit einer lesbaren Website kann ich sagen, womit hier gehandelt wird. Aktuell sind es ${threads}.`,
-		);
+		const note = say(COPY.business.waiting(BUSINESS_SETUP.minThreads, threads));
 		await writeWinBackRulesState(db, { note });
 		return note;
 	}
@@ -172,7 +167,7 @@ export async function runBusinessSetup(
 		"sideProducts: products or services they also offer but value less. Leave it empty when nothing fits.",
 		"boxProducts: the words for goods counted in boxes or containers rather than single units. Leave it empty when nothing fits.",
 		"minPallets: the smallest quantity that counts as a big order for the main products, counted in unit. minBoxes: the same for box goods. Read real numbers out of the source. Use 0 when the source never names quantities.",
-		`unit: the plural word for what minPallets counts, in ${language()}, for example units, projects, licenses or seats.`,
+		`unit: the plural word for what minPallets counts, in ${language()} even when the source uses another language, for example the ${language()} word for units, projects, licenses or seats.`,
 		`note: one or two ${language()} sentences saying what you concluded and from what.`,
 		"Answer with one JSON object only, no prose, no code fences, matching this JSON schema:",
 		JSON.stringify(z.toJSONSchema(businessProposal, { io: "input" })),
@@ -250,10 +245,7 @@ export async function runBusinessSetup(
 		}
 	}
 
-	const note = say(
-		`I could not work out the business rules myself: ${lastError}`,
-		`Ich konnte die Geschäftsregeln nicht selbst finden: ${lastError}`,
-	);
+	const note = say(COPY.business.failed(lastError));
 	await writeWinBackRulesState(db, { note });
 
 	return note;

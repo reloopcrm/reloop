@@ -5,6 +5,7 @@ import {
 	MAX_ARCHIVE_RETENTION_DAYS,
 	MIN_ARCHIVE_RETENTION_DAYS,
 } from "@crm/db/settings";
+import { agentLanguage } from "@crm/validation/agent-language";
 import { chatgptLoginState } from "@crm/validation/chatgpt-login";
 import { DEAL_STAGE_NAME_MAX } from "@crm/validation/deal-stage-names";
 import { z } from "zod";
@@ -14,6 +15,18 @@ export const archiveRetentionOutput = z.object({
 });
 
 export type ArchiveRetentionSettings = z.infer<typeof archiveRetentionOutput>;
+
+export const agentLanguageOutput = z.object({
+	language: agentLanguage.nullable(),
+	fallback: agentLanguage,
+	hosted: z.boolean(),
+});
+
+export type AgentLanguageSettings = z.infer<typeof agentLanguageOutput>;
+
+export const setAgentLanguageInput = z.object({
+	language: agentLanguage,
+});
 
 const agentProvider = z.enum(["openrouter", "chatgpt", "openai", "anthropic"]);
 

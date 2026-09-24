@@ -1,6 +1,8 @@
 import { db } from "@crm/db";
 import { schemas } from "@crm/validation";
 import { z } from "zod";
+import { COPY } from "./copy";
+import { say } from "./language";
 import { SLACK } from "./slack-config";
 import { slackAccessToken, slackUserToken } from "./slack-connection";
 import { requestSlackInventorySync } from "./slack-people";
@@ -133,14 +135,18 @@ export async function joinSlackChannel(
 	});
 
 	if (!channel) {
-		return { joined: false, reason: "No such channel.", needsHuman: false };
+		return {
+			joined: false,
+			reason: say(COPY.slack.noChannel),
+			needsHuman: false,
+		};
 	}
 
 	const bot = await slackAccessToken();
 	if (!bot) {
 		return {
 			joined: false,
-			reason: "Slack is not connected.",
+			reason: say(COPY.slack.notConnected),
 			needsHuman: true,
 		};
 	}
@@ -205,20 +211,20 @@ function needsHuman(error: string): boolean {
 function explain(error: string): string {
 	switch (error) {
 		case "no_user_grant":
-			return "This workspace did not grant Reloop permission to add itself to a private channel.";
+			return say(COPY.slack.noJoinGrant);
 		case "channel_not_found":
-			return "Slack cannot see this channel. A member has to invite Reloop.";
+			return say(COPY.slack.notVisible);
 		case "is_archived":
-			return "This channel is archived. Somebody has to unarchive it before Reloop can join.";
+			return say(COPY.slack.archived);
 		case "missing_scope":
-			return "Slack refused: a permission is missing. Reconnect Slack.";
+			return say(COPY.slack.missingScope);
 		case "invalid_auth":
 		case "token_revoked":
-			return "Slack needs to be reconnected.";
+			return say(COPY.slack.reconnect);
 		case "unknown_bot_user":
-			return "Slack did not report which user Reloop is.";
+			return say(COPY.slack.unknownBot);
 		default:
-			return `Slack refused the request (${error}).`;
+			return say(COPY.slack.refused(error));
 	}
 }
 
@@ -232,9 +238,9 @@ export async function createSlackChannel(
 
 	if (!token) {
 		return {
-			error: isPrivate
-				? "This workspace did not grant Reloop permission to create a private channel."
-				: "Slack is not connected.",
+			error: say(
+				isPrivate ? COPY.slack.noCreateGrant : COPY.slack.notConnected,
+			),
 		};
 	}
 
@@ -249,8 +255,7 @@ export async function createSlackChannel(
 	});
 
 	const parsed = schemas.slack.createReply.safeParse(await response.json());
-	if (!parsed.success)
-		return { error: "Slack sent back something unreadable." };
+	if (!parsed.success) return { error: say(COPY.slack.unreadable) };
 
 	if (!parsed.data.ok || !parsed.data.channel) {
 		return { error: explain(parsed.data.error ?? "rejected") };

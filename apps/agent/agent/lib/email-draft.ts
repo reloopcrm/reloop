@@ -11,8 +11,9 @@ import {
 } from "@crm/validation/draft-style";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 import { z } from "zod";
+import { COPY } from "./copy";
 import { askJson } from "./insight";
-import { language } from "./language";
+import { language, say } from "./language";
 import { directModel } from "./model";
 import { playbookVoicePrompt, readPlaybook } from "./playbook";
 import { UNTRUSTED_RULE, untrusted } from "./untrusted";
@@ -454,7 +455,11 @@ async function revise(
 	await store(person.id, person, object, model.modelId);
 	await learn(object.styleRule);
 
-	return `The draft is rewritten: ${object.subject.slice(0, MEMORY.messageSummaryMaxChars)}`;
+	return say(
+		COPY.drafts.rewritten(
+			object.subject.slice(0, MEMORY.messageSummaryMaxChars),
+		),
+	);
 }
 
 export async function runEmailDraft(
@@ -463,12 +468,12 @@ export async function runEmailDraft(
 	buildModel: typeof directModel = directModel,
 ): Promise<string> {
 	const person = await recipient(contactId);
-	if (!person) return "The contact is gone.";
+	if (!person) return say(COPY.drafts.contactGone);
 
 	if (instruction) return revise(person, instruction, buildModel);
 
 	const talk = conversation(person);
-	if (!talk.trim()) return "There is no conversation to build a draft on.";
+	if (!talk.trim()) return say(COPY.drafts.noConversation);
 
 	const { playbook, style, samples, openings, model, business, product } =
 		await context(person, buildModel);
@@ -491,5 +496,7 @@ export async function runEmailDraft(
 
 	await store(contactId, person, object, model.modelId);
 
-	return `A draft is ready: ${object.subject.slice(0, MEMORY.messageSummaryMaxChars)}`;
+	return say(
+		COPY.drafts.ready(object.subject.slice(0, MEMORY.messageSummaryMaxChars)),
+	);
 }

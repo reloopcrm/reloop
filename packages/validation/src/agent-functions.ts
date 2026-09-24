@@ -147,9 +147,6 @@ export const AGENT_FUNCTIONS = [
 
 export type AgentFunctionId = (typeof AGENT_FUNCTIONS)[number]["id"];
 
-export const AGENT_FUNCTION_OFF_OUTCOME =
-	"Switched off in Settings, Functions. Nothing was done.";
-
 export const agentFunctions = z.record(z.string(), z.boolean());
 
 export type AgentFunctionSettings = z.infer<typeof agentFunctions>;

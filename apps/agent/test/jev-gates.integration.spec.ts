@@ -2,8 +2,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
 import { TYPESAFE } from "@crm/db/typesafe";
 import type { DealHistory } from "../agent/lib/accounts";
-import { CLEAN_SKIPPED, runContactClean } from "../agent/lib/contact-clean";
-import { runDealStall, STALL_SKIPPED } from "../agent/lib/deal-stall";
+import { cleanSkipped, runContactClean } from "../agent/lib/contact-clean";
+import { runDealStall, stallSkipped } from "../agent/lib/deal-stall";
 import type { JevNoulAsk } from "../agent/lib/jev";
 import { resetGateCounts } from "../agent/lib/jev-meter";
 
@@ -205,7 +205,7 @@ describe("the cheap gate in front of the stalled deal draft", () => {
 
 		expect(gate.states).toHaveLength(1);
 		expect(draft.calls).toHaveLength(0);
-		expect(outcome).toBe(STALL_SKIPPED);
+		expect(outcome).toBe(stallSkipped());
 		expect(
 			await db.activity.count({
 				where: { dealId, meta: { path: ["agent"], equals: "deal-stall" } },
@@ -297,7 +297,7 @@ describe("the cheap gate in front of the signature read", () => {
 
 		expect(gate.states).toHaveLength(1);
 		expect(read.calls).toHaveLength(0);
-		expect(outcome).toBe(CLEAN_SKIPPED);
+		expect(outcome).toBe(cleanSkipped());
 		expect(await cleanedAt()).not.toBeNull();
 	});
 
@@ -335,6 +335,6 @@ describe("the cheap gate in front of the signature read", () => {
 		});
 
 		expect(read.calls).toHaveLength(1);
-		expect(outcome).not.toBe(CLEAN_SKIPPED);
+		expect(outcome).not.toBe(cleanSkipped());
 	});
 });

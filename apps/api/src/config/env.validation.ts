@@ -208,6 +208,10 @@ export class EnvironmentVariables {
 	RELOOP_UPDATE_CHECK?: string;
 
 	@IsOptional()
+	@IsString()
+	RELOOP_GERMAN?: string;
+
+	@IsOptional()
 	@IsUrl(
 		{ require_tld: false, require_protocol: true },
 		{

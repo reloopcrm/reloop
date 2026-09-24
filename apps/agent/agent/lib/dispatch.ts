@@ -3,7 +3,6 @@ import { PRIORITY, waitsForPerson } from "@crm/db/agent-tasks";
 import { RESEARCH_RUN_KIND } from "@crm/db/plans";
 import { currentTenantId } from "@crm/db/tenant-context";
 import { WEBHOOKS } from "@crm/db/webhooks";
-import { AGENT_FUNCTION_OFF_OUTCOME } from "@crm/validation/agent-functions";
 import {
 	readAgentTaskInstruction,
 	readAgentTaskThreadId,
@@ -19,6 +18,7 @@ import {
 	pruneContacts,
 } from "./contact-prune";
 import { sweepContactStanding } from "./contact-standing-sweep";
+import { COPY } from "./copy";
 import { queueEventAgentRuns } from "./custom-agent-dispatch";
 import { settledWithin } from "./deadline";
 import { DEAL_STALL_KIND, queueStalledDeals, runDealStall } from "./deal-stall";
@@ -42,6 +42,7 @@ import {
 import { typesafeKey } from "./jev";
 import { drainGateCounts, gateCounts } from "./jev-meter";
 import { inLane, keyBucket, type Lane } from "./key-bucket";
+import { say } from "./language";
 import {
 	isExhaustion,
 	modelUnavailable,
@@ -138,7 +139,7 @@ async function clearWithGate(
 ): Promise<GateOutcome> {
 	const threadId = readAgentTaskThreadId(task.payload);
 	if (!threadId) {
-		await completeTask(task.id, "No thread id on the task.");
+		await completeTask(task.id, say(COPY.tasks.noThreadId));
 		return "cleared";
 	}
 
@@ -332,7 +333,7 @@ async function reconcileDirect(
 
 async function handleDirect(task: LeasedTask): Promise<void> {
 	if (!(await taskKindEnabled(task.kind))) {
-		await completeTask(task.id, AGENT_FUNCTION_OFF_OUTCOME);
+		await completeTask(task.id, say(COPY.functions.off));
 		return;
 	}
 
@@ -350,8 +351,8 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 		await completeTask(
 			task.id,
 			portrait.stored
-				? `Picture stored from ${portrait.source}.`
-				: (portrait.reason ?? "No picture found."),
+				? say(COPY.portraits.stored(String(portrait.source)))
+				: (portrait.reason ?? say(COPY.portraits.none)),
 		);
 		return;
 	}
@@ -359,7 +360,7 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	if (task.kind === "thread-insight") {
 		const threadId = readAgentTaskThreadId(task.payload);
 		if (!threadId) {
-			await completeTask(task.id, "No thread id on the task.");
+			await completeTask(task.id, say(COPY.tasks.noThreadId));
 			return;
 		}
 
@@ -380,7 +381,7 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	if (task.kind === "thread-digest") {
 		const threadId = readAgentTaskThreadId(task.payload);
 		if (!threadId) {
-			await completeTask(task.id, "No thread id on the task.");
+			await completeTask(task.id, say(COPY.tasks.noThreadId));
 			return;
 		}
 
@@ -479,20 +480,11 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	if (task.kind === "agent-event") {
 		const queued = await queueEventAgentRuns(task);
 		const webhooks = await queueWebhookDeliveries(task);
-		await completeTask(
-			task.id,
-			`${
-				queued === 1
-					? "Queued 1 matching agent run."
-					: `Queued ${queued} matching agent runs.`
-			} ${
-				webhooks === 1 ? "Queued 1 webhook." : `Queued ${webhooks} webhooks.`
-			}`,
-		);
+		await completeTask(task.id, say(COPY.tasks.queued(queued, webhooks)));
 		return;
 	}
 
-	await completeTask(task.id, "The record this names is gone.");
+	await completeTask(task.id, say(COPY.tasks.recordGone));
 }
 
 export async function runResearchLane(
@@ -587,7 +579,7 @@ async function beginResearch(
 	start: (task: LeasedTask) => Promise<{ id: string }>,
 ): Promise<void> {
 	if (!(await taskKindEnabled(task.kind))) {
-		await completeTask(task.id, AGENT_FUNCTION_OFF_OUTCOME);
+		await completeTask(task.id, say(COPY.functions.off));
 		return;
 	}
 

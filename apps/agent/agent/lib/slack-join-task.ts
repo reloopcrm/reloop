@@ -1,5 +1,7 @@
 import type { Prisma } from "@crm/db";
 import { parse, schemas } from "@crm/validation";
+import { COPY } from "./copy";
+import { say } from "./language";
 import { joinSlackChannel } from "./slack-membership";
 
 export async function runSlackChannelJoin(
@@ -13,10 +15,12 @@ export async function runSlackChannelJoin(
 	const outcome = await joinSlackChannel(channelId);
 
 	if (outcome.joined) {
-		return outcome.already
-			? `Reloop was already in #${channelName}.`
-			: `Reloop joined #${channelName}.`;
+		return say(
+			outcome.already
+				? COPY.slack.alreadyIn(channelName)
+				: COPY.slack.joined(channelName),
+		);
 	}
 
-	return `Reloop could not join #${channelName}. ${outcome.reason}`;
+	return say(COPY.slack.couldNotJoin(channelName, outcome.reason));
 }

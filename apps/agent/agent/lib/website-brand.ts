@@ -2,6 +2,7 @@ import { safeFetch } from "@crm/db/safe-fetch";
 import { streamText } from "ai";
 import { z } from "zod";
 import type { Brand, BrandLookup } from "./brand-mapping";
+import { COPY } from "./copy";
 import {
 	askChoice,
 	type JevChoiceAsk,
@@ -9,7 +10,7 @@ import {
 	typesafeKey,
 } from "./jev";
 import { countGate } from "./jev-meter";
-import { language } from "./language";
+import { language, say } from "./language";
 import { directModel } from "./model";
 import { WEBSITE } from "./website-config";
 
@@ -297,7 +298,7 @@ export async function brandFromWebsite(
 	if (!page) {
 		return {
 			outcome: "skipped",
-			reason: `The website ${domain} did not answer with a page to read.`,
+			reason: say(COPY.brand.siteSilent(domain)),
 		};
 	}
 

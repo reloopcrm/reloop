@@ -322,5 +322,11 @@
 	"You need your own AI key.": "Kendi yapay zeka anahtarına ihtiyacın var.",
 	"{plan} does not include AI. Without your own key, the AI stops working.": "{plan} yapay zeka içermiyor. Kendi anahtarın olmadan yapay zeka çalışmayı durdurur.",
 	"New limits: {contacts} contacts, {mailboxes} mailboxes, {storage} storage.": "Yeni limitler: {contacts} kişi, {mailboxes} posta kutusu, {storage} depolama.",
-	"Where to enter the key": "Anahtarı nereye gireceğin"
+	"Where to enter the key": "Anahtarı nereye gireceğin",
+	"Agent language": "Agent dili",
+	"The agent writes in this language for everyone in this workspace.": "Agent bu çalışma alanındaki herkes için bu dilde yazar.",
+	"Install default": "Kurulum varsayılanı",
+	"Summaries, notes and business rules follow it. A reply draft keeps the language of its conversation.": "Özetler, notlar ve iş kuralları bu dili izler. Bir yanıt taslağı kendi yazışmasının dilini korur.",
+	"Agent language saved.": "Agent dili kaydedildi.",
+	"{language} (not chosen yet)": "{language} (henüz seçilmedi)"
 }

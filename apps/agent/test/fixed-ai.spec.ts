@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { LOCALES } from "@crm/db/locale";
 import type { AgentProviderSetting } from "@crm/db/settings";
 import type { Tenant } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
@@ -6,6 +7,7 @@ import type { LanguageModel } from "ai";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { chatgptLoginExists } from "../agent/lib/codex-binary";
+import { COPY } from "../agent/lib/copy";
 import { inLane, type KeyBucket, type Lane } from "../agent/lib/key-bucket";
 import {
 	candidatesFor,
@@ -76,8 +78,10 @@ describe("the fixed AI chain", () => {
 			expect(words.test(text)).toBe(true);
 		}
 		expect(words.test("No such contact.")).toBe(false);
-		expect(MODEL.fixed.unavailable).not.toMatch(words);
-		expect(MODEL.fixed.busy).not.toMatch(words);
+		for (const locale of LOCALES) {
+			expect(COPY.model.fixedUnavailable[locale]).not.toMatch(words);
+			expect(COPY.model.fixedBusy[locale]).not.toMatch(words);
+		}
 	});
 });
 

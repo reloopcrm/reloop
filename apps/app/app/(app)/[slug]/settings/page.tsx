@@ -16,6 +16,7 @@ import { managedInstall, plansOffered } from "@/lib/operator";
 import { requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { AgentLanguage } from "./agent-language";
 import { ArchiveRetention } from "./archive-retention";
 import { DealStages } from "./deal-stages";
 import { Language } from "./language";
@@ -64,6 +65,7 @@ async function Settings() {
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.users.me.queryOptions()),
 		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
+		queryClient.prefetchQuery(trpc.settings.agentLanguage.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.archiveRetention.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.dealStages.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.passwordSignIn.queryOptions()),
@@ -78,6 +80,9 @@ async function Settings() {
 				<ProfileForm />
 				<Language />
 				<WorkspaceForm />
+				<fieldset disabled={!canManage} className="contents">
+					<AgentLanguage />
+				</fieldset>
 				<PasswordSignIn />
 				{planCard ? (
 					<fieldset disabled className="contents">

@@ -28,12 +28,14 @@ import {
 import { experimental_chatgpt } from "eve/models/openai";
 import { z } from "zod";
 import { chatgptLoginExists } from "./codex-binary";
+import { COPY } from "./copy";
 import {
 	type KeyBucket,
 	keyBucket,
 	type SharedKeyTenant,
 	withKeyBucket,
 } from "./key-bucket";
+import { say } from "./language";
 import { MODEL } from "./model-config";
 import { fixedAi } from "./plan-limits";
 import { withSpendMeter } from "./spend-meter";
@@ -131,7 +133,7 @@ async function chainFor(
 export async function publicReason(reason: string): Promise<string> {
 	if (!(await fixedAi())) return reason;
 	return MODEL.fixed.vendorWords.test(reason)
-		? MODEL.fixed.unavailable
+		? say(COPY.model.fixedUnavailable)
 		: reason;
 }
 
@@ -590,18 +592,19 @@ async function chatgptExhausted(): Promise<boolean> {
 	return used !== null && used >= 100 && reset !== null && reset > Date.now();
 }
 
-export const NO_PROVIDER_MESSAGE =
-	"No model provider is set up. Add an OpenRouter, OpenAI or Anthropic key under Settings, AI, or sign in with ChatGPT there.";
+export function noProviderMessage(): string {
+	return say(COPY.model.noProvider);
+}
 
 export async function modelUnavailable(): Promise<string | null> {
 	try {
 		const { fixed } = await provider();
 		const chain = await chainFor();
 		if (fixed) {
-			if (chain.length === 0) return MODEL.fixed.unavailable;
-			return usable(chain).length > 0 ? null : MODEL.fixed.busy;
+			if (chain.length === 0) return say(COPY.model.fixedUnavailable);
+			return usable(chain).length > 0 ? null : say(COPY.model.fixedBusy);
 		}
-		if (chain.length === 0) return NO_PROVIDER_MESSAGE;
+		if (chain.length === 0) return noProviderMessage();
 
 		const spent = await chatgptExhausted();
 		const live = usable(chain).filter(
@@ -619,13 +622,7 @@ export async function modelUnavailable(): Promise<string | null> {
 						Math.ceil((reset.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
 					);
 
-		return [
-			"The ChatGPT subscription has used up its window, and no other provider is set up.",
-			days === null
-				? "The agent starts again when the limit resets."
-				: `The agent starts again when the limit resets in ${days} ${days === 1 ? "day" : "days"}.`,
-			"Add an OpenRouter, OpenAI or Anthropic key under Settings, AI to keep working now.",
-		].join(" ");
+		return say(COPY.model.chatgptSpent(days));
 	} catch {
 		return null;
 	}
@@ -638,17 +635,15 @@ export async function directModel(
 	const { fixed } = await provider();
 	const all = await chainFor(purpose, kind);
 	if (all.length === 0) {
-		throw new Error(fixed ? MODEL.fixed.unavailable : NO_PROVIDER_MESSAGE);
+		throw new Error(
+			fixed ? say(COPY.model.fixedUnavailable) : noProviderMessage(),
+		);
 	}
 
 	const chain = usable(all);
 	const built = chain.map((entry) => entry.build());
 	if (built.length === 0) {
-		throw new Error(
-			fixed
-				? MODEL.fixed.busy
-				: "Every configured model provider is at its usage limit; the call waits for the next reset.",
-		);
+		throw new Error(say(fixed ? COPY.model.fixedBusy : COPY.model.allAtLimit));
 	}
 
 	return withFallback(chain, built);

@@ -14,6 +14,7 @@ import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middlewa
 import { restMeta } from "../trpc/openapi";
 import {
 	agentFunctionsOutput,
+	agentLanguageOutput,
 	agentProviderOutput,
 	aiUsageOutput,
 	archiveRetentionOutput,
@@ -26,6 +27,7 @@ import {
 	passwordSignInOutput,
 	planOutput,
 	setAgentFunctionInput,
+	setAgentLanguageInput,
 	setAgentProviderInput,
 	setArchiveRetentionDaysInput,
 	setDealStageNameInput,
@@ -187,6 +189,26 @@ export class SettingsRouter {
 		@Input() input: z.infer<typeof setArchiveRetentionDaysInput>,
 	) {
 		return this.settings.setArchiveRetention(ctx.user.id, input.days);
+	}
+
+	@Query({
+		output: agentLanguageOutput,
+		meta: restMeta("GET", "/settings/agent-language", ["Settings"]),
+	})
+	async agentLanguage() {
+		return this.settings.agentLanguage();
+	}
+
+	@Mutation({
+		input: setAgentLanguageInput,
+		output: agentLanguageOutput,
+		meta: restMeta("PATCH", "/settings/agent-language", ["Settings"]),
+	})
+	async setAgentLanguage(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setAgentLanguageInput>,
+	) {
+		return this.settings.setAgentLanguage(ctx.user.id, input.language);
 	}
 
 	@Query({

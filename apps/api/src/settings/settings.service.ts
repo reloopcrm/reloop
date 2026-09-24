@@ -48,7 +48,7 @@ import {
 	writeAgentProvider,
 	writeArchiveRetentionDays,
 } from "@crm/db/settings";
-import { isHostedCustomer } from "@crm/db/tenant-context";
+import { isHosted, isHostedCustomer } from "@crm/db/tenant-context";
 import {
 	AGENT_FUNCTIONS,
 	isAgentFunction,
@@ -56,6 +56,12 @@ import {
 	readAgentFunctions,
 	writeAgentFunction,
 } from "@crm/validation/agent-functions";
+import {
+	type AgentLanguage,
+	defaultAgentLanguage,
+	readAgentLanguage,
+	writeAgentLanguage,
+} from "@crm/validation/agent-language";
 import {
 	readDealStageNames,
 	writeDealStageNames,
@@ -84,6 +90,7 @@ import { readCapacityUsage } from "../mailbox/sync-state.service";
 import { SETTINGS } from "./settings.config";
 import type {
 	AgentFunctionsSettings,
+	AgentLanguageSettings,
 	AgentProviderSettings,
 	AiUsageSettings,
 	ArchiveRetentionSettings,
@@ -514,6 +521,34 @@ export class SettingsService {
 	async proposeBusiness(userId: string): Promise<{ queued: boolean }> {
 		await this.assertManager(userId);
 		return { queued: await this.agent.businessSetupRequested(true) };
+	}
+
+	async agentLanguage(): Promise<AgentLanguageSettings> {
+		return this.agentLanguageOf(await readAgentLanguage(this.db));
+	}
+
+	private agentLanguageOf(
+		language: AgentLanguage | null,
+	): AgentLanguageSettings {
+		return {
+			language,
+			fallback: defaultAgentLanguage(
+				this.config.get("RELOOP_GERMAN", { infer: true }),
+			),
+			hosted: isHosted(),
+		};
+	}
+
+	async setAgentLanguage(
+		userId: string,
+		language: AgentLanguage,
+	): Promise<AgentLanguageSettings> {
+		await this.assertManager(userId);
+		const saved = await writeAgentLanguage(this.db, language);
+
+		this.logger.log({ message: "Agent language changed", language: saved });
+
+		return this.agentLanguageOf(saved);
 	}
 
 	async archiveRetention(): Promise<ArchiveRetentionSettings> {

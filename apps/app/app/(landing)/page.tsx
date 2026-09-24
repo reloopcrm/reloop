@@ -85,6 +85,7 @@ export default async function Home() {
 			<Band className="pt-0 md:pt-0">
 				<div className="w-full overflow-hidden rounded-lg border bg-card">
 					<video
+						key={heroVideo.src}
 						width={HOME.heroVideo.width}
 						height={HOME.heroVideo.height}
 						className="block h-auto w-full motion-reduce:hidden"

@@ -1,11 +1,10 @@
-import { isWorkspaceAdmin, WORKSPACE_ID } from "@crm/auth";
-import { db } from "@crm/db";
+import { isWorkspaceAdmin } from "@crm/auth";
 import { canonicalPlanId } from "@crm/db/plans";
 import type { Tenant } from "@crm/db/tenancy";
 import { unstable_rethrow } from "next/navigation";
-import { getSession, workspaceRole } from "@/lib/session";
+import { getSession, workspaceRole, workspaceRow } from "@/lib/session";
 import type { Subscription } from "@/lib/signed-in-entry";
-import { inTenant, requestTenant } from "@/lib/tenant";
+import { requestTenant } from "@/lib/tenant";
 import { workspaceLabel } from "@/lib/workspace-label";
 
 export type SignedInWorkspace = {
@@ -29,12 +28,7 @@ export async function signedInWorkspace(): Promise<SignedInWorkspace | null> {
 		if (!session || !tenant) return null;
 
 		const [workspace, role] = await Promise.all([
-			inTenant(() =>
-				db.organization.findUnique({
-					where: { id: WORKSPACE_ID },
-					select: { name: true, slug: true },
-				}),
-			),
+			workspaceRow(),
 			workspaceRole(session.user.id),
 		]);
 

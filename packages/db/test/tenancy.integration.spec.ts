@@ -12,14 +12,16 @@ import {
 	tenantBySite,
 } from "../src/tenancy";
 import { currentTenant, runAsTenant } from "../src/tenant-context";
-import { prepareTestTenants, TEST_TENANTS } from "../src/test-tenants";
+import {
+	PREPARE_TIMEOUT_MS,
+	prepareTestTenants,
+	TEST_TENANTS,
+} from "../src/test-tenants";
 
 const runId = process.env.TEST_RUN_ID ?? "spec";
 const prefix = `tenancy-${runId}-`;
 
 const ROWS = 50;
-
-const PREPARE_TIMEOUT_MS = 120_000;
 
 describe("two tenant databases behind one db", () => {
 	const saved = {

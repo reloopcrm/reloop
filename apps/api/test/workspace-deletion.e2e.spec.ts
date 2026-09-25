@@ -505,6 +505,34 @@ describe("deleting a workspace", () => {
 		expect(leftovers).toEqual({ sessions: 0, imap: 0 });
 		expect(deletedMails(retry)).toHaveLength(1);
 
+		const ownerMails = mails.filter((mail) => mail.to === owner.email).length;
+		const stripe = app.get<Stripe>(STRIPE);
+		const payload = JSON.stringify({
+			id: `evt_deleted_${RUN}`,
+			object: "event",
+			type: "customer.subscription.deleted",
+			data: {
+				object: required(subscriptions.get(retry.subscriptionId), "sub"),
+			},
+		});
+		const webhook = await request(server)
+			.post("/api/billing/webhook")
+			.set(
+				"stripe-signature",
+				await stripe.webhooks.generateTestHeaderStringAsync({
+					payload,
+					secret: required(process.env.STRIPE_WEBHOOK_SECRET, "secret"),
+				}),
+			)
+			.set("content-type", "application/json")
+			.send(payload);
+		expect(webhook.status).toBe(200);
+		forgetTenants();
+		expect((await tenantById(retry.id))?.status).toBe("deleted");
+		expect(mails.filter((mail) => mail.to === owner.email)).toHaveLength(
+			ownerMails,
+		);
+
 		const unauthorized = await request(server)
 			.get("/api/trpc/users.me")
 			.set("cookie", tenantCookie(retry.id));

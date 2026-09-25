@@ -470,6 +470,14 @@ export class BillingService {
 		}
 
 		await this.applySubscription(tenant, subscription);
+		if (tenant.status === "deleted") {
+			this.logger.log({
+				message: "Billing event for a deleted workspace, no mail",
+				type: event.type,
+				tenantId: tenant.id,
+			});
+			return;
+		}
 		if (event.type === "customer.subscription.updated") {
 			await this.rebuildStoredTarget(
 				tenant.id,
@@ -870,6 +878,7 @@ export class BillingService {
 			if (await this.scheduleOf(subscription)) {
 				await this.releaseSchedule(subscription);
 			}
+			await this.storeTarget(tenant.id, null);
 			return this.stripe?.subscriptions.cancel(subscription.id, {
 				prorate: false,
 				invoice_now: false,

@@ -295,6 +295,38 @@ export class TenantSignupService {
 		return DONE;
 	}
 
+	get mailConfigured(): boolean {
+		return this.mail.configured;
+	}
+
+	async sendDeletionCode(
+		tenant: Tenant,
+		email: string,
+		locale: string,
+	): Promise<void> {
+		this.requireMail();
+		const previous = await tenantCode(email, "delete");
+		await this.issueCode(tenant, "delete", email, locale, {
+			sentAt: previous?.sentAt,
+		});
+	}
+
+	async confirmDeletionCode(
+		tenant: Tenant,
+		email: string,
+		code: string,
+	): Promise<boolean> {
+		try {
+			const pending = await this.checkCode(email, "delete", code);
+			if (pending.tenantId !== tenant.id) return false;
+		} catch (error) {
+			if (error instanceof HttpException) return false;
+			throw error;
+		}
+		await deleteTenantCode(email, "delete");
+		return true;
+	}
+
 	private async checkCode(
 		email: string,
 		purpose: TenantCodePurpose,

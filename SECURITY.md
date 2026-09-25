@@ -48,7 +48,7 @@ An API key from **Settings → API Keys** is a session in a header, so a leaked 
 every record its owner can, and an expiry is optional. What it cannot do is build access that outlives
 its own revocation. `SessionOnlyMiddleware` refuses an `x-api-key` header on `apiKeys.*`,
 `settings.setPassword`, `settings.setAgentProvider`, `settings.chatgptLoginAction`,
-`workspace.addPerson`, `workspace.setMemberRole`, `sso.register`, `sso.remove`, `imap.add`,
+`workspace.addPerson`, `workspace.setMemberRole`, `workspace.deletionCode`, `workspace.delete`, `sso.register`, `sso.remove`, `imap.add`,
 `webhooks.create`, `webhooks.update`, `billing.checkout`, `billing.setAddOn`, `billing.cancel`,
 `billing.resume`, `billing.portal` and `system.update`, and `accessGuard` refuses it on
 `/api/auth/api-key/*`, `/api/auth/sso/register`, `/change-password` and `/set-password`. Those are the calls that mint a

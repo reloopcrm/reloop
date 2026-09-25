@@ -584,8 +584,9 @@ is open in `tenantMiddleware`, and the tenant comes from the subscription's
 `metadata.tenantId` or from the customer id in `billing`. Every `billing.*`
 mutation takes `SessionOnlyMiddleware` and the owner or admin role. A
 self-hosted install answers `configured: false` and refuses every mutation. A
-suspended tenant reaches `/api/auth/*` and `billing.*` only (`openWhileSuspended`
-in `tenant.middleware.ts`), which is how a paused workspace pays its way back
+suspended tenant reaches `/api/auth/*`, `billing.*`, `workspace.delete` and
+`workspace.deletionCode` only (`openWhileSuspended` in `tenant.middleware.ts`),
+which is how a paused workspace pays its way back
 in; `applySubscription` sets it `active` again.
 `billing.checkout` refuses a plan that holds fewer contacts or mailboxes than the
 workspace has now, before any Stripe call. The current plan is never refused, so
@@ -667,6 +668,33 @@ a retried webhook, the mutation path and a second instance send it once. Without
 `RESEND_API_KEY` and `MAIL_FROM` nothing is claimed and nothing throws. Receipts
 and invoice PDFs are Stripe's own mails, switched on in the Stripe Dashboard.
 `docs/environment.md` has the variables, the script and what stays by hand.
+
+## Deleting a workspace is the sweep's path, started by the owner
+
+Hosted only. Settings, General shows a danger zone to the owner of a customer
+workspace, and so does the paused page of a suspended one; a self-hosted install
+and the operator workspace never see it, and `workspace.delete` refuses both.
+`workspace.delete` and `workspace.deletionCode` are open while suspended
+(`openWhileSuspended`), next to `billing.*`. The owner types the workspace name
+and passes a re-auth: the password (`verifyPasswordFor`), or, with no password,
+a mail code (`workspace.deletionCode`, purpose `delete` in `tenant_code`). Both
+procedures take `SessionOnlyMiddleware`.
+
+The order is the guarantee. The status turns `deleted` first
+(`beginTenantDeletion`, which keeps `suspended_at`), and that locks every
+request out. Then `BillingService.cancelNow` releases a schedule and cancels the
+subscription at once, without proration. A subscription Stripe no longer has
+(`resource_missing`) or one already canceled counts as cancelled. Any other
+Stripe refusal puts the old status back (`cancelTenantDeletion`) and the owner
+tries again. `TenantSweepService.finishDeletion` then clears the OAuth tokens
+(a Google grant is revoked with Google), the IMAP and Slack secrets and the API
+keys, ends every session, sends "workspace deleted" once (claim key
+`deleted:<tenant>`), and drops the database through the same `deleteTenant` the
+trial expiry uses. Every step is safe to run twice, and one process runs one
+tenant's deletion at a time. A tenant left `deleted`, by a failed step or a
+crash, is finished by the daily sweep and by the next Stripe webhook for its
+subscription, which never pauses it and never mails about it. The response
+clears `crm.tenant`.
 
 ## Money
 

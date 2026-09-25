@@ -20,6 +20,10 @@ export const TENANCY = {
 		reminderLeadMs: 3 * DAY_MS,
 	},
 	billing: { graceMs: 7 * DAY_MS },
-	backup: { dumpTimeoutMs: 30 * MINUTE_MS, recentDumpMs: 36 * HOUR_MS },
+	backup: {
+		dumpTimeoutMs: 30 * MINUTE_MS,
+		recentDumpMs: 36 * HOUR_MS,
+		retentionDays: 60,
+	},
 	operator: { plan: "none" },
 } as const;

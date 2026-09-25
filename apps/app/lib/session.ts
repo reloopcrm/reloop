@@ -1,5 +1,7 @@
 import {
 	auth,
+	CREDENTIAL_PROVIDER_ID,
+	canDeleteWorkspace,
 	isSignInAllowed,
 	needsMailboxGrant,
 	type Session,
@@ -8,10 +10,13 @@ import {
 	workspaceRoleOf,
 } from "@crm/auth";
 import { db } from "@crm/db";
+import { TENANCY } from "@crm/db/tenancy-config";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { inTenant } from "@/lib/tenant";
+import type { DeletionZone } from "@/app/(app)/[slug]/settings/delete-workspace";
+import { deletionZoneShown } from "@/lib/operator";
+import { hostedCustomer, inTenant } from "@/lib/tenant";
 
 export const getSession = cache(
 	async (): Promise<Session | null> =>
@@ -65,4 +70,37 @@ export async function requireMailboxAccess(): Promise<Session> {
 	}
 
 	return session;
+}
+
+export async function deletionZone(
+	userId: string,
+): Promise<DeletionZone | null> {
+	const [role, hosted, accounts] = await Promise.all([
+		workspaceRole(userId),
+		hostedCustomer(),
+		signInAccounts(userId),
+	]);
+	if (
+		!deletionZoneShown({
+			hostedCustomer: hosted,
+			owner: canDeleteWorkspace(role),
+		})
+	) {
+		return null;
+	}
+	const workspace = await inTenant(() =>
+		db.organization.findUnique({
+			where: { id: WORKSPACE_ID },
+			select: { name: true },
+		}),
+	);
+	return {
+		reauth: accounts.some(
+			(account) => account.providerId === CREDENTIAL_PROVIDER_ID,
+		)
+			? "password"
+			: "code",
+		backupDays: TENANCY.backup.retentionDays,
+		workspaceName: workspace?.name.trim() ?? "",
+	};
 }

@@ -29,6 +29,14 @@ const COPY = {
 			ignore:
 				"You did not ask for a new password? Then ignore this mail. Your password stays as it is.",
 		},
+		delete: {
+			subject: "Your Reloop code: {code}",
+			greeting: "Hello,",
+			lead: "Enter this code to delete your workspace for good:",
+			validity: "The code is valid for {minutes} minutes.",
+			ignore:
+				"You did not ask to delete your workspace? Then ignore this mail. Nothing is deleted without the code.",
+		},
 	},
 	de: {
 		signup: {
@@ -45,6 +53,14 @@ const COPY = {
 			validity: "Der Code gilt {minutes} Minuten.",
 			ignore:
 				"Du hast kein neues Passwort angefordert? Dann ignoriere diese Mail. Dein Passwort bleibt, wie es ist.",
+		},
+		delete: {
+			subject: "Dein Reloop Code: {code}",
+			greeting: "Hallo,",
+			lead: "Gib diesen Code ein, um deinen Workspace endgültig zu löschen:",
+			validity: "Der Code gilt {minutes} Minuten.",
+			ignore:
+				"Du wolltest deinen Workspace nicht löschen? Dann ignoriere diese Mail. Ohne den Code wird nichts gelöscht.",
 		},
 	},
 	es: {
@@ -63,6 +79,14 @@ const COPY = {
 			ignore:
 				"¿No has pedido una nueva contraseña? Entonces ignora este correo. Tu contraseña no cambia.",
 		},
+		delete: {
+			subject: "Tu código de Reloop: {code}",
+			greeting: "Hola,",
+			lead: "Introduce este código para eliminar tu espacio de trabajo para siempre:",
+			validity: "El código es válido durante {minutes} minutos.",
+			ignore:
+				"¿No has pedido eliminar tu espacio de trabajo? Entonces ignora este correo. Sin el código no se elimina nada.",
+		},
 	},
 	fr: {
 		signup: {
@@ -79,6 +103,14 @@ const COPY = {
 			validity: "Le code est valable {minutes} minutes.",
 			ignore:
 				"Tu n'as pas demandé de nouveau mot de passe ? Alors ignore ce mail. Ton mot de passe reste inchangé.",
+		},
+		delete: {
+			subject: "Ton code Reloop : {code}",
+			greeting: "Bonjour,",
+			lead: "Saisis ce code pour supprimer ton espace de travail définitivement :",
+			validity: "Le code est valable {minutes} minutes.",
+			ignore:
+				"Tu n'as pas demandé la suppression de ton espace de travail ? Alors ignore ce mail. Rien n'est supprimé sans le code.",
 		},
 	},
 	"pt-BR": {
@@ -97,6 +129,14 @@ const COPY = {
 			ignore:
 				"Você não pediu uma nova senha? Então ignore este e-mail. Sua senha continua a mesma.",
 		},
+		delete: {
+			subject: "Seu código Reloop: {code}",
+			greeting: "Olá,",
+			lead: "Digite este código para excluir seu workspace para sempre:",
+			validity: "O código vale por {minutes} minutos.",
+			ignore:
+				"Você não pediu para excluir seu workspace? Então ignore este e-mail. Sem o código nada é excluído.",
+		},
 	},
 	tr: {
 		signup: {
@@ -114,6 +154,14 @@ const COPY = {
 			ignore:
 				"Yeni bir şifre istemedin mi? O zaman bu e-postayı yok say. Şifren olduğu gibi kalır.",
 		},
+		delete: {
+			subject: "Reloop kodun: {code}",
+			greeting: "Merhaba,",
+			lead: "Çalışma alanını kalıcı olarak silmek için bu kodu gir:",
+			validity: "Kod {minutes} dakika geçerlidir.",
+			ignore:
+				"Çalışma alanını silmek istemedin mi? O zaman bu e-postayı yok say. Kod olmadan hiçbir şey silinmez.",
+		},
 	},
 	"zh-Hans": {
 		signup: {
@@ -129,6 +177,14 @@ const COPY = {
 			lead: "输入此验证码以设置新密码：",
 			validity: "验证码 {minutes} 分钟内有效。",
 			ignore: "你没有申请新密码？那么请忽略这封邮件。你的密码保持不变。",
+		},
+		delete: {
+			subject: "你的 Reloop 验证码：{code}",
+			greeting: "你好，",
+			lead: "输入此验证码以永久删除你的工作区：",
+			validity: "验证码 {minutes} 分钟内有效。",
+			ignore:
+				"你没有申请删除工作区？那么请忽略这封邮件。没有验证码，什么都不会被删除。",
 		},
 	},
 } satisfies Record<Locale, Wording>;

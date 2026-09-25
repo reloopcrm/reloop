@@ -12,6 +12,7 @@ export const BILLING_MAIL_KINDS = [
 	"trialEnding",
 	"trialEnded",
 	"scheduled",
+	"deleted",
 ] as const;
 
 export type BillingMailKind = (typeof BILLING_MAIL_KINDS)[number];
@@ -38,6 +39,7 @@ const LINKS_OF = {
 	trialEnding: ["billing"],
 	trialEnded: ["billing"],
 	scheduled: ["billing"],
+	deleted: [],
 } as const satisfies Record<BillingMailKind, readonly BillingMailLink[]>;
 
 const COPY = {
@@ -108,6 +110,15 @@ const COPY = {
 					"Your trial has ended, and your workspace is paused.",
 					"Choose a plan to open it again.",
 					"After {date}, all its data is deleted for good.",
+				],
+			},
+			deleted: {
+				subject: "Reloop: your workspace was deleted",
+				lines: [
+					"Your workspace was deleted, as you asked.",
+					"All contacts, companies, mails, deals, notes and agents are gone, and your mailboxes are disconnected.",
+					"Your subscription is cancelled. Nothing is charged again.",
+					"Backups are deleted after {days} days at the latest.",
 				],
 			},
 		},
@@ -181,6 +192,15 @@ const COPY = {
 					"Nach dem {date} werden alle Daten endgültig gelöscht.",
 				],
 			},
+			deleted: {
+				subject: "Reloop: Dein Workspace wurde gelöscht",
+				lines: [
+					"Dein Workspace wurde gelöscht, so wie du es wolltest.",
+					"Alle Kontakte, Firmen, Mails, Deals, Notizen und Agenten sind entfernt, und deine Postfächer sind getrennt.",
+					"Dein Abo ist gekündigt. Es wird nichts mehr berechnet.",
+					"Sicherungen werden spätestens nach {days} Tagen gelöscht.",
+				],
+			},
 		},
 	},
 	es: {
@@ -250,6 +270,15 @@ const COPY = {
 					"Tu prueba ha terminado y tu espacio de trabajo está en pausa.",
 					"Elige un plan para abrirlo de nuevo.",
 					"Después del {date}, todos sus datos se borran para siempre.",
+				],
+			},
+			deleted: {
+				subject: "Reloop: tu espacio de trabajo se ha eliminado",
+				lines: [
+					"Tu espacio de trabajo se ha eliminado, como pediste.",
+					"Todos los contactos, empresas, correos, oportunidades, notas y agentes se han borrado, y tus buzones están desconectados.",
+					"Tu suscripción está cancelada. No se cobra nada más.",
+					"Las copias de seguridad se borran como muy tarde después de {days} días.",
 				],
 			},
 		},
@@ -323,6 +352,15 @@ const COPY = {
 					"Après le {date}, toutes ses données sont supprimées définitivement.",
 				],
 			},
+			deleted: {
+				subject: "Reloop : ton espace de travail a été supprimé",
+				lines: [
+					"Ton espace de travail a été supprimé, comme tu l'as demandé.",
+					"Tous les contacts, entreprises, mails, affaires, notes et agents sont supprimés, et tes boîtes mail sont déconnectées.",
+					"Ton abonnement est résilié. Plus rien n'est facturé.",
+					"Les sauvegardes sont supprimées au plus tard après {days} jours.",
+				],
+			},
 		},
 	},
 	"pt-BR": {
@@ -392,6 +430,15 @@ const COPY = {
 					"Seu teste terminou, e seu workspace está pausado.",
 					"Escolha um plano para abri-lo de novo.",
 					"Depois de {date}, todos os dados são apagados para sempre.",
+				],
+			},
+			deleted: {
+				subject: "Reloop: seu workspace foi excluído",
+				lines: [
+					"Seu workspace foi excluído, como você pediu.",
+					"Todos os contatos, empresas, e-mails, negócios, notas e agentes foram apagados, e suas caixas de e-mail foram desconectadas.",
+					"Sua assinatura foi cancelada. Nada mais é cobrado.",
+					"Os backups são apagados no máximo depois de {days} dias.",
 				],
 			},
 		},
@@ -465,6 +512,15 @@ const COPY = {
 					"{date} tarihinden sonra tüm verileri kalıcı olarak silinir.",
 				],
 			},
+			deleted: {
+				subject: "Reloop: çalışma alanın silindi",
+				lines: [
+					"Çalışma alanın istediğin gibi silindi.",
+					"Tüm kişiler, şirketler, e-postalar, fırsatlar, notlar ve ajanlar silindi ve posta kutularının bağlantısı kesildi.",
+					"Aboneliğin iptal edildi. Artık hiçbir ücret alınmaz.",
+					"Yedekler en geç {days} gün sonra silinir.",
+				],
+			},
 		},
 	},
 	"zh-Hans": {
@@ -534,6 +590,15 @@ const COPY = {
 					"你的试用已结束，你的工作区已暂停。",
 					"选择一个套餐即可重新打开。",
 					"{date} 之后，其所有数据将被永久删除。",
+				],
+			},
+			deleted: {
+				subject: "Reloop：你的工作区已删除",
+				lines: [
+					"你的工作区已按你的要求删除。",
+					"所有联系人、公司、邮件、交易、备注和智能体都已删除，你的邮箱已断开连接。",
+					"你的订阅已取消。之后不会再收取任何费用。",
+					"备份最迟在 {days} 天后删除。",
 				],
 			},
 		},

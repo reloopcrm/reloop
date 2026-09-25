@@ -13,12 +13,13 @@ import {
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
 import { managedInstall, plansOffered } from "@/lib/operator";
-import { requireSession, workspaceRole } from "@/lib/session";
+import { deletionZone, requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AgentLanguage } from "./agent-language";
 import { ArchiveRetention } from "./archive-retention";
 import { DealStages } from "./deal-stages";
+import { DeleteWorkspace } from "./delete-workspace";
 import { Language } from "./language";
 import { PasswordSignIn } from "./password";
 import { Plan } from "./plan";
@@ -56,7 +57,11 @@ export default async function GeneralSettingsPage() {
 
 async function Settings() {
 	const session = await requireSession();
-	const canManage = isWorkspaceAdmin(await workspaceRole(session.user.id));
+	const [role, dangerZone] = await Promise.all([
+		workspaceRole(session.user.id),
+		deletionZone(session.user.id),
+	]);
+	const canManage = isWorkspaceAdmin(role);
 	const planCard = plansOffered() && !isHosted();
 
 	const trpc = getServerTrpc();
@@ -96,6 +101,7 @@ async function Settings() {
 					<ArchiveRetention />
 				</fieldset>
 				<Version managed={managedInstall()} />
+				{dangerZone ? <DeleteWorkspace {...dangerZone} /> : null}
 			</div>
 		</HydrateClient>
 	);

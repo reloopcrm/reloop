@@ -68,12 +68,18 @@ The daily sweep runs in-process in production, and also on
   answers 403 `TENANT_SUSPENDED`. Data is kept.
 - Suspended for 30 days: the database is dumped, dropped, and the registry rows
   are deleted.
+- The owner deletes the workspace in Settings, General, or on the paused
+  page when the workspace is suspended. Status turns `deleted` first, then the
+  Stripe subscription is cancelled at once without proration, and the same
+  path dumps and drops the database. A Stripe refusal puts the old status
+  back. Any later step that fails leaves the status at `deleted`, and the next
+  sweep or the next Stripe webhook for that subscription finishes the work.
 
-The `api` image carries the Debian `postgresql-client` (version 15) for `psql`.
-Its `pg_dump` refuses the Postgres 17 server, so the sweep uses the newest
-nightly dump of that tenant in `/backups` when it is younger than 36 hours.
-Without such a dump the tenant is kept and an error is logged. Keep the nightly
-backup running and deletion works on its own.
+The `api` image carries `postgresql-client-17` from the PostgreSQL apt
+repository, so its `pg_dump` matches the Postgres 17 server and the dump
+before a drop is always fresh. When `pg_dump` fails anyway, the sweep uses the
+newest nightly dump of that tenant in `/backups` when it is younger than 36
+hours. Without such a dump the tenant is kept and an error is logged.
 
 ## Nightly backup
 
@@ -93,7 +99,10 @@ wipe the off-site dumps with it. Give the remote an account that can write but
 not delete (for SFTP: `ForceCommand internal-sftp -P remove,rmdir,rename,symlink,posix-rename`
 in a `Match User` block with a `ChrootDirectory`), and prune old dumps with a
 job on the remote host itself, for example
-`find <dir> -name '*.sql.gz' -mtime +60 -delete`.
+`find <dir> -type f -mtime +60 -delete`.
+The host keeps a deleted tenant's last dump for 8 weeks (`KEEP_WEEKLY_WEEKS`),
+the remote keeps every file for 60 days. The owner is told the longer of the
+two, `TENANCY.backup.retentionDays` (60). Change both together.
 
 Restore one tenant:
 

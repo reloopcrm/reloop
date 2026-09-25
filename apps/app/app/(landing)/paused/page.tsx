@@ -4,9 +4,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
-import { requireSession, workspaceRole } from "@/lib/session";
+import { deletionZone, requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { DeleteWorkspace } from "../../(app)/[slug]/settings/delete-workspace";
 import { Paused } from "./paused";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,7 +21,11 @@ export default async function PausedPage() {
 	if (!isHosted()) notFound();
 	const t = await getT();
 	const session = await requireSession();
-	const admin = isWorkspaceAdmin(await workspaceRole(session.user.id));
+	const [role, dangerZone] = await Promise.all([
+		workspaceRole(session.user.id),
+		deletionZone(session.user.id),
+	]);
+	const admin = isWorkspaceAdmin(role);
 
 	const queryClient = getServerQueryClient();
 	if (admin) {
@@ -39,6 +44,7 @@ export default async function PausedPage() {
 			/>
 			<HydrateClient>
 				<Paused admin={admin} />
+				{dangerZone ? <DeleteWorkspace {...dangerZone} /> : null}
 			</HydrateClient>
 		</AuthShell>
 	);

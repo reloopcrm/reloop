@@ -13,6 +13,7 @@ import {
 	closeRegistry,
 	forgetTenant,
 	NO_BILLING,
+	patchBilling,
 	setTenantStatus,
 	type Tenant,
 	tenantById,
@@ -279,7 +280,7 @@ let billing: BillingService;
 let mailer: MailService;
 let next: Stripe.Subscription | null = null;
 let refuseNext = false;
-let declineNext = false;
+let declineNext: string | null = null;
 let refuseScheduleCreate = false;
 const updates: Stripe.SubscriptionUpdateParams[] = [];
 
@@ -326,6 +327,7 @@ const reset = async () => {
 		graceUntil: null,
 		billing: NO_BILLING,
 	});
+	await patchBilling(a.id, { scheduledTarget: null });
 	await setTenantStatus(a.id, "active");
 	await runAsTenant(a, () => writePlan(db, "trial"));
 };
@@ -385,11 +387,12 @@ beforeAll(async () => {
 					throw new Error("This price cannot be added to this subscription.");
 				}
 				if (declineNext) {
-					declineNext = false;
+					const code = declineNext;
+					declineNext = null;
 					throw new Stripe.errors.StripeCardError({
 						message: "Your card was declined.",
 						type: "card_error",
-						code: "card_declined",
+						code,
 					});
 				}
 				updates.push(params);
@@ -1547,7 +1550,7 @@ describe("a plan change waits for the paid period", () => {
 			const updatesBefore = updates.length;
 			const releasedBefore = scheduleCalls.released.length;
 			const createdBefore = scheduleCalls.created.length;
-			declineNext = true;
+			declineNext = "card_declined";
 			await expect(
 				onTenant(() =>
 					billing.checkout(OWNER.id, { plan: "plus", interval: "month" }),
@@ -1567,7 +1570,7 @@ describe("a plan change waits for the paid period", () => {
 				(await onTenant(() => billing.overview(OWNER.id))).scheduled?.plan,
 			).toBe("start");
 		} finally {
-			declineNext = false;
+			declineNext = null;
 			current = subscriptionFixture(a.id);
 			await registryQuery(
 				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
@@ -1607,13 +1610,27 @@ describe("a plan change waits for the paid period", () => {
 					JSON.stringify(entry).includes("rebuilds it from the stored target"),
 				),
 			).toBe(true);
-			expect((await tenantById(a.id))?.billing.scheduledTarget).toEqual({
+			const stored = (await tenantById(a.id))?.billing.scheduledTarget;
+			expect(stored).toMatchObject({
 				plan: "start",
 				interval: "month",
 				addOns: { conversations: 0, drafts: 2, research: 1, mailbox: 0 },
 			});
+			if (!stored) throw new Error("stored target missing");
 
 			const createdBefore = scheduleCalls.created.length;
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect(scheduleCalls.created.length).toBe(createdBefore);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).not.toBeNull();
+
+			await patchBilling(a.id, {
+				scheduledTarget: {
+					...stored,
+					storedAt: new Date(Date.now() - 2 * BILLING.schedule.rebuildAfterMs),
+				},
+			});
 			expect(
 				(await post("customer.subscription.updated", current)).status,
 			).toBe(200);
@@ -1702,13 +1719,81 @@ describe("a plan change waits for the paid period", () => {
 		}
 	});
 
-	it("refuses monthly to yearly while a plan downgrade is scheduled", async () => {
+	it("keeps both keys when two writers patch the billing at once", async () => {
+		const stored = {
+			plan: "start" as const,
+			interval: "month" as const,
+			addOns: { conversations: 0, drafts: 1, research: 0, mailbox: 0 },
+			storedAt: new Date(),
+		};
+		try {
+			await Promise.all([
+				patchBilling(a.id, { wanted: { plan: "team", interval: "year" } }),
+				patchBilling(a.id, { scheduledTarget: stored }),
+			]);
+			const tenant = await tenantById(a.id);
+			expect(tenant?.billing.wanted).toEqual({
+				plan: "team",
+				interval: "year",
+			});
+			expect(tenant?.billing.scheduledTarget).toEqual(stored);
+			await patchBilling(a.id, { scheduledTarget: null });
+			expect((await tenantById(a.id))?.billing.wanted).toEqual({
+				plan: "team",
+				interval: "year",
+			});
+		} finally {
+			await reset();
+		}
+	});
+
+	it("asks for the bank confirmation when 3DS is required under a schedule", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			const updatesBefore = updates.length;
+			const createdBefore = scheduleCalls.created.length;
+			declineNext = "subscription_payment_intent_requires_action";
+			await expect(
+				onTenant(() =>
+					billing.checkout(OWNER.id, { plan: "plus", interval: "month" }),
+				),
+			).rejects.toThrow("Your bank asks for a confirmation.");
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled?.plan,
+			).toBe("start");
+		} finally {
+			declineNext = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("refuses monthly to yearly while any change is scheduled", async () => {
 		await subscribe(
 			subscriptionFixture(a.id, {
 				default_payment_method: cardOnSubscription(),
 			} as never),
 		);
 		try {
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 1 }),
+			);
+			await expect(
+				onTenant(() =>
+					billing.previewPlan(OWNER.id, { plan: "standard", interval: "year" }),
+				),
+			).rejects.toThrow("Undo the scheduled change first.");
+			await onTenant(() => billing.cancelScheduledChange(OWNER.id));
 			await onTenant(() =>
 				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
 			);

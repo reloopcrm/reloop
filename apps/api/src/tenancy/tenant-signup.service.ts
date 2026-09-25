@@ -15,10 +15,10 @@ import { dbNameOf, provisionTenant } from "@crm/db/provision";
 import {
 	activateTenant,
 	forgetTenants,
+	patchBilling,
 	type Tenant,
 	tenantById,
 	tenantBySignIn,
-	writeTenantBilling,
 } from "@crm/db/tenancy";
 import { TENANCY } from "@crm/db/tenancy-config";
 import {
@@ -369,12 +369,7 @@ export class TenantSignupService {
 		tenant: Tenant,
 		purchase: PlanPurchase,
 	): Promise<void> {
-		await writeTenantBilling(tenant.id, {
-			plan: tenant.plan,
-			paidUntil: tenant.paidUntil,
-			graceUntil: tenant.graceUntil,
-			billing: { ...tenant.billing, wanted: purchase },
-		});
+		await patchBilling(tenant.id, { wanted: purchase });
 	}
 
 	private async setAgentLanguage(

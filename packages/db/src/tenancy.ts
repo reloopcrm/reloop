@@ -50,6 +50,7 @@ export const tenantBilling = z.object({
 			plan: z.enum(PAID_PLAN_IDS).nullable(),
 			interval: z.enum(["month", "year"]).nullable(),
 			addOns: addOnQuantities,
+			storedAt: z.coerce.date(),
 		})
 		.nullable()
 		.default(null),
@@ -376,23 +377,38 @@ export type TenantBillingWrite = {
 	plan: string;
 	paidUntil: Date | null;
 	graceUntil: Date | null;
-	billing: TenantBilling;
+	billing: Omit<TenantBilling, "scheduledTarget">;
 };
+
+const billingWithoutTarget = tenantBilling.omit({ scheduledTarget: true });
 
 export async function writeTenantBilling(
 	id: string,
 	write: TenantBillingWrite,
 ): Promise<void> {
 	await registryPool().query(
-		`UPDATE tenant SET plan = $2, paid_until = $3, grace_until = $4, billing = $5::jsonb
+		`UPDATE tenant SET plan = $2, paid_until = $3, grace_until = $4,
+		   billing = COALESCE(billing, '{}'::jsonb) || $5::jsonb
 		 WHERE id = $1`,
 		[
 			id,
 			write.plan,
 			write.paidUntil,
 			write.graceUntil,
-			JSON.stringify(tenantBilling.parse(write.billing)),
+			JSON.stringify(billingWithoutTarget.parse(write.billing)),
 		],
+	);
+	forgetTenant(id);
+}
+
+export async function patchBilling(
+	id: string,
+	patch: Partial<TenantBilling>,
+): Promise<void> {
+	await registryPool().query(
+		`UPDATE tenant SET billing = COALESCE(billing, '{}'::jsonb) || $2::jsonb
+		 WHERE id = $1`,
+		[id, JSON.stringify(patch)],
 	);
 	forgetTenant(id);
 }

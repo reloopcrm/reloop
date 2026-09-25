@@ -343,6 +343,7 @@
 	"It applies at once. The limit rises as soon as Stripe confirms.": "立即生效。Stripe 确认后额度即提高。",
 	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "Stripe 拒绝了此更改。未收取任何费用。请重试，或联系支持。",
 	"Your card was declined. Nothing was changed.": "卡被拒绝，未作任何更改。",
+	"Your bank asks for a confirmation. Undo the scheduled change, then try again.": "你的银行要求确认。请撤销已计划的变更，然后重试。",
 	"Undo the scheduled change first.": "请先撤销已计划的变更。",
 	"From {date}: {plan}, billed yearly.": "自 {date} 起：{plan}，按年计费。",
 	"From {date}: {plan}, billed monthly.": "自 {date} 起：{plan}，按月计费。",

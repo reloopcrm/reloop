@@ -2,6 +2,7 @@ import type { Locale } from "@crm/db/locale";
 
 const SECOND = 1;
 const MINUTE = 60 * SECOND;
+const SECOND_MS = 1000;
 
 const STRIPE_LOCALES = {
 	en: "en",
@@ -35,6 +36,10 @@ export const BILLING = {
 	invoices: { limit: 24 },
 	portal: { metadataKey: "reloop", metadataValue: "portal" },
 	addOns: { maxQuantity: 99 },
-	schedule: { nextPhaseIntervals: 1, endBehavior: "release" },
+	schedule: {
+		nextPhaseIntervals: 1,
+		endBehavior: "release",
+		rebuildAfterMs: 30 * SECOND_MS,
+	},
 	stripe: { locales: STRIPE_LOCALES, centsPerUnit: 100 },
 } as const;

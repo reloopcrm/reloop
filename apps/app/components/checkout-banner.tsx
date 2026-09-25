@@ -11,14 +11,24 @@ import {
 import { Button } from "@crm/ui/components/button";
 import { Spinner } from "@crm/ui/components/spinner";
 import { useMutation } from "@tanstack/react-query";
+import type { ComponentProps, ReactNode } from "react";
 import { toast } from "sonner";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
 
 export type CheckoutBannerProps = { wanted: PlanPurchase; label: string };
 
-export function CheckoutBanner({ wanted, label }: CheckoutBannerProps) {
-	const t = useT();
+export function CheckoutButton({
+	purchase,
+	variant,
+	title,
+	children,
+}: {
+	purchase: PlanPurchase;
+	variant?: ComponentProps<typeof Button>["variant"];
+	title?: string;
+	children: ReactNode;
+}) {
 	const trpc = useTRPC();
 	const errorMessage = useErrorMessage();
 	const checkout = useMutation(
@@ -29,6 +39,22 @@ export function CheckoutBanner({ wanted, label }: CheckoutBannerProps) {
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
+
+	return (
+		<Button
+			variant={variant}
+			title={title}
+			disabled={checkout.isPending}
+			onClick={() => checkout.mutate(purchase)}
+		>
+			{checkout.isPending ? <Spinner data-icon="inline-start" /> : null}
+			{children}
+		</Button>
+	);
+}
+
+export function CheckoutBanner({ wanted, label }: CheckoutBannerProps) {
+	const t = useT();
 
 	return (
 		<Alert size="banner">
@@ -42,14 +68,9 @@ export function CheckoutBanner({ wanted, label }: CheckoutBannerProps) {
 				)}
 			</AlertDescription>
 			<AlertAction>
-				<Button
-					variant="outline"
-					disabled={checkout.isPending}
-					onClick={() => checkout.mutate(wanted)}
-				>
-					{checkout.isPending ? <Spinner data-icon="inline-start" /> : null}
+				<CheckoutButton purchase={wanted} variant="outline">
 					{t("Complete the {plan} plan", { plan: t(label) })}
-				</Button>
+				</CheckoutButton>
 			</AlertAction>
 		</Alert>
 	);

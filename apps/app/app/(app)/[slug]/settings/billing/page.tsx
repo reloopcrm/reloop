@@ -1,7 +1,9 @@
 import { isWorkspaceAdmin } from "@crm/auth";
+import type { PlanPurchase } from "@crm/db/pricing";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { purchaseFromParams } from "@/components/landing/pricing/purchase";
 import {
 	PageShell,
 	PageShellContent,
@@ -31,6 +33,7 @@ export default async function BillingSettingsPage({
 	const t = await getT();
 	const params = await searchParams;
 	const checkoutDone = params[CHECKOUT.param] === CHECKOUT.outcome.success;
+	const preselected = purchaseFromParams(params);
 
 	return (
 		<PageShell>
@@ -47,14 +50,20 @@ export default async function BillingSettingsPage({
 
 			<PageShellContent>
 				<Suspense fallback={<PageShellLoading />}>
-					<Owner checkoutDone={checkoutDone} />
+					<Owner checkoutDone={checkoutDone} preselected={preselected} />
 				</Suspense>
 			</PageShellContent>
 		</PageShell>
 	);
 }
 
-async function Owner({ checkoutDone }: { checkoutDone: boolean }) {
+async function Owner({
+	checkoutDone,
+	preselected,
+}: {
+	checkoutDone: boolean;
+	preselected: PlanPurchase | null;
+}) {
 	const session = await requireSession();
 	if (!isWorkspaceAdmin(await workspaceRole(session.user.id))) notFound();
 
@@ -65,7 +74,7 @@ async function Owner({ checkoutDone }: { checkoutDone: boolean }) {
 	return (
 		<HydrateClient>
 			<div className="flex max-w-3xl flex-1 flex-col gap-8">
-				<Billing checkoutDone={checkoutDone} />
+				<Billing checkoutDone={checkoutDone} preselected={preselected} />
 			</div>
 		</HydrateClient>
 	);

@@ -1,6 +1,7 @@
 "use client";
 
 import Purchase from "@carbon/icons-react/es/Purchase";
+import type { PlanPurchase } from "@crm/db/pricing";
 import {
 	Alert,
 	AlertAction,
@@ -24,11 +25,14 @@ import { Card, CardContent } from "@crm/ui/components/card";
 import { Icon } from "@crm/ui/components/icon";
 import { Spinner } from "@crm/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
+import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BillingChangeDialog } from "@/components/billing-change-dialog";
+import { PRICING } from "@/components/landing/pricing/config";
 import { LocalDateTime } from "@/components/local-date-time";
 import { euro, longDay } from "@/lib/billing-format";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
@@ -67,6 +71,19 @@ const INVOICE_COLUMNS =
 	"grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 sm:grid-cols-[--spacing(36)_minmax(0,1fr)_--spacing(24)_--spacing(16)]";
 
 export { longDay };
+
+const PURCHASE_PARAMS = [
+	PRICING.href.planParam,
+	PRICING.href.intervalParam,
+	PRICING.href.buyParam,
+];
+
+function withoutPurchase(location: Pick<Location, "pathname" | "search">) {
+	const params = new URLSearchParams(location.search);
+	for (const key of PURCHASE_PARAMS) params.delete(key);
+	const query = params.toString();
+	return query ? `${location.pathname}?${query}` : location.pathname;
+}
 
 export function researchLimit(
 	t: Translate,
@@ -143,7 +160,13 @@ export function cancelWarning(
 	);
 }
 
-export function Billing({ checkoutDone }: { checkoutDone: boolean }) {
+export function Billing({
+	checkoutDone,
+	preselected = null,
+}: {
+	checkoutDone: boolean;
+	preselected?: PlanPurchase | null;
+}) {
 	const t = useT();
 	const trpc = useTRPC();
 	const overview = useQuery(trpc.billing.overview.queryOptions());
@@ -185,7 +208,7 @@ export function Billing({ checkoutDone }: { checkoutDone: boolean }) {
 					</AlertDescription>
 				</Alert>
 			) : null}
-			<PlanPanel data={data} onChanged={refresh} />
+			<PlanPanel data={data} preselected={preselected} onChanged={refresh} />
 			{data.configured ? <PaymentSection data={data} /> : null}
 			{data.configured ? <InvoicesSection data={data} /> : null}
 			{cancelable ? <CancelPlan data={data} onChanged={refresh} /> : null}
@@ -250,18 +273,28 @@ function StatusLine({ data }: { data: Overview }) {
 
 function PlanPanel({
 	data,
+	preselected,
 	onChanged,
 }: {
 	data: Overview;
+	preselected: PlanPurchase | null;
 	onChanged: () => void;
 }) {
 	const t = useT();
 	const locale = useLocale();
 	const workspaceUrl = useWorkspaceUrl();
-	const [picking, setPicking] = useState(false);
-	const [interval, setInterval] = useState<Interval>(data.interval ?? "month");
+	const router = useRouter();
+	const [picking, setPicking] = useState(preselected !== null);
+	const [interval, setInterval] = useState<Interval>(
+		preselected?.interval ?? data.interval ?? "month",
+	);
 	const number = new Intl.NumberFormat(locale);
 	const hasSubscription = data.state !== "trial" && data.state !== "none";
+
+	useMountEffect(() => {
+		if (preselected)
+			router.replace(withoutPurchase(window.location), { scroll: false });
+	});
 
 	const never = t("No limit");
 	const count = (value: number | null) =>
@@ -357,6 +390,7 @@ function PlanPanel({
 					<PlanPicker
 						data={data}
 						interval={interval}
+						preselected={preselected?.plan}
 						aiKeyHref={workspaceUrl(USAGE_PATH)}
 						onDone={() => {
 							setPicking(false);
@@ -443,6 +477,7 @@ function ScheduledChange({
 type PlanPickerProps = {
 	data: Overview;
 	interval?: Interval;
+	preselected?: PlanId;
 	aiKeyHref: string | null;
 	onDone: () => void;
 };
@@ -468,6 +503,7 @@ export function PlanPicker(props: PlanPickerProps) {
 function PlanChoice({
 	data,
 	interval: chosenInterval,
+	preselected,
 	aiKeyHref,
 	onDone,
 	options,
@@ -481,11 +517,19 @@ function PlanChoice({
 		data.interval ?? "month",
 	);
 	const interval = chosenInterval ?? ownInterval;
+	const wanted = options.find(
+		(option) => option.id === preselected && option.over.length === 0,
+	);
 	const [plan, setPlan] = useState<PlanId | null>(
-		options.find((option) => option.id === data.plan)?.id ?? null,
+		wanted?.id ?? options.find((option) => option.id === data.plan)?.id ?? null,
 	);
 	const chosenOption = options.find((option) => option.id === plan) ?? null;
-	const [confirming, setConfirming] = useState(false);
+	const hasSubscription = data.state !== "trial" && data.state !== "none";
+	const unchanged =
+		hasSubscription && plan === data.plan && interval === data.interval;
+	const [confirming, setConfirming] = useState(
+		wanted !== undefined && hasSubscription && !unchanged,
+	);
 	const losesAi =
 		data.limits.aiIncluded && chosenOption !== null && !chosenOption.aiIncluded;
 
@@ -520,10 +564,6 @@ function PlanChoice({
 			},
 		);
 	};
-
-	const hasSubscription = data.state !== "trial" && data.state !== "none";
-	const unchanged =
-		hasSubscription && plan === data.plan && interval === data.interval;
 
 	return (
 		<div className="flex flex-col gap-4">

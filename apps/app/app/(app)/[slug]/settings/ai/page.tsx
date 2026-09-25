@@ -15,6 +15,7 @@ import {
 	PageShellLoading,
 	PageShellTitle,
 } from "@/components/page-shell";
+import { CHECKOUT } from "@/lib/checkout-config";
 import { getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";
 import { hostedCustomer, requestTenant } from "@/lib/tenant";
@@ -27,7 +28,6 @@ import { Typesafe } from "./typesafe";
 import { Usage } from "./usage";
 import { UsageAddOns } from "./usage-add-ons";
 
-const BILLING_PATH = "/settings/billing";
 const LONG_DAY = { dateStyle: "long" } as const;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -101,7 +101,7 @@ async function ChoosePlan({ slug }: { slug: string }) {
 	return (
 		<PageShellActions>
 			<Button asChild>
-				<Link href={workspaceUrl(slug, BILLING_PATH)}>
+				<Link href={workspaceUrl(slug, CHECKOUT.billingPath)}>
 					{t("Choose a plan")}
 				</Link>
 			</Button>
@@ -131,7 +131,7 @@ async function Ai({ hosted, slug }: { hosted: boolean; slug: string }) {
 				lines={usage.lines}
 				plan={{
 					trialEndsAt,
-					billingHref: admin ? workspaceUrl(slug, BILLING_PATH) : null,
+					billingHref: admin ? workspaceUrl(slug, CHECKOUT.billingPath) : null,
 				}}
 			/>
 			{admin ? <UsageAddOns /> : null}

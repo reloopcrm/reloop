@@ -3,6 +3,7 @@ import {
 	isSignInAllowed,
 	needsMailboxGrant,
 	type Session,
+	WORKSPACE_ID,
 	type WorkspaceRole,
 	workspaceRoleOf,
 } from "@crm/auth";
@@ -44,6 +45,16 @@ export const signInAccounts = cache(
 export const workspaceRole = cache(
 	async (userId: string): Promise<WorkspaceRole | null> =>
 		(await inTenant(() => workspaceRoleOf(userId))) ?? null,
+);
+
+export const workspaceRow = cache(
+	async () =>
+		(await inTenant(() =>
+			db.organization.findUnique({
+				where: { id: WORKSPACE_ID },
+				select: { name: true, slug: true },
+			}),
+		)) ?? null,
 );
 
 export async function requireMailboxAccess(): Promise<Session> {

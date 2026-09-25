@@ -63,7 +63,7 @@ describe("the block after a paid checkout", () => {
 	});
 
 	it("warns when the plan is still not active after the polling window", () => {
-		const late = Date.now() + CHECKOUT.poll.maxMs + 1;
+		const late = Date.now() + CHECKOUT.poll.maxMs + CHECKOUT.poll.intervalMs;
 		const markup = markupOf({ state: "trial", label: "Trial" }, "de", late);
 		expect(markup).toContain("Die Bestätigung dauert länger als üblich.");
 		expect(markup).not.toContain("Zahlung wird bestätigt.");

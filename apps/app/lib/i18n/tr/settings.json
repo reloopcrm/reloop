@@ -261,7 +261,7 @@
 	"Change payment method": "Ödeme yöntemini değiştir",
 	"Change billing address and VAT ID": "Fatura adresini ve KDV numarasını değiştir",
 	"VAT ID: {value}": "KDV numarası: {value}",
-	"Stripe has not verified this VAT ID. Check it, or German VAT is charged.": "Stripe bu KDV numarasını doğrulamadı. Kontrol et, yoksa Alman KDV'si alınır.",
+	"Stripe has not verified this VAT ID yet. Check the number.": "Stripe bu KDV numarasını henüz doğrulamadı. Numarayı kontrol et.",
 	"Invoices": "Faturalar",
 	"No invoices yet.": "Henüz fatura yok.",
 	"Every invoice as PDF, with VAT.": "Her fatura PDF olarak, KDV dahil.",

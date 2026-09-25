@@ -261,7 +261,7 @@
 	"Change payment method": "Cambiar método de pago",
 	"Change billing address and VAT ID": "Cambiar dirección de facturación y NIF-IVA",
 	"VAT ID: {value}": "NIF-IVA: {value}",
-	"Stripe has not verified this VAT ID. Check it, or German VAT is charged.": "Stripe no ha verificado este NIF-IVA. Revísalo, o se cobrará el IVA alemán.",
+	"Stripe has not verified this VAT ID yet. Check the number.": "Stripe aún no ha verificado este NIF-IVA. Revisa el número.",
 	"Invoices": "Facturas",
 	"No invoices yet.": "Aún no hay facturas.",
 	"Every invoice as PDF, with VAT.": "Cada factura en PDF, con IVA.",

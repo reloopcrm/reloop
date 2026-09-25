@@ -568,7 +568,10 @@ such thread that still has no deal. **It classifies nothing and queues no
 
 `apps/api/src/billing` sells the hosted plans through Stripe and nothing else
 touches a plan. `billing.overview` reads the registry row and, when a customer
-exists, Stripe's customer and invoices; `billing.checkout`, `setAddOn`,
+exists, Stripe's customer and invoices. The customer read expands `tax_ids`, so
+the page shows the first VAT ID and whether Stripe verified it; Checkout collects
+the ID and the billing address, the portal changes both, and Stripe Tax applies
+the reverse charge from them. `billing.checkout`, `setAddOn`,
 `cancel`, `resume` and `portal` write to Stripe and apply the returned
 subscription at once. `POST /api/billing/webhook` is the source of truth: it
 verifies the signature, fetches the subscription named by the event and calls

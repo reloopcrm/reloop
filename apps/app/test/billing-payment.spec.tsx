@@ -117,10 +117,10 @@ describe("the payment section", () => {
 			taxId: { value: "DE123456789", verified: false },
 		};
 		expect(markupOf("en", unverified)).toContain(
-			"Stripe has not verified this VAT ID. Check it, or German VAT is charged.",
+			"Stripe has not verified this VAT ID yet. Check the number.",
 		);
 		expect(markupOf("de", unverified)).toContain(
-			"Stripe hat diese USt-IdNr nicht bestätigt.",
+			"Stripe hat diese USt-IdNr noch nicht bestätigt. Prüfe die Nummer.",
 		);
 	});
 

@@ -261,7 +261,7 @@
 	"Change payment method": "Zahlungsmethode ändern",
 	"Change billing address and VAT ID": "Rechnungsadresse und USt-IdNr ändern",
 	"VAT ID: {value}": "USt-IdNr: {value}",
-	"Stripe has not verified this VAT ID. Check it, or German VAT is charged.": "Stripe hat diese USt-IdNr nicht bestätigt. Prüfe sie, sonst wird deutsche Umsatzsteuer berechnet.",
+	"Stripe has not verified this VAT ID yet. Check the number.": "Stripe hat diese USt-IdNr noch nicht bestätigt. Prüfe die Nummer.",
 	"Invoices": "Rechnungen",
 	"No invoices yet.": "Noch keine Rechnungen.",
 	"Every invoice as PDF, with VAT.": "Jede Rechnung als PDF, mit Umsatzsteuer.",

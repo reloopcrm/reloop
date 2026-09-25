@@ -988,7 +988,7 @@ export function PaymentSection({ data }: { data: Overview }) {
 							{data.taxId && !data.taxId.verified ? (
 								<span className="text-muted-foreground">
 									{t(
-										"Stripe has not verified this VAT ID. Check it, or German VAT is charged.",
+										"Stripe has not verified this VAT ID yet. Check the number.",
 									)}
 								</span>
 							) : null}

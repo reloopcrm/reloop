@@ -455,5 +455,14 @@
 	"Open workspace and pay": "Workspace öffnen und bezahlen",
 	"Plan: {plan}, billed yearly.": "Tarif: {plan}, jährlich abgerechnet.",
 	"Plan: {plan}, billed monthly.": "Tarif: {plan}, monatlich abgerechnet.",
-	"Create workspace": "Workspace anlegen"
+	"Create workspace": "Workspace anlegen",
+	"You are already signed in as {email} ({workspace}).": "Du bist schon angemeldet als {email} ({workspace}).",
+	"Your workspace is already running. Open it instead of creating a second one.": "Dein Workspace läuft schon. Öffne ihn, statt einen zweiten anzulegen.",
+	"Only owners or admins can change the plan.": "Nur Inhaber oder Admins können den Tarif ändern.",
+	"You already have {plan}.": "Du hast {plan} bereits.",
+	"The plan is booked for this workspace. No second workspace is created.": "Der Tarif wird für diesen Workspace gebucht. Es entsteht kein zweiter Workspace.",
+	"Book {plan} for {workspace}": "{plan} für {workspace} buchen",
+	"Go to my workspace": "Zu meinem Workspace",
+	"Create a new, separate workspace?": "Neuen, separaten Workspace anlegen?",
+	"Sign out first.": "Erst abmelden."
 }

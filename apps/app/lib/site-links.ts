@@ -21,14 +21,17 @@ export function signUpUrl(plan?: string): string {
 	return plan ? `${path}?${PRICING.href.planParam}=${plan}` : path;
 }
 
-export function buyUrl(purchase: PlanPurchase): string {
+export function purchaseQuery(purchase: PlanPurchase): URLSearchParams {
 	const { planParam, intervalParam, buyParam, buyValue } = PRICING.href;
-	const query = new URLSearchParams({
+	return new URLSearchParams({
 		[planParam]: purchase.plan,
 		[intervalParam]: purchase.interval,
 		[buyParam]: buyValue,
 	});
-	return `${cloudUrl() ?? ""}${PRICING.href.start}?${query}`;
+}
+
+export function buyUrl(purchase: PlanPurchase): string {
+	return `${cloudUrl() ?? ""}${PRICING.href.start}?${purchaseQuery(purchase)}`;
 }
 
 export function signInUrl(): string {

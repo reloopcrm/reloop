@@ -3,7 +3,7 @@
 import { signOut } from "@crm/auth/client";
 import { toast } from "sonner";
 
-export async function signOutAndRedirect() {
+export async function signOutAndRedirect(returnTo = "/sign-in") {
 	const { error } = await signOut();
 
 	if (error) {
@@ -11,5 +11,5 @@ export async function signOutAndRedirect() {
 		return;
 	}
 
-	window.location.assign("/sign-in");
+	window.location.assign(returnTo);
 }

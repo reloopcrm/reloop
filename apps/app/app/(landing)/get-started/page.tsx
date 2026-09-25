@@ -7,10 +7,17 @@ import { z } from "zod";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { PRICING } from "@/components/landing/pricing/config";
 import { purchaseFromParams } from "@/components/landing/pricing/purchase";
+import {
+	type SignedInEntry,
+	SignedInPanel,
+} from "@/components/landing/signed-in-panel";
 import { SignupForm } from "@/components/landing/signup-form";
 import { WaitlistForm } from "@/components/landing/waitlist-form";
 import { API_URL } from "@/lib/env";
+import type { Translate } from "@/lib/i18n/locale";
 import { getT } from "@/lib/i18n/server";
+import { signedInWorkspace } from "@/lib/signed-in";
+import { signedInEntry } from "@/lib/signed-in-entry";
 import {
 	buyUrl,
 	cloudUrl,
@@ -19,6 +26,7 @@ import {
 	signUpUrl,
 } from "@/lib/site-links";
 import { signupOptions } from "@/lib/tenant-api";
+import { workspaceUrl } from "@/lib/workspace-url";
 
 const chosenPlan = z.enum(PLAN_IDS).catch("trial");
 
@@ -73,6 +81,39 @@ export default async function GetStartedPage({
 		);
 	}
 
+	const signedIn = await signedInWorkspace();
+	if (signedIn) {
+		const entry = signedInEntry({
+			purchase,
+			admin: signedIn.admin,
+			subscription: signedIn.subscription,
+			slug: signedIn.slug,
+		});
+		const planLabel = purchase ? PLANS[purchase.plan].label : null;
+		return (
+			<AuthShell>
+				<AuthHeading
+					title={t("You are already signed in as {email} ({workspace}).", {
+						email: signedIn.email,
+						workspace: signedIn.name,
+					})}
+					description={signedInLine(t, entry)}
+				/>
+				<SignedInPanel
+					entry={entry}
+					plan={planLabel}
+					workspace={signedIn.name}
+					workspaceHref={workspaceUrl(signedIn.slug)}
+					returnTo={
+						purchase
+							? buyUrl(purchase)
+							: signUpUrl(requested === undefined ? undefined : plan)
+					}
+				/>
+			</AuthShell>
+		);
+	}
+
 	const options = await signupOptions(API_URL);
 
 	return (
@@ -106,6 +147,26 @@ export default async function GetStartedPage({
 			<SelfHostLine />
 		</AuthShell>
 	);
+}
+
+function signedInLine(t: Translate, entry: SignedInEntry): string {
+	switch (entry.kind) {
+		case "refused":
+			return t("Only owners or admins can change the plan.");
+		case "owned":
+			return t("You already have {plan}.", {
+				plan: t(PLANS[entry.purchase.plan].label),
+			});
+		case "checkout":
+		case "change":
+			return t(
+				"The plan is booked for this workspace. No second workspace is created.",
+			);
+		default:
+			return t(
+				"Your workspace is already running. Open it instead of creating a second one.",
+			);
+	}
 }
 
 async function SelfHostLine() {

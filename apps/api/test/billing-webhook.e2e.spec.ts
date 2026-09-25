@@ -21,7 +21,7 @@ import {
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants, registryQuery } from "@crm/db/test-tenants";
 import { Logger } from "@nestjs/common";
-import type Stripe from "stripe";
+import Stripe from "stripe";
 import request from "supertest";
 import { z } from "zod";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
@@ -224,6 +224,10 @@ function stubStripe(
 		spyOn(stripe.subscriptionSchedules, "create").mockImplementation((async (
 			params: Stripe.SubscriptionScheduleCreateParams,
 		) => {
+			if (refuseScheduleCreate) {
+				refuseScheduleCreate = false;
+				throw new Error("Schedules are unavailable right now.");
+			}
 			scheduleCalls.created.push(params);
 			schedule = scheduleFixture(live.current());
 			live.current().schedule = schedule.id;
@@ -275,6 +279,8 @@ let billing: BillingService;
 let mailer: MailService;
 let next: Stripe.Subscription | null = null;
 let refuseNext = false;
+let declineNext = false;
+let refuseScheduleCreate = false;
 const updates: Stripe.SubscriptionUpdateParams[] = [];
 
 const tenantCookie = () =>
@@ -377,6 +383,14 @@ beforeAll(async () => {
 				if (refuseNext) {
 					refuseNext = false;
 					throw new Error("This price cannot be added to this subscription.");
+				}
+				if (declineNext) {
+					declineNext = false;
+					throw new Stripe.errors.StripeCardError({
+						message: "Your card was declined.",
+						type: "card_error",
+						code: "card_declined",
+					});
 				}
 				updates.push(params);
 				if (next) current = next;
@@ -1470,11 +1484,12 @@ describe("a plan change waits for the paid period", () => {
 			expect(updates.at(-1)).toEqual({
 				items: [{ price: research, quantity: 1 }],
 				proration_behavior: "always_invoice",
-				payment_behavior: "pending_if_incomplete",
+				payment_behavior: "error_if_incomplete",
 				expand: ["latest_invoice"],
 			});
 			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
 			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
 			const phases = scheduleCalls.updated.at(-1)?.params.phases;
 			expect(phases?.[0]?.items).toEqual([
 				{ price: standard, quantity: 1 },
@@ -1512,6 +1527,147 @@ describe("a plan change waits for the paid period", () => {
 			).toMatchObject({ plan: "start", addOns: { drafts: 2, research: 1 } });
 		} finally {
 			next = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("puts the old target back when the card is declined under a schedule", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const start = `price_${planLookupKey("start", "month")}`;
+		const drafts = `price_${addOnLookupKey("drafts", "month")}`;
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			const updatesBefore = updates.length;
+			const releasedBefore = scheduleCalls.released.length;
+			const createdBefore = scheduleCalls.created.length;
+			declineNext = true;
+			await expect(
+				onTenant(() =>
+					billing.checkout(OWNER.id, { plan: "plus", interval: "month" }),
+				),
+			).rejects.toThrow("Your card was declined. Nothing was changed.");
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 2 },
+			]);
+			const tenant = await tenantById(a.id);
+			expect(tenant?.plan).toBe("standard");
+			expect(tenant?.billing.scheduledTarget).toBeNull();
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled?.plan,
+			).toBe("start");
+		} finally {
+			declineNext = false;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("rebuilds a lost target from the registry on the next subscription webhook", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const start = `price_${planLookupKey("start", "month")}`;
+		const drafts = `price_${addOnLookupKey("drafts", "month")}`;
+		const research = `price_${addOnLookupKey("research", "month")}`;
+		const logged = spyOn(Logger.prototype, "error");
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			next = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("standard", "month")),
+						item(addOnLookupKey("drafts", "month"), 2),
+						item(addOnLookupKey("research", "month"), 1),
+					],
+				},
+			});
+			refuseScheduleCreate = true;
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "research", quantity: 1 }),
+			);
+			next = null;
+			expect(schedule).toBeNull();
+			expect(
+				logged.mock.calls.some(([entry]) =>
+					JSON.stringify(entry).includes("rebuilds it from the stored target"),
+				),
+			).toBe(true);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toEqual({
+				plan: "start",
+				interval: "month",
+				addOns: { conversations: 0, drafts: 2, research: 1, mailbox: 0 },
+			});
+
+			const createdBefore = scheduleCalls.created.length;
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 2 },
+				{ price: research, quantity: 1 },
+			]);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+		} finally {
+			logged.mockRestore();
+			refuseScheduleCreate = false;
+			next = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("refuses monthly to yearly while a plan downgrade is scheduled", async () => {
+		await subscribe(
+			subscriptionFixture(a.id, {
+				default_payment_method: cardOnSubscription(),
+			} as never),
+		);
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			const updatesBefore = updates.length;
+			await expect(
+				onTenant(() =>
+					billing.previewPlan(OWNER.id, { plan: "standard", interval: "year" }),
+				),
+			).rejects.toThrow("Undo the scheduled change first.");
+			await expect(
+				onTenant(() =>
+					billing.checkout(OWNER.id, { plan: "standard", interval: "year" }),
+				),
+			).rejects.toThrow("Undo the scheduled change first.");
+			expect(updates.length).toBe(updatesBefore);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled?.plan,
+			).toBe("start");
+		} finally {
 			current = subscriptionFixture(a.id);
 			await registryQuery(
 				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",

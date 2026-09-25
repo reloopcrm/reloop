@@ -26,6 +26,7 @@ import { writePlan } from "@crm/db/settings";
 import {
 	type BillingStatus,
 	forgetTenant,
+	type ScheduledTarget,
 	setTenantStatus,
 	type Tenant,
 	type TenantBilling,
@@ -49,7 +50,7 @@ import {
 	ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type Stripe from "stripe";
+import Stripe from "stripe";
 import { z } from "zod";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
@@ -456,6 +457,9 @@ export class BillingService {
 		}
 
 		await this.applySubscription(tenant, subscription);
+		if (event.type === "customer.subscription.updated") {
+			await this.rebuildStoredTarget(tenant.id, subscription);
+		}
 		if (
 			event.type === "checkout.session.completed" ||
 			event.type === "customer.subscription.updated"
@@ -505,6 +509,7 @@ export class BillingService {
 			cancelAt: state.cancelAt,
 			addOns: state.addOns,
 			wanted: null,
+			scheduledTarget: tenant.billing.scheduledTarget,
 		};
 
 		if (state.status === "canceled") {
@@ -512,7 +517,12 @@ export class BillingService {
 				plan: tenant.plan,
 				paidUntil: null,
 				graceUntil: null,
-				billing: { ...billing, cancelAt: null, addOns: { ...NO_ADD_ONS } },
+				billing: {
+					...billing,
+					cancelAt: null,
+					addOns: { ...NO_ADD_ONS },
+					scheduledTarget: null,
+				},
 			});
 			if (tenant.status === "active") {
 				await setTenantStatus(tenant.id, "suspended");
@@ -665,6 +675,7 @@ export class BillingService {
 		if (changeTiming(subscriptionState(subscription), input) === "period_end") {
 			return nothingNow(subscription);
 		}
+		await this.assertNoScheduledDowngrade(tenant, subscription, input);
 		return this.stripeChange(tenant, async () =>
 			this.preview(
 				subscription,
@@ -732,6 +743,7 @@ export class BillingService {
 				}
 				return { url: null };
 			}
+			await this.assertNoScheduledDowngrade(tenant, subscription, input);
 			const change = await this.planChange(tenant, subscription, input);
 			if (subscription.cancel_at_period_end) {
 				await this.stripeChange(tenant, () =>
@@ -740,7 +752,11 @@ export class BillingService {
 					}),
 				);
 			}
-			return this.changeNow(tenant, subscription, change);
+			return this.changeNow(tenant, subscription, change, {
+				plan: input.plan,
+				interval: input.interval,
+				addOns: subscriptionState(subscription).addOns,
+			});
 		}
 
 		const price = await this.priceId(planLookupKey(input.plan, input.interval));
@@ -802,7 +818,10 @@ export class BillingService {
 		}
 		const change = await this.addOnChange(subscription, input);
 		if (!change) return { url: null };
-		return this.changeNow(tenant, subscription, change);
+		return this.changeNow(tenant, subscription, change, {
+			...lineupOf(subscription.items.data),
+			addOns: { ...current, [input.addOn]: input.quantity },
+		});
 	}
 
 	async cancelScheduledChange(userId: string): Promise<{ ok: true }> {
@@ -810,6 +829,7 @@ export class BillingService {
 		const tenant = await this.freshTenant();
 		const subscription = await this.requireSubscription(tenant);
 		await this.stripeChange(tenant, () => this.releaseSchedule(subscription));
+		await this.storeTarget(tenant.id, null);
 		return { ok: true };
 	}
 
@@ -859,7 +879,11 @@ export class BillingService {
 				cancel_at_period_end: cancel,
 			});
 		});
-		await this.applySubscription(tenant, updated);
+		await this.storeTarget(tenant.id, null);
+		await this.applySubscription(
+			(await tenantById(tenant.id)) ?? tenant,
+			updated,
+		);
 		return { ok: true };
 	}
 
@@ -900,9 +924,12 @@ export class BillingService {
 					}),
 				);
 			}
+			const live = known
+				? subscription
+				: await stripe.subscriptions.retrieve(subscription.id);
 			const schedule =
 				known ??
-				(await this.scheduleOf(subscription)) ??
+				(await this.scheduleOf(live)) ??
 				stripeSchedule.parse(
 					await stripe.subscriptionSchedules.create({
 						from_subscription: subscription.id,
@@ -984,45 +1011,47 @@ export class BillingService {
 		tenant: Tenant,
 		subscription: Stripe.Subscription,
 		change: Change,
+		after: Lineup,
 	): Promise<{ url: string | null }> {
 		const stripe = this.requireStripe();
+		const scheduled = scheduledChangeOf(
+			await this.stripeChange(tenant, () => this.scheduleOf(subscription)),
+		);
+		const intended = scheduled
+			? mergedTarget(lineupOf(subscription.items.data), after, scheduled)
+			: null;
 		const updated = await this.stripeChange(tenant, async () => {
-			const scheduled = scheduledChangeOf(await this.scheduleOf(subscription));
+			if (scheduled) await this.storeTarget(tenant.id, scheduled);
 			await this.releaseSchedule(subscription);
-			let updated: Stripe.Subscription;
 			try {
-				updated = await stripe.subscriptions.update(subscription.id, {
+				return await stripe.subscriptions.update(subscription.id, {
 					...change,
-					payment_behavior: "pending_if_incomplete",
+					payment_behavior: scheduled
+						? "error_if_incomplete"
+						: "pending_if_incomplete",
 					expand: ["latest_invoice"],
 				});
 			} catch (error) {
-				if (scheduled)
+				if (scheduled) {
 					await this.restoreScheduled(tenant, subscription, scheduled);
+				}
+				if (error instanceof Stripe.errors.StripeCardError) {
+					throw new BadRequestException(
+						"Your card was declined. Nothing was changed.",
+					);
+				}
 				throw error;
 			}
-			if (scheduled)
-				await this.keepScheduled(tenant, subscription, updated, scheduled);
-			return updated;
 		});
-		await this.applySubscription(tenant, updated);
+		if (intended) {
+			await this.storeTarget(tenant.id, intended);
+			await this.restoreScheduled(tenant, updated, intended);
+		}
+		await this.applySubscription(
+			(await tenantById(tenant.id)) ?? tenant,
+			updated,
+		);
 		return { url: pendingPaymentUrl(updated) };
-	}
-
-	private async keepScheduled(
-		tenant: Tenant,
-		before: Stripe.Subscription,
-		updated: Stripe.Subscription,
-		scheduled: Lineup,
-	): Promise<void> {
-		const target = updated.pending_update
-			? scheduled
-			: mergedTarget(
-					lineupOf(before.items.data),
-					lineupOf(updated.items.data),
-					scheduled,
-				);
-		await this.restoreScheduled(tenant, updated, target);
 	}
 
 	private async restoreScheduled(
@@ -1032,15 +1061,65 @@ export class BillingService {
 	): Promise<void> {
 		try {
 			await this.scheduleLineup(tenant, subscription, target, null);
+			await this.storeTarget(tenant.id, null);
 		} catch (error) {
 			this.logger.error(
 				{
-					message: "The scheduled change was lost after an immediate change",
+					message:
+						"The scheduled change is not on Stripe. The next subscription webhook rebuilds it from the stored target.",
 					tenantId: tenant.id,
 					subscriptionId: subscription.id,
+					target,
 				},
 				error instanceof Error ? error.stack : String(error),
 			);
+		}
+	}
+
+	private async rebuildStoredTarget(
+		tenantId: string,
+		subscription: Stripe.Subscription,
+	): Promise<void> {
+		forgetTenant(tenantId);
+		const tenant = await tenantById(tenantId);
+		const target = tenant?.billing.scheduledTarget;
+		if (!tenant || !target) return;
+		await this.scheduleLineup(tenant, subscription, target, null);
+		await this.storeTarget(tenant.id, null);
+		this.logger.log({
+			message: "Scheduled change rebuilt from the stored target",
+			tenantId: tenant.id,
+			subscriptionId: subscription.id,
+		});
+	}
+
+	private async storeTarget(
+		tenantId: string,
+		target: ScheduledTarget | null,
+	): Promise<void> {
+		forgetTenant(tenantId);
+		const tenant = await tenantById(tenantId);
+		if (!tenant) return;
+		await writeTenantBilling(tenant.id, {
+			plan: tenant.plan,
+			paidUntil: tenant.paidUntil,
+			graceUntil: tenant.graceUntil,
+			billing: { ...tenant.billing, scheduledTarget: target },
+		});
+	}
+
+	private async assertNoScheduledDowngrade(
+		tenant: Tenant,
+		subscription: Stripe.Subscription,
+		input: CheckoutInput,
+	): Promise<void> {
+		const state = subscriptionState(subscription);
+		if (state.interval !== "month" || input.interval !== "year") return;
+		const scheduled = scheduledChangeOf(
+			await this.stripeChange(tenant, () => this.scheduleOf(subscription)),
+		);
+		if (scheduled?.plan && scheduled.plan !== state.plan) {
+			throw new BadRequestException("Undo the scheduled change first.");
 		}
 	}
 

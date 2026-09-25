@@ -342,6 +342,8 @@
 	"Your yearly cost changes by {amount}.": "Tu coste anual cambia en {amount}.",
 	"It applies at once. The limit rises as soon as Stripe confirms.": "Se aplica al instante. El límite sube en cuanto Stripe lo confirma.",
 	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "Stripe rechazó este cambio. No se cobró nada. Inténtalo de nuevo o contacta con soporte.",
+	"Your card was declined. Nothing was changed.": "Tarjeta rechazada, nada cambió.",
+	"Undo the scheduled change first.": "Deshaz primero el cambio programado.",
 	"From {date}: {plan}, billed yearly.": "A partir del {date}: {plan}, facturado anualmente.",
 	"From {date}: {plan}, billed monthly.": "A partir del {date}: {plan}, facturado mensualmente.",
 	"{label}: {count}": "{label}: {count}",

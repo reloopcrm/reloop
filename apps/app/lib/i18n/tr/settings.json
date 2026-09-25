@@ -342,6 +342,8 @@
 	"Your yearly cost changes by {amount}.": "Yıllık maliyetin {amount} değişir.",
 	"It applies at once. The limit rises as soon as Stripe confirms.": "Hemen geçerli olur. Stripe onaylar onaylamaz sınır yükselir.",
 	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "Stripe bu değişikliği reddetti. Hiçbir ücret alınmadı. Tekrar dene ya da destekle iletişime geç.",
+	"Your card was declined. Nothing was changed.": "Kart reddedildi, hiçbir şey değişmedi.",
+	"Undo the scheduled change first.": "Önce planlanan değişikliği geri al.",
 	"From {date}: {plan}, billed yearly.": "{date} itibarıyla: {plan}, yıllık faturalanır.",
 	"From {date}: {plan}, billed monthly.": "{date} itibarıyla: {plan}, aylık faturalanır.",
 	"{label}: {count}": "{label}: {count}",

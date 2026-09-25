@@ -1642,6 +1642,66 @@ describe("a plan change waits for the paid period", () => {
 		}
 	});
 
+	it("heals a lost target before the next change edits it", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const start = `price_${planLookupKey("start", "month")}`;
+		const drafts = `price_${addOnLookupKey("drafts", "month")}`;
+		const research = `price_${addOnLookupKey("research", "month")}`;
+		const logged = spyOn(Logger.prototype, "error");
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			next = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("standard", "month")),
+						item(addOnLookupKey("drafts", "month"), 2),
+						item(addOnLookupKey("research", "month"), 1),
+					],
+				},
+			});
+			refuseScheduleCreate = true;
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "research", quantity: 1 }),
+			);
+			next = null;
+			expect(schedule).toBeNull();
+
+			const createdBefore = scheduleCalls.created.length;
+			const updatesBefore = updates.length;
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 1 }),
+			);
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 1 },
+				{ price: research, quantity: 1 },
+			]);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled,
+			).toMatchObject({ plan: "start", addOns: { drafts: 1, research: 1 } });
+		} finally {
+			logged.mockRestore();
+			refuseScheduleCreate = false;
+			next = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
 	it("refuses monthly to yearly while a plan downgrade is scheduled", async () => {
 		await subscribe(
 			subscriptionFixture(a.id, {

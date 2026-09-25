@@ -712,7 +712,10 @@ export class BillingService {
 		const stripe = this.requireStripe();
 		const tenant = await this.freshTenant();
 		await this.assertPlanFits(tenant, input);
-		const subscription = await this.activeSubscription(tenant);
+		const live = await this.activeSubscription(tenant);
+		const subscription = live
+			? await this.rebuildStoredTarget(tenant.id, live)
+			: null;
 
 		if (subscription) {
 			if (
@@ -788,7 +791,10 @@ export class BillingService {
 		await this.assertManager(userId);
 		this.requireStripe();
 		const tenant = await this.freshTenant();
-		const subscription = await this.requireSubscription(tenant);
+		const subscription = await this.rebuildStoredTarget(
+			tenant.id,
+			await this.requireSubscription(tenant),
+		);
 		const current = subscriptionState(subscription).addOns;
 		const schedule = await this.stripeChange(tenant, () =>
 			this.scheduleOf(subscription),
@@ -976,15 +982,18 @@ export class BillingService {
 		const items = await this.itemsOf(target);
 		if (sameItems(items, phaseItemsOf(subscription.items.data))) {
 			await this.stripeChange(tenant, () => this.releaseSchedule(subscription));
+			await this.storeTarget(tenant.id, null);
 			return null;
 		}
-		return this.scheduleTarget(
+		const at = await this.scheduleTarget(
 			tenant,
 			subscription,
 			items,
 			target.interval ?? "month",
 			known,
 		);
+		await this.storeTarget(tenant.id, null);
+		return at;
 	}
 
 	private async itemsOf(lineup: Lineup): Promise<PhaseItem[]> {
@@ -1061,7 +1070,6 @@ export class BillingService {
 	): Promise<void> {
 		try {
 			await this.scheduleLineup(tenant, subscription, target, null);
-			await this.storeTarget(tenant.id, null);
 		} catch (error) {
 			this.logger.error(
 				{
@@ -1079,17 +1087,19 @@ export class BillingService {
 	private async rebuildStoredTarget(
 		tenantId: string,
 		subscription: Stripe.Subscription,
-	): Promise<void> {
+	): Promise<Stripe.Subscription> {
 		forgetTenant(tenantId);
 		const tenant = await tenantById(tenantId);
 		const target = tenant?.billing.scheduledTarget;
-		if (!tenant || !target) return;
+		if (!tenant || !target) return subscription;
 		await this.scheduleLineup(tenant, subscription, target, null);
-		await this.storeTarget(tenant.id, null);
 		this.logger.log({
 			message: "Scheduled change rebuilt from the stored target",
 			tenantId: tenant.id,
 			subscriptionId: subscription.id,
+		});
+		return this.requireStripe().subscriptions.retrieve(subscription.id, {
+			expand: ["default_payment_method"],
 		});
 	}
 

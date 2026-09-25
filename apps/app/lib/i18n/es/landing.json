@@ -129,6 +129,7 @@
 	"Popular": "popular",
 	"€{price}": "{price} €",
 	"per month": "al mes",
+	"per year": "al año",
 	"per month, billed yearly": "al mes, facturado anualmente",
 	"You pay for the AI directly with your provider, for example OpenRouter, OpenAI or Anthropic. We run the servers, updates and backups. No setup, no Docker, no terminal.": "Pagas la IA directamente a tu proveedor, por ejemplo OpenRouter, OpenAI o Anthropic. Nosotros nos ocupamos de servidores, actualizaciones y copias de seguridad. Sin instalación, sin Docker, sin terminal.",
 	"Start": "Start",

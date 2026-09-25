@@ -129,6 +129,7 @@
 	"Popular": "popüler",
 	"€{price}": "{price} €",
 	"per month": "aylık",
+	"per year": "yıllık",
 	"per month, billed yearly": "aylık, yıllık faturalandırılır",
 	"You pay for the AI directly with your provider, for example OpenRouter, OpenAI or Anthropic. We run the servers, updates and backups. No setup, no Docker, no terminal.": "Yapay zekayı doğrudan sağlayıcına ödersin, örneğin OpenRouter, OpenAI veya Anthropic. Sunucular, güncellemeler ve yedekler bizde. Kurulum yok, Docker yok, terminal yok.",
 	"Start": "Start",

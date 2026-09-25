@@ -2,6 +2,7 @@ import "@crm/env/load";
 import { ADD_ON_IDS, PLANS } from "@crm/db/plans";
 import {
 	addOnLookupKey,
+	addOnYearlyTotal,
 	BILLING_INTERVALS,
 	type BillingInterval,
 	PAID_PLAN_IDS,
@@ -76,7 +77,8 @@ export function catalog(): Catalog {
 				lookupKey: addOnLookupKey(addOn, interval),
 				product: name,
 				interval,
-				amountCents: (interval === "year" ? monthly * 12 : monthly) * 100,
+				amountCents:
+					(interval === "year" ? addOnYearlyTotal(monthly) : monthly) * 100,
 			});
 		}
 	}

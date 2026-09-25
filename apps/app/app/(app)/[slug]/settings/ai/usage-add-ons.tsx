@@ -2,6 +2,7 @@
 
 import Add from "@carbon/icons-react/es/Add";
 import Subtract from "@carbon/icons-react/es/Subtract";
+import { addOnYearlyTotal, type BillingInterval } from "@crm/db/pricing";
 import { Button } from "@crm/ui/components/button";
 import { Icon } from "@crm/ui/components/icon";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -17,6 +18,10 @@ import type { RouterOutputs } from "@/lib/trpc/types";
 type AddOn = RouterOutputs["billing"]["overview"]["addOnCatalog"][number];
 
 type Step = { addOn: AddOn; from: number; to: number };
+
+function addOnPrice(addOn: AddOn, interval: BillingInterval): number {
+	return interval === "year" ? addOnYearlyTotal(addOn.monthly) : addOn.monthly;
+}
 
 export function UsageAddOns() {
 	const t = useT();
@@ -47,6 +52,7 @@ export function UsageAddOns() {
 	if (!data?.configured) return null;
 	const hasSubscription = data.state !== "trial" && data.state !== "none";
 	const periodEnd = data.scheduled?.at ?? data.paidUntil;
+	const interval: BillingInterval = data.interval ?? "month";
 
 	return (
 		<section className="flex flex-col">
@@ -66,6 +72,8 @@ export function UsageAddOns() {
 					const later = data.scheduled?.addOns[addOn.id];
 					const base = later ?? quantity;
 					const label = t(addOn.label);
+					const showLater =
+						later !== undefined && later !== quantity && periodEnd !== null;
 					return (
 						<li
 							key={addOn.id}
@@ -73,7 +81,8 @@ export function UsageAddOns() {
 						>
 							<span className="text-sm">{label}</span>
 							<span className="text-right text-sm tabular-nums">
-								{euro(addOn.monthly, locale)} {t("per month")}
+								{euro(addOnPrice(addOn, interval), locale)}{" "}
+								{interval === "year" ? t("per year") : t("per month")}
 							</span>
 							<span className="col-span-full flex items-center justify-end gap-3 sm:col-span-1">
 								<Button
@@ -87,21 +96,10 @@ export function UsageAddOns() {
 									<Icon icon={Subtract} />
 								</Button>
 								<span
-									className="flex min-w-6 flex-col items-center text-center text-sm tabular-nums"
+									className="w-6 text-center text-sm tabular-nums"
 									data-add-on={addOn.id}
 								>
 									{quantity}
-									{later !== undefined && later !== quantity && periodEnd ? (
-										<span
-											className="text-2sm text-muted-foreground"
-											data-add-on-later={addOn.id}
-										>
-											{t("{count} from {date}", {
-												count: later,
-												date: longDay(periodEnd, locale),
-											})}
-										</span>
-									) : null}
 								</span>
 								<Button
 									type="button"
@@ -116,6 +114,17 @@ export function UsageAddOns() {
 									<Icon icon={Add} />
 								</Button>
 							</span>
+							{showLater && periodEnd ? (
+								<span
+									className="col-span-full text-right text-2sm text-muted-foreground"
+									data-add-on-later={addOn.id}
+								>
+									{t("{count} from {date}", {
+										count: later,
+										date: longDay(periodEnd, locale),
+									})}
+								</span>
+							) : null}
 						</li>
 					);
 				})}
@@ -123,6 +132,7 @@ export function UsageAddOns() {
 			{step ? (
 				<AddOnConfirm
 					step={step}
+					interval={interval}
 					periodEnd={periodEnd}
 					scheduledAt={data.scheduled?.at ?? null}
 					pending={set.isPending}
@@ -138,6 +148,7 @@ export function UsageAddOns() {
 
 function AddOnConfirm({
 	step,
+	interval,
 	periodEnd,
 	scheduledAt,
 	pending,
@@ -145,6 +156,7 @@ function AddOnConfirm({
 	onClose,
 }: {
 	step: Step;
+	interval: BillingInterval;
 	periodEnd: string | null;
 	scheduledAt: string | null;
 	pending: boolean;
@@ -163,7 +175,7 @@ function AddOnConfirm({
 		enabled: adding,
 	});
 	const label = t(step.addOn.label);
-	const change = (step.to - step.from) * step.addOn.monthly;
+	const change = (step.to - step.from) * addOnPrice(step.addOn, interval);
 	const date = periodEnd
 		? longDay(periodEnd, locale)
 		: t("the end of the period");
@@ -171,9 +183,13 @@ function AddOnConfirm({
 		adding
 			? t("You then have {count}.", { count: step.to })
 			: t("From {date} you have {count}.", { date, count: step.to }),
-		t("Your monthly cost changes by {amount}.", {
-			amount: signedEuro(change, locale),
-		}),
+		interval === "year"
+			? t("Your yearly cost changes by {amount}.", {
+					amount: signedEuro(change, locale),
+				})
+			: t("Your monthly cost changes by {amount}.", {
+					amount: signedEuro(change, locale),
+				}),
 	];
 	if (adding && scheduledAt) {
 		lines.push(

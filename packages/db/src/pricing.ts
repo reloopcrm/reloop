@@ -78,3 +78,7 @@ export function parseLookupKey(key: string | null): ParsedLookupKey | null {
 export function yearlyTotal(price: PlanPrice): number {
 	return price.yearly * 12;
 }
+
+export function addOnYearlyTotal(monthly: number): number {
+	return monthly * 12;
+}

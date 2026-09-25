@@ -19,7 +19,7 @@ type AddOn = RouterOutputs["billing"]["overview"]["addOnCatalog"][number];
 
 type Step = { addOn: AddOn; from: number; to: number };
 
-function addOnPrice(addOn: AddOn, interval: BillingInterval): number {
+export function addOnPrice(addOn: AddOn, interval: BillingInterval): number {
 	return interval === "year" ? addOnYearlyTotal(addOn.monthly) : addOn.monthly;
 }
 

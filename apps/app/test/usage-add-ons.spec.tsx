@@ -38,7 +38,7 @@ const { createElement } = await import("react");
 const { renderToStaticMarkup } = await import("react-dom/server");
 const { I18nProvider } = await import("../lib/i18n/client");
 const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
-const { UsageAddOns } = await import(
+const { UsageAddOns, addOnPrice } = await import(
 	"../app/(app)/[slug]/settings/ai/usage-add-ons"
 );
 
@@ -50,9 +50,19 @@ afterAll(() => {
 	GlobalRegistrator.unregister();
 });
 
+const CONVERSATIONS_ADD_ON: Overview["addOnCatalog"][number] = {
+	id: "conversations",
+	label: "1,000 mail conversations",
+	monthly: 29,
+};
+const DRAFTS_ADD_ON: Overview["addOnCatalog"][number] = {
+	id: "drafts",
+	label: "100 mail drafts",
+	monthly: 19,
+};
 const ADD_ON_CATALOG: Overview["addOnCatalog"] = [
-	{ id: "conversations", label: "1,000 mail conversations", monthly: 29 },
-	{ id: "drafts", label: "100 mail drafts", monthly: 19 },
+	CONVERSATIONS_ADD_ON,
+	DRAFTS_ADD_ON,
 ];
 
 const BASE_OVERVIEW: Overview = {
@@ -152,5 +162,17 @@ describe("the add-on price wording follows the billed interval", () => {
 		expect(markup).toContain("29");
 		expect(markup).toContain("per month");
 		expect(markup).not.toContain("348");
+	});
+});
+
+describe("the add-on price the confirmation dialog bills against", () => {
+	it("is twelve times the monthly rate on a yearly subscription", () => {
+		expect(addOnPrice(CONVERSATIONS_ADD_ON, "year")).toBe(348);
+		expect(addOnPrice(DRAFTS_ADD_ON, "year")).toBe(228);
+	});
+
+	it("is the plain monthly rate on a monthly subscription", () => {
+		expect(addOnPrice(CONVERSATIONS_ADD_ON, "month")).toBe(29);
+		expect(addOnPrice(DRAFTS_ADD_ON, "month")).toBe(19);
 	});
 });

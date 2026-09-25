@@ -129,6 +129,7 @@
 	"Popular": "热门",
 	"€{price}": "€{price}",
 	"per month": "每月",
+	"per year": "每年",
 	"per month, billed yearly": "每月，按年结算",
 	"You pay for the AI directly with your provider, for example OpenRouter, OpenAI or Anthropic. We run the servers, updates and backups. No setup, no Docker, no terminal.": "AI 费用由你直接向提供商支付，例如 OpenRouter、OpenAI 或 Anthropic。服务器、更新和备份由我们负责。无需安装，无需 Docker，无需终端。",
 	"Start": "Start",

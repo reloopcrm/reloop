@@ -339,6 +339,7 @@
 	"Remove {label}?": "{label} kaldırılsın mı?",
 	"You then have {count}.": "O zaman {count} tane olur.",
 	"Your monthly cost changes by {amount}.": "Aylık maliyetin {amount} değişir.",
+	"Your yearly cost changes by {amount}.": "Yıllık maliyetin {amount} değişir.",
 	"It applies at once. The limit rises as soon as Stripe confirms.": "Hemen geçerli olur. Stripe onaylar onaylamaz sınır yükselir.",
 	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "Stripe bu değişikliği reddetti. Hiçbir ücret alınmadı. Tekrar dene ya da destekle iletişime geç.",
 	"From {date}: {plan}, billed yearly.": "{date} itibarıyla: {plan}, yıllık faturalanır.",

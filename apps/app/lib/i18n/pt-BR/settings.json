@@ -339,6 +339,7 @@
 	"Remove {label}?": "Remover {label}?",
 	"You then have {count}.": "Então você tem {count}.",
 	"Your monthly cost changes by {amount}.": "Seu custo mensal muda em {amount}.",
+	"Your yearly cost changes by {amount}.": "Seu custo anual muda em {amount}.",
 	"It applies at once. The limit rises as soon as Stripe confirms.": "Vale na hora. O limite sobe assim que o Stripe confirmar.",
 	"Stripe refused this change. Nothing was charged. Try again, or contact support.": "O Stripe recusou esta mudança. Nada foi cobrado. Tente de novo ou fale com o suporte.",
 	"From {date}: {plan}, billed yearly.": "A partir de {date}: {plan}, cobrado anualmente.",

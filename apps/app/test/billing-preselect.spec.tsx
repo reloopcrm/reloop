@@ -12,6 +12,7 @@ GlobalRegistrator.register({ url: "https://app.example.com/acme" });
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 const started: PlanPurchase[] = [];
+const replaced: string[] = [];
 
 const sonner = { ...(await import("sonner")) };
 const client = { ...(await import("../lib/trpc/client")) };
@@ -41,6 +42,7 @@ mock.module("sonner", () => ({
 mock.module("next/navigation", () => ({
 	...navigation,
 	useParams: () => ({ slug: "acme" }),
+	useRouter: () => ({ replace: (href: string) => replaced.push(href) }),
 }));
 mock.module("../lib/trpc/client", () => ({
 	...client,
@@ -92,6 +94,7 @@ afterEach(async () => {
 	root = undefined;
 	document.body.innerHTML = "";
 	started.length = 0;
+	replaced.length = 0;
 });
 
 afterAll(() => {
@@ -140,6 +143,13 @@ const base: Overview = {
 
 async function openBilling(data: Overview, preselected: PlanPurchase | null) {
 	overview = data;
+	window.history.replaceState(
+		null,
+		"",
+		preselected
+			? `/acme/settings/billing?plan=${preselected.plan}&interval=${preselected.interval}&buy=1&checkout=success`
+			: "/acme/settings/billing",
+	);
 	const container = document.createElement("div");
 	document.body.append(container);
 	root = createRoot(container);
@@ -173,8 +183,15 @@ describe("a plan chosen on the sign-up page", () => {
 		expect(started).toEqual([]);
 	});
 
+	it("removes the chosen plan from the address, so a reload does not open it again", async () => {
+		await openBilling(base, { plan: "team", interval: "year" });
+		expect(replaced).toEqual(["/acme/settings/billing?checkout=success"]);
+		expect(document.querySelector("[role=alertdialog]")).not.toBeNull();
+	});
+
 	it("opens nothing without a chosen plan", async () => {
 		const container = await openBilling(base, null);
+		expect(replaced).toEqual([]);
 		expect(checkedPlan(container)).toBeUndefined();
 		expect(document.querySelector("[role=alertdialog]")).toBeNull();
 	});

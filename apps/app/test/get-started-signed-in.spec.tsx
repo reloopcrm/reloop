@@ -206,6 +206,18 @@ describe("the sign-up page for a visitor who is signed in", () => {
 		});
 	});
 
+	it("lets a long email break inside the title", async () => {
+		const email = `${"preview".repeat(8)}@example.com`;
+		signedIn = { ...owner, email };
+		const children = await pageChildren(buyParams);
+		const heading = children[0] as ReactElement<{ title: ReactNode }>;
+		const title = renderToStaticMarkup(
+			createElement("h2", null, heading.props.title),
+		);
+		expect(title).toContain(`<span class="wrap-anywhere">${email}</span>`);
+		expect(title).toContain("Acme");
+	});
+
 	it("offers only the workspace on a trial link", async () => {
 		signedIn = owner;
 		const children = await pageChildren({ plan: "team" });
@@ -302,6 +314,17 @@ describe("what a signed-in visitor can do", () => {
 		const container = await mount(panel({ kind: "workspace" }));
 		await act(async () => buttonNamed(container, "Erst abmelden.")?.click());
 		expect(assigned).toEqual(["/get-started?plan=team&interval=year&buy=1"]);
+	});
+
+	it("keeps a long workspace name whole in the tooltip of the book button", () => {
+		const workspace =
+			"Preview Handelsgesellschaft für sehr lange Firmennamen mbH";
+		const markup = markupOf(
+			{ ...panel({ kind: "checkout", purchase: team }), workspace },
+			"en",
+		);
+		expect(markup).toContain(`title="Book Team for ${workspace}"`);
+		expect(markup).toContain('class="w-0 flex-1 truncate text-center"');
 	});
 
 	it("speaks English and German", () => {

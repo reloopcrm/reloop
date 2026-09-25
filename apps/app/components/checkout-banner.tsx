@@ -21,10 +21,12 @@ export type CheckoutBannerProps = { wanted: PlanPurchase; label: string };
 export function CheckoutButton({
 	purchase,
 	variant,
+	title,
 	children,
 }: {
 	purchase: PlanPurchase;
 	variant?: ComponentProps<typeof Button>["variant"];
+	title?: string;
 	children: ReactNode;
 }) {
 	const trpc = useTRPC();
@@ -41,6 +43,7 @@ export function CheckoutButton({
 	return (
 		<Button
 			variant={variant}
+			title={title}
 			disabled={checkout.isPending}
 			onClick={() => checkout.mutate(purchase)}
 		>

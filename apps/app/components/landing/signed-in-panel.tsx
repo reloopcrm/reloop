@@ -34,17 +34,22 @@ export function SignedInPanel({
 	const t = useT();
 	const book = plan
 		? t("Book {plan} for {workspace}", { plan: t(plan), workspace })
-		: null;
+		: undefined;
+	const bookLabel = (
+		<span className="w-0 flex-1 truncate text-center">{book}</span>
+	);
 	const open = t("Go to my workspace");
 
 	return (
 		<>
 			<div className="flex flex-col gap-3">
 				{entry.kind === "checkout" ? (
-					<CheckoutButton purchase={entry.purchase}>{book}</CheckoutButton>
+					<CheckoutButton purchase={entry.purchase} title={book}>
+						{bookLabel}
+					</CheckoutButton>
 				) : entry.kind === "change" ? (
-					<Button asChild>
-						<NextLink href={entry.href}>{book}</NextLink>
+					<Button asChild title={book}>
+						<NextLink href={entry.href}>{bookLabel}</NextLink>
 					</Button>
 				) : null}
 				<Button

@@ -25,11 +25,14 @@ import { Card, CardContent } from "@crm/ui/components/card";
 import { Icon } from "@crm/ui/components/icon";
 import { Spinner } from "@crm/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
+import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BillingChangeDialog } from "@/components/billing-change-dialog";
+import { PRICING } from "@/components/landing/pricing/config";
 import { LocalDateTime } from "@/components/local-date-time";
 import { euro, longDay } from "@/lib/billing-format";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
@@ -68,6 +71,19 @@ const INVOICE_COLUMNS =
 	"grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 sm:grid-cols-[--spacing(36)_minmax(0,1fr)_--spacing(24)_--spacing(16)]";
 
 export { longDay };
+
+const PURCHASE_PARAMS = [
+	PRICING.href.planParam,
+	PRICING.href.intervalParam,
+	PRICING.href.buyParam,
+];
+
+function withoutPurchase(location: Pick<Location, "pathname" | "search">) {
+	const params = new URLSearchParams(location.search);
+	for (const key of PURCHASE_PARAMS) params.delete(key);
+	const query = params.toString();
+	return query ? `${location.pathname}?${query}` : location.pathname;
+}
 
 export function researchLimit(
 	t: Translate,
@@ -267,12 +283,18 @@ function PlanPanel({
 	const t = useT();
 	const locale = useLocale();
 	const workspaceUrl = useWorkspaceUrl();
+	const router = useRouter();
 	const [picking, setPicking] = useState(preselected !== null);
 	const [interval, setInterval] = useState<Interval>(
 		preselected?.interval ?? data.interval ?? "month",
 	);
 	const number = new Intl.NumberFormat(locale);
 	const hasSubscription = data.state !== "trial" && data.state !== "none";
+
+	useMountEffect(() => {
+		if (preselected)
+			router.replace(withoutPurchase(window.location), { scroll: false });
+	});
 
 	const never = t("No limit");
 	const count = (value: number | null) =>

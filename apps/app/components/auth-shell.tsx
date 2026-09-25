@@ -53,7 +53,7 @@ export async function AuthHeading({
 	title,
 	description,
 }: {
-	title: string;
+	title: ReactNode;
 	description: ReactNode;
 }) {
 	const t = await getT();

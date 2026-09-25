@@ -3,6 +3,7 @@ import { isHosted } from "@crm/db/tenant-context";
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 import { z } from "zod";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { PRICING } from "@/components/landing/pricing/config";
@@ -29,6 +30,8 @@ import { signupOptions } from "@/lib/tenant-api";
 import { workspaceUrl } from "@/lib/workspace-url";
 
 const chosenPlan = z.enum(PLAN_IDS).catch("trial");
+
+const EMAIL_MARK = "\u0000email\u0000";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -93,10 +96,7 @@ export default async function GetStartedPage({
 		return (
 			<AuthShell>
 				<AuthHeading
-					title={t("You are already signed in as {email} ({workspace}).", {
-						email: signedIn.email,
-						workspace: signedIn.name,
-					})}
+					title={signedInTitle(t, signedIn)}
 					description={signedInLine(t, entry)}
 				/>
 				<SignedInPanel
@@ -146,6 +146,23 @@ export default async function GetStartedPage({
 			</p>
 			<SelfHostLine />
 		</AuthShell>
+	);
+}
+
+function signedInTitle(
+	t: Translate,
+	{ email, name }: { email: string; name: string },
+): ReactNode {
+	const [before, after] = t(
+		"You are already signed in as {email} ({workspace}).",
+		{ email: EMAIL_MARK, workspace: name },
+	).split(EMAIL_MARK);
+	return (
+		<>
+			{before}
+			<span className="wrap-anywhere">{email}</span>
+			{after}
+		</>
 	);
 }
 

@@ -676,32 +676,16 @@ function PlanChangeConfirm({
 		locale,
 	);
 	const effectiveAt = preview.data?.effectiveAt ?? null;
-	const lines = [
-		interval === "year"
-			? t("New price: {price} per month, billed yearly.", { price })
-			: t("New price: {price} per month, billed monthly.", { price }),
-	];
-	if (effectiveAt) {
-		lines.push(
-			t(
-				"The change applies on {date}. Until then your current plan and its limits stay.",
-				{
-					date: longDay(effectiveAt, locale),
-				},
-			),
-		);
-	}
-	if (scheduled) {
-		const date = longDay(scheduled.at, locale);
-		lines.push(
-			scheduled.plan !== currentPlan && option.id !== scheduled.plan
-				? t(
-						"The plan scheduled for {date} is replaced. Your scheduled add-on changes stay.",
-						{ date },
-					)
-				: t("Your changes scheduled for {date} stay.", { date }),
-		);
-	}
+	const lines = planChangeLines(t, locale, {
+		price,
+		interval,
+		effectiveAt,
+		scheduled,
+		replaced: scheduled
+			? scheduled.plan !== currentPlan && option.id !== scheduled.plan
+			: false,
+		failed: preview.error !== null,
+	});
 
 	return (
 		<BillingChangeDialog
@@ -728,6 +712,46 @@ function PlanChangeConfirm({
 			onClose={onClose}
 		/>
 	);
+}
+
+export function planChangeLines(
+	t: Translate,
+	locale: string,
+	change: {
+		price: string;
+		interval: Interval;
+		effectiveAt: string | null;
+		scheduled: { at: string } | null;
+		replaced: boolean;
+		failed: boolean;
+	},
+): string[] {
+	const { price, interval, effectiveAt, scheduled, replaced, failed } = change;
+	const lines = [
+		interval === "year"
+			? t("New price: {price} per month, billed yearly.", { price })
+			: t("New price: {price} per month, billed monthly.", { price }),
+	];
+	if (effectiveAt) {
+		lines.push(
+			t(
+				"The change applies on {date}. Until then your current plan and its limits stay.",
+				{ date: longDay(effectiveAt, locale) },
+			),
+		);
+	}
+	if (scheduled && !failed) {
+		const date = longDay(scheduled.at, locale);
+		lines.push(
+			replaced
+				? t(
+						"The plan scheduled for {date} is replaced. Your scheduled add-on changes stay.",
+						{ date },
+					)
+				: t("Your changes scheduled for {date} stay.", { date }),
+		);
+	}
+	return lines;
 }
 
 function OwnKeyWarning({
@@ -900,7 +924,7 @@ function ResumePlan({
 	);
 }
 
-function PaymentSection({ data }: { data: Overview }) {
+export function PaymentSection({ data }: { data: Overview }) {
 	const t = useT();
 	const trpc = useTRPC();
 	const errorMessage = useErrorMessage();
@@ -958,6 +982,16 @@ function PaymentSection({ data }: { data: Overview }) {
 							{data.address?.lines.map((line) => (
 								<span key={line}>{line}</span>
 							))}
+							{data.taxId ? (
+								<span>{t("VAT ID: {value}", { value: data.taxId.value })}</span>
+							) : null}
+							{data.taxId && !data.taxId.verified ? (
+								<span className="text-muted-foreground">
+									{t(
+										"Stripe has not verified this VAT ID. Check it, or German VAT is charged.",
+									)}
+								</span>
+							) : null}
 							{data.address?.email ? (
 								<span className="text-muted-foreground">
 									{data.address.email}
@@ -977,7 +1011,7 @@ function PaymentSection({ data }: { data: Overview }) {
 								disabled={portal.isPending}
 								onClick={() => portal.mutate({ flow: "billing" })}
 							>
-								{t("Change address")}
+								{t("Change billing address and VAT ID")}
 							</Button>
 						</span>
 					</div>

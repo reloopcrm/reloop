@@ -76,6 +76,12 @@ export const billingOverviewOutput = z.object({
 			lines: z.array(z.string()),
 		})
 		.nullable(),
+	taxId: z
+		.object({
+			value: z.string(),
+			verified: z.boolean(),
+		})
+		.nullable(),
 	invoices: z.array(
 		z.object({
 			id: z.string(),

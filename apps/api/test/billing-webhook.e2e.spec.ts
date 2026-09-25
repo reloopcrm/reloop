@@ -623,6 +623,12 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			);
 			expect(sessions[0]?.customer).toBe("cus_spec");
 			expect(sessions[0]?.subscription_data?.metadata?.tenantId).toBe(a.id);
+			expect(sessions[0]?.tax_id_collection).toEqual({ enabled: true });
+			expect(sessions[0]?.billing_address_collection).toBe("required");
+			expect(sessions[0]?.customer_update).toEqual({
+				address: "auto",
+				name: "auto",
+			});
 			const locale = await onTenant(() => workspaceLocale(db));
 			expect(createdCustomers[customersBefore]?.preferred_locales).toEqual([
 				BILLING.stripe.locales[locale],

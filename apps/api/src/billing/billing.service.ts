@@ -105,6 +105,19 @@ const stripeInvoice = z.object({
 
 type StripeInvoice = z.infer<typeof stripeInvoice>;
 
+const customerTaxIds = z.object({
+	tax_ids: z
+		.object({
+			data: z.array(
+				z.object({
+					value: z.string(),
+					verification: z.object({ status: z.string() }).nullable(),
+				}),
+			),
+		})
+		.optional(),
+});
+
 const pricedItem = z.object({
 	price: z.union([
 		z.string().transform((id) => ({ id, lookup_key: null })),
@@ -584,6 +597,7 @@ export class BillingService {
 			addOnCatalog: this.addOnCatalog(),
 			paymentMethod: null,
 			address: null,
+			taxId: null,
 			invoices: [],
 			stripeReachable: true,
 		};
@@ -595,7 +609,7 @@ export class BillingService {
 			const subscriptionId = tenant.billing.subscriptionId;
 			const [customer, invoices, subscription] = await Promise.all([
 				this.stripe.customers.retrieve(customerId, {
-					expand: ["invoice_settings.default_payment_method"],
+					expand: ["invoice_settings.default_payment_method", "tax_ids"],
 				}),
 				this.stripe.invoices.list({
 					customer: customerId,
@@ -609,7 +623,10 @@ export class BillingService {
 			]);
 			const live = customer.deleted ? null : customer;
 			overview.paymentMethod = paymentMethodOf(subscription, live);
-			if (live) overview.address = addressOf(live);
+			if (live) {
+				overview.address = addressOf(live);
+				overview.taxId = taxIdOf(live);
+			}
 			const scheduled = subscription
 				? scheduledChangeOf(await this.scheduleOf(subscription))
 				: null;
@@ -1614,6 +1631,7 @@ export class BillingService {
 			addOnCatalog: this.addOnCatalog(),
 			paymentMethod: null,
 			address: null,
+			taxId: null,
 			invoices: [],
 			stripeReachable: true,
 		};
@@ -1705,6 +1723,17 @@ function paymentMethodView(
 		};
 	}
 	return { kind: method.type, brand: null, last4: null, expires: null };
+}
+
+export function taxIdOf(
+	customer: Pick<Stripe.Customer, "tax_ids">,
+): BillingOverview["taxId"] {
+	const first = customerTaxIds.parse(customer).tax_ids?.data[0];
+	if (!first) return null;
+	return {
+		value: first.value,
+		verified: first.verification?.status === "verified",
+	};
 }
 
 function addressOf(customer: Stripe.Customer): BillingOverview["address"] {

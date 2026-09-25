@@ -32,6 +32,7 @@ import {
 	scheduledChangeOf,
 	scheduledReduction,
 	subscriptionState,
+	taxIdOf,
 } from "../src/billing/billing.service";
 import { openWhileSuspended } from "../src/tenancy/tenant.middleware";
 
@@ -313,6 +314,37 @@ describe("the payment method comes from the subscription first", () => {
 			paymentMethodOf({ default_payment_method: "pm_not_expanded" }, null),
 		).toBeNull();
 		expect(paymentMethodOf(null, null)).toBeNull();
+	});
+});
+
+describe("the tax ID comes from the customer's expanded tax IDs", () => {
+	const customer = (status: string | null) =>
+		({
+			tax_ids: {
+				data: [
+					{
+						value: "DE123456789",
+						verification: status ? { status } : null,
+					},
+				],
+			},
+		}) as unknown as Stripe.Customer;
+
+	it("is verified only when Stripe says so", () => {
+		expect(taxIdOf(customer("verified"))).toEqual({
+			value: "DE123456789",
+			verified: true,
+		});
+		expect(taxIdOf(customer("unverified"))?.verified).toBe(false);
+		expect(taxIdOf(customer("pending"))?.verified).toBe(false);
+		expect(taxIdOf(customer(null))?.verified).toBe(false);
+	});
+
+	it("is null without an expanded list or with an empty one", () => {
+		expect(taxIdOf({} as Stripe.Customer)).toBeNull();
+		expect(
+			taxIdOf({ tax_ids: { data: [] } } as unknown as Stripe.Customer),
+		).toBeNull();
 	});
 });
 

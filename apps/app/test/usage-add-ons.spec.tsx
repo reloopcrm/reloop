@@ -101,6 +101,7 @@ const BASE_OVERVIEW: Overview = {
 	addOnCatalog: ADD_ON_CATALOG,
 	paymentMethod: null,
 	address: null,
+	taxId: null,
 	invoices: [],
 	stripeReachable: true,
 };

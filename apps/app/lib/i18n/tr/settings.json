@@ -369,7 +369,7 @@
 	"All contacts, companies, mails, deals, notes and agents are deleted.": "Tüm kişiler, şirketler, e-postalar, fırsatlar, notlar ve ajanlar silinir.",
 	"Every connected mailbox is disconnected.": "Bağlı her posta kutusunun bağlantısı kesilir.",
 	"The subscription ends today. Nothing is refunded for the time left.": "Abonelik bugün sona erer. Kalan süre için iade yapılmaz.",
-	"The backups on our servers are removed after {days} days.": "Sunucularımızdaki yedekler {days} gün sonra silinir.",
+	"Backups are deleted after {days} days at the latest.": "Yedekler en geç {days} gün sonra silinir.",
 	"Type {name} to confirm": "Onaylamak için {name} yaz",
 	"Your password": "Şifren",
 	"Code from the email": "E-postadaki kod",

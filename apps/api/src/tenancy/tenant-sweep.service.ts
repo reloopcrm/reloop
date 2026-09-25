@@ -49,6 +49,7 @@ export class TenantSweepService
 	private readonly onTimer: boolean;
 	private handle: ReturnType<typeof setInterval> | undefined;
 	private running = false;
+	private readonly finishing = new Set<string>();
 
 	constructor(
 		@InjectDatabase() private readonly db: Db,
@@ -178,6 +179,16 @@ export class TenantSweepService
 	}
 
 	async finishDeletion(tenant: Tenant): Promise<DeletionOutcome> {
+		if (this.finishing.has(tenant.id)) return "kept";
+		this.finishing.add(tenant.id);
+		try {
+			return await this.finishSteps(tenant);
+		} finally {
+			this.finishing.delete(tenant.id);
+		}
+	}
+
+	private async finishSteps(tenant: Tenant): Promise<DeletionOutcome> {
 		try {
 			await this.billing.cancelNow(tenant);
 			await runAsTenant(tenant, () => this.clearSecrets());

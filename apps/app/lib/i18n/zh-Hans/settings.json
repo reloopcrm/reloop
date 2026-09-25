@@ -369,7 +369,7 @@
 	"All contacts, companies, mails, deals, notes and agents are deleted.": "所有联系人、公司、邮件、交易、备注和智能体都会被删除。",
 	"Every connected mailbox is disconnected.": "每个已连接的邮箱都会断开连接。",
 	"The subscription ends today. Nothing is refunded for the time left.": "订阅今天结束。剩余时间不予退款。",
-	"The backups on our servers are removed after {days} days.": "我们服务器上的备份会在 {days} 天后删除。",
+	"Backups are deleted after {days} days at the latest.": "备份最迟在 {days} 天后删除。",
 	"Type {name} to confirm": "输入 {name} 以确认",
 	"Your password": "你的密码",
 	"Code from the email": "邮件中的验证码",

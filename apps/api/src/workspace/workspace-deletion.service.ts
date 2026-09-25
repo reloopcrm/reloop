@@ -7,7 +7,13 @@ import {
 } from "@crm/auth";
 import type { Db } from "@crm/db";
 import type { Locale } from "@crm/db/locale";
-import { setTenantStatus, type Tenant, tenantById } from "@crm/db/tenancy";
+import {
+	beginTenantDeletion,
+	cancelTenantDeletion,
+	type Tenant,
+	type TenantStatus,
+	tenantById,
+} from "@crm/db/tenancy";
 import {
 	currentTenant,
 	isHosted,
@@ -33,6 +39,8 @@ import type {
 } from "./workspace.contracts";
 
 export type DeletingUser = { id: string; email: string };
+
+const DELETABLE: readonly TenantStatus[] = ["active", "suspended"];
 
 @Injectable()
 export class WorkspaceDeletionService {
@@ -77,8 +85,13 @@ export class WorkspaceDeletionService {
 
 		await this.reauthenticate(tenant, user, input.reauth);
 
-		await this.billing.cancelNow(tenant);
-		await setTenantStatus(tenant.id, "deleted");
+		await beginTenantDeletion(tenant.id);
+		try {
+			await this.billing.cancelNow(tenant);
+		} catch (error) {
+			await cancelTenantDeletion(tenant.id, tenant.status);
+			throw error;
+		}
 		this.logger.log({
 			message: "Workspace deletion requested by its owner",
 			tenantId: tenant.id,
@@ -95,12 +108,16 @@ export class WorkspaceDeletionService {
 		if (!isHosted() || isOperatorTenant()) {
 			throw new ForbiddenException("This workspace cannot be deleted here.");
 		}
+		const tenant = currentTenant();
+		if (!DELETABLE.includes(tenant.status)) {
+			throw new ForbiddenException("This workspace cannot be deleted here.");
+		}
 		if (!canDeleteWorkspace(await workspaceRoleOf(userId, this.db))) {
 			throw new ForbiddenException(
 				"Only the owner of the workspace can delete it.",
 			);
 		}
-		return currentTenant();
+		return tenant;
 	}
 
 	private async reauthenticate(

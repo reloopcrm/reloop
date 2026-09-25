@@ -27,22 +27,20 @@ import {
 import { Input } from "@crm/ui/components/input";
 import { Separator } from "@crm/ui/components/separator";
 import { Spinner } from "@crm/ui/components/spinner";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { translateError } from "@/lib/i18n/errors";
 import { useTRPC } from "@/lib/trpc/client";
 
-export type DeletionReauth = "password" | "code";
-
-export function DeleteWorkspace({
-	reauth,
-	backupDays,
-}: {
-	reauth: DeletionReauth;
+export type DeletionZone = {
+	reauth: "password" | "code";
 	backupDays: number;
-}) {
+	workspaceName: string;
+};
+
+export function DeleteWorkspace(zone: DeletionZone) {
 	const t = useT();
 
 	return (
@@ -55,7 +53,7 @@ export function DeleteWorkspace({
 						{t("Delete this workspace and everything in it.")}
 					</CardDescription>
 					<CardAction>
-						<DeleteDialog reauth={reauth} backupDays={backupDays} />
+						<DeleteDialog {...zone} />
 					</CardAction>
 				</CardHeader>
 			</Card>
@@ -63,13 +61,7 @@ export function DeleteWorkspace({
 	);
 }
 
-function DeleteDialog({
-	reauth,
-	backupDays,
-}: {
-	reauth: DeletionReauth;
-	backupDays: number;
-}) {
+function DeleteDialog({ reauth, backupDays, workspaceName }: DeletionZone) {
 	const t = useT();
 	const locale = useLocale();
 	const trpc = useTRPC();
@@ -79,9 +71,6 @@ function DeleteDialog({
 	const [open, setOpen] = useState(false);
 	const [name, setName] = useState("");
 	const [secret, setSecret] = useState("");
-
-	const workspace = useQuery(trpc.workspace.get.queryOptions());
-	const workspaceName = workspace.data?.name.trim() ?? "";
 
 	const sendCode = useMutation(
 		trpc.workspace.deletionCode.mutationOptions({
@@ -138,10 +127,9 @@ function DeleteDialog({
 								)}
 							</li>
 							<li>
-								{t(
-									"The backups on our servers are removed after {days} days.",
-									{ days: backupDays },
-								)}
+								{t("Backups are deleted after {days} days at the latest.", {
+									days: backupDays,
+								})}
 							</li>
 							<li>{t("This cannot be undone.")}</li>
 						</ul>

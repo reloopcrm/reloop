@@ -369,7 +369,7 @@
 	"All contacts, companies, mails, deals, notes and agents are deleted.": "Se eliminan todos los contactos, empresas, correos, oportunidades, notas y agentes.",
 	"Every connected mailbox is disconnected.": "Cada buzón conectado se desconecta.",
 	"The subscription ends today. Nothing is refunded for the time left.": "La suscripción termina hoy. No se reembolsa el tiempo restante.",
-	"The backups on our servers are removed after {days} days.": "Las copias de seguridad en nuestros servidores se borran después de {days} días.",
+	"Backups are deleted after {days} days at the latest.": "Las copias de seguridad se borran como muy tarde después de {days} días.",
 	"Type {name} to confirm": "Escribe {name} para confirmar",
 	"Your password": "Tu contraseña",
 	"Code from the email": "Código del correo",

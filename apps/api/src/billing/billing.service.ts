@@ -450,11 +450,11 @@ export class BillingService {
 		}
 	}
 
-	async handleEvent(event: Stripe.Event): Promise<void> {
+	async handleEvent(event: Stripe.Event): Promise<Tenant | null> {
 		const subscriptionId = subscriptionIdOf(event);
 		if (!subscriptionId) {
 			this.logger.log({ message: "Billing event ignored", type: event.type });
-			return;
+			return null;
 		}
 
 		const subscription =
@@ -466,7 +466,7 @@ export class BillingService {
 				type: event.type,
 				subscriptionId,
 			});
-			return;
+			return null;
 		}
 
 		await this.applySubscription(tenant, subscription);
@@ -476,7 +476,7 @@ export class BillingService {
 				type: event.type,
 				tenantId: tenant.id,
 			});
-			return;
+			return tenant;
 		}
 		if (event.type === "customer.subscription.updated") {
 			await this.rebuildStoredTarget(
@@ -509,6 +509,7 @@ export class BillingService {
 			tenantId: tenant.id,
 			status: subscription.status,
 		});
+		return tenant;
 	}
 
 	async applySubscription(
@@ -869,21 +870,24 @@ export class BillingService {
 
 	async cancelNow(tenant: Tenant): Promise<void> {
 		if (!this.stripe) return;
-		const subscription = await runAsTenant(tenant, () =>
-			this.activeSubscription(tenant),
-		);
+		const subscription = await this.liveSubscription(tenant);
 		if (!subscription) return;
 
-		const canceled = await this.stripeChange(tenant, async () => {
+		let canceled: Stripe.Subscription | null = null;
+		try {
 			if (await this.scheduleOf(subscription)) {
 				await this.releaseSchedule(subscription);
 			}
 			await this.storeTarget(tenant.id, null);
-			return this.stripe?.subscriptions.cancel(subscription.id, {
+			canceled = await this.stripe.subscriptions.cancel(subscription.id, {
 				prorate: false,
 				invoice_now: false,
 			});
-		});
+		} catch (error) {
+			if (await this.liveSubscription(tenant)) {
+				await this.stripeChange(tenant, () => Promise.reject(error));
+			}
+		}
 		if (canceled) {
 			await this.applySubscription(
 				(await tenantById(tenant.id)) ?? tenant,
@@ -894,6 +898,22 @@ export class BillingService {
 			message: "Subscription cancelled for a workspace deletion",
 			tenantId: tenant.id,
 		});
+	}
+
+	private async liveSubscription(
+		tenant: Tenant,
+	): Promise<Stripe.Subscription | null> {
+		try {
+			return await runAsTenant(tenant, () => this.activeSubscription(tenant));
+		} catch (error) {
+			if (
+				error instanceof Stripe.errors.StripeError &&
+				error.code === BILLING.stripe.missingCode
+			) {
+				return null;
+			}
+			throw error;
+		}
 	}
 
 	async resume(userId: string): Promise<{ ok: true }> {

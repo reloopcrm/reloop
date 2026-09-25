@@ -15,12 +15,16 @@ import {
 } from "@nestjs/swagger";
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import type { Request } from "express";
+import { TenantSweepService } from "../tenancy/tenant-sweep.service";
 import { BillingService } from "./billing.service";
 
 @ApiTags("Billing")
 @Controller("api/billing")
 export class BillingWebhookController {
-	constructor(private readonly billing: BillingService) {}
+	constructor(
+		private readonly billing: BillingService,
+		private readonly sweep: TenantSweepService,
+	) {}
 
 	@Post("webhook")
 	@AllowAnonymous()
@@ -39,7 +43,8 @@ export class BillingWebhookController {
 		const body = request.body;
 		const payload = Buffer.isBuffer(body) ? body : Buffer.from("");
 		const event = await this.billing.verify(payload, signature);
-		await this.billing.handleEvent(event);
+		const tenant = await this.billing.handleEvent(event);
+		if (tenant?.status === "deleted") await this.sweep.finishDeletion(tenant);
 		return { received: true };
 	}
 }

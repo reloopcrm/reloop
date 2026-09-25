@@ -424,6 +424,25 @@ export async function deletingTenants(): Promise<Tenant[]> {
 	return selectTenants("t.status = 'deleted' ORDER BY t.created_at, t.id", []);
 }
 
+export async function beginTenantDeletion(id: string): Promise<void> {
+	await registryPool().query(
+		"UPDATE tenant SET status = 'deleted' WHERE id = $1",
+		[id],
+	);
+	forgetTenant(id);
+}
+
+export async function cancelTenantDeletion(
+	id: string,
+	status: TenantStatus,
+): Promise<void> {
+	await registryPool().query(
+		"UPDATE tenant SET status = $2 WHERE id = $1 AND status = 'deleted'",
+		[id, status],
+	);
+	forgetTenant(id);
+}
+
 export async function setTenantStatus(
 	id: string,
 	status: TenantStatus,

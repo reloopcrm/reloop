@@ -1,9 +1,4 @@
-import {
-	CREDENTIAL_PROVIDER_ID,
-	canDeleteWorkspace,
-	isWorkspaceAdmin,
-} from "@crm/auth";
-import { TENANCY } from "@crm/db/tenancy-config";
+import { isWorkspaceAdmin } from "@crm/auth";
 import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -17,13 +12,8 @@ import {
 	PageShellTitle,
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
-import {
-	deletionZoneShown,
-	managedInstall,
-	plansOffered,
-} from "@/lib/operator";
-import { requireSession, signInAccounts, workspaceRole } from "@/lib/session";
-import { hostedCustomer } from "@/lib/tenant";
+import { managedInstall, plansOffered } from "@/lib/operator";
+import { deletionZone, requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AgentLanguage } from "./agent-language";
@@ -67,22 +57,12 @@ export default async function GeneralSettingsPage() {
 
 async function Settings() {
 	const session = await requireSession();
-	const [role, hosted, accounts] = await Promise.all([
+	const [role, dangerZone] = await Promise.all([
 		workspaceRole(session.user.id),
-		hostedCustomer(),
-		signInAccounts(session.user.id),
+		deletionZone(session.user.id),
 	]);
 	const canManage = isWorkspaceAdmin(role);
 	const planCard = plansOffered() && !isHosted();
-	const dangerZone = deletionZoneShown({
-		hostedCustomer: hosted,
-		owner: canDeleteWorkspace(role),
-	});
-	const reauth = accounts.some(
-		(account) => account.providerId === CREDENTIAL_PROVIDER_ID,
-	)
-		? "password"
-		: "code";
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
@@ -121,12 +101,7 @@ async function Settings() {
 					<ArchiveRetention />
 				</fieldset>
 				<Version managed={managedInstall()} />
-				{dangerZone ? (
-					<DeleteWorkspace
-						reauth={reauth}
-						backupDays={TENANCY.backup.retentionDays}
-					/>
-				) : null}
+				{dangerZone ? <DeleteWorkspace {...dangerZone} /> : null}
 			</div>
 		</HydrateClient>
 	);

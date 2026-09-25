@@ -41,5 +41,9 @@ export const BILLING = {
 		endBehavior: "release",
 		rebuildAfterMs: 30 * SECOND_MS,
 	},
-	stripe: { locales: STRIPE_LOCALES, centsPerUnit: 100 },
+	stripe: {
+		locales: STRIPE_LOCALES,
+		centsPerUnit: 100,
+		missingCode: "resource_missing",
+	},
 } as const;

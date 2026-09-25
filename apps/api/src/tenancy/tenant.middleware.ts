@@ -15,7 +15,7 @@ const OPEN_PATH =
 	/^\/(health$|internal\/|api\/tenant\/|api\/billing\/webhook$)/;
 const AUTH_PATH = "/api/auth/";
 const TRPC_PATH = "/api/trpc/";
-const PAUSED_PROCEDURES = /^billing\./;
+const PAUSED_PROCEDURES = /^(billing\.|workspace\.(delete|deletionCode)$)/;
 
 export function openWhileSuspended(path: string): boolean {
 	if (path.startsWith(AUTH_PATH)) return true;

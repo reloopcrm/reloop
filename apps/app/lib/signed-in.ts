@@ -1,4 +1,4 @@
-import { isWorkspaceAdmin } from "@crm/auth";
+import { isWorkspaceAdmin } from "@crm/auth/roles";
 import { canonicalPlanId } from "@crm/db/plans";
 import type { Tenant } from "@crm/db/tenancy";
 import { unstable_rethrow } from "next/navigation";

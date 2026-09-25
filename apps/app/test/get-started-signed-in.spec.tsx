@@ -19,6 +19,7 @@ const reactQuery = { ...(await import("@tanstack/react-query")) };
 const authClient = { ...(await import("@crm/auth/client")) };
 const nextHeaders = { ...(await import("next/headers")) };
 const tenantApi = { ...(await import("../lib/tenant-api")) };
+const signedInModule = { ...(await import("../lib/signed-in")) };
 
 mock.module("sonner", () => ({
 	...sonner,
@@ -57,6 +58,7 @@ mock.module("../lib/tenant-api", () => ({
 	signupOptions: async () => null,
 }));
 mock.module("../lib/signed-in", () => ({
+	...signedInModule,
 	signedInWorkspace: async () => signedIn,
 }));
 
@@ -112,6 +114,7 @@ afterAll(() => {
 	mock.module("@crm/auth/client", () => authClient);
 	mock.module("next/headers", () => nextHeaders);
 	mock.module("../lib/tenant-api", () => tenantApi);
+	mock.module("../lib/signed-in", () => signedInModule);
 	GlobalRegistrator.unregister();
 });
 

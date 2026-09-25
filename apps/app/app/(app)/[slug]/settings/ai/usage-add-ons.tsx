@@ -17,7 +17,7 @@ import type { RouterOutputs } from "@/lib/trpc/types";
 
 type AddOn = RouterOutputs["billing"]["overview"]["addOnCatalog"][number];
 
-type Step = { addOn: AddOn; from: number; to: number };
+type Step = { addOn: AddOn; from: number; to: number; undo: boolean };
 
 export function addOnPrice(addOn: AddOn, interval: BillingInterval): number {
 	return interval === "year" ? addOnYearlyTotal(addOn.monthly) : addOn.monthly;
@@ -91,7 +91,9 @@ export function UsageAddOns() {
 									size="icon-sm"
 									aria-label={t("One less: {label}", { label })}
 									disabled={!hasSubscription || base === 0 || set.isPending}
-									onClick={() => setStep({ addOn, from: base, to: base - 1 })}
+									onClick={() =>
+										setStep({ addOn, from: base, to: base - 1, undo: false })
+									}
 								>
 									<Icon icon={Subtract} />
 								</Button>
@@ -108,7 +110,12 @@ export function UsageAddOns() {
 									aria-label={t("One more: {label}", { label })}
 									disabled={!hasSubscription || set.isPending}
 									onClick={() =>
-										setStep({ addOn, from: quantity, to: quantity + 1 })
+										setStep({
+											addOn,
+											from: quantity,
+											to: quantity + 1,
+											undo: later !== undefined && later < quantity,
+										})
 									}
 								>
 									<Icon icon={Add} />
@@ -166,7 +173,7 @@ function AddOnConfirm({
 	const t = useT();
 	const locale = useLocale();
 	const trpc = useTRPC();
-	const adding = step.to > step.from;
+	const adding = step.to > step.from && !step.undo;
 	const preview = useQuery({
 		...trpc.billing.previewAddOn.queryOptions({
 			addOn: step.addOn.id,
@@ -179,21 +186,28 @@ function AddOnConfirm({
 	const date = periodEnd
 		? longDay(periodEnd, locale)
 		: t("the end of the period");
-	const lines = [
-		adding
-			? t("You then have {count}.", { count: step.to })
-			: t("From {date} you have {count}.", { date, count: step.to }),
-		interval === "year"
-			? t("Your yearly cost changes by {amount}.", {
-					amount: signedEuro(change, locale),
-				})
-			: t("Your monthly cost changes by {amount}.", {
-					amount: signedEuro(change, locale),
-				}),
-	];
+	const lines = step.undo
+		? [
+				t(
+					"The reduction scheduled for {date} is cancelled. You keep {count}.",
+					{ date, count: step.from },
+				),
+			]
+		: [
+				adding
+					? t("You then have {count}.", { count: step.to })
+					: t("From {date} you have {count}.", { date, count: step.to }),
+				interval === "year"
+					? t("Your yearly cost changes by {amount}.", {
+							amount: signedEuro(change, locale),
+						})
+					: t("Your monthly cost changes by {amount}.", {
+							amount: signedEuro(change, locale),
+						}),
+			];
 	if (adding && scheduledAt) {
 		lines.push(
-			t("This replaces the change scheduled for {date}.", {
+			t("Your changes scheduled for {date} stay.", {
 				date: longDay(scheduledAt, locale),
 			}),
 		);
@@ -202,16 +216,24 @@ function AddOnConfirm({
 	return (
 		<BillingChangeDialog
 			title={
-				adding ? t("Add {label}?", { label }) : t("Remove {label}?", { label })
+				step.undo
+					? t("Keep {label}?", { label })
+					: adding
+						? t("Add {label}?", { label })
+						: t("Remove {label}?", { label })
 			}
 			lines={lines}
 			preview={adding ? { data: preview.data, error: preview.error } : null}
 			note={
-				adding
-					? t("It applies at once. The limit rises as soon as Stripe confirms.")
-					: t(
-							"It applies at the end of the period. Until then your add-ons stay, and nothing is charged or credited now.",
-						)
+				step.undo
+					? t("Nothing is charged.")
+					: adding
+						? t(
+								"It applies at once. The limit rises as soon as Stripe confirms.",
+							)
+						: t(
+								"It applies at the end of the period. Until then your add-ons stay, and nothing is charged or credited now.",
+							)
 			}
 			confirmLabel={t("Confirm")}
 			pending={pending}

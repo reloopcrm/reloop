@@ -1,7 +1,7 @@
 import pg from "pg";
 import { z } from "zod";
 import { ADD_ON_IDS, canonicalPlanId, NO_ADD_ONS } from "./plans";
-import { type PlanPurchase, planPurchase } from "./pricing";
+import { PAID_PLAN_IDS, type PlanPurchase, planPurchase } from "./pricing";
 import { TENANCY } from "./tenancy-config";
 import { isHosted, runAsTenant } from "./tenant-context";
 
@@ -45,9 +45,20 @@ export const tenantBilling = z.object({
 	cancelAt: z.coerce.date().nullable().default(null),
 	addOns: addOnQuantities.default(NO_ADD_ONS),
 	wanted: planPurchase.nullable().default(null),
+	scheduledTarget: z
+		.object({
+			plan: z.enum(PAID_PLAN_IDS).nullable(),
+			interval: z.enum(["month", "year"]).nullable(),
+			addOns: addOnQuantities,
+			storedAt: z.coerce.date(),
+		})
+		.nullable()
+		.default(null),
 });
 
 export type TenantBilling = z.infer<typeof tenantBilling>;
+
+export type ScheduledTarget = NonNullable<TenantBilling["scheduledTarget"]>;
 
 export const NO_BILLING: TenantBilling = tenantBilling.parse({});
 
@@ -366,23 +377,38 @@ export type TenantBillingWrite = {
 	plan: string;
 	paidUntil: Date | null;
 	graceUntil: Date | null;
-	billing: TenantBilling;
+	billing: Omit<TenantBilling, "scheduledTarget">;
 };
+
+const billingWithoutTarget = tenantBilling.omit({ scheduledTarget: true });
 
 export async function writeTenantBilling(
 	id: string,
 	write: TenantBillingWrite,
 ): Promise<void> {
 	await registryPool().query(
-		`UPDATE tenant SET plan = $2, paid_until = $3, grace_until = $4, billing = $5::jsonb
+		`UPDATE tenant SET plan = $2, paid_until = $3, grace_until = $4,
+		   billing = COALESCE(billing, '{}'::jsonb) || $5::jsonb
 		 WHERE id = $1`,
 		[
 			id,
 			write.plan,
 			write.paidUntil,
 			write.graceUntil,
-			JSON.stringify(tenantBilling.parse(write.billing)),
+			JSON.stringify(billingWithoutTarget.parse(write.billing)),
 		],
+	);
+	forgetTenant(id);
+}
+
+export async function patchBilling(
+	id: string,
+	patch: Partial<TenantBilling>,
+): Promise<void> {
+	await registryPool().query(
+		`UPDATE tenant SET billing = COALESCE(billing, '{}'::jsonb) || $2::jsonb
+		 WHERE id = $1`,
+		[id, JSON.stringify(patch)],
 	);
 	forgetTenant(id);
 }

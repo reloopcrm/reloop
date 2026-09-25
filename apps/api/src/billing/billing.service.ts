@@ -26,9 +26,10 @@ import { writePlan } from "@crm/db/settings";
 import {
 	type BillingStatus,
 	forgetTenant,
+	patchBilling,
 	setTenantStatus,
 	type Tenant,
-	type TenantBilling,
+	type TenantBillingWrite,
 	tenantByCustomer,
 	tenantById,
 	writeTenantBilling,
@@ -49,7 +50,7 @@ import {
 	ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type Stripe from "stripe";
+import Stripe from "stripe";
 import { z } from "zod";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
@@ -179,6 +180,36 @@ export function lineupOf(items: readonly PricedItem[]): Lineup {
 		}
 	}
 	return { plan, interval, addOns };
+}
+
+export function mergedTarget(
+	current: Lineup,
+	after: Lineup,
+	scheduled: Lineup,
+): Lineup {
+	const addOns: AddOnQuantities = { ...NO_ADD_ONS };
+	for (const addOn of ADD_ON_IDS) {
+		addOns[addOn] = Math.max(
+			0,
+			scheduled.addOns[addOn] + after.addOns[addOn] - current.addOns[addOn],
+		);
+	}
+	return {
+		plan: after.plan === current.plan ? scheduled.plan : after.plan,
+		interval:
+			scheduled.interval === current.interval
+				? after.interval
+				: scheduled.interval,
+		addOns,
+	};
+}
+
+export function scheduledReduction(
+	scheduled: Lineup | null,
+	current: AddOnQuantities,
+	addOn: AddOnId,
+): boolean {
+	return scheduled !== null && scheduled.addOns[addOn] < current[addOn];
 }
 
 export type ScheduledChange = Lineup & { at: Date };
@@ -426,6 +457,13 @@ export class BillingService {
 		}
 
 		await this.applySubscription(tenant, subscription);
+		if (event.type === "customer.subscription.updated") {
+			await this.rebuildStoredTarget(
+				tenant.id,
+				subscription,
+				BILLING.schedule.rebuildAfterMs,
+			);
+		}
 		if (
 			event.type === "checkout.session.completed" ||
 			event.type === "customer.subscription.updated"
@@ -467,7 +505,7 @@ export class BillingService {
 			return;
 		}
 
-		const billing: TenantBilling = {
+		const billing: TenantBillingWrite["billing"] = {
 			customerId: state.customerId ?? tenant.billing.customerId,
 			subscriptionId: state.subscriptionId,
 			status: state.status,
@@ -484,6 +522,7 @@ export class BillingService {
 				graceUntil: null,
 				billing: { ...billing, cancelAt: null, addOns: { ...NO_ADD_ONS } },
 			});
+			await patchBilling(tenant.id, { scheduledTarget: null });
 			if (tenant.status === "active") {
 				await setTenantStatus(tenant.id, "suspended");
 			}
@@ -635,6 +674,7 @@ export class BillingService {
 		if (changeTiming(subscriptionState(subscription), input) === "period_end") {
 			return nothingNow(subscription);
 		}
+		await this.assertNoScheduledChange(tenant, subscription, input);
 		return this.stripeChange(tenant, async () =>
 			this.preview(
 				subscription,
@@ -650,7 +690,12 @@ export class BillingService {
 		await this.assertManager(userId);
 		const tenant = await this.freshTenant();
 		const subscription = await this.requireSubscription(tenant);
-		if (input.quantity <= subscriptionState(subscription).addOns[input.addOn]) {
+		const current = subscriptionState(subscription).addOns;
+		if (input.quantity <= current[input.addOn]) return nothingNow(subscription);
+		const scheduled = scheduledChangeOf(
+			await this.stripeChange(tenant, () => this.scheduleOf(subscription)),
+		);
+		if (scheduledReduction(scheduled, current, input.addOn)) {
 			return nothingNow(subscription);
 		}
 		const change = await this.addOnChange(subscription, input);
@@ -666,43 +711,54 @@ export class BillingService {
 		const stripe = this.requireStripe();
 		const tenant = await this.freshTenant();
 		await this.assertPlanFits(tenant, input);
-		const subscription = await this.activeSubscription(tenant);
+		const live = await this.activeSubscription(tenant);
+		const subscription = live
+			? await this.rebuildStoredTarget(tenant.id, live)
+			: null;
 
 		if (subscription) {
 			if (
 				changeTiming(subscriptionState(subscription), input) === "period_end"
 			) {
-				const target = await this.planTarget(subscription.items.data, input);
-				const at = await this.scheduleTarget(
+				const schedule = await this.stripeChange(tenant, () =>
+					this.scheduleOf(subscription),
+				);
+				const base =
+					scheduledChangeOf(schedule) ?? lineupOf(subscription.items.data);
+				const at = await this.scheduleLineup(
 					tenant,
 					subscription,
-					target,
-					input.interval,
+					{ ...base, plan: input.plan, interval: input.interval },
+					schedule,
 				);
-				await this.mails.send(
-					tenant,
-					`scheduled:${subscription.id}:${input.plan}:${input.interval}:${at.getTime()}`,
-					"scheduled",
-					{ plan: PLANS[input.plan].label, interval: input.interval, date: at },
-				);
+				if (at) {
+					await this.mails.send(
+						tenant,
+						`scheduled:${subscription.id}:${input.plan}:${input.interval}:${at.getTime()}`,
+						"scheduled",
+						{
+							plan: PLANS[input.plan].label,
+							interval: input.interval,
+							date: at,
+						},
+					);
+				}
 				return { url: null };
 			}
+			await this.assertNoScheduledChange(tenant, subscription, input);
 			const change = await this.planChange(tenant, subscription, input);
-			const updated = await this.stripeChange(tenant, async () => {
-				await this.releaseSchedule(subscription);
-				if (subscription.cancel_at_period_end) {
-					await stripe.subscriptions.update(subscription.id, {
+			if (subscription.cancel_at_period_end) {
+				await this.stripeChange(tenant, () =>
+					stripe.subscriptions.update(subscription.id, {
 						cancel_at_period_end: false,
-					});
-				}
-				return stripe.subscriptions.update(subscription.id, {
-					...change,
-					payment_behavior: "pending_if_incomplete",
-					expand: ["latest_invoice"],
-				});
+					}),
+				);
+			}
+			return this.changeNow(tenant, subscription, change, {
+				plan: input.plan,
+				interval: input.interval,
+				addOns: subscriptionState(subscription).addOns,
 			});
-			await this.applySubscription(tenant, updated);
-			return { url: pendingPaymentUrl(updated) };
 		}
 
 		const price = await this.priceId(planLookupKey(input.plan, input.interval));
@@ -732,46 +788,45 @@ export class BillingService {
 		input: SetAddOnInput,
 	): Promise<{ url: string | null }> {
 		await this.assertManager(userId);
-		const stripe = this.requireStripe();
+		this.requireStripe();
 		const tenant = await this.freshTenant();
-		const subscription = await this.requireSubscription(tenant);
-		if (input.quantity <= subscriptionState(subscription).addOns[input.addOn]) {
-			const schedule = await this.stripeChange(tenant, () =>
-				this.scheduleOf(subscription),
-			);
-			const next = schedule ? nextPhaseOf(schedule) : null;
-			const target = await this.addOnTarget(
-				next?.items ?? subscription.items.data,
-				input,
-			);
-			if (sameItems(target, phaseItemsOf(subscription.items.data))) {
-				await this.stripeChange(tenant, () =>
-					this.releaseSchedule(subscription),
-				);
-				return { url: null };
-			}
-			await this.scheduleTarget(
+		const subscription = await this.rebuildStoredTarget(
+			tenant.id,
+			await this.requireSubscription(tenant),
+		);
+		const current = subscriptionState(subscription).addOns;
+		const schedule = await this.stripeChange(tenant, () =>
+			this.scheduleOf(subscription),
+		);
+		const scheduled = scheduledChangeOf(schedule);
+		if (input.quantity <= current[input.addOn]) {
+			const base = scheduled ?? lineupOf(subscription.items.data);
+			await this.scheduleLineup(
 				tenant,
 				subscription,
-				target,
-				lineupOf(next?.items ?? subscription.items.data).interval ?? "month",
+				{ ...base, addOns: { ...base.addOns, [input.addOn]: input.quantity } },
+				schedule,
+			);
+			return { url: null };
+		}
+		if (scheduled && scheduledReduction(scheduled, current, input.addOn)) {
+			await this.scheduleLineup(
+				tenant,
+				subscription,
+				{
+					...scheduled,
+					addOns: { ...scheduled.addOns, [input.addOn]: current[input.addOn] },
+				},
 				schedule,
 			);
 			return { url: null };
 		}
 		const change = await this.addOnChange(subscription, input);
 		if (!change) return { url: null };
-
-		const updated = await this.stripeChange(tenant, async () => {
-			await this.releaseSchedule(subscription);
-			return stripe.subscriptions.update(subscription.id, {
-				...change,
-				payment_behavior: "pending_if_incomplete",
-				expand: ["latest_invoice"],
-			});
+		return this.changeNow(tenant, subscription, change, {
+			...lineupOf(subscription.items.data),
+			addOns: { ...current, [input.addOn]: input.quantity },
 		});
-		await this.applySubscription(tenant, updated);
-		return { url: pendingPaymentUrl(updated) };
 	}
 
 	async cancelScheduledChange(userId: string): Promise<{ ok: true }> {
@@ -779,6 +834,7 @@ export class BillingService {
 		const tenant = await this.freshTenant();
 		const subscription = await this.requireSubscription(tenant);
 		await this.stripeChange(tenant, () => this.releaseSchedule(subscription));
+		await this.storeTarget(tenant.id, null);
 		return { ok: true };
 	}
 
@@ -828,7 +884,11 @@ export class BillingService {
 				cancel_at_period_end: cancel,
 			});
 		});
-		await this.applySubscription(tenant, updated);
+		await this.storeTarget(tenant.id, null);
+		await this.applySubscription(
+			(await tenantById(tenant.id)) ?? tenant,
+			updated,
+		);
 		return { ok: true };
 	}
 
@@ -869,9 +929,12 @@ export class BillingService {
 					}),
 				);
 			}
+			const live = known
+				? subscription
+				: await stripe.subscriptions.retrieve(subscription.id);
 			const schedule =
 				known ??
-				(await this.scheduleOf(subscription)) ??
+				(await this.scheduleOf(live)) ??
 				stripeSchedule.parse(
 					await stripe.subscriptionSchedules.create({
 						from_subscription: subscription.id,
@@ -909,55 +972,169 @@ export class BillingService {
 		});
 	}
 
-	private async planTarget(
-		items: readonly PricedItem[],
-		input: CheckoutInput,
-	): Promise<PhaseItem[]> {
-		const target: PhaseItem[] = [];
-		for (const item of items) {
-			const parsed = parseLookupKey(item.price.lookup_key);
-			if (parsed?.kind === "plan") {
-				target.push({
-					price: await this.priceId(planLookupKey(input.plan, input.interval)),
-					quantity: 1,
-				});
-			} else if (parsed?.kind === "addon") {
-				target.push({
-					price: await this.priceId(
-						addOnLookupKey(parsed.addOn, input.interval),
-					),
-					quantity: item.quantity ?? 1,
-				});
-			}
+	private async scheduleLineup(
+		tenant: Tenant,
+		subscription: Stripe.Subscription,
+		target: Lineup,
+		known: StripeSchedule | null,
+	): Promise<Date | null> {
+		const items = await this.itemsOf(target);
+		if (sameItems(items, phaseItemsOf(subscription.items.data))) {
+			await this.stripeChange(tenant, () => this.releaseSchedule(subscription));
+			await this.storeTarget(tenant.id, null);
+			return null;
 		}
-		return target;
+		const at = await this.scheduleTarget(
+			tenant,
+			subscription,
+			items,
+			target.interval ?? "month",
+			known,
+		);
+		await this.storeTarget(tenant.id, null);
+		return at;
 	}
 
-	private async addOnTarget(
-		items: readonly PricedItem[],
-		input: SetAddOnInput,
-	): Promise<PhaseItem[]> {
-		const target: PhaseItem[] = [];
-		let placed = false;
-		for (const item of items) {
-			const parsed = parseLookupKey(item.price.lookup_key);
-			if (parsed?.kind === "addon" && parsed.addOn === input.addOn) {
-				placed = true;
-				if (input.quantity > 0) {
-					target.push({ price: item.price.id, quantity: input.quantity });
-				}
-				continue;
-			}
-			target.push({ price: item.price.id, quantity: item.quantity ?? 1 });
-		}
-		if (!placed && input.quantity > 0) {
-			const interval = lineupOf(items).interval ?? "month";
-			target.push({
-				price: await this.priceId(addOnLookupKey(input.addOn, interval)),
-				quantity: input.quantity,
+	private async itemsOf(lineup: Lineup): Promise<PhaseItem[]> {
+		const interval = lineup.interval ?? "month";
+		const items: PhaseItem[] = [];
+		if (lineup.plan) {
+			items.push({
+				price: await this.priceId(planLookupKey(lineup.plan, interval)),
+				quantity: 1,
 			});
 		}
-		return target;
+		for (const addOn of ADD_ON_IDS) {
+			const quantity = lineup.addOns[addOn];
+			if (quantity <= 0) continue;
+			items.push({
+				price: await this.priceId(addOnLookupKey(addOn, interval)),
+				quantity,
+			});
+		}
+		return items;
+	}
+
+	private async changeNow(
+		tenant: Tenant,
+		subscription: Stripe.Subscription,
+		change: Change,
+		after: Lineup,
+	): Promise<{ url: string | null }> {
+		const stripe = this.requireStripe();
+		const scheduled = scheduledChangeOf(
+			await this.stripeChange(tenant, () => this.scheduleOf(subscription)),
+		);
+		const intended = scheduled
+			? mergedTarget(lineupOf(subscription.items.data), after, scheduled)
+			: null;
+		const updated = await this.stripeChange(tenant, async () => {
+			if (scheduled) await this.storeTarget(tenant.id, scheduled);
+			await this.releaseSchedule(subscription);
+			try {
+				return await stripe.subscriptions.update(subscription.id, {
+					...change,
+					payment_behavior: scheduled
+						? "error_if_incomplete"
+						: "pending_if_incomplete",
+					expand: ["latest_invoice"],
+				});
+			} catch (error) {
+				if (scheduled) {
+					await this.restoreScheduled(tenant, subscription, scheduled);
+				}
+				if (error instanceof Stripe.errors.StripeCardError) {
+					throw new BadRequestException(
+						error.code === "subscription_payment_intent_requires_action"
+							? "Your bank asks for a confirmation. Undo the scheduled change, then try again."
+							: "Your card was declined. Nothing was changed.",
+					);
+				}
+				throw error;
+			}
+		});
+		if (intended) {
+			await this.storeTarget(tenant.id, intended);
+			await this.restoreScheduled(tenant, updated, intended);
+		}
+		await this.applySubscription(
+			(await tenantById(tenant.id)) ?? tenant,
+			updated,
+		);
+		return { url: pendingPaymentUrl(updated) };
+	}
+
+	private async restoreScheduled(
+		tenant: Tenant,
+		subscription: Stripe.Subscription,
+		target: Lineup,
+	): Promise<void> {
+		try {
+			await this.scheduleLineup(tenant, subscription, target, null);
+		} catch (error) {
+			this.logger.error(
+				{
+					message:
+						"The scheduled change is not on Stripe. The next subscription webhook rebuilds it from the stored target.",
+					tenantId: tenant.id,
+					subscriptionId: subscription.id,
+					target,
+				},
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
+	}
+
+	private async rebuildStoredTarget(
+		tenantId: string,
+		subscription: Stripe.Subscription,
+		minAgeMs = 0,
+	): Promise<Stripe.Subscription> {
+		forgetTenant(tenantId);
+		const tenant = await tenantById(tenantId);
+		const target = tenant?.billing.scheduledTarget;
+		if (!tenant || !target) return subscription;
+		if (Date.now() - target.storedAt.getTime() < minAgeMs) return subscription;
+		await this.scheduleLineup(tenant, subscription, target, null);
+		this.logger.log({
+			message: "Scheduled change rebuilt from the stored target",
+			tenantId: tenant.id,
+			subscriptionId: subscription.id,
+		});
+		return this.requireStripe().subscriptions.retrieve(subscription.id, {
+			expand: ["default_payment_method"],
+		});
+	}
+
+	private async storeTarget(
+		tenantId: string,
+		target: Lineup | null,
+	): Promise<void> {
+		await patchBilling(tenantId, {
+			scheduledTarget: target
+				? {
+						plan: target.plan,
+						interval: target.interval,
+						addOns: target.addOns,
+						storedAt: new Date(),
+					}
+				: null,
+		});
+	}
+
+	private async assertNoScheduledChange(
+		tenant: Tenant,
+		subscription: Stripe.Subscription,
+		input: CheckoutInput,
+	): Promise<void> {
+		const state = subscriptionState(subscription);
+		if (state.interval !== "month" || input.interval !== "year") return;
+		const scheduled = scheduledChangeOf(
+			await this.stripeChange(tenant, () => this.scheduleOf(subscription)),
+		);
+		if (scheduled) {
+			throw new BadRequestException("Undo the scheduled change first.");
+		}
 	}
 
 	private async assertPlanFits(

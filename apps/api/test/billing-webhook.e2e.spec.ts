@@ -13,6 +13,7 @@ import {
 	closeRegistry,
 	forgetTenant,
 	NO_BILLING,
+	patchBilling,
 	setTenantStatus,
 	type Tenant,
 	tenantById,
@@ -21,7 +22,7 @@ import {
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants, registryQuery } from "@crm/db/test-tenants";
 import { Logger } from "@nestjs/common";
-import type Stripe from "stripe";
+import Stripe from "stripe";
 import request from "supertest";
 import { z } from "zod";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
@@ -224,6 +225,10 @@ function stubStripe(
 		spyOn(stripe.subscriptionSchedules, "create").mockImplementation((async (
 			params: Stripe.SubscriptionScheduleCreateParams,
 		) => {
+			if (refuseScheduleCreate) {
+				refuseScheduleCreate = false;
+				throw new Error("Schedules are unavailable right now.");
+			}
 			scheduleCalls.created.push(params);
 			schedule = scheduleFixture(live.current());
 			live.current().schedule = schedule.id;
@@ -275,6 +280,8 @@ let billing: BillingService;
 let mailer: MailService;
 let next: Stripe.Subscription | null = null;
 let refuseNext = false;
+let declineNext: string | null = null;
+let refuseScheduleCreate = false;
 const updates: Stripe.SubscriptionUpdateParams[] = [];
 
 const tenantCookie = () =>
@@ -320,6 +327,7 @@ const reset = async () => {
 		graceUntil: null,
 		billing: NO_BILLING,
 	});
+	await patchBilling(a.id, { scheduledTarget: null });
 	await setTenantStatus(a.id, "active");
 	await runAsTenant(a, () => writePlan(db, "trial"));
 };
@@ -378,8 +386,18 @@ beforeAll(async () => {
 					refuseNext = false;
 					throw new Error("This price cannot be added to this subscription.");
 				}
+				if (declineNext) {
+					const code = declineNext;
+					declineNext = null;
+					throw new Stripe.errors.StripeCardError({
+						message: "Your card was declined.",
+						type: "card_error",
+						code,
+					});
+				}
 				updates.push(params);
-				return next ?? current;
+				if (next) current = next;
+				return current;
 			},
 		}),
 	);
@@ -829,28 +847,20 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 			expect(overview.scheduled?.plan).toBe("standard");
 
 			const releasedBefore = scheduleCalls.released.length;
-			next = subscriptionFixture(a.id, {
-				items: {
-					data: [
-						item(planLookupKey("standard", "month")),
-						item(addOnLookupKey("drafts", "month"), 3),
-						item(addOnLookupKey("research", "month"), 1),
-					],
-				},
-			});
+			const undoPreview = await onTenant(() =>
+				billing.previewAddOn(OWNER.id, { addOn: "drafts", quantity: 3 }),
+			);
+			expect(undoPreview.dueNow).toBe(0);
+			expect(previews.length).toBe(previewsBefore);
 			await onTenant(() =>
 				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 3 }),
 			);
+			expect(updates.length).toBe(updatesBefore);
 			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
-			expect(updates.at(-1)).toEqual({
-				items: [{ id: `si_${addOnLookupKey("drafts", "month")}`, quantity: 3 }],
-				proration_behavior: "always_invoice",
-				payment_behavior: "pending_if_incomplete",
-				expand: ["latest_invoice"],
-			});
-			expect((await tenantById(a.id))?.billing.addOns.drafts).toBe(3);
-			current = next;
-			next = null;
+			expect((await tenantById(a.id))?.billing.addOns.drafts).toBe(2);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled,
+			).toBeNull();
 
 			const logged = spyOn(Logger.prototype, "error");
 			refuseNext = true;
@@ -1269,12 +1279,21 @@ describe("a plan change waits for the paid period", () => {
 					],
 				},
 			});
+			const createdBefore = scheduleCalls.created.length;
 			await onTenant(() =>
 				billing.checkout(OWNER.id, { plan: "plus", interval: "year" }),
 			);
 			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
 			expect(updates.at(-1)?.proration_behavior).toBe("always_invoice");
 			expect((await tenantById(a.id))?.plan).toBe("plus");
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: `price_${planLookupKey("plus", "month")}`, quantity: 1 },
+				{ price: `price_${addOnLookupKey("drafts", "month")}`, quantity: 2 },
+			]);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled,
+			).toMatchObject({ plan: "plus", interval: "month" });
 		} finally {
 			next = null;
 			current = subscriptionFixture(a.id);
@@ -1330,6 +1349,7 @@ describe("a plan change waits for the paid period", () => {
 			]);
 
 			const releasedBefore = scheduleCalls.released.length;
+			const createdBefore = scheduleCalls.created.length;
 			next = subscriptionFixture(a.id, {
 				items: {
 					data: [
@@ -1342,9 +1362,9 @@ describe("a plan change waits for the paid period", () => {
 				billing.checkout(OWNER.id, { plan: "plus", interval: "month" }),
 			);
 			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
+			expect(scheduleCalls.created.length).toBe(createdBefore);
 			expect(updates.at(-1)?.proration_behavior).toBe("always_invoice");
 			expect((await tenantById(a.id))?.plan).toBe("plus");
-			current = next;
 			next = null;
 			const overview = await onTenant(() => billing.overview(OWNER.id));
 			expect(overview.scheduled).toBeNull();
@@ -1355,6 +1375,444 @@ describe("a plan change waits for the paid period", () => {
 			expect(previews.at(-1)?.schedule).toBeUndefined();
 		} finally {
 			next = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("keeps every scheduled reduction when a downgrade joins it, and the other way round", async () => {
+		await subscribe(
+			subscriptionFixture(a.id, {
+				default_payment_method: cardOnSubscription(),
+				items: {
+					data: [
+						item(planLookupKey("office", "year")),
+						item(addOnLookupKey("conversations", "year"), 1),
+						item(addOnLookupKey("drafts", "year"), 1),
+					],
+				},
+			} as never),
+		);
+		const office = `price_${planLookupKey("office", "year")}`;
+		const start = `price_${planLookupKey("start", "year")}`;
+		const conversations = `price_${addOnLookupKey("conversations", "year")}`;
+		const updatesBefore = updates.length;
+		try {
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 0 }),
+			);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: office, quantity: 1 },
+				{ price: conversations, quantity: 1 },
+			]);
+
+			const createdBefore = scheduleCalls.created.length;
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "year" }),
+			);
+			expect(scheduleCalls.created.length).toBe(createdBefore);
+			const phases = scheduleCalls.updated.at(-1)?.params.phases;
+			expect(phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: conversations, quantity: 1 },
+			]);
+			expect(phases?.[0]?.automatic_tax).toEqual({ enabled: true });
+			expect(phases?.[1]?.automatic_tax).toEqual({ enabled: true });
+
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "conversations", quantity: 0 }),
+			);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+			]);
+			expect(updates.length).toBe(updatesBefore);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled,
+			).toEqual({
+				at: PERIOD_END_ISO,
+				plan: "start",
+				label: "Start",
+				interval: "year",
+				addOns: { conversations: 0, drafts: 0, research: 0, mailbox: 0 },
+			});
+		} finally {
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("bills an add-on now and keeps the scheduled downgrade, and a plus on a reduced add-on only cancels the reduction", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const standard = `price_${planLookupKey("standard", "month")}`;
+		const start = `price_${planLookupKey("start", "month")}`;
+		const drafts = `price_${addOnLookupKey("drafts", "month")}`;
+		const research = `price_${addOnLookupKey("research", "month")}`;
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 1 }),
+			);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 1 },
+			]);
+
+			const releasedBefore = scheduleCalls.released.length;
+			const createdBefore = scheduleCalls.created.length;
+			const updatesBefore = updates.length;
+			next = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("standard", "month")),
+						item(addOnLookupKey("drafts", "month"), 2),
+						item(addOnLookupKey("research", "month"), 1),
+					],
+				},
+			});
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "research", quantity: 1 }),
+			);
+			next = null;
+			expect(updates.length).toBe(updatesBefore + 1);
+			expect(updates.at(-1)).toEqual({
+				items: [{ price: research, quantity: 1 }],
+				proration_behavior: "always_invoice",
+				payment_behavior: "error_if_incomplete",
+				expand: ["latest_invoice"],
+			});
+			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+			const phases = scheduleCalls.updated.at(-1)?.params.phases;
+			expect(phases?.[0]?.items).toEqual([
+				{ price: standard, quantity: 1 },
+				{ price: drafts, quantity: 2 },
+				{ price: research, quantity: 1 },
+			]);
+			expect(phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 1 },
+				{ price: research, quantity: 1 },
+			]);
+			expect(phases?.[0]?.automatic_tax).toEqual({ enabled: true });
+			expect(phases?.[1]?.automatic_tax).toEqual({ enabled: true });
+			expect((await tenantById(a.id))?.billing.addOns.research).toBe(1);
+
+			const previewsBefore = previews.length;
+			expect(
+				await onTenant(() =>
+					billing.previewAddOn(OWNER.id, { addOn: "drafts", quantity: 3 }),
+				),
+			).toMatchObject({ dueNow: 0, credit: 0 });
+			expect(previews.length).toBe(previewsBefore);
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 3 }),
+			);
+			expect(updates.length).toBe(updatesBefore + 1);
+			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 2 },
+				{ price: research, quantity: 1 },
+			]);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled,
+			).toMatchObject({ plan: "start", addOns: { drafts: 2, research: 1 } });
+		} finally {
+			next = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("puts the old target back when the card is declined under a schedule", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const start = `price_${planLookupKey("start", "month")}`;
+		const drafts = `price_${addOnLookupKey("drafts", "month")}`;
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			const updatesBefore = updates.length;
+			const releasedBefore = scheduleCalls.released.length;
+			const createdBefore = scheduleCalls.created.length;
+			declineNext = "card_declined";
+			await expect(
+				onTenant(() =>
+					billing.checkout(OWNER.id, { plan: "plus", interval: "month" }),
+				),
+			).rejects.toThrow("Your card was declined. Nothing was changed.");
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.released.length).toBe(releasedBefore + 1);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 2 },
+			]);
+			const tenant = await tenantById(a.id);
+			expect(tenant?.plan).toBe("standard");
+			expect(tenant?.billing.scheduledTarget).toBeNull();
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled?.plan,
+			).toBe("start");
+		} finally {
+			declineNext = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("rebuilds a lost target from the registry on the next subscription webhook", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const start = `price_${planLookupKey("start", "month")}`;
+		const drafts = `price_${addOnLookupKey("drafts", "month")}`;
+		const research = `price_${addOnLookupKey("research", "month")}`;
+		const logged = spyOn(Logger.prototype, "error");
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			next = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("standard", "month")),
+						item(addOnLookupKey("drafts", "month"), 2),
+						item(addOnLookupKey("research", "month"), 1),
+					],
+				},
+			});
+			refuseScheduleCreate = true;
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "research", quantity: 1 }),
+			);
+			next = null;
+			expect(schedule).toBeNull();
+			expect(
+				logged.mock.calls.some(([entry]) =>
+					JSON.stringify(entry).includes("rebuilds it from the stored target"),
+				),
+			).toBe(true);
+			const stored = (await tenantById(a.id))?.billing.scheduledTarget;
+			expect(stored).toMatchObject({
+				plan: "start",
+				interval: "month",
+				addOns: { conversations: 0, drafts: 2, research: 1, mailbox: 0 },
+			});
+			if (!stored) throw new Error("stored target missing");
+
+			const createdBefore = scheduleCalls.created.length;
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect(scheduleCalls.created.length).toBe(createdBefore);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).not.toBeNull();
+
+			await patchBilling(a.id, {
+				scheduledTarget: {
+					...stored,
+					storedAt: new Date(Date.now() - 2 * BILLING.schedule.rebuildAfterMs),
+				},
+			});
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 2 },
+				{ price: research, quantity: 1 },
+			]);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+		} finally {
+			logged.mockRestore();
+			refuseScheduleCreate = false;
+			next = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("heals a lost target before the next change edits it", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const start = `price_${planLookupKey("start", "month")}`;
+		const drafts = `price_${addOnLookupKey("drafts", "month")}`;
+		const research = `price_${addOnLookupKey("research", "month")}`;
+		const logged = spyOn(Logger.prototype, "error");
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			next = subscriptionFixture(a.id, {
+				items: {
+					data: [
+						item(planLookupKey("standard", "month")),
+						item(addOnLookupKey("drafts", "month"), 2),
+						item(addOnLookupKey("research", "month"), 1),
+					],
+				},
+			});
+			refuseScheduleCreate = true;
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "research", quantity: 1 }),
+			);
+			next = null;
+			expect(schedule).toBeNull();
+
+			const createdBefore = scheduleCalls.created.length;
+			const updatesBefore = updates.length;
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 1 }),
+			);
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: start, quantity: 1 },
+				{ price: drafts, quantity: 1 },
+				{ price: research, quantity: 1 },
+			]);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+
+			expect(
+				(await post("customer.subscription.updated", current)).status,
+			).toBe(200);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled,
+			).toMatchObject({ plan: "start", addOns: { drafts: 1, research: 1 } });
+		} finally {
+			logged.mockRestore();
+			refuseScheduleCreate = false;
+			next = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("keeps both keys when two writers patch the billing at once", async () => {
+		const stored = {
+			plan: "start" as const,
+			interval: "month" as const,
+			addOns: { conversations: 0, drafts: 1, research: 0, mailbox: 0 },
+			storedAt: new Date(),
+		};
+		try {
+			await Promise.all([
+				patchBilling(a.id, { wanted: { plan: "team", interval: "year" } }),
+				patchBilling(a.id, { scheduledTarget: stored }),
+			]);
+			const tenant = await tenantById(a.id);
+			expect(tenant?.billing.wanted).toEqual({
+				plan: "team",
+				interval: "year",
+			});
+			expect(tenant?.billing.scheduledTarget).toEqual(stored);
+			await patchBilling(a.id, { scheduledTarget: null });
+			expect((await tenantById(a.id))?.billing.wanted).toEqual({
+				plan: "team",
+				interval: "year",
+			});
+		} finally {
+			await reset();
+		}
+	});
+
+	it("asks for the bank confirmation when 3DS is required under a schedule", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			const updatesBefore = updates.length;
+			const createdBefore = scheduleCalls.created.length;
+			declineNext = "subscription_payment_intent_requires_action";
+			await expect(
+				onTenant(() =>
+					billing.checkout(OWNER.id, { plan: "plus", interval: "month" }),
+				),
+			).rejects.toThrow("Your bank asks for a confirmation.");
+			expect(updates.length).toBe(updatesBefore);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled?.plan,
+			).toBe("start");
+		} finally {
+			declineNext = null;
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				[a.id],
+			);
+			await reset();
+		}
+	});
+
+	it("refuses monthly to yearly while any change is scheduled", async () => {
+		await subscribe(
+			subscriptionFixture(a.id, {
+				default_payment_method: cardOnSubscription(),
+			} as never),
+		);
+		try {
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 1 }),
+			);
+			await expect(
+				onTenant(() =>
+					billing.previewPlan(OWNER.id, { plan: "standard", interval: "year" }),
+				),
+			).rejects.toThrow("Undo the scheduled change first.");
+			await onTenant(() => billing.cancelScheduledChange(OWNER.id));
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			const updatesBefore = updates.length;
+			await expect(
+				onTenant(() =>
+					billing.previewPlan(OWNER.id, { plan: "standard", interval: "year" }),
+				),
+			).rejects.toThrow("Undo the scheduled change first.");
+			await expect(
+				onTenant(() =>
+					billing.checkout(OWNER.id, { plan: "standard", interval: "year" }),
+				),
+			).rejects.toThrow("Undo the scheduled change first.");
+			expect(updates.length).toBe(updatesBefore);
+			expect(
+				(await onTenant(() => billing.overview(OWNER.id))).scheduled?.plan,
+			).toBe("start");
+		} finally {
 			current = subscriptionFixture(a.id);
 			await registryQuery(
 				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",

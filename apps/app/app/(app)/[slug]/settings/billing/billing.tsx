@@ -619,7 +619,8 @@ function PlanChoice({
 				<PlanChangeConfirm
 					option={chosenOption}
 					interval={interval}
-					scheduledAt={data.scheduled?.at ?? null}
+					currentPlan={data.plan}
+					scheduled={data.scheduled}
 					pending={checkout.isPending}
 					onConfirm={confirmChange}
 					onClose={() => setConfirming(false)}
@@ -650,14 +651,16 @@ function PlanChoice({
 function PlanChangeConfirm({
 	option,
 	interval,
-	scheduledAt,
+	currentPlan,
+	scheduled,
 	pending,
 	onConfirm,
 	onClose,
 }: {
 	option: PlanOption;
 	interval: Interval;
-	scheduledAt: string | null;
+	currentPlan: string | null;
+	scheduled: Overview["scheduled"];
 	pending: boolean;
 	onConfirm: (effectiveAt: string | null) => void;
 	onClose: () => void;
@@ -688,11 +691,15 @@ function PlanChangeConfirm({
 			),
 		);
 	}
-	if (scheduledAt) {
+	if (scheduled) {
+		const date = longDay(scheduled.at, locale);
 		lines.push(
-			t("This replaces the change scheduled for {date}.", {
-				date: longDay(scheduledAt, locale),
-			}),
+			scheduled.plan !== currentPlan && option.id !== scheduled.plan
+				? t(
+						"The plan scheduled for {date} is replaced. Your scheduled add-on changes stay.",
+						{ date },
+					)
+				: t("Your changes scheduled for {date} stay.", { date }),
 		);
 	}
 

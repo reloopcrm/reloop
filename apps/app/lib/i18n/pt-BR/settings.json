@@ -351,7 +351,7 @@
 	"Change undone. Your plan continues as it is.": "Mudança desfeita. Seu plano continua como está.",
 	"Change scheduled for {date}.": "Mudança agendada para {date}.",
 	"The change applies on {date}. Until then your current plan and its limits stay.": "A mudança vale a partir de {date}. Até lá, seu plano atual e seus limites continuam.",
-	"This replaces the change scheduled for {date}.": "Isso substitui a mudança agendada para {date}.",
+	"Your changes scheduled for {date} stay.": "Suas mudanças agendadas para {date} permanecem.",
 	"Nothing is charged now. Your workspace must be under the new limits by {date}.": "Nada é cobrado agora. Seu workspace precisa estar abaixo dos novos limites até {date}.",
 	"{count} from {date}": "{count} a partir de {date}",
 	"From {date} you have {count}.": "A partir de {date} você tem {count}.",

@@ -351,7 +351,7 @@
 	"Change undone. Your plan continues as it is.": "Changement annulé. Ton forfait continue tel quel.",
 	"Change scheduled for {date}.": "Changement programmé pour le {date}.",
 	"The change applies on {date}. Until then your current plan and its limits stay.": "Le changement s'applique le {date}. D'ici là, ton forfait actuel et ses limites restent en place.",
-	"This replaces the change scheduled for {date}.": "Cela remplace le changement programmé pour le {date}.",
+	"Your changes scheduled for {date} stay.": "Tes changements programmés pour le {date} sont conservés.",
 	"Nothing is charged now. Your workspace must be under the new limits by {date}.": "Rien n'est facturé maintenant. Ton espace de travail doit être sous les nouvelles limites d'ici le {date}.",
 	"{count} from {date}": "{count} à partir du {date}",
 	"From {date} you have {count}.": "À partir du {date}, tu en as {count}.",

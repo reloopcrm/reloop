@@ -351,7 +351,7 @@
 	"Change undone. Your plan continues as it is.": "Değişiklik geri alındı. Planın olduğu gibi devam ediyor.",
 	"Change scheduled for {date}.": "Değişiklik {date} için planlandı.",
 	"The change applies on {date}. Until then your current plan and its limits stay.": "Değişiklik {date} tarihinde geçerli olur. O zamana kadar mevcut planın ve sınırların kalır.",
-	"This replaces the change scheduled for {date}.": "Bu, {date} için planlanan değişikliğin yerine geçer.",
+	"Your changes scheduled for {date} stay.": "{date} için planlanan değişikliklerin korunur.",
 	"Nothing is charged now. Your workspace must be under the new limits by {date}.": "Şimdi hiçbir ücret alınmaz. Çalışma alanın {date} tarihine kadar yeni sınırların altında olmalı.",
 	"{count} from {date}": "{date} itibarıyla {count}",
 	"From {date} you have {count}.": "{date} itibarıyla {count} adet olur.",

@@ -21,6 +21,7 @@ import {
 	billingStateOf,
 	changeTiming,
 	deleteAtOf,
+	mergedTarget,
 	paymentMethodOf,
 	pendingPaymentUrl,
 	phaseTax,
@@ -29,6 +30,7 @@ import {
 	type StripeSchedule,
 	sameItems,
 	scheduledChangeOf,
+	scheduledReduction,
 	subscriptionState,
 } from "../src/billing/billing.service";
 import { openWhileSuspended } from "../src/tenancy/tenant.middleware";
@@ -600,6 +602,50 @@ describe("the scheduled change is the phase after the current one", () => {
 		expect(
 			phaseTax({ automatic_tax: { enabled: false } } as Stripe.Subscription),
 		).toBeUndefined();
+	});
+
+	it("edits the scheduled target instead of rebuilding it", () => {
+		const lineup = (
+			plan: "start" | "standard" | "plus",
+			interval: "month" | "year",
+			addOns: Partial<typeof NO_ADD_ONS> = {},
+		) => ({ plan, interval, addOns: { ...NO_ADD_ONS, ...addOns } });
+		const current = lineup("standard", "month", { drafts: 2, research: 1 });
+		const scheduled = lineup("start", "month", { drafts: 1, research: 1 });
+
+		expect(
+			mergedTarget(
+				current,
+				lineup("standard", "month", { drafts: 2, research: 2 }),
+				scheduled,
+			),
+		).toEqual(lineup("start", "month", { drafts: 1, research: 2 }));
+
+		expect(
+			mergedTarget(current, lineup("plus", "month", current.addOns), scheduled),
+		).toEqual(lineup("plus", "month", { drafts: 1, research: 1 }));
+
+		expect(
+			mergedTarget(
+				current,
+				lineup("standard", "year", current.addOns),
+				scheduled,
+			),
+		).toEqual(lineup("start", "year", { drafts: 1, research: 1 }));
+
+		expect(
+			mergedTarget(
+				lineup("standard", "year", { drafts: 2 }),
+				lineup("plus", "year", { drafts: 2 }),
+				lineup("standard", "month", { drafts: 2 }),
+			),
+		).toEqual(lineup("plus", "month", { drafts: 2 }));
+
+		expect(scheduledReduction(scheduled, current.addOns, "drafts")).toBe(true);
+		expect(scheduledReduction(scheduled, current.addOns, "research")).toBe(
+			false,
+		);
+		expect(scheduledReduction(null, current.addOns, "drafts")).toBe(false);
 	});
 
 	it("compares item lists regardless of order", () => {

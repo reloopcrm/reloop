@@ -14,6 +14,10 @@ export const SIGNUP = {
 	},
 } as const;
 
+export const DELETION = {
+	rate: { windowMs: MINUTE_MS, perUser: 5 },
+} as const;
+
 export const IMPORT = {
 	dryRunSuffix: "_dryrun_test",
 	oldSecretVar: "IMPORT_OLD_SECRET",

@@ -33,6 +33,21 @@ export async function hasPassword(userId: string): Promise<boolean> {
 	return row !== null;
 }
 
+export async function verifyPasswordFor(
+	userId: string,
+	password: string,
+): Promise<boolean> {
+	const row = await db.account.findFirst({
+		where: { userId, providerId: CREDENTIAL_PROVIDER_ID },
+		select: { password: true },
+	});
+	if (!row?.password) return false;
+
+	const context = await auth.$context;
+
+	return context.password.verify({ hash: row.password, password });
+}
+
 export async function hashPassword(password: string): Promise<string> {
 	if (!env.password) throw new PasswordRefused("sign-in-off");
 	if (password.length < PASSWORD_RULES.minLength) {

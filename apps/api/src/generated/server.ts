@@ -41,7 +41,7 @@ import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDoma
 import { typesafeStatusOutput, saveTypesafeKeyInput } from "../typesafe/typesafe.contracts";
 import { waitlistJoinInput } from "@crm/validation/waitlist";
 import { webhooksStatusOutput, createWebhookInput, updateWebhookInput, webhookIdInput, webhookRemoveOutput } from "../webhooks/webhooks.contracts";
-import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, addPersonInput, addedPersonOutput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
+import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, addPersonInput, addedPersonOutput, setMemberRoleInput, workspaceMemberOutput, deletionCodeInput, deletionCodeOutput, deleteWorkspaceInput, deletedWorkspaceOutput } from "../workspace/workspace.contracts";
 import type { UsersRouter } from "../users/users.router";
 
 const appRouter = t.router({
@@ -1046,6 +1046,14 @@ const appRouter = t.router({
     setMemberRole: publicProcedure
       .input(setMemberRoleInput)
       .output(workspaceMemberOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    deletionCode: publicProcedure
+      .input(deletionCodeInput)
+      .output(deletionCodeOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    delete: publicProcedure
+      .input(deleteWorkspaceInput)
+      .output(deletedWorkspaceOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     })
 });

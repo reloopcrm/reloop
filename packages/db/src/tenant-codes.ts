@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { registryPool } from "./tenancy";
 
-export const TENANT_CODE_PURPOSES = ["signup", "reset"] as const;
+export const TENANT_CODE_PURPOSES = ["signup", "reset", "delete"] as const;
 
 export type TenantCodePurpose = (typeof TENANT_CODE_PURPOSES)[number];
 

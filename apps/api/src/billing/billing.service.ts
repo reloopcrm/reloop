@@ -859,6 +859,34 @@ export class BillingService {
 		return this.setCancel(userId, true);
 	}
 
+	async cancelNow(tenant: Tenant): Promise<void> {
+		if (!this.stripe) return;
+		const subscription = await runAsTenant(tenant, () =>
+			this.activeSubscription(tenant),
+		);
+		if (!subscription) return;
+
+		const canceled = await this.stripeChange(tenant, async () => {
+			if (await this.scheduleOf(subscription)) {
+				await this.releaseSchedule(subscription);
+			}
+			return this.stripe?.subscriptions.cancel(subscription.id, {
+				prorate: false,
+				invoice_now: false,
+			});
+		});
+		if (canceled) {
+			await this.applySubscription(
+				(await tenantById(tenant.id)) ?? tenant,
+				canceled,
+			);
+		}
+		this.logger.log({
+			message: "Subscription cancelled for a workspace deletion",
+			tenantId: tenant.id,
+		});
+	}
+
 	async resume(userId: string): Promise<{ ok: true }> {
 		return this.setCancel(userId, false);
 	}

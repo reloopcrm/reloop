@@ -56,3 +56,7 @@ export function canLoadSampleData(role: WorkspaceRole | null): boolean {
 export function canGrantSignIn(role: WorkspaceRole | null): boolean {
 	return role === "owner";
 }
+
+export function canDeleteWorkspace(role: WorkspaceRole | null): boolean {
+	return role === "owner";
+}

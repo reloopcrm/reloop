@@ -420,6 +420,10 @@ export async function suspendedBefore(before: Date): Promise<Tenant[]> {
 	);
 }
 
+export async function deletingTenants(): Promise<Tenant[]> {
+	return selectTenants("t.status = 'deleted' ORDER BY t.created_at, t.id", []);
+}
+
 export async function setTenantStatus(
 	id: string,
 	status: TenantStatus,

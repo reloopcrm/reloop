@@ -3,6 +3,7 @@ import { canonicalPlanId } from "@crm/db/plans";
 import { DumpUnavailable, deleteTenant } from "@crm/db/provision";
 import { readPlan } from "@crm/db/settings";
 import {
+	deletingTenants,
 	expiredTrials,
 	forgetTenants,
 	graceExpired,
@@ -21,9 +22,12 @@ import {
 	type OnApplicationShutdown,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { BillingService } from "../billing/billing.service";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
 import { BillingMailService } from "../mail/billing-mail.service";
+import { GOOGLE_PROVIDER_ID } from "../mailbox/mailbox.constants";
+import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 
 export type SweepReport = {
 	removedPending: number;
@@ -33,6 +37,8 @@ export type SweepReport = {
 	deleted: number;
 	kept: number;
 };
+
+export type DeletionOutcome = "finished" | "kept";
 
 @Injectable()
 export class TenantSweepService
@@ -48,6 +54,8 @@ export class TenantSweepService
 		@InjectDatabase() private readonly db: Db,
 		config: ConfigService<EnvironmentVariables, true>,
 		private readonly mails: BillingMailService,
+		private readonly billing: BillingService,
+		private readonly tokens: MailboxTokenService,
 	) {
 		this.dumpDir = config.get("RELOOP_BACKUP_DIR", { infer: true }) ?? null;
 		this.onTimer =
@@ -158,9 +166,61 @@ export class TenantSweepService
 			else report.kept += 1;
 		}
 
+		for (const tenant of await deletingTenants()) {
+			if ((await this.finishDeletion(tenant)) === "finished") {
+				report.deleted += 1;
+			} else report.kept += 1;
+		}
+
 		forgetTenants();
 		this.logger.log({ message: "Tenant sweep finished", ...report });
 		return report;
+	}
+
+	async finishDeletion(tenant: Tenant): Promise<DeletionOutcome> {
+		try {
+			await this.billing.cancelNow(tenant);
+			await runAsTenant(tenant, () => this.clearSecrets());
+			await runAsTenant(tenant, () => this.db.session.deleteMany({}));
+			await this.mails.send(tenant, `deleted:${tenant.id}`, "deleted", {
+				days: TENANCY.backup.retentionDays,
+			});
+		} catch (error) {
+			this.logger.error(
+				{ message: "Workspace deletion stopped", tenantId: tenant.id },
+				error instanceof Error ? error.stack : String(error),
+			);
+			return "kept";
+		}
+		return (await this.remove(tenant, this.dumpDir)) ? "finished" : "kept";
+	}
+
+	private async clearSecrets(): Promise<void> {
+		const google = await this.db.account.findMany({
+			where: {
+				providerId: GOOGLE_PROVIDER_ID,
+				OR: [{ refreshToken: { not: null } }, { accessToken: { not: null } }],
+			},
+			select: { userId: true },
+		});
+		for (const { userId } of google) {
+			await this.tokens.revoke(userId, GOOGLE_PROVIDER_ID);
+		}
+		await this.db.$transaction([
+			this.db.account.updateMany({
+				data: {
+					accessToken: null,
+					refreshToken: null,
+					idToken: null,
+					accessTokenExpiresAt: null,
+					refreshTokenExpiresAt: null,
+				},
+			}),
+			this.db.imapAccount.deleteMany({}),
+			this.db.slackInstallation.deleteMany({}),
+			this.db.slackWorkspaceGrant.deleteMany({}),
+			this.db.apikey.deleteMany({}),
+		]);
 	}
 
 	private async onTrial(tenant: Tenant): Promise<boolean> {

@@ -39,6 +39,7 @@ done
 
 find "$daily" -name '*.sql.gz' -mtime "+$KEEP_DAILY_DAYS" -delete
 find "$weekly" -name '*.sql.gz' -mtime "+$((KEEP_WEEKLY_WEEKS * 7))" -delete
+find "$BACKUP_DIR" -maxdepth 1 -name '*.dump' -mtime "+$((KEEP_WEEKLY_WEEKS * 7))" -delete
 
 if [ -z "${RELOOP_BACKUP_REMOTE:-}" ]; then
 	echo "WARNING: RELOOP_BACKUP_REMOTE is not set. The dumps stay on this host only." >&2

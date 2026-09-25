@@ -68,6 +68,10 @@ The daily sweep runs in-process in production, and also on
   answers 403 `TENANT_SUSPENDED`. Data is kept.
 - Suspended for 30 days: the database is dumped, dropped, and the registry rows
   are deleted.
+- The owner deletes the workspace in Settings, General: the Stripe
+  subscription is cancelled at once without proration, status turns `deleted`,
+  and the same path dumps and drops the database. A step that fails leaves the
+  status at `deleted`, and the next sweep finishes the work.
 
 The `api` image carries the Debian `postgresql-client` (version 15) for `psql`.
 Its `pg_dump` refuses the Postgres 17 server, so the sweep uses the newest
@@ -93,7 +97,10 @@ wipe the off-site dumps with it. Give the remote an account that can write but
 not delete (for SFTP: `ForceCommand internal-sftp -P remove,rmdir,rename,symlink,posix-rename`
 in a `Match User` block with a `ChrootDirectory`), and prune old dumps with a
 job on the remote host itself, for example
-`find <dir> -name '*.sql.gz' -mtime +60 -delete`.
+`find <dir> \( -name '*.sql.gz' -o -name '*.dump' \) -mtime +56 -delete`.
+The host keeps a deleted tenant's last dump for 8 weeks (`KEEP_WEEKLY_WEEKS`),
+and the owner is told the same number (`TENANCY.backup.retentionDays`). Keep the
+remote job at that age too.
 
 Restore one tenant:
 

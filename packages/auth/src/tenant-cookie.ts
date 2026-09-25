@@ -48,6 +48,22 @@ export function tenantCookieHeader(
 	return parts.join("; ");
 }
 
+export function clearedTenantCookieHeader(options: {
+	secure: boolean;
+	domain?: string;
+}): string {
+	const parts = [
+		`${TENANT_COOKIE_NAME}=`,
+		"Path=/",
+		"Max-Age=0",
+		"HttpOnly",
+		"SameSite=Lax",
+	];
+	if (options.secure) parts.push("Secure");
+	if (options.domain) parts.push(`Domain=${options.domain}`);
+	return parts.join("; ");
+}
+
 export function cookieValue(
 	header: string | undefined,
 	name: string,

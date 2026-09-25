@@ -9,3 +9,10 @@ export function managedInstall(): boolean {
 export function demoOffered(): boolean {
 	return process.env.RELOOP_DEMO === "true";
 }
+
+export function deletionZoneShown(input: {
+	hostedCustomer: boolean;
+	owner: boolean;
+}): boolean {
+	return input.hostedCustomer && input.owner;
+}

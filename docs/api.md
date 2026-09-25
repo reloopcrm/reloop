@@ -668,6 +668,27 @@ a retried webhook, the mutation path and a second instance send it once. Without
 and invoice PDFs are Stripe's own mails, switched on in the Stripe Dashboard.
 `docs/environment.md` has the variables, the script and what stays by hand.
 
+## Deleting a workspace is the sweep's path, started by the owner
+
+Hosted only. Settings, General shows a danger zone to the owner of a customer
+workspace; a self-hosted install and the operator workspace never see it, and
+`workspace.delete` refuses both. The owner types the workspace name and passes a
+re-auth: the password (`verifyPasswordFor`), or, with no password, a mail code
+(`workspace.deletionCode`, purpose `delete` in `tenant_code`). Both procedures
+take `SessionOnlyMiddleware`.
+
+The order is the guarantee. `BillingService.cancelNow` releases a schedule and
+cancels the subscription at once, without proration, before anything else: a
+Stripe refusal changes nothing and the owner tries again. Then the status turns
+`deleted`, which locks every request out, and `TenantSweepService.finishDeletion`
+clears the OAuth tokens (a Google grant is revoked with Google), the IMAP and
+Slack secrets and the API keys, ends every session, sends "workspace deleted"
+once (claim key `deleted:<tenant>`), and drops the database through the same
+`deleteTenant` the trial expiry uses. Every step is safe to run twice. A step
+that fails leaves the tenant `deleted` and the daily sweep runs
+`finishDeletion` again, so a half-deleted workspace never bills and never opens.
+The response clears `crm.tenant`.
+
 ## Money
 
 A deal is sold in one currency and reported in another, and **only `baseAmount` may

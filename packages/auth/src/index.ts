@@ -34,12 +34,14 @@ export {
 	type PasswordRefusal,
 	PasswordRefused,
 	setPasswordFor,
+	verifyPasswordFor,
 	writeCredentialAccount,
 } from "./password";
 export { PASSWORD_RULES } from "./password-rules";
 export {
 	canAssignRole,
 	canChangeRole,
+	canDeleteWorkspace,
 	canGrantSignIn,
 	canLoadSampleData,
 	canManageConnections,
@@ -105,6 +107,7 @@ export {
 	ssoProviderName,
 } from "./sso";
 export {
+	clearedTenantCookieHeader,
 	cookieValue,
 	readTenantCookie,
 	tenantCookieHeader,

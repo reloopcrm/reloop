@@ -28,7 +28,7 @@ import {
 	tenantDatabaseUrl,
 } from "../src/tenancy";
 import { runAsTenant } from "../src/tenant-context";
-import { prepareTestTenants } from "../src/test-tenants";
+import { PREPARE_TIMEOUT_MS, prepareTestTenants } from "../src/test-tenants";
 import { WORKSPACE_ID } from "../src/workspace";
 
 const runId = (process.env.TEST_RUN_ID ?? "spec")
@@ -73,7 +73,7 @@ describe("provisionTenant", () => {
 	beforeAll(async () => {
 		await prepareTestTenants();
 		for (const id of Object.values(ids)) await wipe(id);
-	});
+	}, PREPARE_TIMEOUT_MS);
 
 	afterAll(async () => {
 		await disconnectAll();

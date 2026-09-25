@@ -9,6 +9,8 @@ import {
 import { TENANCY } from "./tenancy-config";
 import { isTestDatabaseName, testDatabaseUrl } from "./test-database";
 
+export const PREPARE_TIMEOUT_MS = 120_000;
+
 export const TEST_TENANTS = {
 	registry: "reloop_registry_test",
 	a: {

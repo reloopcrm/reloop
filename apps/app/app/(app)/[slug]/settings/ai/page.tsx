@@ -160,7 +160,7 @@ async function Ai({ hosted, slug }: { hosted: boolean; slug: string }) {
 					<AgentProvider chatgpt={!hosted} />
 				</fieldset>
 				<Spend />
-				<Typesafe />
+				<Typesafe hosted={hosted} />
 			</div>
 		</HydrateClient>
 	);

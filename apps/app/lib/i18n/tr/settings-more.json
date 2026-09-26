@@ -431,6 +431,7 @@
 	"It is off by default. Nothing goes to TypeSafe until you save a key. A conversation the cheap model calls business still gets the full read, so nothing is lost there.": "Varsayılan olarak kapalıdır. Sen bir anahtar kaydedene kadar TypeSafe'e hiçbir şey gitmez. Ucuz modelin iş saydığı bir konuşma yine tam okuma alır, orada hiçbir şey kaybolmaz.",
 	"The key from your TypeSafe account": "TypeSafe hesabındaki anahtar",
 	"A key is saved. Stored encrypted and never shown again. Paste a new one to replace it.": "Bir anahtar kayıtlı. Şifreli saklanır ve bir daha gösterilmez. Değiştirmek için yenisini yapıştır.",
+	"Stored encrypted and never shown again.": "Şifreli saklanır ve bir daha gösterilmez.",
 	"Stored encrypted and never shown again. You can also set TYPESAFE_API_KEY in the environment, and a key saved here wins over it.": "Şifreli saklanır ve bir daha gösterilmez. TYPESAFE_API_KEY değişkenini ortamda da tanımlayabilirsin, burada kayıtlı anahtar önceliklidir.",
 	"Replace key": "Anahtarı değiştir",
 	"Save key": "Anahtarı kaydet",

@@ -431,6 +431,7 @@
 	"It is off by default. Nothing goes to TypeSafe until you save a key. A conversation the cheap model calls business still gets the full read, so nothing is lost there.": "默认关闭。在你保存密钥之前不会向 TypeSafe 发送任何内容。低成本模型判定为业务的会话仍会获得完整读取，因此不会丢失任何内容。",
 	"The key from your TypeSafe account": "你的 TypeSafe 账户中的密钥",
 	"A key is saved. Stored encrypted and never shown again. Paste a new one to replace it.": "已保存一个密钥。加密存储且不再显示。粘贴新的密钥即可替换。",
+	"Stored encrypted and never shown again.": "加密保存，之后不再显示。",
 	"Stored encrypted and never shown again. You can also set TYPESAFE_API_KEY in the environment, and a key saved here wins over it.": "加密存储且不再显示。你也可以在环境中设置 TYPESAFE_API_KEY，此处保存的密钥优先。",
 	"Replace key": "替换密钥",
 	"Save key": "保存密钥",

@@ -36,7 +36,7 @@ import { translateError } from "@/lib/i18n/errors";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 
-export function Typesafe() {
+export function Typesafe({ hosted }: { hosted: boolean }) {
 	const t = useT();
 	const locale = useLocale();
 	const trpc = useTRPC();
@@ -129,9 +129,11 @@ export function Typesafe() {
 									? t(
 											"A key is saved. Stored encrypted and never shown again. Paste a new one to replace it.",
 										)
-									: t(
-											"Stored encrypted and never shown again. You can also set TYPESAFE_API_KEY in the environment, and a key saved here wins over it.",
-										)}
+									: hosted
+										? t("Stored encrypted and never shown again.")
+										: t(
+												"Stored encrypted and never shown again. You can also set TYPESAFE_API_KEY in the environment, and a key saved here wins over it.",
+											)}
 							</FieldDescription>
 						</Field>
 

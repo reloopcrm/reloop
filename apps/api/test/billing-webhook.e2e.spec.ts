@@ -1981,6 +1981,49 @@ describe("every scheduled change mails the owner", () => {
 			await reset();
 		}
 	});
+
+	it("mails the same target again after a withdrawal, and never on a retry", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const sent: Mail[] = [];
+		const send = spyOn(mailer, "send").mockImplementation(async (mail) => {
+			sent.push(mail);
+			return true;
+		});
+		Object.defineProperty(mailer, "configured", {
+			get: () => true,
+			configurable: true,
+		});
+		const scheduleStart = () =>
+			onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+		try {
+			await scheduleStart();
+			await onTenant(() => billing.cancelScheduledChange(OWNER.id));
+			expect(sent.length).toBe(2);
+
+			await scheduleStart();
+			await scheduleStart();
+			for (const _round of [1, 2]) {
+				expect(
+					(await post("customer.subscription.updated", current)).status,
+				).toBe(200);
+			}
+			expect(sent.length).toBe(3);
+			const changes = sent.filter((mail) => mail.subject === sent[0]?.subject);
+			expect(changes.length).toBe(2);
+			expect(changes[1]?.text).toBe(changes[0]?.text ?? "");
+		} finally {
+			send.mockRestore();
+			Reflect.deleteProperty(mailer, "configured");
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
+				[a.id],
+			);
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
 });
 
 describe("the daily sweep rebuilds a lost scheduled change", () => {

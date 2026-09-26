@@ -357,6 +357,13 @@ export async function releaseBillingMail(key: string): Promise<void> {
 	await registryPool().query("DELETE FROM billing_mail WHERE key = $1", [key]);
 }
 
+export async function releaseBillingMails(prefix: string): Promise<void> {
+	await registryPool().query(
+		"DELETE FROM billing_mail WHERE starts_with(key, $1)",
+		[prefix],
+	);
+}
+
 export async function graceExpired(now: Date): Promise<Tenant[]> {
 	return selectTenants(
 		"t.status = 'active' AND t.grace_until IS NOT NULL AND t.grace_until < $1",

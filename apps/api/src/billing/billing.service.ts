@@ -28,6 +28,7 @@ import {
 	type BillingStatus,
 	forgetTenant,
 	patchBilling,
+	releaseBillingMails,
 	setTenantStatus,
 	type Tenant,
 	type TenantBillingWrite,
@@ -233,7 +234,11 @@ export function scheduledMailKey(
 			),
 		)
 		.digest("hex");
-	return `scheduled:${subscriptionId}:${digest}`;
+	return `${scheduledMailPrefix(subscriptionId)}${digest}`;
+}
+
+export function scheduledMailPrefix(subscriptionId: string): string {
+	return `scheduled:${subscriptionId}:`;
 }
 
 export function scheduledReduction(
@@ -1112,6 +1117,7 @@ export class BillingService {
 	): Promise<void> {
 		const withdrawn = scheduledChangeOf(schedule);
 		if (!schedule || !withdrawn) return;
+		await releaseBillingMails(scheduledMailPrefix(subscription.id));
 		const { plan } = subscriptionState(subscription);
 		await this.mails.send(tenant, `unscheduled:${schedule.id}`, "unscheduled", {
 			plan: plan ? PLANS[plan].label : null,

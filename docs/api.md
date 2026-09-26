@@ -673,7 +673,8 @@ with the whole target: plan, interval and every add-on with its quantity. Its ke
 is `scheduled:<subscription>:<sha256 of plan, interval, add-ons, date>`, so one
 target mails once. `cancelScheduledChange`, and an add-on pick that undoes the
 last waiting reduction, send "change withdrawn" once, keyed
-`unscheduled:<schedule>`. Each mail claims a key in the registry's `billing_mail`
+`unscheduled:<schedule>`, and free every `scheduled:<subscription>:` key, so a
+target planned again after a withdrawal mails again. Each mail claims a key in the registry's `billing_mail`
 table first (`paid:<invoice>`, `ending:<subscription>:<cancel_at>` and so on), so
 a retried webhook, the mutation path and a second instance send it once. Without
 `RESEND_API_KEY` and `MAIL_FROM` nothing is claimed and nothing throws. Receipts

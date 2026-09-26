@@ -151,7 +151,20 @@ function columnClass<TRow>(
 	return cn(
 		column.control
 			? (column.width ?? CONTROL_COLUMN_WIDTH)
-			: ["truncate", column.width],
+			: ["max-w-0 truncate", column.width],
+		ALIGN_CLASS[column.align ?? "left"],
+		column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
+		className,
+	);
+}
+
+function headClass<TRow>(
+	column: DataTableColumn<TRow>,
+	className: ClassValue,
+): string {
+	return cn(
+		"whitespace-nowrap",
+		column.control ? (column.width ?? CONTROL_COLUMN_WIDTH) : column.width,
 		ALIGN_CLASS[column.align ?? "left"],
 		column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
 		className,
@@ -620,10 +633,7 @@ export function DataTable<TRow, TSub = unknown>({
 			</div>
 
 			<Table
-				className={cn(
-					"table-fixed",
-					tableClassName,
-				)}
+				className={tableClassName}
 				containerClassName="min-h-0 flex-1 overflow-auto rounded-lg border bg-card"
 				overlay={
 					deferredRows.length === 0 ? (
@@ -663,8 +673,8 @@ export function DataTable<TRow, TSub = unknown>({
 							return (
 								<TableHead
 									key={column.id}
-									className={columnClass(column, column.headClassName)}
-									control={column.control}
+									className={headClass(column, column.headClassName)}
+									control
 									aria-sort={
 										isActive
 											? query.dir === "asc"
@@ -679,12 +689,12 @@ export function DataTable<TRow, TSub = unknown>({
 											size="xs"
 											onClick={() => query.toggleSort(column.id)}
 											className={cn(
-												"-ml-3 max-w-full min-w-0 font-normal text-muted-foreground hover:text-foreground",
+												"-ml-3 font-normal text-muted-foreground hover:text-foreground",
 												column.align === "right" && "-mr-3 ml-0 flex-row-reverse",
 												column.align === "center" && "mx-auto",
 											)}
 										>
-											<span className="truncate">{column.header}</span>
+											<span>{column.header}</span>
 											<SortIndicator active={isActive} dir={query.dir} />
 										</Button>
 									) : (

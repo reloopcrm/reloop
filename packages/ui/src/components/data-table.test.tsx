@@ -64,8 +64,17 @@ describe("DataTable", () => {
 		expect(control).toContain("w-17");
 	});
 
-	it("truncates a text column header", () => {
-		expect(textHead).toContain("truncate");
+	it("never truncates a text column header, so the column is at least as wide as its heading", () => {
+		expect(textHead).not.toContain("truncate");
+		expect(textHead).toContain("whitespace-nowrap");
+	});
+
+	it("lets a text cell shrink below its content so it truncates instead of widening the column", () => {
+		expect(text).toContain("max-w-0");
+	});
+
+	it("sizes columns automatically instead of fixing them", () => {
+		expect(markup).not.toContain("table-fixed");
 	});
 
 	it("never truncates a control column header", () => {

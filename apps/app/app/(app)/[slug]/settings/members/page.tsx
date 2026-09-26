@@ -11,7 +11,7 @@ import {
 	PageShellTitle,
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
-import { requireSession } from "@/lib/session";
+import { requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AddPersonSheet } from "./add-person-sheet";
@@ -55,15 +55,15 @@ export default async function MembersSettingsPage({
 async function Members({
 	searchParams,
 }: Pick<PageProps<"/[slug]/settings/members">, "searchParams">) {
-	await requireSession();
+	const session = await requireSession();
 
 	const values = await membersSearchParams.load(searchParams);
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
 
-	await Promise.all([
-		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
+	const [viewerRole] = await Promise.all([
+		workspaceRole(session.user.id),
 		queryClient.prefetchQuery(
 			trpc.workspace.members.queryOptions(membersSearchParams.toInput(values)),
 		),
@@ -71,7 +71,7 @@ async function Members({
 
 	return (
 		<HydrateClient>
-			<MembersTable />
+			<MembersTable viewerRole={viewerRole} />
 		</HydrateClient>
 	);
 }

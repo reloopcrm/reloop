@@ -88,7 +88,7 @@ function columns(
 			id: "role",
 			header: t("Role"),
 			sortable: true,
-			width: "w-[14%]",
+			width: "w-[14%] min-w-20",
 			cell: (row) => (
 				<span className="text-muted-foreground">{t(ROLE_LABEL[row.role])}</span>
 			),
@@ -99,8 +99,8 @@ function columns(
 			label: t("Joined date"),
 			sortable: true,
 			align: "right",
-			width: "w-[14%]",
-			hideBelow: "sm",
+			width: "w-[14%] min-w-28",
+			hideBelow: "lg",
 			cell: (row) => (
 				<span className="text-muted-foreground">
 					<LocalRelativeTime date={row.joinedAt} />
@@ -150,14 +150,17 @@ function columns(
 	];
 }
 
-export function MembersTable() {
+export function MembersTable({
+	viewerRole,
+}: {
+	viewerRole: WorkspaceRole | null;
+}) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 	const { query, input } = useTableQuery(membersSearchParams);
 
-	const workspace = useQuery(trpc.workspace.get.queryOptions());
 	const members = useQuery({
 		...trpc.workspace.members.queryOptions(input),
 		placeholderData: (previous) => previous,
@@ -193,7 +196,7 @@ export function MembersTable() {
 			search={<ListSearch placeholder={t("Search by name or email…")} />}
 			columns={columns(
 				t,
-				workspace.data?.viewerRole ?? null,
+				viewerRole,
 				(member, role) => setRole.mutate({ memberId: member.id, role }),
 				setRole.isPending,
 			)}

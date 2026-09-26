@@ -6,10 +6,13 @@ import {
 	runAsTenant,
 } from "@crm/db/tenant-context";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { cache } from "react";
 
 export const requestTenant = cache(async (): Promise<Tenant | null> => {
 	if (!isHosted()) return null;
+
+	await connection();
 
 	const tenantId = readTenantCookie(
 		(await cookies()).get(TENANT_COOKIE_NAME)?.value,

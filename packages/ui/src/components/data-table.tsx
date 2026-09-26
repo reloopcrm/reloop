@@ -664,6 +664,7 @@ export function DataTable<TRow, TSub = unknown>({
 								<TableHead
 									key={column.id}
 									className={columnClass(column, column.headClassName)}
+									control={column.control}
 									aria-sort={
 										isActive
 											? query.dir === "asc"

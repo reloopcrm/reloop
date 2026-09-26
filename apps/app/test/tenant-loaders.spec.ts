@@ -30,6 +30,7 @@ const emailOf = (tenant: { domain: string }) => `${userId}@${tenant.domain}`;
 
 let cookie = "";
 const nextHeaders = { ...(await import("next/headers")) };
+const nextServer = { ...(await import("next/server")) };
 
 mock.module("server-only", () => ({}));
 mock.module("next/headers", () => ({
@@ -42,6 +43,10 @@ mock.module("next/headers", () => ({
 		toString: () => cookie,
 	}),
 	headers: async () => new Headers(cookie ? { cookie } : {}),
+}));
+mock.module("next/server", () => ({
+	...nextServer,
+	connection: async () => undefined,
 }));
 
 const { getSession, signInAccounts, workspaceRole } = await import(
@@ -146,6 +151,7 @@ describe("app loaders read the tenant named by the cookie", () => {
 		fetchSpy?.mockRestore();
 		cookie = "";
 		mock.module("next/headers", () => nextHeaders);
+		mock.module("next/server", () => nextServer);
 		try {
 			await clean(a);
 			await clean(b);

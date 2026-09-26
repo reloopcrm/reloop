@@ -122,7 +122,7 @@ function PageShellContent({
 		<div
 			data-slot="page-shell-content"
 			className={cn(
-				"@container/page-content flex flex-1 flex-col gap-(--spacing-page-gap)",
+				"@container/page-content flex min-w-0 flex-1 flex-col gap-(--spacing-page-gap)",
 				className,
 			)}
 			{...props}

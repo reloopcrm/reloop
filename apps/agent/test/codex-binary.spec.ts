@@ -7,7 +7,7 @@ import {
 import { MODEL } from "../agent/lib/model-config";
 
 const HOME = "/data/codex";
-const CACHED = `${HOME}/cli/node_modules/.bin/codex`;
+const CACHED = `${HOME}/cli/${MODEL.chatgptLogin.version}/node_modules/.bin/codex`;
 
 function harness(
 	present: Set<string>,
@@ -47,7 +47,7 @@ describe("finding the codex binary", () => {
 		expect(await resolve()).toEqual({ command: CACHED, reason: null });
 		expect(installs).toHaveBeenCalledTimes(1);
 		expect(installs).toHaveBeenCalledWith(
-			`${HOME}/cli`,
+			`${HOME}/cli/${MODEL.chatgptLogin.version}`,
 			`@openai/codex@${MODEL.chatgptLogin.version}`,
 		);
 	});

@@ -31,7 +31,7 @@ export const MODEL = {
 	chatgptLogin: {
 		command: "codex",
 		authFile: "auth.json",
-		version: "0.154.0",
+		version: "0.157.1",
 		pollMs: 3 * SECOND_MS,
 		replyMs: 5 * SECOND_MS,
 		timeoutMs: 15 * MINUTE_MS,

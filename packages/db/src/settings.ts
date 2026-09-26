@@ -18,7 +18,7 @@ export type AgentProvider = (typeof AGENT_PROVIDERS)[number];
 
 export const AGENT_PROVIDER_DEFAULTS = {
 	openrouter: { model: "openai/gpt-6-luna", contextWindowTokens: 200_000 },
-	chatgpt: { model: "gpt-5.6-terra", contextWindowTokens: 200_000 },
+	chatgpt: { model: "gpt-6-sol", contextWindowTokens: 200_000 },
 	openai: { model: "gpt-5.6-terra", contextWindowTokens: 400_000 },
 	anthropic: { model: "claude-haiku-4-5", contextWindowTokens: 200_000 },
 } as const;
@@ -36,9 +36,8 @@ export const AGENT_MODEL_OPTIONS = {
 			label: "GPT-6 Astra",
 			note: "Strongest, 6 s per read",
 		},
-		{ id: "gpt-5.6-sol", label: "GPT-5.6 Sol", note: "6 s per read" },
-		{ id: "gpt-5.6-terra", label: "GPT-5.6 Terra", note: "Fast, 3 s per read" },
-		{ id: "gpt-5.6-luna", label: "GPT-5.6 Luna", note: "Fast, 3 s per read" },
+		{ id: "gpt-6-sol", label: "GPT-6 Sol", note: "Recommended" },
+		{ id: "gpt-6-luna", label: "GPT-6 Luna", note: "Cheapest" },
 	],
 	openai: [
 		{ id: "gpt-5.6-luna", label: "GPT-5.6 Luna", note: "Cheapest" },
@@ -55,14 +54,14 @@ export const AGENT_MODEL_OPTIONS = {
 
 export const AGENT_READING_DEFAULT = {
 	openrouter: "openai/gpt-6-luna",
-	chatgpt: "gpt-5.6-terra",
+	chatgpt: "gpt-6-luna",
 	openai: "gpt-5.6-terra",
 	anthropic: "claude-haiku-4-5",
 } as const;
 
 export const AGENT_DRAFT_DEFAULT = {
 	openrouter: "openai/gpt-6-sol",
-	chatgpt: "gpt-5.6-sol",
+	chatgpt: "gpt-6-sol",
 	openai: "gpt-5.6-sol",
 	anthropic: "claude-sonnet-5",
 } as const;

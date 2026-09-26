@@ -1,39 +1,38 @@
 import { describe, expect, it } from "bun:test";
-import { shortLine } from "./quotes-line";
+import { offerLine } from "./quotes-line";
 
-describe("the offer column reads as a summary, not as sentences", () => {
-	it("joins the topics the agent already read", () => {
+const row = { subject: null, topics: [], summary: "" };
+
+describe("the offer column is one short line", () => {
+	it("shows the subject without reply and forward prefixes", () => {
 		expect(
-			shortLine({
-				topics: [
-					"Ankauf überschüssiger Europaletten",
-					"Preisverhandlung",
-					"Abholung in Hannover",
-				],
-				summary:
-					"Weber Logistik bot 800 bis 1000 unbenutzte Europaletten zur Abholung in Hannover an.",
+			offerLine({
+				...row,
+				subject: "Re: AW: AW: Überschüssige Europaletten fair abgeben",
 			}),
-		).toBe(
-			"Ankauf überschüssiger Europaletten · Preisverhandlung · Abholung in Hannover",
+		).toBe("Überschüssige Europaletten fair abgeben");
+		expect(offerLine({ ...row, subject: "WG: Paletten" })).toBe("Paletten");
+		expect(offerLine({ ...row, subject: "Fwd:Paletten" })).toBe("Paletten");
+	});
+
+	it("keeps a subject that only starts like a prefix", () => {
+		expect(offerLine({ ...row, subject: "Reifen und Paletten" })).toBe(
+			"Reifen und Paletten",
 		);
 	});
 
-	it("keeps the line short when the agent read many topics", () => {
+	it("falls back to the first topic when there is no subject", () => {
 		expect(
-			shortLine({
-				topics: ["eins", "zwei", "drei", "vier", "fünf"],
-				summary: "",
+			offerLine({
+				...row,
+				subject: "AW: ",
+				topics: ["  ", "Preis", "Abholung"],
 			}),
-		).toBe("eins · zwei · drei");
+		).toBe("Preis");
 	});
 
-	it("falls back to the sentences when a row has no topics", () => {
-		expect(shortLine({ topics: [], summary: "Ein ganzer Satz." })).toBe(
-			"Ein ganzer Satz.",
-		);
-	});
-
-	it("drops a blank topic instead of showing an empty piece", () => {
-		expect(shortLine({ topics: ["  ", "Preis"], summary: "x" })).toBe("Preis");
+	it("falls back to the summary, then to nothing", () => {
+		expect(offerLine({ ...row, summary: "Ein Satz." })).toBe("Ein Satz.");
+		expect(offerLine(row)).toBeNull();
 	});
 });

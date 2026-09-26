@@ -92,7 +92,7 @@ export function QuotesTable() {
 				})}
 			</p>
 
-			<SimpleTable columns={columns(t)}>
+			<SimpleTable columns={columns(t)} className="table-fixed">
 				{data.rows.map((row) => (
 					<SimpleTableRow key={row.threadId}>
 						<TableCell className={CELL}>

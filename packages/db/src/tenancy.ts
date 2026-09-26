@@ -357,6 +357,13 @@ export async function releaseBillingMail(key: string): Promise<void> {
 	await registryPool().query("DELETE FROM billing_mail WHERE key = $1", [key]);
 }
 
+export async function releaseBillingMails(prefix: string): Promise<void> {
+	await registryPool().query(
+		"DELETE FROM billing_mail WHERE starts_with(key, $1)",
+		[prefix],
+	);
+}
+
 export async function graceExpired(now: Date): Promise<Tenant[]> {
 	return selectTenants(
 		"t.status = 'active' AND t.grace_until IS NOT NULL AND t.grace_until < $1",
@@ -416,6 +423,15 @@ export async function patchBilling(
 export async function suspendedBefore(before: Date): Promise<Tenant[]> {
 	return selectTenants(
 		"t.status = 'suspended' AND t.suspended_at IS NOT NULL AND t.suspended_at < $1",
+		[before.toISOString()],
+	);
+}
+
+export async function scheduledTargetsBefore(before: Date): Promise<Tenant[]> {
+	return selectTenants(
+		`t.status IN ('active', 'suspended')
+		 AND jsonb_typeof(t.billing->'scheduledTarget') = 'object'
+		 AND (t.billing->'scheduledTarget'->>'storedAt')::timestamptz < $1`,
 		[before.toISOString()],
 	);
 }

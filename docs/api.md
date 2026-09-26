@@ -628,6 +628,11 @@ needed. `billing.overview` reads the schedule live (`scheduled`: the phase after
 `current_phase`, or null), so nothing is stored that could drift. A second pick
 while a change waits updates the same schedule and replaces the target; a
 smaller add-on count keeps a waiting plan and lowers the add-on in its target.
+A change billed now under a schedule first stores the target in the registry
+(`scheduledTarget`, with `storedAt`), then recreates the schedule. When the
+recreate fails, the next change heals it at once, the webhook heals a target older
+than `BILLING.schedule.rebuildAfterMs`, and the daily tenant sweep heals every
+target older than that, so a lost change never waits for the owner.
 `billing.cancelScheduledChange` releases the schedule, and so does every change
 billed now, because Stripe refuses a direct item update on a subscription a
 schedule manages: an upgrade, a bigger add-on count and a cancellation drop the
@@ -662,7 +667,14 @@ an update whose `previous_attributes` show a different plan or interval, never
 for an add-on proration or a renewal, which Stripe's own receipt covers. It also
 sends one for a failed payment, a scheduled end and an ended plan; the tenant sweep sends the trial reminder
 (`TENANCY.trial.reminderLeadMs` before the end), the trial end and the pause
-after the payment grace. Each mail claims a key in the registry's `billing_mail`
+after the payment grace. Every write of a scheduled target (a plan, an interval,
+an add-on reduction, a merge, a heal, an undone reduction) sends "plan changes on"
+with the whole target: plan, interval and every add-on with its quantity. Its key
+is `scheduled:<subscription>:<sha256 of plan, interval, add-ons, date>`, so one
+target mails once. `cancelScheduledChange`, and an add-on pick that undoes the
+last waiting reduction, send "change withdrawn" once, keyed
+`unscheduled:<schedule>`, and free every `scheduled:<subscription>:` key, so a
+target planned again after a withdrawal mails again. Each mail claims a key in the registry's `billing_mail`
 table first (`paid:<invoice>`, `ending:<subscription>:<cancel_at>` and so on), so
 a retried webhook, the mutation path and a second instance send it once. Without
 `RESEND_API_KEY` and `MAIL_FROM` nothing is claimed and nothing throws. Receipts

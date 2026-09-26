@@ -8,6 +8,7 @@ import {
 	forgetTenants,
 	graceExpired,
 	pendingTenantsBefore,
+	scheduledTargetsBefore,
 	setTenantStatus,
 	suspendedBefore,
 	type Tenant,
@@ -22,6 +23,7 @@ import {
 	type OnApplicationShutdown,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { BILLING } from "../billing/billing.config";
 import { BillingService } from "../billing/billing.service";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
@@ -36,6 +38,7 @@ export type SweepReport = {
 	unpaid: number;
 	deleted: number;
 	kept: number;
+	healed: number;
 };
 
 export type DeletionOutcome = "finished" | "kept";
@@ -107,6 +110,7 @@ export class TenantSweepService
 			unpaid: 0,
 			deleted: 0,
 			kept: 0,
+			healed: 0,
 		};
 		if (!isHosted()) return report;
 
@@ -171,6 +175,21 @@ export class TenantSweepService
 			if ((await this.finishDeletion(tenant)) === "finished") {
 				report.deleted += 1;
 			} else report.kept += 1;
+		}
+
+		const staleTarget = new Date(
+			now.getTime() - BILLING.schedule.rebuildAfterMs,
+		);
+		for (const tenant of await scheduledTargetsBefore(staleTarget)) {
+			try {
+				await this.billing.healStoredTarget(tenant);
+				report.healed += 1;
+			} catch (error) {
+				this.logger.error(
+					{ message: "Scheduled change was not rebuilt", tenantId: tenant.id },
+					error instanceof Error ? error.stack : String(error),
+				);
+			}
 		}
 
 		forgetTenants();

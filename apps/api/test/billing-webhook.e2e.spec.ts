@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import {
+	appUrl,
 	ensureWorkspaceMembership,
 	setPasswordFor,
 	TENANT_COOKIE_NAME,
@@ -31,6 +32,7 @@ import { BILLING } from "../src/billing/billing.config";
 import { BillingService } from "../src/billing/billing.service";
 import { STRIPE } from "../src/billing/stripe.provider";
 import { workspaceLocale } from "../src/mail/billing-mail.service";
+import { billingMail } from "../src/mail/billing-mail-copy";
 import { type Mail, MailService } from "../src/mail/mail.service";
 import { countMailboxes } from "../src/mailbox/sync-state.service";
 import { MailboxSyncHeartbeatService } from "../src/sync/mailbox-sync-heartbeat.service";
@@ -1236,7 +1238,7 @@ describe("a plan change waits for the paid period", () => {
 			send.mockRestore();
 			Reflect.deleteProperty(mailer, "configured");
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			current = subscriptionFixture(a.id);
@@ -1383,7 +1385,7 @@ describe("a plan change waits for the paid period", () => {
 			next = null;
 			current = subscriptionFixture(a.id);
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			await reset();
@@ -1448,7 +1450,7 @@ describe("a plan change waits for the paid period", () => {
 		} finally {
 			current = subscriptionFixture(a.id);
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			await reset();
@@ -1538,7 +1540,7 @@ describe("a plan change waits for the paid period", () => {
 			next = null;
 			current = subscriptionFixture(a.id);
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			await reset();
@@ -1579,7 +1581,7 @@ describe("a plan change waits for the paid period", () => {
 			declineNext = null;
 			current = subscriptionFixture(a.id);
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			await reset();
@@ -1658,7 +1660,7 @@ describe("a plan change waits for the paid period", () => {
 			next = null;
 			current = subscriptionFixture(a.id);
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			await reset();
@@ -1718,7 +1720,7 @@ describe("a plan change waits for the paid period", () => {
 			next = null;
 			current = subscriptionFixture(a.id);
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			await reset();
@@ -1777,7 +1779,7 @@ describe("a plan change waits for the paid period", () => {
 			declineNext = null;
 			current = subscriptionFixture(a.id);
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			await reset();
@@ -1821,7 +1823,7 @@ describe("a plan change waits for the paid period", () => {
 		} finally {
 			current = subscriptionFixture(a.id);
 			await registryQuery(
-				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key LIKE 'scheduled:%'",
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
 				[a.id],
 			);
 			await reset();
@@ -1880,6 +1882,215 @@ describe("a plan change waits for the paid period", () => {
 				[a.id, `%${RUN}%`],
 			);
 			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+});
+
+describe("every scheduled change mails the owner", () => {
+	it("mails the whole target once per scheduled change, and once when a reduction is undone", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const sent: Mail[] = [];
+		const send = spyOn(mailer, "send").mockImplementation(async (mail) => {
+			sent.push(mail);
+			return true;
+		});
+		Object.defineProperty(mailer, "configured", {
+			get: () => true,
+			configurable: true,
+		});
+		const locale = await onTenant(() => workspaceLocale(db));
+		const expected = (drafts: number) =>
+			billingMail({
+				to: OWNER.email,
+				locale,
+				kind: "scheduled",
+				plan: "Standard",
+				interval: "month",
+				addOns: { conversations: 0, drafts, research: 0, mailbox: 0 },
+				date: new Date(PERIOD_END * 1000),
+				billingUrl: `${appUrl}${BILLING.return.path}`,
+			});
+		try {
+			for (const _round of [1, 2]) {
+				await onTenant(() =>
+					billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 1 }),
+				);
+			}
+			expect(sent.length).toBe(1);
+			expect(sent[0]?.subject).toBe(expected(1).subject);
+			expect(sent[0]?.text).toBe(expected(1).text);
+
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 0 }),
+			);
+			expect(sent.length).toBe(2);
+			expect(sent[1]?.text).toBe(expected(0).text);
+			expect(sent[1]?.text).not.toBe(sent[0]?.text);
+
+			await onTenant(() =>
+				billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 2 }),
+			);
+			expect(schedule).toBeNull();
+			expect(sent.length).toBe(3);
+			expect(sent[2]?.subject).not.toBe(sent[1]?.subject);
+			expect(sent[2]?.text).toContain("Standard");
+		} finally {
+			send.mockRestore();
+			Reflect.deleteProperty(mailer, "configured");
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
+				[a.id],
+			);
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+
+	it("mails once when the whole scheduled change is withdrawn", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const sent: Mail[] = [];
+		const send = spyOn(mailer, "send").mockImplementation(async (mail) => {
+			sent.push(mail);
+			return true;
+		});
+		Object.defineProperty(mailer, "configured", {
+			get: () => true,
+			configurable: true,
+		});
+		try {
+			await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			expect(sent.length).toBe(1);
+			for (const _round of [1, 2]) {
+				await onTenant(() => billing.cancelScheduledChange(OWNER.id));
+			}
+			expect(sent.length).toBe(2);
+			expect(sent[1]?.subject).not.toBe(sent[0]?.subject);
+			expect(sent[1]?.text).toContain("Standard");
+			expect(sent[1]?.text).not.toContain("Start");
+		} finally {
+			send.mockRestore();
+			Reflect.deleteProperty(mailer, "configured");
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
+				[a.id],
+			);
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+
+	it("mails the same target again after a withdrawal, and never on a retry", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const sent: Mail[] = [];
+		const send = spyOn(mailer, "send").mockImplementation(async (mail) => {
+			sent.push(mail);
+			return true;
+		});
+		Object.defineProperty(mailer, "configured", {
+			get: () => true,
+			configurable: true,
+		});
+		const scheduleStart = () =>
+			onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+		try {
+			await scheduleStart();
+			await onTenant(() => billing.cancelScheduledChange(OWNER.id));
+			expect(sent.length).toBe(2);
+
+			await scheduleStart();
+			await scheduleStart();
+			for (const _round of [1, 2]) {
+				expect(
+					(await post("customer.subscription.updated", current)).status,
+				).toBe(200);
+			}
+			expect(sent.length).toBe(3);
+			const changes = sent.filter((mail) => mail.subject === sent[0]?.subject);
+			expect(changes.length).toBe(2);
+			expect(changes[1]?.text).toBe(changes[0]?.text ?? "");
+		} finally {
+			send.mockRestore();
+			Reflect.deleteProperty(mailer, "configured");
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
+				[a.id],
+			);
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+});
+
+describe("the daily sweep rebuilds a lost scheduled change", () => {
+	const target = (storedAt: Date) => ({
+		plan: "start" as const,
+		interval: "month" as const,
+		addOns: { conversations: 0, drafts: 2, research: 0, mailbox: 0 },
+		storedAt,
+	});
+
+	it("leaves a tenant without a stored target untouched", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const createdBefore = scheduleCalls.created.length;
+		const updatedBefore = scheduleCalls.updated.length;
+		try {
+			await app.get(TenantSweepService).sweep(new Date());
+			expect(scheduleCalls.created.length).toBe(createdBefore);
+			expect(scheduleCalls.updated.length).toBe(updatedBefore);
+			expect(schedule).toBeNull();
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+		} finally {
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+
+	it("leaves a fresh stored target to the change that wrote it", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const createdBefore = scheduleCalls.created.length;
+		try {
+			await patchBilling(a.id, { scheduledTarget: target(new Date()) });
+			await app.get(TenantSweepService).sweep(new Date());
+			expect(scheduleCalls.created.length).toBe(createdBefore);
+			expect(schedule).toBeNull();
+			expect((await tenantById(a.id))?.billing.scheduledTarget).not.toBeNull();
+		} finally {
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+
+	it("rebuilds a stale stored target and clears it", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const createdBefore = scheduleCalls.created.length;
+		try {
+			await patchBilling(a.id, {
+				scheduledTarget: target(
+					new Date(Date.now() - 2 * BILLING.schedule.rebuildAfterMs),
+				),
+			});
+			const report = await app.get(TenantSweepService).sweep(new Date());
+			expect(report.healed).toBeGreaterThanOrEqual(1);
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+			expect(scheduleCalls.updated.at(-1)?.params.phases?.[1]?.items).toEqual([
+				{ price: `price_${planLookupKey("start", "month")}`, quantity: 1 },
+				{ price: `price_${addOnLookupKey("drafts", "month")}`, quantity: 2 },
+			]);
+			expect((await tenantById(a.id))?.billing.scheduledTarget).toBeNull();
+
+			await app.get(TenantSweepService).sweep(new Date());
+			expect(scheduleCalls.created.length).toBe(createdBefore + 1);
+		} finally {
+			current = subscriptionFixture(a.id);
+			await registryQuery(
+				"DELETE FROM billing_mail WHERE tenant_id = $1 AND key ~ '^(un)?scheduled:'",
+				[a.id],
+			);
 			await reset();
 		}
 	});

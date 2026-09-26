@@ -14,6 +14,7 @@ const details = {
 	date: new Date("2026-10-06T00:00:00.000Z"),
 	days: 30,
 	interval: "month" as const,
+	addOns: { conversations: 1, drafts: 0, research: 2, mailbox: 0 },
 	invoiceUrl: "https://invoice.stripe.test/in_1",
 	pdfUrl: "https://invoice.stripe.test/in_1.pdf",
 	billingUrl: "https://app.example/settings/billing",
@@ -46,6 +47,29 @@ describe("billing mails", () => {
 		expect(mail.subject).toBe("Dein Reloop Tarif Standard ist aktiv");
 		expect(mail.html).toContain('href="https://invoice.stripe.test/in_1"');
 		expect(mail.html).toContain('href="https://invoice.stripe.test/in_1.pdf"');
+	});
+
+	it("list the whole scheduled target, and say so when no add-on stays", () => {
+		const listed = billingMail({
+			...details,
+			to: "owner@example.com",
+			locale: "en",
+			kind: "scheduled",
+		});
+		expect(listed.text).toContain(
+			"Add-ons from then on: 1,000 mail conversations: 1, 50 company research runs: 2.",
+		);
+		const none = billingMail({
+			...details,
+			addOns: { conversations: 0, drafts: 0, research: 0, mailbox: 0 },
+			to: "owner@example.com",
+			locale: "de",
+			kind: "scheduled",
+		});
+		expect(none.subject).toBe(
+			"Reloop: Dein Tarif ändert sich am 6. Oktober 2026",
+		);
+		expect(none.text).toContain("Add-ons ab dann: keine.");
 	});
 
 	it("drop the pause line when no date is known", () => {

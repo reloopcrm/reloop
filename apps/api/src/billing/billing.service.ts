@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { appUrl, isWorkspaceAdmin, workspaceRoleOf } from "@crm/auth";
 import type { Db } from "@crm/db";
 import { planLimitsOf } from "@crm/db/plan-usage";
@@ -27,6 +28,7 @@ import {
 	type BillingStatus,
 	forgetTenant,
 	patchBilling,
+	releaseBillingMails,
 	setTenantStatus,
 	type Tenant,
 	type TenantBillingWrite,
@@ -215,6 +217,28 @@ export function mergedTarget(
 				: scheduled.interval,
 		addOns,
 	};
+}
+
+export function scheduledMailKey(
+	subscriptionId: string,
+	target: Lineup,
+	at: Date,
+): string {
+	const addOns = [...ADD_ON_IDS]
+		.sort()
+		.map((addOn) => `${addOn}=${target.addOns[addOn]}`);
+	const digest = createHash("sha256")
+		.update(
+			[target.plan, target.interval ?? "month", ...addOns, at.getTime()].join(
+				"|",
+			),
+		)
+		.digest("hex");
+	return `${scheduledMailPrefix(subscriptionId)}${digest}`;
+}
+
+export function scheduledMailPrefix(subscriptionId: string): string {
+	return `scheduled:${subscriptionId}:`;
 }
 
 export function scheduledReduction(
@@ -751,24 +775,12 @@ export class BillingService {
 				);
 				const base =
 					scheduledChangeOf(schedule) ?? lineupOf(subscription.items.data);
-				const at = await this.scheduleLineup(
+				await this.scheduleLineup(
 					tenant,
 					subscription,
 					{ ...base, plan: input.plan, interval: input.interval },
 					schedule,
 				);
-				if (at) {
-					await this.mails.send(
-						tenant,
-						`scheduled:${subscription.id}:${input.plan}:${input.interval}:${at.getTime()}`,
-						"scheduled",
-						{
-							plan: PLANS[input.plan].label,
-							interval: input.interval,
-							date: at,
-						},
-					);
-				}
 				return { url: null };
 			}
 			await this.assertNoScheduledChange(tenant, subscription, input);
@@ -859,9 +871,27 @@ export class BillingService {
 		await this.assertManager(userId);
 		const tenant = await this.freshTenant();
 		const subscription = await this.requireSubscription(tenant);
+		const schedule = await this.stripeChange(tenant, () =>
+			this.scheduleOf(subscription),
+		);
 		await this.stripeChange(tenant, () => this.releaseSchedule(subscription));
 		await this.storeTarget(tenant.id, null);
+		await this.mailUnscheduled(tenant, subscription, schedule);
 		return { ok: true };
+	}
+
+	async healStoredTarget(tenant: Tenant): Promise<void> {
+		if (!this.stripe) return;
+		const subscription = await this.liveSubscription(tenant);
+		if (!subscription) {
+			await this.storeTarget(tenant.id, null);
+			return;
+		}
+		await this.rebuildStoredTarget(
+			tenant.id,
+			subscription,
+			BILLING.schedule.rebuildAfterMs,
+		);
 	}
 
 	async cancel(userId: string): Promise<{ ok: true }> {
@@ -1051,12 +1081,13 @@ export class BillingService {
 		subscription: Stripe.Subscription,
 		target: Lineup,
 		known: StripeSchedule | null,
-	): Promise<Date | null> {
+	): Promise<void> {
 		const items = await this.itemsOf(target);
 		if (sameItems(items, phaseItemsOf(subscription.items.data))) {
 			await this.stripeChange(tenant, () => this.releaseSchedule(subscription));
 			await this.storeTarget(tenant.id, null);
-			return null;
+			await this.mailUnscheduled(tenant, subscription, known);
+			return;
 		}
 		const at = await this.scheduleTarget(
 			tenant,
@@ -1066,7 +1097,32 @@ export class BillingService {
 			known,
 		);
 		await this.storeTarget(tenant.id, null);
-		return at;
+		await this.mails.send(
+			tenant,
+			scheduledMailKey(subscription.id, target, at),
+			"scheduled",
+			{
+				plan: target.plan ? PLANS[target.plan].label : null,
+				interval: target.interval ?? "month",
+				addOns: target.addOns,
+				date: at,
+			},
+		);
+	}
+
+	private async mailUnscheduled(
+		tenant: Tenant,
+		subscription: Stripe.Subscription,
+		schedule: StripeSchedule | null,
+	): Promise<void> {
+		const withdrawn = scheduledChangeOf(schedule);
+		if (!schedule || !withdrawn) return;
+		await releaseBillingMails(scheduledMailPrefix(subscription.id));
+		const { plan } = subscriptionState(subscription);
+		await this.mails.send(tenant, `unscheduled:${schedule.id}`, "unscheduled", {
+			plan: plan ? PLANS[plan].label : null,
+			date: withdrawn.at,
+		});
 	}
 
 	private async itemsOf(lineup: Lineup): Promise<PhaseItem[]> {

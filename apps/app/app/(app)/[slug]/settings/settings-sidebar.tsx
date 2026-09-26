@@ -11,7 +11,6 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 type SettingsNavItem = {
 	title: string;
 	href: string;
-	cloudOwner?: boolean;
 	hosted?: boolean;
 	selfHosted?: boolean;
 	admin?: boolean;
@@ -19,7 +18,6 @@ type SettingsNavItem = {
 };
 
 export type SettingsNavAudience = {
-	cloudOwner: boolean;
 	hosted?: boolean;
 	admin?: boolean;
 };
@@ -36,7 +34,6 @@ const ITEMS: SettingsNavItem[] = [
 	{ title: "Members", href: `${ROOT}/members` },
 	{ title: "API Keys", href: `${ROOT}/api-keys` },
 	{ title: "SSO", href: `${ROOT}/sso` },
-	{ title: "Waitlist", href: `${ROOT}/waitlist`, cloudOwner: true },
 	{ title: "Usage", href: `${ROOT}/ai`, hosted: true, group: "plan" },
 	{
 		title: "Plan & billing",
@@ -52,7 +49,6 @@ export function settingsNavItems(who: SettingsNavAudience): SettingsNavItem[] {
 	const admin = who.admin ?? false;
 	return ITEMS.filter(
 		(item) =>
-			(who.cloudOwner || !item.cloudOwner) &&
 			(hosted || !item.hosted) &&
 			(!hosted || !item.selfHosted) &&
 			(admin || !item.admin),
@@ -105,7 +101,7 @@ export function SettingsSidebarFallback() {
 					<span className="px-3 pb-3 font-medium text-muted-foreground text-xs">
 						{t("Settings")}
 					</span>
-					{settingsNavItems({ cloudOwner: false }).map((item) => (
+					{settingsNavItems({}).map((item) => (
 						<Button
 							key={item.href}
 							variant="nav"
@@ -123,7 +119,7 @@ export function SettingsSidebarFallback() {
 				aria-busy="true"
 				className="flex gap-1 overflow-x-auto border-b p-2 md:hidden [view-transition-name:settings-sidebar]"
 			>
-				{settingsNavItems({ cloudOwner: false }).map((item) => (
+				{settingsNavItems({}).map((item) => (
 					<Button
 						key={item.href}
 						variant="nav"
@@ -138,11 +134,7 @@ export function SettingsSidebarFallback() {
 	);
 }
 
-export function SettingsSidebar({
-	cloudOwner,
-	hosted,
-	admin,
-}: SettingsNavAudience) {
+export function SettingsSidebar({ hosted, admin }: SettingsNavAudience) {
 	const t = useT();
 	const pathname = usePathname();
 	const workspaceUrl = useWorkspaceUrl();
@@ -150,11 +142,11 @@ export function SettingsSidebar({
 	const root = workspaceUrl(ROOT);
 	const items = useMemo(
 		() =>
-			settingsNavItems({ cloudOwner, hosted, admin }).map((item) => ({
+			settingsNavItems({ hosted, admin }).map((item) => ({
 				...item,
 				href: workspaceUrl(item.href),
 			})),
-		[workspaceUrl, cloudOwner, hosted, admin],
+		[workspaceUrl, hosted, admin],
 	);
 
 	return (

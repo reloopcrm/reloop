@@ -233,7 +233,7 @@ export function OAuthAppCard({ provider }: { provider: OAuthAppProvider }) {
 	);
 
 	const app = status.data;
-	if (!app) return null;
+	if (!app || app.hosted) return null;
 
 	const { canManage } = app;
 	const stored = app.source === "database";

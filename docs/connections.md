@@ -147,8 +147,8 @@ It is the answer to "can you integrate with X" when X is not worth a module.
 ## Google, Microsoft and Slack are connected with values a person types
 
 A client id and a client secret used to live only in `.env`, so a self-hoster had to
-open a shell to change one. They are now typed on Settings, Connections, on a hosted
-install and on a self-hosted one. `oauthApp.*` in `apps/api/src/oauth-apps` is the
+open a shell to change one. They are now typed on Settings, Connections, on a
+self-hosted install. `oauthApp.*` in `apps/api/src/oauth-apps` is the
 whole surface, and `packages/db/src/oauth-apps.ts` holds every constant, column name
 and environment variable name for the three providers.
 
@@ -178,6 +178,11 @@ and environment variable name for the three providers.
   saved nothing sees no change at all.
 - **Only an owner or an admin writes a pair, or reads the hint**, the same
   `canManageConnections` Slack, webhooks and TypeSafe use.
+- **Reloop Cloud keeps them on the server.** One app serves every workspace, so a
+  workspace owner is a customer, not the operator. On a hosted install `status`
+  answers `hosted: true` with no client id, no hint and no tenant id, `save` and
+  `remove` refuse, and the card renders nothing. The operator sets the values in the
+  server's `.env`. `test/oauth-apps-hosted.spec.ts` pins it.
 - **The redirect URI comes from the API**, never from the browser.
   `oauthRedirectUri(provider)` builds it from `API_URL`, and `auth.ts` uses the same
   function for Slack, so the page and the OAuth call cannot disagree.

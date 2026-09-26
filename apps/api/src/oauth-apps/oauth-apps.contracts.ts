@@ -14,6 +14,7 @@ export const oauthAppStatusOutput = z.object({
 	redirectUri: z.string(),
 	environmentAlso: z.boolean(),
 	canManage: z.boolean(),
+	hosted: z.boolean(),
 });
 
 export const oauthAppRestartOutput = z.object({

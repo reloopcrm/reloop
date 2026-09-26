@@ -39,6 +39,8 @@ export class OAuthAppsService {
 			select: OAUTH_APP_SELECT,
 		});
 
+		if (isHosted()) return hostedApp(input.provider);
+
 		return describeApp(input.provider, row, canManageConnections(role));
 	}
 
@@ -108,6 +110,12 @@ export class OAuthAppsService {
 	}
 
 	private async assertManager(userId: string): Promise<void> {
+		if (isHosted()) {
+			throw new ForbiddenException(
+				"Reloop Cloud manages the sign-in credentials.",
+			);
+		}
+
 		const role = await this.access.assertMember(userId);
 
 		if (!canManageConnections(role)) {
@@ -140,6 +148,20 @@ function appSettingFields(
 
 function restartsItself(): boolean {
 	return !process.env.VERCEL && !isHosted();
+}
+
+function hostedApp(provider: OAuthProviderId): OAuthAppStatus {
+	return {
+		provider,
+		source: "none",
+		clientId: null,
+		secretHint: null,
+		tenantId: null,
+		redirectUri: oauthRedirectUri(provider),
+		environmentAlso: false,
+		canManage: false,
+		hosted: true,
+	};
 }
 
 function describeApp(
@@ -175,6 +197,7 @@ function describeApp(
 		redirectUri: oauthRedirectUri(provider),
 		environmentAlso: saved && environment,
 		canManage,
+		hosted: false,
 	};
 }
 

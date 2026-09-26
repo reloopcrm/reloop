@@ -1,9 +1,8 @@
 import { isWorkspaceAdmin } from "@crm/auth/roles";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { isMarketing } from "@/lib/env";
 import { requireSession, workspaceRole } from "@/lib/session";
-import { hostedCustomer, operatorTenant } from "@/lib/tenant";
+import { hostedCustomer } from "@/lib/tenant";
 import { SettingsSidebar, SettingsSidebarFallback } from "./settings-sidebar";
 
 export default function SettingsLayout({
@@ -24,17 +23,10 @@ export default function SettingsLayout({
 async function Sidebar() {
 	await connection();
 	const session = await requireSession();
-	const [role, hosted, operator] = await Promise.all([
+	const [role, hosted] = await Promise.all([
 		workspaceRole(session.user.id),
 		hostedCustomer(),
-		operatorTenant(),
 	]);
 
-	return (
-		<SettingsSidebar
-			cloudOwner={(isMarketing() || operator) && role === "owner"}
-			hosted={hosted}
-			admin={isWorkspaceAdmin(role)}
-		/>
-	);
+	return <SettingsSidebar hosted={hosted} admin={isWorkspaceAdmin(role)} />;
 }

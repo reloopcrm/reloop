@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.21.0](https://github.com/reloopcrm/reloop/compare/v0.20.0...v0.21.0) (2026-09-26)
+
+
+### Features
+
+* **agent:** offer GPT-6 Astra, Sol and Luna on a ChatGPT subscription ([#102](https://github.com/reloopcrm/reloop/issues/102)) ([b82cc14](https://github.com/reloopcrm/reloop/commit/b82cc1478886cc278680da670cf8fac749557c3f))
+* **agent:** the agent writes in the language of each workspace ([#84](https://github.com/reloopcrm/reloop/issues/84)) ([d157c36](https://github.com/reloopcrm/reloop/commit/d157c369a09b952e7c4d641f6f909fc47787c542))
+* **agent:** the fixed AI and the OpenRouter defaults move to GPT-6 Luna and Sol ([#73](https://github.com/reloopcrm/reloop/issues/73)) ([1b176d9](https://github.com/reloopcrm/reloop/commit/1b176d91e2a9fb7a17232b06dc5574ca21707824))
+* **api:** plan and add-on changes are what Stripe bills, paying ends the trial, AI caps, and billing mails ([#85](https://github.com/reloopcrm/reloop/issues/85)) ([9ce0c41](https://github.com/reloopcrm/reloop/commit/9ce0c415f1dc7bacc5427ed00175757f89c86b3c))
+* **api:** the owner deletes a hosted workspace for good ([#96](https://github.com/reloopcrm/reloop/issues/96)) ([26e6dbf](https://github.com/reloopcrm/reloop/commit/26e6dbf89a66e37a8a838026f1f826f8ceee8065))
+* **app:** contact activity reads as a story, mails expand in place ([#79](https://github.com/reloopcrm/reloop/issues/79)) ([94bc953](https://github.com/reloopcrm/reloop/commit/94bc95388ee32bfe7ece5e3ae35568754d9b7a3d))
+* **app:** contacts, companies, the record sheets and a deals pipeline in the pill design ([#76](https://github.com/reloopcrm/reloop/issues/76)) ([efb0a28](https://github.com/reloopcrm/reloop/commit/efb0a282a91cda1a70de4be1b0b0d658bcfd5ad5))
+* **app:** entry pages link to the marketing site and to each other ([#80](https://github.com/reloopcrm/reloop/issues/80)) ([2d04548](https://github.com/reloopcrm/reloop/commit/2d04548d5d378997c3a7d58a9c8b123e4e06df7f))
+* **app:** every entry page in the split layout ([#68](https://github.com/reloopcrm/reloop/issues/68)) ([45a03e1](https://github.com/reloopcrm/reloop/commit/45a03e19fccac3d908b2b27542c32d1aefe28369))
+* **app:** overview and win back in the pill design, with a win-back count in the sidebar ([#74](https://github.com/reloopcrm/reloop/issues/74)) ([c67df07](https://github.com/reloopcrm/reloop/commit/c67df079542c5025ca7fe15702092376e44c42d1))
+* **app:** settings, agents and chat in the pill and hairline design ([#75](https://github.com/reloopcrm/reloop/issues/75)) ([80f6aa5](https://github.com/reloopcrm/reloop/commit/80f6aa595d68fd6e4ae40431252690204a6852b5))
+* **app:** warn before a plan without AI, and refuse a plan too small for the workspace ([#78](https://github.com/reloopcrm/reloop/issues/78)) ([87c7528](https://github.com/reloopcrm/reloop/commit/87c75281933785d0b16c401b5eb61964b938115c))
+* **billing:** a downgrade waits for the paid period, an upgrade is billed now ([#89](https://github.com/reloopcrm/reloop/issues/89)) ([06f4af2](https://github.com/reloopcrm/reloop/commit/06f4af24763f93367123149e06b6a146b2153126))
+* **billing:** show the saved VAT ID and let the portal change it ([#95](https://github.com/reloopcrm/reloop/issues/95)) ([038a7b3](https://github.com/reloopcrm/reloop/commit/038a7b324d7a240cbc52047c1fc83519303cbd7c))
+* **landing:** a dynamic island nav floats over the desktop site ([#90](https://github.com/reloopcrm/reloop/issues/90)) ([333e510](https://github.com/reloopcrm/reloop/commit/333e510acffbebf62487703f8ea2e6faeacb0ecf))
+* **landing:** a hero video plays under the headline, German or English ([#86](https://github.com/reloopcrm/reloop/issues/86)) ([282d993](https://github.com/reloopcrm/reloop/commit/282d993c54898c805d8f418aec1bc92caf7252d4))
+* **landing:** a win back page replaces the freight forwarding page ([#82](https://github.com/reloopcrm/reloop/issues/82)) ([07472a2](https://github.com/reloopcrm/reloop/commit/07472a2fba9932d0ceb6cbb716de223a921c0277))
+* **landing:** buy a plan directly from the pricing page ([#92](https://github.com/reloopcrm/reloop/issues/92)) ([624aacf](https://github.com/reloopcrm/reloop/commit/624aacf633f867e6857d7c1db2b77a1ec671df43))
+* **landing:** the pricing page asks three questions and shows the plan that fits ([#83](https://github.com/reloopcrm/reloop/issues/83)) ([24e7a64](https://github.com/reloopcrm/reloop/commit/24e7a64935c6b03045f1ece66cc0000a25cb6111))
+* **landing:** the public pages on the design foundation ([#72](https://github.com/reloopcrm/reloop/issues/72)) ([4122bd2](https://github.com/reloopcrm/reloop/commit/4122bd261f5d0ca04520103d61de1d1abe5d5603))
+* **ui:** pill controls, lime segments and a labelled sidebar as the design foundation ([#71](https://github.com/reloopcrm/reloop/issues/71)) ([3a1a774](https://github.com/reloopcrm/reloop/commit/3a1a774b170c2b2f0d6703953a4ef122133b36a2))
+
+
+### Fixes
+
+* **api:** an empty optional env var counts as unset ([#69](https://github.com/reloopcrm/reloop/issues/69)) ([f44a638](https://github.com/reloopcrm/reloop/commit/f44a6383f00c20b61d056b4fe3a66ce51012768d))
+* **api:** scheduled billing changes edit one target instead of overwriting each other ([#94](https://github.com/reloopcrm/reloop/issues/94)) ([5815695](https://github.com/reloopcrm/reloop/commit/581569526ffffa09dc22ce7ac6a7c8caaa8b8369))
+* **app:** a signed-in visitor on the sign-up page gets their workspace, not a second one ([#97](https://github.com/reloopcrm/reloop/issues/97)) ([35c63f9](https://github.com/reloopcrm/reloop/commit/35c63f961e0e830f3279f272b6081d59c56ea537))
+* **app:** align the add-on stepper and bill it by interval ([#93](https://github.com/reloopcrm/reloop/issues/93)) ([50d8468](https://github.com/reloopcrm/reloop/commit/50d8468afa0e43cb2ee316c34ea6fae64f1d5228))
+* **app:** eight small UI bugs across hydration, prerendering and mobile layout ([#100](https://github.com/reloopcrm/reloop/issues/100)) ([f20e527](https://github.com/reloopcrm/reloop/commit/f20e527b3a9c777082a03460a3e091344744b400))
+* **billing:** heal a lost scheduled change in the daily sweep, and mail every scheduled target ([#99](https://github.com/reloopcrm/reloop/issues/99)) ([8aef86d](https://github.com/reloopcrm/reloop/commit/8aef86dd0066bf27f514500ff2518b42efe4af78))
+* **cloud:** hide the sign-in credentials card and the waitlist page on Reloop Cloud ([#101](https://github.com/reloopcrm/reloop/issues/101)) ([c9b6735](https://github.com/reloopcrm/reloop/commit/c9b673576c36941568912a8c303bfdf1326db120))
+* **deals:** the offer column in quotes from mail is one short line ([#103](https://github.com/reloopcrm/reloop/issues/103)) ([acb47f4](https://github.com/reloopcrm/reloop/commit/acb47f442d5fc4e8870e4651de9afd9f90b6cf7a))
+* **deals:** the quotes table keeps its action column inside the box ([#105](https://github.com/reloopcrm/reloop/issues/105)) ([1f16e9d](https://github.com/reloopcrm/reloop/commit/1f16e9d1bf129742c11e33323c0e958edae52778))
+* **landing:** hero and mailbox band fit the first screen, no change button, no storage add-on ([#81](https://github.com/reloopcrm/reloop/issues/81)) ([728003f](https://github.com/reloopcrm/reloop/commit/728003fae8f7f68e650d9c97348c6ab9af596a3c))
+* **landing:** the hero video swaps with the language ([#87](https://github.com/reloopcrm/reloop/issues/87)) ([f7782ac](https://github.com/reloopcrm/reloop/commit/f7782ac90a83820f1f4a5154bb03aff08fed670a))
+* **landing:** the island fits every language and starts compact on a scrolled reload ([#91](https://github.com/reloopcrm/reloop/issues/91)) ([d45299e](https://github.com/reloopcrm/reloop/commit/d45299e5d26f5fa09884da09f5d3ec90905fb7da))
+* **settings:** the TypeSafe card no longer tells a cloud customer about TYPESAFE_API_KEY ([#104](https://github.com/reloopcrm/reloop/issues/104)) ([68c9dc7](https://github.com/reloopcrm/reloop/commit/68c9dc7a6e9bc59965a06b9b84cf42086b5fb398))
+* **ui:** a table column is never narrower than its heading ([#106](https://github.com/reloopcrm/reloop/issues/106)) ([77b6528](https://github.com/reloopcrm/reloop/commit/77b65285b0542f7cd4d4ac3b342c381b72ae17db))
+* **ui:** table action cells keep their control, the sidebar keeps only the wordmark ([#77](https://github.com/reloopcrm/reloop/issues/77)) ([782b22b](https://github.com/reloopcrm/reloop/commit/782b22bf3444bafd941436c61a944013c36b0723))
+
+
+### Documentation
+
+* **readme:** replace product screenshots with English sample data ([#88](https://github.com/reloopcrm/reloop/issues/88)) ([140d57a](https://github.com/reloopcrm/reloop/commit/140d57a527f13b077c0a8aba47587cb3315f4f99))
+
 ## [0.20.0](https://github.com/reloopcrm/reloop/compare/v0.19.0...v0.20.0) (2026-09-23)
 
 

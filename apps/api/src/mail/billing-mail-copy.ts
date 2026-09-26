@@ -1,4 +1,5 @@
 import { LOCALE, type Locale } from "@crm/db/locale";
+import { ADD_ON_IDS, type AddOnId, type AddOnQuantities } from "@crm/db/plans";
 import type { BillingInterval } from "@crm/db/pricing";
 import type { Mail } from "./mail.service";
 import { escapeHtml, fill, mailHtml } from "./mail-copy";
@@ -12,6 +13,7 @@ export const BILLING_MAIL_KINDS = [
 	"trialEnding",
 	"trialEnded",
 	"scheduled",
+	"unscheduled",
 	"deleted",
 ] as const;
 
@@ -27,6 +29,9 @@ type Wording = {
 	greeting: string;
 	links: Record<BillingMailLink, string>;
 	intervals: Record<BillingInterval, string>;
+	addOns: Record<AddOnId, string>;
+	addOnCount: string;
+	noAddOns: string;
 	kinds: Record<BillingMailKind, Copy>;
 };
 
@@ -39,6 +44,7 @@ const LINKS_OF = {
 	trialEnding: ["billing"],
 	trialEnded: ["billing"],
 	scheduled: ["billing"],
+	unscheduled: ["billing"],
 	deleted: [],
 } as const satisfies Record<BillingMailKind, readonly BillingMailLink[]>;
 
@@ -46,6 +52,14 @@ const COPY = {
 	en: {
 		greeting: "Hello,",
 		intervals: { month: "monthly", year: "yearly" },
+		addOns: {
+			conversations: "1,000 mail conversations",
+			drafts: "100 mail drafts",
+			research: "50 company research runs",
+			mailbox: "1 extra mailbox per month",
+		},
+		addOnCount: "{label}: {count}",
+		noAddOns: "none",
 		links: {
 			invoice: "View the invoice",
 			pdf: "Download the invoice as PDF",
@@ -100,8 +114,16 @@ const COPY = {
 				subject: "Reloop: your plan changes on {date}",
 				lines: [
 					"From {date}, your plan is {plan}, billed {interval}.",
+					"Add-ons from then on: {addOns}.",
 					"Until then your current plan and its limits stay as they are. Nothing is charged now.",
 					"You can undo this under plan and billing until {date}.",
+				],
+			},
+			unscheduled: {
+				subject: "Reloop: your scheduled change is withdrawn",
+				lines: [
+					"The change planned for {date} is withdrawn.",
+					"Your plan {plan} and its add-ons stay as they are.",
 				],
 			},
 			trialEnded: {
@@ -126,6 +148,14 @@ const COPY = {
 	de: {
 		greeting: "Hallo,",
 		intervals: { month: "monatlich", year: "jährlich" },
+		addOns: {
+			conversations: "1.000 Mail-Unterhaltungen",
+			drafts: "100 Mail-Entwürfe",
+			research: "50 Firmen-Recherchen",
+			mailbox: "1 Postfach extra pro Monat",
+		},
+		addOnCount: "{label}: {count}",
+		noAddOns: "keine",
 		links: {
 			invoice: "Rechnung ansehen",
 			pdf: "Rechnung als PDF herunterladen",
@@ -177,11 +207,19 @@ const COPY = {
 				],
 			},
 			scheduled: {
-				subject: "Reloop: Dein Tarif wechselt am {date}",
+				subject: "Reloop: Dein Tarif ändert sich am {date}",
 				lines: [
 					"Ab dem {date} ist dein Tarif {plan}, {interval} abgerechnet.",
+					"Add-ons ab dann: {addOns}.",
 					"Bis dahin bleiben dein jetziger Tarif und seine Grenzen, wie sie sind. Jetzt wird nichts berechnet.",
 					"Bis zum {date} kannst du den Wechsel unter Tarif und Abrechnung zurücknehmen.",
+				],
+			},
+			unscheduled: {
+				subject: "Reloop: Geplanter Wechsel zurückgenommen",
+				lines: [
+					"Der Wechsel, der für den {date} geplant war, ist zurückgenommen.",
+					"Dein Tarif {plan} und seine Add-ons bleiben, wie sie sind.",
 				],
 			},
 			trialEnded: {
@@ -206,6 +244,14 @@ const COPY = {
 	es: {
 		greeting: "Hola,",
 		intervals: { month: "mensualmente", year: "anualmente" },
+		addOns: {
+			conversations: "1.000 conversaciones de correo",
+			drafts: "100 borradores de correo",
+			research: "50 investigaciones de empresas",
+			mailbox: "1 buzón extra al mes",
+		},
+		addOnCount: "{label}: {count}",
+		noAddOns: "ninguno",
 		links: {
 			invoice: "Ver la factura",
 			pdf: "Descargar la factura en PDF",
@@ -260,8 +306,16 @@ const COPY = {
 				subject: "Reloop: tu plan cambia el {date}",
 				lines: [
 					"A partir del {date}, tu plan es {plan}, facturado {interval}.",
+					"Complementos a partir de entonces: {addOns}.",
 					"Hasta entonces, tu plan actual y sus límites se mantienen. Ahora no se cobra nada.",
 					"Puedes deshacer el cambio en plan y facturación hasta el {date}.",
+				],
+			},
+			unscheduled: {
+				subject: "Reloop: tu cambio programado está anulado",
+				lines: [
+					"El cambio previsto para el {date} está anulado.",
+					"Tu plan {plan} y sus complementos se mantienen como están.",
 				],
 			},
 			trialEnded: {
@@ -286,6 +340,14 @@ const COPY = {
 	fr: {
 		greeting: "Bonjour,",
 		intervals: { month: "mensuellement", year: "annuellement" },
+		addOns: {
+			conversations: "1 000 conversations mail",
+			drafts: "100 brouillons de mail",
+			research: "50 recherches d'entreprises",
+			mailbox: "1 boîte mail en plus par mois",
+		},
+		addOnCount: "{label} : {count}",
+		noAddOns: "aucune",
 		links: {
 			invoice: "Voir la facture",
 			pdf: "Télécharger la facture en PDF",
@@ -340,8 +402,16 @@ const COPY = {
 				subject: "Reloop : ton forfait change le {date}",
 				lines: [
 					"À partir du {date}, ton forfait est {plan}, facturé {interval}.",
+					"Options à partir de là : {addOns}.",
 					"D'ici là, ton forfait actuel et ses limites restent inchangés. Rien n'est facturé maintenant.",
 					"Tu peux annuler ce changement dans le forfait et la facturation jusqu'au {date}.",
+				],
+			},
+			unscheduled: {
+				subject: "Reloop : ton changement prévu est annulé",
+				lines: [
+					"Le changement prévu pour le {date} est annulé.",
+					"Ton forfait {plan} et ses options restent inchangés.",
 				],
 			},
 			trialEnded: {
@@ -366,6 +436,14 @@ const COPY = {
 	"pt-BR": {
 		greeting: "Olá,",
 		intervals: { month: "mensalmente", year: "anualmente" },
+		addOns: {
+			conversations: "1.000 conversas de e-mail",
+			drafts: "100 rascunhos de e-mail",
+			research: "50 pesquisas de empresas",
+			mailbox: "1 caixa de e-mail extra por mês",
+		},
+		addOnCount: "{label}: {count}",
+		noAddOns: "nenhum",
 		links: {
 			invoice: "Ver a fatura",
 			pdf: "Baixar a fatura em PDF",
@@ -420,8 +498,16 @@ const COPY = {
 				subject: "Reloop: seu plano muda em {date}",
 				lines: [
 					"A partir de {date}, seu plano é {plan}, cobrado {interval}.",
+					"Complementos a partir de então: {addOns}.",
 					"Até lá, seu plano atual e seus limites continuam como estão. Nada é cobrado agora.",
 					"Você pode desfazer a mudança em plano e cobrança até {date}.",
+				],
+			},
+			unscheduled: {
+				subject: "Reloop: sua mudança agendada foi desfeita",
+				lines: [
+					"A mudança prevista para {date} foi desfeita.",
+					"Seu plano {plan} e seus complementos continuam como estão.",
 				],
 			},
 			trialEnded: {
@@ -446,6 +532,14 @@ const COPY = {
 	tr: {
 		greeting: "Merhaba,",
 		intervals: { month: "aylık", year: "yıllık" },
+		addOns: {
+			conversations: "1.000 e-posta konuşması",
+			drafts: "100 e-posta taslağı",
+			research: "50 şirket araştırması",
+			mailbox: "aylık 1 ek posta kutusu",
+		},
+		addOnCount: "{label}: {count}",
+		noAddOns: "yok",
 		links: {
 			invoice: "Faturayı görüntüle",
 			pdf: "Faturayı PDF olarak indir",
@@ -500,8 +594,16 @@ const COPY = {
 				subject: "Reloop: planın {date} tarihinde değişiyor",
 				lines: [
 					"{date} itibarıyla planın {plan} olur ve {interval} faturalanır.",
+					"O tarihten itibaren eklentiler: {addOns}.",
 					"O zamana kadar mevcut planın ve sınırların olduğu gibi kalır. Şimdi hiçbir ücret alınmaz.",
 					"{date} tarihine kadar değişikliği plan ve faturalandırma altında geri alabilirsin.",
+				],
+			},
+			unscheduled: {
+				subject: "Reloop: planlanan değişiklik geri alındı",
+				lines: [
+					"{date} için planlanan değişiklik geri alındı.",
+					"{plan} planın ve eklentilerin olduğu gibi kalır.",
 				],
 			},
 			trialEnded: {
@@ -526,6 +628,14 @@ const COPY = {
 	"zh-Hans": {
 		greeting: "你好，",
 		intervals: { month: "按月", year: "按年" },
+		addOns: {
+			conversations: "1,000 个邮件会话",
+			drafts: "100 封邮件草稿",
+			research: "50 次公司调研",
+			mailbox: "每月额外 1 个邮箱",
+		},
+		addOnCount: "{label}：{count}",
+		noAddOns: "无",
 		links: {
 			invoice: "查看发票",
 			pdf: "下载 PDF 发票",
@@ -580,8 +690,16 @@ const COPY = {
 				subject: "Reloop：你的套餐将于 {date} 变更",
 				lines: [
 					"自 {date} 起，你的套餐为 {plan}，{interval}计费。",
+					"届时的附加包：{addOns}。",
 					"在此之前，你当前的套餐及其限额保持不变。现在不会产生任何费用。",
 					"在 {date} 之前，你可以在套餐与账单中撤销此变更。",
+				],
+			},
+			unscheduled: {
+				subject: "Reloop：计划中的变更已撤销",
+				lines: [
+					"原定于 {date} 的变更已撤销。",
+					"你的套餐 {plan} 及其附加包保持不变。",
 				],
 			},
 			trialEnded: {
@@ -613,6 +731,7 @@ export type BillingMailDetails = {
 	date?: Date | null;
 	days?: number | null;
 	interval?: BillingInterval | null;
+	addOns?: AddOnQuantities | null;
 	invoiceUrl?: string | null;
 	pdfUrl?: string | null;
 	billingUrl: string;
@@ -630,6 +749,7 @@ type MailVars = {
 	date: string;
 	days: string;
 	interval: string;
+	addOns: string;
 };
 
 const PLACEHOLDER = /\{(\w+)\}/g;
@@ -653,7 +773,18 @@ function varsOf(input: BillingMailInput, wording: Wording): MailVars {
 			: "",
 		days:
 			input.days === null || input.days === undefined ? "" : String(input.days),
+		addOns: input.addOns ? addOnList(input.addOns, wording) : "",
 	};
+}
+
+function addOnList(addOns: AddOnQuantities, wording: Wording): string {
+	const listed = ADD_ON_IDS.filter((id) => addOns[id] > 0).map((id) =>
+		fill(wording.addOnCount, {
+			label: wording.addOns[id],
+			count: String(addOns[id]),
+		}),
+	);
+	return listed.length > 0 ? listed.join(", ") : wording.noAddOns;
 }
 
 function complete(text: string, vars: MailVars): boolean {

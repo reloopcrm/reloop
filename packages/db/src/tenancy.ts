@@ -420,6 +420,15 @@ export async function suspendedBefore(before: Date): Promise<Tenant[]> {
 	);
 }
 
+export async function scheduledTargetsBefore(before: Date): Promise<Tenant[]> {
+	return selectTenants(
+		`t.status IN ('active', 'suspended')
+		 AND jsonb_typeof(t.billing->'scheduledTarget') = 'object'
+		 AND (t.billing->'scheduledTarget'->>'storedAt')::timestamptz < $1`,
+		[before.toISOString()],
+	);
+}
+
 export async function deletingTenants(): Promise<Tenant[]> {
 	return selectTenants("t.status = 'deleted' ORDER BY t.created_at, t.id", []);
 }

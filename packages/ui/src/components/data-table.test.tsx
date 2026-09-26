@@ -30,6 +30,10 @@ function cells(markup: string): string[] {
 	return markup.match(/<td[^>]*>/g) ?? [];
 }
 
+function heads(markup: string): string[] {
+	return markup.match(/<th(?:\s[^>]*)?>/g) ?? [];
+}
+
 describe("DataTable", () => {
 	const markup = renderToStaticMarkup(
 		<DataTable
@@ -49,6 +53,7 @@ describe("DataTable", () => {
 		/>,
 	);
 	const [text, control] = cells(markup);
+	const [textHead, controlHead] = heads(markup);
 
 	it("truncates a text cell", () => {
 		expect(text).toContain("truncate");
@@ -57,5 +62,40 @@ describe("DataTable", () => {
 	it("never truncates a control cell and gives it a fixed width", () => {
 		expect(control).not.toContain("truncate");
 		expect(control).toContain("w-17");
+	});
+
+	it("truncates a text column header", () => {
+		expect(textHead).toContain("truncate");
+	});
+
+	it("never truncates a control column header", () => {
+		expect(controlHead).not.toContain("truncate");
+	});
+
+	it("lets the select-all checkbox header overflow its cell", () => {
+		const selectionMarkup = renderToStaticMarkup(
+			<DataTable
+				query={query}
+				columns={[{ id: "name", header: "Name", cell: (row) => row.name }]}
+				rows={[{ id: "1", name: "Ada" }]}
+				total={1}
+				getRowId={(row) => row.id}
+				selection={{
+					state: {
+						ids: [],
+						count: 0,
+						has: () => false,
+						toggle: () => {},
+						toggleAll: () => {},
+						clear: () => {},
+						allSelected: false,
+						someSelected: false,
+					},
+					actions: null,
+				}}
+			/>,
+		);
+		const [checkboxHead] = heads(selectionMarkup);
+		expect(checkboxHead).toContain("overflow-visible");
 	});
 });

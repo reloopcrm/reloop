@@ -74,6 +74,7 @@ async function Settings() {
 		queryClient.prefetchQuery(trpc.settings.archiveRetention.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.dealStages.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.passwordSignIn.queryOptions()),
+		queryClient.prefetchQuery(trpc.system.version.queryOptions()),
 		...(planCard
 			? [queryClient.prefetchQuery(trpc.settings.plan.queryOptions())]
 			: []),

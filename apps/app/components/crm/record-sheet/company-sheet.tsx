@@ -641,6 +641,7 @@ function CompanyDeals({
 			{form}
 			<SimpleTable
 				variant="panel"
+				headerClassName="max-sm:hidden"
 				columns={DEAL_COLUMNS.map((column) => ({
 					...column,
 					header: t(column.header),
@@ -650,28 +651,29 @@ function CompanyDeals({
 					<SimpleTableRow
 						key={deal.id}
 						clickable
+						className="max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-5 max-sm:py-2.5"
 						onClick={() => openRecord({ kind: "deal", id: deal.id })}
 					>
-						<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium">
+						<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium max-sm:w-full max-sm:p-0">
 							{deal.name}
 						</TableCell>
-						<TableCell className="px-3 py-2.5">
+						<TableCell className="px-3 py-2.5 max-sm:p-0">
 							<DealStageMenu dealId={deal.id} stage={deal.stage} />
 						</TableCell>
-						<TableCell className="px-3 py-2.5 text-right">
+						<TableCell className="px-3 py-2.5 text-right max-sm:p-0 max-sm:text-left">
 							<DealAmount
 								amountCents={deal.amountCents}
 								currency={deal.currency}
 							/>
 						</TableCell>
-						<TableCell className="px-3 py-2.5 text-muted-foreground">
+						<TableCell className="px-3 py-2.5 text-muted-foreground max-sm:p-0">
 							{deal.expectedCloseDate ? (
 								<LocalDay date={deal.expectedCloseDate} />
 							) : (
 								<EmptyCellValue />
 							)}
 						</TableCell>
-						<TableCell className="px-3 py-2.5">
+						<TableCell className="px-3 py-2.5 max-sm:hidden">
 							<OwnerCell owner={deal.owner} />
 						</TableCell>
 					</SimpleTableRow>

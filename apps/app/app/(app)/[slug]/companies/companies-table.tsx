@@ -131,10 +131,11 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 	},
 	{
 		id: "deals",
-		header: "Open deals",
+		header: "Deals",
+		label: "Open deals",
 		sortable: true,
 		align: "right",
-		width: "w-[8%]",
+		width: "w-[8%] min-w-16",
 		cellClassName: "text-2sm",
 		cell: (row) => <span className="tabular-nums">{row.openDealCount}</span>,
 	},

@@ -73,12 +73,17 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 	);
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({
+	className,
+	control,
+	...props
+}: React.ComponentProps<"th"> & { control?: boolean }) {
 	return (
 		<th
 			data-slot="table-head"
 			className={cn(
-				"h-10 truncate px-4 text-left align-middle text-xs font-normal text-muted-foreground [&:has([role=checkbox])]:pr-0",
+				"h-10 px-4 text-left align-middle text-xs font-normal text-muted-foreground [&:has([role=checkbox])]:overflow-visible [&:has([role=checkbox])]:pr-0",
+				control ? "overflow-visible" : "truncate",
 				className,
 			)}
 			{...props}

@@ -431,6 +431,7 @@
 	"It is off by default. Nothing goes to TypeSafe until you save a key. A conversation the cheap model calls business still gets the full read, so nothing is lost there.": "C'est désactivé par défaut. Rien ne part vers TypeSafe tant que tu n'as pas enregistré de clé. Une conversation que le modèle bon marché juge commerciale reçoit quand même la lecture complète, donc rien n'y est perdu.",
 	"The key from your TypeSafe account": "La clé de ton compte TypeSafe",
 	"A key is saved. Stored encrypted and never shown again. Paste a new one to replace it.": "Une clé est enregistrée. Stockée chiffrée et jamais réaffichée. Colle-en une nouvelle pour la remplacer.",
+	"Stored encrypted and never shown again.": "Stockée chiffrée et jamais réaffichée.",
 	"Stored encrypted and never shown again. You can also set TYPESAFE_API_KEY in the environment, and a key saved here wins over it.": "Stockée chiffrée et jamais réaffichée. Tu peux aussi définir TYPESAFE_API_KEY dans l'environnement, et une clé enregistrée ici a la priorité.",
 	"Replace key": "Remplacer la clé",
 	"Save key": "Enregistrer la clé",

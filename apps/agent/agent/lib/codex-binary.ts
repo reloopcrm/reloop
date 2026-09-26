@@ -29,7 +29,7 @@ function failed(reason: string): CodexBinary {
 
 export function createCodexBinary(deps: CodexBinaryDeps) {
 	const { command, version } = MODEL.chatgptLogin;
-	const prefix = join(deps.home, "cli");
+	const prefix = join(deps.home, "cli", version);
 	const cached = join(prefix, "node_modules", ".bin", command);
 	let installing: Promise<CodexBinary> | null = null;
 

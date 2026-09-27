@@ -3,8 +3,9 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { ListSearchParams } from "./list-search-params";
 
 GlobalRegistrator.register({ url: "https://crm.test/acme/contacts" });
-(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
-	true;
+(
+	globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createElement } = await import("react");
 const { act } = await import("react");

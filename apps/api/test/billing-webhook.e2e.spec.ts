@@ -22,7 +22,7 @@ import {
 } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants, registryQuery } from "@crm/db/test-tenants";
-import { Logger } from "@nestjs/common";
+import { BadRequestException, Logger } from "@nestjs/common";
 import Stripe from "stripe";
 import request from "supertest";
 import { z } from "zod";
@@ -182,8 +182,12 @@ function stubStripe(
 	},
 ) {
 	return [
-		spyOn(stripe.subscriptions, "retrieve").mockImplementation((async () =>
-			live.current()) as never),
+		spyOn(stripe.subscriptions, "retrieve").mockImplementation((async (
+			id: string,
+		) => {
+			if (missingSubscription) throw missing(id);
+			return live.current();
+		}) as never),
 		spyOn(stripe.customers, "create").mockImplementation((async (
 			params: Stripe.CustomerCreateParams,
 		) => {
@@ -197,11 +201,16 @@ function stubStripe(
 			updatedCustomers.push({ id, params });
 			return { id };
 		}) as never),
-		spyOn(stripe.customers, "retrieve").mockImplementation((async () => ({
-			id: "cus_spec",
-			object: "customer",
-			invoice_settings: { default_payment_method: null },
-		})) as never),
+		spyOn(stripe.customers, "retrieve").mockImplementation((async (
+			id: string,
+		) => {
+			if (missingCustomer) throw missing(id);
+			return {
+				id: "cus_spec",
+				object: "customer",
+				invoice_settings: { default_payment_method: null },
+			};
+		}) as never),
 		spyOn(stripe.invoices, "list").mockImplementation((async () => ({
 			data: [],
 		})) as never),
@@ -284,6 +293,18 @@ let next: Stripe.Subscription | null = null;
 let refuseNext = false;
 let declineNext: string | null = null;
 let refuseScheduleCreate = false;
+let missingSubscription = false;
+let missingCustomer = false;
+const NO_SUBSCRIPTION =
+	"No active subscription was found. Choose a plan to start one.";
+
+function missing(id: string): Stripe.errors.StripeInvalidRequestError {
+	return new Stripe.errors.StripeInvalidRequestError({
+		message: `No such object: '${id}'`,
+		type: "invalid_request_error",
+		code: BILLING.stripe.missingCode,
+	});
+}
 const updates: Stripe.SubscriptionUpdateParams[] = [];
 
 const tenantCookie = () =>
@@ -1120,6 +1141,118 @@ describe("the Stripe webhook is the source of truth for the plan", () => {
 		expect((await post("customer.subscription.updated", current)).status).toBe(
 			200,
 		);
+	});
+});
+
+describe("a Stripe id that Stripe no longer has", () => {
+	it("creates a new customer at checkout and replaces the stored id", async () => {
+		await reset();
+		await patchBilling(a.id, { customerId: "cus_gone" });
+		const sessions: Stripe.Checkout.SessionCreateParams[] = [];
+		const created = spyOn(
+			stripe.checkout.sessions,
+			"create",
+		).mockImplementation((async (
+			params: Stripe.Checkout.SessionCreateParams,
+		) => {
+			sessions.push(params);
+			return { url: "https://checkout.stripe.test/cs_gone" };
+		}) as never);
+		missingCustomer = true;
+		try {
+			const customersBefore = createdCustomers.length;
+			const started = await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "start", interval: "month" }),
+			);
+			expect(started.url).toBe("https://checkout.stripe.test/cs_gone");
+			expect(createdCustomers.length).toBe(customersBefore + 1);
+			expect(sessions[0]?.customer).toBe("cus_spec");
+			const tenant = await tenantById(a.id);
+			expect(tenant?.billing.customerId).toBe("cus_spec");
+			expect(tenant?.status).toBe("active");
+			expect(tenant?.plan).toBe("trial");
+		} finally {
+			missingCustomer = false;
+			created.mockRestore();
+			await reset();
+		}
+	});
+
+	it("refuses every subscription action with a clear 400 and changes nothing", async () => {
+		await subscribe(subscriptionFixture(a.id));
+		const before = await tenantById(a.id);
+		if (!before) throw new Error("tenant a missing");
+		const sessions: Stripe.Checkout.SessionCreateParams[] = [];
+		const created = spyOn(
+			stripe.checkout.sessions,
+			"create",
+		).mockImplementation((async (
+			params: Stripe.Checkout.SessionCreateParams,
+		) => {
+			sessions.push(params);
+			return { url: "https://checkout.stripe.test/cs_again" };
+		}) as never);
+		missingSubscription = true;
+		try {
+			const actions: (() => Promise<unknown>)[] = [
+				() => billing.setAddOn(OWNER.id, { addOn: "drafts", quantity: 3 }),
+				() => billing.cancel(OWNER.id),
+				() => billing.resume(OWNER.id),
+				() => billing.cancelScheduledChange(OWNER.id),
+			];
+			for (const action of actions) {
+				const error = await onTenant(action).then(
+					() => null,
+					(failure: unknown) => failure,
+				);
+				expect(error).toBeInstanceOf(BadRequestException);
+				expect((error as BadRequestException).getStatus()).toBe(400);
+				expect((error as BadRequestException).message).toBe(NO_SUBSCRIPTION);
+			}
+			const started = await onTenant(() =>
+				billing.checkout(OWNER.id, { plan: "standard", interval: "month" }),
+			);
+			expect(started.url).toBe("https://checkout.stripe.test/cs_again");
+			expect(sessions[0]?.customer).toBe("cus_spec");
+			const after = await tenantById(a.id);
+			expect(after?.status).toBe(before.status);
+			expect(after?.plan).toBe(before.plan);
+			expect(after?.billing).toEqual(before.billing);
+		} finally {
+			missingSubscription = false;
+			created.mockRestore();
+			current = subscriptionFixture(a.id);
+			await reset();
+		}
+	});
+
+	it("refuses the portal with a clear 400 when Stripe has no such customer", async () => {
+		await reset();
+		await patchBilling(a.id, { customerId: "cus_gone" });
+		const listed = spyOn(
+			stripe.billingPortal.configurations,
+			"list",
+		).mockImplementation((async () => ({ data: [] })) as never);
+		const portal = spyOn(
+			stripe.billingPortal.sessions,
+			"create",
+		).mockImplementation((async (
+			params: Stripe.BillingPortal.SessionCreateParams,
+		) => {
+			throw missing(params.customer ?? "");
+		}) as never);
+		try {
+			await expect(
+				onTenant(() => billing.portal(OWNER.id, { flow: "billing" })),
+			).rejects.toThrow(NO_SUBSCRIPTION);
+			const tenant = await tenantById(a.id);
+			expect(tenant?.status).toBe("active");
+			expect(tenant?.billing.customerId).toBe("cus_gone");
+		} finally {
+			portal.mockRestore();
+			listed.mockRestore();
+			await reset();
+		}
 	});
 });
 

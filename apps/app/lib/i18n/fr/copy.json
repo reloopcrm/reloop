@@ -275,5 +275,6 @@
 	"Stripe told us you paid. The plan shows here in a moment.": "Stripe nous a signalé ton paiement. L'offre apparaît ici dans un instant.",
 	"Only an owner or an admin can remove a member.": "Seul un propriétaire ou un admin peut retirer un membre.",
 	"You cannot remove yourself from the workspace.": "Tu ne peux pas te retirer toi-même de l'espace de travail.",
-	"Only an owner can remove an owner.": "Seul un propriétaire peut retirer un propriétaire."
+	"Only an owner can remove an owner.": "Seul un propriétaire peut retirer un propriétaire.",
+	"No active subscription was found. Choose a plan to start one.": "Aucun abonnement actif n'a été trouvé. Choisis un abonnement pour commencer."
 }

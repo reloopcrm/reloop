@@ -82,6 +82,13 @@ const expandableId = z.union([
 	z.object({ id: z.string() }).transform((object) => object.id),
 ]);
 
+function isMissing(error: unknown): boolean {
+	return (
+		error instanceof Stripe.errors.StripeError &&
+		error.code === BILLING.stripe.missingCode
+	);
+}
+
 function idOf(
 	value: string | { id: string } | null | undefined,
 ): string | null {
@@ -800,8 +807,7 @@ export class BillingService {
 		}
 
 		const price = await this.priceId(planLookupKey(input.plan, input.interval));
-		const customer =
-			tenant.billing.customerId ?? (await this.createCustomer(tenant, userId));
+		const customer = await this.checkoutCustomer(tenant, userId);
 		const session = await stripe.checkout.sessions.create({
 			mode: "subscription",
 			line_items: [{ price, quantity: 1 }],
@@ -933,17 +939,7 @@ export class BillingService {
 	private async liveSubscription(
 		tenant: Tenant,
 	): Promise<Stripe.Subscription | null> {
-		try {
-			return await runAsTenant(tenant, () => this.activeSubscription(tenant));
-		} catch (error) {
-			if (
-				error instanceof Stripe.errors.StripeError &&
-				error.code === BILLING.stripe.missingCode
-			) {
-				return null;
-			}
-			throw error;
-		}
+		return runAsTenant(tenant, () => this.activeSubscription(tenant));
 	}
 
 	async resume(userId: string): Promise<{ ok: true }> {
@@ -961,16 +957,24 @@ export class BillingService {
 			);
 		}
 
-		const session = await stripe.billingPortal.sessions.create({
-			customer,
-			configuration: (await this.portalConfigurationId()) ?? undefined,
-			return_url: this.returnUrl(),
-			flow_data:
-				input.flow === "payment_method"
-					? { type: "payment_method_update" }
-					: undefined,
-		});
-		return { url: session.url };
+		const configuration = (await this.portalConfigurationId()) ?? undefined;
+		try {
+			const session = await stripe.billingPortal.sessions.create({
+				customer,
+				configuration,
+				return_url: this.returnUrl(),
+				flow_data:
+					input.flow === "payment_method"
+						? { type: "payment_method_update" }
+						: undefined,
+			});
+			return { url: session.url };
+		} catch (error) {
+			if (!isMissing(error)) throw error;
+			throw new BadRequestException(
+				"No active subscription was found. Choose a plan to start one.",
+			);
+		}
 	}
 
 	private async setCancel(
@@ -1387,6 +1391,25 @@ export class BillingService {
 		};
 	}
 
+	private async checkoutCustomer(
+		tenant: Tenant,
+		userId: string,
+	): Promise<string> {
+		const id = tenant.billing.customerId;
+		if (id && (await this.customerExists(id))) return id;
+		return this.createCustomer(tenant, userId);
+	}
+
+	private async customerExists(id: string): Promise<boolean> {
+		try {
+			const customer = await this.requireStripe().customers.retrieve(id);
+			return !customer.deleted;
+		} catch (error) {
+			if (isMissing(error)) return false;
+			throw error;
+		}
+	}
+
 	private async createCustomer(
 		tenant: Tenant,
 		userId: string,
@@ -1400,12 +1423,7 @@ export class BillingService {
 			preferred_locales: [await this.stripeLocale(tenant)],
 			metadata: { tenantId: tenant.id },
 		});
-		await writeTenantBilling(tenant.id, {
-			plan: tenant.plan,
-			paidUntil: tenant.paidUntil,
-			graceUntil: tenant.graceUntil,
-			billing: { ...tenant.billing, customerId: customer.id },
-		});
+		await patchBilling(tenant.id, { customerId: customer.id });
 		return customer.id;
 	}
 
@@ -1597,9 +1615,15 @@ export class BillingService {
 	): Promise<Stripe.Subscription | null> {
 		const id = tenant.billing.subscriptionId;
 		if (!id || tenant.billing.status === "canceled") return null;
-		const subscription = await this.requireStripe().subscriptions.retrieve(id, {
-			expand: ["default_payment_method"],
-		});
+		let subscription: Stripe.Subscription;
+		try {
+			subscription = await this.requireStripe().subscriptions.retrieve(id, {
+				expand: ["default_payment_method"],
+			});
+		} catch (error) {
+			if (isMissing(error)) return null;
+			throw error;
+		}
 		return subscription.status === "canceled" ||
 			subscription.status === "incomplete_expired"
 			? null
@@ -1612,7 +1636,7 @@ export class BillingService {
 		const subscription = await this.activeSubscription(tenant);
 		if (!subscription) {
 			throw new BadRequestException(
-				"Choose a plan first. Add-ons and billing details follow the first payment.",
+				"No active subscription was found. Choose a plan to start one.",
 			);
 		}
 		return subscription;

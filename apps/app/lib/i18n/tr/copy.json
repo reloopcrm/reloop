@@ -275,5 +275,6 @@
 	"Stripe told us you paid. The plan shows here in a moment.": "Stripe ödemeni bildirdi. Paket birazdan burada görünür.",
 	"Only an owner or an admin can remove a member.": "Bir üyeyi sadece sahip veya yönetici kaldırır.",
 	"You cannot remove yourself from the workspace.": "Kendini çalışma alanından kaldıramazsın.",
-	"Only an owner can remove an owner.": "Bir sahibi sadece bir sahip kaldırır."
+	"Only an owner can remove an owner.": "Bir sahibi sadece bir sahip kaldırır.",
+	"No active subscription was found. Choose a plan to start one.": "Etkin bir abonelik bulunamadı. Başlatmak için bir plan seç."
 }

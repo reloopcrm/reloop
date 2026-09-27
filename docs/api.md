@@ -673,6 +673,18 @@ A Stripe error on a preview or an update is logged with Stripe's own message
 and reaches the page as "Stripe refused this change", never as a bare 500. A
 yearly plan needs a card, read from the subscription's `default_payment_method`
 first and the customer's default second.
+
+**A Stripe id that Stripe does not have counts as none.** Stripe answers
+`resource_missing` for a customer or subscription id from another Stripe account
+or a deleted one. `activeSubscription` returns no subscription for it and writes
+nothing, so no workspace is paused, downgraded or mailed. `setAddOn`, `cancel`,
+`resume`, `cancelScheduledChange` and both previews then answer "No active
+subscription was found. Choose a plan to start one." as a 400, and checkout
+starts a new Checkout session. Checkout reads the stored customer first. A
+missing or deleted customer is replaced by a new one through `patchBilling`,
+which writes only `customerId`. The portal answers the same 400 when Stripe has
+no such customer.
+
 **Checkout ends the trial.** The session carries no `trial_end`, so billing
 starts the day a trialing workspace pays. The customer is created before the
 session, with the oldest owner's address and `preferred_locales` from the

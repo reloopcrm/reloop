@@ -40,8 +40,9 @@ cannot grant an address at all.
 
 An attacker holding a **member** session can therefore add no account and grant no address; they
 already read and write every record, which is the limit named above. An attacker holding an
-**owner** session owns the deployment for every other purpose too. Revoking a granted address needs
-the shell: `bun apps/api/scripts/sign-in-grants.ts revoke <address>`. Taking the address off
+**owner** session owns the deployment for every other purpose too. Removing the member revokes a
+granted address (below); the shell revokes one without an account:
+`bun apps/api/scripts/sign-in-grants.ts revoke <address>`. Taking the address off
 `ALLOWED_SIGN_IN` does not reach the database list.
 
 **Removing a member closes the door that `ALLOWED_SIGN_IN` leaves open.** Settings → Members →

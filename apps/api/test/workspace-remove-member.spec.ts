@@ -137,6 +137,8 @@ describe("removing a member: access goes, data stays", () => {
 	}
 
 	async function signIn(email: string) {
+		const { db } = await import("@crm/db");
+		await db.rateLimit.deleteMany({});
 		return request(app.getHttpServer())
 			.post("/api/auth/sign-in/email")
 			.send({ email, password: PASSWORD });
@@ -283,7 +285,10 @@ describe("removing a member: access goes, data stays", () => {
 		const { db } = await import("@crm/db");
 		const response = await signIn(member.email);
 
-		expect(response.status).toBeGreaterThanOrEqual(400);
+		expect(response.status).toBe(403);
+		expect(response.body.message).toBe(
+			"This account no longer has access to this CRM.",
+		);
 		expect(response.headers["set-cookie"]).toBeUndefined();
 		expect(await db.session.count({ where: { userId: member.id } })).toBe(0);
 		expect(await db.member.count({ where: { userId: member.id } })).toBe(0);

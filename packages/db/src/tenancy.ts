@@ -499,6 +499,17 @@ export async function activateTenant(
 	forgetTenant(id);
 }
 
+export async function revokeTenantSignIn(
+	id: string,
+	address: string,
+): Promise<void> {
+	await registryPool().query(
+		"DELETE FROM tenant_sign_in WHERE entry = $1 AND tenant_id = $2",
+		[address.trim().toLowerCase(), id],
+	);
+	forgetTenant(id);
+}
+
 export async function removeTenant(id: string): Promise<void> {
 	await registryPool().query("DELETE FROM tenant WHERE id = $1", [id]);
 	forgetTenant(id);

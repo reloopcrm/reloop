@@ -474,5 +474,9 @@
 	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "Das Speichern startet die App für alle neu. Sie ist ein paar Sekunden lang nicht erreichbar.",
 	"The mailbox history is imported. Every conversation is in.": "Die Vorgeschichte des Postfachs ist importiert. Jede Unterhaltung ist drin.",
 	"{percent}% done": "{percent}% geschafft",
-	"Import progress": "Fortschritt des Imports"
+	"Import progress": "Fortschritt des Imports",
+	"Remove from workspace": "Aus dem Arbeitsbereich entfernen",
+	"Removed from the workspace.": "Aus dem Arbeitsbereich entfernt.",
+	"Remove {name} from the workspace?": "{name} aus dem Arbeitsbereich entfernen?",
+	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "Die Person wird sofort abgemeldet und kann sich nicht wieder anmelden. Ihre Kontakte, Deals und Aktivitäten bleiben erhalten."
 }

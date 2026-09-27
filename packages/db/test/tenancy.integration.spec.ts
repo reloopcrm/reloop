@@ -5,6 +5,7 @@ import {
 	closeRegistry,
 	forEachTenant,
 	forgetTenant,
+	revokeTenantSignIn,
 	signInEntriesFor,
 	type Tenant,
 	tenantById,
@@ -251,6 +252,39 @@ describe("two tenant databases behind one db", () => {
 				[a.id],
 			);
 			forgetTenant(a.id);
+			await registry.end();
+		}
+	});
+
+	it("revokes one address of one tenant and keeps its domain", async () => {
+		const registry = new pg.Client({ connectionString: registryUrl });
+		await registry.connect();
+		const address = `removed-${runId}@example.com`;
+		const entries = async () =>
+			(
+				await registry.query(
+					"SELECT entry FROM tenant_sign_in WHERE entry = ANY($1)",
+					[[address, TEST_TENANTS.a.domain]],
+				)
+			).rows.map((row: { entry: string }) => row.entry);
+
+		try {
+			await registry.query(
+				"INSERT INTO tenant_sign_in (entry, tenant_id) VALUES ($1, $2) ON CONFLICT (entry) DO NOTHING",
+				[address, a.id],
+			);
+
+			await revokeTenantSignIn(b.id, address);
+			expect((await entries()).sort()).toEqual(
+				[address, TEST_TENANTS.a.domain].sort(),
+			);
+
+			await revokeTenantSignIn(a.id, address.toUpperCase());
+			expect(await entries()).toEqual([TEST_TENANTS.a.domain]);
+		} finally {
+			await registry.query("DELETE FROM tenant_sign_in WHERE entry = $1", [
+				address,
+			]);
 			await registry.end();
 		}
 	});

@@ -272,5 +272,8 @@
 	"The confirmation takes longer than usual.": "Onay her zamankinden uzun sürüyor.",
 	"Your payment is safe. The plan shows under Plan & billing as soon as Stripe confirms it.": "Ödemen güvende. Stripe onaylar onaylamaz paket Paket ve faturalandırma altında görünür.",
 	"We are confirming your payment.": "Ödemeni onaylıyoruz.",
-	"Stripe told us you paid. The plan shows here in a moment.": "Stripe ödemeni bildirdi. Paket birazdan burada görünür."
+	"Stripe told us you paid. The plan shows here in a moment.": "Stripe ödemeni bildirdi. Paket birazdan burada görünür.",
+	"Only an owner or an admin can remove a member.": "Bir üyeyi sadece sahip veya yönetici kaldırır.",
+	"You cannot remove yourself from the workspace.": "Kendini çalışma alanından kaldıramazsın.",
+	"Only an owner can remove an owner.": "Bir sahibi sadece bir sahip kaldırır."
 }

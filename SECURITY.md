@@ -44,11 +44,18 @@ already read and write every record, which is the limit named above. An attacker
 the shell: `bun apps/api/scripts/sign-in-grants.ts revoke <address>`. Taking the address off
 `ALLOWED_SIGN_IN` does not reach the database list.
 
+**Removing a member closes the door that `ALLOWED_SIGN_IN` leaves open.** Settings → Members →
+Remove from workspace (`workspace.removeMember`, owner or admin, never yourself, never the last
+owner, and an admin never removes an owner) stamps `user.removedAt`, deletes the member row, every
+session and every API key of that person, and revokes their granted address. The
+`session.create.before` hook refuses a user with `removedAt`, so a domain on `ALLOWED_SIGN_IN` does
+not let them back in.
+
 An API key from **Settings → API Keys** is a session in a header, so a leaked key reads and writes
 every record its owner can, and an expiry is optional. What it cannot do is build access that outlives
 its own revocation. `SessionOnlyMiddleware` refuses an `x-api-key` header on `apiKeys.*`,
 `settings.setPassword`, `settings.setAgentProvider`, `settings.chatgptLoginAction`,
-`workspace.addPerson`, `workspace.setMemberRole`, `workspace.deletionCode`, `workspace.delete`, `sso.register`, `sso.remove`, `imap.add`,
+`workspace.addPerson`, `workspace.setMemberRole`, `workspace.removeMember`, `workspace.deletionCode`, `workspace.delete`, `sso.register`, `sso.remove`, `imap.add`,
 `webhooks.create`, `webhooks.update`, `billing.checkout`, `billing.setAddOn`, `billing.cancel`,
 `billing.resume`, `billing.portal` and `system.update`, and `accessGuard` refuses it on
 `/api/auth/api-key/*`, `/api/auth/sso/register`, `/change-password` and `/set-password`. Those are the calls that mint a

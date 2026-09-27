@@ -1,7 +1,21 @@
 "use client";
 
 import OverflowMenuHorizontal from "@carbon/icons-react/es/OverflowMenuHorizontal";
-import { canAssignRole, type WorkspaceRole } from "@crm/auth/roles";
+import {
+	canAssignRole,
+	canRemoveMember,
+	type WorkspaceRole,
+} from "@crm/auth/roles";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@crm/ui/components/alert-dialog";
 import { Button } from "@crm/ui/components/button";
 import {
 	DataTable,
@@ -12,11 +26,13 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
 import { Icon } from "@crm/ui/components/icon";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ListSearch } from "@/components/data-table/list-search";
 import { useTableQuery } from "@/components/data-table/use-table-query";
@@ -51,6 +67,7 @@ function columns(
 	t: Translate,
 	viewerRole: WorkspaceRole | null,
 	onChangeRole: (member: MemberRow, role: Role) => void,
+	onRemove: (member: MemberRow) => void,
 	pending: boolean,
 ): DataTableColumn<MemberRow>[] {
 	return [
@@ -116,7 +133,9 @@ function columns(
 			control: true,
 			cell: (row) => {
 				const roles = assignableRoles(viewerRole, row.role);
-				if (roles.length === 0) return null;
+				const removable =
+					!row.isViewer && canRemoveMember(viewerRole, row.role);
+				if (roles.length === 0 && !removable) return null;
 
 				return (
 					<DropdownMenu>
@@ -142,6 +161,14 @@ function columns(
 									{t(ROLE_LABEL[role])}
 								</DropdownMenuItem>
 							))}
+							{removable ? (
+								<>
+									{roles.length > 0 ? <DropdownMenuSeparator /> : null}
+									<DropdownMenuItem onSelect={() => onRemove(row)}>
+										{t("Remove from workspace")}
+									</DropdownMenuItem>
+								</>
+							) : null}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				);
@@ -176,6 +203,18 @@ export function MembersTable({
 		}),
 	);
 
+	const [removing, setRemoving] = useState<MemberRow | null>(null);
+
+	const remove = useMutation(
+		trpc.workspace.removeMember.mutationOptions({
+			onSuccess: async () => {
+				await cache.workspace();
+				toast.success(t("Removed from the workspace."));
+			},
+			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
+
 	const facetCounts = members.data?.facetCounts;
 
 	const facets: DataTableFacet[] = [
@@ -191,22 +230,59 @@ export function MembersTable({
 	];
 
 	return (
-		<DataTable
-			query={query}
-			search={<ListSearch placeholder={t("Search by name or email…")} />}
-			columns={columns(
-				t,
-				viewerRole,
-				(member, role) => setRole.mutate({ memberId: member.id, role }),
-				setRole.isPending,
-			)}
-			rows={members.data?.rows ?? []}
-			total={members.data?.total ?? 0}
-			facetCounts={facetCounts}
-			facets={facets}
-			getRowId={(row) => row.id}
-			loading={members.isFetching}
-			empty={t("Nobody matches this view.")}
-		/>
+		<>
+			<DataTable
+				query={query}
+				search={<ListSearch placeholder={t("Search by name or email…")} />}
+				columns={columns(
+					t,
+					viewerRole,
+					(member, role) => setRole.mutate({ memberId: member.id, role }),
+					setRemoving,
+					setRole.isPending || remove.isPending,
+				)}
+				rows={members.data?.rows ?? []}
+				total={members.data?.total ?? 0}
+				facetCounts={facetCounts}
+				facets={facets}
+				getRowId={(row) => row.id}
+				loading={members.isFetching}
+				empty={t("Nobody matches this view.")}
+			/>
+
+			<AlertDialog
+				open={removing !== null}
+				onOpenChange={(open) => {
+					if (!open) setRemoving(null);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							{t("Remove {name} from the workspace?", {
+								name: removing?.name ?? "",
+							})}
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t(
+								"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.",
+							)}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+
+					<AlertDialogFooter>
+						<AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+						<AlertDialogAction
+							variant="destructive"
+							onClick={() => {
+								if (removing) remove.mutate({ memberId: removing.id });
+							}}
+						>
+							{t("Remove")}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }

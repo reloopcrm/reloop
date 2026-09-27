@@ -48,6 +48,7 @@ export {
 	canManageCurrency,
 	canManageFields,
 	canManageTracking,
+	canRemoveMember,
 	canRenameWorkspace,
 	isWorkspaceAdmin,
 	isWorkspaceRole,

@@ -474,5 +474,9 @@
 	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "Kaydetmek uygulamayı herkes için yeniden başlatır. Birkaç saniye erişilemez.",
 	"The mailbox history is imported. Every conversation is in.": "Posta kutusunun geçmişi içe aktarıldı. Her konuşma içeride.",
 	"{percent}% done": "%{percent} tamamlandı",
-	"Import progress": "İçe aktarma ilerlemesi"
+	"Import progress": "İçe aktarma ilerlemesi",
+	"Remove from workspace": "Çalışma alanından kaldır",
+	"Removed from the workspace.": "Çalışma alanından kaldırıldı.",
+	"Remove {name} from the workspace?": "{name} çalışma alanından kaldırılsın mı?",
+	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "Oturumu hemen kapanır ve tekrar giriş yapamaz. Kişileri, fırsatları ve etkinlikleri kalır."
 }

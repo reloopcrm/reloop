@@ -24,6 +24,7 @@ describe("an API key cannot build lasting access", () => {
 	const guarded = [
 		["sso.register", SsoRouter.prototype.register],
 		["workspace.setMemberRole", WorkspaceRouter.prototype.setMemberRole],
+		["workspace.removeMember", WorkspaceRouter.prototype.removeMember],
 		["webhooks.create", WebhooksRouter.prototype.create],
 		["webhooks.update", WebhooksRouter.prototype.update],
 		["system.update", SystemRouter.prototype.update],

@@ -1,6 +1,7 @@
 import {
 	canAssignRole,
 	canChangeRole,
+	canRemoveMember,
 	canRenameWorkspace,
 	ensureWorkspaceMembership,
 	generatePassword,
@@ -8,6 +9,7 @@ import {
 	hashPassword,
 	isPasswordSignInConfigured,
 	isWorkspaceRole,
+	revokeSignIn,
 	WORKSPACE_ID,
 	type WorkspaceRole,
 	workspaceRoleOf,
@@ -18,6 +20,8 @@ import {
 	type PasswordSession,
 } from "@crm/auth/password-rules";
 import type { Db, Prisma } from "@crm/db";
+import { revokeTenantSignIn } from "@crm/db/tenancy";
+import { currentTenantId } from "@crm/db/tenant-context";
 import { isOnboarded, markOnboarded, workspaceSlug } from "@crm/db/workspace";
 import {
 	BadRequestException,
@@ -41,6 +45,8 @@ import type {
 	AddedPerson,
 	AddPersonInput,
 	MemberListInput,
+	RemovedMember,
+	RemoveMemberInput,
 	SetMemberRoleInput,
 	UpdateWorkspaceInput,
 	Workspace,
@@ -242,6 +248,94 @@ export class WorkspaceService {
 		});
 
 		return this.toMember(updated, userId);
+	}
+
+	async removeMember(
+		userId: string,
+		input: RemoveMemberInput,
+	): Promise<RemovedMember> {
+		const role = await workspaceRoleOf(userId, this.db);
+
+		if (!canChangeRole(role)) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can remove a member.",
+			);
+		}
+
+		const removed = await this.db.$transaction(async (tx) => {
+			const target = await tx.member.findFirst({
+				where: { id: input.memberId, organizationId: WORKSPACE_ID },
+				select: {
+					id: true,
+					role: true,
+					userId: true,
+					user: { select: { email: true } },
+				},
+			});
+
+			if (!target) {
+				throw new NotFoundException("That person is not in this workspace.");
+			}
+
+			if (target.userId === userId) {
+				throw new ForbiddenException(
+					"You cannot remove yourself from the workspace.",
+				);
+			}
+
+			if (!canRemoveMember(role, toRole(target.role))) {
+				throw new ForbiddenException("Only an owner can remove an owner.");
+			}
+
+			if (target.role === "owner") {
+				const owners = await tx.$queryRaw<{ id: string }[]>`
+					SELECT id FROM "member"
+					WHERE "organizationId" = ${WORKSPACE_ID} AND role = 'owner'
+					FOR UPDATE
+				`;
+
+				if (owners.length <= 1) {
+					throw new ForbiddenException(
+						"The workspace needs an owner. Make someone else an owner first.",
+					);
+				}
+			}
+
+			await tx.member.delete({ where: { id: target.id } });
+			await tx.user.update({
+				where: { id: target.userId },
+				data: { removedAt: new Date() },
+			});
+			await tx.session.deleteMany({ where: { userId: target.userId } });
+			await tx.apikey.deleteMany({ where: { referenceId: target.userId } });
+
+			return target;
+		});
+
+		await revokeSignIn(this.db, removed.user.email);
+		await this.revokeTenantSignIn(removed.user.email);
+
+		this.logger.log({
+			message: "Member removed",
+			userId,
+			memberId: removed.id,
+		});
+
+		return { memberId: removed.id };
+	}
+
+	private async revokeTenantSignIn(email: string): Promise<void> {
+		const tenantId = currentTenantId();
+		if (!tenantId) return;
+
+		try {
+			await revokeTenantSignIn(tenantId, email);
+		} catch (error) {
+			this.logger.error(
+				{ message: "Registry sign-in not revoked", tenantId },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
 	}
 
 	async addPerson(

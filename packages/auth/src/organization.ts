@@ -38,6 +38,7 @@ export async function ensureWorkspaceMembership(
 
 			if (enrolled === 0) {
 				const existing = await tx.user.findMany({
+					where: { removedAt: null },
 					select: { id: true },
 					orderBy: [{ createdAt: "asc" }, { id: "asc" }],
 				});

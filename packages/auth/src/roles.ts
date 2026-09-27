@@ -49,6 +49,15 @@ export function canAssignRole(
 	return current !== "owner" && next !== "owner";
 }
 
+export function canRemoveMember(
+	actor: WorkspaceRole | null,
+	target: WorkspaceRole,
+): boolean {
+	if (!isWorkspaceAdmin(actor)) return false;
+
+	return actor === "owner" || target !== "owner";
+}
+
 export function canLoadSampleData(role: WorkspaceRole | null): boolean {
 	return role === "owner";
 }

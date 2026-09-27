@@ -10,6 +10,7 @@ import {
 	tenantById,
 	tenantDatabaseUrl,
 } from "@crm/db/tenancy";
+import { TENANCY } from "@crm/db/tenancy-config";
 import { runAsTenant } from "@crm/db/tenant-context";
 import {
 	prepareTestTenants,
@@ -203,14 +204,41 @@ describe("tenant signup, lookup and activation", () => {
 		expect(activated?.allowList).toEqual([`newco-${runId}.example`, owner]);
 	}, 60_000);
 
-	it("rate limits repeated lookups from one address", async () => {
+	it("rate limits repeated lookups from one network address", async () => {
 		const email = `burst-${runId}@nowhere.example`;
-		let last = 0;
-		for (let index = 0; index < 6; index += 1) {
-			last = (await request(server).post("/api/tenant/lookup").send({ email }))
-				.status;
+		const statuses: number[] = [];
+		for (let index = 0; index <= TENANCY.signup.rate.perIp; index += 1) {
+			statuses.push(
+				(
+					await request(server)
+						.post("/api/tenant/lookup")
+						.set("x-forwarded-for", "198.51.100.23")
+						.send({ email })
+				).status,
+			);
 		}
-		expect(last).toBe(429);
+		expect(statuses.at(-2)).not.toBe(429);
+		expect(statuses.at(-1)).toBe(429);
+	});
+
+	it("never locks one email out of the lookup when the requests come from many places", async () => {
+		const email = `shared-${runId}@nowhere.example`;
+		const statuses: number[] = [];
+		for (
+			let index = 0;
+			index < TENANCY.signup.rate.perAddress + 3;
+			index += 1
+		) {
+			statuses.push(
+				(
+					await request(server)
+						.post("/api/tenant/lookup")
+						.set("x-forwarded-for", `198.51.100.${100 + index}`)
+						.send({ email })
+				).status,
+			);
+		}
+		expect(statuses).not.toContain(429);
 	});
 
 	it("removes a pending workspace older than 48 hours in the sweep", async () => {

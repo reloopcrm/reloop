@@ -11,7 +11,7 @@ const TASK_ID = "cmsdc0a6j004cz96ddzpcgwqr";
 
 async function sentOptions(target: ReceiveInput["target"]) {
 	const calls: SendOptions[] = [];
-	const send = async (_message: unknown, options: SendOptions) => {
+	const send = async (_message: string, options: SendOptions) => {
 		calls.push(options);
 		return { id: "session_test" };
 	};

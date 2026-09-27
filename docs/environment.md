@@ -262,8 +262,10 @@ Both are unset on a self-hosted install, which then runs as one workspace on
   `cache()`d helper that wraps `inTenant()`.
 - **A customer registers through `POST /api/tenant/signup`** and looks their
   workspace up through `POST /api/tenant/lookup` (`apps/api/src/tenancy`). Both
-  are open paths in `tenantMiddleware`, rate limited per address and per IP in
-  memory (`TENANCY.signup.rate`). Signup provisions the database at once
+  are open paths in `tenantMiddleware`, rate limited in memory
+  (`TENANCY.signup.rate`): signup per address and per IP, the lookup per IP
+  only, because it sends no mail and repeating it for one address reveals
+  nothing new. Signup provisions the database at once
   (`provisionTenant`, `packages/db/src/provision.ts`: create, migrate, registry
   row, `AppSetting.plan`, all rolled back on failure) with status `pending` and
   the one address in `tenant_sign_in`. Activation is the first Google or

@@ -69,6 +69,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
 	const [email, setEmail] = useState("");
+	const [phone, setPhone] = useState("");
 	const [title, setTitle] = useState("");
 	const [company, setCompany] = useState(companyId ?? NONE);
 	const [ownerId, setOwnerId] = useState(NONE);
@@ -76,6 +77,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 	const firstNameId = useId();
 	const lastNameId = useId();
 	const emailId = useId();
+	const phoneId = useId();
 	const titleId = useId();
 
 	const users = useQuery(trpc.users.list.queryOptions());
@@ -95,6 +97,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 				setFirstName("");
 				setLastName("");
 				setEmail("");
+				setPhone("");
 				setTitle("");
 				openRecord({ kind: "contact", id: contact.id });
 			},
@@ -126,6 +129,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 							firstName,
 							lastName: lastName || undefined,
 							email: email || undefined,
+							phone: phone || undefined,
 							title: title || undefined,
 							companyId: company === NONE ? null : company,
 							ownerId: ownerId === NONE ? null : ownerId,
@@ -162,6 +166,17 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 								value={email}
 								onChange={(event) => setEmail(event.target.value)}
 								autoComplete="off"
+							/>
+						</Field>
+
+						<Field>
+							<FieldLabel htmlFor={phoneId}>{t("Phone")}</FieldLabel>
+							<Input
+								id={phoneId}
+								type="tel"
+								value={phone}
+								onChange={(event) => setPhone(event.target.value)}
+								autoComplete="tel"
 							/>
 						</Field>
 

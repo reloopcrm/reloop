@@ -81,7 +81,7 @@ export class TenantSignupService {
 		clientAddress: string | null,
 	): Promise<TenantLookupResult> {
 		this.requireHosted();
-		this.throttle("lookup", email, clientAddress);
+		this.throttle("lookup", null, clientAddress);
 
 		const tenant = await tenantBySignIn(email);
 		if (

@@ -4,7 +4,7 @@ import type { ListSearchParams } from "./list-search-params";
 
 GlobalRegistrator.register({ url: "https://crm.test/acme/contacts" });
 (
-	globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }
+	globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createElement } = await import("react");

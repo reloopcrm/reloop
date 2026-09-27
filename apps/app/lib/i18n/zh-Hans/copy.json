@@ -275,5 +275,6 @@
 	"Stripe told us you paid. The plan shows here in a moment.": "Stripe 已通知我们你已付款。套餐稍后会显示在这里。",
 	"Only an owner or an admin can remove a member.": "只有所有者或管理员能移除成员。",
 	"You cannot remove yourself from the workspace.": "你不能把自己移出工作区。",
-	"Only an owner can remove an owner.": "只有所有者能移除所有者。"
+	"Only an owner can remove an owner.": "只有所有者能移除所有者。",
+	"No active subscription was found. Choose a plan to start one.": "未找到有效的订阅。请选择套餐以开始订阅。"
 }

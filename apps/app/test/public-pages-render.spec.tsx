@@ -13,7 +13,7 @@ const RENDERED = [
 	{ path: "/docs", file: "app/(landing)/docs/page.tsx" },
 	{ path: "/docs/[slug]", file: "app/(landing)/docs/[slug]/page.tsx" },
 	...PROXY.marketing
-		.filter((path) => path !== "/get-started")
+		.filter((path) => path !== "/get-started" && path !== "/imprint")
 		.map((path) => ({ path, file: `app/(landing)${path}/page.tsx` })),
 ] as const;
 

@@ -464,5 +464,9 @@
 	"Book {plan} for {workspace}": "{plan} für {workspace} buchen",
 	"Go to my workspace": "Zu meinem Workspace",
 	"Create a new, separate workspace?": "Neuen, separaten Workspace anlegen?",
-	"Sign out first.": "Erst abmelden."
+	"Sign out first.": "Erst abmelden.",
+	"Imprint": "Impressum",
+	"Legal information under Section 5 of the German Digital Services Act (DDG).": "Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG).",
+	"Business": "Geschäftsbezeichnung",
+	"VAT ID": "USt-IdNr."
 }

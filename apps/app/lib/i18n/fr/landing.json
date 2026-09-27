@@ -464,5 +464,9 @@
 	"Book {plan} for {workspace}": "Souscrire {plan} pour {workspace}",
 	"Go to my workspace": "Aller à mon espace de travail",
 	"Create a new, separate workspace?": "Créer un nouvel espace de travail séparé ?",
-	"Sign out first.": "Déconnecte-toi d'abord."
+	"Sign out first.": "Déconnecte-toi d'abord.",
+	"Imprint": "Mentions légales",
+	"Legal information under Section 5 of the German Digital Services Act (DDG).": "Informations légales prévues par l’article 5 de la loi allemande sur les services numériques (DDG).",
+	"Business": "Raison sociale",
+	"VAT ID": "Numéro de TVA"
 }

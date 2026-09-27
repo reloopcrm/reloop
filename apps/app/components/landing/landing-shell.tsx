@@ -4,6 +4,7 @@ import Wordmark from "@crm/ui/components/wordmark";
 import NextLink from "next/link";
 import type * as React from "react";
 import { getT } from "@/lib/i18n/server";
+import { getImprint } from "@/lib/imprint";
 import { marketingUrl, signInUrl, signUpUrl } from "@/lib/site-links";
 import { DynamicIslandNav } from "./dynamic-island-nav";
 import { LanguageSwitcher } from "./language-switcher";
@@ -40,6 +41,9 @@ export async function LandingShell({
 		{ href: marketingUrl("/about"), label: t("About Reloop CRM") },
 		{ href: marketingUrl("/contact"), label: t("Contact") },
 		{ href: marketingUrl("/privacy"), label: t("Privacy") },
+		...(getImprint()
+			? [{ href: marketingUrl("/imprint"), label: t("Imprint") }]
+			: []),
 	];
 
 	const homeLink = (

@@ -464,5 +464,9 @@
 	"Book {plan} for {workspace}": "{workspace} için {plan} satın al",
 	"Go to my workspace": "Çalışma alanıma git",
 	"Create a new, separate workspace?": "Yeni, ayrı bir çalışma alanı mı oluşturacaksın?",
-	"Sign out first.": "Önce oturumu kapat."
+	"Sign out first.": "Önce oturumu kapat.",
+	"Imprint": "Yasal bildirim",
+	"Legal information under Section 5 of the German Digital Services Act (DDG).": "Alman Dijital Hizmetler Yasası (DDG) 5. maddesi uyarınca yasal bilgiler.",
+	"Business": "Ticari unvan",
+	"VAT ID": "KDV numarası"
 }

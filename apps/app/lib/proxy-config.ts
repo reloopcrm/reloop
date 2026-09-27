@@ -17,6 +17,7 @@ export const PROXY = {
 		"/about",
 		"/contact",
 		"/privacy",
+		"/imprint",
 		"/open-source",
 		"/open-source-crm",
 		"/self-hosted-crm",

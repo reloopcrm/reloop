@@ -20,7 +20,7 @@ import {
 	type PasswordSession,
 } from "@crm/auth/password-rules";
 import type { Db, Prisma } from "@crm/db";
-import { revokeTenantSignIn } from "@crm/db/tenancy";
+import { grantTenantSignIn, revokeTenantSignIn } from "@crm/db/tenancy";
 import { currentTenantId } from "@crm/db/tenant-context";
 import { isOnboarded, markOnboarded, workspaceSlug } from "@crm/db/workspace";
 import {
@@ -313,7 +313,7 @@ export class WorkspaceService {
 		});
 
 		await revokeSignIn(this.db, removed.user.email);
-		await this.revokeTenantSignIn(removed.user.email);
+		await this.updateTenantSignIn(removed.user.email, revokeTenantSignIn);
 
 		this.logger.log({
 			message: "Member removed",
@@ -324,15 +324,18 @@ export class WorkspaceService {
 		return { memberId: removed.id };
 	}
 
-	private async revokeTenantSignIn(email: string): Promise<void> {
+	private async updateTenantSignIn(
+		email: string,
+		update: (tenantId: string, address: string) => Promise<void>,
+	): Promise<void> {
 		const tenantId = currentTenantId();
 		if (!tenantId) return;
 
 		try {
-			await revokeTenantSignIn(tenantId, email);
+			await update(tenantId, email);
 		} catch (error) {
 			this.logger.error(
-				{ message: "Registry sign-in not revoked", tenantId },
+				{ message: "Registry sign-in not updated", tenantId },
 				error instanceof Error ? error.stack : String(error),
 			);
 		}
@@ -375,10 +378,10 @@ export class WorkspaceService {
 
 		const taken = await this.db.user.findFirst({
 			where: { email: input.email },
-			select: { id: true },
+			select: { id: true, removedAt: true },
 		});
 
-		if (taken) {
+		if (taken && !taken.removedAt) {
 			throw new BadRequestException("That address already has an account.");
 		}
 
@@ -386,35 +389,43 @@ export class WorkspaceService {
 		const hash = await hashPassword(password);
 
 		const member = await this.db.$transaction(async (tx) => {
-			const created = await tx.user.create({
-				data: {
-					id: crypto.randomUUID(),
-					email: input.email,
-					name: input.name,
-					emailVerified: true,
-					updatedAt: new Date(),
-				},
-				select: { id: true },
-			});
+			const person = taken
+				? await tx.user.update({
+						where: { id: taken.id },
+						data: { removedAt: null },
+						select: { id: true },
+					})
+				: await tx.user.create({
+						data: {
+							id: crypto.randomUUID(),
+							email: input.email,
+							name: input.name,
+							emailVerified: true,
+							updatedAt: new Date(),
+						},
+						select: { id: true },
+					});
 
 			const row = await tx.member.create({
 				data: {
 					id: crypto.randomUUID(),
 					organizationId: WORKSPACE_ID,
-					userId: created.id,
+					userId: person.id,
 					role: input.role,
 					createdAt: new Date(),
 				},
 				select: MEMBER_SELECT,
 			});
 
-			await writeCredentialAccount(tx, created.id, hash);
+			await writeCredentialAccount(tx, person.id, hash);
 
 			return row;
 		});
 
+		if (taken) await this.updateTenantSignIn(input.email, grantTenantSignIn);
+
 		this.logger.log({
-			message: "Person added",
+			message: taken ? "Removed person added again" : "Person added",
 			userId,
 			memberId: member.id,
 			role: input.role,

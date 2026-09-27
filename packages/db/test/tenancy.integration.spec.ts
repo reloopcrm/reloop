@@ -5,6 +5,7 @@ import {
 	closeRegistry,
 	forEachTenant,
 	forgetTenant,
+	grantTenantSignIn,
 	revokeTenantSignIn,
 	signInEntriesFor,
 	type Tenant,
@@ -256,7 +257,7 @@ describe("two tenant databases behind one db", () => {
 		}
 	});
 
-	it("revokes one address of one tenant and keeps its domain", async () => {
+	it("revokes and grants one address of one tenant and keeps its domain", async () => {
 		const registry = new pg.Client({ connectionString: registryUrl });
 		await registry.connect();
 		const address = `removed-${runId}@example.com`;
@@ -281,6 +282,10 @@ describe("two tenant databases behind one db", () => {
 
 			await revokeTenantSignIn(a.id, address.toUpperCase());
 			expect(await entries()).toEqual([TEST_TENANTS.a.domain]);
+
+			await grantTenantSignIn(a.id, address.toUpperCase());
+			await grantTenantSignIn(b.id, address);
+			expect((await tenantBySignIn(address))?.id).toBe(a.id);
 		} finally {
 			await registry.query("DELETE FROM tenant_sign_in WHERE entry = $1", [
 				address,

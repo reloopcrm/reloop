@@ -136,12 +136,12 @@ describe("removing a member: access goes, data stays", () => {
 		await db.user.deleteMany({ where: { id: { in: ids } } });
 	}
 
-	async function signIn(email: string) {
+	async function signIn(email: string, password = PASSWORD) {
 		const { db } = await import("@crm/db");
 		await db.rateLimit.deleteMany({});
 		return request(app.getHttpServer())
 			.post("/api/auth/sign-in/email")
-			.send({ email, password: PASSWORD });
+			.send({ email, password });
 	}
 
 	beforeAll(async () => {
@@ -302,5 +302,55 @@ describe("removing a member: access goes, data stays", () => {
 			.expect(200);
 
 		expect(response.body.result.data.rows).toEqual([]);
+	});
+
+	it("adds the removed person back to the same account", async () => {
+		const { db } = await import("@crm/db");
+		ownerCookie = String((await signIn(owner.email)).headers["set-cookie"]);
+
+		const added = await request(app.getHttpServer())
+			.post("/api/trpc/workspace.addPerson")
+			.set("Cookie", ownerCookie)
+			.send({ email: member.email, name: "Back Again", role: "admin" })
+			.expect(200);
+
+		const { member: row, password } = added.body.result.data;
+		expect(row.userId).toBe(member.id);
+		expect(row.role).toBe("admin");
+		expect(await db.user.count({ where: { email: member.email } })).toBe(1);
+		expect(
+			await db.user.findUniqueOrThrow({
+				where: { id: member.id },
+				select: { removedAt: true },
+			}),
+		).toEqual({ removedAt: null });
+
+		const again = await signIn(member.email, password);
+		expect(again.status).toBe(200);
+		expect(again.body.user?.id).toBe(member.id);
+		memberCookie = String(again.headers["set-cookie"]);
+
+		await request(app.getHttpServer())
+			.get("/api/trpc/workspace.get")
+			.set("Cookie", memberCookie)
+			.expect(200);
+		expect(
+			await db.contact.findUnique({
+				where: { id: contactId },
+				select: { ownerId: true },
+			}),
+		).toEqual({ ownerId: member.id });
+	});
+
+	it("still refuses to add an active person twice", async () => {
+		const response = await request(app.getHttpServer())
+			.post("/api/trpc/workspace.addPerson")
+			.set("Cookie", ownerCookie)
+			.send({ email: member.email, name: "Twice", role: "member" });
+
+		expect(response.status).toBe(400);
+		expect(response.body.error.message).toBe(
+			"That address already has an account.",
+		);
 	});
 });

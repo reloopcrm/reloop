@@ -82,8 +82,11 @@ here, what do we sell.
   revoked too, and in hosted mode the address entry in the registry's `tenant_sign_in`
   (`revokeTenantSignIn`); the shared domain entry stays. A removed user is left out of
   `users.list`, of the first enrolment in `ensureWorkspaceMembership`, and of the
-  mailbox sync (`dueWhere`), so their inbox stops feeding the CRM. `addPerson` does not
-  bring a removed person back: the address still has an account.
+  mailbox sync (`dueWhere`), so their inbox stops feeding the CRM. `addPerson` with the
+  address of a removed person takes them back: it clears `removedAt`, creates the member
+  row with the chosen role, sets a new password and grants the address again, locally
+  and in `tenant_sign_in` (`grantTenantSignIn`). No second `user` row, so their records
+  are theirs again. An active person still gets "That address already has an account."
 - **Reads and writes go through tRPC**, not `authClient.organization.*`. `accessGuard`
   refuses every mutating `/api/auth/organization/*` path (`isOrganizationWrite`), so
   the raw plugin endpoints cannot skip the last-owner count or overwrite the slug and

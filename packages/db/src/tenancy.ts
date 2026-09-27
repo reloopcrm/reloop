@@ -499,6 +499,17 @@ export async function activateTenant(
 	forgetTenant(id);
 }
 
+export async function grantTenantSignIn(
+	id: string,
+	address: string,
+): Promise<void> {
+	await registryPool().query(
+		"INSERT INTO tenant_sign_in (entry, tenant_id) VALUES ($1, $2) ON CONFLICT (entry) DO NOTHING",
+		[address.trim().toLowerCase(), id],
+	);
+	forgetTenant(id);
+}
+
 export async function revokeTenantSignIn(
 	id: string,
 	address: string,

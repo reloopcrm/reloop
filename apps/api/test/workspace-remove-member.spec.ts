@@ -1,7 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import type { Db } from "@crm/db";
+import { closeRegistry, type Tenant } from "@crm/db/tenancy";
+import { runAsTenant } from "@crm/db/tenant-context";
+import { PREPARE_TIMEOUT_MS, prepareTestTenants } from "@crm/db/test-tenants";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
+import pg from "pg";
 import request from "supertest";
 import { WorkspaceService } from "../src/workspace/workspace.service";
 
@@ -104,6 +108,97 @@ describe("removing a member: the rules", () => {
 
 		await service.removeMember("owner-user", { memberId: "target" });
 		expect(writes).toEqual(["member", "user", "session", "apikey"]);
+	});
+});
+
+describe("adding a person in hosted mode", () => {
+	const saved = {
+		registry: process.env.RELOOP_REGISTRY_URL,
+		template: process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE,
+	};
+	const address = `added-${crypto.randomUUID().slice(0, 8)}@example.com`;
+	let tenant: Tenant;
+	let registryUrl = "";
+
+	function hostedWorkspace() {
+		const tx = {
+			user: {
+				create: async () => ({ id: "added-user" }),
+			},
+			member: {
+				create: async () => ({
+					id: "added-member",
+					role: "member",
+					createdAt: new Date(0),
+					userId: "added-user",
+					user: { name: "Added", email: address, image: null },
+				}),
+			},
+			account: {
+				findFirst: async () => null,
+				create: async () => ({}),
+			},
+		};
+		const db = {
+			member: { findUnique: async () => ({ role: "owner" }) },
+			appSetting: {
+				findUnique: async () => ({ signInAddresses: [] }),
+				upsert: async () => ({}),
+			},
+			user: { findFirst: async () => null },
+			$transaction: async (run: (client: typeof tx) => Promise<unknown>) =>
+				run(tx),
+		} as unknown as Db;
+		return new WorkspaceService(db, undefined as never);
+	}
+
+	async function registryEntry() {
+		const registry = new pg.Client({ connectionString: registryUrl });
+		await registry.connect();
+		try {
+			const result = await registry.query(
+				"SELECT tenant_id FROM tenant_sign_in WHERE entry = $1",
+				[address],
+			);
+			return result.rows.map((row: { tenant_id: string }) => row.tenant_id);
+		} finally {
+			await registry.end();
+		}
+	}
+
+	beforeAll(async () => {
+		({ a: tenant, registryUrl } = await prepareTestTenants());
+	}, PREPARE_TIMEOUT_MS);
+
+	afterAll(async () => {
+		const registry = new pg.Client({ connectionString: registryUrl });
+		await registry.connect();
+		await registry.query("DELETE FROM tenant_sign_in WHERE entry = $1", [
+			address,
+		]);
+		await registry.end();
+		await closeRegistry();
+		for (const [key, value] of [
+			["RELOOP_REGISTRY_URL", saved.registry],
+			["RELOOP_TENANT_DATABASE_URL_TEMPLATE", saved.template],
+		] as const) {
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
+	});
+
+	it("writes the address of a new person to this tenant's sign-in list", async () => {
+		expect(await registryEntry()).toEqual([]);
+
+		await runAsTenant(tenant, () =>
+			hostedWorkspace().addPerson(
+				"owner-user",
+				{ email: address, name: "Added", role: "member" },
+				{ createdAt: new Date(), token: "fresh-session" },
+			),
+		);
+
+		expect(await registryEntry()).toEqual([tenant.id]);
 	});
 });
 

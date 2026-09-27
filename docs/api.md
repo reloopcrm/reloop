@@ -85,8 +85,11 @@ here, what do we sell.
   mailbox sync (`dueWhere`), so their inbox stops feeding the CRM. `addPerson` with the
   address of a removed person takes them back: it clears `removedAt`, creates the member
   row with the chosen role, sets a new password and grants the address again, locally
-  and in `tenant_sign_in` (`grantTenantSignIn`). No second `user` row, so their records
+  and in `tenant_sign_in`. No second `user` row, so their records
   are theirs again. An active person still gets "That address already has an account."
+  Every `addPerson` in hosted mode writes the address to `tenant_sign_in` for the
+  current tenant (`grantTenantSignIn`, `ON CONFLICT DO NOTHING`), so a person whose
+  domain is not registered still finds the workspace at sign-in.
 - **Reads and writes go through tRPC**, not `authClient.organization.*`. `accessGuard`
   refuses every mutating `/api/auth/organization/*` path (`isOrganizationWrite`), so
   the raw plugin endpoints cannot skip the last-owner count or overwrite the slug and

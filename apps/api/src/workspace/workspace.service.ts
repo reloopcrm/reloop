@@ -422,7 +422,7 @@ export class WorkspaceService {
 			return row;
 		});
 
-		if (taken) await this.updateTenantSignIn(input.email, grantTenantSignIn);
+		await this.updateTenantSignIn(input.email, grantTenantSignIn);
 
 		this.logger.log({
 			message: taken ? "Removed person added again" : "Person added",

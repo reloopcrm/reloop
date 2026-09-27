@@ -1,6 +1,7 @@
 import {
 	canAssignRole,
 	canChangeRole,
+	canRemoveMember,
 	canRenameWorkspace,
 	ensureWorkspaceMembership,
 	generatePassword,
@@ -8,6 +9,7 @@ import {
 	hashPassword,
 	isPasswordSignInConfigured,
 	isWorkspaceRole,
+	revokeSignIn,
 	WORKSPACE_ID,
 	type WorkspaceRole,
 	workspaceRoleOf,
@@ -18,6 +20,8 @@ import {
 	type PasswordSession,
 } from "@crm/auth/password-rules";
 import type { Db, Prisma } from "@crm/db";
+import { grantTenantSignIn, revokeTenantSignIn } from "@crm/db/tenancy";
+import { currentTenantId } from "@crm/db/tenant-context";
 import { isOnboarded, markOnboarded, workspaceSlug } from "@crm/db/workspace";
 import {
 	BadRequestException,
@@ -41,6 +45,8 @@ import type {
 	AddedPerson,
 	AddPersonInput,
 	MemberListInput,
+	RemovedMember,
+	RemoveMemberInput,
 	SetMemberRoleInput,
 	UpdateWorkspaceInput,
 	Workspace,
@@ -244,6 +250,97 @@ export class WorkspaceService {
 		return this.toMember(updated, userId);
 	}
 
+	async removeMember(
+		userId: string,
+		input: RemoveMemberInput,
+	): Promise<RemovedMember> {
+		const role = await workspaceRoleOf(userId, this.db);
+
+		if (!canChangeRole(role)) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can remove a member.",
+			);
+		}
+
+		const removed = await this.db.$transaction(async (tx) => {
+			const target = await tx.member.findFirst({
+				where: { id: input.memberId, organizationId: WORKSPACE_ID },
+				select: {
+					id: true,
+					role: true,
+					userId: true,
+					user: { select: { email: true } },
+				},
+			});
+
+			if (!target) {
+				throw new NotFoundException("That person is not in this workspace.");
+			}
+
+			if (target.userId === userId) {
+				throw new ForbiddenException(
+					"You cannot remove yourself from the workspace.",
+				);
+			}
+
+			if (!canRemoveMember(role, toRole(target.role))) {
+				throw new ForbiddenException("Only an owner can remove an owner.");
+			}
+
+			if (target.role === "owner") {
+				const owners = await tx.$queryRaw<{ id: string }[]>`
+					SELECT id FROM "member"
+					WHERE "organizationId" = ${WORKSPACE_ID} AND role = 'owner'
+					FOR UPDATE
+				`;
+
+				if (owners.length <= 1) {
+					throw new ForbiddenException(
+						"The workspace needs an owner. Make someone else an owner first.",
+					);
+				}
+			}
+
+			await tx.member.delete({ where: { id: target.id } });
+			await tx.user.update({
+				where: { id: target.userId },
+				data: { removedAt: new Date() },
+			});
+			await tx.session.deleteMany({ where: { userId: target.userId } });
+			await tx.apikey.deleteMany({ where: { referenceId: target.userId } });
+
+			return target;
+		});
+
+		await revokeSignIn(this.db, removed.user.email);
+		await this.updateTenantSignIn(removed.user.email, revokeTenantSignIn);
+
+		this.logger.log({
+			message: "Member removed",
+			userId,
+			memberId: removed.id,
+		});
+
+		return { memberId: removed.id };
+	}
+
+	private async updateTenantSignIn(
+		email: string,
+		update: (tenantId: string, address: string) => Promise<void>,
+	): Promise<void> {
+		const tenantId = currentTenantId();
+		if (!tenantId) return;
+
+		try {
+			await update(tenantId, email);
+		} catch (error) {
+			this.logger.error(
+				{ message: "Registry sign-in not updated", tenantId },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
+	}
+
 	async addPerson(
 		userId: string,
 		input: AddPersonInput,
@@ -281,10 +378,10 @@ export class WorkspaceService {
 
 		const taken = await this.db.user.findFirst({
 			where: { email: input.email },
-			select: { id: true },
+			select: { id: true, removedAt: true },
 		});
 
-		if (taken) {
+		if (taken && !taken.removedAt) {
 			throw new BadRequestException("That address already has an account.");
 		}
 
@@ -292,35 +389,43 @@ export class WorkspaceService {
 		const hash = await hashPassword(password);
 
 		const member = await this.db.$transaction(async (tx) => {
-			const created = await tx.user.create({
-				data: {
-					id: crypto.randomUUID(),
-					email: input.email,
-					name: input.name,
-					emailVerified: true,
-					updatedAt: new Date(),
-				},
-				select: { id: true },
-			});
+			const person = taken
+				? await tx.user.update({
+						where: { id: taken.id },
+						data: { removedAt: null },
+						select: { id: true },
+					})
+				: await tx.user.create({
+						data: {
+							id: crypto.randomUUID(),
+							email: input.email,
+							name: input.name,
+							emailVerified: true,
+							updatedAt: new Date(),
+						},
+						select: { id: true },
+					});
 
 			const row = await tx.member.create({
 				data: {
 					id: crypto.randomUUID(),
 					organizationId: WORKSPACE_ID,
-					userId: created.id,
+					userId: person.id,
 					role: input.role,
 					createdAt: new Date(),
 				},
 				select: MEMBER_SELECT,
 			});
 
-			await writeCredentialAccount(tx, created.id, hash);
+			await writeCredentialAccount(tx, person.id, hash);
 
 			return row;
 		});
 
+		await this.updateTenantSignIn(input.email, grantTenantSignIn);
+
 		this.logger.log({
-			message: "Person added",
+			message: taken ? "Removed person added again" : "Person added",
 			userId,
 			memberId: member.id,
 			role: input.role,

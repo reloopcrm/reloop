@@ -28,6 +28,12 @@ export const setMemberRoleInput = z.object({
 	role: z.enum(WORKSPACE_ROLES),
 });
 
+export const removeMemberInput = z.object({
+	memberId: z.string().min(1),
+});
+
+export const removedMemberOutput = z.object({ memberId: z.string() });
+
 export const addPersonInput = z.object({
 	email: z
 		.string()
@@ -42,6 +48,8 @@ export const addPersonInput = z.object({
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceInput>;
 export type SetMemberRoleInput = z.infer<typeof setMemberRoleInput>;
 export type AddPersonInput = z.infer<typeof addPersonInput>;
+export type RemoveMemberInput = z.infer<typeof removeMemberInput>;
+export type RemovedMember = z.infer<typeof removedMemberOutput>;
 
 export const workspaceOutput = z.object({
 	id: z.string(),

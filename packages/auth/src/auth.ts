@@ -297,9 +297,9 @@ export const auth = betterAuth({
 				before: async (session) => {
 					const user = await db.user.findUnique({
 						where: { id: session.userId },
-						select: { email: true },
+						select: { email: true, removedAt: true },
 					});
-					if (!user || !(await isSignInAllowed(user.email))) {
+					if (!user || user.removedAt || !(await isSignInAllowed(user.email))) {
 						throw new APIError("FORBIDDEN", {
 							message: "This account no longer has access to this CRM.",
 						});

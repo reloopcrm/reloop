@@ -272,5 +272,8 @@
 	"The confirmation takes longer than usual.": "确认时间比平时长。",
 	"Your payment is safe. The plan shows under Plan & billing as soon as Stripe confirms it.": "你的付款是安全的。Stripe 确认后，套餐会显示在“套餐与账单”中。",
 	"We are confirming your payment.": "我们正在确认你的付款。",
-	"Stripe told us you paid. The plan shows here in a moment.": "Stripe 已通知我们你已付款。套餐稍后会显示在这里。"
+	"Stripe told us you paid. The plan shows here in a moment.": "Stripe 已通知我们你已付款。套餐稍后会显示在这里。",
+	"Only an owner or an admin can remove a member.": "只有所有者或管理员能移除成员。",
+	"You cannot remove yourself from the workspace.": "你不能把自己移出工作区。",
+	"Only an owner can remove an owner.": "只有所有者能移除所有者。"
 }

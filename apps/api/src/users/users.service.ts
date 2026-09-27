@@ -45,6 +45,7 @@ export class UsersService {
 
 	async list(): Promise<UserOption[]> {
 		return this.db.user.findMany({
+			where: { removedAt: null },
 			select: { id: true, name: true, email: true, image: true },
 			orderBy: [{ name: "asc" }, { email: "asc" }],
 		});

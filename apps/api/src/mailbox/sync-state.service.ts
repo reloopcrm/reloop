@@ -263,6 +263,7 @@ export class SyncStateService {
 function dueWhere(now: Date) {
 	return {
 		status: { notIn: [GoogleSyncStatus.NEEDS_RECONNECT] },
+		user: { removedAt: null },
 		OR: [{ retryAfter: null }, { retryAfter: { lte: now } }],
 	};
 }

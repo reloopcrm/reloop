@@ -474,5 +474,9 @@
 	"Saving restarts the app for everybody. It is unreachable for a few seconds.": "保存会为所有人重启应用。它会有几秒钟无法访问。",
 	"The mailbox history is imported. Every conversation is in.": "邮箱历史已导入。每一段对话都在里面了。",
 	"{percent}% done": "已完成 {percent}%",
-	"Import progress": "导入进度"
+	"Import progress": "导入进度",
+	"Remove from workspace": "移出工作区",
+	"Removed from the workspace.": "已移出工作区。",
+	"Remove {name} from the workspace?": "把 {name} 移出工作区？",
+	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "对方会立即退出登录，且无法再次登录。其联系人、交易和活动会保留。"
 }

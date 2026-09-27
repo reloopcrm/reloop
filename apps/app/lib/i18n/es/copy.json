@@ -272,5 +272,8 @@
 	"The confirmation takes longer than usual.": "La confirmación tarda más de lo habitual.",
 	"Your payment is safe. The plan shows under Plan & billing as soon as Stripe confirms it.": "Tu pago está a salvo. El plan aparece en Plan y facturación en cuanto Stripe lo confirme.",
 	"We are confirming your payment.": "Estamos confirmando tu pago.",
-	"Stripe told us you paid. The plan shows here in a moment.": "Stripe nos avisó de tu pago. El plan aparece aquí en un momento."
+	"Stripe told us you paid. The plan shows here in a moment.": "Stripe nos avisó de tu pago. El plan aparece aquí en un momento.",
+	"Only an owner or an admin can remove a member.": "Solo un propietario o un administrador puede quitar a un miembro.",
+	"You cannot remove yourself from the workspace.": "No puedes quitarte a ti mismo del espacio de trabajo.",
+	"Only an owner can remove an owner.": "Solo un propietario puede quitar a un propietario."
 }

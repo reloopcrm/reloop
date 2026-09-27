@@ -38,15 +38,13 @@ export default async function ImprintPage() {
 				<Prose>
 					<dl className="flex w-full flex-col gap-6 rounded-lg border border-border bg-card p-6 text-base">
 						<div className="flex flex-col gap-1">
-							<dt className="font-mono text-[11px]/4 text-muted-foreground tracking-widest">
-								{t("Name")}
-							</dt>
+							<dt className="text-muted-foreground text-xs/5">{t("Name")}</dt>
 							<dd className="text-foreground">{imprint.name}</dd>
 						</div>
 
 						{imprint.business ? (
 							<div className="flex flex-col gap-1">
-								<dt className="font-mono text-[11px]/4 text-muted-foreground tracking-widest">
+								<dt className="text-muted-foreground text-xs/5">
 									{t("Business")}
 								</dt>
 								<dd className="text-foreground">{imprint.business}</dd>
@@ -55,7 +53,7 @@ export default async function ImprintPage() {
 
 						{imprint.addressLines.length > 0 ? (
 							<div className="flex flex-col gap-1">
-								<dt className="font-mono text-[11px]/4 text-muted-foreground tracking-widest">
+								<dt className="text-muted-foreground text-xs/5">
 									{t("Address")}
 								</dt>
 								<dd className="text-foreground">
@@ -70,7 +68,7 @@ export default async function ImprintPage() {
 
 						{imprint.email ? (
 							<div className="flex flex-col gap-1">
-								<dt className="font-mono text-[11px]/4 text-muted-foreground tracking-widest">
+								<dt className="text-muted-foreground text-xs/5">
 									{t("Email")}
 								</dt>
 								<dd className="text-foreground">
@@ -83,7 +81,7 @@ export default async function ImprintPage() {
 
 						{imprint.phone ? (
 							<div className="flex flex-col gap-1">
-								<dt className="font-mono text-[11px]/4 text-muted-foreground tracking-widest">
+								<dt className="text-muted-foreground text-xs/5">
 									{t("Phone")}
 								</dt>
 								<dd className="text-foreground">{imprint.phone}</dd>
@@ -92,7 +90,7 @@ export default async function ImprintPage() {
 
 						{imprint.vatId ? (
 							<div className="flex flex-col gap-1">
-								<dt className="font-mono text-[11px]/4 text-muted-foreground tracking-widest">
+								<dt className="text-muted-foreground text-xs/5">
 									{t("VAT ID")}
 								</dt>
 								<dd className="text-foreground">{imprint.vatId}</dd>

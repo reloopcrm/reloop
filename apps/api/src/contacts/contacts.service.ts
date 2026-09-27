@@ -125,7 +125,7 @@ const FACT_COLUMNS: FactColumns = {
 };
 
 const SORTABLE: OrderByColumns<Prisma.ContactOrderByWithRelationInput[]> = {
-	name: (dir) => [{ lastName: dir }, { firstName: dir }],
+	name: (dir) => [{ firstName: dir }, { lastName: dir }],
 	email: (dir) => [{ email: dir }],
 	title: (dir) => [{ title: dir }, { lastName: "asc" }],
 	company: (dir) => [{ company: { name: dir } }, { lastName: "asc" }],

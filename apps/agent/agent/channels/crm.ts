@@ -82,6 +82,15 @@ export function taskToken(taskId: string): string {
 	return `${TASK_MARKER}${taskId}`;
 }
 
+export function taskSession<Auth>(taskId: string, auth: Auth) {
+	return {
+		auth,
+		continuationToken: taskToken(taskId),
+		mode: "task" as const,
+		state: channelState(),
+	};
+}
+
 export function taskFromToken(token: string | undefined): string | null {
 	if (!token) return null;
 
@@ -201,7 +210,8 @@ const events = {
 			);
 
 			if (taskId) {
-				const subject = await taskSubject(taskId);
+				const subject =
+					(await completeTask(taskId, "failed")) ?? (await taskSubject(taskId));
 				if (subject) await settle(subject, EnrichmentStatus.FAILED, reason);
 				return;
 			}
@@ -368,11 +378,7 @@ export default defineChannel<CrmChannelState, CrmChannelContext>({
 					async () => {
 						await reconcileStaleTasks();
 						await drainAll((task) =>
-							send(brief(task), {
-								auth: taskAuth(task),
-								continuationToken: taskToken(task.id),
-								state: channelState(),
-							}),
+							send(brief(task), taskSession(task.id, taskAuth(task))),
 						);
 						await drainAgentRuns(send);
 					},
@@ -490,11 +496,13 @@ export default defineChannel<CrmChannelState, CrmChannelContext>({
 				return dispatchAgentRun(target.runId, send);
 			}
 
+			if (target.taskId) {
+				return send(input.message, taskSession(target.taskId, input.auth));
+			}
+
 			return send(input.message, {
 				auth: input.auth,
-				continuationToken: target.taskId
-					? taskToken(target.taskId)
-					: `crm:adhoc:${crypto.randomUUID()}`,
+				continuationToken: `crm:adhoc:${crypto.randomUUID()}`,
 				state: channelState(),
 			});
 		});

@@ -861,7 +861,7 @@ async function sweepOnce(
 export function brief(task: LeasedTask): string {
 	const again =
 		task.attempts > 1
-			? `This is attempt ${task.attempts}; the earlier one did not finish. Carry on from what is already in this thread rather than starting again. `
+			? `This is attempt ${task.attempts}; the earlier one did not finish, and this session starts without its history. Whatever it saved is already in the CRM, so read the record before you research, and do not record anything that is already there. `
 			: "";
 
 	return again + work(task.kind, task.reason, task.payload);

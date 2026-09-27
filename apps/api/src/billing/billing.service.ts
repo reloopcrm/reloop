@@ -82,12 +82,9 @@ const expandableId = z.union([
 	z.object({ id: z.string() }).transform((object) => object.id),
 ]);
 
-function isMissing(error: unknown): boolean {
-	return (
-		error instanceof Stripe.errors.StripeError &&
-		error.code === BILLING.stripe.missingCode
-	);
-}
+const missingStripeObject = z
+	.instanceof(Stripe.errors.StripeError)
+	.refine((error) => error.code === BILLING.stripe.missingCode);
 
 function idOf(
 	value: string | { id: string } | null | undefined,
@@ -970,7 +967,7 @@ export class BillingService {
 			});
 			return { url: session.url };
 		} catch (error) {
-			if (!isMissing(error)) throw error;
+			if (!missingStripeObject.safeParse(error).success) throw error;
 			throw new BadRequestException(
 				"No active subscription was found. Choose a plan to start one.",
 			);
@@ -1405,7 +1402,7 @@ export class BillingService {
 			const customer = await this.requireStripe().customers.retrieve(id);
 			return !customer.deleted;
 		} catch (error) {
-			if (isMissing(error)) return false;
+			if (missingStripeObject.safeParse(error).success) return false;
 			throw error;
 		}
 	}
@@ -1621,7 +1618,7 @@ export class BillingService {
 				expand: ["default_payment_method"],
 			});
 		} catch (error) {
-			if (isMissing(error)) return null;
+			if (missingStripeObject.safeParse(error).success) return null;
 			throw error;
 		}
 		return subscription.status === "canceled" ||

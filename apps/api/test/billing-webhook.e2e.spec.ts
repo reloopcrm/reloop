@@ -1203,11 +1203,11 @@ describe("a Stripe id that Stripe no longer has", () => {
 			for (const action of actions) {
 				const error = await onTenant(action).then(
 					() => null,
-					(failure: unknown) => failure,
+					(failure: BadRequestException) => failure,
 				);
 				expect(error).toBeInstanceOf(BadRequestException);
-				expect((error as BadRequestException).getStatus()).toBe(400);
-				expect((error as BadRequestException).message).toBe(NO_SUBSCRIPTION);
+				expect(error?.getStatus()).toBe(400);
+				expect(error?.message).toBe(NO_SUBSCRIPTION);
 			}
 			const started = await onTenant(() =>
 				billing.checkout(OWNER.id, { plan: "standard", interval: "month" }),

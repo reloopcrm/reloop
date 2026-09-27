@@ -985,20 +985,6 @@ export class ContactsService {
 		return { contactId: fact.contactId, field: fact.field, applied: accepted };
 	}
 
-	private searchFilter(q: string): Prisma.ContactWhereInput {
-		const term = q.trim();
-		if (!term) return {};
-
-		return {
-			OR: [
-				{ firstName: { contains: term, mode: "insensitive" } },
-				{ lastName: { contains: term, mode: "insensitive" } },
-				{ email: { contains: term, mode: "insensitive" } },
-				{ company: { name: { contains: term, mode: "insensitive" } } },
-			],
-		};
-	}
-
 	private companyFilter(
 		values: string[],
 	): Prisma.ContactWhereInput | undefined {
@@ -1015,7 +1001,7 @@ export class ContactsService {
 		filterableFields: FieldDefinitionWithOptions[],
 	): Prisma.ContactWhereInput {
 		const and: Prisma.ContactWhereInput[] = [
-			this.searchFilter(input.q),
+			contactSearchFilter(input.q),
 			archivedFilter(input.archived),
 			...this.fields.fieldFilters(filterableFields, input.fields),
 		];
@@ -1052,7 +1038,7 @@ export class ContactsService {
 		filterableFields: FieldDefinitionWithOptions[],
 	) {
 		const where = {
-			AND: [this.searchFilter(input.q), archivedFilter(input.archived)],
+			AND: [contactSearchFilter(input.q), archivedFilter(input.archived)],
 		};
 
 		const [
@@ -1152,4 +1138,20 @@ function nameOf(contact: {
 	lastName: string | null;
 }): string {
 	return [contact.firstName, contact.lastName].filter(Boolean).join(" ");
+}
+
+export function contactSearchFilter(q: string): Prisma.ContactWhereInput {
+	const words = q.trim().split(/\s+/).filter(Boolean);
+	if (words.length === 0) return {};
+
+	return {
+		AND: words.map((term) => ({
+			OR: [
+				{ firstName: { contains: term, mode: "insensitive" } },
+				{ lastName: { contains: term, mode: "insensitive" } },
+				{ email: { contains: term, mode: "insensitive" } },
+				{ company: { name: { contains: term, mode: "insensitive" } } },
+			],
+		})),
+	};
 }

@@ -477,5 +477,16 @@
 	"No contact email is set for this installation. Use the issue tracker above for anything that does not belong in a public issue.": "Aucune adresse de contact n'est définie pour cette installation. Utilise le suivi des tickets ci dessus pour tout ce qui n'a pas sa place dans un ticket public.",
 	"Report a security problem through the repository instead of a public issue. Describe the problem and how to reproduce it.": "Signale un problème de sécurité via le dépôt plutôt que par un ticket public. Décris le problème et comment le reproduire.",
 	"No postal address is set for this installation.": "Aucune adresse postale n'est définie pour cette installation.",
-	"Write to {email} with any question about your data.": "Écris à {email} pour toute question sur tes données."
+	"Write to {email} with any question about your data.": "Écris à {email} pour toute question sur tes données.",
+	"Re: Your quote": "Re: Devis",
+	"Invoice": "Facture",
+	"Quick question": "Petite question",
+	"Inquiry": "Demande",
+	"Re: Order": "Re: Commande",
+	"Meeting next week": "Rendez-vous la semaine prochaine",
+	"Price list": "Liste de prix",
+	"Following up on the offer": "Suite à l'offre",
+	"Call first": "À appeler en premier",
+	"old customers. Worth a call.": "anciens clients. Ils valent un appel.",
+	"Open source under the AGPL.": "Open source sous licence AGPL."
 }

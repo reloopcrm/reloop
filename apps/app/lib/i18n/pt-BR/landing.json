@@ -477,5 +477,16 @@
 	"No contact email is set for this installation. Use the issue tracker above for anything that does not belong in a public issue.": "Nenhum e-mail de contato está configurado para esta instalação. Use o rastreador de issues acima para qualquer coisa que não caiba em uma issue pública.",
 	"Report a security problem through the repository instead of a public issue. Describe the problem and how to reproduce it.": "Reporte um problema de segurança pelo repositório em vez de uma issue pública. Descreva o problema e como reproduzir.",
 	"No postal address is set for this installation.": "Nenhum endereço postal está configurado para esta instalação.",
-	"Write to {email} with any question about your data.": "Escreva para {email} com qualquer dúvida sobre seus dados."
+	"Write to {email} with any question about your data.": "Escreva para {email} com qualquer dúvida sobre seus dados.",
+	"Re: Your quote": "Re: Orçamento",
+	"Invoice": "Fatura",
+	"Quick question": "Uma pergunta rápida",
+	"Inquiry": "Consulta",
+	"Re: Order": "Re: Pedido",
+	"Meeting next week": "Reunião na próxima semana",
+	"Price list": "Lista de preços",
+	"Following up on the offer": "Sobre a proposta",
+	"Call first": "Ligar primeiro",
+	"old customers. Worth a call.": "clientes antigos. Valem uma ligação.",
+	"Open source under the AGPL.": "Código aberto sob a AGPL."
 }

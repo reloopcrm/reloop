@@ -25,6 +25,7 @@ export const PROXY = {
 		"/win-back-customers",
 		"/get-started",
 		"/pricing",
+		"/test/3d",
 	],
 	hosted: ["/get-started"],
 	cloudOnly: ["/sign-in", "/get-started"],

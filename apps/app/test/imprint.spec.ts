@@ -114,6 +114,36 @@ describe("the imprint page", () => {
 	});
 });
 
+describe("privacy and contact", () => {
+	const root = join(import.meta.dir, "..");
+
+	it("carry the noindex metadata, since they can show the operator's name", async () => {
+		for (const file of [
+			"app/(landing)/privacy/page.tsx",
+			"app/(landing)/contact/page.tsx",
+		]) {
+			const source = await readFile(join(root, file), "utf8");
+			expect(source, file).toContain("robots: IMPRINT_ROBOTS");
+		}
+	});
+
+	it("stay out of the sitemap, noindex or not", () => {
+		const urls = sitemap().map((entry) => entry.url);
+		expect(urls.some((url) => url.endsWith("/privacy"))).toBe(false);
+		expect(urls.some((url) => url.endsWith("/contact"))).toBe(false);
+	});
+
+	it("hold no {{placeholder}} anywhere in their source", async () => {
+		for (const file of [
+			"app/(landing)/privacy/page.tsx",
+			"app/(landing)/contact/page.tsx",
+		]) {
+			const source = await readFile(join(root, file), "utf8");
+			expect(source, file).not.toContain("{{");
+		}
+	});
+});
+
 describe("the footer link", () => {
 	it("only appears once an imprint is configured", async () => {
 		const source = await readFile(

@@ -1,7 +1,9 @@
 import type { MetadataRoute } from "next";
+import { connection } from "next/server";
 import { siteAddress } from "@/lib/site-address";
 
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+	await connection();
 	const site = siteAddress();
 
 	return {

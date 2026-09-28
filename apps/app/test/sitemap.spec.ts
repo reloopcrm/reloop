@@ -32,4 +32,9 @@ describe("sitemap.xml", () => {
 		expect(paths()).not.toContain("/get-started");
 		expect(paths()).toContain("/pricing");
 	});
+
+	it("leaves privacy and contact out, since they can carry an operator's name", () => {
+		expect(paths()).not.toContain("/privacy");
+		expect(paths()).not.toContain("/contact");
+	});
 });

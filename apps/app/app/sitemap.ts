@@ -11,8 +11,6 @@ const PAGES = [
 	"/docs",
 	"/open-source",
 	"/about",
-	"/contact",
-	"/privacy",
 	"/open-source-crm",
 	"/self-hosted-crm",
 	"/vs/hubspot",

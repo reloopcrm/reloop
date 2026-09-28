@@ -477,16 +477,5 @@
 	"No contact email is set for this installation. Use the issue tracker above for anything that does not belong in a public issue.": "Bu kurulum için bir iletişim e-postası ayarlanmamış. Herkese açık bir soruna ait olmayan her şey için yukarıdaki sorun takipçisini kullan.",
 	"Report a security problem through the repository instead of a public issue. Describe the problem and how to reproduce it.": "Bir güvenlik sorununu herkese açık bir sorun yerine depo üzerinden bildir. Sorunu ve nasıl yeniden üretileceğini anlat.",
 	"No postal address is set for this installation.": "Bu kurulum için bir posta adresi ayarlanmamış.",
-	"Write to {email} with any question about your data.": "Verilerinle ilgili her soru için {email} adresine yaz.",
-	"Re: Your quote": "Re: Teklif",
-	"Invoice": "Fatura",
-	"Quick question": "Kısa bir soru",
-	"Inquiry": "Talep",
-	"Re: Order": "Re: Sipariş",
-	"Meeting next week": "Gelecek hafta toplantı",
-	"Price list": "Fiyat listesi",
-	"Following up on the offer": "Teklif hakkında",
-	"Call first": "Önce ara",
-	"old customers. Worth a call.": "eski müşteri. Bir aramaya değer.",
-	"Open source under the AGPL.": "AGPL lisanslı açık kaynak."
+	"Write to {email} with any question about your data.": "Verilerinle ilgili her soru için {email} adresine yaz."
 }

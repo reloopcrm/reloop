@@ -184,6 +184,59 @@ if (process.env.PUBLIC_PAGES_RENDER) {
 			);
 		});
 	}
+
+	const IMPRINT_KEYS = [
+		"RELOOP_IMPRINT_NAME",
+		"RELOOP_IMPRINT_BUSINESS",
+		"RELOOP_IMPRINT_ADDRESS",
+		"RELOOP_IMPRINT_EMAIL",
+		"RELOOP_IMPRINT_VAT_ID",
+		"RELOOP_IMPRINT_PHONE",
+	] as const;
+
+	function clearImprintEnv(): void {
+		for (const key of IMPRINT_KEYS) delete process.env[key];
+	}
+
+	const LEGAL_PAGES = [
+		{
+			path: "/privacy",
+			expected: ["Max Mustermann", "Beispiel GmbH", "Musterstraße 1"],
+		},
+		{
+			path: "/contact",
+			expected: ["Beispiel GmbH", "Musterstraße 1", "12345 Musterstadt"],
+		},
+	] as const;
+
+	for (const page of LEGAL_PAGES) {
+		const file = `app/(landing)${page.path}/page.tsx`;
+
+		it(`${page.path} shows no placeholder without a configured imprint`, async () => {
+			clearImprintEnv();
+			const module = (await import(`${root}${file}`)) as PageModule;
+			const html = await render(createElement(module.default, pageProps()));
+
+			expect(html).not.toContain("{{");
+		});
+
+		it(`${page.path} shows the configured name, address and email`, async () => {
+			clearImprintEnv();
+			process.env.RELOOP_IMPRINT_NAME = "Max Mustermann";
+			process.env.RELOOP_IMPRINT_BUSINESS = "Beispiel GmbH";
+			process.env.RELOOP_IMPRINT_ADDRESS = "Musterstraße 1;12345 Musterstadt";
+			process.env.RELOOP_IMPRINT_EMAIL = "info@example.com";
+
+			const module = (await import(`${root}${file}`)) as PageModule;
+			const html = await render(createElement(module.default, pageProps()));
+
+			expect(html).not.toContain("{{");
+			for (const text of page.expected) expect(html).toContain(text);
+			expect(html).toContain("info@example.com");
+
+			clearImprintEnv();
+		});
+	}
 } else {
 	it.skip("renders every public page under the German locale", () => {});
 }

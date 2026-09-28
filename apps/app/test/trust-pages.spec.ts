@@ -101,11 +101,12 @@ describe("the trust anchor pages", () => {
 		}
 	});
 
-	it("stand in the sitemap", async () => {
+	it("stand in the sitemap, except the ones that carry noindex", async () => {
 		const source = await Bun.file(`${root}app/sitemap.ts`).text();
 
-		for (const page of TRUST_PAGES)
-			expect(source, page.path).toContain(`"${page.path}"`);
+		expect(source).toContain('"/about"');
+		expect(source).not.toContain('"/contact"');
+		expect(source).not.toContain('"/privacy"');
 	});
 
 	it("are linked from the site footer", async () => {

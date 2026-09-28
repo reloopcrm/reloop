@@ -162,7 +162,7 @@ reading pages, `llms.txt` and the sitemap. Every other host is the app as before
   proxy, per request. Declared in `apps/app/turbo.json` `passThroughEnv` and
   passed by `deploy/cloud/docker-compose.cloud.yml`.
 
-## `RELOOP_IMPRINT_*`, the public `/imprint` page, off by default
+## `RELOOP_IMPRINT_*`, the public `/imprint`, `/privacy` and `/contact` pages, off by default
 
 Six optional variables: `RELOOP_IMPRINT_NAME`, `RELOOP_IMPRINT_BUSINESS`,
 `RELOOP_IMPRINT_ADDRESS`, `RELOOP_IMPRINT_EMAIL`, `RELOOP_IMPRINT_VAT_ID`,
@@ -175,13 +175,18 @@ they come from the server's own environment instead of a file anyone can read.
   Zod the same way `organisationEntry()` reads the `ORG_*` block.
 - **`RELOOP_IMPRINT_ADDRESS` holds one or more lines**, separated by `;` (the
   only separator a single `.env` line allows) or by a real newline.
+- **`/privacy` and `/contact` read the same `getImprint()` and fall back to a
+  neutral sentence, never a `{{placeholder}}`,** when nothing is configured.
 - **Listed in `apps/app/lib/proxy-config.ts` `PROXY.marketing`**, the same list
-  as `/about`, `/contact` and `/privacy`: reachable only when `IS_MARKETING` or
-  `RELOOP_MARKETING_HOST` says this is the public site. Declared in
-  `apps/app/turbo.json` `passThroughEnv`.
-- **The page carries `robots: { index: false, follow: true }`** and is left out
-  of `sitemap.ts` on purpose, so it stays reachable without appearing in search
-  results.
+  as `/about`: reachable only when `IS_MARKETING` or `RELOOP_MARKETING_HOST`
+  says this is the public site. Declared in `apps/app/turbo.json`
+  `passThroughEnv`, and passed through to the `app` service's `environment` in
+  `deploy/docker-compose.yml` the same way as `RELOOP_SITE_URL` and
+  `RELOOP_PLANS`.
+- **`/imprint`, `/privacy` and `/contact` all carry
+  `robots: { index: false, follow: true }`** and are left out of `sitemap.ts`
+  on purpose, since any of the three can show the operator's name, so they stay
+  reachable without appearing in search results.
 - **Separate from the `ORG_*` block above.** `ORG_*` feeds the invisible
   Organization JSON-LD; `RELOOP_IMPRINT_*` renders a page a visitor reads. They
   are not kept in sync with each other.

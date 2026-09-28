@@ -8,18 +8,7 @@ import {
 	ProseHeading,
 } from "@/components/landing/page-blocks";
 import { getT } from "@/lib/i18n/server";
-
-const PLACEHOLDER = {
-	entity: "{{LEGAL_ENTITY}}",
-	controller: "{{DATA_CONTROLLER}}",
-	address: "{{POSTAL_ADDRESS}}",
-	email: "{{PRIVACY_EMAIL}}",
-	hosting: "{{HOSTING_PROVIDER}}",
-	processors: "{{PROCESSORS}}",
-	retention: "{{RETENTION_PERIOD}}",
-	authority: "{{SUPERVISORY_AUTHORITY}}",
-	effectiveDate: "{{EFFECTIVE_DATE}}",
-} as const;
+import { getImprint, IMPRINT_ROBOTS } from "@/lib/imprint";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -28,11 +17,23 @@ export async function generateMetadata(): Promise<Metadata> {
 		description: t(
 			"What this website collects, what a Reloop CRM install collects, and how to switch it off.",
 		),
+		robots: IMPRINT_ROBOTS,
 	};
 }
 
 export default async function PrivacyPage() {
 	const t = await getT();
+	const imprint = getImprint();
+	const controllerName = imprint
+		? imprint.business
+			? `${imprint.name}, ${imprint.business}`
+			: imprint.name
+		: t("the operator of this installation");
+	const controllerAddress =
+		imprint && imprint.addressLines.length > 0
+			? imprint.addressLines.join(", ")
+			: null;
+	const controllerEmail = imprint?.email ?? null;
 
 	return (
 		<LandingShell>
@@ -56,15 +57,27 @@ export default async function PrivacyPage() {
 					<ProseHeading>{t("Who is responsible")}</ProseHeading>
 
 					<p>
-						{t(
-							"The controller for this website is {controller}, part of {entity}, {address}. Write to {email} with any question about your data.",
-							{
-								controller: PLACEHOLDER.controller,
-								entity: PLACEHOLDER.entity,
-								address: PLACEHOLDER.address,
-								email: PLACEHOLDER.email,
-							},
-						)}
+						{t("The controller for this website is {controller}.", {
+							controller: controllerName,
+						})}
+					</p>
+
+					{controllerAddress ? (
+						<p>
+							{t("You can reach the controller by post at {address}.", {
+								address: controllerAddress,
+							})}
+						</p>
+					) : null}
+
+					<p>
+						{controllerEmail
+							? t("Write to {email} with any question about your data.", {
+									email: controllerEmail,
+								})
+							: t(
+									"Use the contact page to reach the controller with any question about your data.",
+								)}
 					</p>
 
 					<p>
@@ -83,19 +96,19 @@ export default async function PrivacyPage() {
 
 					<p>
 						{t(
-							"The web server that serves these pages is run by {hosting}. It writes the usual server log for each request. That log is kept for {retention} and is used to keep the site up and to find abuse.",
-							{
-								hosting: PLACEHOLDER.hosting,
-								retention: PLACEHOLDER.retention,
-							},
+							"The web server that serves these pages writes the usual server log for each request. That log is used to keep the site up and to find abuse.",
 						)}
 					</p>
 
 					<p>
-						{t(
-							"If you give us your email address to hear about the hosted version, we store that address and the date you gave it. We use it to tell you when the hosted version opens. Write to {email} to have it deleted.",
-							{ email: PLACEHOLDER.email },
-						)}
+						{controllerEmail
+							? t(
+									"If you give us your email address to hear about the hosted version, we store that address and the date you gave it. We use it to tell you when the hosted version opens. Write to {email} to have it deleted.",
+									{ email: controllerEmail },
+								)
+							: t(
+									"If you give us your email address to hear about the hosted version, we store that address and the date you gave it. We use it to tell you when the hosted version opens. Use the contact page to have it deleted.",
+								)}
 					</p>
 
 					<p>
@@ -142,24 +155,26 @@ export default async function PrivacyPage() {
 
 					<p>
 						{t(
-							"For this website: {processors}. We sell no data and we share none for advertising.",
-							{ processors: PLACEHOLDER.processors },
+							"This website uses only the processors needed to run it and its email signup. We sell no data and we share none for advertising.",
 						)}
 					</p>
 
 					<ProseHeading>{t("Your rights")}</ProseHeading>
 
 					<p>
-						{t(
-							"You can ask what we hold about you, ask for a copy, ask for a correction and ask for deletion. You can object to a use and you can withdraw a consent you gave. Write to {email}. You can also complain to {authority}.",
-							{ email: PLACEHOLDER.email, authority: PLACEHOLDER.authority },
-						)}
+						{controllerEmail
+							? t(
+									"You can ask what we hold about you, ask for a copy, ask for a correction and ask for deletion. You can object to a use and you can withdraw a consent you gave. Write to {email}. You can also complain to your national data protection authority.",
+									{ email: controllerEmail },
+								)
+							: t(
+									"You can ask what we hold about you, ask for a copy, ask for a correction and ask for deletion. You can object to a use and you can withdraw a consent you gave. Use the contact page to reach us. You can also complain to your national data protection authority.",
+								)}
 					</p>
 
 					<p>
 						{t(
-							"This page is valid from {date}. A change to it is published here.",
-							{ date: PLACEHOLDER.effectiveDate },
+							"This page reflects the current version of this website. A change to it is published here.",
 						)}
 					</p>
 

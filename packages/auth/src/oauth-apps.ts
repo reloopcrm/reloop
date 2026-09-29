@@ -1,4 +1,5 @@
 import { db } from "@crm/db/client";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	OAUTH_APP_ENV_VARS,
 	OAUTH_APP_REDIRECT_PATHS,
@@ -9,7 +10,6 @@ import {
 	storedOAuthApp,
 } from "@crm/db/oauth-apps";
 import { SETTINGS_ID } from "@crm/db/settings";
-import { isHosted } from "@crm/db/tenant-context";
 import { apiUrl, rememberStoredEnv } from "./env";
 
 export function oauthRedirectUri(provider: OAuthProviderId): string {
@@ -17,7 +17,7 @@ export function oauthRedirectUri(provider: OAuthProviderId): string {
 }
 
 export async function loadStoredOAuthApps(): Promise<void> {
-	if (isHosted()) return;
+	if (cloud.hosted()) return;
 
 	const row = await readRow();
 	if (!row) return;

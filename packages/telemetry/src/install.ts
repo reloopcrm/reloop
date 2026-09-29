@@ -2,7 +2,7 @@ import "@crm/env/load";
 
 import { createHash } from "node:crypto";
 import { db } from "@crm/db";
-import { currentTenantId } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { crmVersion } from "./version";
 
 export const INSTALL_ID = "install";
@@ -28,7 +28,7 @@ const remembered = new Map<string, Remembered>();
 const MISSING_FOR_MS = 30_000;
 
 function state(): Remembered {
-	const key = currentTenantId() ?? "";
+	const key = cloud.scopeId() ?? "";
 	let entry = remembered.get(key);
 	if (!entry) {
 		entry = { install: null, missingSince: 0 };

@@ -1,7 +1,7 @@
 import { apiKey } from "@better-auth/api-key";
 import { sso } from "@better-auth/sso";
 import { db } from "@crm/db";
-import { isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { schemas } from "@crm/validation";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -47,7 +47,7 @@ if (env.google) {
 		accessType: "offline",
 	};
 
-	const hostedDomain = isHosted() ? undefined : primaryWorkspaceDomain();
+	const hostedDomain = cloud.hosted() ? undefined : primaryWorkspaceDomain();
 	if (hostedDomain) google.hd = hostedDomain;
 
 	socialProviders.google = google;

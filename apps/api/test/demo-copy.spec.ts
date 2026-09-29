@@ -30,11 +30,11 @@ describe("the sample data copy", () => {
 	it("falls back to English for every other language", () => {
 		for (const locale of LOCALES) {
 			const copy = demoCopy(locale);
-			const line = copy.t("{qty} pallets", { qty: 12 });
-			expect(line).toBe(locale === "de" ? "12 Paletten" : "12 pallets");
+			const line = copy.t("{qty} units", { qty: 12 });
+			expect(line).toBe(locale === "de" ? "12 Stück" : "12 units");
 		}
-		expect(demoCopy("en").inSentence("Stretch film")).toBe("stretch film");
-		expect(demoCopy("de").inSentence("Stretchfolie")).toBe("Stretchfolie");
+		expect(demoCopy("en").inSentence("Starter kits")).toBe("starter kits");
+		expect(demoCopy("de").inSentence("Startersets")).toBe("Startersets");
 		expect(demoCopy("de").number(1200)).toBe("1.200");
 	});
 });

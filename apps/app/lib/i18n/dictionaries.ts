@@ -1,4 +1,5 @@
 import type { Locale } from "@crm/db/locale";
+import { CLOUD_DICTIONARY_MODULES } from "./cloud";
 import deAgentBuilder from "./de/agent-builder.json";
 import deCopy from "./de/copy.json";
 import deCrmRecords from "./de/crm-records.json";
@@ -95,6 +96,7 @@ export const DICTIONARY_MODULES = {
 		status: deStatus,
 		ui: deUi,
 		"win-back": deWinBack,
+		...CLOUD_DICTIONARY_MODULES.de,
 	},
 	es: {
 		"agent-builder": esAgentBuilder,
@@ -110,6 +112,7 @@ export const DICTIONARY_MODULES = {
 		status: esStatus,
 		ui: esUi,
 		"win-back": esWinBack,
+		...CLOUD_DICTIONARY_MODULES.es,
 	},
 	fr: {
 		"agent-builder": frAgentBuilder,
@@ -125,6 +128,7 @@ export const DICTIONARY_MODULES = {
 		status: frStatus,
 		ui: frUi,
 		"win-back": frWinBack,
+		...CLOUD_DICTIONARY_MODULES.fr,
 	},
 	"pt-BR": {
 		"agent-builder": ptBRAgentBuilder,
@@ -140,6 +144,7 @@ export const DICTIONARY_MODULES = {
 		status: ptBRStatus,
 		ui: ptBRUi,
 		"win-back": ptBRWinBack,
+		...CLOUD_DICTIONARY_MODULES["pt-BR"],
 	},
 	tr: {
 		"agent-builder": trAgentBuilder,
@@ -155,6 +160,7 @@ export const DICTIONARY_MODULES = {
 		status: trStatus,
 		ui: trUi,
 		"win-back": trWinBack,
+		...CLOUD_DICTIONARY_MODULES.tr,
 	},
 	"zh-Hans": {
 		"agent-builder": zhHansAgentBuilder,
@@ -170,6 +176,7 @@ export const DICTIONARY_MODULES = {
 		status: zhHansStatus,
 		ui: zhHansUi,
 		"win-back": zhHansWinBack,
+		...CLOUD_DICTIONARY_MODULES["zh-Hans"],
 	},
 } satisfies Record<Locale, Record<string, Dictionary>>;
 

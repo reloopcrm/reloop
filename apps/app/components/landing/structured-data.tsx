@@ -1,6 +1,6 @@
 import { BRAND } from "@crm/ui/lib/brand";
 import { z } from "zod";
-import { REPO_URL } from "@/components/landing/site";
+import { REPO_URL } from "@/components/site";
 import { siteAddress } from "@/lib/site-address";
 
 const PRODUCT_NAME = `${BRAND.name} CRM`;

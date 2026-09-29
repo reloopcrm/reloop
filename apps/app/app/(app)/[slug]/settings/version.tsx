@@ -26,7 +26,7 @@ import { Skeleton } from "@crm/ui/components/skeleton";
 import { Spinner } from "@crm/ui/components/spinner";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CopyCommand } from "@/components/landing/copy-command";
+import { CopyCommand } from "@/components/copy-command";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";

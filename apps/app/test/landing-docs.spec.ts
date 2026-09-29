@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { DOCS } from "../components/landing/docs-config";
-import { parseMarkdown, sliceBlocks } from "../components/landing/markdown";
+import { DOCS } from "../components/docs/docs-config";
+import { parseMarkdown, sliceBlocks } from "../components/docs/markdown";
 
 const read = (file: keyof typeof DOCS.files) =>
 	readFile(join(process.cwd(), ...DOCS.root, ...DOCS.files[file]), "utf8");

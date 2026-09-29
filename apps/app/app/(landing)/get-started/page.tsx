@@ -5,15 +5,16 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { z } from "zod";
+import { MARKETING_NAV } from "@/cloud/slots.data";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
-import { PRICING } from "@/components/landing/pricing/config";
-import { purchaseFromParams } from "@/components/landing/pricing/purchase";
+import { PRICING } from "@/components/signup/config";
+import { purchaseFromParams } from "@/components/signup/purchase";
 import {
 	type SignedInEntry,
 	SignedInPanel,
-} from "@/components/landing/signed-in-panel";
-import { SignupForm } from "@/components/landing/signup-form";
-import { WaitlistForm } from "@/components/landing/waitlist-form";
+} from "@/components/signup/signed-in-panel";
+import { SignupForm } from "@/components/signup/signup-form";
+import { WaitlistForm } from "@/components/signup/waitlist-form";
 import { API_URL } from "@/lib/env";
 import type { Translate } from "@/lib/i18n/locale";
 import { getT } from "@/lib/i18n/server";
@@ -136,7 +137,11 @@ export default async function GetStartedPage({
 			<SignupForm
 				plan={plan}
 				purchase={purchase}
-				pricingHref={marketingUrl(PRICING.href.pricing)}
+				pricingHref={
+					MARKETING_NAV.pricing
+						? marketingUrl(MARKETING_NAV.pricing.path)
+						: null
+				}
 				withPassword={options?.password ?? false}
 				signInMethods={options?.signIn ?? []}
 			/>
@@ -187,11 +192,13 @@ function signedInLine(t: Translate, entry: SignedInEntry): string {
 }
 
 async function SelfHostLine() {
+	const selfHosted = MARKETING_NAV.selfHosted;
+	if (!selfHosted) return null;
 	const t = await getT();
 	return (
 		<p className="text-pretty text-muted-foreground text-sm/5">
 			{t("Rather run it on your own server? Reloop CRM is open source.")}{" "}
-			<Link variant="quiet" href={marketingUrl("/self-hosted-crm")}>
+			<Link variant="quiet" href={marketingUrl(selfHosted.path)}>
 				{t("Read what self-hosting takes.")}
 			</Link>
 		</p>

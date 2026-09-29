@@ -1,8 +1,8 @@
 import type { Locale } from "@crm/db/locale";
+import { BILLING_SEAM } from "../billing-port/billing-port";
 
 const SECOND = 1;
 const MINUTE = 60 * SECOND;
-const SECOND_MS = 1000;
 
 const STRIPE_LOCALES = {
 	en: "en",
@@ -16,8 +16,7 @@ const STRIPE_LOCALES = {
 
 export const BILLING = {
 	webhook: {
-		path: "/api/billing/webhook",
-		maxBytes: 1_000_000,
+		...BILLING_SEAM.webhook,
 		toleranceSeconds: 5 * MINUTE,
 		events: [
 			"checkout.session.completed",
@@ -29,7 +28,7 @@ export const BILLING = {
 		],
 	},
 	return: {
-		path: "/settings/billing",
+		...BILLING_SEAM.return,
 		checkoutParam: "checkout",
 		outcome: { success: "success", cancel: "cancel" },
 	},
@@ -39,7 +38,7 @@ export const BILLING = {
 	schedule: {
 		nextPhaseIntervals: 1,
 		endBehavior: "release",
-		rebuildAfterMs: 30 * SECOND_MS,
+		...BILLING_SEAM.schedule,
 	},
 	stripe: {
 		locales: STRIPE_LOCALES,

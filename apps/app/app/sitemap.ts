@@ -1,21 +1,17 @@
 import type { MetadataRoute } from "next";
-import { DOCS, docPath } from "@/components/landing/docs-config";
-import { PRICING } from "@/components/landing/pricing/config";
+import { MARKETING_SITEMAP } from "@/cloud/slots.data";
+import { DOCS, docPath } from "@/components/docs/docs-config";
+import { PRICING } from "@/components/signup/config";
 import { siteAddress } from "@/lib/site-address";
 import { cloudUrl } from "@/lib/site-links";
 
 const PAGES = [
 	"/",
 	"/get-started",
-	"/pricing",
+	...MARKETING_SITEMAP.lead,
 	"/docs",
-	"/open-source",
-	"/about",
-	"/open-source-crm",
-	"/self-hosted-crm",
-	"/vs/hubspot",
-	"/win-back-customers",
-] as const;
+	...MARKETING_SITEMAP.rest,
+];
 
 const DOC_PAGES = DOCS.pages.map((page) => docPath(page.slug));
 

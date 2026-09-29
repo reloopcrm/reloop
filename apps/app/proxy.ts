@@ -2,9 +2,9 @@ import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { isHosted } from "@crm/db/tenant-context";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+import { landingMarkdown } from "@/cloud/slots.data";
 import { isMarketing, isMarketingHost } from "@/lib/env";
 import {
-	landingMarkdown,
 	markdownHeaders,
 	notFoundMarkdown,
 	prefersMarkdown,

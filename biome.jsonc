@@ -128,7 +128,7 @@
 			}
 		},
 		{
-			"includes": ["apps/app/components/landing/markdown.tsx"],
+			"includes": ["apps/app/components/docs/markdown.tsx"],
 			"linter": {
 				"rules": {
 					"suspicious": {

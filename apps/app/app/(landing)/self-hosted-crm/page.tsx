@@ -1,9 +1,7 @@
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
-import { BentoCard, CardHeading } from "@/components/landing/bento-card";
-import { CopyCommand } from "@/components/landing/copy-command";
-import { Faq } from "@/components/landing/faq";
-import { LandingShell } from "@/components/landing/landing-shell";
+import { CopyCommand } from "@/components/copy-command";
+import { LandingShell } from "@/components/docs/landing-shell";
 import {
 	CardGrid,
 	ClosingCta,
@@ -12,8 +10,10 @@ import {
 	PageSection,
 	PRICING,
 	Prose,
-} from "@/components/landing/page-blocks";
-import { INSTALL_COMMAND } from "@/components/landing/site";
+} from "@/components/docs/page-blocks";
+import { BentoCard, CardHeading } from "@/components/landing/bento-card";
+import { Faq } from "@/components/landing/faq";
+import { INSTALL_COMMAND } from "@/components/site";
 import { getT } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {

@@ -4,16 +4,16 @@ import { Button } from "@crm/ui/components/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
-import { useTRPC } from "@/lib/trpc/client";
 import {
 	longDay,
 	PlanPicker,
-} from "../../(app)/[slug]/settings/billing/billing";
+} from "@/app/(app)/[slug]/settings/billing/billing";
+import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
+import { useTRPC } from "@/lib/trpc/client";
 
 const PAUSED = { refetchMs: 5_000, home: "/" } as const;
 
-export function Paused({ admin }: { admin: boolean }) {
+export function PausedPayment({ admin }: { admin: boolean }) {
 	const t = useT();
 	const locale = useLocale();
 	const trpc = useTRPC();

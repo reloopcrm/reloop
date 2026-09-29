@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { PAID_PLAN_IDS } from "@crm/db/pricing";
-import { PRICING } from "../components/landing/pricing/config";
 import { pricingPlans } from "../components/landing/pricing/plans";
-import { purchaseFromParams } from "../components/landing/pricing/purchase";
+import { PRICING } from "../components/signup/config";
+import { purchaseFromParams } from "../components/signup/purchase";
 
 const plans = pricingPlans();
 const planOf = (id: string) => {

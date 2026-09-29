@@ -12,7 +12,7 @@ import {
 	readAgentLanguage,
 } from "@crm/validation/agent-language";
 import { Injectable, Logger } from "@nestjs/common";
-import { BILLING } from "../billing/billing.config";
+import { BILLING_SEAM } from "../billing-port/billing-port";
 import { InjectDatabase } from "../database/database.constants";
 import {
 	type BillingMailDetails,
@@ -63,7 +63,7 @@ export class BillingMailService {
 					to: recipient.email,
 					locale: recipient.locale,
 					kind,
-					billingUrl: `${appUrl}${BILLING.return.path}`,
+					billingUrl: `${appUrl}${BILLING_SEAM.return.path}`,
 				}),
 			);
 			if (!sent) await releaseBillingMail(key);

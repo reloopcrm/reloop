@@ -1,5 +1,5 @@
 import type { PlanPurchase } from "@crm/db/pricing";
-import { PRICING } from "@/components/landing/pricing/config";
+import { PRICING } from "@/components/signup/config";
 
 const SIGN_IN_PATH = "/sign-in";
 

@@ -2,7 +2,7 @@ import { Button } from "@crm/ui/components/button";
 import { Display } from "@crm/ui/components/display";
 import { Link } from "@crm/ui/components/link";
 import NextLink from "next/link";
-import { LandingShell } from "@/components/landing/landing-shell";
+import { LandingShell } from "@/components/docs/landing-shell";
 import { getT } from "@/lib/i18n/server";
 
 export default async function NotFound() {

@@ -102,7 +102,10 @@ describe("the trust anchor pages", () => {
 	});
 
 	it("stand in the sitemap, except the ones that carry noindex", async () => {
-		const source = await Bun.file(`${root}app/sitemap.ts`).text();
+		const source = [
+			await Bun.file(`${root}app/sitemap.ts`).text(),
+			await Bun.file(`${root}cloud/slots.data.ts`).text(),
+		].join("\n");
 
 		expect(source).toContain('"/about"');
 		expect(source).not.toContain('"/contact"');
@@ -111,13 +114,20 @@ describe("the trust anchor pages", () => {
 
 	it("are linked from the site footer", async () => {
 		const source = await Bun.file(
-			`${root}components/landing/landing-shell.tsx`,
+			`${root}components/docs/landing-shell.tsx`,
 		).text();
 		const footer = source.slice(source.indexOf("<footer"));
 
 		expect(footer).toContain("companyLinks.map");
 
+		const { MARKETING_NAV } = await import("../cloud/slots.data");
+		const slotted = MARKETING_NAV.company.map((link) => link.path);
+
 		for (const page of TRUST_PAGES)
-			expect(source, page.path).toContain(`href: marketingUrl("${page.path}")`);
+			expect(
+				source.includes(`href: marketingUrl("${page.path}")`) ||
+					slotted.includes(page.path),
+				page.path,
+			).toBe(true);
 	});
 });

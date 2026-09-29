@@ -24,10 +24,11 @@ import {
 	ForbiddenException,
 	HttpException,
 	HttpStatus,
+	Inject,
 	Injectable,
 	Logger,
 } from "@nestjs/common";
-import { BillingService } from "../billing/billing.service";
+import { BILLING_PORT, type BillingPort } from "../billing-port/billing-port";
 import { InjectDatabase } from "../database/database.constants";
 import { RateLimiter } from "../tenancy/rate-limit";
 import { DELETION } from "../tenancy/tenancy.config";
@@ -49,7 +50,7 @@ export class WorkspaceDeletionService {
 
 	constructor(
 		@InjectDatabase() private readonly db: Db,
-		private readonly billing: BillingService,
+		@Inject(BILLING_PORT) private readonly billing: BillingPort,
 		private readonly sweep: TenantSweepService,
 		private readonly codes: TenantSignupService,
 	) {}

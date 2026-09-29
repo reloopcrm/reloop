@@ -35,12 +35,13 @@ apps/app/lib/i18n/zh-Hans/     Simplified Chinese
 
 English has no folder. The key is the English text.
 
-Each folder holds the same thirteen files. The split is only there to keep a file
+Each folder holds the same fourteen files. The split is only there to keep a file
 small enough to read:
 
 | File | What it holds |
 | --- | --- |
 | `agent-builder.json` | The agent builder |
+| `cloud.json` | Text only the marketing pages, pricing and billing show. A key a core screen uses never goes here |
 | `copy.json` | Buttons, dialogs and toasts that every screen uses |
 | `crm-records.json` | Companies, contacts and deals |
 | `landing.json` | The public site |
@@ -81,10 +82,11 @@ folder, and the rest is text.
    one needs a line for yours, so `bun run check-types` lists every one you still
    owe.
 4. **Register the files.** In `apps/app/lib/i18n/dictionaries.ts` add the thirteen
-   imports, one block in `DICTIONARY_MODULES` and one line in `DICTIONARIES`. Copy
-   the block above yours and change the locale code. Both maps are checked against
-   `Locale`, so `bun run check-types` fails until both hold your locale. You cannot
-   forget one.
+   core imports, one block in `DICTIONARY_MODULES` and one line in `DICTIONARIES`.
+   Add `cloud.json` to `CLOUD_DICTIONARY_MODULES` in `apps/app/lib/i18n/cloud.ts`.
+   Copy the block above yours and change the locale code. Every map is checked
+   against `Locale`, so `bun run check-types` fails until each holds your locale.
+   You cannot forget one.
 5. **Run the checks.** `bun test` in `apps/app` parses every file, compares every
    key against English and compares the placeholders. `bunx biome check apps
    packages --write` formats the JSON.
@@ -102,7 +104,7 @@ folder, and the rest is text.
   sales team, not a bank letter.
 - **Leave no value empty.** Delete the key instead: a missing key falls back to
   English, an empty value shows nothing.
-- **Ship all thirteen files**, even when you translate only some of them. An empty
+- **Ship all fourteen files**, even when you translate only some of them. An empty
   file holds `{}` and is valid.
 
 ## What the checks do

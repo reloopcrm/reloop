@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
-import {
-	landingMarkdown,
-	notFoundMarkdown,
-	prefersMarkdown,
-} from "../lib/markdown-negotiation";
+import { landingMarkdown } from "../cloud/slots.data";
+import { notFoundMarkdown, prefersMarkdown } from "../lib/markdown-negotiation";
 import { proxy } from "../proxy";
 
 const BROWSER_ACCEPT =

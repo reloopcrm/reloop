@@ -8,7 +8,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const LETTERS = /\p{L}{2,}/u;
 
 const MARKETING =
-	/^(components\/landing\/|app\/opengraph-image|app\/\(landing\)\/(?!onboarding\/|sign-in\/))/;
+	/^(components\/(landing|docs|signup)\/|components\/(language-switcher|copy-command)\.tsx|app\/opengraph-image|app\/\(landing\)\/(?!onboarding\/|sign-in\/))/;
 
 const NOT_A_SENTENCE = new Set([
 	"https://",
@@ -82,7 +82,9 @@ async function translatedKeys(paths: string[]): Promise<string[]> {
 
 async function appFiles(): Promise<string[]> {
 	const paths: string[] = [];
-	for await (const path of new Bun.Glob("{app,components}/**/*.tsx").scan(root))
+	for await (const path of new Bun.Glob("{app,cloud,components}/**/*.tsx").scan(
+		root,
+	))
 		if (!MARKETING.test(path)) paths.push(path);
 	return paths.sort();
 }

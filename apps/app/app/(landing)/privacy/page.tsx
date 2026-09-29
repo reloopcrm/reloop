@@ -1,12 +1,12 @@
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
-import { LandingShell } from "@/components/landing/landing-shell";
+import { LandingShell } from "@/components/docs/landing-shell";
 import {
 	Band,
 	PageHero,
 	Prose,
 	ProseHeading,
-} from "@/components/landing/page-blocks";
+} from "@/components/docs/page-blocks";
 import { getT } from "@/lib/i18n/server";
 import { getImprint, IMPRINT_ROBOTS } from "@/lib/imprint";
 

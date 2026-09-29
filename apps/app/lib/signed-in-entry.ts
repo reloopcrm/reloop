@@ -1,5 +1,5 @@
 import type { BillingInterval, PlanPurchase } from "@crm/db/pricing";
-import type { SignedInEntry } from "@/components/landing/signed-in-panel";
+import type { SignedInEntry } from "@/components/signup/signed-in-panel";
 import { CHECKOUT } from "@/lib/checkout-config";
 import { purchaseQuery } from "@/lib/site-links";
 import { workspaceUrl } from "@/lib/workspace-url";

@@ -2,13 +2,12 @@ import { isWorkspaceAdmin } from "@crm/auth";
 import { isHosted } from "@crm/db/tenant-context";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PausedPaymentSection } from "@/cloud/slots.server";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { deletionZone, requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
-import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { DeleteWorkspace } from "../../(app)/[slug]/settings/delete-workspace";
-import { Paused } from "./paused";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -27,13 +26,6 @@ export default async function PausedPage() {
 	]);
 	const admin = isWorkspaceAdmin(role);
 
-	const queryClient = getServerQueryClient();
-	if (admin) {
-		await queryClient.prefetchQuery(
-			getServerTrpc().billing.overview.queryOptions(),
-		);
-	}
-
 	return (
 		<AuthShell>
 			<AuthHeading
@@ -42,8 +34,8 @@ export default async function PausedPage() {
 					"Nothing is lost yet. A plan switches the workspace back on at once.",
 				)}
 			/>
+			<PausedPaymentSection admin={admin} />
 			<HydrateClient>
-				<Paused admin={admin} />
 				{dangerZone ? <DeleteWorkspace {...dangerZone} /> : null}
 			</HydrateClient>
 		</AuthShell>

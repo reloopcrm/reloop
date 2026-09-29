@@ -21,10 +21,10 @@ import {
 } from "@crm/ui/components/table";
 import type { Metadata } from "next";
 import NextLink from "next/link";
+import { LandingShell } from "@/components/docs/landing-shell";
+import { Band } from "@/components/docs/page-blocks";
+import { SectionHeading } from "@/components/docs/section-heading";
 import { Faq } from "@/components/landing/faq";
-import { LandingShell } from "@/components/landing/landing-shell";
-import { Band } from "@/components/landing/page-blocks";
-import { PRICING } from "@/components/landing/pricing/config";
 import {
 	answerSteps,
 	familyOf,
@@ -37,7 +37,7 @@ import {
 	pricingAddOns,
 	pricingPlans,
 } from "@/components/landing/pricing/plans";
-import { SectionHeading } from "@/components/landing/section-heading";
+import { PRICING } from "@/components/signup/config";
 import { numberFormat } from "@/lib/i18n/format";
 import { getLocale, getT } from "@/lib/i18n/server";
 

@@ -18,6 +18,23 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export type CheckoutBannerProps = { wanted: PlanPurchase; label: string };
 
+export function useCheckoutUrl(): (
+	wanted: PlanPurchase,
+	fallback: string,
+) => Promise<string> {
+	const trpc = useTRPC();
+	const checkout = useMutation(trpc.billing.checkout.mutationOptions());
+
+	return async (wanted, fallback) => {
+		try {
+			const { url } = await checkout.mutateAsync(wanted);
+			return url ?? fallback;
+		} catch {
+			return fallback;
+		}
+	};
+}
+
 export function CheckoutButton({
 	purchase,
 	variant,

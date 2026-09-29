@@ -18,11 +18,11 @@ import type {
 	TenantSignInMethod,
 	TenantSignupResult,
 } from "@crm/validation/tenant-signup";
-import { useMutation } from "@tanstack/react-query";
 import NextLink from "next/link";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { SocialSignIn } from "@/app/(landing)/sign-in/social-sign-in";
+import { useCheckoutUrl } from "@/cloud/slots";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { PROXY } from "@/lib/proxy-config";
 import { signInFailureText } from "@/lib/sign-in-errors";
@@ -32,7 +32,6 @@ import {
 	type TenantRefusal,
 	verifyWorkspace,
 } from "@/lib/tenant-api";
-import { useTRPC } from "@/lib/trpc/client";
 
 const REFUSALS = {
 	NO_WORKSPACE: "No workspace for this address.",
@@ -65,15 +64,14 @@ export function SignupForm({
 }: {
 	plan: PlanId;
 	purchase: PlanPurchase | null;
-	pricingHref: string;
+	pricingHref: string | null;
 	withPassword: boolean;
 	signInMethods: readonly TenantSignInMethod[];
 }) {
 	const t = useT();
 	const locale = useLocale();
 	const id = useId();
-	const trpc = useTRPC();
-	const checkout = useMutation(trpc.billing.checkout.mutationOptions());
+	const checkoutUrl = useCheckoutUrl();
 	const [email, setEmail] = useState("");
 	const [name, setName] = useState("");
 	const [company, setCompany] = useState("");
@@ -131,18 +129,6 @@ export function SignupForm({
 			return;
 		}
 		if (purchase) window.location.assign(await checkoutUrl(purchase, home));
-	}
-
-	async function checkoutUrl(
-		wanted: PlanPurchase,
-		fallback: string,
-	): Promise<string> {
-		try {
-			const { url } = await checkout.mutateAsync(wanted);
-			return url ?? fallback;
-		} catch {
-			return fallback;
-		}
 	}
 
 	async function handleResend() {
@@ -340,10 +326,15 @@ export function SignupForm({
 								: "Plan: {plan}, billed monthly.",
 							{ plan: t(PLANS[purchase.plan].label) },
 						)
-					: t("Plan: {plan}.", { plan: t(PLANS[plan].label) })}{" "}
-				<Link variant="inline" asChild>
-					<NextLink href={pricingHref}>{t("Change plan")}</NextLink>
-				</Link>
+					: t("Plan: {plan}.", { plan: t(PLANS[plan].label) })}
+				{pricingHref ? (
+					<>
+						{" "}
+						<Link variant="inline" asChild>
+							<NextLink href={pricingHref}>{t("Change plan")}</NextLink>
+						</Link>
+					</>
+				) : null}
 			</p>
 
 			<Button type="submit" disabled={pending}>

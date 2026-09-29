@@ -1,11 +1,7 @@
 import { PLANS } from "@crm/db/plans";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import {
-	hostedCustomer,
-	pendingPurchase,
-	requestScope,
-} from "@/cloud/scope.server";
+import { hostedCustomer, pendingPurchase } from "@/cloud/scope.server";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";

@@ -54,9 +54,9 @@ import {
 import {
 	fixedAi,
 	limitOutcome,
+	limitResumesAt,
 	monthlyRoom,
 	planId,
-	resumeNextMonth,
 } from "./plan-limits";
 import { runPlaybookLearn } from "./playbook";
 import { collapsing, runLimited } from "./pool";
@@ -402,7 +402,7 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	if (task.kind === "email-draft" && task.contactId) {
 		const room = await monthlyRoom(task.kind, new Date(), task.id);
 		if (room !== null && room <= 0) {
-			await postponeTask(task.id, resumeNextMonth());
+			await postponeTask(task.id, await limitResumesAt());
 			console.error(`[agent] a draft waits: ${limitOutcome(task.kind)}`);
 			return;
 		}
@@ -557,7 +557,7 @@ async function withinResearchBudget(
 			kept.push(task);
 			continue;
 		}
-		await postponeTask(task.id, resumeNextMonth());
+		await postponeTask(task.id, await limitResumesAt());
 		deferred += 1;
 	}
 

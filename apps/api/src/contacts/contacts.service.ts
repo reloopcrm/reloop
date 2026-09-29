@@ -15,13 +15,8 @@ import type {
 	FieldDefinitionWithOptions,
 	FieldValueJson,
 } from "@crm/db/fields";
-import { fixedAiWith, planLimitsOf } from "@crm/db/plan-usage";
-import {
-	DRAFT_KIND,
-	monthlyBudget,
-	nextMonthStart,
-	startOfMonth,
-} from "@crm/db/plans";
+import { fixedAiWith, planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
+import { DRAFT_KIND, monthlyBudget } from "@crm/db/plans";
 import { readDraftRole } from "@crm/validation/draft-style";
 import type { LimitReason } from "@crm/validation/plan-limit-reason";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
@@ -791,10 +786,11 @@ export class ContactsService {
 		const held =
 			open && open.dueAt.getTime() > now.getTime() ? open.dueAt : null;
 		const queued = open !== null && held === null;
-		const planReached = await this.draftLimitReached(now);
+		const resumesAt = await this.draftLimitResumesAt(now);
+		const planReached = resumesAt !== null;
 		const waitingUntil =
 			held?.toISOString() ??
-			(planReached && !queued ? nextMonthStart(now).toISOString() : null);
+			(resumesAt && !queued ? resumesAt.toISOString() : null);
 		const limit: LimitReason | null =
 			waitingUntil === null ? null : planReached ? "plan" : "provider";
 
@@ -861,20 +857,21 @@ export class ContactsService {
 			throw new NotFoundException(`No contact with id ${id}.`);
 		}
 
-		if (!(await this.draftLimitReached(new Date()))) {
+		if (!(await this.draftLimitResumesAt(new Date()))) {
 			await this.agent.emailDraftRequested(id, instruction?.trim() || null);
 		}
 		return this.draft(id);
 	}
 
-	private async draftLimitReached(now: Date): Promise<boolean> {
+	private async draftLimitResumesAt(now: Date): Promise<Date | null> {
 		const budget = monthlyBudget(DRAFT_KIND, await planLimitsOf(this.db));
-		if (budget === null) return false;
+		if (budget === null) return null;
 
+		const { since, until } = await usageWindowOf(this.db, now);
 		const used = await this.db.agentTask.count({
-			where: { kind: DRAFT_KIND, createdAt: { gte: startOfMonth(now) } },
+			where: { kind: DRAFT_KIND, createdAt: { gte: since } },
 		});
-		return used >= budget;
+		return used >= budget ? until : null;
 	}
 
 	async enrich(id: string): Promise<{ id: string; queued: boolean }> {

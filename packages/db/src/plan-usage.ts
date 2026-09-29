@@ -2,16 +2,20 @@ import { DIRECT_KINDS } from "./agent-tasks";
 import type { Db } from "./client";
 import {
 	type AddOnQuantities,
+	canonicalPlanId,
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	limitsOf,
 	NO_ADD_ONS,
+	nextMonthStart,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
 	startOfMonth,
+	TRIAL_DAYS,
 	withAddOns,
 } from "./plans";
 import { readPlan } from "./settings";
+import { DAY_MS } from "./tenancy-config";
 import { currentTenant, isHostedCustomer } from "./tenant-context";
 
 export async function planIdOf(db: Db): Promise<string | null> {
@@ -34,6 +38,32 @@ export async function planLimitsOf(db: Db): Promise<PlanLimits> {
 
 export async function fixedAiWith(db: Db): Promise<boolean> {
 	return fixedAiFor(await planIdOf(db));
+}
+
+export type UsageWindow = { since: Date; until: Date };
+
+function usageWindowFor(
+	plan: string | null | undefined,
+	now: Date = new Date(),
+): UsageWindow {
+	const trialEndsAt =
+		isHostedCustomer() && canonicalPlanId(plan) === "trial"
+			? currentTenant().trialEndsAt
+			: null;
+	if (trialEndsAt) {
+		return {
+			since: new Date(trialEndsAt.getTime() - TRIAL_DAYS * DAY_MS),
+			until: trialEndsAt > now ? trialEndsAt : nextMonthStart(now),
+		};
+	}
+	return { since: startOfMonth(now), until: nextMonthStart(now) };
+}
+
+export async function usageWindowOf(
+	db: Db,
+	now: Date = new Date(),
+): Promise<UsageWindow> {
+	return usageWindowFor(await planIdOf(db), now);
 }
 
 export const USAGE_COUNTERS = [
@@ -87,7 +117,7 @@ export async function readMonthlyUsage(
 	db: Db,
 	now: Date = new Date(),
 ): Promise<MonthlyUsage> {
-	const since = startOfMonth(now);
+	const { since } = await usageWindowOf(db, now);
 	const count = (kind: string) =>
 		db.agentTask.count({ where: { kind, createdAt: { gte: since } } });
 

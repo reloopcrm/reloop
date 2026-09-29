@@ -1,13 +1,16 @@
 import { db, type Prisma } from "@crm/db";
-import { fixedAiFor, planIdOf, planLimitsOf } from "@crm/db/plan-usage";
+import {
+	fixedAiFor,
+	planIdOf,
+	planLimitsOf,
+	usageWindowOf,
+} from "@crm/db/plan-usage";
 import {
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	monthlyBudget,
-	nextMonthStart,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
-	startOfMonth,
 } from "@crm/db/plans";
 
 export function planId(): Promise<string | null> {
@@ -33,7 +36,7 @@ export async function monthlyUsed(
 	now: Date = new Date(),
 	exceptTaskId: string | null = null,
 ): Promise<number> {
-	const since = startOfMonth(now);
+	const { since } = await usageWindowOf(db, now);
 	const where: Prisma.AgentTaskWhereInput = COUNTED_BY_FINISH.has(kind)
 		? { kind, finishedAt: { gte: since } }
 		: { kind, createdAt: { gte: since } };
@@ -63,6 +66,6 @@ export function limitOutcome(kind: string): string {
 	return `The monthly limit of your plan for ${what} is reached. This waits until next month. Upgrade your plan to continue now.`;
 }
 
-export function resumeNextMonth(now: Date = new Date()): Date {
-	return nextMonthStart(now);
+export async function limitResumesAt(now: Date = new Date()): Promise<Date> {
+	return (await usageWindowOf(db, now)).until;
 }

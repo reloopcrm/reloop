@@ -98,7 +98,8 @@ list fails closed.** Parsed on demand. `packages/auth/src/workspace.ts`.
 `"true"` serves `app/(landing)` at `/`; anything else sends a signed-out visitor to
 `/sign-in`, because the page markets *this* product. The open source build has no
 landing page, pricing or reading pages: those come with the hosted Cloud's
-private overlay, and without it `/` sends every visitor to `/sign-in`. The
+private overlay. Without it `/` sends a visitor without a session to
+`/sign-in` and a signed-in one to the workspace. The
 public site of this build is the docs, `/contact`, `/privacy` and `/imprint`.
 
 - **Only the literal `true`** (same shape as `PRISMA_LOG_QUERIES`).

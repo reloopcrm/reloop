@@ -24,8 +24,6 @@ services:
       RELOOP_BACKUP_DIR: /backups
       RELOOP_PLANS: "true"
       RELOOP_MANAGED: "true"
-      STRIPE_SECRET_KEY:
-      STRIPE_WEBHOOK_SECRET:
     volumes:
       - backups:/backups
     command: ["sh", "-c", "cd /app/apps/api && exec bun dist/main.js"]

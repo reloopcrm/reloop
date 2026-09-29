@@ -38,5 +38,7 @@
 	"{n} won deal": "{n} kazanılan anlaşma",
 	"{n} won deals": "{n} kazanılan anlaşma",
 	"Has a company": "Şirketi var",
-	"Title matches \"{keyword}\"": "Unvan \"{keyword}\" ile eşleşiyor"
+	"Title matches \"{keyword}\"": "Unvan \"{keyword}\" ile eşleşiyor",
+	"Reloop cannot reach its API right now.": "Reloop şu anda API'sine ulaşamıyor.",
+	"Reload the page in a moment.": "Sayfayı birazdan yeniden yükle."
 }

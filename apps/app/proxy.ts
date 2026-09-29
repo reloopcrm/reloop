@@ -2,7 +2,11 @@ import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { isHosted } from "@crm/db/tenant-context";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { landingMarkdown, MARKETING_ROUTES } from "@/cloud/slots.data";
+import {
+	landingMarkdown,
+	MARKETING_REDIRECTS,
+	MARKETING_ROUTES,
+} from "@/cloud/slots.data";
 import { isMarketing, isMarketingHost } from "@/lib/env";
 import {
 	markdownHeaders,
@@ -27,6 +31,16 @@ export const MARKETING_PATHS: readonly string[] = [
 
 export async function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
+	const moved = MARKETING_REDIRECTS.find((entry) => entry.source === pathname);
+	if (moved) {
+		return NextResponse.redirect(
+			new URL(moved.destination, request.nextUrl),
+			moved.permanent
+				? PROXY.redirectStatus.permanent
+				: PROXY.redirectStatus.temporary,
+		);
+	}
+
 	const markdown = prefersMarkdown(request.headers.get("accept"));
 	const marketingHost = isMarketingHost(requestHost(request));
 	const marketing = isMarketing() || marketingHost;

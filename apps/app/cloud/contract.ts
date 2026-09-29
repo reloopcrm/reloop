@@ -4,6 +4,12 @@ import type { ComponentProps, ReactNode } from "react";
 
 export type SlotLink = { path: string; label: string };
 
+export type SlotRedirect = {
+	source: string;
+	destination: string;
+	permanent: boolean;
+};
+
 export type LlmsEntry = { title: string; path: string; note: string };
 
 export type SettingsNavSlot = {

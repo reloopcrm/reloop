@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import sitemap from "../app/sitemap";
-import { MARKETING_SITEMAP } from "../cloud/slots.data";
+import { MARKETING_ROUTES, MARKETING_SITEMAP } from "../cloud/slots.data";
 
 const MARKETING = [...MARKETING_SITEMAP.lead, ...MARKETING_SITEMAP.rest];
 
@@ -34,6 +34,10 @@ describe("sitemap.xml", () => {
 
 		expect(paths()).not.toContain("/get-started");
 		expect(paths()).toEqual(expect.arrayContaining(MARKETING));
+	});
+
+	it("lists the landing page only when the build carries one", () => {
+		expect(paths().includes("/")).toBe(MARKETING_ROUTES.length > 0);
 	});
 
 	it("leaves privacy and contact out, since they can carry an operator's name", () => {

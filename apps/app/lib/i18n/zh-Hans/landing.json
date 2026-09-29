@@ -211,5 +211,6 @@
 	"No contact email is set for this installation. Use the issue tracker above for anything that does not belong in a public issue.": "本安装未设置联系邮箱。不适合公开 issue 的事情请使用上方的问题追踪器。",
 	"Report a security problem through the repository instead of a public issue. Describe the problem and how to reproduce it.": "请通过代码仓库而不是公开 issue 报告安全问题。描述问题以及如何复现。",
 	"No postal address is set for this installation.": "本安装未设置邮寄地址。",
-	"Write to {email} with any question about your data.": "关于你的数据有任何疑问，请写信至 {email}。"
+	"Write to {email} with any question about your data.": "关于你的数据有任何疑问，请写信至 {email}。",
+	"Your own Reloop CRM in a minute. 14 days free, no card.": "一分钟拥有你自己的 Reloop CRM。14 天免费，无需银行卡。"
 }

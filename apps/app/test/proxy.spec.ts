@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { NextRequest } from "next/server";
-import { MARKETING_ROUTES } from "../cloud/slots.data";
+import { MARKETING_REDIRECTS, MARKETING_ROUTES } from "../cloud/slots.data";
 import { MARKETING_PATHS, proxy } from "../proxy";
 
 const ORIGIN = "https://reloopcrm.com";
@@ -188,6 +188,17 @@ describe("the files an agent reads", () => {
 				expect(locationOf(response), path).toBeNull();
 				expect(response.status, path).toBe(200);
 			}
+		}
+	});
+});
+
+describe("the moved marketing addresses", () => {
+	it("redirect to where the page lives now", async () => {
+		for (const entry of MARKETING_REDIRECTS) {
+			const response = await proxy(request(entry.source, BROWSER_ACCEPT));
+
+			expect(response.status, entry.source).toBe(entry.permanent ? 308 : 307);
+			expect(locationOf(response), entry.source).toBe(entry.destination);
 		}
 	});
 });

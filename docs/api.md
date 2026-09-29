@@ -594,7 +594,8 @@ webhook path and size limit, the return path and the rebuild delay.
 `CloudModule` (`cloud/cloud.module.ts`) is global and registered once in
 `AppModule`. Here it provides `NO_BILLING_PORT` with `useValue`, so every call is
 a no-op. The app's slots in `apps/app/cloud` are empty the same way: no billing
-page, no checkout, no marketing pages, and `/` sends a visitor to sign in.
+page, no checkout, no marketing pages or redirects, and `/` sends a visitor to
+sign in, or a signed-in one to the workspace.
 
 The hosted Reloop Cloud adds billing and its marketing site from a private
 overlay. The overlay replaces exactly these files and only adds others:

@@ -3,6 +3,7 @@ import type {
 	MarketingNav,
 	MarketingSitemap,
 	SettingsNavSlot,
+	SlotRedirect,
 } from "@/cloud/contract";
 import { MARKDOWN_LINKS } from "@/lib/markdown-negotiation";
 
@@ -22,6 +23,8 @@ export const BILLING_SETTINGS_NAV: readonly SettingsNavSlot[] = [];
 export const BILLING_PATH: string | null = null;
 
 export const MARKETING_ROUTES: readonly string[] = [];
+
+export const MARKETING_REDIRECTS: readonly SlotRedirect[] = [];
 
 export const MARKETING_NAV: MarketingNav = {
 	pricing: null,

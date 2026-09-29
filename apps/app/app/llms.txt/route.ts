@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { MARKETING_LLMS } from "@/cloud/slots.data";
+import { MARKETING_LLMS, MARKETING_ROUTES } from "@/cloud/slots.data";
 import { DOCS, docPath } from "@/components/docs/docs-config";
 import { PRICING } from "@/components/signup/config";
 import { REPO_URL } from "@/components/site";
@@ -17,12 +17,19 @@ const GUIDES: readonly Entry[] = [
 	})),
 ];
 
+const LANDING: readonly Entry[] =
+	MARKETING_ROUTES.length > 0
+		? [
+				{
+					title: "Reloop CRM",
+					path: "/",
+					note: "What the product does and who it is for.",
+				},
+			]
+		: [];
+
 const PAGES: readonly Entry[] = [
-	{
-		title: "Reloop CRM",
-		path: "/",
-		note: "What the product does and who it is for.",
-	},
+	...LANDING,
 	...MARKETING_LLMS.lead,
 	{
 		title: "Get started",

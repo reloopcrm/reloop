@@ -19,4 +19,5 @@ export const PROXY = {
 	ungated: ["/grant-access", "/eve", "/paused"],
 	sections: ["/companies", "/contacts", "/deals", "/win-back", "/settings"],
 	workspaceSegments: ["agents", "chat"],
+	redirectStatus: { permanent: 308, temporary: 307 },
 } as const;

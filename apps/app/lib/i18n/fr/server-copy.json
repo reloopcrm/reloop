@@ -38,5 +38,7 @@
 	"{n} won deal": "{n} affaire gagnée",
 	"{n} won deals": "{n} affaires gagnées",
 	"Has a company": "A une entreprise",
-	"Title matches \"{keyword}\"": "Le titre correspond à \"{keyword}\""
+	"Title matches \"{keyword}\"": "Le titre correspond à \"{keyword}\"",
+	"Reloop cannot reach its API right now.": "Reloop ne joint pas son API pour le moment.",
+	"Reload the page in a moment.": "Recharge la page dans un instant."
 }

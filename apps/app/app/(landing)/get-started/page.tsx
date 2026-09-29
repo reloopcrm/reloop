@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { z } from "zod";
-import { MARKETING_NAV } from "@/cloud/slots.data";
+import { BILLING_PATH, MARKETING_NAV } from "@/cloud/slots.data";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { PRICING } from "@/components/signup/config";
 import { purchaseFromParams } from "@/components/signup/purchase";
@@ -62,11 +62,13 @@ export default async function GetStartedPage({
 	const plan = chosenPlan.parse(
 		Array.isArray(requested) ? requested[0] : requested,
 	);
-	const purchase = purchaseFromParams(params);
+	const requestedPurchase = purchaseFromParams(params);
 
 	if (!isHosted() && cloudUrl()) {
-		redirect(purchase ? buyUrl(purchase) : signUpUrl(plan));
+		redirect(requestedPurchase ? buyUrl(requestedPurchase) : signUpUrl(plan));
 	}
+
+	const purchase = BILLING_PATH ? requestedPurchase : null;
 
 	const t = await getT();
 
@@ -129,9 +131,13 @@ export default async function GetStartedPage({
 			) : (
 				<AuthHeading
 					title={t("Start free trial")}
-					description={t(
-						"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.",
-					)}
+					description={
+						BILLING_PATH
+							? t(
+									"Your own Reloop CRM in a minute. 14 days free, no card. You choose the plan afterwards.",
+								)
+							: t("Your own Reloop CRM in a minute. 14 days free, no card.")
+					}
 				/>
 			)}
 			<SignupForm

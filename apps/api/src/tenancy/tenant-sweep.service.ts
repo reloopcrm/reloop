@@ -36,11 +36,11 @@ import { GOOGLE_PROVIDER_ID } from "../mailbox/mailbox.constants";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 
 export type SweepReport = {
-	removedPending: number;
 	reminded: number;
 	suspended: number;
 	unpaid: number;
 	deleted: number;
+	removedPending: number;
 	kept: number;
 	healed: number;
 };
@@ -108,11 +108,11 @@ export class TenantSweepService
 
 	async sweep(now: Date): Promise<SweepReport> {
 		const report: SweepReport = {
-			removedPending: 0,
 			reminded: 0,
 			suspended: 0,
 			unpaid: 0,
 			deleted: 0,
+			removedPending: 0,
 			kept: 0,
 			healed: 0,
 		};
@@ -120,8 +120,15 @@ export class TenantSweepService
 
 		const stalePending = new Date(now.getTime() - TENANCY.signup.pendingTtlMs);
 		for (const tenant of await pendingTenantsBefore(stalePending)) {
-			if (await this.remove(tenant, null)) report.removedPending += 1;
-			else report.kept += 1;
+			if (await this.remove(tenant, null)) {
+				report.removedPending += 1;
+				this.logger.log({
+					message: "Unfinished signup removed",
+					tenantId: tenant.id,
+					slug: tenant.slug,
+					createdAt: tenant.createdAt.toISOString(),
+				});
+			} else report.kept += 1;
 		}
 
 		const reminderUntil = new Date(

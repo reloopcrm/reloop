@@ -389,6 +389,5 @@
 	"Nothing is charged now. Your workspace must be under the new limits by {date}.": "Jetzt wird nichts berechnet. Dein Workspace muss bis zum {date} unter den neuen Grenzen liegen.",
 	"{count} from {date}": "{count} ab {date}",
 	"From {date} you have {count}.": "Ab dem {date} hast du {count}.",
-	"It applies at the end of the period. Until then your add-ons stay, and nothing is charged or credited now.": "Das gilt zum Ende der Laufzeit. Bis dahin bleiben deine Add-ons, und jetzt wird nichts berechnet oder gutgeschrieben.",
-	"draft": "Entwurf"
+	"It applies at the end of the period. Until then your add-ons stay, and nothing is charged or credited now.": "Das gilt zum Ende der Laufzeit. Bis dahin bleiben deine Add-ons, und jetzt wird nichts berechnet oder gutgeschrieben."
 }

@@ -10,6 +10,7 @@
 	"Schedule": "Zeitplan",
 	"Event": "Ereignis",
 	"Webhook": "Webhook",
+	"draft": "Entwurf",
 	"deploying": "Wird ausgerollt",
 	"live": "Aktiv",
 	"paused": "Pausiert",

@@ -6,6 +6,7 @@ import { AGENT_MODEL_OPTIONS } from "@crm/db/settings";
 import { BRAND } from "@crm/ui/lib/brand";
 import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import ts from "typescript";
+import { BILLING_SETTINGS_NAV, MARKETING_NAV } from "../cloud/slots.data";
 import { DOCS } from "../components/docs/docs-config";
 import {
 	GRANT_ACCESS_COPY,
@@ -82,6 +83,19 @@ describe("the German dictionary", () => {
 			.map(([key, path]) => `${path}: ${key}`);
 
 		expect(missing).toEqual([]);
+	});
+
+	it("holds every label a cloud slot hands to t()", () => {
+		const labels = [
+			...[MARKETING_NAV.pricing, MARKETING_NAV.selfHosted].flatMap((link) =>
+				link ? [link.label] : [],
+			),
+			...MARKETING_NAV.reading.map((link) => link.label),
+			...MARKETING_NAV.company.map((link) => link.label),
+			...BILLING_SETTINGS_NAV.map((item) => item.title),
+		];
+
+		expect(labels.filter((label) => !(label in de))).toEqual([]);
 	});
 });
 

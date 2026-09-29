@@ -385,6 +385,5 @@
 	"Nothing is charged now. Your workspace must be under the new limits by {date}.": "Şimdi hiçbir ücret alınmaz. Çalışma alanın {date} tarihine kadar yeni sınırların altında olmalı.",
 	"{count} from {date}": "{date} itibarıyla {count}",
 	"From {date} you have {count}.": "{date} itibarıyla {count} adet olur.",
-	"It applies at the end of the period. Until then your add-ons stay, and nothing is charged or credited now.": "Dönem sonunda geçerli olur. O zamana kadar eklentilerin kalır, şimdi hiçbir ücret alınmaz veya iade edilmez.",
-	"draft": "Taslak"
+	"It applies at the end of the period. Until then your add-ons stay, and nothing is charged or credited now.": "Dönem sonunda geçerli olur. O zamana kadar eklentilerin kalır, şimdi hiçbir ücret alınmaz veya iade edilmez."
 }

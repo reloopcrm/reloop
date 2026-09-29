@@ -9,7 +9,7 @@ export type BillingPort = {
 	healStoredTarget(tenant: Tenant): Promise<void>;
 };
 
-export const NO_BILLING: BillingPort = {
+export const NO_BILLING_PORT: BillingPort = {
 	cancelNow: () => Promise.resolve(),
 	healStoredTarget: () => Promise.resolve(),
 };

@@ -714,6 +714,31 @@ a retried webhook, the mutation path and a second instance send it once. Without
 and invoice PDFs are Stripe's own mails, switched on in the Stripe Dashboard.
 `docs/environment.md` has the variables, the script and what stays by hand.
 
+### The billing seam
+
+Core code never imports `apps/api/src/billing`. It injects `BILLING_PORT` from
+`billing-port/billing-port.ts`, a `BillingPort` with `cancelNow` and
+`healStoredTarget`, and reads the few constants it needs from `BILLING_SEAM`: the
+webhook path and size limit, the return path and the rebuild delay.
+`CloudModule` (`cloud/cloud.module.ts`) is global and registered once in
+`AppModule`. It imports `BillingModule`, which owns the router and the webhook
+controller, and provides the port with `useExisting: BillingService`.
+`NO_BILLING_PORT` is the no-op a build without billing provides instead, with
+`useValue`.
+
+A private overlay replaces exactly these files and only adds others:
+
+- `apps/api/src/cloud/cloud.module.ts`
+- `apps/app/cloud/slots.tsx`
+- `apps/app/cloud/slots.data.ts`
+- `apps/app/cloud/slots.server.tsx`
+- `apps/app/lib/i18n/cloud.ts`
+- `apps/app/app/(landing)/page.tsx`
+
+The overlay then runs `trpc:generate`, because the router set changes
+`src/generated/server.ts`. `apps/app/cloud/contract.ts` and `billing-port.ts`
+stay public: both sides build against them.
+
 ## Deleting a workspace is the sweep's path, started by the owner
 
 Hosted only. Settings, General shows a danger zone to the owner of a customer

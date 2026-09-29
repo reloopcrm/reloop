@@ -10,6 +10,7 @@
 	"Schedule": "Agenda",
 	"Event": "Evento",
 	"Webhook": "Webhook",
+	"draft": "rascunho",
 	"deploying": "Publicando",
 	"live": "Ativo",
 	"paused": "Pausado",

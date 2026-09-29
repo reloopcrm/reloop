@@ -12,7 +12,7 @@ const NOW = new Date("2026-11-02T12:00:00.000Z");
 const MONTH_START = "2026-11-01T00:00:00.000Z";
 const NEXT_MONTH = "2026-12-01T00:00:00.000Z";
 
-const tenantOn = (plan: string): Tenant => ({
+const tenantOn = (plan: string, trialEndsAt = TRIAL_END): Tenant => ({
 	id: "trialwin-acme",
 	slug: "trialwin-acme",
 	dbName: "trialwin_acme_test",
@@ -21,7 +21,7 @@ const tenantOn = (plan: string): Tenant => ({
 	aiMode: "operator",
 	signIn: "google",
 	createdAt: TRIAL_START,
-	trialEndsAt: plan === "trial" ? TRIAL_END : null,
+	trialEndsAt: plan === "trial" ? trialEndsAt : null,
 	suspendedAt: null,
 	deletedAt: null,
 	allowList: ["trialwin-acme.example"],
@@ -68,6 +68,7 @@ describe("the usage window", () => {
 		);
 		expect(window.since.toISOString()).toBe(TRIAL_START.toISOString());
 		expect(window.until.toISOString()).toBe(TRIAL_END.toISOString());
+		expect(window.trialEnds).toBe(true);
 
 		await runAsTenant(tenantOn("trial"), () => readMonthlyUsage(db, NOW));
 		expect(distinct(since)).toEqual([TRIAL_START.toISOString()]);
@@ -83,6 +84,19 @@ describe("the usage window", () => {
 		);
 		expect(window.since.toISOString()).toBe(TRIAL_START.toISOString());
 		expect(window.until.toISOString()).toBe(NEXT_MONTH);
+		expect(window.trialEnds).toBe(false);
+	});
+
+	it("never starts the trial window after the tenant was created, when the trial end moves later", async () => {
+		process.env.RELOOP_REGISTRY_URL = "postgresql://registry.test/registry";
+		const { db } = recordingDb(null);
+		const extended = new Date("2026-11-21T09:00:00.000Z");
+
+		const window = await runAsTenant(tenantOn("trial", extended), () =>
+			usageWindowOf(db, NOW),
+		);
+		expect(window.since.toISOString()).toBe(TRIAL_START.toISOString());
+		expect(window.until.toISOString()).toBe(extended.toISOString());
 	});
 
 	it("keeps the calendar month for a hosted paid plan", async () => {

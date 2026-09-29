@@ -7,8 +7,8 @@ import { closeRegistry, type Tenant } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants } from "@crm/db/test-tenants";
 import {
-	LIMIT_REACHED_INSTRUCTION,
 	limitReached,
+	limitReachedInstruction,
 } from "../agent/instructions/task";
 import { runDirect } from "../agent/lib/dispatch";
 import {
@@ -193,7 +193,7 @@ describe("the monthly plan limits inside the agent, on the trial plan of the reg
 			const usage = await readMonthlyUsage(db);
 			expect(usage.builder).toBeGreaterThanOrEqual(limit);
 			expect((await limitReached("builder"))?.markdown).toBe(
-				LIMIT_REACHED_INSTRUCTION,
+				limitReachedInstruction(nextMonthStart()),
 			);
 		}));
 

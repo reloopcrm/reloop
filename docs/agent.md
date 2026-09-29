@@ -174,17 +174,25 @@ Hosting plans and a self-hosted install keep the model choice.
 ### Monthly limits, enforced here
 
 `lib/plan-limits.ts` reads the plan (the tenant's registry plan when the row has
-none) and counts the month in UTC, the same way the API's `planAllows` does. Nothing
-fails silently: work past a limit waits until the first of next month and the
-settings page says so.
+none) and counts one usage window, the same way the API's `planAllows` does.
+`usageWindowOf` in `@crm/db/plan-usage` is the one source of that window, for both
+apps:
+
+- **A hosted trial** counts from the day the trial started to `trial_ends_at`. The
+  start is `trial_ends_at` minus `TRIAL_DAYS`, never later than the tenant's
+  `created_at`. The first of the month resets nothing.
+- **Every other plan, and a self-hosted install,** counts the calendar month in UTC.
+
+Nothing fails silently: work past a limit waits until the window ends, the end of
+the trial or the first of the next month, and the settings page names that day.
 
 | Limit | Where | What happens past it |
 | --- | --- | --- |
-| `insightsPerMonth` | `queueUnreadThreads` | queues at most the room left, then nothing until next month |
-| `draftsPerMonth` | `handleDirect` for `email-draft` | `postponeTask` to the next month; the draft dialog shows the wait |
-| `researchSessionsPerMonth` | `researchAllowance` in `lib/research-throttle.ts` | the lane starts at most the room left this month, then nothing until next month |
-| `researchPerMonth` | `runResearchLane` | `company-profile` rows past the room are postponed, the rest run |
-| `chatPerMonth`, `builderPerMonth` | `instructions/task.ts` | the session answers with the limit sentence and calls no tool |
+| `insightsPerMonth` | `queueUnreadThreads` | queues at most the room left, then nothing until the window ends |
+| `draftsPerMonth` | `handleDirect` for `email-draft` | `postponeTask` to the end of the window; the draft dialog names the day |
+| `researchSessionsPerMonth` | `researchAllowance` in `lib/research-throttle.ts` | the lane starts at most the room left in the window, then nothing until it ends |
+| `researchPerMonth` | `runResearchLane` | `company-profile` rows past the room are postponed to the end of the window, the rest run |
+| `chatPerMonth`, `builderPerMonth` | `instructions/task.ts` | the session answers with the limit sentence and the day it continues, and calls no tool |
 
 `readMonthlyUsage` (`@crm/db/plan-usage`) is the one counter for both apps. Chat and
 builder count `message.received` events by conversation kind.

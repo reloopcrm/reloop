@@ -174,6 +174,8 @@ export class SettingsService {
 			fixed,
 			label: limits.label,
 			month: window.since.toISOString(),
+			resetsAt: window.until.toISOString(),
+			trialEnds: window.trialEnds,
 			capacity: [
 				{ counter: "contacts", used: contacts, limit: limits.contacts },
 				{ counter: "mailboxes", used: mailboxes, limit: limits.mailboxes },

@@ -40,23 +40,30 @@ export async function fixedAiWith(db: Db): Promise<boolean> {
 	return fixedAiFor(await planIdOf(db));
 }
 
-export type UsageWindow = { since: Date; until: Date };
+export type UsageWindow = { since: Date; until: Date; trialEnds: boolean };
 
 function usageWindowFor(
 	plan: string | null | undefined,
 	now: Date = new Date(),
 ): UsageWindow {
-	const trialEndsAt =
+	const tenant =
 		isHostedCustomer() && canonicalPlanId(plan) === "trial"
-			? currentTenant().trialEndsAt
+			? currentTenant()
 			: null;
-	if (trialEndsAt) {
+	if (tenant?.trialEndsAt) {
+		const trialEnds = tenant.trialEndsAt > now;
+		const started = tenant.trialEndsAt.getTime() - TRIAL_DAYS * DAY_MS;
 		return {
-			since: new Date(trialEndsAt.getTime() - TRIAL_DAYS * DAY_MS),
-			until: trialEndsAt > now ? trialEndsAt : nextMonthStart(now),
+			since: new Date(Math.min(started, tenant.createdAt.getTime())),
+			until: trialEnds ? tenant.trialEndsAt : nextMonthStart(now),
+			trialEnds,
 		};
 	}
-	return { since: startOfMonth(now), until: nextMonthStart(now) };
+	return {
+		since: startOfMonth(now),
+		until: nextMonthStart(now),
+		trialEnds: false,
+	};
 }
 
 export async function usageWindowOf(

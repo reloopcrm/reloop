@@ -325,9 +325,6 @@ export function nextMonthStart(now: Date = new Date()): Date {
 	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 }
 
-export const LIMIT_REACHED_MESSAGE =
-	"The monthly limit of your plan is reached. This work continues next month. Upgrade your plan to continue now.";
-
 export function importSinceFloor(limits: PlanLimits, now: Date): Date | null {
 	if (limits.importMonths === null) return null;
 

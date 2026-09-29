@@ -120,11 +120,15 @@ export function Usage({
 	label,
 	capacity,
 	lines,
+	resetsAt,
+	trialEnds,
 	plan,
 }: {
 	label: string;
 	capacity: UsageLine[];
 	lines: UsageLine[];
+	resetsAt: string;
+	trialEnds: boolean;
 	plan?: UsagePlan;
 }) {
 	const t = useT();
@@ -156,11 +160,15 @@ export function Usage({
 
 			{reached ? (
 				<Alert variant="warning">
-					<AlertTitle>{t("A monthly limit is reached")}</AlertTitle>
+					<AlertTitle>
+						{trialEnds
+							? t("A limit of your trial is reached")
+							: t("A monthly limit is reached")}
+					</AlertTitle>
 					<AlertDescription>
-						{t(
-							"Work above the limit waits until next month. Upgrade your plan or buy an add-on to continue now.",
-						)}
+						{t("Work above the limit waits until")}{" "}
+						<LocalDateTime date={resetsAt} options={LONG_DAY} />.{" "}
+						{t("Upgrade your plan or buy an add-on to continue now.")}
 					</AlertDescription>
 				</Alert>
 			) : null}

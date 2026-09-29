@@ -29,12 +29,14 @@ import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { LocalRelativeTime } from "@/components/local-date-time";
+import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { translateError } from "@/lib/i18n/errors";
 import { useTRPC } from "@/lib/trpc/client";
 
 import { EMAIL_DRAFT } from "./email-draft-config";
+
+const LONG_DAY = { dateStyle: "long" } as const;
 
 export function EmailDraftDialog({
 	contactId,
@@ -185,7 +187,10 @@ export function EmailDraftDialog({
 				{held && !draft ? (
 					<p className="py-8 text-muted-foreground text-sm">
 						{planLimit ? (
-							t(PLAN_LIMIT_MESSAGES.drafts)
+							<>
+								{t(PLAN_LIMIT_MESSAGES.drafts)}{" "}
+								<LocalDateTime date={held} options={LONG_DAY} />.
+							</>
 						) : (
 							<>
 								{t(

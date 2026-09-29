@@ -1,5 +1,5 @@
 import { isWorkspaceAdmin } from "@crm/auth";
-import { canonicalPlanId, nextMonthStart } from "@crm/db/plans";
+import { canonicalPlanId } from "@crm/db/plans";
 import { Button } from "@crm/ui/components/button";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -48,14 +48,9 @@ export default async function AiSettingsPage({
 					<PageShellTitle>{hosted ? t("Usage") : t("AI")}</PageShellTitle>
 					<PageShellDescription>
 						{hosted ? (
-							<>
-								{t("What you used this month. The counters reset on")}{" "}
-								<LocalDateTime
-									date={nextMonthStart().toISOString()}
-									options={LONG_DAY}
-								/>
-								.
-							</>
+							<Suspense fallback={null}>
+								<UsageSummary />
+							</Suspense>
 						) : (
 							t(
 								"The model the agent thinks with, what it costs, and what makes it cheaper.",
@@ -76,6 +71,22 @@ export default async function AiSettingsPage({
 				</Suspense>
 			</PageShellContent>
 		</PageShell>
+	);
+}
+
+async function UsageSummary() {
+	const t = await getT();
+	const usage = await getServerQueryClient().fetchQuery(
+		getServerTrpc().settings.aiUsage.queryOptions(),
+	);
+
+	return (
+		<>
+			{usage.trialEnds
+				? t("What you used in your trial. Your trial ends on")
+				: t("What you used this month. The counters reset on")}{" "}
+			<LocalDateTime date={usage.resetsAt} options={LONG_DAY} />.
+		</>
 	);
 }
 
@@ -129,6 +140,8 @@ async function Ai({ hosted, slug }: { hosted: boolean; slug: string }) {
 					reached: line.limit !== null && line.used >= line.limit,
 				}))}
 				lines={usage.lines}
+				resetsAt={usage.resetsAt}
+				trialEnds={usage.trialEnds}
 				plan={{
 					trialEndsAt,
 					billingHref:

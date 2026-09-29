@@ -56,14 +56,14 @@ export async function monthlyRoom(
 	return Math.max(0, budget - (await monthlyUsed(kind, now, exceptTaskId)));
 }
 
-export function limitOutcome(kind: string): string {
+export function limitOutcome(kind: string, until: Date): string {
 	const what =
 		kind === INSIGHT_KIND
 			? "conversations"
 			: kind === DRAFT_KIND
 				? "drafts"
 				: "research runs";
-	return `The monthly limit of your plan for ${what} is reached. This waits until next month. Upgrade your plan to continue now.`;
+	return `The limit of your plan for ${what} is reached. This waits until ${until.toISOString().slice(0, 10)}. Upgrade your plan to continue now.`;
 }
 
 export async function limitResumesAt(now: Date = new Date()): Promise<Date> {

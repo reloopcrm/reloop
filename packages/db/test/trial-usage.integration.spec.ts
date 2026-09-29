@@ -8,6 +8,7 @@ import { runAsTenant } from "../src/tenant-context";
 import { PREPARE_TIMEOUT_MS, prepareTestTenants } from "../src/test-tenants";
 
 const reason = `trialwin-${crypto.randomUUID().slice(0, 8)}`;
+const TRIAL_STARTED_AT = new Date("2026-10-28T09:00:05.000Z");
 const TRIAL_ENDS_AT = new Date("2026-11-11T09:00:00.000Z");
 const NOW = new Date("2026-11-02T12:00:00.000Z");
 const DRAFTS_AT = [
@@ -30,7 +31,12 @@ const inTrial = <T>(fn: () => Promise<T>) => runAsTenant(trial, fn);
 
 beforeAll(async () => {
 	const { a } = await prepareTestTenants();
-	trial = { ...a, plan: "trial", trialEndsAt: TRIAL_ENDS_AT };
+	trial = {
+		...a,
+		plan: "trial",
+		createdAt: TRIAL_STARTED_AT,
+		trialEndsAt: TRIAL_ENDS_AT,
+	};
 	await inTrial(async () => {
 		await db.agentTask.deleteMany({ where: { reason } });
 		planBefore = await readPlan(db);

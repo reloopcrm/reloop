@@ -69,7 +69,7 @@ const RULES: readonly Rule[] = [
 		scope: APP,
 		allowed: APP_TENANT_WRAPPERS,
 		skipTests: true,
-		why: "The app renders outside runAsTenant(). Read through a cache()d helper in apps/app/lib/session.ts that wraps inTenant().",
+		why: "The app renders outside runAsTenant(). Read through a cache()d helper in apps/app/lib/session.ts that wraps inScope() from apps/app/cloud/scope.server.ts.",
 	},
 	{
 		name: "a db-reading @crm/auth helper in apps/app",
@@ -77,7 +77,7 @@ const RULES: readonly Rule[] = [
 		scope: APP,
 		allowed: ["apps/app/lib/session.ts"],
 		skipTests: true,
-		why: "These helpers read db. The app wraps them in inTenant() inside apps/app/lib/session.ts. The list mirrors the exports of packages/auth/src files that import @crm/db.",
+		why: "These helpers read db. The app wraps them in inScope() inside apps/app/lib/session.ts. The list mirrors the exports of packages/auth/src files that import @crm/db.",
 	},
 	{
 		name: "a db-reading @crm/db module in apps/app",
@@ -87,7 +87,7 @@ const RULES: readonly Rule[] = [
 		scope: APP,
 		allowed: APP_TENANT_WRAPPERS,
 		skipTests: true,
-		why: "These modules read db. Load them through an inTenant() helper in apps/app/lib. The list is every packages/db/src module that imports ./client, except tracking and workspace, whose app imports are constants.",
+		why: "These modules read db. Load them through an inScope() helper in apps/app/lib. The list is every packages/db/src module that imports ./client, except tracking and workspace, whose app imports are constants.",
 	},
 ];
 

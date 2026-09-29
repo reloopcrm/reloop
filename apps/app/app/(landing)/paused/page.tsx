@@ -1,5 +1,5 @@
 import { isWorkspaceAdmin } from "@crm/auth";
-import { isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PausedPaymentSection } from "@/cloud/slots.server";
@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const instant = false;
 
 export default async function PausedPage() {
-	if (!isHosted()) notFound();
+	if (!cloud.hosted()) notFound();
 	const t = await getT();
 	const session = await requireSession();
 	const [role, dangerZone] = await Promise.all([

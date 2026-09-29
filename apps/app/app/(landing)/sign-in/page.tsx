@@ -1,5 +1,5 @@
 import type { MailboxProviderId } from "@crm/auth/scopes";
-import { isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { Alert, AlertTitle } from "@crm/ui/components/alert";
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
@@ -78,7 +78,7 @@ async function SignIn({
 	searchParams,
 }: Pick<PageProps<"/sign-in">, "searchParams">) {
 	const t = await getT();
-	const hosted = isHosted();
+	const hosted = cloud.hosted();
 	const [session, options, { method, error }] = await Promise.all([
 		currentSession(),
 		hosted ? null : signInOptions(),

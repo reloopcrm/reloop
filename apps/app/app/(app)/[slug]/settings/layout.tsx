@@ -1,8 +1,8 @@
 import { isWorkspaceAdmin } from "@crm/auth/roles";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { hostedCustomer } from "@/cloud/scope.server";
 import { requireSession, workspaceRole } from "@/lib/session";
-import { hostedCustomer } from "@/lib/tenant";
 import { SettingsSidebar, SettingsSidebarFallback } from "./settings-sidebar";
 
 export default function SettingsLayout({

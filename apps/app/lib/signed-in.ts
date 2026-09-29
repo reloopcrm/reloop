@@ -1,10 +1,8 @@
 import { isWorkspaceAdmin } from "@crm/auth/roles";
-import { canonicalPlanId } from "@crm/db/plans";
-import type { Tenant } from "@crm/db/tenancy";
 import { unstable_rethrow } from "next/navigation";
+import { requestScope, subscription } from "@/cloud/scope.server";
 import { getSession, workspaceRole, workspaceRow } from "@/lib/session";
 import type { Subscription } from "@/lib/signed-in-entry";
-import { requestTenant } from "@/lib/tenant";
 import { workspaceLabel } from "@/lib/workspace-label";
 
 export type SignedInWorkspace = {
@@ -15,29 +13,24 @@ export type SignedInWorkspace = {
 	subscription: Subscription | null;
 };
 
-function subscriptionOf(tenant: Tenant): Subscription | null {
-	const { status, interval } = tenant.billing;
-	if (status !== "active" && status !== "past_due") return null;
-	return { plan: canonicalPlanId(tenant.plan), interval };
-}
-
 export async function signedInWorkspace(): Promise<SignedInWorkspace | null> {
 	try {
 		const session = await getSession();
-		const tenant = await requestTenant();
-		if (!session || !tenant) return null;
+		const scope = await requestScope();
+		if (!session || !scope) return null;
 
-		const [workspace, role] = await Promise.all([
+		const [workspace, role, subscribed] = await Promise.all([
 			workspaceRow(),
 			workspaceRole(session.user.id),
+			subscription(),
 		]);
 
 		return {
 			email: session.user.email,
 			name: workspaceLabel(workspace?.name),
-			slug: workspace?.slug ?? tenant.slug,
+			slug: workspace?.slug ?? scope.slug,
 			admin: isWorkspaceAdmin(role),
-			subscription: subscriptionOf(tenant),
+			subscription: subscribed,
 		};
 	} catch (error) {
 		unstable_rethrow(error);

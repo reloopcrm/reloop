@@ -1,14 +1,13 @@
 import { DEFAULT_WORKSPACE_NAME, isWorkspaceAdmin } from "@crm/auth";
 import { PLANS } from "@crm/db/plans";
-import { unpaidPurchase } from "@crm/db/tenancy";
 import type { Metadata } from "next";
 import type { CheckoutNotice } from "@/cloud/contract";
+import { hostedCustomer, pendingPurchase } from "@/cloud/scope.server";
 import { CheckoutBanner, CheckoutOutcome, checkoutNotice } from "@/cloud/slots";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { CHECKOUT } from "@/lib/checkout-config";
 import { getT } from "@/lib/i18n/server";
 import { requireMailboxAccess, workspaceRole } from "@/lib/session";
-import { hostedCustomer, requestTenant } from "@/lib/tenant";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { OnboardingForm } from "./onboarding-form";
 
@@ -55,10 +54,9 @@ async function checkoutNoticeFor(
 	outcome: string | string[] | undefined,
 ): Promise<CheckoutNotice> {
 	if (!(await hostedCustomer())) return null;
-	const tenant = await requestTenant();
 	return checkoutNotice({
 		outcome,
-		wanted: tenant ? unpaidPurchase(tenant) : null,
+		wanted: await pendingPurchase(),
 		admin: isWorkspaceAdmin(await workspaceRole(userId)),
 	});
 }

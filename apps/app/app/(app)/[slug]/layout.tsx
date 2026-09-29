@@ -1,10 +1,14 @@
 import { isWorkspaceAdmin } from "@crm/auth";
 import { limitsOf, PLANS } from "@crm/db/plans";
-import { unpaidPurchase } from "@crm/db/tenancy";
 import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import {
+	hostedCustomer,
+	pendingPurchase,
+	requestScope,
+} from "@/cloud/scope.server";
 import { CheckoutBanner } from "@/cloud/slots";
 import { AppHeader, AppHeaderFallback } from "@/components/app-header";
 import { AppSidebar, AppSidebarFallback } from "@/components/app-sidebar";
@@ -20,7 +24,6 @@ import {
 	requireSession,
 	workspaceRole,
 } from "@/lib/session";
-import { hostedCustomer, requestTenant } from "@/lib/tenant";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { workspaceLabel } from "@/lib/workspace-label";
@@ -94,8 +97,7 @@ async function UpdateNotice() {
 async function CheckoutNotice() {
 	await connection();
 	if (!(await hostedCustomer())) return null;
-	const tenant = await requestTenant();
-	const wanted = tenant ? unpaidPurchase(tenant) : null;
+	const wanted = await pendingPurchase();
 	if (!wanted) return null;
 
 	const session = await requireSession();
@@ -149,7 +151,7 @@ async function loadChrome(params: LayoutProps<"/[slug]">["params"]) {
 async function planLabel(): Promise<string | null> {
 	await connection();
 	if (!(await hostedCustomer())) return null;
-	const tenant = await requestTenant();
+	const tenant = await requestScope();
 	return tenant ? limitsOf(tenant.plan).label : null;
 }
 

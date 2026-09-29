@@ -56,9 +56,9 @@ An API key from **Settings → API Keys** is a session in a header, so a leaked 
 every record its owner can, and an expiry is optional. What it cannot do is build access that outlives
 its own revocation. `SessionOnlyMiddleware` refuses an `x-api-key` header on `apiKeys.*`,
 `settings.setPassword`, `settings.setAgentProvider`, `settings.chatgptLoginAction`,
-`workspace.addPerson`, `workspace.setMemberRole`, `workspace.removeMember`, `workspace.deletionCode`, `workspace.delete`, `sso.register`, `sso.remove`, `imap.add`,
-`webhooks.create`, `webhooks.update` and `system.update`, plus the hosted Cloud's `billing.checkout`,
-`billing.setAddOn`, `billing.cancel`, `billing.resume` and `billing.portal`, and `accessGuard` refuses it on
+`workspace.addPerson`, `workspace.setMemberRole`, `workspace.removeMember`, `sso.register`, `sso.remove`, `imap.add`,
+`webhooks.create`, `webhooks.update` and `system.update`, and on the same kind of call in any optional
+cloud module, and `accessGuard` refuses it on
 `/api/auth/api-key/*`, `/api/auth/sso/register`, `/change-password` and `/set-password`. Those are the calls that mint a
 credential, grant a role, register a sign-in provider, point CRM events at an address, or deploy
 new code. Revoke a key on the same page.

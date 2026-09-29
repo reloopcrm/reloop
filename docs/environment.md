@@ -220,14 +220,11 @@ reads it too: `system.update` answers `refused` and `system.version` reports
 `updaterAvailable: false`, even when an updater answers. Declared in
 `env.validation.ts`, the root `turbo.json` and `apps/app/turbo.json`.
 
-## The hosted Cloud's own variables
+## Optional cloud modules
 
-The hosted Reloop Cloud keeps one database per customer. The registry, the
-tenant database template, the operator workspace, the backup folder and the
-mail sender are read only by the private overlay, which documents them. Nothing
-in this repository reads them, and a self-hosted install sets none of them. The
-core reaches the hosted side only through the port in `docs/api.md`, and every
-slot of it is a no-op here.
+Optional cloud modules can fill the slots of the port in `docs/api.md`. They
+read their own variables and document them themselves. Nothing in this
+repository reads those variables, and a self-hosted install sets none of them.
 
 ## Billing
 

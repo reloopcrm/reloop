@@ -1,10 +1,5 @@
+import { CLOUD } from "./cloud-config";
 import type { CloudScope } from "./contract";
-
-const SECOND_MS = 1_000;
-
-const SELF_HOST = {
-	loop: { budgetMs: 30 * SECOND_MS },
-} as const;
 
 class NoWorkspaceScope extends Error {
 	constructor() {
@@ -20,7 +15,7 @@ function noScope(): never {
 }
 
 export const cloud: CloudScope = {
-	loop: SELF_HOST.loop,
+	loop: CLOUD.selfHost.loop,
 	hosted: () => false,
 	customer: () => false,
 	operatorId: () => null,

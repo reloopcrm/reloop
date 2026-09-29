@@ -11,6 +11,7 @@ import {
 import { isMarketing, isMarketingHost } from "@/lib/env";
 import {
 	markdownHeaders,
+	markdownLinks,
 	notFoundMarkdown,
 	prefersMarkdown,
 } from "@/lib/markdown-negotiation";
@@ -20,7 +21,7 @@ import {
 	readWorkspaceGate,
 } from "@/lib/onboarding";
 import { PROXY } from "@/lib/proxy-config";
-import { cloudUrl } from "@/lib/site-links";
+import { cloudUrl, signUpLink } from "@/lib/site-links";
 import { workspaceUrl } from "@/lib/workspace-url";
 
 export const ANONYMOUS_PATHS = PROXY.anonymous;
@@ -48,7 +49,7 @@ export async function proxy(request: NextRequest) {
 	const marketing = isMarketing() || marketingHost;
 
 	if (markdown && pathname === PROXY.path.landing && marketing) {
-		return new NextResponse(landingMarkdown(), {
+		return new NextResponse(landingMarkdown(markdownLinks(signUpLink())), {
 			headers: markdownHeaders(),
 		});
 	}
@@ -117,7 +118,8 @@ function marketingSite(request: NextRequest, markdown: boolean): NextResponse {
 
 function notFound(request: NextRequest, markdown: boolean): NextResponse {
 	if (markdown) {
-		return new NextResponse(notFoundMarkdown(request.nextUrl.pathname), {
+		const links = markdownLinks(signUpLink());
+		return new NextResponse(notFoundMarkdown(request.nextUrl.pathname, links), {
 			status: 404,
 			headers: markdownHeaders(),
 		});

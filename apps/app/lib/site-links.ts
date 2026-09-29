@@ -1,4 +1,5 @@
 import type { PlanPurchase } from "@crm/db/pricing";
+import { HOSTED_ROUTES } from "@/cloud/slots.data";
 import { PRICING } from "@/components/signup/config";
 
 const SIGN_IN_PATH = "/sign-in";
@@ -19,6 +20,11 @@ export function siteUrl(): string | undefined {
 export function signUpUrl(plan?: string): string {
 	const path = `${cloudUrl() ?? ""}${PRICING.href.start}`;
 	return plan ? `${path}?${PRICING.href.planParam}=${plan}` : path;
+}
+
+export function signUpLink(): string | null {
+	const served = HOSTED_ROUTES.includes(PRICING.href.start);
+	return cloudUrl() || served ? signUpUrl() : null;
 }
 
 export function purchaseQuery(purchase: PlanPurchase): URLSearchParams {

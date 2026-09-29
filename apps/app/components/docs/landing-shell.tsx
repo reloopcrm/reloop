@@ -8,7 +8,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { REPO_URL } from "@/components/site";
 import { getT } from "@/lib/i18n/server";
 import { getImprint } from "@/lib/imprint";
-import { marketingUrl, signInUrl, signUpUrl } from "@/lib/site-links";
+import { marketingUrl, signInUrl, signUpLink } from "@/lib/site-links";
 import { DynamicIslandNav } from "./dynamic-island-nav";
 
 export async function LandingShell({
@@ -29,10 +29,12 @@ export async function LandingShell({
 		? marketingLink(MARKETING_NAV.pricing)
 		: null;
 
+	const signUp = signUpLink();
+
 	const productLinks = [
 		...(pricing ? [pricing] : []),
 		{ href: "/docs", label: t("Docs") },
-		{ href: signUpUrl(), label: t("Get started") },
+		...(signUp ? [{ href: signUp, label: t("Get started") }] : []),
 		{ href: signInUrl(), label: t("Sign in") },
 	];
 

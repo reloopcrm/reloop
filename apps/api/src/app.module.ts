@@ -41,7 +41,6 @@ import { SsoModule } from "./sso/sso.module";
 import { SyncModule } from "./sync/sync.module";
 import { SystemModule } from "./system/system.module";
 import { TelemetryModule } from "./telemetry/telemetry.module";
-import { TenancyModule } from "./tenancy/tenancy.module";
 import { TrackingModule } from "./tracking/tracking.module";
 import { TrpcModule } from "./trpc/trpc.module";
 import { TypesafeModule } from "./typesafe/typesafe.module";
@@ -92,7 +91,6 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		SlackModule,
 		BackfillModule,
 		TelemetryModule,
-		TenancyModule,
 		TrackingModule,
 		ArchiveModule,
 		SavedViewsModule,

@@ -4,6 +4,7 @@ import { cloud } from "./cloud/scope";
 import {
 	type AddOnQuantities,
 	canonicalPlanId,
+	DAY_MS,
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	limitsOf,
@@ -16,7 +17,6 @@ import {
 	withAddOns,
 } from "./plans";
 import { readPlan } from "./settings";
-import { DAY_MS } from "./tenancy-config";
 
 export async function planIdOf(db: Db): Promise<string | null> {
 	const stored = await readPlan(db);

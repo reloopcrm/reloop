@@ -56,6 +56,8 @@ export const NO_PLAN: PlanLimits = {
 	aiIncluded: false,
 };
 
+export const DAY_MS = 24 * 60 * 60 * 1_000;
+
 export const TRIAL_DAYS = 14;
 
 export const PLANS = {

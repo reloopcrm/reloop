@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import pg from "pg";
-import { db, disconnectTenant } from "./client";
+import { db } from "./client";
 import { TRIAL_DAYS } from "./plans";
 import { writePlan } from "./settings";
 import {
@@ -18,6 +18,7 @@ import {
 	tenantDatabaseUrl,
 } from "./tenancy";
 import { TENANCY } from "./tenancy-config";
+import { disconnectTenant } from "./tenant-clients";
 import { runAsTenant } from "./tenant-context";
 import { databaseName, isTestDatabaseName } from "./test-database";
 import { WORKSPACE_ID, workspaceSlug } from "./workspace";

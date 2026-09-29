@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { db, disconnectAll, openClients } from "../src/client";
+import { db, disconnectAll } from "../src/client";
 import type { Tenant } from "../src/tenancy";
 import { TENANCY } from "../src/tenancy-config";
+import { openClients } from "../src/tenant-clients";
 import {
 	currentTenant,
 	holdTenant,

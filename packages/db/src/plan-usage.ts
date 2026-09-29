@@ -1,5 +1,6 @@
 import { DIRECT_KINDS } from "./agent-tasks";
 import type { Db } from "./client";
+import { cloud } from "./cloud/scope";
 import {
 	type AddOnQuantities,
 	canonicalPlanId,
@@ -16,20 +17,19 @@ import {
 } from "./plans";
 import { readPlan } from "./settings";
 import { DAY_MS } from "./tenancy-config";
-import { currentTenant, isHostedCustomer } from "./tenant-context";
 
 export async function planIdOf(db: Db): Promise<string | null> {
 	const stored = await readPlan(db);
 	if (stored) return stored;
-	return isHostedCustomer() ? currentTenant().plan : null;
+	return cloud.customer() ? cloud.current().plan : null;
 }
 
 export function fixedAiFor(plan: string | null | undefined): boolean {
-	return isHostedCustomer() && limitsOf(plan).aiIncluded;
+	return cloud.customer() && limitsOf(plan).aiIncluded;
 }
 
 export function addOnsOf(): AddOnQuantities {
-	return isHostedCustomer() ? currentTenant().billing.addOns : NO_ADD_ONS;
+	return cloud.customer() ? cloud.addOns() : NO_ADD_ONS;
 }
 
 export async function planLimitsOf(db: Db): Promise<PlanLimits> {
@@ -47,8 +47,8 @@ function usageWindowFor(
 	now: Date = new Date(),
 ): UsageWindow {
 	const tenant =
-		isHostedCustomer() && canonicalPlanId(plan) === "trial"
-			? currentTenant()
+		cloud.customer() && canonicalPlanId(plan) === "trial"
+			? cloud.current()
 			: null;
 	if (tenant?.trialEndsAt) {
 		const trialEnds = tenant.trialEndsAt > now;

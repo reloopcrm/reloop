@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import { LOCALE, type Locale } from "@crm/db/locale";
-import { currentTenantId } from "@crm/db/tenant-context";
 import {
 	type AgentLanguage,
 	defaultAgentLanguage,
@@ -27,7 +27,7 @@ export function resolveLanguage(
 }
 
 async function workspaceLanguage(): Promise<Locale> {
-	const key = currentTenantId() ?? "";
+	const key = cloud.scopeId() ?? "";
 	const hit = cache.get(key);
 	if (hit && hit.until > Date.now()) return hit.language;
 

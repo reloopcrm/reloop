@@ -1,7 +1,7 @@
 import { EnrichmentStatus } from "@crm/db";
 import { PRIORITY, waitsForPerson } from "@crm/db/agent-tasks";
+import { cloud } from "@crm/db/cloud/scope";
 import { RESEARCH_RUN_KIND } from "@crm/db/plans";
-import { currentTenantId } from "@crm/db/tenant-context";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	readAgentTaskInstruction,
@@ -230,7 +230,7 @@ export const BACKFILL_PRIORITY = PRIORITY.threadInsightBackfill;
 export async function slowLaneRoom(): Promise<number> {
 	if (!(await fixedAi())) return Number.POSITIVE_INFINITY;
 
-	return keyBucket().slowAllowance(currentTenantId(), await planId());
+	return keyBucket().slowAllowance(cloud.scopeId(), await planId());
 }
 
 export type InsightLaneDeps = {

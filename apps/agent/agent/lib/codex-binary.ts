@@ -2,7 +2,7 @@ import { spawn as nodeSpawn } from "node:child_process";
 import { accessSync, constants, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
-import { isHostedCustomer } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { MODEL } from "./model-config";
 
 export type CodexBinary =
@@ -136,7 +136,7 @@ export function codexHome(env: NodeJS.ProcessEnv = process.env): string {
 export function chatgptLoginExists(
 	env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-	if (isHostedCustomer()) return false;
+	if (cloud.customer()) return false;
 	return existsSync(join(codexHome(env), MODEL.chatgptLogin.authFile));
 }
 

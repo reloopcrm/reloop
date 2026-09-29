@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { isHosted, operatorTenantId } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { defineChannel, POST } from "eve/channels";
 import { z } from "zod";
 import { chatgptLogin } from "../lib/chatgpt-login";
@@ -38,7 +38,7 @@ export default defineChannel({
 				await request.json().catch(() => null),
 			);
 
-			if (isHosted() && operatorTenantId() === null) {
+			if (cloud.hosted() && cloud.operatorId() === null) {
 				return Response.json({
 					status: "unavailable",
 					url: null,
@@ -49,7 +49,7 @@ export default defineChannel({
 				});
 			}
 
-			const operator = await tenantFromId(operatorTenantId());
+			const operator = await tenantFromId(cloud.operatorId());
 			if (action === "start") {
 				return Response.json(
 					await asTenant(operator, () => chatgptLogin.start()),

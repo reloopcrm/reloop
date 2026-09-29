@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { MARKETING_LLMS_PAGES } from "@/cloud/slots.server";
 import { DOCS, docPath } from "@/components/docs/docs-config";
 import { PRICING } from "@/components/signup/config";
 import { REPO_URL } from "@/components/site";
@@ -23,45 +24,11 @@ const PAGES: readonly Entry[] = [
 		note: "What the product does and who it is for.",
 	},
 	{
-		title: "Pricing",
-		path: "/pricing",
-		note: "The plans, what each includes, and the 14 day trial.",
-	},
-	{
 		title: "Get started",
 		path: PRICING.href.start,
 		note: "How to start with Reloop CRM, hosted or on your own server.",
 	},
-	{
-		title: "Open source",
-		path: "/open-source",
-		note: "The AGPL-3.0 licence Reloop CRM ships under.",
-	},
-	{
-		title: "What an open source CRM gives you",
-		path: "/open-source-crm",
-		note: "Why the source and the data stay yours.",
-	},
-	{
-		title: "Self-hosted CRM",
-		path: "/self-hosted-crm",
-		note: "Install Reloop CRM on your own server with one command, and what the server needs.",
-	},
-	{
-		title: "Reloop CRM vs HubSpot",
-		path: "/vs/hubspot",
-		note: "What HubSpot does better, and what Reloop CRM does better.",
-	},
-	{
-		title: "Win back customers",
-		path: "/win-back-customers",
-		note: "How Reloop CRM finds the customers who went quiet, ranks them, and drafts the mail that brings them back.",
-	},
-	{
-		title: "About",
-		path: "/about",
-		note: "Who builds Reloop CRM, what it does, and the licence it ships under.",
-	},
+	...MARKETING_LLMS_PAGES,
 	{
 		title: "Contact",
 		path: "/contact",

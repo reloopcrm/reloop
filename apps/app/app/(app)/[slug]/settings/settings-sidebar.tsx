@@ -5,6 +5,7 @@ import { Separator } from "@crm/ui/components/separator";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useMemo } from "react";
+import { BILLING_SETTINGS_NAV } from "@/cloud/slots";
 import { useT } from "@/lib/i18n/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
@@ -35,13 +36,7 @@ const ITEMS: SettingsNavItem[] = [
 	{ title: "API Keys", href: `${ROOT}/api-keys` },
 	{ title: "SSO", href: `${ROOT}/sso` },
 	{ title: "Usage", href: `${ROOT}/ai`, hosted: true, group: "plan" },
-	{
-		title: "Plan & billing",
-		href: `${ROOT}/billing`,
-		hosted: true,
-		admin: true,
-		group: "plan",
-	},
+	...BILLING_SETTINGS_NAV,
 ];
 
 export function settingsNavItems(who: SettingsNavAudience): SettingsNavItem[] {

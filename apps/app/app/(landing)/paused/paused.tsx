@@ -4,12 +4,9 @@ import { Button } from "@crm/ui/components/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { longDay, PlanPicker } from "@/cloud/slots";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
-import {
-	longDay,
-	PlanPicker,
-} from "../../(app)/[slug]/settings/billing/billing";
 
 const PAUSED = { refetchMs: 5_000, home: "/" } as const;
 

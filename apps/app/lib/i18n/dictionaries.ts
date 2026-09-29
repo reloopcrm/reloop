@@ -1,8 +1,8 @@
 import type { Locale } from "@crm/db/locale";
+import { CLOUD_DICTIONARY_MODULES } from "./cloud";
 import deAgentBuilder from "./de/agent-builder.json";
 import deCopy from "./de/copy.json";
 import deCrmRecords from "./de/crm-records.json";
-import deLanding from "./de/landing.json";
 import deNavigation from "./de/navigation.json";
 import deQuotes from "./de/quotes.json";
 import deRecords from "./de/records.json";
@@ -15,7 +15,6 @@ import deWinBack from "./de/win-back.json";
 import esAgentBuilder from "./es/agent-builder.json";
 import esCopy from "./es/copy.json";
 import esCrmRecords from "./es/crm-records.json";
-import esLanding from "./es/landing.json";
 import esNavigation from "./es/navigation.json";
 import esQuotes from "./es/quotes.json";
 import esRecords from "./es/records.json";
@@ -28,7 +27,6 @@ import esWinBack from "./es/win-back.json";
 import frAgentBuilder from "./fr/agent-builder.json";
 import frCopy from "./fr/copy.json";
 import frCrmRecords from "./fr/crm-records.json";
-import frLanding from "./fr/landing.json";
 import frNavigation from "./fr/navigation.json";
 import frQuotes from "./fr/quotes.json";
 import frRecords from "./fr/records.json";
@@ -42,7 +40,6 @@ import type { Dictionary } from "./locale";
 import ptBRAgentBuilder from "./pt-BR/agent-builder.json";
 import ptBRCopy from "./pt-BR/copy.json";
 import ptBRCrmRecords from "./pt-BR/crm-records.json";
-import ptBRLanding from "./pt-BR/landing.json";
 import ptBRNavigation from "./pt-BR/navigation.json";
 import ptBRQuotes from "./pt-BR/quotes.json";
 import ptBRRecords from "./pt-BR/records.json";
@@ -55,7 +52,6 @@ import ptBRWinBack from "./pt-BR/win-back.json";
 import trAgentBuilder from "./tr/agent-builder.json";
 import trCopy from "./tr/copy.json";
 import trCrmRecords from "./tr/crm-records.json";
-import trLanding from "./tr/landing.json";
 import trNavigation from "./tr/navigation.json";
 import trQuotes from "./tr/quotes.json";
 import trRecords from "./tr/records.json";
@@ -68,7 +64,6 @@ import trWinBack from "./tr/win-back.json";
 import zhHansAgentBuilder from "./zh-Hans/agent-builder.json";
 import zhHansCopy from "./zh-Hans/copy.json";
 import zhHansCrmRecords from "./zh-Hans/crm-records.json";
-import zhHansLanding from "./zh-Hans/landing.json";
 import zhHansNavigation from "./zh-Hans/navigation.json";
 import zhHansQuotes from "./zh-Hans/quotes.json";
 import zhHansRecords from "./zh-Hans/records.json";
@@ -85,7 +80,7 @@ export const DICTIONARY_MODULES = {
 		"agent-builder": deAgentBuilder,
 		copy: deCopy,
 		"crm-records": deCrmRecords,
-		landing: deLanding,
+		...CLOUD_DICTIONARY_MODULES.de,
 		navigation: deNavigation,
 		quotes: deQuotes,
 		records: deRecords,
@@ -100,7 +95,7 @@ export const DICTIONARY_MODULES = {
 		"agent-builder": esAgentBuilder,
 		copy: esCopy,
 		"crm-records": esCrmRecords,
-		landing: esLanding,
+		...CLOUD_DICTIONARY_MODULES.es,
 		navigation: esNavigation,
 		quotes: esQuotes,
 		records: esRecords,
@@ -115,7 +110,7 @@ export const DICTIONARY_MODULES = {
 		"agent-builder": frAgentBuilder,
 		copy: frCopy,
 		"crm-records": frCrmRecords,
-		landing: frLanding,
+		...CLOUD_DICTIONARY_MODULES.fr,
 		navigation: frNavigation,
 		quotes: frQuotes,
 		records: frRecords,
@@ -130,7 +125,7 @@ export const DICTIONARY_MODULES = {
 		"agent-builder": ptBRAgentBuilder,
 		copy: ptBRCopy,
 		"crm-records": ptBRCrmRecords,
-		landing: ptBRLanding,
+		...CLOUD_DICTIONARY_MODULES["pt-BR"],
 		navigation: ptBRNavigation,
 		quotes: ptBRQuotes,
 		records: ptBRRecords,
@@ -145,7 +140,7 @@ export const DICTIONARY_MODULES = {
 		"agent-builder": trAgentBuilder,
 		copy: trCopy,
 		"crm-records": trCrmRecords,
-		landing: trLanding,
+		...CLOUD_DICTIONARY_MODULES.tr,
 		navigation: trNavigation,
 		quotes: trQuotes,
 		records: trRecords,
@@ -160,7 +155,7 @@ export const DICTIONARY_MODULES = {
 		"agent-builder": zhHansAgentBuilder,
 		copy: zhHansCopy,
 		"crm-records": zhHansCrmRecords,
-		landing: zhHansLanding,
+		...CLOUD_DICTIONARY_MODULES["zh-Hans"],
 		navigation: zhHansNavigation,
 		quotes: zhHansQuotes,
 		records: zhHansRecords,

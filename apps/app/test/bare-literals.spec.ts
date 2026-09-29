@@ -82,7 +82,9 @@ async function translatedKeys(paths: string[]): Promise<string[]> {
 
 async function appFiles(): Promise<string[]> {
 	const paths: string[] = [];
-	for await (const path of new Bun.Glob("{app,components}/**/*.tsx").scan(root))
+	for await (const path of new Bun.Glob("{app,cloud,components}/**/*.tsx").scan(
+		root,
+	))
 		if (!MARKETING.test(path)) paths.push(path);
 	return paths.sort();
 }

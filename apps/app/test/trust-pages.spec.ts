@@ -102,7 +102,10 @@ describe("the trust anchor pages", () => {
 	});
 
 	it("stand in the sitemap, except the ones that carry noindex", async () => {
-		const source = await Bun.file(`${root}app/sitemap.ts`).text();
+		const source = [
+			await Bun.file(`${root}app/sitemap.ts`).text(),
+			await Bun.file(`${root}cloud/slots.server.ts`).text(),
+		].join("\n");
 
 		expect(source).toContain('"/about"');
 		expect(source).not.toContain('"/contact"');

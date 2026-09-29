@@ -33,7 +33,7 @@ async function keysTheAppLooksUp(): Promise<Map<string, string>> {
 		fileURLToPath(new URL("../", import.meta.url)),
 		fileURLToPath(new URL("../../../packages/ui/src/", import.meta.url)),
 	];
-	const globs = ["{app,components,lib}/**/*.{ts,tsx}", "**/*.{ts,tsx}"];
+	const globs = ["{app,cloud,components,lib}/**/*.{ts,tsx}", "**/*.{ts,tsx}"];
 	const found = new Map<string, string>();
 
 	for (const [index, root] of roots.entries()) {

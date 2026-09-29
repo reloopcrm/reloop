@@ -5,7 +5,7 @@ import { Button } from "@crm/ui/components/button";
 import { Link } from "@crm/ui/components/link";
 import NextLink from "next/link";
 import { toast } from "sonner";
-import { CheckoutButton } from "@/components/checkout-banner";
+import { CheckoutButton } from "@/cloud/slots";
 import { useT } from "@/lib/i18n/client";
 import { signOutAndRedirect } from "@/lib/sign-out";
 

@@ -4,6 +4,7 @@ import { Button } from "@crm/ui/components/button";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { UsageAddOns } from "@/cloud/slots";
 import { LocalDateTime } from "@/components/local-date-time";
 import {
 	PageShell,
@@ -26,7 +27,6 @@ import { AgentProvider } from "./agent-model";
 import { Spend } from "./spend";
 import { Typesafe } from "./typesafe";
 import { Usage } from "./usage";
-import { UsageAddOns } from "./usage-add-ons";
 
 const LONG_DAY = { dateStyle: "long" } as const;
 

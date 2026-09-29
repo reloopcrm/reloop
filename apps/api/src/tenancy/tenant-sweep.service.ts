@@ -193,7 +193,7 @@ export class TenantSweepService
 		);
 		for (const tenant of await scheduledTargetsBefore(staleTarget)) {
 			try {
-				await this.billing.healStoredTarget(tenant);
+				await this.billing.healStoredTarget(tenant.id);
 				report.healed += 1;
 			} catch (error) {
 				this.logger.error(
@@ -220,7 +220,7 @@ export class TenantSweepService
 
 	private async finishSteps(tenant: Tenant): Promise<DeletionOutcome> {
 		try {
-			await this.billing.cancelNow(tenant);
+			await this.billing.cancelNow(tenant.id);
 			await runAsTenant(tenant, () => this.clearSecrets());
 			await runAsTenant(tenant, () => this.db.session.deleteMany({}));
 			await this.mails.send(tenant, `deleted:${tenant.id}`, "deleted", {

@@ -50,7 +50,6 @@ const TENANCY_SIDE = [
 	"apps/api/src/workspace/workspace-deletion.service.ts",
 	"apps/api/src/mail/billing-mail.service.ts",
 	"apps/api/src/mail/mail-copy.ts",
-	"apps/api/src/billing-port/billing-port.ts",
 	"apps/app/lib/tenant.ts",
 	"apps/app/cloud/scope.server.ts",
 	"packages/auth/src/tenant-cookie.ts",

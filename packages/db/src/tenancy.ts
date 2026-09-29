@@ -1,5 +1,6 @@
 import pg from "pg";
 import { z } from "zod";
+import type { WorkspaceScope } from "./cloud/contract";
 import { ADD_ON_IDS, canonicalPlanId, NO_ADD_ONS } from "./plans";
 import { PAID_PLAN_IDS, type PlanPurchase, planPurchase } from "./pricing";
 import { TENANCY } from "./tenancy-config";
@@ -81,6 +82,10 @@ export const tenant = z.object({
 });
 
 export type Tenant = z.infer<typeof tenant>;
+
+export function scopeOf(value: Tenant): WorkspaceScope {
+	return value as Tenant & WorkspaceScope;
+}
 
 export function unpaidPurchase(tenant: Tenant): PlanPurchase | null {
 	const { status, wanted } = tenant.billing;

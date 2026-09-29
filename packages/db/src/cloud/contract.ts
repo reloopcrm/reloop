@@ -1,7 +1,10 @@
 import type { Db } from "../client";
 import type { AddOnQuantities } from "../plans";
 
+declare const workspaceScope: unique symbol;
+
 export type WorkspaceScope = {
+	readonly [workspaceScope]: true;
 	readonly id: string;
 	readonly slug: string;
 	readonly plan: string;

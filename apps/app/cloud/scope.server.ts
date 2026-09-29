@@ -1,7 +1,7 @@
 import type { WorkspaceScope } from "@crm/db/cloud/contract";
 import { canonicalPlanId } from "@crm/db/plans";
 import type { PlanPurchase } from "@crm/db/pricing";
-import { unpaidPurchase } from "@crm/db/tenancy";
+import { scopeOf, unpaidPurchase } from "@crm/db/tenancy";
 import type { Subscription } from "@/lib/signed-in-entry";
 import {
 	inTenant,
@@ -9,8 +9,9 @@ import {
 	hostedCustomer as tenantCustomer,
 } from "@/lib/tenant";
 
-export function requestScope(): Promise<WorkspaceScope | null> {
-	return requestTenant();
+export async function requestScope(): Promise<WorkspaceScope | null> {
+	const tenant = await requestTenant();
+	return tenant ? scopeOf(tenant) : null;
 }
 
 export function inScope<T>(fn: () => Promise<T>): Promise<T | null> {

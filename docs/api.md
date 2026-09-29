@@ -38,15 +38,20 @@ Single tenant. No org header, no org interceptor, no org-scoped cache keys, **no
 
 Hosted mode does not change that: a customer gets a whole database, and `db` from
 `@crm/db` resolves to that customer's client through an `AsyncLocalStorage`. The
-tenant is resolved once per request in `apps/api/src/tenancy/tenant.middleware.ts`
-and never travels as a parameter. A process-wide cache key that is per workspace
-goes through `tenantScopedKey()` (`@crm/db/tenant-context`), and a cron route that
-serves every workspace loops through `forEachTenant()` (`@crm/db/tenancy`). The loop
-runs `TENANCY.loop.concurrency` tenants at once with `TENANCY.loop.budgetMs` each
+tenant is resolved once per request by the middleware `cloudMiddleware()` hands
+to `create-app.ts` (`apps/api/src/cloud/cloud-middleware.ts`), and never travels
+as a parameter. Core code reaches the tenancy only through the port `cloud` from
+`@crm/db/cloud/scope`, typed by `@crm/db/cloud/contract`; `tools/tenancy-guard.ts`
+refuses a direct import of `@crm/db/tenancy`, `@crm/db/tenant-context` or
+`@crm/db/tenant-clients` outside the tenancy side. A process-wide cache key that
+is per workspace goes through `cloud.scopedKey()`, and a cron route that serves
+every workspace loops through `cloud.forEachScope()`. The loop runs
+`TENANCY.loop.concurrency` tenants at once with `cloud.loop.budgetMs` each
 (`packages/db/src/tenancy-config.ts`); a tenant past its budget is reported as
 failed and the others carry on. Work that outlives its request, a detached
-`void (async …)()`, wraps itself in `holdTenant()` so the pool never disconnects
-the client under it. The exchange-rate loop fetches the feed once per base
+`void (async …)()`, wraps itself in `cloud.hold()` so the pool never disconnects
+the client under it. `cloud.run()` takes only a `WorkspaceScope` the port made
+(`cloud.byId`, `cloud.active`, `cloud.activeBySite`, `cloud.current`). The exchange-rate loop fetches the feed once per base
 currency (`RatesService.refreshAll`) and writes it to every tenant. The
 variables and the rules are in `docs/environment.md`.
 
@@ -376,7 +381,7 @@ the largest attachment upload the conversation contracts accept.
   `SYNC_TICK.selfHostBudgetMs` otherwise, minus a settle reserve) evenly over the
   mailboxes still due, and each provider stops between two messages when its
   deadline passes, persists the position and returns. That is what keeps one
-  tenant's first import inside its `forEachTenant` budget, so the tenant is never
+  tenant's first import inside its `cloud.forEachScope` budget, so the tenant is never
   reported as failed and the next tick's forward read is never held behind a
   detached backfill. **The plan's `importThreads` cap holds exactly**:
   `importCapRemaining` is read before every page and each batch is cut to the

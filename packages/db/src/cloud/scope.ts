@@ -5,6 +5,7 @@ import {
 	grantTenantSignIn,
 	pingRegistry,
 	revokeTenantSignIn,
+	scopeOf,
 	type Tenant,
 	tenant,
 	tenantById,
@@ -43,17 +44,20 @@ export const cloud: CloudScope = {
 	customer: isHostedCustomer,
 	operatorId: operatorTenantId,
 	scopeId: currentTenantId,
-	current: currentTenant,
+	current: () => scopeOf(currentTenant()),
 	addOns: () => currentTenant().billing.addOns,
 	scopedKey: tenantScopedKey,
 	hold: holdTenant,
 	run: (scope, fn) => runAsTenant(tenantOf(scope), fn),
-	byId: tenantById,
+	byId: async (id) => {
+		const found = await tenantById(id);
+		return found ? scopeOf(found) : null;
+	},
 	activeBySite: async (siteId) => {
 		const found = await tenantBySite(siteId);
-		return found?.status === "active" ? found : null;
+		return found?.status === "active" ? scopeOf(found) : null;
 	},
-	active: activeTenants,
+	active: async () => (await activeTenants()).map(scopeOf),
 	forEachScope: forEachTenant,
 	resolveClient: (single, create) =>
 		isHosted() ? clientFor(currentTenant(), create) : single(),

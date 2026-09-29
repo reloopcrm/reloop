@@ -43,6 +43,19 @@ const DB_READING_DB_MODULES = [
 	"win-back-outcome",
 ];
 
+const TENANCY_SIDE = [
+	"packages/db/src/",
+	"apps/api/src/tenancy/",
+	"apps/api/scripts/",
+	"apps/api/src/workspace/workspace-deletion.service.ts",
+	"apps/api/src/mail/billing-mail.service.ts",
+	"apps/api/src/mail/mail-copy.ts",
+	"apps/api/src/billing-port/billing-port.ts",
+	"apps/app/lib/tenant.ts",
+	"apps/app/cloud/scope.server.ts",
+	"packages/auth/src/tenant-cookie.ts",
+];
+
 const namedImport = (names: readonly string[], from: string) =>
 	new RegExp(
 		`import\\s*(type\\s+)?\\{[^}]*\\b(${names.join("|")})\\b[^}]*\\}\\s*from\\s*"${from}"`,
@@ -89,6 +102,14 @@ const RULES: readonly Rule[] = [
 		skipTests: true,
 		why: "These modules read db. Load them through an inScope() helper in apps/app/lib. The list is every packages/db/src module that imports ./client, except tracking and workspace, whose app imports are constants.",
 	},
+	{
+		name: "a tenancy module imported by the core",
+		pattern:
+			/(from\s*|import\(\s*)"@crm\/db\/(tenant-context|tenancy|tenant-clients)"/,
+		allowed: TENANCY_SIDE,
+		skipTests: true,
+		why: "Core code reaches the tenancy through the cloud port, cloud.* from @crm/db/cloud/scope. Only the tenancy side imports it directly.",
+	},
 ];
 
 const SELF = "tools/tenancy-guard.ts";
@@ -103,13 +124,17 @@ const files = new TextDecoder()
 	.split("\0")
 	.filter((file) => file && file !== SELF && !SKIPPED.test(file));
 
+function allows(entry: string, file: string): boolean {
+	return entry.endsWith("/") ? file.startsWith(entry) : entry === file;
+}
+
 const violations: string[] = [];
 
 for (const file of files) {
 	const source = readFileSync(file, "utf8");
 	for (const rule of RULES) {
 		if (rule.scope && !rule.scope.test(file)) continue;
-		if (rule.allowed.includes(file)) continue;
+		if (rule.allowed.some((entry) => allows(entry, file))) continue;
 		if (rule.skipTests && TEST_FILE.test(file)) continue;
 		if (rule.scope) {
 			if (rule.pattern.test(source)) {

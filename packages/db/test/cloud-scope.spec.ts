@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import type { Db } from "../src/client";
+import type { WorkspaceScope } from "../src/cloud/contract";
 import { cloud } from "../src/cloud/scope";
 import { PAID_PLAN_IDS } from "../src/pricing";
-import { forEachTenant, tenant } from "../src/tenancy";
+import { forEachTenant, type Tenant, tenant } from "../src/tenancy";
 import { TENANCY } from "../src/tenancy-config";
+import { disconnectTenant } from "../src/tenant-clients";
 import {
 	currentTenantId,
 	isHosted,
@@ -14,7 +17,10 @@ import {
 	tenantScopedKey,
 } from "../src/tenant-context";
 
-const seam = tenant.parse({
+const tenantNamed = (id: string, dbName: string): Tenant =>
+	tenant.parse({ ...seamRow, id, slug: id, dbName });
+
+const seamRow = {
 	id: "seam1-a",
 	slug: "seam1-a",
 	dbName: "seam1_a_test",
@@ -40,13 +46,34 @@ const seam = tenant.parse({
 			storedAt: new Date("2026-09-22T00:00:00.000Z"),
 		},
 	},
-});
+};
+
+const seam = tenant.parse(seamRow);
+
+type FakeClient = { url: string; $disconnect: () => Promise<void> };
+
+const fakeCreate = (url: string) =>
+	({ url, $disconnect: async () => {} }) satisfies FakeClient as unknown as Db;
+
+const urlHere = () =>
+	(
+		cloud.resolveClient(
+			() => fakeCreate("single"),
+			fakeCreate,
+		) as unknown as FakeClient
+	).url;
+
+const pause = () => new Promise<void>((resolve) => setTimeout(resolve, 5));
 
 describe("the cloud slot delegates to the tenancy", () => {
 	const registry = process.env.RELOOP_REGISTRY_URL;
 	const operator = process.env.RELOOP_OPERATOR_TENANT;
+	const template = process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE;
 
 	afterEach(() => {
+		if (template === undefined)
+			delete process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE;
+		else process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE = template;
 		if (registry === undefined) delete process.env.RELOOP_REGISTRY_URL;
 		else process.env.RELOOP_REGISTRY_URL = registry;
 		if (operator === undefined) delete process.env.RELOOP_OPERATOR_TENANT;
@@ -108,7 +135,7 @@ describe("the cloud slot delegates to the tenancy", () => {
 			allowList,
 			createdAt,
 			trialEndsAt,
-		};
+		} as unknown as WorkspaceScope;
 
 		expect(() => cloud.run(foreign, () => 1)).toThrow();
 	});
@@ -120,5 +147,46 @@ describe("the cloud slot delegates to the tenancy", () => {
 		expect(await cloud.forEachScope(async () => "single")).toBe("single");
 		expect(cloud.loop.budgetMs).toBe(TENANCY.loop.budgetMs);
 		expect(cloud.backup.retentionDays).toBe(TENANCY.backup.retentionDays);
+	});
+
+	it("gives two tenants running at once their own client and database", async () => {
+		process.env.RELOOP_REGISTRY_URL = "postgres://registry.invalid/registry";
+		process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE = `postgres://nobody@db.invalid/${TENANCY.template.placeholder}`;
+		const scopeFor = (id: string, dbName: string) =>
+			runAsTenant(tenantNamed(id, dbName), () => cloud.current());
+		const a = scopeFor("seam1-run-a", "seam1_run_a_test");
+		const b = scopeFor("seam1-run-b", "seam1_run_b_test");
+
+		try {
+			const seen = await Promise.all(
+				[a, b, a, b].map((scope) =>
+					cloud.run(scope, async () => {
+						const before = urlHere();
+						await pause();
+						const nested = await cloud.run(scope === a ? b : a, async () => {
+							await pause();
+							return urlHere();
+						});
+						await pause();
+						return { id: cloud.scopeId(), before, nested, after: urlHere() };
+					}),
+				),
+			);
+
+			for (const entry of seen) {
+				const own = entry.id === a.id ? "seam1_run_a_test" : "seam1_run_b_test";
+				const other =
+					entry.id === a.id ? "seam1_run_b_test" : "seam1_run_a_test";
+				expect(entry.before).toEndWith(`/${own}`);
+				expect(entry.after).toEndWith(`/${own}`);
+				expect(entry.nested).toEndWith(`/${other}`);
+			}
+			expect(seen.map((entry) => entry.id)).toEqual([a.id, b.id, a.id, b.id]);
+			expect(cloud.run(a, urlHere)).toBe(cloud.run(a, urlHere));
+			expect(cloud.run(a, urlHere)).not.toBe(cloud.run(b, urlHere));
+		} finally {
+			await disconnectTenant(a.id);
+			await disconnectTenant(b.id);
+		}
 	});
 });

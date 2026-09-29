@@ -1,4 +1,5 @@
-import { readTenantCookie, TENANT_COOKIE_NAME } from "@crm/auth";
+import { TENANT_COOKIE_NAME } from "@crm/auth";
+import { readTenantCookie } from "@crm/auth/cloud/tenant-cookie";
 import { type Tenant, tenantById } from "@crm/db/tenancy";
 import {
 	isHosted,

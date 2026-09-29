@@ -6,8 +6,8 @@ import {
 	ensureWorkspaceMembership,
 	setPasswordFor,
 	TENANT_COOKIE_NAME,
-	tenantCookieValue,
 } from "@crm/auth";
+import { tenantCookieValue } from "@crm/auth/cloud/tenant-cookie";
 import { db } from "@crm/db";
 import * as provision from "@crm/db/provision";
 import {
@@ -194,12 +194,12 @@ async function provisionDisposable(target: Disposable): Promise<Tenant> {
 
 function stubBilling(port: BillingPort) {
 	return [
-		spyOn(port, "cancelNow").mockImplementation(async (tenant: Tenant) => {
+		spyOn(port, "cancelNow").mockImplementation(async (tenantId: string) => {
 			if (refuseCancel) {
 				refuseCancel = false;
 				throw new BadRequestException("Billing is unavailable right now.");
 			}
-			cancels.push(tenant.id);
+			cancels.push(tenantId);
 		}),
 	];
 }

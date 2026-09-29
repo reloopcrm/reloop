@@ -595,10 +595,12 @@ such thread that still has no deal. **It classifies nothing and queues no
 The open source build has no billing. Core code injects `BILLING_PORT` from
 `billing-port/billing-port.ts`, a `BillingPort` with `cancelNow` and
 `healStoredTarget`, and reads the few constants it needs from `BILLING_SEAM`: the
-webhook path and size limit, the return path and the rebuild delay.
-`CloudModule` (`cloud/cloud.module.ts`) is global and registered once in
+webhook path and size limit, the return path and the rebuild delay. Both methods
+take a tenant id, never a registry row: the implementation loads the tenant
+itself. `CloudModule` (`cloud/cloud.module.ts`) is global and registered once in
 `AppModule`. Here it provides `NO_BILLING_PORT` with `useValue`, so every call is
-a no-op. The app's slots in `apps/app/cloud` are empty the same way: no billing
+a no-op, and it imports and exports `TenancyModule`, so no other module imports
+the tenancy directly. The app's slots in `apps/app/cloud` are empty the same way: no billing
 page, no checkout, no marketing pages or redirects, and `/` sends a visitor to
 sign in, or a signed-in one to the workspace.
 
@@ -606,12 +608,19 @@ The hosted Reloop Cloud adds billing and its marketing site from a private
 overlay. The overlay replaces exactly these files and only adds others:
 
 - `apps/api/src/cloud/cloud.module.ts`
+- `apps/api/src/cloud/cloud-middleware.ts`
+- `packages/db/src/cloud/scope.ts`
+- `packages/auth/src/cloud/tenant-cookie.ts`
+- `apps/app/cloud/scope.server.ts`
 - `apps/app/cloud/slots.tsx`
 - `apps/app/cloud/slots.data.ts`
 - `apps/app/cloud/slots.server.tsx`
 - `apps/app/lib/i18n/cloud.ts`
 - `apps/app/app/(landing)/page.tsx`
 - `apps/api/package.json` and `bun.lock`, for the `stripe` package
+- while the tenancy moves into the overlay, every tenancy file this repository
+  still holds, each replaced by a re-export of the overlay's copy, so a process
+  never holds two tenant contexts
 
 The overlay then runs `trpc:generate`, because the router set changes
 `src/generated/server.ts`. `apps/app/cloud/contract.ts` and `billing-port.ts`

@@ -88,7 +88,7 @@ export class WorkspaceDeletionService {
 
 		await beginTenantDeletion(tenant.id);
 		try {
-			await this.billing.cancelNow(tenant);
+			await this.billing.cancelNow(tenant.id);
 		} catch (error) {
 			await cancelTenantDeletion(tenant.id, tenant.status);
 			throw error;

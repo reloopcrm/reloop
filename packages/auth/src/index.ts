@@ -107,14 +107,6 @@ export {
 	ssoProviderName,
 } from "./sso";
 export {
-	clearedTenantCookieHeader,
-	cookieValue,
-	readTenantCookie,
-	tenantCookieHeader,
-	tenantCookieValue,
-	tenantIdFromApiKey,
-} from "./tenant-cookie";
-export {
 	hasSignInAllowList,
 	isWorkspaceEmail,
 	primaryWorkspaceDomain,

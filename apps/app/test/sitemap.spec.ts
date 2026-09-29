@@ -35,8 +35,12 @@ describe("sitemap.xml", () => {
 	it("leaves the sign-up page out when it only redirects", () => {
 		process.env.RELOOP_CLOUD_URL = "https://app.reloopcrm.com";
 
-		expect(paths()).not.toContain("/get-started");
-		expect(paths()).toEqual(expect.arrayContaining(MARKETING));
+		expect(paths()).not.toContain(PRICING.href.start);
+		expect(paths()).toEqual(
+			expect.arrayContaining(
+				MARKETING.filter((path) => path !== PRICING.href.start),
+			),
+		);
 	});
 
 	it("lists the landing page only when the build carries one", () => {

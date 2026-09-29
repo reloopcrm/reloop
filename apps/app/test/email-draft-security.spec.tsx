@@ -113,11 +113,13 @@ async function openDraft() {
 	await act(async () => container.querySelector("button")?.click());
 }
 
-it("says that the plan's monthly draft limit is reached, not that a subscription ran out", async () => {
+it("says that the plan's draft limit is reached and on which day the draft follows, not that a subscription ran out", async () => {
 	limit = "plan";
 	await openDraft();
 	const dialog = document.querySelector("[role=dialog]");
 	expect(dialog?.textContent).toContain(PLAN_LIMIT_MESSAGES.drafts);
+	expect(dialog?.textContent).toMatch(/draft on \w+ \d{1,2}, 2026\./);
+	expect(dialog?.textContent).not.toContain("next month");
 	expect(dialog?.textContent).not.toContain(
 		"The subscription limit is reached",
 	);

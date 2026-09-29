@@ -144,6 +144,8 @@ export const aiUsageOutput = z.object({
 	fixed: z.boolean(),
 	label: z.string(),
 	month: z.string(),
+	resetsAt: z.string(),
+	trialEnds: z.boolean(),
 	capacity: z.array(
 		z.object({
 			counter: z.enum(CAPACITY_COUNTERS),

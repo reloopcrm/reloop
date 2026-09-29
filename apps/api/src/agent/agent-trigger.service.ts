@@ -7,12 +7,8 @@ import {
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { planLimitsOf } from "@crm/db/plan-usage";
-import {
-	allowsCompanyResearch,
-	monthlyBudget,
-	startOfMonth,
-} from "@crm/db/plans";
+import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
+import { allowsCompanyResearch, monthlyBudget } from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
 import { forEachTenant } from "@crm/db/tenancy";
 import { currentTenantId, tenantScopedKey } from "@crm/db/tenant-context";
@@ -624,8 +620,9 @@ export class AgentTriggerService {
 		const budget = monthlyBudget(kind, limits);
 		if (budget === null) return true;
 
+		const { since } = await usageWindowOf(this.db);
 		const used = await this.db.agentTask.count({
-			where: { kind, createdAt: { gte: startOfMonth() } },
+			where: { kind, createdAt: { gte: since } },
 		});
 
 		if (used < budget) return true;

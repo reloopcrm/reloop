@@ -1,5 +1,5 @@
 import { db } from "@crm/db";
-import { readMonthlyUsage, roomFor } from "@crm/db/plan-usage";
+import { readMonthlyUsage, roomFor, usageWindowOf } from "@crm/db/plan-usage";
 import { defineDynamic, defineInstructions } from "eve/instructions";
 import { z } from "zod";
 import { builderFeedbackMarkdown } from "../lib/builder-feedback";
@@ -82,8 +82,9 @@ export function languageInstruction(): string {
 	return `Write every text you store for this workspace, such as a brief, a note, a summary or a reason, in ${language()}. Keep names, job titles and quotes as the source wrote them. When a person writes to you, answer in the language that person writes in.`;
 }
 
-export const LIMIT_REACHED_INSTRUCTION =
-	"The monthly limit of this workspace's plan for this kind of conversation is reached. Answer with one sentence: the limit is reached, the conversation continues next month, and an upgrade of the plan continues it now. Call no tool and do nothing else.";
+export function limitReachedInstruction(until: Date): string {
+	return `The limit of this workspace's plan for this kind of conversation is reached. Answer with one sentence: the limit is reached, the conversation continues on ${until.toISOString().slice(0, 10)}, and an upgrade of the plan continues it now. Call no tool and do nothing else.`;
+}
 
 export async function limitReached(
 	counter: "chat" | "builder",
@@ -95,9 +96,10 @@ export async function limitReached(
 		if (limit === null) return null;
 
 		const room = roomFor(counter, await readMonthlyUsage(db), limits);
-		return room !== null && room <= 0
-			? defineInstructions({ markdown: LIMIT_REACHED_INSTRUCTION })
-			: null;
+		if (room === null || room > 0) return null;
+
+		const { until } = await usageWindowOf(db);
+		return defineInstructions({ markdown: limitReachedInstruction(until) });
 	} catch {
 		return null;
 	}

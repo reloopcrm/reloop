@@ -1,6 +1,7 @@
 import { db } from "@crm/db";
 import { DIRECT_KINDS } from "@crm/db/agent-tasks";
-import { clampResearchPerHour, startOfMonth } from "@crm/db/plans";
+import { usageWindowOf } from "@crm/db/plan-usage";
+import { clampResearchPerHour } from "@crm/db/plans";
 import { AGENT_RESEARCH_PER_HOUR, readAgentProvider } from "@crm/db/settings";
 import { modelUnavailable, providersExhausted } from "./model";
 import { planLimits } from "./plan-limits";
@@ -53,10 +54,11 @@ export async function researchAllowance(
 		return { allowed: Math.min(batch, remaining), reason: null };
 	}
 
+	const { since: windowStart } = await usageWindowOf(db, now);
 	const startedThisMonth = await db.agentTask.count({
 		where: {
 			kind: { notIn: [...DIRECT_KINDS] },
-			startedAt: { gte: startOfMonth(now) },
+			startedAt: { gte: windowStart },
 		},
 	});
 	const monthRemaining = Math.max(0, perMonth - startedThisMonth);

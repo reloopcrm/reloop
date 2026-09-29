@@ -12,7 +12,7 @@ import { COPY } from "./copy";
 import { DISPATCH } from "./dispatch-config";
 import { say } from "./language";
 import { isDerivedName } from "./names";
-import { limitOutcome, monthlyRoom } from "./plan-limits";
+import { limitOutcome, limitResumesAt, monthlyRoom } from "./plan-limits";
 import { playbookDue } from "./playbook";
 import { scheduleTask } from "./tasks";
 
@@ -77,7 +77,9 @@ export async function cancelSampleWork(): Promise<number> {
 export async function queueUnreadThreads(): Promise<number> {
 	const room = await monthlyRoom(INSIGHT_KIND);
 	if (room !== null && room <= 0) {
-		console.error(`[agent] reading waits: ${limitOutcome(INSIGHT_KIND)}`);
+		console.error(
+			`[agent] reading waits: ${limitOutcome(INSIGHT_KIND, await limitResumesAt())}`,
+		);
 		return 0;
 	}
 

@@ -54,9 +54,9 @@ import {
 import {
 	fixedAi,
 	limitOutcome,
+	limitResumesAt,
 	monthlyRoom,
 	planId,
-	resumeNextMonth,
 } from "./plan-limits";
 import { runPlaybookLearn } from "./playbook";
 import { collapsing, runLimited } from "./pool";
@@ -402,8 +402,9 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	if (task.kind === "email-draft" && task.contactId) {
 		const room = await monthlyRoom(task.kind, new Date(), task.id);
 		if (room !== null && room <= 0) {
-			await postponeTask(task.id, resumeNextMonth());
-			console.error(`[agent] a draft waits: ${limitOutcome(task.kind)}`);
+			const until = await limitResumesAt();
+			await postponeTask(task.id, until);
+			console.error(`[agent] a draft waits: ${limitOutcome(task.kind, until)}`);
 			return;
 		}
 
@@ -543,6 +544,7 @@ async function withinResearchBudget(
 	const room = await monthlyRoom(RESEARCH_RUN_KIND);
 	if (room === null) return tasks;
 
+	const until = await limitResumesAt();
 	const kept: LeasedTask[] = [];
 	let left = room;
 	let deferred = 0;
@@ -557,13 +559,13 @@ async function withinResearchBudget(
 			kept.push(task);
 			continue;
 		}
-		await postponeTask(task.id, resumeNextMonth());
+		await postponeTask(task.id, until);
 		deferred += 1;
 	}
 
 	if (deferred > 0) {
 		console.error(
-			`[agent] ${deferred} research runs wait: ${limitOutcome(RESEARCH_RUN_KIND)}`,
+			`[agent] ${deferred} research runs wait: ${limitOutcome(RESEARCH_RUN_KIND, until)}`,
 		);
 	}
 

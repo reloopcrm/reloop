@@ -74,6 +74,8 @@ describe("the usage meters", () => {
 				label: "Trial",
 				capacity: [...CAPACITY],
 				lines: [...LINES],
+				resetsAt: "2026-12-01T00:00:00.000Z",
+				trialEnds: false,
 			}),
 		}),
 	);
@@ -105,6 +107,36 @@ describe("the usage meters", () => {
 
 	it("shows no warning while no monthly limit is reached", () => {
 		expect(markup).not.toContain("A monthly limit is reached");
+	});
+});
+
+describe("the limit warning", () => {
+	const render = (trialEnds: boolean) =>
+		renderToStaticMarkup(
+			createElement(I18nProvider, {
+				locale: "en",
+				children: createElement(Usage, {
+					label: "Trial",
+					capacity: [...CAPACITY],
+					lines: [{ ...LINES[0], used: 1000, reached: true }],
+					resetsAt: "2026-11-11T12:00:00.000Z",
+					trialEnds,
+				}),
+			}),
+		);
+
+	it("names the day the trial ends, not next month", () => {
+		const markup = render(true);
+		expect(markup).toContain("A limit of your trial is reached");
+		expect(markup).toContain("November 11, 2026");
+		expect(markup).not.toContain("next month");
+	});
+
+	it("names the day the month resets on a paid plan", () => {
+		const markup = render(false);
+		expect(markup).toContain("A monthly limit is reached");
+		expect(markup).toContain("November 11, 2026");
+		expect(markup).not.toContain("next month");
 	});
 });
 

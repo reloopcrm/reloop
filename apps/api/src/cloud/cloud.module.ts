@@ -1,12 +1,9 @@
 import { Global, Module } from "@nestjs/common";
-import { BillingModule } from "../billing/billing.module";
-import { BillingService } from "../billing/billing.service";
-import { BILLING_PORT } from "../billing-port/billing-port";
+import { BILLING_PORT, NO_BILLING_PORT } from "../billing-port/billing-port";
 
 @Global()
 @Module({
-	imports: [BillingModule],
-	providers: [{ provide: BILLING_PORT, useExisting: BillingService }],
+	providers: [{ provide: BILLING_PORT, useValue: NO_BILLING_PORT }],
 	exports: [BILLING_PORT],
 })
 export class CloudModule {}

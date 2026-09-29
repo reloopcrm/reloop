@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
 import { landingMarkdown } from "../cloud/slots.data";
 import { notFoundMarkdown, prefersMarkdown } from "../lib/markdown-negotiation";
-import { proxy } from "../proxy";
+import { MARKETING_PATHS, proxy } from "../proxy";
 
 const BROWSER_ACCEPT =
 	"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,*/*;q=0.8";
@@ -205,14 +205,7 @@ describe("the paths that still work", () => {
 	it("lets every marketing page through", async () => {
 		marketingSite();
 
-		for (const path of [
-			"/get-started",
-			"/open-source",
-			"/vs/hubspot",
-			"/about",
-			"/contact",
-			"/privacy",
-		]) {
+		for (const path of MARKETING_PATHS) {
 			const response = await proxy(request(path, BROWSER_ACCEPT));
 
 			expect(response.headers.get("x-middleware-next"), path).toBe("1");

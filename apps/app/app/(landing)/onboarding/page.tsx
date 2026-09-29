@@ -2,12 +2,8 @@ import { DEFAULT_WORKSPACE_NAME, isWorkspaceAdmin } from "@crm/auth";
 import { PLANS } from "@crm/db/plans";
 import { unpaidPurchase } from "@crm/db/tenancy";
 import type { Metadata } from "next";
-import {
-	CheckoutBanner,
-	type CheckoutNotice,
-	CheckoutOutcome,
-	checkoutNotice,
-} from "@/cloud/slots";
+import type { CheckoutNotice } from "@/cloud/contract";
+import { CheckoutBanner, CheckoutOutcome, checkoutNotice } from "@/cloud/slots";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { CHECKOUT } from "@/lib/checkout-config";
 import { getT } from "@/lib/i18n/server";

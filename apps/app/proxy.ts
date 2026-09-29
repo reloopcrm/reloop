@@ -2,7 +2,7 @@ import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { isHosted } from "@crm/db/tenant-context";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { landingMarkdown } from "@/cloud/slots.data";
+import { landingMarkdown, MARKETING_ROUTES } from "@/cloud/slots.data";
 import { isMarketing, isMarketingHost } from "@/lib/env";
 import {
 	markdownHeaders,
@@ -20,7 +20,10 @@ import { workspaceUrl } from "@/lib/workspace-url";
 
 export const ANONYMOUS_PATHS = PROXY.anonymous;
 
-export const MARKETING_PATHS = PROXY.marketing;
+export const MARKETING_PATHS: readonly string[] = [
+	...PROXY.marketing,
+	...MARKETING_ROUTES,
+];
 
 export async function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
@@ -152,7 +155,7 @@ function isSection(pathname: string): boolean {
 function isMarketingPath(pathname: string, marketing: boolean): boolean {
 	if (
 		marketing &&
-		PROXY.marketing.some((prefix) => isUnder(pathname, prefix))
+		MARKETING_PATHS.some((prefix) => isUnder(pathname, prefix))
 	) {
 		return true;
 	}

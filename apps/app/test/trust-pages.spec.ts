@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { MARKETING_NAV } from "../cloud/slots.data";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -9,10 +10,14 @@ const MINIMUM_CHARACTERS = 500;
 const DASHES = /[‒–—―]/;
 
 const TRUST_PAGES = [
-	{ path: "/about", file: "app/(landing)/about/page.tsx" },
-	{ path: "/contact", file: "app/(landing)/contact/page.tsx" },
-	{ path: "/privacy", file: "app/(landing)/privacy/page.tsx" },
-] as const;
+	{ path: "/contact", file: "app/(landing)/contact/page.tsx", indexed: false },
+	{ path: "/privacy", file: "app/(landing)/privacy/page.tsx", indexed: false },
+	...MARKETING_NAV.company.map((link) => ({
+		path: link.path,
+		file: `app/(landing)${link.path}/page.tsx`,
+		indexed: true,
+	})),
+];
 
 async function parse(file: string): Promise<ts.SourceFile> {
 	return ts.createSourceFile(
@@ -107,9 +112,8 @@ describe("the trust anchor pages", () => {
 			await Bun.file(`${root}cloud/slots.data.ts`).text(),
 		].join("\n");
 
-		expect(source).toContain('"/about"');
-		expect(source).not.toContain('"/contact"');
-		expect(source).not.toContain('"/privacy"');
+		for (const page of TRUST_PAGES)
+			expect(source.includes(`"${page.path}"`), page.path).toBe(page.indexed);
 	});
 
 	it("are linked from the site footer", async () => {
@@ -120,7 +124,6 @@ describe("the trust anchor pages", () => {
 
 		expect(footer).toContain("companyLinks.map");
 
-		const { MARKETING_NAV } = await import("../cloud/slots.data");
 		const slotted = MARKETING_NAV.company.map((link) => link.path);
 
 		for (const page of TRUST_PAGES)

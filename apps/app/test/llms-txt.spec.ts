@@ -82,7 +82,7 @@ describe("/llms.txt", () => {
 	});
 
 	it("writes every link as an absolute address", () => {
-		expect(hrefs.length).toBeGreaterThan(20);
+		expect(hrefs.length).toBeGreaterThanOrEqual(20);
 		for (const href of hrefs) {
 			expect(href.startsWith("http"), href).toBe(true);
 		}

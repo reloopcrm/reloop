@@ -231,14 +231,6 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
-	STRIPE_SECRET_KEY?: string;
-
-	@IsOptional()
-	@IsString()
-	STRIPE_WEBHOOK_SECRET?: string;
-
-	@IsOptional()
-	@IsString()
 	VERCEL?: string;
 }
 

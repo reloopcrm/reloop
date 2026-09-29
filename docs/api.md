@@ -585,148 +585,19 @@ such thread that still has no deal. **It classifies nothing and queues no
   from a `demo-` thread carries a real id, so every `demo-` guard in
   `AgentTriggerService` stops seeing it.
 
-## Billing is a webhook, not a form
+## The billing seam
 
-`apps/api/src/billing` sells the hosted plans through Stripe and nothing else
-touches a plan. `billing.overview` reads the registry row and, when a customer
-exists, Stripe's customer and invoices. The customer read expands `tax_ids`, so
-the page shows the first VAT ID and whether Stripe verified it; Checkout collects
-the ID and the billing address, the portal changes both, and Stripe Tax applies
-the reverse charge from them. `billing.checkout`, `setAddOn`,
-`cancel`, `resume` and `portal` write to Stripe and apply the returned
-subscription at once. `POST /api/billing/webhook` is the source of truth: it
-verifies the signature, fetches the subscription named by the event and calls
-the one writer, `BillingService.applySubscription`, which sets registry
-`plan`, `paid_until`, `grace_until` and `billing`, and `AppSetting.plan` in
-the tenant database. Every event, in any order, twice, lands on the same
-state, because the state comes from Stripe's subscription and never from the
-event body. The raw body is mounted in `create-app.ts` before Nest, the path
-is open in `tenantMiddleware`, and the tenant comes from the subscription's
-`metadata.tenantId` or from the customer id in `billing`. Every `billing.*`
-mutation takes `SessionOnlyMiddleware` and the owner or admin role. A
-self-hosted install answers `configured: false` and refuses every mutation. A
-suspended tenant reaches `/api/auth/*`, `billing.*`, `workspace.delete` and
-`workspace.deletionCode` only (`openWhileSuspended` in `tenant.middleware.ts`),
-which is how a paused workspace pays its way back
-in; `applySubscription` sets it `active` again.
-`billing.checkout` refuses a plan that holds fewer contacts or mailboxes than the
-workspace has now, before any Stripe call. The current plan is never refused, so
-the interval can always change. `planChangeExcess` is the rule, and
-`billing.plans` sends its answer per plan, so the list and the refusal agree.
-`billing.plans` is a separate query that only the open plan list reads, so the
-paused page's poll of `billing.overview` counts nothing. `readCapacityUsage`
-(`mailbox/sync-state.service.ts`) is the one count, for billing and for the usage
-page. Contacts count archived rows too, because the contact limit trigger counts
-them. The customer portal cannot change a plan (`subscription_update` is off in
-`scripts/stripe-setup.ts`, which also turns it off on an existing configuration).
-A plan that still arrives by webhook below the current usage is applied, because
-Stripe has charged, and `applySubscription` logs a warning.
-
-**A step up is billed now. A step down waits for the paid period.**
-`changeTiming` is the rule: a plan with a higher or equal monthly list price on
-the same interval, and a switch from monthly to yearly, are billed now. A plan
-with a lower price, and every switch from yearly to monthly, wait for
-`current_period_end`. The same holds for add-ons: a bigger count is billed now,
-a smaller count waits.
-
-A change billed now is one `subscriptions.update` with `always_invoice` and
-`payment_behavior: "pending_if_incomplete"`: Stripe charges the proration at
-once, and the change only lands once it is paid. An unpaid change returns the
-hosted invoice URL and the page sends the owner there. `billing.previewPlan`
-and `billing.previewAddOn` run the same change through `invoices.createPreview`,
-so the confirmation shows the amount Stripe will charge.
-
-A change that waits is a Stripe subscription schedule, never a timer of our
-own. `scheduleTarget` creates the schedule from the subscription
-(`from_subscription`) when none exists, then writes two phases: the current one
-as Stripe returned it, and the target items for one more interval with
-`proration_behavior: "none"` and `end_behavior: "release"`. The registry row
-does not change: the plan, the limits and `billing.addOns` stay what the
-customer paid for. When the phase switches, Stripe changes the subscription's
-items and posts `customer.subscription.updated`, and `applySubscription` writes
-the new plan like any other update. No `subscription_schedule.*` event is
-needed. `billing.overview` reads the schedule live (`scheduled`: the phase after
-`current_phase`, or null), so nothing is stored that could drift. A second pick
-while a change waits updates the same schedule and replaces the target; a
-smaller add-on count keeps a waiting plan and lowers the add-on in its target.
-A change billed now under a schedule first stores the target in the registry
-(`scheduledTarget`, with `storedAt`), then recreates the schedule. When the
-recreate fails, the next change heals it at once, the webhook heals a target older
-than `BILLING.schedule.rebuildAfterMs`, and the daily tenant sweep heals every
-target older than that, so a lost change never waits for the owner.
-`billing.cancelScheduledChange` releases the schedule, and so does every change
-billed now, because Stripe refuses a direct item update on a subscription a
-schedule manages: an upgrade, a bigger add-on count and a cancellation drop the
-waiting change, and the page says so in the confirmation. The preview of such a
-change goes through `schedule_details` while the schedule exists, because
-`subscription_details` is refused on a schedule-managed subscription: the
-current phase with the new items and `always_invoice`, which is the same
-proration the release-then-update charges. A preview never writes. Every phase
-the API writes carries `automatic_tax` explicitly when the subscription has it,
-because nothing in the SDK promises that a phase inherits it from
-`default_settings`. `planChangeExcess`
-runs at scheduling time too, and the confirmation tells the owner the workspace
-must fit the new limits by the switch date. The preview of a waiting change
-answers `effectiveAt` and zero due now, without a Stripe call.
-
-A Stripe error on a preview or an update is logged with Stripe's own message
-and reaches the page as "Stripe refused this change", never as a bare 500. A
-yearly plan needs a card, read from the subscription's `default_payment_method`
-first and the customer's default second.
-
-**A Stripe id that Stripe does not have counts as none.** Stripe answers
-`resource_missing` for a customer or subscription id from another Stripe account
-or a deleted one. `activeSubscription` returns no subscription for it and writes
-nothing, so no workspace is paused, downgraded or mailed. `setAddOn`, `cancel`,
-`resume`, `cancelScheduledChange` and both previews then answer "No active
-subscription was found. Choose a plan to start one." as a 400, and checkout
-starts a new Checkout session. Checkout reads the stored customer first. A
-missing or deleted customer is replaced by a new one through `patchBilling`,
-which writes only `customerId`. The portal answers the same 400 when Stripe has
-no such customer.
-
-**Checkout ends the trial.** The session carries no `trial_end`, so billing
-starts the day a trialing workspace pays. The customer is created before the
-session, with the oldest owner's address and `preferred_locales` from the
-workspace language. `checkout.session.completed` and every
-`customer.subscription.updated` set the locale again and copy the subscription's
-card to the customer's `invoice_settings`, so the portal and later invoices use
-it, and a customer created before this rule catches up on its next update.
-
-**Billing mails come from `BillingMailService`** (`mail/billing-mail.service.ts`),
-through the same Resend sender as the sign-up code, in the workspace language, to
-the oldest owner. The webhook sends "plan active" for a new subscription and for
-an update whose `previous_attributes` show a different plan or interval, never
-for an add-on proration or a renewal, which Stripe's own receipt covers. It also
-sends one for a failed payment, a scheduled end and an ended plan; the tenant sweep sends the trial reminder
-(`TENANCY.trial.reminderLeadMs` before the end), the trial end and the pause
-after the payment grace. Every write of a scheduled target (a plan, an interval,
-an add-on reduction, a merge, a heal, an undone reduction) sends "plan changes on"
-with the whole target: plan, interval and every add-on with its quantity. Its key
-is `scheduled:<subscription>:<sha256 of plan, interval, add-ons, date>`, so one
-target mails once. `cancelScheduledChange`, and an add-on pick that undoes the
-last waiting reduction, send "change withdrawn" once, keyed
-`unscheduled:<schedule>`, and free every `scheduled:<subscription>:` key, so a
-target planned again after a withdrawal mails again. Each mail claims a key in the registry's `billing_mail`
-table first (`paid:<invoice>`, `ending:<subscription>:<cancel_at>` and so on), so
-a retried webhook, the mutation path and a second instance send it once. Without
-`RESEND_API_KEY` and `MAIL_FROM` nothing is claimed and nothing throws. Receipts
-and invoice PDFs are Stripe's own mails, switched on in the Stripe Dashboard.
-`docs/environment.md` has the variables, the script and what stays by hand.
-
-### The billing seam
-
-Core code never imports `apps/api/src/billing`. It injects `BILLING_PORT` from
+The open source build has no billing. Core code injects `BILLING_PORT` from
 `billing-port/billing-port.ts`, a `BillingPort` with `cancelNow` and
 `healStoredTarget`, and reads the few constants it needs from `BILLING_SEAM`: the
 webhook path and size limit, the return path and the rebuild delay.
 `CloudModule` (`cloud/cloud.module.ts`) is global and registered once in
-`AppModule`. It imports `BillingModule`, which owns the router and the webhook
-controller, and provides the port with `useExisting: BillingService`.
-`NO_BILLING_PORT` is the no-op a build without billing provides instead, with
-`useValue`.
+`AppModule`. Here it provides `NO_BILLING_PORT` with `useValue`, so every call is
+a no-op. The app's slots in `apps/app/cloud` are empty the same way: no billing
+page, no checkout, no marketing pages, and `/` sends a visitor to sign in.
 
-A private overlay replaces exactly these files and only adds others:
+The hosted Reloop Cloud adds billing and its marketing site from a private
+overlay. The overlay replaces exactly these files and only adds others:
 
 - `apps/api/src/cloud/cloud.module.ts`
 - `apps/app/cloud/slots.tsx`
@@ -734,10 +605,13 @@ A private overlay replaces exactly these files and only adds others:
 - `apps/app/cloud/slots.server.tsx`
 - `apps/app/lib/i18n/cloud.ts`
 - `apps/app/app/(landing)/page.tsx`
+- `apps/api/package.json` and `bun.lock`, for the `stripe` package
 
 The overlay then runs `trpc:generate`, because the router set changes
 `src/generated/server.ts`. `apps/app/cloud/contract.ts` and `billing-port.ts`
-stay public: both sides build against them.
+stay public: both sides build against them. A core test must pass with the empty
+slots and with the overlay's, so it reads its expectations from
+`apps/app/cloud/slots.data.ts` instead of naming a cloud page.
 
 ## Deleting a workspace is the sweep's path, started by the owner
 
@@ -752,18 +626,15 @@ procedures take `SessionOnlyMiddleware`.
 
 The order is the guarantee. The status turns `deleted` first
 (`beginTenantDeletion`, which keeps `suspended_at`), and that locks every
-request out. Then `BillingService.cancelNow` releases a schedule and cancels the
-subscription at once, without proration. A subscription Stripe no longer has
-(`resource_missing`) or one already canceled counts as cancelled. Any other
-Stripe refusal puts the old status back (`cancelTenantDeletion`) and the owner
-tries again. `TenantSweepService.finishDeletion` then clears the OAuth tokens
+request out. Then the billing port's `cancelNow` ends the subscription, a no-op
+without billing. A refusal puts the old status back (`cancelTenantDeletion`) and
+the owner tries again. `TenantSweepService.finishDeletion` then clears the OAuth tokens
 (a Google grant is revoked with Google), the IMAP and Slack secrets and the API
 keys, ends every session, sends "workspace deleted" once (claim key
 `deleted:<tenant>`), and drops the database through the same `deleteTenant` the
 trial expiry uses. Every step is safe to run twice, and one process runs one
 tenant's deletion at a time. A tenant left `deleted`, by a failed step or a
-crash, is finished by the daily sweep and by the next Stripe webhook for its
-subscription, which never pauses it and never mails about it. The response
+crash, is finished by the daily sweep. The response
 clears `crm.tenant`.
 
 ## Money

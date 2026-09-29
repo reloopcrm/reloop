@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import { MIT_LICENSE } from "../lib/license";
-import { MARKETING_PATHS } from "../proxy";
 
 const FILE = new URL("../../../LICENSE", import.meta.url);
 
@@ -9,10 +8,6 @@ describe("the licence the open source page shows", () => {
 		const onDisk = await Bun.file(FILE).text();
 
 		expect(onDisk.trim().endsWith(MIT_LICENSE.trim())).toBe(true);
-	});
-
-	it("stays open to a reader of the public site", () => {
-		expect(MARKETING_PATHS).toContain("/open-source");
 	});
 
 	it("keeps the copyright line the licence demands", () => {

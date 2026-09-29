@@ -1,1 +1,5 @@
-export { PausedPaymentSection } from "@/components/billing/paused-payment-section";
+import type { PausedPaymentSectionProps } from "@/cloud/contract";
+
+export function PausedPaymentSection(_props: PausedPaymentSectionProps) {
+	return null;
+}

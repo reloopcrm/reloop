@@ -1,7 +1,7 @@
 import { connection } from "next/server";
-import { DOCS, docPath } from "@/components/landing/docs-config";
-import { PRICING } from "@/components/landing/pricing/config";
-import { REPO_URL } from "@/components/landing/site";
+import { DOCS, docPath } from "@/components/docs/docs-config";
+import { PRICING } from "@/components/signup/config";
+import { REPO_URL } from "@/components/site";
 import { siteAddress } from "@/lib/site-address";
 import { cloudUrl } from "@/lib/site-links";
 

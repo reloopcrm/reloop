@@ -67,12 +67,10 @@ const { createRoot } = await import("react-dom/client");
 const { renderToStaticMarkup } = await import("react-dom/server");
 const { I18nProvider } = await import("../lib/i18n/client");
 const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
-const { SignedInPanel } = await import("../components/landing/signed-in-panel");
-const { SignupForm } = await import("../components/landing/signup-form");
+const { SignedInPanel } = await import("../components/signup/signed-in-panel");
+const { SignupForm } = await import("../components/signup/signup-form");
 const { signedInEntry } = await import("../lib/signed-in-entry");
-const { purchaseFromParams } = await import(
-	"../components/landing/pricing/purchase"
-);
+const { purchaseFromParams } = await import("../components/signup/purchase");
 const { default: GetStartedPage } = await import(
 	"../app/(landing)/get-started/page"
 );

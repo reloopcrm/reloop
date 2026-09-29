@@ -3,7 +3,6 @@ import type { PlanPurchase } from "@crm/db/pricing";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { purchaseFromParams } from "@/components/landing/pricing/purchase";
 import {
 	PageShell,
 	PageShellContent,
@@ -13,6 +12,7 @@ import {
 	PageShellLoading,
 	PageShellTitle,
 } from "@/components/page-shell";
+import { purchaseFromParams } from "@/components/signup/purchase";
 import { CHECKOUT } from "@/lib/checkout-config";
 import { getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";

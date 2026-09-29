@@ -3,12 +3,12 @@ import { Link } from "@crm/ui/components/link";
 import Wordmark from "@crm/ui/components/wordmark";
 import NextLink from "next/link";
 import type * as React from "react";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { REPO_URL } from "@/components/site";
 import { getT } from "@/lib/i18n/server";
 import { getImprint } from "@/lib/imprint";
 import { marketingUrl, signInUrl, signUpUrl } from "@/lib/site-links";
 import { DynamicIslandNav } from "./dynamic-island-nav";
-import { LanguageSwitcher } from "./language-switcher";
-import { REPO_URL } from "./site";
 
 export async function LandingShell({
 	cta = true,

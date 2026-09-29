@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Markdown, parseMarkdown } from "../components/landing/markdown";
+import { Markdown, parseMarkdown } from "../components/docs/markdown";
 
 const render = (source: string) =>
 	renderToStaticMarkup(createElement(Markdown, { source }));

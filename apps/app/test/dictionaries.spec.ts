@@ -6,7 +6,7 @@ import { AGENT_MODEL_OPTIONS } from "@crm/db/settings";
 import { BRAND } from "@crm/ui/lib/brand";
 import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import ts from "typescript";
-import { DOCS } from "../components/landing/docs-config";
+import { DOCS } from "../components/docs/docs-config";
 import {
 	GRANT_ACCESS_COPY,
 	GRANT_ACCESS_COPY_BOTH,

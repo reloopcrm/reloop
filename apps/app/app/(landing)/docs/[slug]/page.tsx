@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DOCS, docPath } from "@/components/landing/docs-config";
-import {
-	DocsHeading,
-	DocsShell,
-	readDoc,
-} from "@/components/landing/docs-shell";
-import { MarkdownBlocks, sliceBlocks } from "@/components/landing/markdown";
+import { DOCS, docPath } from "@/components/docs/docs-config";
+import { DocsHeading, DocsShell, readDoc } from "@/components/docs/docs-shell";
+import { MarkdownBlocks, sliceBlocks } from "@/components/docs/markdown";
 import { getT } from "@/lib/i18n/server";
 
 type Params = Promise<{ slug: string }>;

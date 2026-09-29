@@ -111,7 +111,7 @@ describe("the trust anchor pages", () => {
 
 	it("are linked from the site footer", async () => {
 		const source = await Bun.file(
-			`${root}components/landing/landing-shell.tsx`,
+			`${root}components/docs/landing-shell.tsx`,
 		).text();
 		const footer = source.slice(source.indexOf("<footer"));
 

@@ -8,7 +8,7 @@ import { Spinner } from "@crm/ui/components/spinner";
 import type { TenantLookupResult } from "@crm/validation/tenant-signup";
 import NextLink from "next/link";
 import { useState } from "react";
-import { PRICING } from "@/components/landing/pricing/config";
+import { PRICING } from "@/components/signup/config";
 import { useT } from "@/lib/i18n/client";
 import { lookupWorkspace, type TenantRefusal } from "@/lib/tenant-api";
 import { PasswordReset } from "./password-reset";

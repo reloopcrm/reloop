@@ -6,14 +6,14 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { z } from "zod";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
-import { PRICING } from "@/components/landing/pricing/config";
-import { purchaseFromParams } from "@/components/landing/pricing/purchase";
+import { PRICING } from "@/components/signup/config";
+import { purchaseFromParams } from "@/components/signup/purchase";
 import {
 	type SignedInEntry,
 	SignedInPanel,
-} from "@/components/landing/signed-in-panel";
-import { SignupForm } from "@/components/landing/signup-form";
-import { WaitlistForm } from "@/components/landing/waitlist-form";
+} from "@/components/signup/signed-in-panel";
+import { SignupForm } from "@/components/signup/signup-form";
+import { WaitlistForm } from "@/components/signup/waitlist-form";
 import { API_URL } from "@/lib/env";
 import type { Translate } from "@/lib/i18n/locale";
 import { getT } from "@/lib/i18n/server";

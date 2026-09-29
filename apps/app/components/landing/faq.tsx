@@ -1,8 +1,8 @@
 import Script from "next/script";
 import type * as React from "react";
+import { Band, type Tone } from "@/components/docs/page-blocks";
+import { SectionHeading } from "@/components/docs/section-heading";
 import { getT } from "@/lib/i18n/server";
-import { Band, type Tone } from "./page-blocks";
-import { SectionHeading } from "./section-heading";
 
 export type FaqItem = {
 	question: string;

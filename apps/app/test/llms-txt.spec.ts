@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { DOCS, docPath } from "../components/landing/docs-config";
+import { DOCS, docPath } from "../components/docs/docs-config";
 
 const nextServer = await import("next/server");
 mock.module("next/server", () => ({

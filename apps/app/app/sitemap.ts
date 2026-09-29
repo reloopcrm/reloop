@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
-import { DOCS, docPath } from "@/components/landing/docs-config";
-import { PRICING } from "@/components/landing/pricing/config";
+import { DOCS, docPath } from "@/components/docs/docs-config";
+import { PRICING } from "@/components/signup/config";
 import { siteAddress } from "@/lib/site-address";
 import { cloudUrl } from "@/lib/site-links";
 

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { LandingShell } from "@/components/landing/landing-shell";
+import { LandingShell } from "@/components/docs/landing-shell";
 import {
 	Band,
 	CloudBanner,
 	PageHero,
 	Prose,
-} from "@/components/landing/page-blocks";
+} from "@/components/docs/page-blocks";
 import { getT } from "@/lib/i18n/server";
 import { MIT_LICENSE } from "@/lib/license";
 

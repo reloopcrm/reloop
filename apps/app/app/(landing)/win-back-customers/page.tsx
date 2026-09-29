@@ -1,8 +1,6 @@
 import { BRAND } from "@crm/ui/lib/brand";
 import type { Metadata } from "next";
-import { BentoCard, CardHeading } from "@/components/landing/bento-card";
-import { Faq } from "@/components/landing/faq";
-import { LandingShell } from "@/components/landing/landing-shell";
+import { LandingShell } from "@/components/docs/landing-shell";
 import {
 	CardGrid,
 	ClosingCta,
@@ -10,7 +8,9 @@ import {
 	PageSection,
 	Prose,
 	SelfHostNote,
-} from "@/components/landing/page-blocks";
+} from "@/components/docs/page-blocks";
+import { BentoCard, CardHeading } from "@/components/landing/bento-card";
+import { Faq } from "@/components/landing/faq";
 import { getT } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {

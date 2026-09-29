@@ -3,7 +3,7 @@ import { BRAND } from "@crm/ui/lib/brand";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AuthShader } from "@/components/auth-shader";
-import { LanguageSwitcher } from "@/components/landing/language-switcher";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { getT } from "@/lib/i18n/server";
 import { marketingUrl } from "@/lib/site-links";
 

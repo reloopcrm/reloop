@@ -147,7 +147,7 @@ describe("privacy and contact", () => {
 describe("the footer link", () => {
 	it("only appears once an imprint is configured", async () => {
 		const source = await readFile(
-			join(import.meta.dir, "..", "components/landing/landing-shell.tsx"),
+			join(import.meta.dir, "..", "components/docs/landing-shell.tsx"),
 			"utf8",
 		);
 

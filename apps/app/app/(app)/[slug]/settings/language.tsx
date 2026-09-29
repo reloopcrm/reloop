@@ -18,7 +18,7 @@ import {
 } from "@crm/ui/components/select";
 import { useRouter } from "next/navigation";
 import { useId } from "react";
-import { REPO_URL } from "@/components/landing/site";
+import { REPO_URL } from "@/components/site";
 import { useLocale, useT, writeLocaleCookie } from "@/lib/i18n/client";
 import {
 	isLocale,

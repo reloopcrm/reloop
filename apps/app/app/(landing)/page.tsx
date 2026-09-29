@@ -4,15 +4,15 @@ import View from "@carbon/icons-react/es/View";
 import { Display } from "@crm/ui/components/display";
 import type { Metadata } from "next";
 import Image from "next/image";
-import { HOME } from "@/components/landing/home/config";
-import { MailboxPicker } from "@/components/landing/home/mailbox-picker";
-import { LandingShell } from "@/components/landing/landing-shell";
+import { LandingShell } from "@/components/docs/landing-shell";
 import {
 	Band,
 	ClosingCta,
 	PricingActions,
-} from "@/components/landing/page-blocks";
-import { SectionHeading } from "@/components/landing/section-heading";
+} from "@/components/docs/page-blocks";
+import { SectionHeading } from "@/components/docs/section-heading";
+import { HOME } from "@/components/landing/home/config";
+import { MailboxPicker } from "@/components/landing/home/mailbox-picker";
 import { StructuredData } from "@/components/landing/structured-data";
 import { getLocale, getT } from "@/lib/i18n/server";
 

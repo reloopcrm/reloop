@@ -1,13 +1,9 @@
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
-import { DOCS, docPath } from "@/components/landing/docs-config";
-import {
-	DocsHeading,
-	DocsShell,
-	readDoc,
-} from "@/components/landing/docs-shell";
-import { MarkdownBlocks, sliceBlocks } from "@/components/landing/markdown";
-import { REPO_URL } from "@/components/landing/site";
+import { DOCS, docPath } from "@/components/docs/docs-config";
+import { DocsHeading, DocsShell, readDoc } from "@/components/docs/docs-shell";
+import { MarkdownBlocks, sliceBlocks } from "@/components/docs/markdown";
+import { REPO_URL } from "@/components/site";
 import { getT } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {

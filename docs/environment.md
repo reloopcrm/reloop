@@ -96,7 +96,11 @@ list fails closed.** Parsed on demand. `packages/auth/src/workspace.ts`.
 ## `IS_MARKETING`, landing page flag, off by default
 
 `"true"` serves `app/(landing)` at `/`; anything else sends a signed-out visitor to
-`/sign-in`, because the page markets *this* product.
+`/sign-in`, because the page markets *this* product. The open source build has no
+landing page, pricing or reading pages: those come with the hosted Cloud's
+private overlay. Without it `/` sends a visitor without a session to
+`/sign-in` and a signed-in one to the workspace. The
+public site of this build is the docs, `/contact`, `/privacy` and `/imprint`.
 
 - **Only the literal `true`** (same shape as `PRISMA_LOG_QUERIES`).
 - **It decides one thing**: what a stranger at `/` sees.
@@ -177,8 +181,8 @@ they come from the server's own environment instead of a file anyone can read.
   only separator a single `.env` line allows) or by a real newline.
 - **`/privacy` and `/contact` read the same `getImprint()` and fall back to a
   neutral sentence, never a `{{placeholder}}`,** when nothing is configured.
-- **Listed in `apps/app/lib/proxy-config.ts` `PROXY.marketing`**, the same list
-  as `/about`: reachable only when `IS_MARKETING` or `RELOOP_MARKETING_HOST`
+- **Listed in `apps/app/lib/proxy-config.ts` `PROXY.marketing`**, the list the
+  Cloud's `MARKETING_ROUTES` join: reachable only when `IS_MARKETING` or `RELOOP_MARKETING_HOST`
   says this is the public site. Declared in `apps/app/turbo.json`
   `passThroughEnv`, and passed through to the `app` service's `environment` in
   `deploy/docker-compose.yml` the same way as `RELOOP_SITE_URL` and
@@ -214,7 +218,6 @@ customer rule reads `isHostedCustomer()`, a gate that expresses infrastructure
   three AI choices. `hostedCustomer()` and `operatorTenant()`
   (`apps/app/lib/tenant.ts`) read the tenant cookie for that. The Plan card on
   the General page stays a self-host feature: hosted mode hides it for everyone.
-- **Billing answers as a self-hosted install** (`configured: false`).
 - Declared in `env.validation.ts`, the root `turbo.json`, `apps/app/turbo.json`,
   `apps/agent/turbo.json` and `deploy/cloud/docker-compose.cloud.yml`. The
   import script `apps/api/scripts/import-single-tenant.ts` moves a single-tenant
@@ -336,62 +339,11 @@ Both are unset on a self-hosted install, which then runs as one workspace on
   whose migration fails `migration_failed` and continues; the `migrate` service
   in `deploy/cloud/docker-compose.cloud.yml` runs it before `api` starts.
 
-## `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, off by default
+## Billing
 
-Billing for the hosted Cloud, through Stripe. Both set turn Settings > Plan &
-billing into a shop: a workspace owner or admin chooses a plan, monthly or
-yearly, buys add-ons, reads invoices, changes the payment method and the
-address, and cancels. Either unset, the page shows the plan with a note that
-billing is not set up, and nothing throws. Only read in hosted mode; a
-self-hosted install has no plan and never sees the page.
-
-- **`STRIPE_SECRET_KEY`** is the API key, `sk_test_` first. The `stripe`
-  package is used in the API only (`apps/api/src/billing`).
-- **`STRIPE_WEBHOOK_SECRET`** signs `POST /api/billing/webhook`. The webhook is
-  the single source of truth for the plan: on `checkout.session.completed`,
-  `customer.subscription.created|updated|deleted`, `invoice.paid` and
-  `invoice.payment_failed` the API fetches the subscription from Stripe and
-  writes the plan, the paid-until date, the add-on quantities and the billing
-  status to the registry (`tenant.plan`, `paid_until`, `grace_until`,
-  `billing`) and the plan to `AppSetting.plan`. A wrong signature is a 400. The
-  same event twice writes the same state. `customer.subscription.deleted`
-  suspends the workspace; the daily sweep deletes it
-  `TENANCY.trial.suspendedTtlMs` later, like an ended trial.
-- **A failed payment gives `TENANCY.billing.graceMs`** (7 days,
-  `packages/db/src/tenancy-config.ts`). `invoice.paid` clears it; the sweep
-  suspends a workspace whose grace ended.
-- **Add-ons raise the monthly budgets.** `planLimitsOf(db)`
-  (`@crm/db/plan-usage`) is the one function every limit reader calls, and it
-  applies `currentTenant().billing.addOns` through `withAddOns()`
-  (`@crm/db/plans`). `limitsOf(plan)` alone knows no add-ons.
-- **Prices are found by lookup key, never by id.** `packages/db/src/pricing.ts`
-  holds the net EUR prices and the keys (`reloop:plan:start:month`,
-  `reloop:addon:drafts:year`); the landing page reads its numbers from the
-  same module. `bun apps/api/scripts/stripe-setup.ts` creates the products,
-  the prices (tax exclusive, Stripe Tax code SaaS business use), the customer
-  portal configuration and, with `--webhook <url>`, the endpoint, and prints
-  the signing secret once. A new subscription is a Stripe Checkout session
-  with Stripe Tax, a required billing address and tax id collection; a yearly
-  plan is card only. A plan change or an add-on on an existing subscription
-  is `subscriptions.update` with an immediate invoice, applied at once and
-  again by the webhook. Cancel is `cancel_at_period_end`, undone until then.
-- **A paused workspace can still pay.** A suspended tenant (trial ended,
-  grace ended, plan ended) passes `tenantMiddleware` only for `/api/auth/*`
-  and tRPC batches made of `billing.*` alone; everything else stays 403
-  `TENANT_SUSPENDED`. The app's proxy reads that 403 as the `suspended` gate
-  and sends every page to `/paused`, a slim page with the reason, the deletion
-  date, the plan picker and the portal button. The webhook sets the tenant
-  `active` again on the first paid subscription. Members see a note to ask an
-  owner.
-- **A subscription during the trial keeps the trial.** When the trial ends
-  more than `BILLING.checkout.trialLeadMs` (48 hours) from now, Checkout gets
-  `subscription_data.trial_end`, so the first charge is at trial end; nearer
-  than that it charges now. The picker says which.
-- **Still by hand in the Dashboard**: activating Stripe Tax (origin address,
-  registrations) and the payment methods offered on monthly plans.
-
-Declared in `env.validation.ts`, the root `turbo.json` and
-`deploy/docker-compose.yml`.
+The hosted Reloop Cloud bills through Stripe from a private overlay. The open
+source build has no billing code, no Stripe variable and no plan shop, and a
+self-hosted install never had one.
 
 ## `AGENT_HISTORY_RETENTION_DAYS`, off by default
 

@@ -9,28 +9,28 @@ import {
 	tenantCookieValue,
 } from "@crm/auth";
 import { db } from "@crm/db";
-import { addOnLookupKey, planLookupKey } from "@crm/db/pricing";
 import * as provision from "@crm/db/provision";
 import {
 	beginTenantDeletion,
 	closeRegistry,
 	forgetTenants,
-	NO_BILLING,
 	removeTenant,
 	setTenantStatus,
 	type Tenant,
 	tenantById,
 	tenantDatabaseUrl,
-	writeTenantBilling,
 } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";
 import { prepareTestTenants } from "@crm/db/test-tenants";
+import { BadRequestException } from "@nestjs/common";
 import pg from "pg";
-import Stripe from "stripe";
 import request from "supertest";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
 import { BackfillService } from "../src/backfill/backfill.service";
-import { STRIPE } from "../src/billing/stripe.provider";
+import {
+	BILLING_PORT,
+	type BillingPort,
+} from "../src/billing-port/billing-port";
 import { type Mail, MailService } from "../src/mail/mail.service";
 import { MailboxSyncHeartbeatService } from "../src/sync/mailbox-sync-heartbeat.service";
 import { TenantSweepService } from "../src/tenancy/tenant-sweep.service";
@@ -41,14 +41,12 @@ const PREPARE_TIMEOUT_MS = 240_000;
 const RUN = crypto.randomUUID().slice(0, 8);
 const PASSWORD = "ein-sehr-langes-passwort-zum-loeschen";
 const DELETED_SUBJECT = "Reloop: your workspace was deleted";
-const PERIOD_END = 1_800_000_000;
 
 type Disposable = {
 	id: string;
 	name: string;
 	owner: { id: string; email: string };
 	member: { id: string; email: string };
-	subscriptionId: string;
 };
 
 const happy: Disposable = disposable("a");
@@ -64,54 +62,12 @@ function disposable(letter: string): Disposable {
 		name: `Delete ${letter.toUpperCase()} ${RUN}`,
 		owner: { id: `${id}-owner`, email: `owner@${id}.example` },
 		member: { id: `${id}-member`, email: `member@${id}.example` },
-		subscriptionId: `sub_${letter}_${RUN}`,
 	};
-}
-
-function subscriptionOf(
-	target: Disposable,
-	status: Stripe.Subscription.Status,
-	schedule: string | null,
-): Stripe.Subscription {
-	return {
-		id: target.subscriptionId,
-		object: "subscription",
-		customer: `cus_${target.id}`,
-		status,
-		cancel_at: null,
-		cancel_at_period_end: false,
-		schedule,
-		metadata: { tenantId: target.id },
-		items: {
-			data: [
-				{
-					id: "si_plan",
-					quantity: 1,
-					current_period_end: PERIOD_END,
-					price: {
-						id: "price_plan",
-						lookup_key: planLookupKey("standard", "month"),
-					},
-				},
-				{
-					id: "si_drafts",
-					quantity: 1,
-					current_period_end: PERIOD_END,
-					price: {
-						id: "price_drafts",
-						lookup_key: addOnLookupKey("drafts", "month"),
-					},
-				},
-			],
-		},
-	} as unknown as Stripe.Subscription;
 }
 
 const saved = {
 	registry: process.env.RELOOP_REGISTRY_URL,
 	template: process.env.RELOOP_TENANT_DATABASE_URL_TEMPLATE,
-	stripeKey: process.env.STRIPE_SECRET_KEY,
-	webhook: process.env.STRIPE_WEBHOOK_SECRET,
 	backups: process.env.RELOOP_BACKUP_DIR,
 	resend: process.env.RESEND_API_KEY,
 	from: process.env.MAIL_FROM,
@@ -119,11 +75,9 @@ const saved = {
 };
 
 const spies: { mockRestore: () => void }[] = [];
-const cancels: { id: string; params: Stripe.SubscriptionCancelParams }[] = [];
-const released: string[] = [];
+const cancels: string[] = [];
 const mails: Mail[] = [];
 const tenants = new Map<string, Tenant>();
-const subscriptions = new Map<string, Stripe.Subscription>();
 let backupDir = "";
 let refuseCancel = false;
 let app: Awaited<ReturnType<typeof import("../src/create-app").createApp>>;
@@ -231,22 +185,6 @@ async function provisionDisposable(target: Disposable): Promise<Tenant> {
 			},
 		});
 	});
-	await writeTenantBilling(target.id, {
-		plan: "standard",
-		paidUntil: new Date(PERIOD_END * 1000),
-		graceUntil: null,
-		billing: {
-			...NO_BILLING,
-			customerId: `cus_${target.id}`,
-			subscriptionId: target.subscriptionId,
-			status: "active",
-			interval: "month",
-		},
-	});
-	subscriptions.set(
-		target.subscriptionId,
-		subscriptionOf(target, "active", `sched_${target.id}`),
-	);
 	writeFileSync(
 		join(backupDir, `${provision.dbNameOf(target.id)}-nightly.dump`),
 		"",
@@ -254,50 +192,15 @@ async function provisionDisposable(target: Disposable): Promise<Tenant> {
 	return required(await tenantById(target.id), target.id);
 }
 
-function stubStripe(stripe: Stripe) {
+function stubBilling(port: BillingPort) {
 	return [
-		spyOn(stripe.subscriptions, "retrieve").mockImplementation((async (
-			id: string,
-		) => {
-			const found = subscriptions.get(id);
-			if (!found) {
-				throw new Stripe.errors.StripeInvalidRequestError({
-					message: `No such subscription: '${id}'`,
-					type: "invalid_request_error",
-					code: "resource_missing",
-				});
-			}
-			return found;
-		}) as never),
-		spyOn(stripe.subscriptions, "cancel").mockImplementation((async (
-			id: string,
-			params: Stripe.SubscriptionCancelParams,
-		) => {
+		spyOn(port, "cancelNow").mockImplementation(async (tenant: Tenant) => {
 			if (refuseCancel) {
 				refuseCancel = false;
-				throw new Error("Stripe is unavailable right now.");
+				throw new BadRequestException("Billing is unavailable right now.");
 			}
-			cancels.push({ id, params });
-			const live = required(subscriptions.get(id), id);
-			const canceled = { ...live, status: "canceled", schedule: null };
-			subscriptions.set(id, canceled as Stripe.Subscription);
-			return canceled;
-		}) as never),
-		spyOn(stripe.subscriptionSchedules, "retrieve").mockImplementation((async (
-			id: string,
-		) => ({
-			id,
-			object: "subscription_schedule",
-			status: released.includes(id) ? "released" : "active",
-			current_phase: { start_date: PERIOD_END - 100, end_date: PERIOD_END },
-			phases: [],
-		})) as never),
-		spyOn(stripe.subscriptionSchedules, "release").mockImplementation((async (
-			id: string,
-		) => {
-			released.push(id);
-			return { id, status: "released" };
-		}) as never),
+			cancels.push(tenant.id);
+		}),
 	];
 }
 
@@ -310,8 +213,6 @@ function deletedMails(target: Disposable): Mail[] {
 
 beforeAll(async () => {
 	backupDir = mkdtempSync(join(tmpdir(), "reloop-deletion-"));
-	process.env.STRIPE_SECRET_KEY = "sk_test_placeholder_never_real";
-	process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_only_never_real";
 	process.env.RELOOP_BACKUP_DIR = backupDir;
 	process.env.RESEND_API_KEY = "re_test_placeholder_never_real";
 	process.env.MAIL_FROM = "Reloop <preview@example.com>";
@@ -339,7 +240,7 @@ beforeAll(async () => {
 	const { createApp } = await import("../src/create-app");
 	app = await createApp();
 	server = app.getHttpServer();
-	spies.push(...stubStripe(app.get<Stripe>(STRIPE)));
+	spies.push(...stubBilling(app.get<BillingPort>(BILLING_PORT)));
 	spies.push(
 		spyOn(app.get(MailService), "send").mockImplementation(
 			async (mail: Mail) => {
@@ -361,8 +262,6 @@ afterAll(async () => {
 		for (const [name, value] of [
 			["RELOOP_REGISTRY_URL", saved.registry],
 			["RELOOP_TENANT_DATABASE_URL_TEMPLATE", saved.template],
-			["STRIPE_SECRET_KEY", saved.stripeKey],
-			["STRIPE_WEBHOOK_SECRET", saved.webhook],
 			["RELOOP_BACKUP_DIR", saved.backups],
 			["RESEND_API_KEY", saved.resend],
 			["MAIL_FROM", saved.from],
@@ -444,7 +343,7 @@ describe("deleting a workspace", () => {
 		expect(cancels).toHaveLength(0);
 	});
 
-	it("puts the status back when Stripe refuses the cancel", async () => {
+	it("puts the status back when billing refuses the cancel", async () => {
 		const cookie = await signIn(happy, happy.owner.email);
 		refuseCancel = true;
 		const response = await deleteRequest(cookie, {
@@ -471,13 +370,7 @@ describe("deleting a workspace", () => {
 		expect(String(response.headers["set-cookie"])).toContain(
 			`${TENANT_COOKIE_NAME}=; Path=/; Max-Age=0`,
 		);
-		expect(cancels).toEqual([
-			{
-				id: happy.subscriptionId,
-				params: { prorate: false, invoice_now: false },
-			},
-		]);
-		expect(released).toContain(`sched_${happy.id}`);
+		expect(cancels).toEqual([happy.id, happy.id]);
 		forgetTenants();
 		expect(await tenantById(happy.id)).toBeNull();
 		expect(await databaseExists(happy)).toBe(false);
@@ -529,9 +422,7 @@ describe("deleting a workspace", () => {
 		forgetTenants();
 		expect((await tenantById(retry.id))?.status).toBe("deleted");
 		expect(await databaseExists(retry)).toBe(true);
-		expect(
-			cancels.filter((call) => call.id === retry.subscriptionId),
-		).toHaveLength(1);
+		expect(cancels.filter((id) => id === retry.id)).toHaveLength(2);
 		const leftovers = await runAsTenant(tenant, async () => ({
 			sessions: await db.session.count(),
 			imap: await db.imapAccount.count(),
@@ -549,14 +440,11 @@ describe("deleting a workspace", () => {
 		forgetTenants();
 		expect(await tenantById(retry.id)).toBeNull();
 		expect(await databaseExists(retry)).toBe(false);
-		expect(
-			cancels.filter((call) => call.id === retry.subscriptionId),
-		).toHaveLength(1);
+		expect(cancels.filter((id) => id === retry.id)).toHaveLength(3);
 		expect(deletedMails(retry)).toHaveLength(1);
 	}, 120_000);
 
-	it("lets the owner of a paused workspace delete it when Stripe no longer has the subscription", async () => {
-		subscriptions.delete(paused.subscriptionId);
+	it("lets the owner of a paused workspace delete it", async () => {
 		await setTenantStatus(paused.id, "suspended");
 		const cookie = await signIn(paused, paused.owner.email);
 
@@ -571,46 +459,21 @@ describe("deleting a workspace", () => {
 		});
 		expect(response.status).toBe(200);
 		expect(response.body.result.data).toEqual({ finished: true });
-		expect(
-			cancels.filter((call) => call.id === paused.subscriptionId),
-		).toHaveLength(0);
+		expect(cancels.filter((id) => id === paused.id)).toHaveLength(2);
 		forgetTenants();
 		expect(await tenantById(paused.id)).toBeNull();
 		expect(await databaseExists(paused)).toBe(false);
 		expect(deletedMails(paused)).toHaveLength(1);
 	}, 120_000);
 
-	it("finishes a deletion that crashed before the cancel when Stripe posts the next webhook", async () => {
+	it("finishes a deletion that crashed before the cancel on the next sweep", async () => {
 		await beginTenantDeletion(crashed.id);
 		forgetTenants();
-		const before = mails.filter((mail) => mail.to === crashed.owner.email);
-		expect(before).toHaveLength(0);
+		expect(mails.filter((mail) => mail.to === crashed.owner.email)).toEqual([]);
 
-		const stripe = app.get<Stripe>(STRIPE);
-		const payload = JSON.stringify({
-			id: `evt_crashed_${RUN}`,
-			object: "event",
-			type: "customer.subscription.updated",
-			data: {
-				object: required(subscriptions.get(crashed.subscriptionId), "sub"),
-			},
-		});
-		const webhook = await request(server)
-			.post("/api/billing/webhook")
-			.set(
-				"stripe-signature",
-				await stripe.webhooks.generateTestHeaderStringAsync({
-					payload,
-					secret: required(process.env.STRIPE_WEBHOOK_SECRET, "secret"),
-				}),
-			)
-			.set("content-type", "application/json")
-			.send(payload);
-		expect(webhook.status).toBe(200);
+		await app.get(TenantSweepService).sweep(new Date());
 
-		expect(
-			cancels.filter((call) => call.id === crashed.subscriptionId),
-		).toHaveLength(1);
+		expect(cancels.filter((id) => id === crashed.id)).toHaveLength(1);
 		forgetTenants();
 		expect(await tenantById(crashed.id)).toBeNull();
 		expect(await databaseExists(crashed)).toBe(false);

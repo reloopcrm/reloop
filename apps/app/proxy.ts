@@ -2,7 +2,11 @@ import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { isHosted } from "@crm/db/tenant-context";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { landingMarkdown } from "@/cloud/slots.data";
+import {
+	landingMarkdown,
+	MARKETING_REDIRECTS,
+	MARKETING_ROUTES,
+} from "@/cloud/slots.data";
 import { isMarketing, isMarketingHost } from "@/lib/env";
 import {
 	markdownHeaders,
@@ -20,10 +24,23 @@ import { workspaceUrl } from "@/lib/workspace-url";
 
 export const ANONYMOUS_PATHS = PROXY.anonymous;
 
-export const MARKETING_PATHS = PROXY.marketing;
+export const MARKETING_PATHS: readonly string[] = [
+	...PROXY.marketing,
+	...MARKETING_ROUTES,
+];
 
 export async function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
+	const moved = MARKETING_REDIRECTS.find((entry) => entry.source === pathname);
+	if (moved) {
+		return NextResponse.redirect(
+			new URL(moved.destination, request.nextUrl),
+			moved.permanent
+				? PROXY.redirectStatus.permanent
+				: PROXY.redirectStatus.temporary,
+		);
+	}
+
 	const markdown = prefersMarkdown(request.headers.get("accept"));
 	const marketingHost = isMarketingHost(requestHost(request));
 	const marketing = isMarketing() || marketingHost;
@@ -152,7 +169,7 @@ function isSection(pathname: string): boolean {
 function isMarketingPath(pathname: string, marketing: boolean): boolean {
 	if (
 		marketing &&
-		PROXY.marketing.some((prefix) => isUnder(pathname, prefix))
+		MARKETING_PATHS.some((prefix) => isUnder(pathname, prefix))
 	) {
 		return true;
 	}

@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { UsageAddOns } from "@/cloud/slots";
+import { BILLING_PATH } from "@/cloud/slots.data";
 import { LocalDateTime } from "@/components/local-date-time";
 import {
 	PageShell,
@@ -16,7 +17,6 @@ import {
 	PageShellLoading,
 	PageShellTitle,
 } from "@/components/page-shell";
-import { CHECKOUT } from "@/lib/checkout-config";
 import { getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";
 import { hostedCustomer, requestTenant } from "@/lib/tenant";
@@ -96,12 +96,12 @@ async function audience() {
 async function ChoosePlan({ slug }: { slug: string }) {
 	const t = await getT();
 	const { admin, trial } = await audience();
-	if (!admin || !trial) return null;
+	if (!admin || !trial || !BILLING_PATH) return null;
 
 	return (
 		<PageShellActions>
 			<Button asChild>
-				<Link href={workspaceUrl(slug, CHECKOUT.billingPath)}>
+				<Link href={workspaceUrl(slug, BILLING_PATH)}>
 					{t("Choose a plan")}
 				</Link>
 			</Button>
@@ -131,7 +131,8 @@ async function Ai({ hosted, slug }: { hosted: boolean; slug: string }) {
 				lines={usage.lines}
 				plan={{
 					trialEndsAt,
-					billingHref: admin ? workspaceUrl(slug, CHECKOUT.billingPath) : null,
+					billingHref:
+						admin && BILLING_PATH ? workspaceUrl(slug, BILLING_PATH) : null,
 				}}
 			/>
 			{admin ? <UsageAddOns /> : null}

@@ -38,5 +38,7 @@
 	"{n} won deal": "{n} negócio ganho",
 	"{n} won deals": "{n} negócios ganhos",
 	"Has a company": "Tem uma empresa",
-	"Title matches \"{keyword}\"": "Cargo combina com \"{keyword}\""
+	"Title matches \"{keyword}\"": "Cargo combina com \"{keyword}\"",
+	"Reloop cannot reach its API right now.": "O Reloop não consegue acessar a API agora.",
+	"Reload the page in a moment.": "Recarregue a página daqui a pouco."
 }

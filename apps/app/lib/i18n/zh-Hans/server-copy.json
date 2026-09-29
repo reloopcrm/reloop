@@ -38,5 +38,7 @@
 	"{n} won deal": "{n} 个赢下的交易",
 	"{n} won deals": "{n} 个赢下的交易",
 	"Has a company": "有公司",
-	"Title matches \"{keyword}\"": "职位匹配 \"{keyword}\""
+	"Title matches \"{keyword}\"": "职位匹配 \"{keyword}\"",
+	"Reloop cannot reach its API right now.": "Reloop 现在无法连接到它的 API。",
+	"Reload the page in a moment.": "请稍后重新加载页面。"
 }

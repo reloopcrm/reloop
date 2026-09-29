@@ -211,5 +211,6 @@
 	"No contact email is set for this installation. Use the issue tracker above for anything that does not belong in a public issue.": "Bu kurulum için bir iletişim e-postası ayarlanmamış. Herkese açık bir soruna ait olmayan her şey için yukarıdaki sorun takipçisini kullan.",
 	"Report a security problem through the repository instead of a public issue. Describe the problem and how to reproduce it.": "Bir güvenlik sorununu herkese açık bir sorun yerine depo üzerinden bildir. Sorunu ve nasıl yeniden üretileceğini anlat.",
 	"No postal address is set for this installation.": "Bu kurulum için bir posta adresi ayarlanmamış.",
-	"Write to {email} with any question about your data.": "Verilerinle ilgili her soru için {email} adresine yaz."
+	"Write to {email} with any question about your data.": "Verilerinle ilgili her soru için {email} adresine yaz.",
+	"Your own Reloop CRM in a minute. 14 days free, no card.": "Bir dakikada kendi Reloop CRM'in. 14 gün ücretsiz, kart gerekmez."
 }

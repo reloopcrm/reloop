@@ -10,9 +10,9 @@ import { type Tenant, tenantById, tenantBySite } from "@crm/db/tenancy";
 import { isHosted, runAsTenant } from "@crm/db/tenant-context";
 import { Logger } from "@nestjs/common";
 import type { NextFunction, Request, Response } from "express";
+import { BILLING_SEAM } from "../billing-port/billing-port";
 
-const OPEN_PATH =
-	/^\/(health$|internal\/|api\/tenant\/|api\/billing\/webhook$)/;
+const OPEN_PATH = /^\/(health$|internal\/|api\/tenant\/)/;
 const AUTH_PATH = "/api/auth/";
 const TRPC_PATH = "/api/trpc/";
 const PAUSED_PROCEDURES = /^(billing\.|workspace\.(delete|deletionCode)$)/;
@@ -40,7 +40,11 @@ export function tenantMiddleware() {
 		}
 
 		const path = request.path;
-		if (OPEN_PATH.test(path) || path === COLLECTOR_PATH) {
+		if (
+			OPEN_PATH.test(path) ||
+			path === BILLING_SEAM.webhook.path ||
+			path === COLLECTOR_PATH
+		) {
 			withoutSession(request);
 			next();
 			return;

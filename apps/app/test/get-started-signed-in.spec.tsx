@@ -70,6 +70,7 @@ const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
 const { SignedInPanel } = await import("../components/signup/signed-in-panel");
 const { SignupForm } = await import("../components/signup/signup-form");
 const { signedInEntry } = await import("../lib/signed-in-entry");
+const { BILLING_PATH } = await import("../cloud/slots.data");
 const { purchaseFromParams } = await import("../components/signup/purchase");
 const { default: GetStartedPage } = await import(
 	"../app/(landing)/get-started/page"
@@ -118,6 +119,7 @@ afterAll(() => {
 
 const team = { plan: "team", interval: "year" } as const;
 const buyParams = { plan: "team", interval: "year", buy: "1" };
+const sells = BILLING_PATH !== null;
 
 const owner: SignedInWorkspace = {
 	email: "preview@example.com",
@@ -182,11 +184,23 @@ async function pageChildren(
 }
 
 describe("the sign-up page for a visitor who is not signed in", () => {
-	it("shows the registration form, unchanged", async () => {
+	it("shows the registration form, and sells the plan only with billing", async () => {
 		const children = await pageChildren(buyParams);
 		const form = children.find((child) => child.type === SignupForm);
-		expect(form?.props).toMatchObject({ plan: "team", purchase: team });
+		expect(form?.props).toMatchObject({
+			plan: "team",
+			purchase: sells ? team : null,
+		});
 		expect(children.some((child) => child.type === SignedInPanel)).toBe(false);
+	});
+});
+
+describe("the sign-up page on a build without billing", () => {
+	it.if(!sells)("never promises a payment step", async () => {
+		const children = await pageChildren(buyParams);
+		const heading = children[0] as ReactElement<{ description: string }>;
+		const key = "Your own Reloop CRM in a minute. 14 days free, no card.";
+		expect(heading.props.description).toBe(DICTIONARIES.de[key] ?? key);
 	});
 });
 
@@ -197,10 +211,14 @@ describe("the sign-up page for a visitor who is signed in", () => {
 		expect(children.some((child) => child.type === SignupForm)).toBe(false);
 		const shown = children.find((child) => child.type === SignedInPanel);
 		expect(shown?.props).toMatchObject({
-			entry: { kind: "checkout", purchase: team },
+			entry: sells
+				? { kind: "checkout", purchase: team }
+				: { kind: "workspace" },
 			workspace: "Acme",
 			workspaceHref: "/acme",
-			returnTo: "/get-started?plan=team&interval=year&buy=1",
+			returnTo: sells
+				? "/get-started?plan=team&interval=year&buy=1"
+				: "/get-started?plan=team",
 		});
 	});
 
@@ -228,7 +246,7 @@ describe("the sign-up page for a visitor who is signed in", () => {
 });
 
 describe("what a signed-in visitor can do", () => {
-	it("starts the checkout for a trial workspace", async () => {
+	it("offers the checkout to a trial workspace", () => {
 		const entry = signedInEntry({
 			purchase: team,
 			admin: true,
@@ -236,12 +254,6 @@ describe("what a signed-in visitor can do", () => {
 			slug: "acme",
 		});
 		expect(entry).toEqual({ kind: "checkout", purchase: team });
-
-		const container = await mount(panel(entry));
-		await act(async () =>
-			buttonNamed(container, "Team für Acme buchen")?.click(),
-		);
-		expect(started).toEqual([team]);
 	});
 
 	it("sends a subscribed workspace to billing with the plan chosen, without a checkout", async () => {
@@ -299,7 +311,6 @@ describe("what a signed-in visitor can do", () => {
 		const count = (markup: string) =>
 			markup.match(/data-variant="default"/g)?.length ?? 0;
 		for (const entry of [
-			{ kind: "checkout", purchase: team },
 			{ kind: "change", href: "/acme/settings/billing" },
 			{ kind: "owned", purchase: team },
 			{ kind: "refused" },
@@ -314,19 +325,8 @@ describe("what a signed-in visitor can do", () => {
 		expect(assigned).toEqual(["/get-started?plan=team&interval=year&buy=1"]);
 	});
 
-	it("keeps a long workspace name whole in the tooltip of the book button", () => {
-		const workspace =
-			"Preview Handelsgesellschaft für sehr lange Firmennamen mbH";
-		const markup = markupOf(
-			{ ...panel({ kind: "checkout", purchase: team }), workspace },
-			"en",
-		);
-		expect(markup).toContain(`title="Book Team for ${workspace}"`);
-		expect(markup).toContain('class="w-0 flex-1 truncate text-center"');
-	});
-
 	it("speaks English and German", () => {
-		const entry = { kind: "checkout", purchase: team } as const;
+		const entry = { kind: "change", href: "/acme/settings/billing" } as const;
 		const english = markupOf(panel(entry), "en");
 		expect(english).toContain("Book Team for Acme");
 		expect(english).toContain("Create a new, separate workspace?");

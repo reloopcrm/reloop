@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { fileURLToPath } from "node:url";
 import { LOCALES } from "@crm/db/locale";
 import ts from "typescript";
+import { MARKETING_ROUTES } from "../cloud/slots.data";
 import { DICTIONARIES } from "../lib/i18n/dictionaries";
 import { PROXY } from "../lib/proxy-config";
 
@@ -44,7 +45,7 @@ const PAGES = [
 	{ path: PROXY.path.notFound, file: "app/not-found.tsx" },
 	{ path: "/docs", file: "app/(landing)/docs/page.tsx" },
 	{ path: "/docs/[slug]", file: "app/(landing)/docs/[slug]/page.tsx" },
-	...PROXY.marketing.map((path) => ({
+	...[...PROXY.marketing, ...MARKETING_ROUTES].map((path) => ({
 		path,
 		file: `app/(landing)${path}/page.tsx`,
 	})),

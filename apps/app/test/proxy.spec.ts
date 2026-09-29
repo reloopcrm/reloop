@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { NextRequest } from "next/server";
-import { proxy } from "../proxy";
+import { MARKETING_REDIRECTS, MARKETING_ROUTES } from "../cloud/slots.data";
+import { MARKETING_PATHS, proxy } from "../proxy";
 
 const ORIGIN = "https://reloopcrm.com";
 
@@ -191,11 +192,22 @@ describe("the files an agent reads", () => {
 	});
 });
 
+describe("the moved marketing addresses", () => {
+	it("redirect to where the page lives now", async () => {
+		for (const entry of MARKETING_REDIRECTS) {
+			const response = await proxy(request(entry.source, BROWSER_ACCEPT));
+
+			expect(response.status, entry.source).toBe(entry.permanent ? 308 : 307);
+			expect(locationOf(response), entry.source).toBe(entry.destination);
+		}
+	});
+});
+
 describe("the marketing pages", () => {
 	it("render for a stranger on the public site", async () => {
 		marketing(true);
 
-		for (const path of ["/about", "/contact", "/privacy", "/vs/hubspot"]) {
+		for (const path of MARKETING_PATHS) {
 			const response = await proxy(request(path, BROWSER_ACCEPT));
 
 			expect(response.headers.get("x-middleware-next"), path).toBe("1");
@@ -290,7 +302,13 @@ describe("the marketing host of the cloud", () => {
 		marketingHost();
 
 		for (const host of ["reloopcrm.com", "www.reloopcrm.com:443"]) {
-			for (const path of ["/", "/pricing", "/about", "/docs", "/llms.txt"]) {
+			for (const path of [
+				"/",
+				"/docs",
+				"/llms.txt",
+				"/contact",
+				...MARKETING_ROUTES,
+			]) {
 				const response = await proxy(onHost(host, path));
 
 				expect(response.headers.get("x-middleware-next"), path).toBe("1");

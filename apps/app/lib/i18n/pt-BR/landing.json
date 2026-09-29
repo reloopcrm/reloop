@@ -211,5 +211,6 @@
 	"No contact email is set for this installation. Use the issue tracker above for anything that does not belong in a public issue.": "Nenhum e-mail de contato está configurado para esta instalação. Use o rastreador de issues acima para qualquer coisa que não caiba em uma issue pública.",
 	"Report a security problem through the repository instead of a public issue. Describe the problem and how to reproduce it.": "Reporte um problema de segurança pelo repositório em vez de uma issue pública. Descreva o problema e como reproduzir.",
 	"No postal address is set for this installation.": "Nenhum endereço postal está configurado para esta instalação.",
-	"Write to {email} with any question about your data.": "Escreva para {email} com qualquer dúvida sobre seus dados."
+	"Write to {email} with any question about your data.": "Escreva para {email} com qualquer dúvida sobre seus dados.",
+	"Your own Reloop CRM in a minute. 14 days free, no card.": "Seu próprio Reloop CRM em um minuto. 14 dias grátis, sem cartão."
 }

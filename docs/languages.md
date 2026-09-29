@@ -35,13 +35,12 @@ apps/app/lib/i18n/zh-Hans/     Simplified Chinese
 
 English has no folder. The key is the English text.
 
-Each folder holds the same fourteen files. The split is only there to keep a file
+Each folder holds the same thirteen files. The split is only there to keep a file
 small enough to read:
 
 | File | What it holds |
 | --- | --- |
 | `agent-builder.json` | The agent builder |
-| `cloud.json` | Text only the marketing pages, pricing and billing show. A key a core screen uses never goes here |
 | `copy.json` | Buttons, dialogs and toasts that every screen uses |
 | `crm-records.json` | Companies, contacts and deals |
 | `landing.json` | The public site |
@@ -54,6 +53,11 @@ small enough to read:
 | `status.json` | Status and health |
 | `ui.json` | The shared components in `packages/ui` |
 | `win-back.json` | Win back |
+
+The hosted Cloud's private overlay adds a fourteenth file, `cloud.json`, with the
+text only its marketing pages, pricing and billing show, and registers it in
+`apps/app/lib/i18n/cloud.ts`. A key a core screen uses never goes there. In this
+repository `cloud.ts` holds an empty map per locale.
 
 A file is a flat object. The key is the English text, the value is your language:
 
@@ -83,7 +87,7 @@ folder, and the rest is text.
    owe.
 4. **Register the files.** In `apps/app/lib/i18n/dictionaries.ts` add the thirteen
    core imports, one block in `DICTIONARY_MODULES` and one line in `DICTIONARIES`.
-   Add `cloud.json` to `CLOUD_DICTIONARY_MODULES` in `apps/app/lib/i18n/cloud.ts`.
+   Add your locale to `CLOUD_DICTIONARY_MODULES` in `apps/app/lib/i18n/cloud.ts`.
    Copy the block above yours and change the locale code. Every map is checked
    against `Locale`, so `bun run check-types` fails until each holds your locale.
    You cannot forget one.
@@ -104,7 +108,7 @@ folder, and the rest is text.
   sales team, not a bank letter.
 - **Leave no value empty.** Delete the key instead: a missing key falls back to
   English, an empty value shows nothing.
-- **Ship all fourteen files**, even when you translate only some of them. An empty
+- **Ship all thirteen files**, even when you translate only some of them. An empty
   file holds `{}` and is valid.
 
 ## What the checks do

@@ -7,6 +7,7 @@
 		".": "./src/index.ts",
 		"./account-token": "./src/account-token.ts",
 		"./client": "./src/client.ts",
+		"./cloud/*": "./src/cloud/*.ts",
 		"./cookies": "./src/cookies.ts",
 		"./oauth-apps": "./src/oauth-apps.ts",
 		"./password-rules": "./src/password-rules.ts",

@@ -4,7 +4,6 @@ export {
 	API_KEY_HEADER,
 	API_KEY_PREFIX,
 	DAY_SECONDS,
-	tenantIdFromApiKey,
 } from "./api-keys";
 export { type Auth, auth, type Session, type SessionUser } from "./auth";
 export {
@@ -113,6 +112,7 @@ export {
 	readTenantCookie,
 	tenantCookieHeader,
 	tenantCookieValue,
+	tenantIdFromApiKey,
 } from "./tenant-cookie";
 export {
 	hasSignInAllowList,

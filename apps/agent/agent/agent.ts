@@ -1,14 +1,14 @@
 import "@crm/env/load";
 
+import { cloud } from "@crm/db/cloud/scope";
 import { AGENT_PROVIDER_DEFAULTS } from "@crm/db/settings";
-import { isHosted } from "@crm/db/tenant-context";
 import { onTelemetryProblem, syncVersion } from "@crm/telemetry";
 import { defineAgent, defineDynamic } from "eve";
 import { logCapabilities } from "./lib/capabilities";
 import { fallbackModel, logModelProvider, stepModel } from "./lib/model";
 import { withTenant } from "./lib/tenant";
 
-if (isHosted()) {
+if (cloud.hosted()) {
 	console.log("[agent] hosted mode: one database per tenant, read per session");
 } else {
 	void logCapabilities();

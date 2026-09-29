@@ -1,4 +1,4 @@
-import { forEachTenant } from "@crm/db/tenancy";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	Controller,
 	ForbiddenException,
@@ -86,7 +86,7 @@ export class SyncController {
 			throw new ForbiddenException();
 		}
 
-		return forEachTenant(() => this.sync.runDue());
+		return cloud.forEachScope(() => this.sync.runDue());
 	}
 }
 

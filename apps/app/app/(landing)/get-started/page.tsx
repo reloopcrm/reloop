@@ -1,5 +1,5 @@
+import { cloud } from "@crm/db/cloud/scope";
 import { PLAN_IDS, PLANS } from "@crm/db/plans";
-import { isHosted } from "@crm/db/tenant-context";
 import { Link } from "@crm/ui/components/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -37,7 +37,7 @@ const EMAIL_MARK = "\u0000email\u0000";
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
 
-	if (!isHosted()) {
+	if (!cloud.hosted()) {
 		return {
 			title: t("Get started"),
 			description: t(
@@ -64,7 +64,7 @@ export default async function GetStartedPage({
 	);
 	const requestedPurchase = purchaseFromParams(params);
 
-	if (!isHosted() && cloudUrl()) {
+	if (!cloud.hosted() && cloudUrl()) {
 		redirect(requestedPurchase ? buyUrl(requestedPurchase) : signUpUrl(plan));
 	}
 
@@ -72,7 +72,7 @@ export default async function GetStartedPage({
 
 	const t = await getT();
 
-	if (!isHosted()) {
+	if (!cloud.hosted()) {
 		return (
 			<AuthShell>
 				<AuthHeading

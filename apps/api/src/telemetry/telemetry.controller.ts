@@ -1,4 +1,4 @@
-import { forEachTenant } from "@crm/db/tenancy";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	Controller,
 	ForbiddenException,
@@ -69,7 +69,7 @@ export class TelemetryController {
 			throw new ForbiddenException();
 		}
 
-		return forEachTenant(() => this.rollup.run());
+		return cloud.forEachScope(() => this.rollup.run());
 	}
 }
 

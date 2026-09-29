@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { tenantId as tenantIdSchema } from "@crm/db/tenancy";
+import { API_KEY_PREFIX } from "./api-key-config";
 import { TENANT_COOKIE, TENANT_COOKIE_NAME } from "./cookies";
 
 function signature(tenantId: string, secret: string): string {
@@ -78,4 +79,15 @@ export function cookieValue(
 	}
 
 	return undefined;
+}
+
+export function tenantIdFromApiKey(key: string | undefined): string | null {
+	if (!key?.startsWith(API_KEY_PREFIX)) return null;
+
+	const rest = key.slice(API_KEY_PREFIX.length);
+	const separator = rest.indexOf("_");
+	if (separator <= 0) return null;
+
+	const tenantId = rest.slice(0, separator);
+	return tenantIdSchema.safeParse(tenantId).success ? tenantId : null;
 }

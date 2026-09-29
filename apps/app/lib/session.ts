@@ -10,17 +10,17 @@ import {
 	workspaceRoleOf,
 } from "@crm/auth";
 import { db } from "@crm/db";
-import { TENANCY } from "@crm/db/tenancy-config";
+import { cloud } from "@crm/db/cloud/scope";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { DeletionZone } from "@/app/(app)/[slug]/settings/delete-workspace";
+import { hostedCustomer, inScope } from "@/cloud/scope.server";
 import { deletionZoneShown } from "@/lib/operator";
-import { hostedCustomer, inTenant } from "@/lib/tenant";
 
 export const getSession = cache(
 	async (): Promise<Session | null> =>
-		inTenant(async () => {
+		inScope(async () => {
 			const session = await auth.api.getSession({ headers: await headers() });
 			if (!session) return null;
 			return (await isSignInAllowed(session.user.email)) ? session : null;
@@ -39,7 +39,7 @@ export async function requireSession(): Promise<Session> {
 
 export const signInAccounts = cache(
 	async (userId: string) =>
-		(await inTenant(() =>
+		(await inScope(() =>
 			db.account.findMany({
 				where: { userId },
 				select: { providerId: true, scope: true },
@@ -49,12 +49,12 @@ export const signInAccounts = cache(
 
 export const workspaceRole = cache(
 	async (userId: string): Promise<WorkspaceRole | null> =>
-		(await inTenant(() => workspaceRoleOf(userId))) ?? null,
+		(await inScope(() => workspaceRoleOf(userId))) ?? null,
 );
 
 export const workspaceRow = cache(
 	async () =>
-		(await inTenant(() =>
+		(await inScope(() =>
 			db.organization.findUnique({
 				where: { id: WORKSPACE_ID },
 				select: { name: true, slug: true },
@@ -88,7 +88,7 @@ export async function deletionZone(
 	) {
 		return null;
 	}
-	const workspace = await inTenant(() =>
+	const workspace = await inScope(() =>
 		db.organization.findUnique({
 			where: { id: WORKSPACE_ID },
 			select: { name: true },
@@ -100,7 +100,7 @@ export async function deletionZone(
 		)
 			? "password"
 			: "code",
-		backupDays: TENANCY.backup.retentionDays,
+		backupDays: cloud.backup.retentionDays,
 		workspaceName: workspace?.name.trim() ?? "",
 	};
 }

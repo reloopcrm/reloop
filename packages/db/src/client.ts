@@ -1,10 +1,8 @@
 import "@crm/env/load";
 
 import { PrismaPg } from "@prisma/adapter-pg";
+import { cloud } from "./cloud/scope";
 import { Prisma, PrismaClient } from "./generated/prisma/client";
-import { type Tenant, tenantDatabaseUrl } from "./tenancy";
-import { TENANCY } from "./tenancy-config";
-import { currentTenant, isHosted, tenantHeld } from "./tenant-context";
 
 function connectionString(): string {
 	return process.env.NODE_ENV === "test" ? testDatabase() : liveDatabase();
@@ -130,7 +128,7 @@ declare global {
 	var prisma: Db | undefined;
 }
 
-let single: Db | undefined = isHosted() ? undefined : singleClient();
+let single: Db | undefined = cloud.hosted() ? undefined : singleClient();
 
 function singleClient(): Db {
 	const client = globalThis.prisma ?? createPrismaClient(connectionString());
@@ -138,57 +136,15 @@ function singleClient(): Db {
 	return client;
 }
 
-const clients = new Map<string, Db>();
-
-function clientFor(tenant: Tenant): Db {
-	const existing = clients.get(tenant.id);
-	if (existing) {
-		clients.delete(tenant.id);
-		clients.set(tenant.id, existing);
-		return existing;
-	}
-
-	const client = createPrismaClient(
-		tenantDatabaseUrl(tenant.dbName),
-		TENANCY.pool.api,
-	);
-	clients.set(tenant.id, client);
-
-	if (clients.size > TENANCY.clients.max) evictIdle();
-
-	return client;
-}
-
-function evictIdle(): void {
-	for (const [id, idle] of clients) {
-		if (tenantHeld(id)) continue;
-		clients.delete(id);
-		void idle.$disconnect();
-		return;
-	}
-}
-
 function resolve(): Db {
-	if (isHosted()) return clientFor(currentTenant());
-	single ??= singleClient();
-	return single;
-}
-
-export function openClients(): string[] {
-	return [...clients.keys()];
-}
-
-export async function disconnectTenant(tenantId: string): Promise<void> {
-	const open = clients.get(tenantId);
-	clients.delete(tenantId);
-	await open?.$disconnect();
+	return cloud.resolveClient(() => {
+		single ??= singleClient();
+		return single;
+	}, createPrismaClient);
 }
 
 export async function disconnectAll(): Promise<void> {
-	const open = [...clients.values()];
-	clients.clear();
-	if (single) open.push(single);
-	await Promise.all(open.map((client) => client.$disconnect()));
+	await Promise.all([cloud.disconnectClients(), single?.$disconnect()]);
 }
 
 const delegates = new Set(

@@ -1,7 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import type { Db } from "@crm/db";
-import { forEachTenant, tenantBySite } from "@crm/db/tenancy";
-import { isHosted, runAsTenant } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	EVENT_RETENTION_DAYS,
 	isSiteId,
@@ -127,13 +126,13 @@ export class TrackingController {
 			});
 
 		try {
-			if (!isHosted()) {
+			if (!cloud.hosted()) {
 				await accept();
 				return;
 			}
 
-			const tenant = await tenantBySite(batch.siteId);
-			if (tenant?.status === "active") await runAsTenant(tenant, accept);
+			const scope = await cloud.activeBySite(batch.siteId);
+			if (scope) await cloud.run(scope, accept);
 		} catch (error) {
 			this.logger.error(
 				{ message: "Tracking event was not stored" },
@@ -194,7 +193,7 @@ export class TrackingRetentionController {
 			throw new ForbiddenException();
 		}
 
-		return forEachTenant(() => this.sweep());
+		return cloud.forEachScope(() => this.sweep());
 	}
 
 	private async sweep() {

@@ -2,6 +2,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { db } from "@crm/db";
 import { USAGE_PROBE_OUTCOMES } from "@crm/db/agent-tasks";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	type ProviderUsageSnapshot,
 	readProviderUsage,
@@ -18,7 +19,6 @@ import {
 	readAgentProvider,
 	readingModelFor,
 } from "@crm/db/settings";
-import { currentTenant, isHostedCustomer } from "@crm/db/tenant-context";
 import {
 	type LanguageModel,
 	type LanguageModelMiddleware,
@@ -113,7 +113,7 @@ export function fixedCandidates(
 
 function sharedKeyTenant(): SharedKeyTenant {
 	try {
-		const tenant = currentTenant();
+		const tenant = cloud.current();
 		return { id: tenant.id, plan: tenant.plan };
 	} catch {
 		return { id: null, plan: null };
@@ -158,7 +158,7 @@ export function openrouterKeyOf(
 	env: NodeJS.ProcessEnv = process.env,
 ): string | null {
 	const stored = openKey(setting.openrouterKey);
-	if (stored || isHostedCustomer()) return stored;
+	if (stored || cloud.customer()) return stored;
 	return env.OPENROUTER_API_KEY?.trim() || null;
 }
 

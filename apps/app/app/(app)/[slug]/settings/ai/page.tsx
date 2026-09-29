@@ -4,6 +4,7 @@ import { Button } from "@crm/ui/components/button";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { hostedCustomer, requestScope } from "@/cloud/scope.server";
 import { UsageAddOns } from "@/cloud/slots";
 import { BILLING_PATH } from "@/cloud/slots.data";
 import { LocalDateTime } from "@/components/local-date-time";
@@ -19,7 +20,6 @@ import {
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
 import { requireSession, workspaceRole } from "@/lib/session";
-import { hostedCustomer, requestTenant } from "@/lib/tenant";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { workspaceUrl } from "@/lib/workspace-url";
@@ -93,7 +93,7 @@ async function UsageSummary() {
 async function audience() {
 	const [session, tenant] = await Promise.all([
 		requireSession(),
-		requestTenant(),
+		requestScope(),
 	]);
 	const admin = isWorkspaceAdmin(await workspaceRole(session.user.id));
 	const trial = canonicalPlanId(tenant?.plan) === "trial";

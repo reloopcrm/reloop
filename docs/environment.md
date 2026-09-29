@@ -199,10 +199,10 @@ they come from the server's own environment instead of a file anyone can read.
 
 The operator's own workspace inside the hosted Cloud, a tenant id. Exactly that
 one tenant runs as a self-hosted install does, every other tenant keeps the
-hosted rules. `isOperatorTenant()` and `isHostedCustomer()`
-(`@crm/db/tenant-context`) are the two predicates; a gate that expresses a
-customer rule reads `isHostedCustomer()`, a gate that expresses infrastructure
-(the registry, the tenant cookie, the loops) keeps `isHosted()`.
+hosted rules. `cloud.customer()` and `cloud.operatorId()` (`@crm/db/cloud/scope`)
+answer it; a gate that expresses a customer rule reads `cloud.customer()`, a gate
+that expresses infrastructure (the registry, the tenant cookie, the loops) keeps
+`cloud.hosted()`.
 
 - **No plan.** `planIdOf` answers `null`, so `NO_PLAN` applies: no contact,
   mailbox, import or monthly limit, no add-ons, no included AI. The registry row
@@ -257,29 +257,31 @@ Both are unset on a self-hosted install, which then runs as one workspace on
 - **`RELOOP_REGISTRY_URL`** names the registry, a small Postgres database with three
   tables (`tenant`, `tenant_sign_in`, `tenant_site`), read through `pg` by
   `packages/db/src/tenancy.ts`. `ensureRegistrySchema()` creates them; the SQL is
-  idempotent. Setting the variable is what turns hosted mode on: `isHosted()` in
-  `@crm/db/tenant-context` reads it on every call, never at import.
+  idempotent. Setting the variable is what turns hosted mode on: `cloud.hosted()`
+  reads it on every call, never at import.
 - **`RELOOP_TENANT_DATABASE_URL_TEMPLATE`** is required in hosted mode and holds
   `{db}`, replaced with the tenant's `db_name`. `DATABASE_URL` is not read.
 - **`db` from `@crm/db` is a Proxy** to the current tenant's `PrismaClient`, held in
-  an `AsyncLocalStorage` (`runAsTenant`, `currentTenant`). Outside a context it
+  an `AsyncLocalStorage` (`cloud.run`, `cloud.current`). Outside a context it
   throws `TenantContextMissing`. Clients live in a bounded LRU
-  (`TENANCY.clients.max`, `packages/db/src/tenancy-config.ts`).
+  (`TENANCY.clients.max`, `packages/db/src/tenancy-config.ts`) in
+  `packages/db/src/tenant-clients.ts`, reached only through `cloud.resolveClient`.
 - **The tenant is resolved once per request**, in `tenantMiddleware`
   (`apps/api/src/tenancy`), mounted before Nest so `/api/auth/*` is covered: the
   API-key prefix `crm_<tenantId>_…`, then the signed `crm.tenant` cookie, then the
   site id on `/api/t/config/:siteId`. The collector resolves the site id from its
   body in its controller. `/health` and `/internal/*` carry no tenant: the cron
-  routes loop over every active tenant through `forEachTenant()`, one at a time,
-  and a failing tenant does not stop the others.
+  routes loop over every active tenant through `cloud.forEachScope()`,
+  `TENANCY.loop.concurrency` at a time, and a failing tenant does not stop the others.
 - **`ALLOWED_SIGN_IN` is optional in hosted mode** and ignored: `allowList()` in
   `packages/auth/src/workspace.ts` reads the tenant's `tenant_sign_in` rows.
 - **Off in hosted mode**: the stored OAuth credentials (`loadStoredOAuthApps`), the
   self-restart after saving them (`unavailable`), and Google's `hd` hint.
-- **The app resolves the tenant from the `crm.tenant` cookie** in
-  `apps/app/lib/tenant.ts`: `inTenant()` runs every direct `db` read of the app
-  (`lib/session.ts`, `lib/mailbox-connection.ts`, the eve bridge route) inside
-  `runAsTenant`, and answers `null` without a cookie. The bridge token carries
+- **The app resolves the tenant from the `crm.tenant` cookie** through its slot
+  `apps/app/cloud/scope.server.ts`: `inScope()` runs every direct `db` read of the
+  app (`lib/session.ts`, `lib/mailbox-connection.ts`, the eve bridge route) inside
+  the tenant, and answers `null` without a cookie. `requestScope()`,
+  `hostedCustomer()`, `pendingPurchase()` and `subscription()` answer the rest. The bridge token carries
   `tenantId`. Signing in is email first: `/sign-in` posts the address to
   `POST /api/tenant/lookup`, which sets the cookie and names the sign-in methods
   of that workspace. `/get-started` is the sign-up form and posts to
@@ -290,8 +292,11 @@ Both are unset on a self-hosted install, which then runs as one workspace on
   `process.env.ALLOWED_SIGN_IN` read outside `workspace.ts`. In `apps/app` it
   also refuses `db`, a db-reading `@crm/auth` helper and a db-reading `@crm/db`
   module outside `lib/session.ts`, `lib/mailbox-connection.ts` and the eve
-  route: the app renders outside `runAsTenant()`, so every read goes through a
-  `cache()`d helper that wraps `inTenant()`.
+  route: the app renders outside the tenant, so every read goes through a
+  `cache()`d helper that wraps `inScope()`. It refuses a core import of
+  `@crm/db/tenancy`, `@crm/db/tenant-context` or `@crm/db/tenant-clients`: core
+  code uses `cloud.*`, and only the tenancy side named in `TENANCY_SIDE` imports
+  them.
 - **A customer registers through `POST /api/tenant/signup`** and looks their
   workspace up through `POST /api/tenant/lookup` (`apps/api/src/tenancy`). Both
   are open paths in `tenantMiddleware`, rate limited in memory

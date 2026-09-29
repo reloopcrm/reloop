@@ -1,6 +1,6 @@
 import "@crm/env/load";
 
-import { currentTenant, isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 
 type AllowList = {
 	domains: readonly string[];
@@ -26,7 +26,7 @@ function parseAllowList(entries: readonly string[]): AllowList {
 }
 
 function allowList(): AllowList {
-	if (isHosted()) return parseAllowList(currentTenant().allowList);
+	if (cloud.hosted()) return parseAllowList(cloud.current().allowList);
 
 	const source = process.env.ALLOWED_SIGN_IN ?? "";
 	if (source === cachedSource) return cached;

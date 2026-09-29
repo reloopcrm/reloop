@@ -1,5 +1,5 @@
 import { isWorkspaceAdmin } from "@crm/auth";
-import { isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
@@ -62,7 +62,7 @@ async function Settings() {
 		deletionZone(session.user.id),
 	]);
 	const canManage = isWorkspaceAdmin(role);
-	const planCard = plansOffered() && !isHosted();
+	const planCard = plansOffered() && !cloud.hosted();
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();

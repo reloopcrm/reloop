@@ -20,6 +20,7 @@ import {
 } from "trpc-to-openapi";
 import { AppModule } from "./app.module";
 import { BILLING_SEAM } from "./billing-port/billing-port";
+import { cloudMiddleware } from "./cloud/cloud-middleware";
 import { NodeEnv } from "./config/env.validation";
 import { REQUEST_SIZE } from "./http/http-config";
 import {
@@ -27,7 +28,6 @@ import {
 	trpcBodyLimit,
 } from "./http/request-size.middleware";
 import { ContextLogger } from "./logging/context-logger";
-import { tenantMiddleware } from "./tenancy/tenant.middleware";
 import { REST } from "./trpc/openapi";
 import { createBaseTrpcContext } from "./trpc/trpc.context";
 
@@ -52,7 +52,7 @@ export async function createApp(): Promise<NestExpressApplication> {
 		raw({ type: "application/json", limit: BILLING_SEAM.webhook.maxBytes }),
 	);
 	app.use(helmet());
-	app.use(tenantMiddleware());
+	app.use(...cloudMiddleware());
 	app.useGlobalPipes(
 		new ValidationPipe({
 			whitelist: true,

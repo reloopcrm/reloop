@@ -1,6 +1,6 @@
 import type { Db } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import { readArchiveRetentionDays } from "@crm/db/settings";
-import { forEachTenant } from "@crm/db/tenancy";
 import {
 	Controller,
 	ForbiddenException,
@@ -81,7 +81,7 @@ export class ArchiveRetentionController {
 			throw new ForbiddenException();
 		}
 
-		return forEachTenant(() => this.prune());
+		return cloud.forEachScope(() => this.prune());
 	}
 
 	private async prune() {

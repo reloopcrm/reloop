@@ -1,8 +1,8 @@
 import { onSignedIn } from "@crm/auth";
 import { type Db, EnrichmentStatus, type Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
+import { cloud } from "@crm/db/cloud/scope";
 import { NOT_SAMPLE_RECORD } from "@crm/db/sample-data";
-import { holdTenant, tenantScopedKey } from "@crm/db/tenant-context";
 import { readWorkspaceIdentity } from "@crm/db/workspace";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Inject, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
@@ -65,11 +65,11 @@ export class BackfillService implements OnModuleInit {
 	}
 
 	async auto(): Promise<{ started: boolean }> {
-		const key = tenantScopedKey(AUTO_KEY);
+		const key = cloud.scopedKey(AUTO_KEY);
 		if (await this.cache.get(key)) return { started: false };
 		await this.cache.set(key, true, AUTO_EVERY_MS);
 
-		void holdTenant(async () => {
+		void cloud.hold(async () => {
 			try {
 				await this.sweepWorkspace();
 
@@ -245,7 +245,7 @@ export class BackfillService implements OnModuleInit {
 
 		if (rows.length === 0) return 0;
 
-		void holdTenant(async () => {
+		void cloud.hold(async () => {
 			let resolved = 0;
 			for (const row of rows) {
 				if (await this.favicon.backfill(row.id, row.domain)) resolved += 1;

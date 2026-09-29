@@ -1,5 +1,5 @@
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
-import { isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import {
@@ -174,7 +174,9 @@ function isMarketingPath(pathname: string, marketing: boolean): boolean {
 		return true;
 	}
 
-	return isHosted() && PROXY.hosted.some((prefix) => isUnder(pathname, prefix));
+	return (
+		cloud.hosted() && PROXY.hosted.some((prefix) => isUnder(pathname, prefix))
+	);
 }
 
 function isAnonymous(pathname: string, marketing: boolean): boolean {

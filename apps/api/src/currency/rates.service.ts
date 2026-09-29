@@ -1,5 +1,6 @@
 import type { Db } from "@crm/db";
 import { Prisma, RateSource } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	CURRENCY_CODES,
 	isCurrencyCode,
@@ -10,7 +11,6 @@ import {
 	readReportingCurrency,
 	writeRatesRefreshedAt,
 } from "@crm/db/settings";
-import { forEachTenant } from "@crm/db/tenancy";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { InjectDatabase } from "../database/database.constants";
@@ -94,7 +94,7 @@ export class RatesService {
 
 	async refreshAll() {
 		const feed = this.feedOnce();
-		return forEachTenant(async () => {
+		return cloud.forEachScope(async () => {
 			const refresh = await this.refresh(feed);
 			if (!refresh.ok) return refresh;
 			const filled = await this.conversion.fillMissing();

@@ -1,6 +1,7 @@
 import { canManageConnections } from "@crm/auth";
 import { oauthRedirectUri } from "@crm/auth/oauth-apps";
 import type { Db, Prisma } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	OAUTH_APP_COLUMNS,
 	OAUTH_APP_ENV_VARS,
@@ -12,7 +13,6 @@ import {
 	sealOAuthAppSecret,
 } from "@crm/db/oauth-apps";
 import { maskKey, SETTINGS_ID } from "@crm/db/settings";
-import { isHosted } from "@crm/db/tenant-context";
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { AgentAccessService } from "../agent/agent-access.service";
 import { InjectDatabase } from "../database/database.constants";
@@ -39,7 +39,7 @@ export class OAuthAppsService {
 			select: OAUTH_APP_SELECT,
 		});
 
-		if (isHosted()) return hostedApp(input.provider);
+		if (cloud.hosted()) return hostedApp(input.provider);
 
 		return describeApp(input.provider, row, canManageConnections(role));
 	}
@@ -110,7 +110,7 @@ export class OAuthAppsService {
 	}
 
 	private async assertManager(userId: string): Promise<void> {
-		if (isHosted()) {
+		if (cloud.hosted()) {
 			throw new ForbiddenException(
 				"Reloop Cloud manages the sign-in credentials.",
 			);
@@ -147,7 +147,7 @@ function appSettingFields(
 }
 
 function restartsItself(): boolean {
-	return !process.env.VERCEL && !isHosted();
+	return !process.env.VERCEL && !cloud.hosted();
 }
 
 function hostedApp(provider: OAuthProviderId): OAuthAppStatus {

@@ -1,17 +1,17 @@
 import { db } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import { planLimitsOf, readMonthlyUsage, roomFor } from "@crm/db/plan-usage";
-import { currentTenantId } from "@crm/db/tenant-context";
 import { CONVERSATIONS } from "@crm/validation/conversations";
 import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { connection } from "next/server";
 import { z } from "zod";
+import { inScope } from "@/cloud/scope.server";
 import {
 	agentUrl,
 	bridgeConfigured,
 	mintBridgeToken,
 } from "@/lib/agent-bridge";
 import { getSession } from "@/lib/session";
-import { inTenant } from "@/lib/tenant";
 
 const NOT_SIGNED_IN = () =>
 	Response.json({ error: "Not signed in." }, { status: 401 });
@@ -26,7 +26,7 @@ async function handler(request: Request): Promise<Response> {
 		);
 	}
 
-	return (await inTenant(() => bridge(request))) ?? NOT_SIGNED_IN();
+	return (await inScope(() => bridge(request))) ?? NOT_SIGNED_IN();
 }
 
 async function bridge(request: Request): Promise<Response> {
@@ -117,7 +117,7 @@ async function bridge(request: Request): Promise<Response> {
 				contactId: cuid(contactId),
 				companyId: cuid(companyId),
 				dealId: cuid(dealId),
-				tenantId: currentTenantId() ?? undefined,
+				tenantId: cloud.scopeId() ?? undefined,
 			},
 		)}`,
 	);

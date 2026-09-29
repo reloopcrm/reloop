@@ -1,5 +1,4 @@
-import { TENANCY } from "@crm/db/tenancy-config";
-import { isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { syncError } from "@crm/telemetry";
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -19,7 +18,7 @@ import { MicrosoftConnectionService } from "../microsoft/microsoft-connection.se
 import { MicrosoftSyncService } from "../microsoft/microsoft-sync.service";
 
 const tickBudgetMs = () =>
-	isHosted() ? TENANCY.loop.budgetMs : SYNC_TICK.selfHostBudgetMs;
+	cloud.hosted() ? cloud.loop.budgetMs : SYNC_TICK.selfHostBudgetMs;
 
 export function mailboxDeadline(
 	now: number,

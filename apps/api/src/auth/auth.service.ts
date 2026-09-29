@@ -1,5 +1,5 @@
 import type { Db } from "@crm/db";
-import { tenantScopedKey } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { Cache } from "cache-manager";
@@ -17,7 +17,7 @@ export interface UserProfile {
 const PROFILE_TTL_MS = 5 * 60_000;
 
 const profileKey = (userId: string) =>
-	tenantScopedKey(`auth:profile:${userId}`);
+	cloud.scopedKey(`auth:profile:${userId}`);
 
 @Injectable()
 export class AuthService {

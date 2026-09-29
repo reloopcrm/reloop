@@ -4,14 +4,13 @@ import {
 	PRIORITY,
 	USAGE_PROBE_KIND,
 } from "@crm/db/agent-tasks";
+import { cloud } from "@crm/db/cloud/scope";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
 import { allowsCompanyResearch, monthlyBudget } from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
-import { forEachTenant } from "@crm/db/tenancy";
-import { currentTenantId, tenantScopedKey } from "@crm/db/tenant-context";
 import {
 	isTaskKindEnabled,
 	readAgentFunctions,
@@ -66,7 +65,7 @@ const TENANT_HEADER = "x-reloop-tenant";
 
 function tenantOfThisRequest(): string | null {
 	try {
-		return currentTenantId();
+		return cloud.scopeId();
 	} catch {
 		return null;
 	}
@@ -479,7 +478,7 @@ export class AgentTriggerService {
 	}
 
 	async redeliverCancellations(): Promise<void> {
-		await forEachTenant(() => this.redeliverCancellationsHere());
+		await cloud.forEachScope(() => this.redeliverCancellationsHere());
 	}
 
 	private async redeliverCancellationsHere(): Promise<void> {
@@ -499,13 +498,13 @@ export class AgentTriggerService {
 				select: { id: true },
 			});
 
-			const outstanding = new Set(runs.map((run) => tenantScopedKey(run.id)));
+			const outstanding = new Set(runs.map((run) => cloud.scopedKey(run.id)));
 			for (const key of this.cancellationsDelivered) {
 				if (!outstanding.has(key)) this.cancellationsDelivered.delete(key);
 			}
 
 			for (const run of runs) {
-				if (this.cancellationsDelivered.has(tenantScopedKey(run.id))) continue;
+				if (this.cancellationsDelivered.has(cloud.scopedKey(run.id))) continue;
 				await this.deliverCancellation(run.id);
 			}
 		} catch (error) {
@@ -518,7 +517,7 @@ export class AgentTriggerService {
 
 	private async deliverCancellation(runId: string): Promise<void> {
 		const delivered = await this.post("/internal/crm/cancel-run", { runId });
-		if (delivered) this.cancellationsDelivered.add(tenantScopedKey(runId));
+		if (delivered) this.cancellationsDelivered.add(cloud.scopedKey(runId));
 	}
 
 	async backfill(input: {

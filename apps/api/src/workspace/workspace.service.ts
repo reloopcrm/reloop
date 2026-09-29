@@ -20,8 +20,7 @@ import {
 	type PasswordSession,
 } from "@crm/auth/password-rules";
 import type { Db, Prisma } from "@crm/db";
-import { grantTenantSignIn, revokeTenantSignIn } from "@crm/db/tenancy";
-import { currentTenantId } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import { isOnboarded, markOnboarded, workspaceSlug } from "@crm/db/workspace";
 import {
 	BadRequestException,
@@ -313,7 +312,9 @@ export class WorkspaceService {
 		});
 
 		await revokeSignIn(this.db, removed.user.email);
-		await this.updateTenantSignIn(removed.user.email, revokeTenantSignIn);
+		await this.updateTenantSignIn(() =>
+			cloud.onMemberRemoved(removed.user.email),
+		);
 
 		this.logger.log({
 			message: "Member removed",
@@ -324,15 +325,12 @@ export class WorkspaceService {
 		return { memberId: removed.id };
 	}
 
-	private async updateTenantSignIn(
-		email: string,
-		update: (tenantId: string, address: string) => Promise<void>,
-	): Promise<void> {
-		const tenantId = currentTenantId();
+	private async updateTenantSignIn(update: () => Promise<void>): Promise<void> {
+		const tenantId = cloud.scopeId();
 		if (!tenantId) return;
 
 		try {
-			await update(tenantId, email);
+			await update();
 		} catch (error) {
 			this.logger.error(
 				{ message: "Registry sign-in not updated", tenantId },
@@ -422,7 +420,7 @@ export class WorkspaceService {
 			return row;
 		});
 
-		await this.updateTenantSignIn(input.email, grantTenantSignIn);
+		await this.updateTenantSignIn(() => cloud.onMemberAdded(input.email));
 
 		this.logger.log({
 			message: taken ? "Removed person added again" : "Person added",

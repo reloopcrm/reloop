@@ -1,6 +1,6 @@
 import "@crm/env/load";
 
-import { isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 
 const DEFAULT_API_URL = "http://localhost:3001";
 const DEFAULT_APP_URL = "http://localhost:3000";
@@ -110,7 +110,7 @@ export const env = {
 		return resolved().slack;
 	},
 	get password() {
-		return environmentOnly("PASSWORD_SIGN_IN") === "1" || isHosted();
+		return environmentOnly("PASSWORD_SIGN_IN") === "1" || cloud.hosted();
 	},
 	cookieDomain: environmentOnly("AUTH_COOKIE_DOMAIN"),
 	trustedOrigins: [...new Set([...appUrls, apiUrl])],

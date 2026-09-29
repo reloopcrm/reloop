@@ -1,12 +1,11 @@
 import { PLANS } from "@crm/db/plans";
-import { unpaidPurchase } from "@crm/db/tenancy";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { hostedCustomer, pendingPurchase } from "@/cloud/scope.server";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { requireMailboxAccess } from "@/lib/session";
-import { hostedCustomer, requestTenant } from "@/lib/tenant";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { aiStepFor } from "./ai-config";
 import { AiForm } from "./ai-form";
@@ -20,8 +19,7 @@ export const instant = false;
 
 async function buyingOwnKey(): Promise<boolean> {
 	if (!(await hostedCustomer())) return false;
-	const tenant = await requestTenant();
-	const wanted = tenant ? unpaidPurchase(tenant) : null;
+	const wanted = await pendingPurchase();
 	return wanted !== null && !PLANS[wanted.plan].aiIncluded;
 }
 

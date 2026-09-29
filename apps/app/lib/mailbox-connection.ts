@@ -1,8 +1,8 @@
 import { db } from "@crm/db";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
+import { inScope } from "@/cloud/scope.server";
 import { demoOffered } from "@/lib/operator";
-import { inTenant } from "@/lib/tenant";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 
 export const MAILBOX_CONNECTION = {
@@ -10,7 +10,7 @@ export const MAILBOX_CONNECTION = {
 } as const;
 
 const hasMailboxConnection = cache(async (): Promise<boolean> => {
-	const rows = await inTenant(() =>
+	const rows = await inScope(() =>
 		db.mailboxSync.count({
 			where: { source: { not: MAILBOX_CONNECTION.calendarSource } },
 		}),

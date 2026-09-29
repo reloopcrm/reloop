@@ -1,5 +1,5 @@
-import { activeTenants, type Tenant, tenantById } from "@crm/db/tenancy";
-import { currentTenantId, isHosted, runAsTenant } from "@crm/db/tenant-context";
+import type { WorkspaceScope } from "@crm/db/cloud/contract";
+import { cloud } from "@crm/db/cloud/scope";
 import type { ToolDefinition } from "eve/tools";
 import { z } from "zod";
 import { settledWithin } from "./deadline";
@@ -36,15 +36,15 @@ export function tenantIdOf(ctx: AuthContext | null | undefined): string | null {
 
 export async function tenantFromId(
 	id: string | null | undefined,
-): Promise<Tenant | null> {
-	if (!isHosted()) return null;
+): Promise<WorkspaceScope | null> {
+	if (!cloud.hosted()) return null;
 	if (!id) {
 		throw new Error(
 			"This session names no tenant. Hosted mode refuses work without one.",
 		);
 	}
 
-	const tenant = await tenantById(id);
+	const tenant = await cloud.byId(id);
 	if (!tenant) throw new Error(`Tenant ${id} is unknown.`);
 
 	return tenant;
@@ -52,12 +52,12 @@ export async function tenantFromId(
 
 export function tenantOf(
 	ctx: AuthContext | null | undefined,
-): Promise<Tenant | null> {
+): Promise<WorkspaceScope | null> {
 	return tenantFromId(tenantIdOf(ctx));
 }
 
-export function asTenant<T>(tenant: Tenant | null, fn: () => T): T {
-	return tenant ? runAsTenant(tenant, fn) : fn();
+export function asTenant<T>(tenant: WorkspaceScope | null, fn: () => T): T {
+	return tenant ? cloud.run(tenant, fn) : fn();
 }
 
 export async function withTenantId<T>(
@@ -75,7 +75,7 @@ export async function withTenant<T>(
 }
 
 export function tenantAttributes(): Record<string, string> {
-	const id = isHosted() ? currentTenantId() : null;
+	const id = cloud.hosted() ? cloud.scopeId() : null;
 	return id ? { [TENANT_ATTRIBUTE]: id } : {};
 }
 
@@ -91,7 +91,7 @@ export function tenantState<T>(initial: () => T): () => T {
 	const states = new Map<string, T>();
 
 	return () => {
-		const key = isHosted() ? currentTenantId() : null;
+		const key = cloud.hosted() ? cloud.scopeId() : null;
 		const existing = states.get(key ?? "");
 		if (existing !== undefined) return existing;
 
@@ -118,20 +118,22 @@ export type TenantRun = {
 
 export async function eachActiveTenant(
 	label: string,
-	run: (tenant: Tenant | null, signal: AbortSignal) => Promise<unknown>,
+	run: (tenant: WorkspaceScope | null, signal: AbortSignal) => Promise<unknown>,
 	only: string | null = null,
 ): Promise<TenantRun[]> {
-	if (!isHosted()) {
+	if (!cloud.hosted()) {
 		await inWorkspaceLanguage(() => run(null, new AbortController().signal));
 		return [];
 	}
 
 	const outcomes: TenantRun[] = [];
-	let tenants: Tenant[];
+	let tenants: WorkspaceScope[];
 	try {
 		tenants = only
-			? [await tenantFromId(only)].filter((entry): entry is Tenant => !!entry)
-			: rotated(await activeTenants(), rotation++);
+			? [await tenantFromId(only)].filter(
+					(entry): entry is WorkspaceScope => !!entry,
+				)
+			: rotated(await cloud.active(), rotation++);
 	} catch (cause) {
 		console.error(
 			`[agent] ${label} could not list the tenants: ${cause instanceof Error ? cause.message : String(cause)}`,
@@ -148,18 +150,21 @@ export async function eachActiveTenant(
 		};
 
 		const controller = new AbortController();
-		const work = runAsTenant(tenant, () =>
-			inWorkspaceLanguage(() => run(tenant, controller.signal)),
-		).then(
-			() => undefined,
-			(cause: unknown) => {
-				outcome.ok = false;
-				outcome.error = cause instanceof Error ? cause.message : String(cause);
-				console.error(
-					`[agent] ${label} for tenant ${tenant.id}: ${outcome.error}`,
-				);
-			},
-		);
+		const work = cloud
+			.run(tenant, () =>
+				inWorkspaceLanguage(() => run(tenant, controller.signal)),
+			)
+			.then(
+				() => undefined,
+				(cause: unknown) => {
+					outcome.ok = false;
+					outcome.error =
+						cause instanceof Error ? cause.message : String(cause);
+					console.error(
+						`[agent] ${label} for tenant ${tenant.id}: ${outcome.error}`,
+					);
+				},
+			);
 
 		const finished = await settledWithin(work, DISPATCH.tenants.budgetMs);
 		if (!finished.settled) {
@@ -183,7 +188,7 @@ export function tenantFromRequest(request: Request): string | null {
 export type CrmChannelState = { tenantId: string | null };
 
 export function channelState(): CrmChannelState {
-	return { tenantId: isHosted() ? currentTenantId() : null };
+	return { tenantId: cloud.hosted() ? cloud.scopeId() : null };
 }
 
 export function withChannelTenant<T>(

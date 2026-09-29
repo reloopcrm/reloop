@@ -1,6 +1,5 @@
 import type { Db } from "@crm/db";
-import { pingRegistry } from "@crm/db/tenancy";
-import { isHosted } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	Controller,
 	Get,
@@ -40,7 +39,7 @@ export class HealthController {
 		const startedAt = process.hrtime.bigint();
 
 		try {
-			if (isHosted()) await pingRegistry();
+			if (cloud.hosted()) await cloud.ping();
 			else await this.db.$queryRaw`SELECT 1`;
 		} catch (error) {
 			this.logger.error(

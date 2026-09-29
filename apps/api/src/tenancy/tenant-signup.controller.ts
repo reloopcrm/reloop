@@ -1,4 +1,5 @@
-import { appUrl, tenantCookieHeader } from "@crm/auth";
+import { appUrl } from "@crm/auth";
+import { tenantCookieHeader } from "@crm/auth/cloud/tenant-cookie";
 import {
 	tenantLookupInput,
 	tenantResetConfirmInput,

@@ -6,8 +6,8 @@ import {
 	ensureWorkspaceMembership,
 	setPasswordFor,
 	TENANT_COOKIE_NAME,
-	tenantCookieValue,
 } from "@crm/auth";
+import { tenantCookieValue } from "@crm/auth/cloud/tenant-cookie";
 import { db } from "@crm/db";
 import * as provision from "@crm/db/provision";
 import {

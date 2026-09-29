@@ -1,11 +1,13 @@
 import {
 	API_KEY_HEADER,
 	AUTH_COOKIE_PREFIX,
+	TENANT_COOKIE_NAME,
+} from "@crm/auth";
+import {
 	cookieValue,
 	readTenantCookie,
-	TENANT_COOKIE_NAME,
 	tenantIdFromApiKey,
-} from "@crm/auth";
+} from "@crm/auth/cloud/tenant-cookie";
 import { type Tenant, tenantById, tenantBySite } from "@crm/db/tenancy";
 import { isHosted, runAsTenant } from "@crm/db/tenant-context";
 import { Logger } from "@nestjs/common";

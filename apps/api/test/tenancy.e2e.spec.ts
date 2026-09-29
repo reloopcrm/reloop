@@ -4,8 +4,8 @@ import {
 	auth,
 	setPasswordFor,
 	TENANT_COOKIE_NAME,
-	tenantCookieValue,
 } from "@crm/auth";
+import { tenantCookieValue } from "@crm/auth/cloud/tenant-cookie";
 import { db } from "@crm/db";
 import { closeRegistry, type Tenant } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";

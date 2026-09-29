@@ -1,4 +1,5 @@
-import { appUrl, clearedTenantCookieHeader } from "@crm/auth";
+import { appUrl } from "@crm/auth";
+import { clearedTenantCookieHeader } from "@crm/auth/cloud/tenant-cookie";
 import { Inject, UnauthorizedException } from "@nestjs/common";
 import {
 	Ctx,

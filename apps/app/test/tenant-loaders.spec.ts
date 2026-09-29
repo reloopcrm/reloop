@@ -9,12 +9,11 @@ import {
 } from "bun:test";
 import {
 	auth,
-	cookieValue,
 	setPasswordFor,
 	TENANT_COOKIE_NAME,
-	tenantCookieValue,
 	WORKSPACE_ID,
 } from "@crm/auth";
+import { cookieValue, tenantCookieValue } from "@crm/auth/cloud/tenant-cookie";
 import { db } from "@crm/db";
 import { closeRegistry, type Tenant } from "@crm/db/tenancy";
 import { runAsTenant } from "@crm/db/tenant-context";

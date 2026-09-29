@@ -10,7 +10,6 @@
 	"Schedule": "Planification",
 	"Event": "Événement",
 	"Webhook": "Webhook",
-	"draft": "brouillon",
 	"deploying": "en cours de déploiement",
 	"live": "actif",
 	"paused": "en pause",

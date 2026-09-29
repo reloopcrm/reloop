@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { MARKETING_LLMS_PAGES } from "@/cloud/slots.server";
+import { MARKETING_LLMS } from "@/cloud/slots.data";
 import { DOCS, docPath } from "@/components/docs/docs-config";
 import { PRICING } from "@/components/signup/config";
 import { REPO_URL } from "@/components/site";
@@ -23,12 +23,13 @@ const PAGES: readonly Entry[] = [
 		path: "/",
 		note: "What the product does and who it is for.",
 	},
+	...MARKETING_LLMS.lead,
 	{
 		title: "Get started",
 		path: PRICING.href.start,
 		note: "How to start with Reloop CRM, hosted or on your own server.",
 	},
-	...MARKETING_LLMS_PAGES,
+	...MARKETING_LLMS.rest,
 	{
 		title: "Contact",
 		path: "/contact",

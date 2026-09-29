@@ -5,7 +5,7 @@ import { Separator } from "@crm/ui/components/separator";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useMemo } from "react";
-import { BILLING_SETTINGS_NAV } from "@/cloud/slots";
+import { BILLING_SETTINGS_NAV } from "@/cloud/slots.data";
 import { useT } from "@/lib/i18n/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 

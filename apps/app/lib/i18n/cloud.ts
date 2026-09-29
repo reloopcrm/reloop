@@ -1,18 +1,18 @@
 import type { Locale } from "@crm/db/locale";
-import deLanding from "./de/landing.json";
-import esLanding from "./es/landing.json";
-import frLanding from "./fr/landing.json";
+import deCloud from "./de/cloud.json";
+import esCloud from "./es/cloud.json";
+import frCloud from "./fr/cloud.json";
 import type { Dictionary } from "./locale";
-import ptBRLanding from "./pt-BR/landing.json";
-import trLanding from "./tr/landing.json";
-import zhHansLanding from "./zh-Hans/landing.json";
+import ptBRCloud from "./pt-BR/cloud.json";
+import trCloud from "./tr/cloud.json";
+import zhHansCloud from "./zh-Hans/cloud.json";
 
 export const CLOUD_DICTIONARY_MODULES = {
 	en: {},
-	de: { landing: deLanding },
-	es: { landing: esLanding },
-	fr: { landing: frLanding },
-	"pt-BR": { landing: ptBRLanding },
-	tr: { landing: trLanding },
-	"zh-Hans": { landing: zhHansLanding },
+	de: { cloud: deCloud },
+	es: { cloud: esCloud },
+	fr: { cloud: frCloud },
+	"pt-BR": { cloud: ptBRCloud },
+	tr: { cloud: trCloud },
+	"zh-Hans": { cloud: zhHansCloud },
 } satisfies Record<Locale, Record<string, Dictionary>>;

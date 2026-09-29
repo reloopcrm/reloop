@@ -212,7 +212,7 @@ describe("the sample data", () => {
 			select: { name: true },
 		});
 		const contact = await db.contact.findUniqueOrThrow({
-			where: { id: `${DEMO.prefix}ct-nordkap-1` },
+			where: { id: `${DEMO.prefix}ct-lindenhof-1` },
 			select: { title: true, company: { select: { industry: true } } },
 		});
 		const english = await db.emailMessage.count({
@@ -226,14 +226,14 @@ describe("the sample data", () => {
 			},
 		});
 		const task = await db.activity.findFirstOrThrow({
-			where: { id: `${DEMO.prefix}act-task-nordkap-1` },
+			where: { id: `${DEMO.prefix}act-task-lindenhof-1` },
 			select: { subject: true },
 		});
 
-		expect(deal.name).toBe("Rahmenvertrag Wellpappkartons");
+		expect(deal.name).toBe("Rahmenvertrag Startersets");
 		expect(contact.title).toBe("Leitung Einkauf");
-		expect(contact.company?.industry).toBe("Spedition");
-		expect(task.subject).toBe("Q4-Preisliste an Henrik schicken");
+		expect(contact.company?.industry).toBe("Möbelhandel");
+		expect(task.subject).toBe("Q4-Preisliste an Jana schicken");
 		expect(english).toBe(0);
 
 		await removeDemoData(db);

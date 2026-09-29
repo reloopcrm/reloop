@@ -63,3 +63,5 @@ export type CheckoutUrl = (
 ) => Promise<string>;
 
 export type PausedPaymentSectionProps = { admin: boolean };
+
+export type DangerZoneProps = { userId: string };

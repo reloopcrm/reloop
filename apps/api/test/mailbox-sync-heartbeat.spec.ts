@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
-import { TENANCY } from "@crm/db/tenancy-config";
+import { cloud } from "@crm/db/cloud/scope";
 import type { ConfigService } from "@nestjs/config";
 import type { RatesService } from "../src/currency/rates.service";
 import type { WinBackFollowUpService } from "../src/reactivation/win-back-follow-up.service";
@@ -43,14 +43,14 @@ describe("the mailbox heartbeat lease", () => {
 		expect(ticks).toBe(1);
 		expect(service.leaseOf("")).toBe(
 			start.getTime() +
-				TENANCY.loop.budgetMs +
+				cloud.loop.budgetMs +
 				MAILBOX_SYNC.heartbeat.leaseGraceMs,
 		);
 
 		setSystemTime(
 			new Date(
 				start.getTime() +
-					TENANCY.loop.budgetMs +
+					cloud.loop.budgetMs +
 					MAILBOX_SYNC.heartbeat.leaseGraceMs +
 					1,
 			),

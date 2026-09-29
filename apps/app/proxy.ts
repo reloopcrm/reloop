@@ -3,6 +3,7 @@ import { cloud } from "@crm/db/cloud/scope";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import {
+	HOSTED_ROUTES,
 	landingMarkdown,
 	MARKETING_REDIRECTS,
 	MARKETING_ROUTES,
@@ -27,6 +28,7 @@ export const ANONYMOUS_PATHS = PROXY.anonymous;
 export const MARKETING_PATHS: readonly string[] = [
 	...PROXY.marketing,
 	...MARKETING_ROUTES,
+	...HOSTED_ROUTES,
 ];
 
 export async function proxy(request: NextRequest) {
@@ -175,7 +177,7 @@ function isMarketingPath(pathname: string, marketing: boolean): boolean {
 	}
 
 	return (
-		cloud.hosted() && PROXY.hosted.some((prefix) => isUnder(pathname, prefix))
+		cloud.hosted() && HOSTED_ROUTES.some((prefix) => isUnder(pathname, prefix))
 	);
 }
 

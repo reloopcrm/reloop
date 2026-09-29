@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import sitemap from "../app/sitemap";
 import { MARKETING_ROUTES, MARKETING_SITEMAP } from "../cloud/slots.data";
+import { PRICING } from "../components/signup/config";
 
 const MARKETING = [...MARKETING_SITEMAP.lead, ...MARKETING_SITEMAP.rest];
 
@@ -22,10 +23,12 @@ function paths(): string[] {
 }
 
 describe("sitemap.xml", () => {
-	it("lists the sign-up page when the cloud is this site", () => {
+	it("lists the sign-up page when the cloud is this site and the build has one", () => {
 		delete process.env.RELOOP_CLOUD_URL;
 
-		expect(paths()).toContain("/get-started");
+		expect(paths().includes(PRICING.href.start)).toBe(
+			MARKETING.includes(PRICING.href.start),
+		);
 		expect(paths()).toEqual(expect.arrayContaining(MARKETING));
 	});
 

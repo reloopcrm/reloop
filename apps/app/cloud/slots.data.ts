@@ -24,6 +24,8 @@ export const BILLING_PATH: string | null = null;
 
 export const MARKETING_ROUTES: readonly string[] = [];
 
+export const HOSTED_ROUTES: readonly string[] = [];
+
 export const MARKETING_REDIRECTS: readonly SlotRedirect[] = [];
 
 export const MARKETING_NAV: MarketingNav = {

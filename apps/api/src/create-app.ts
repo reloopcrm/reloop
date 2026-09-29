@@ -52,7 +52,7 @@ export async function createApp(): Promise<NestExpressApplication> {
 		raw({ type: "application/json", limit: BILLING_SEAM.webhook.maxBytes }),
 	);
 	app.use(helmet());
-	app.use(...cloudMiddleware());
+	for (const handler of cloudMiddleware()) app.use(handler);
 	app.useGlobalPipes(
 		new ValidationPipe({
 			whitelist: true,

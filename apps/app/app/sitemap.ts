@@ -9,7 +9,6 @@ const LANDING = MARKETING_ROUTES.length > 0 ? ["/"] : [];
 
 const PAGES = [
 	...LANDING,
-	"/get-started",
 	...MARKETING_SITEMAP.lead,
 	"/docs",
 	...MARKETING_SITEMAP.rest,

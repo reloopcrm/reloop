@@ -2,6 +2,7 @@ import { isWorkspaceAdmin } from "@crm/auth";
 import { cloud } from "@crm/db/cloud/scope";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { DangerZone } from "@/cloud/slots.server";
 import {
 	PageShell,
 	PageShellContent,
@@ -13,13 +14,12 @@ import {
 } from "@/components/page-shell";
 import { getT } from "@/lib/i18n/server";
 import { managedInstall, plansOffered } from "@/lib/operator";
-import { deletionZone, requireSession, workspaceRole } from "@/lib/session";
+import { requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AgentLanguage } from "./agent-language";
 import { ArchiveRetention } from "./archive-retention";
 import { DealStages } from "./deal-stages";
-import { DeleteWorkspace } from "./delete-workspace";
 import { Language } from "./language";
 import { PasswordSignIn } from "./password";
 import { Plan } from "./plan";
@@ -57,10 +57,7 @@ export default async function GeneralSettingsPage() {
 
 async function Settings() {
 	const session = await requireSession();
-	const [role, dangerZone] = await Promise.all([
-		workspaceRole(session.user.id),
-		deletionZone(session.user.id),
-	]);
+	const role = await workspaceRole(session.user.id);
 	const canManage = isWorkspaceAdmin(role);
 	const planCard = plansOffered() && !cloud.hosted();
 
@@ -102,7 +99,7 @@ async function Settings() {
 					<ArchiveRetention />
 				</fieldset>
 				<Version managed={managedInstall()} />
-				{dangerZone ? <DeleteWorkspace {...dangerZone} /> : null}
+				<DangerZone userId={session.user.id} />
 			</div>
 		</HydrateClient>
 	);

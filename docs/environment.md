@@ -122,9 +122,10 @@ on this site redirects there with the same plan. Sign-in stays on this site.
   hands a plain string to the client component. Declared in `apps/app/turbo.json`
   `passThroughEnv`. The API does not read it.
 
-On the hosted stack itself (`RELOOP_REGISTRY_URL` set, `IS_MARKETING` unset)
-`/get-started` is reachable without a session, so a stranger can register. No
-other marketing page opens there.
+On the hosted Cloud (`IS_MARKETING` unset) the private overlay adds
+`/get-started` and lists it in `HOSTED_ROUTES` (`apps/app/cloud/slots.data.ts`),
+so it is reachable without a session and a stranger can register. No other
+marketing page opens there. The open source build has no `/get-started` page.
 
 With `RELOOP_CLOUD_URL` set, `sitemap.xml` and `llms.txt` leave `/get-started`
 out, because the page only redirects.
@@ -164,7 +165,7 @@ reading pages, `llms.txt` and the sitemap. Every other host is the app as before
   marketing address and not the app's.
 - **Only the app reads it**: `isMarketingHost()` (`apps/app/lib/env.ts`) in the
   proxy, per request. Declared in `apps/app/turbo.json` `passThroughEnv` and
-  passed by `deploy/cloud/docker-compose.cloud.yml`.
+  passed by the hosted Cloud's compose file.
 
 ## `RELOOP_IMPRINT_*`, the public `/imprint`, `/privacy` and `/contact` pages, off by default
 
@@ -195,35 +196,6 @@ they come from the server's own environment instead of a file anyone can read.
   Organization JSON-LD; `RELOOP_IMPRINT_*` renders a page a visitor reads. They
   are not kept in sync with each other.
 
-## `RELOOP_OPERATOR_TENANT`, unset by default
-
-The operator's own workspace inside the hosted Cloud, a tenant id. Exactly that
-one tenant runs as a self-hosted install does, every other tenant keeps the
-hosted rules. `cloud.customer()` and `cloud.operatorId()` (`@crm/db/cloud/scope`)
-answer it; a gate that expresses a customer rule reads `cloud.customer()`, a gate
-that expresses infrastructure (the registry, the tenant cookie, the loops) keeps
-`cloud.hosted()`.
-
-- **No plan.** `planIdOf` answers `null`, so `NO_PLAN` applies: no contact,
-  mailbox, import or monthly limit, no add-ons, no included AI. The registry row
-  holds `TENANCY.operator.plan` (`none`), which the trial sweep never matches.
-- **The model choice, the ChatGPT subscription and the operator's
-  `OPENROUTER_API_KEY`** work as on a self-hosted install: `assertChatgptOffered`
-  and `openrouterEnvKey` in `SettingsService`, `chatgptLoginExists` and
-  `openrouterKeyOf` in the agent. The agent's `/internal/crm/chatgpt-login` route
-  runs under the operator tenant, because the API refuses every other tenant
-  before it calls; without an operator tenant it answers `unavailable`.
-- **The settings show the self-hosted AI page** instead of Usage, no Plan &
-  billing page, the Waitlist page for the owner, and the onboarding offers all
-  three AI choices. `hostedCustomer()` and `operatorTenant()`
-  (`apps/app/lib/tenant.ts`) read the tenant cookie for that. The Plan card on
-  the General page stays a self-host feature: hosted mode hides it for everyone.
-- Declared in `env.validation.ts`, the root `turbo.json`, `apps/app/turbo.json`,
-  `apps/agent/turbo.json` and `deploy/cloud/docker-compose.cloud.yml`. The
-  import script `apps/api/scripts/import-single-tenant.ts` moves a single-tenant
-  database into the Cloud as that tenant; `deploy/cloud/README.md` has the
-  runbook.
-
 ## `GOOGLE_SITE_VERIFICATION`, unset by default
 
 Google Search Console proves that the site belongs to you. The DNS method needs
@@ -248,101 +220,14 @@ reads it too: `system.update` answers `refused` and `system.version` reports
 `updaterAvailable: false`, even when an updater answers. Declared in
 `env.validation.ts`, the root `turbo.json` and `apps/app/turbo.json`.
 
-## `RELOOP_REGISTRY_URL` and `RELOOP_TENANT_DATABASE_URL_TEMPLATE`, off by default
+## The hosted Cloud's own variables
 
-Hosted mode: one Postgres database per customer, one API process for all of them.
-Both are unset on a self-hosted install, which then runs as one workspace on
-`DATABASE_URL` and reads none of this.
-
-- **`RELOOP_REGISTRY_URL`** names the registry, a small Postgres database with three
-  tables (`tenant`, `tenant_sign_in`, `tenant_site`), read through `pg` by
-  `packages/db/src/tenancy.ts`. `ensureRegistrySchema()` creates them; the SQL is
-  idempotent. Setting the variable is what turns hosted mode on: `cloud.hosted()`
-  reads it on every call, never at import.
-- **`RELOOP_TENANT_DATABASE_URL_TEMPLATE`** is required in hosted mode and holds
-  `{db}`, replaced with the tenant's `db_name`. `DATABASE_URL` is not read.
-- **`db` from `@crm/db` is a Proxy** to the current tenant's `PrismaClient`, held in
-  an `AsyncLocalStorage` (`cloud.run`, `cloud.current`). Outside a context it
-  throws `TenantContextMissing`. Clients live in a bounded LRU
-  (`TENANCY.clients.max`, `packages/db/src/tenancy-config.ts`) in
-  `packages/db/src/tenant-clients.ts`, reached only through `cloud.resolveClient`.
-- **The tenant is resolved once per request**, in `tenantMiddleware`
-  (`apps/api/src/tenancy`), mounted before Nest so `/api/auth/*` is covered: the
-  API-key prefix `crm_<tenantId>_…`, then the signed `crm.tenant` cookie, then the
-  site id on `/api/t/config/:siteId`. The collector resolves the site id from its
-  body in its controller. `/health` and `/internal/*` carry no tenant: the cron
-  routes loop over every active tenant through `cloud.forEachScope()`,
-  `TENANCY.loop.concurrency` at a time, and a failing tenant does not stop the others.
-- **`ALLOWED_SIGN_IN` is optional in hosted mode** and ignored: `allowList()` in
-  `packages/auth/src/workspace.ts` reads the tenant's `tenant_sign_in` rows.
-- **Off in hosted mode**: the stored OAuth credentials (`loadStoredOAuthApps`), the
-  self-restart after saving them (`unavailable`), and Google's `hd` hint.
-- **The app resolves the tenant from the `crm.tenant` cookie** through its slot
-  `apps/app/cloud/scope.server.ts`: `inScope()` runs every direct `db` read of the
-  app (`lib/session.ts`, `lib/mailbox-connection.ts`, the eve bridge route) inside
-  the tenant, and answers `null` without a cookie. `requestScope()`,
-  `hostedCustomer()`, `pendingPurchase()` and `subscription()` answer the rest. The bridge token carries
-  `tenantId`. Signing in is email first: `/sign-in` posts the address to
-  `POST /api/tenant/lookup`, which sets the cookie and names the sign-in methods
-  of that workspace. `/get-started` is the sign-up form and posts to
-  `POST /api/tenant/signup`; without hosted mode it stays the waitlist. Both
-  bodies and answers are parsed with `@crm/validation/tenant-signup`.
-- **The guard `tools/tenancy-guard.ts`** runs with `bun run lint` and refuses
-  `new PrismaClient` outside `packages/db/src/client.ts` and a
-  `process.env.ALLOWED_SIGN_IN` read outside `workspace.ts`. In `apps/app` it
-  also refuses `db`, a db-reading `@crm/auth` helper and a db-reading `@crm/db`
-  module outside `lib/session.ts`, `lib/mailbox-connection.ts` and the eve
-  route: the app renders outside the tenant, so every read goes through a
-  `cache()`d helper that wraps `inScope()`. It refuses a core import of
-  `@crm/db/tenancy`, `@crm/db/tenant-context` or `@crm/db/tenant-clients`: core
-  code uses `cloud.*`, and only the tenancy side named in `TENANCY_SIDE` imports
-  them.
-- **A customer registers through `POST /api/tenant/signup`** and looks their
-  workspace up through `POST /api/tenant/lookup` (`apps/api/src/tenancy`). Both
-  are open paths in `tenantMiddleware`, rate limited in memory
-  (`TENANCY.signup.rate`): signup per address and per IP, the lookup per IP
-  only, because it sends no mail and repeating it for one address reveals
-  nothing new. Signup provisions the database at once
-  (`provisionTenant`, `packages/db/src/provision.ts`: create, migrate, registry
-  row, `AppSetting.plan`, all rolled back on failure) with status `pending` and
-  the one address in `tenant_sign_in`. Activation is the first Google or
-  Microsoft sign-in with that exact address: `TenantActivationHooks` runs on
-  session create, sets `active`, and registers the company domain when the
-  address is not free mail. With mail on (below) the form also takes a
-  password, and a six digit code by mail activates the tenant instead. A
-  tenant still `pending` after `TENANCY.signup.pendingTtlMs` (48 hours) is
-  removed.
-- **`RESEND_API_KEY` and `MAIL_FROM`** turn mail on, both together. `MailService`
-  (`apps/api/src/mail`) is the one place that talks to Resend, over its HTTP
-  API with `fetch`. `GET /api/tenant/options` tells the sign-up form whether a
-  password is offered. The code is six digits, valid 15 minutes, five tries,
-  a new one after 60 seconds (`SIGNUP.code`, `apps/api/src/tenancy/tenancy.config.ts`).
-  It is stored in the registry table `tenant_code` as an HMAC with
-  `BETTER_AUTH_SECRET`, next to the name and the password hash, and the user
-  is created in the tenant database only when the code is right
-  (`POST /api/tenant/verify`). `POST /api/tenant/reset` and `reset/confirm` are
-  "Forgot password" with the same code and the same limits; `reset` answers
-  200 whether the address exists or not. `POST /api/tenant/lookup` names
-  `"email"` as a sign-in method only when mail is on and that person has a
-  password. The mail is plain text plus minimal HTML in the customer's
-  language (`mail-copy.ts`, all seven). Password sign-in is always enabled in
-  hosted mode; `PASSWORD_SIGN_IN` is for a self-hosted install. With either
-  variable unset nothing is sent and sign-up is Google and Microsoft only.
-- **Trials end by a daily sweep** (`TenantSweepService`, in-process in
-  production, or `POST /internal/tenants/sweep` with `CRON_SECRET`): `trial`
-  past `trial_ends_at` becomes `suspended` (sign-in answers 403
-  `TENANT_SUSPENDED`, data kept); suspended for `TENANCY.trial.suspendedTtlMs`
-  (30 days) is dumped to `RELOOP_BACKUP_DIR` with `pg_dump`, dropped, and
-  removed from the registry. No `RELOOP_BACKUP_DIR` or no `pg_dump` means the
-  tenant is kept and an error is logged. Every duration is in
-  `packages/db/src/tenancy-config.ts`.
-- **`RELOOP_BACKUP_DIR`** is that dump folder, optional. **`RELOOP_BACKUP_REMOTE`**
-  is the rclone remote the nightly `deploy/cloud/backup.sh` copies to, optional:
-  without it the dumps stay local and the script warns.
-- **The CLI `apps/api/scripts/tenant.ts`** does the same by hand:
-  `create|migrate|migrate-all|suspend|delete|list`. `migrate-all` marks a tenant
-  whose migration fails `migration_failed` and continues; the `migrate` service
-  in `deploy/cloud/docker-compose.cloud.yml` runs it before `api` starts.
+The hosted Reloop Cloud keeps one database per customer. The registry, the
+tenant database template, the operator workspace, the backup folder and the
+mail sender are read only by the private overlay, which documents them. Nothing
+in this repository reads them, and a self-hosted install sets none of them. The
+core reaches the hosted side only through the port in `docs/api.md`, and every
+slot of it is a no-op here.
 
 ## Billing
 
@@ -392,8 +277,8 @@ seven locales, falls back to this variable: the literal `"true"` means German, a
 else English (`defaultAgentLanguage` in `@crm/validation/agent-language`). A
 self-hosted install that set it before keeps writing German until an admin picks
 another language. The API reads the same variable only to show that default on the
-settings card in hosted mode, and `scripts/tenant.ts create` stores it for a new tenant
-without `--language`. It reaches both when you run from source. Neither container in
+settings card in hosted mode, and the hosted Cloud stores it for a new workspace
+signed up without a language. It reaches both when you run from source. Neither container in
 `deploy/docker-compose.yml` receives it, so there the default is English on both sides.
 Declared in `env.validation.ts` and the root `turbo.json`.
 

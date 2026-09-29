@@ -31,11 +31,6 @@ const LANDING: readonly Entry[] =
 const PAGES: readonly Entry[] = [
 	...LANDING,
 	...MARKETING_LLMS.lead,
-	{
-		title: "Get started",
-		path: PRICING.href.start,
-		note: "How to start with Reloop CRM, hosted or on your own server.",
-	},
 	...MARKETING_LLMS.rest,
 	{
 		title: "Contact",

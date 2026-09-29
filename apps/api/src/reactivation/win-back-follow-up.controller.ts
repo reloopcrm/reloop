@@ -1,4 +1,4 @@
-import { forEachTenant } from "@crm/db/tenancy";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	Controller,
 	ForbiddenException,
@@ -72,7 +72,7 @@ export class WinBackFollowUpController {
 			throw new ForbiddenException();
 		}
 
-		return forEachTenant(() => this.followUps.sweep());
+		return cloud.forEachScope(() => this.followUps.sweep());
 	}
 }
 

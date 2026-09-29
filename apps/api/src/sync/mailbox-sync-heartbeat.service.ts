@@ -1,6 +1,4 @@
-import { forEachTenant } from "@crm/db/tenancy";
-import { TENANCY } from "@crm/db/tenancy-config";
-import { currentTenantId } from "@crm/db/tenant-context";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	Injectable,
 	Logger,
@@ -80,7 +78,7 @@ export class MailboxSyncHeartbeatService
 
 	private async tick(): Promise<void> {
 		try {
-			await forEachTenant((signal) => this.tickTenant(signal));
+			await cloud.forEachScope((signal) => this.tickTenant(signal));
 		} catch (error) {
 			this.logger.error(
 				{ message: "Mailbox sync heartbeat failed" },
@@ -90,13 +88,13 @@ export class MailboxSyncHeartbeatService
 	}
 
 	private async tickTenant(signal: AbortSignal): Promise<void> {
-		const key = currentTenantId() ?? "";
+		const key = cloud.scopeId() ?? "";
 		const now = Date.now();
 		const leasedUntil = this.running.get(key);
 		if (leasedUntil !== undefined && leasedUntil > now) return;
 		this.running.set(
 			key,
-			now + TENANCY.loop.budgetMs + MAILBOX_SYNC.heartbeat.leaseGraceMs,
+			now + cloud.loop.budgetMs + MAILBOX_SYNC.heartbeat.leaseGraceMs,
 		);
 
 		try {
@@ -112,7 +110,7 @@ export class MailboxSyncHeartbeatService
 
 	private async writeFollowUps(): Promise<void> {
 		try {
-			await forEachTenant(() => this.winBack.sweep());
+			await cloud.forEachScope(() => this.winBack.sweep());
 		} catch (error) {
 			this.logger.error(
 				{ message: "Win back follow-up sweep failed" },

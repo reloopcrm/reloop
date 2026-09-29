@@ -1,6 +1,6 @@
 import type { Db } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import { SETTINGS_ID } from "@crm/db/settings";
-import { tenantScopedKey } from "@crm/db/tenant-context";
 import {
 	configHash,
 	mintSiteId,
@@ -34,7 +34,7 @@ export class TrackingConfigService {
 
 	async compiled(): Promise<CompiledConfig | null> {
 		const cached = await this.cache.get<CompiledConfig>(
-			tenantScopedKey(CONFIG_KEY),
+			cloud.scopedKey(CONFIG_KEY),
 		);
 		if (cached) return cached;
 
@@ -46,7 +46,7 @@ export class TrackingConfigService {
 
 		if (read === this.generation() && (await this.current(compiled.hash))) {
 			await this.cache.set(
-				tenantScopedKey(CONFIG_KEY),
+				cloud.scopedKey(CONFIG_KEY),
 				compiled,
 				CONFIG_TTL_MS,
 			);
@@ -70,14 +70,14 @@ export class TrackingConfigService {
 	}
 
 	private generation(): number {
-		return this.generations.get(tenantScopedKey(CONFIG_KEY)) ?? 0;
+		return this.generations.get(cloud.scopedKey(CONFIG_KEY)) ?? 0;
 	}
 
 	async invalidate(): Promise<void> {
 		const written = this.generation() + 1;
-		this.generations.set(tenantScopedKey(CONFIG_KEY), written);
+		this.generations.set(cloud.scopedKey(CONFIG_KEY), written);
 
-		await this.cache.del(tenantScopedKey(CONFIG_KEY));
+		await this.cache.del(cloud.scopedKey(CONFIG_KEY));
 
 		const config = await readTrackingConfig(this.db);
 
@@ -101,7 +101,7 @@ export class TrackingConfigService {
 		if (!(await this.current(hash))) return;
 
 		await this.cache.set(
-			tenantScopedKey(CONFIG_KEY),
+			cloud.scopedKey(CONFIG_KEY),
 			{ config, hash },
 			CONFIG_TTL_MS,
 		);

@@ -1,12 +1,12 @@
-import type { Tenant } from "@crm/db/tenancy";
+import type { WorkspaceScope } from "@crm/db/cloud/contract";
 
 const SECOND_MS = 1000;
 
 export const BILLING_PORT = Symbol("BILLING_PORT");
 
 export type BillingPort = {
-	cancelNow(tenant: Tenant): Promise<void>;
-	healStoredTarget(tenant: Tenant): Promise<void>;
+	cancelNow(scope: WorkspaceScope): Promise<void>;
+	healStoredTarget(scope: WorkspaceScope): Promise<void>;
 };
 
 export const NO_BILLING_PORT: BillingPort = {

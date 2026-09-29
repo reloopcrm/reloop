@@ -15,6 +15,7 @@ import {
 } from "@crm/auth/password-rules";
 import type { Db } from "@crm/db";
 import { USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
+import { cloud } from "@crm/db/cloud/scope";
 import { DEAL_STAGES } from "@crm/db/deal-stage";
 import { readModelSpend } from "@crm/db/model-spend";
 import {
@@ -48,7 +49,6 @@ import {
 	writeAgentProvider,
 	writeArchiveRetentionDays,
 } from "@crm/db/settings";
-import { isHosted, isHostedCustomer } from "@crm/db/tenant-context";
 import {
 	AGENT_FUNCTIONS,
 	isAgentFunction,
@@ -146,7 +146,7 @@ export class SettingsService {
 	}
 
 	private assertChatgptOffered(): void {
-		if (isHostedCustomer()) {
+		if (cloud.customer()) {
 			throw new ForbiddenException(
 				"A ChatGPT sign-in is not offered on a hosted install.",
 			);
@@ -486,7 +486,7 @@ export class SettingsService {
 	}
 
 	private openrouterEnvKey(): boolean {
-		if (isHostedCustomer()) return false;
+		if (cloud.customer()) return false;
 		return Boolean(
 			this.config.get("OPENROUTER_API_KEY", { infer: true })?.trim(),
 		);
@@ -539,7 +539,7 @@ export class SettingsService {
 			fallback: defaultAgentLanguage(
 				this.config.get("RELOOP_GERMAN", { infer: true }),
 			),
-			hosted: isHosted(),
+			hosted: cloud.hosted(),
 		};
 	}
 

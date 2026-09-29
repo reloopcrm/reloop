@@ -1,4 +1,4 @@
-import { forEachTenant } from "@crm/db/tenancy";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	flushTelemetry,
 	onTelemetryProblem,
@@ -40,10 +40,10 @@ export class TelemetryService implements OnModuleInit, OnApplicationShutdown {
 			crmVersion: install?.version,
 		});
 
-		void forEachTenant(() => this.rollup.run()).catch(() => {});
+		void cloud.forEachScope(() => this.rollup.run()).catch(() => {});
 
 		this.timer = setInterval(() => {
-			void forEachTenant(() => this.rollup.run()).catch(() => {});
+			void cloud.forEachScope(() => this.rollup.run()).catch(() => {});
 		}, ROLLUP_INTERVAL_MS);
 
 		this.timer.unref?.();

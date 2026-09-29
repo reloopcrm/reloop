@@ -1,6 +1,4 @@
 import { Module } from "@nestjs/common";
-import { BillingModule } from "../billing/billing.module";
-import { BillingWebhookController } from "../billing/billing-webhook.controller";
 import { MailModule } from "../mail/mail.module";
 import { MailboxModule } from "../mailbox/mailbox.module";
 import { TenantActivationHooks } from "./tenant-activation.hooks";
@@ -10,12 +8,8 @@ import { TenantSweepController } from "./tenant-sweep.controller";
 import { TenantSweepService } from "./tenant-sweep.service";
 
 @Module({
-	imports: [MailModule, BillingModule, MailboxModule],
-	controllers: [
-		TenantSignupController,
-		TenantSweepController,
-		BillingWebhookController,
-	],
+	imports: [MailModule, MailboxModule],
+	controllers: [TenantSignupController, TenantSweepController],
 	providers: [TenantSignupService, TenantActivationHooks, TenantSweepService],
 	exports: [TenantSweepService, TenantSignupService],
 })

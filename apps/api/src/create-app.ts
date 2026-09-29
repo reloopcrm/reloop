@@ -19,7 +19,7 @@ import {
 	generateOpenApiDocument,
 } from "trpc-to-openapi";
 import { AppModule } from "./app.module";
-import { BILLING } from "./billing/billing.config";
+import { BILLING_SEAM } from "./billing-port/billing-port";
 import { NodeEnv } from "./config/env.validation";
 import { REQUEST_SIZE } from "./http/http-config";
 import {
@@ -48,8 +48,8 @@ export async function createApp(): Promise<NestExpressApplication> {
 	app.use(requestSizeLimit());
 	app.use(REQUEST_SIZE.trpc.path, trpcBodyLimit());
 	app.use(
-		BILLING.webhook.path,
-		raw({ type: "application/json", limit: BILLING.webhook.maxBytes }),
+		BILLING_SEAM.webhook.path,
+		raw({ type: "application/json", limit: BILLING_SEAM.webhook.maxBytes }),
 	);
 	app.use(helmet());
 	app.use(tenantMiddleware());

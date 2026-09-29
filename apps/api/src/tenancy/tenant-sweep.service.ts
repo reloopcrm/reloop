@@ -17,14 +17,18 @@ import {
 import { TENANCY } from "@crm/db/tenancy-config";
 import { isHosted, runAsTenant } from "@crm/db/tenant-context";
 import {
+	Inject,
 	Injectable,
 	Logger,
 	type OnApplicationBootstrap,
 	type OnApplicationShutdown,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { BILLING } from "../billing/billing.config";
-import { BillingService } from "../billing/billing.service";
+import {
+	BILLING_PORT,
+	BILLING_SEAM,
+	type BillingPort,
+} from "../billing-port/billing-port";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
 import { BillingMailService } from "../mail/billing-mail.service";
@@ -58,7 +62,7 @@ export class TenantSweepService
 		@InjectDatabase() private readonly db: Db,
 		config: ConfigService<EnvironmentVariables, true>,
 		private readonly mails: BillingMailService,
-		private readonly billing: BillingService,
+		@Inject(BILLING_PORT) private readonly billing: BillingPort,
 		private readonly tokens: MailboxTokenService,
 	) {
 		this.dumpDir = config.get("RELOOP_BACKUP_DIR", { infer: true }) ?? null;
@@ -178,7 +182,7 @@ export class TenantSweepService
 		}
 
 		const staleTarget = new Date(
-			now.getTime() - BILLING.schedule.rebuildAfterMs,
+			now.getTime() - BILLING_SEAM.schedule.rebuildAfterMs,
 		);
 		for (const tenant of await scheduledTargetsBefore(staleTarget)) {
 			try {

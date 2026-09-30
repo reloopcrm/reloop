@@ -166,6 +166,24 @@ describe("the draft prompt carries the sender's own voice", () => {
 		expect(section).not.toContain('Use "du"');
 	});
 
+	it("keeps a formal greeting as his greeting, not as an opening to avoid", () => {
+		const formal: SentSample[] = [
+			{
+				subject: "Angebot",
+				body: "Sehr geehrter Herr Probe,\n\nanbei erhalten Sie das Angebot für die Beratung.\n\nMit freundlichen Grüßen\nTom Muster",
+			},
+		];
+		const { system } = draftPrompt(
+			input({ voice: { toContact: formal, general: [] } }),
+		);
+
+		expect(system).toContain('His greetings: "Sehr geehrter Herr Probe,"');
+		expect(system).not.toContain("- Sehr geehrter Herr Probe,");
+		expect(system).toContain(
+			"- anbei erhalten Sie das Angebot für die Beratung.",
+		);
+	});
+
 	it("follows English samples and names no du or Sie", () => {
 		const english: SentSample[] = [
 			{

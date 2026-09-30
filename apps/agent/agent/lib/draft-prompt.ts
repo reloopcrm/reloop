@@ -59,7 +59,7 @@ const DU_WORDS =
 const SIE_WORDS = /\b(Sie|Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer)\b/g;
 
 const GREETING =
-	/^(hallo|hi|hey|moin|servus|liebe|lieber|sehr geehrte|guten (tag|morgen|abend)|dear|hello|good (morning|afternoon))\b/i;
+	/^(hallo|hi|hey|moin|servus|liebe[rs]?|werte[rs]?|sehr geehrte[rs]?|guten (tag|morgen|abend)|dear|hello|good (morning|afternoon))\b/i;
 
 function cutAt(body: string, markers: RegExp[]): string {
 	const lines = body.replace(/\r\n?/g, "\n").split("\n");
@@ -180,7 +180,7 @@ export function voiceSection(voice: DraftPromptInput["voice"]): string {
 	if (own.length === 0) return "";
 
 	const language = guessLanguage(own);
-	const formality = language === "German" ? guessFormality(own) : null;
+	const formality = language === "English" ? null : guessFormality(own);
 	const length = median(own.map(words));
 	const shapes = own.map(shape);
 	const whom = toContact.length > 0 ? "to this contact" : "to other people";

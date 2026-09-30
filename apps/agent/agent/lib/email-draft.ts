@@ -120,11 +120,11 @@ async function sender(
 	if (address) return { fromEmail: address };
 	if (person.owner) return { syncedByUserId: person.owner.id };
 
-	const addresses = await db.emailMessage.findMany({
+	const addresses = await db.emailMessage.groupBy({
+		by: ["fromEmail"],
 		where: { direction: "OUTBOUND" },
-		distinct: ["fromEmail"],
+		orderBy: { fromEmail: "asc" },
 		take: 2,
-		select: { fromEmail: true },
 	});
 	const only = addresses.length === 1 ? addresses[0]?.fromEmail : undefined;
 

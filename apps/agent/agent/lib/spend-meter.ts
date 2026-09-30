@@ -1,4 +1,6 @@
 import { db } from "@crm/db";
+import type { WorkspaceScope } from "@crm/db/cloud/contract";
+import { cloud } from "@crm/db/cloud/scope";
 import {
 	type SpendEntry,
 	spendFromUsage,
@@ -10,7 +12,7 @@ import {
 	wrapLanguageModel,
 } from "ai";
 import { z } from "zod";
-import { tenantState } from "./tenant";
+import { asTenant, tenantState } from "./tenant";
 
 type ModelObject = Exclude<LanguageModel, string>;
 
@@ -95,6 +97,14 @@ export async function spendWritten(): Promise<void> {
 	await pending().written;
 }
 
+function callerTenant(): WorkspaceScope | null {
+	try {
+		return cloud.hosted() ? cloud.current() : null;
+	} catch {
+		return null;
+	}
+}
+
 export type SpendSink = (entry: SpendEntry | null) => void;
 
 export function withSpendMeter(
@@ -103,18 +113,32 @@ export function withSpendMeter(
 	kind: string,
 	sink: SpendSink = storeSpend,
 ): ModelObject {
+	const record = (tenant: WorkspaceScope | null, entry: SpendEntry | null) => {
+		try {
+			asTenant(tenant, () => sink(entry));
+		} catch (error) {
+			console.error(
+				`[agent] could not record what the model call cost: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
+	};
+
 	const middleware: LanguageModelMiddleware = {
 		wrapGenerate: async ({ doGenerate }) => {
+			const tenant = callerTenant();
 			const result = await doGenerate();
-			sink(spendOf(modelId, kind, result));
+			record(tenant, spendOf(modelId, kind, result));
 			return result;
 		},
 		wrapStream: async ({ doStream }) => {
+			const tenant = callerTenant();
 			const { stream, ...rest } = await doStream();
 
 			const meter = new TransformStream({
 				transform(part, controller) {
-					sink(spendOfPart(modelId, kind, part));
+					record(tenant, spendOfPart(modelId, kind, part));
 					controller.enqueue(part);
 				},
 			});

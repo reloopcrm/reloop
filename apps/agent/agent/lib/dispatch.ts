@@ -497,7 +497,10 @@ export async function runResearchLane(
 	const allowance = await researchAllowance(RESEARCH_BATCH);
 	if (allowance.allowed === 0) {
 		if (allowance.reason) {
-			console.error(`[agent] research paused: ${allowance.reason}`);
+			const tenantId = cloud.hosted() ? cloud.scopeId() : null;
+			console.error(
+				`[agent] research paused${tenantId ? ` for tenant ${tenantId}` : ""}: ${allowance.reason}`,
+			);
 		}
 		return 0;
 	}

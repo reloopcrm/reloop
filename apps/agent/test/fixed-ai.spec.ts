@@ -27,12 +27,12 @@ describe("the fixed AI chain", () => {
 		expect(chat.map((entry) => entry.provider)).toEqual(["openrouter"]);
 		expect(chat[0]?.model).toBe("openai/gpt-6-luna");
 		expect(reading[0]?.model).toBe("openai/gpt-6-luna");
-		expect(draft[0]?.model).toBe("openai/gpt-6-sol");
+		expect(draft[0]?.model).toBe("openai/gpt-6.1-sol");
 	});
 
 	it("pins Sol to the standard OpenAI route on OpenRouter", () => {
-		const body = JSON.stringify({ model: "openai/gpt-6-sol", messages: [] });
-		expect(JSON.parse(pinnedBody("openai/gpt-6-sol", body))).toMatchObject({
+		const body = JSON.stringify({ model: "openai/gpt-6.1-sol", messages: [] });
+		expect(JSON.parse(pinnedBody("openai/gpt-6.1-sol", body))).toMatchObject({
 			provider: { order: ["openai"], allow_fallbacks: false },
 		});
 		expect(pinnedBody("openai/gpt-6-luna", body)).toBe(body);

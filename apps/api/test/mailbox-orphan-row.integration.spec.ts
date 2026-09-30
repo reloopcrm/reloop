@@ -190,4 +190,21 @@ describe("an unfinished mailbox connection that finishes", () => {
 			await db.mailboxSync.count({ where: { userId: { in: users } } }),
 		).toBe(1);
 	});
+
+	it("keeps a row a sync tick is running on", async () => {
+		await writePlan(db, "trial");
+		for (const id of users) await google.setImportSince(id, null);
+		for (const id of users) await grant(id, GOOGLE_PROVIDER_ID, GMAIL_SCOPE);
+		const row = await state.get(userId, "gmail");
+		if (!row) throw new Error("setImportSince stored no row");
+		expect(await state.claim(row, new Date())).toBe(true);
+
+		await google.onConnected(userId);
+
+		expect((await state.get(userId, "gmail"))?.status).toBe(
+			GoogleSyncStatus.RUNNING,
+		);
+		await state.settle(row.id, { status: GoogleSyncStatus.IDLE });
+		expect((await state.get(userId, "gmail"))?.lastSyncedAt).not.toBeNull();
+	});
 });

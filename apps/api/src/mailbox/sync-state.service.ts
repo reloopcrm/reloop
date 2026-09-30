@@ -157,8 +157,16 @@ export class SyncStateService {
 		if (limits.mailboxes === null) return true;
 		if ((await countMailboxes(this.db)) <= limits.mailboxes) return true;
 
+		const { count } = await this.db.mailboxSync.deleteMany({
+			where: {
+				id: row.id,
+				status: GoogleSyncStatus.IDLE,
+				lastSyncedAt: null,
+			},
+		});
+		if (count === 0) return true;
+
 		this.warnMailboxLimit(row.userId, row.source, limits);
-		await this.db.mailboxSync.deleteMany({ where: { id: row.id } });
 		return false;
 	}
 

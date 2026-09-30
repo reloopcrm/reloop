@@ -4,13 +4,33 @@ import {
 	contactWorth,
 	type QuantityRule,
 } from "@crm/db/contact-worth";
+import { isFreeEmailDomain } from "@crm/db/email-domains";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 
 export const PRUNE = {
+	enabled: false,
 	batch: 200,
 	page: 400,
 	scan: 20_000,
 } as const;
+
+export function ownDomainsOf(values: readonly (string | null | undefined)[]) {
+	const domains = new Set<string>();
+
+	for (const value of values) {
+		const host = (value ?? "")
+			.trim()
+			.toLowerCase()
+			.replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
+			.split("/")[0]
+			?.split("@")
+			.pop();
+		const bare = (host ?? "").replace(/^www\./, "");
+		if (bare.includes(".") && !isFreeEmailDomain(bare)) domains.add(bare);
+	}
+
+	return domains;
+}
 
 async function ownDomains(): Promise<Set<string>> {
 	const [workspace, mailboxes, users] = await Promise.all([
@@ -19,18 +39,11 @@ async function ownDomains(): Promise<Set<string>> {
 		db.user.findMany({ select: { email: true } }),
 	]);
 
-	const domains = new Set<string>();
-	const add = (value: string | null | undefined) => {
-		const host = (value ?? "").trim().toLowerCase().split("@").pop() ?? "";
-		const bare = host.replace(/^www\./, "");
-		if (bare.includes(".")) domains.add(bare);
-	};
-
-	add(workspace?.website);
-	for (const mailbox of mailboxes) add(mailbox.email);
-	for (const user of users) add(user.email);
-
-	return domains;
+	return ownDomainsOf([
+		workspace?.website,
+		...mailboxes.map((mailbox) => mailbox.email),
+		...users.map((user) => user.email),
+	]);
 }
 
 export async function archiveOwnContacts(): Promise<number> {
@@ -40,6 +53,7 @@ export async function archiveOwnContacts(): Promise<number> {
 	const contacts = await db.contact.findMany({
 		where: {
 			archivedAt: null,
+			source: { in: ["EMAIL", "CALENDAR"] },
 			OR: domains.map((domain) => ({
 				email: { endsWith: `@${domain}`, mode: "insensitive" as const },
 			})),
@@ -102,6 +116,10 @@ export function worthKeeping(
 }
 
 export async function pruneContacts(): Promise<number> {
+	return PRUNE.enabled ? archiveUnworthyContacts() : 0;
+}
+
+export async function archiveUnworthyContacts(): Promise<number> {
 	const rules = await readWinBackRules(db);
 	const rule: QuantityRule = {
 		minPallets: rules.business.minPallets,
@@ -173,6 +191,10 @@ export async function pruneContacts(): Promise<number> {
 }
 
 export async function pruneCompanies(): Promise<number> {
+	return PRUNE.enabled ? archiveEmptyCompanies() : 0;
+}
+
+export async function archiveEmptyCompanies(): Promise<number> {
 	const companies = await db.company.findMany({
 		where: {
 			archivedAt: null,

@@ -152,6 +152,28 @@ signed up in. The API stores and serves the value and does nothing else with it.
 - **A draft keeps the language of its conversation.** `lib/email-draft.ts` tells the
   model to answer in the language the thread uses; only the style rule it learns is in
   the workspace language. A rep's chat answers in the language the rep writes in.
+- **A draft continues the conversation in the sender's own voice.** `lib/draft-prompt.ts`
+  builds the prompt from plain data, so `test/draft-prompt.spec.ts` checks it without a
+  model. The current thread comes first, quotes and auto replies cut out, and its last
+  real message is marked: the draft picks that up and keeps the thread's subject.
+  The voice comes only from `OUTBOUND` mail of one address: the one that last wrote to
+  this contact, else the contact owner's mailbox, else the only sending address of the
+  workspace. With none of them there are no examples, never a colleague's mail. The
+  same source names the sender in the prompt. Greeting, sign off, du or Sie and the
+  example texts come only from mail to this contact; with none, du or Sie comes from
+  how the contact writes. Mail to other customers gives only language and length,
+  never its text, so no other customer's name or amount reaches the prompt. The
+  prompt names today and the age of the last message, and an old conversation is
+  reopened, not answered as if fresh. The draft never promises a price, discount,
+  date, bank change or contract the sender has not made. The openings this contact
+  already read, in the last draft and in mail sent to it, are listed so the next
+  draft opens differently; drafts to other contacts are never shown. There is no
+  fixed template and no trade wording. Every bound is `DRAFT` in
+  `lib/draft-config.ts`: `conversationMaxChars`, `bodyMaxChars` per message,
+  `voice.*` for the examples and lists, and `maxOutputTokens` for the answer. The
+  draft call asks an OpenAI route for low reasoning effort (`DRAFT.providerOptions`),
+  so reasoning leaves room for the email; an answer cut off at the limit fails at
+  once with that reason instead of retrying.
 - **Stored text is not rewritten.** A summary or a unit the agent wrote before stays
   in the language it was written in; only new runs follow the setting. The business
   unit and description are edited by hand in Win back, Rules, because business setup

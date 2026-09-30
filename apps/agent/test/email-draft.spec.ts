@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { stripQuoted, stripSignature } from "../agent/lib/email-draft";
+import { stripQuoted, stripSignature } from "../agent/lib/draft-prompt";
 
 describe("what stays of a sent email when it becomes a style sample", () => {
 	it("keeps a mail that quotes nothing", () => {

@@ -9,7 +9,11 @@ import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
-import { allowsCompanyResearch, monthlyBudget } from "@crm/db/plans";
+import {
+	allowsCompanyResearch,
+	forwardReserve,
+	monthlyBudget,
+} from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
 import {
 	isTaskKindEnabled,
@@ -167,6 +171,7 @@ export class AgentTriggerService {
 			budget: 1,
 			payload: { threadId, origin } satisfies AgentTaskThreadPayload,
 			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
+			origin,
 		});
 		if (created || origin === "backfill") return;
 
@@ -590,7 +595,10 @@ export class AgentTriggerService {
 		}
 	}
 
-	private async allows(kind: string): Promise<boolean> {
+	private async allows(
+		kind: string,
+		origin: AgentTaskOrigin = "forward",
+	): Promise<boolean> {
 		const functions = await readAgentFunctions(this.db);
 
 		if (!isTaskKindEnabled(functions, kind)) {
@@ -601,10 +609,13 @@ export class AgentTriggerService {
 			return false;
 		}
 
-		return this.planAllows(kind);
+		return this.planAllows(kind, origin);
 	}
 
-	private async planAllows(kind: string): Promise<boolean> {
+	private async planAllows(
+		kind: string,
+		origin: AgentTaskOrigin,
+	): Promise<boolean> {
 		const limits = await planLimitsOf(this.db);
 
 		if (!allowsCompanyResearch(kind, limits)) {
@@ -618,16 +629,19 @@ export class AgentTriggerService {
 
 		const budget = monthlyBudget(kind, limits);
 		if (budget === null) return true;
+		const ceiling =
+			origin === "backfill" ? budget - forwardReserve(kind, limits) : budget;
 
 		const { since } = await usageWindowOf(this.db);
 		const used = await this.db.agentTask.count({
 			where: { kind, createdAt: { gte: since } },
 		});
 
-		if (used < budget) return true;
+		if (used < ceiling) return true;
 
 		this.logger.log({
 			message: "Monthly budget for this task kind is spent",
+			origin,
 			kind,
 			plan: limits.label,
 			used,
@@ -647,6 +661,7 @@ export class AgentTriggerService {
 			budget: number;
 			payload?: Prisma.InputJsonValue;
 			subject?: { path: string[]; value: string };
+			origin?: AgentTaskOrigin;
 		},
 		required = false,
 		client?: Prisma.TransactionClient,
@@ -655,7 +670,7 @@ export class AgentTriggerService {
 			return false;
 		}
 
-		if (!(await this.allows(task.kind))) return false;
+		if (!(await this.allows(task.kind, task.origin))) return false;
 
 		try {
 			const write = async (tx: Prisma.TransactionClient) => {

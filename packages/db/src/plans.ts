@@ -323,6 +323,15 @@ export function monthlyBudget(kind: string, limits: PlanLimits): number | null {
 	return null;
 }
 
+export const PLAN_RESERVE = { insightForwardShare: 0.2 } as const;
+
+export function forwardReserve(kind: string, limits: PlanLimits): number {
+	const budget = monthlyBudget(kind, limits);
+	if (budget === null || kind !== INSIGHT_KIND) return 0;
+
+	return Math.ceil(budget * PLAN_RESERVE.insightForwardShare);
+}
+
 export function nextMonthStart(now: Date = new Date()): Date {
 	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 }

@@ -1,6 +1,6 @@
 import { db, Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
-import { INSIGHT_KIND } from "@crm/db/plans";
+import { forwardReserve, INSIGHT_KIND } from "@crm/db/plans";
 import { NOT_SAMPLE_RECORD, SAMPLE_DATA } from "@crm/db/sample-data";
 import {
 	AGENT_TASK_THREAD_ID_KEY,
@@ -12,7 +12,12 @@ import { COPY } from "./copy";
 import { DISPATCH } from "./dispatch-config";
 import { say } from "./language";
 import { isDerivedName } from "./names";
-import { limitOutcome, limitResumesAt, monthlyRoom } from "./plan-limits";
+import {
+	limitOutcome,
+	limitResumesAt,
+	monthlyRoom,
+	planLimits,
+} from "./plan-limits";
 import { playbookDue } from "./playbook";
 import { scheduleTask } from "./tasks";
 
@@ -75,7 +80,11 @@ export async function cancelSampleWork(): Promise<number> {
 }
 
 export async function queueUnreadThreads(): Promise<number> {
-	const room = await monthlyRoom(INSIGHT_KIND);
+	const left = await monthlyRoom(INSIGHT_KIND);
+	const room =
+		left === null
+			? null
+			: Math.max(0, left - forwardReserve(INSIGHT_KIND, await planLimits()));
 	if (room !== null && room <= 0) {
 		console.error(
 			`[agent] reading waits: ${limitOutcome(INSIGHT_KIND, await limitResumesAt())}`,

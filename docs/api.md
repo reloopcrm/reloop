@@ -349,15 +349,13 @@ the largest attachment upload the conversation contracts accept.
 `MailboxMatchService`, `participants.ts`, `message-text.ts`, and
 `ThreadWriterService`.
 
-- **A name cut out of the address is a placeholder, and only a better name
-  replaces it.** `isDerivedName` (`participants.ts`) reads "M Beispiel", "M. Beispiel"
-  and "Beispiel, M." at `m.beispiel@` as placeholders. `betterName` takes the From
-  name only when the stored name is a placeholder, the From name is not one, and
-  `nameRank` does not drop. `MailboxMatchService.createContact` and
-  `ThreadWriterService.contactWithoutCompany` both use it, so "Jane Doe" never
-  turns into "J.". For a contact that `resolve` finds by address, it returns before
-  it reads any name. `contact-clean` in the agent upgrades the name on new
-  activity, from the From line or the signature.
+- **The sync never renames a contact that already exists.** A new contact takes
+  its name from the From line through `splitName`. A contact that `resolve`,
+  `createContact` or `contactWithoutCompany` finds by address keeps its name, even
+  when it is a placeholder ("M Beispiel" at `m.beispiel@`, read by `isDerivedName`).
+  A sender line such as "Buchhaltung Beispiel AG" is not a person's name.
+  `contact-clean` in the agent upgrades the name on new activity, from the From line
+  or the signature, with the rule in `lib/names.ts`.
 - **"From us" means any own address, in every mailbox.** `internalIdentity`
   collects users, IMAP accounts, every `MailboxSync.address`, the confirmed aliases
   in `AppSetting.ownAddresses`, the allow-list and the website, and drops every

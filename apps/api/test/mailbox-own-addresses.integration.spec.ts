@@ -3,6 +3,7 @@ import {
 	db,
 	EmailDirection,
 	type MailboxSyncModel as MailboxSync,
+	RecordSource,
 } from "@crm/db";
 import { SETTINGS_ID } from "@crm/db/settings";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
@@ -11,7 +12,7 @@ import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
 import { DirectionRepairService } from "../src/mailbox/direction-repair.service";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
-import { betterName, isOwnAddress } from "../src/mailbox/participants";
+import { isOwnAddress } from "../src/mailbox/participants";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
 import {
 	type IncomingMessage,
@@ -265,40 +266,37 @@ describe("own identity rules", () => {
 	});
 });
 
-describe("taking a name from the From line", () => {
-	it("replaces a placeholder with a better name", () => {
-		expect(
-			betterName("Paula Marchetti", "pmarchetti@example.org", {
-				firstName: "Pmarchetti",
-				lastName: null,
-			}),
-		).toEqual({ firstName: "Paula", lastName: "Marchetti" });
-	});
-
-	it("does not replace a placeholder with a shorter name", () => {
-		expect(
-			betterName("J.", "jane.doe@example.org", {
-				firstName: "Jane",
-				lastName: "Doe",
-			}),
-		).toBeNull();
-	});
-
-	it("does not replace a name a person gave", () => {
-		expect(
-			betterName("M. Beispiel", "m.beispiel@example.org", {
-				firstName: "Maria",
-				lastName: "Beispiel",
-			}),
-		).toBeNull();
-	});
-
-	it("does not take a From line that only repeats the address", () => {
-		expect(
-			betterName("M. Beispiel", "m.beispiel@example.org", {
+describe("a contact that already exists", () => {
+	it("keeps its name when a mailbox sender line is a department", async () => {
+		const company = await db.company.findFirstOrThrow({
+			where: { domain: customerDomain },
+			select: { id: true },
+		});
+		const email = `m.beispiel@${customerDomain}`;
+		const contact = await db.contact.create({
+			data: {
 				firstName: "M",
 				lastName: "Beispiel",
+				email,
+				companyId: company.id,
+			},
+			select: { id: true },
+		});
+		const person = { email, name: "Buchhaltung Beispiel AG" };
+
+		await match["createContact"]([person], customerDomain, company.id, {
+			participants: [person],
+			allowCreate: true,
+			source: RecordSource.EMAIL,
+			ownerId: userA,
+		});
+		await threads["contactWithoutCompany"](person, userA);
+
+		expect(
+			await db.contact.findUniqueOrThrow({
+				where: { id: contact.id },
+				select: { firstName: true, lastName: true },
 			}),
-		).toBeNull();
+		).toEqual({ firstName: "M", lastName: "Beispiel" });
 	});
 });

@@ -15,7 +15,6 @@ import { EnrichmentLogService } from "../crm/enrichment-log.service";
 import { InjectDatabase } from "../database/database.constants";
 import { LIMIT_WARNING } from "./mailbox.config";
 import {
-	betterName,
 	dominantDomain,
 	externalParticipants,
 	isDerivedName,
@@ -411,18 +410,8 @@ export class MailboxMatchService {
 			});
 		}
 
-		const upgrade = betterName(person.name, person.email, contact);
-		if (upgrade) {
-			await this.db.contact.update({
-				where: { id: contact.id },
-				data: upgrade,
-			});
-			return { contactId: contact.id, limited: false };
-		}
-
-		const hasRealName = Boolean(person.name?.trim());
 		if (
-			!hasRealName &&
+			!person.name?.trim() &&
 			isDerivedName(person.email, contact.firstName, contact.lastName)
 		) {
 			await this.agent.contactCreated(

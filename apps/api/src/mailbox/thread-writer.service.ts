@@ -23,7 +23,6 @@ import {
 } from "./mailbox-match.service";
 import { snippetOf } from "./message-text";
 import {
-	betterName,
 	isOwnAddress,
 	type Participant,
 	splitName,
@@ -405,18 +404,9 @@ export class ThreadWriterService {
 		const email = person.email.toLowerCase();
 		const existing = await this.db.contact.findUnique({
 			where: { email },
-			select: { id: true, firstName: true, lastName: true },
+			select: { id: true },
 		});
-		if (existing) {
-			const upgrade = betterName(person.name, email, existing);
-			if (upgrade) {
-				await this.db.contact.update({
-					where: { id: existing.id },
-					data: upgrade,
-				});
-			}
-			return existing.id;
-		}
+		if (existing) return existing.id;
 
 		const { firstName, lastName } = splitName(person.name, email);
 		let created: { id: string };

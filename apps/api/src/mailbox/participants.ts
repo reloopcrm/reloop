@@ -252,30 +252,6 @@ export function splitName(name: string | null, email: string): PersonName {
 	};
 }
 
-export function nameRank(name: PersonName): number {
-	return partRank(name.firstName) + partRank(name.lastName);
-}
-
-function partRank(part: string | null): number {
-	return Math.min(letters(part ?? "").length, 2);
-}
-
-export function betterName(
-	fromLine: string | null,
-	email: string,
-	current: PersonName,
-): PersonName | null {
-	if (!fromLine?.trim()) return null;
-	if (!isDerivedName(email, current.firstName, current.lastName)) return null;
-
-	const candidate = splitName(fromLine, email);
-	if (isDerivedName(email, candidate.firstName, candidate.lastName)) {
-		return null;
-	}
-
-	return nameRank(candidate) >= nameRank(current) ? candidate : null;
-}
-
 function isEmailish(value: string): boolean {
 	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }

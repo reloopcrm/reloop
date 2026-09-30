@@ -222,7 +222,10 @@ export async function askJson<T>(
 	system: string,
 	prompt: string,
 	shape: z.ZodType = schema,
-	limits: { maxOutputTokens?: number } = {},
+	limits: Pick<
+		Parameters<typeof streamText>[0],
+		"maxOutputTokens" | "providerOptions"
+	> = {},
 ): Promise<T> {
 	let lastError = "";
 
@@ -231,6 +234,7 @@ export async function askJson<T>(
 			model,
 			abortSignal: AbortSignal.timeout(MEMORY.callTimeoutMs),
 			maxOutputTokens: limits.maxOutputTokens,
+			providerOptions: limits.providerOptions,
 			instructions: [
 				{
 					role: "system",
@@ -251,6 +255,12 @@ export async function askJson<T>(
 
 		let text = "";
 		for await (const part of result.textStream) text += part;
+
+		if (limits.maxOutputTokens && (await result.finishReason) === "length") {
+			throw new Error(
+				`The answer ran past its limit of ${limits.maxOutputTokens} output tokens, so it was cut off.`,
+			);
+		}
 
 		try {
 			const parsed = schema.safeParse(JSON.parse(jsonBlock(text)));

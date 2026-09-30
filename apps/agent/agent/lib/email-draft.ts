@@ -163,35 +163,6 @@ export async function ownVoice(person: VoiceOwner): Promise<{
 	return { senderName: who.name, voice: { toContact, general } };
 }
 
-export async function recentOpenings(exceptContactId: string): Promise<string> {
-	const rows = await db.emailDraft.findMany({
-		where: { contactId: { not: exceptContactId } },
-		orderBy: { updatedAt: "desc" },
-		take: DRAFT.recentDrafts,
-		select: { subject: true, body: true },
-	});
-
-	const seen = rows
-		.map((row) => {
-			const line = row.body
-				.split("\n")
-				.map((part) => part.trim())
-				.find((part, index) => index > 0 && part.length > 20);
-
-			return line
-				? `${row.subject} | ${line.slice(0, DRAFT.openingMaxChars)}`
-				: "";
-		})
-		.filter(Boolean);
-
-	if (seen.length === 0) return "";
-
-	return [
-		"These subjects and opening lines already went to other contacts. Do not reuse them, so the emails do not all read the same:",
-		...seen.map((line) => `- ${line}`),
-	].join("\n");
-}
-
 function facts(person: DraftRecipient, senderName: string | null): string {
 	const memory = person.memory;
 	const name = [person.firstName, person.lastName].filter(Boolean).join(" ");
@@ -219,12 +190,11 @@ async function context(
 	buildModel: typeof directModel,
 	previous: DraftPromptInput["previous"],
 ) {
-	const [rules, playbook, style, own, openings, model] = await Promise.all([
+	const [rules, playbook, style, own, model] = await Promise.all([
 		readWinBackRules(db),
 		readPlaybook(),
 		readDraftStyle(db),
 		ownVoice(person),
-		recentOpenings(person.id),
 		buildModel("draft", "email-draft"),
 	]);
 
@@ -243,7 +213,6 @@ async function context(
 		threads: person.emailThreads,
 		voice: own.voice,
 		previous,
-		openings,
 		style: draftStylePrompt(style),
 		playbook: playbookVoicePrompt(playbook),
 		business,
@@ -362,7 +331,10 @@ async function revise(
 			`What the sender wants different:\n${instruction}`,
 		].join("\n"),
 		revisedSchema,
-		{ maxOutputTokens: DRAFT.maxOutputTokens },
+		{
+			maxOutputTokens: DRAFT.maxOutputTokens,
+			providerOptions: DRAFT.providerOptions,
+		},
 	);
 
 	await store(person.id, person, object, model.modelId);
@@ -403,6 +375,7 @@ export async function runEmailDraft(
 		draftSchema,
 		{
 			maxOutputTokens: DRAFT.maxOutputTokens,
+			providerOptions: DRAFT.providerOptions,
 		},
 	);
 

@@ -32,7 +32,6 @@ export type DraftPromptInput = {
 	threads: DraftThread[];
 	voice: { toContact: SentSample[]; general: SentSample[] };
 	previous: { subject: string; body: string } | null;
-	openings: string;
 	style: string;
 	playbook: string;
 	business: string[];
@@ -236,7 +235,7 @@ export function voiceSection(
 	const greetings = known
 		? listed(toContact.map((text) => shape(text).greeting))
 		: "";
-	const signOffs = listed(own.map((text) => shape(text).signOff));
+	const signOffs = listed(toContact.map((text) => shape(text).signOff));
 
 	return [
 		"How the sender writes, taken only from emails he sent himself. Write the way he does.",
@@ -414,7 +413,6 @@ export function draftPrompt(input: DraftPromptInput) {
 		"The email reads as if the sender typed it himself between two other mails. It never reads as a system writing to a lead.",
 		voiceSection(input.voice, fromContact),
 		avoidSection(input.previous, input.voice.toContact),
-		input.openings,
 		input.style,
 		input.playbook,
 		...input.business,

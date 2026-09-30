@@ -68,7 +68,6 @@ function input(overrides: Partial<DraftPromptInput> = {}): DraftPromptInput {
 		threads: [workshop],
 		voice: { toContact: toMaria, general: toOthers },
 		previous: null,
-		openings: "",
 		style: "",
 		playbook: "",
 		business: [],
@@ -279,7 +278,40 @@ describe("the draft prompt carries the sender's own voice", () => {
 		expect(system).not.toContain("Angebot liegt");
 		expect(system).toContain("He writes to other people in German.");
 		expect(system).toContain("He never wrote to this contact before.");
-		expect(system).toContain('"Mit freundlichen Grüßen / Tom Muster"');
+		expect(system).not.toContain("His sign offs");
+	});
+
+	it("never takes a sign off that names another customer", () => {
+		const thanked: SentSample[] = [
+			{
+				subject: "Unterlagen",
+				body: "Hallo,\n\ndie Unterlagen sind heute rausgegangen.\n\nDanke Frau Kranz!\nTom",
+			},
+		];
+		const { system } = draftPrompt(
+			input({ voice: { toContact: toMaria, general: thanked } }),
+		);
+
+		expect(system).not.toContain("Kranz");
+		expect(system).toContain('"Viele Grüße / Tom"');
+	});
+
+	it("lists only openings this contact already read", () => {
+		const { system } = draftPrompt(
+			input({
+				previous: {
+					subject: "Workshop im Oktober",
+					body: "Hallo Maria,\n\nich wollte wegen dem Workshop nachhaken.\n\nViele Grüße\nTom",
+				},
+			}),
+		);
+		const avoided = system.split("\n").filter((line) => line.startsWith("- "));
+
+		expect(avoided).toContain("- ich wollte wegen dem Workshop nachhaken.");
+		expect(avoided).toContain(
+			"- hast du Lust auf den Workshop im Oktober? Wir sind etwa zwölf Leute.",
+		);
+		expect(avoided.join("\n")).not.toContain("Angebot für die Beratung");
 	});
 
 	it("takes du or Sie from how the contact writes when he never wrote to her", () => {

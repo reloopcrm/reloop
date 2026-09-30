@@ -26,7 +26,6 @@ export const DISPATCH = {
 		precheck: {
 			question: "worthResearch",
 			threshold: 0.2,
-			requestedReason: "A rep asked",
 			againBatch: 40,
 		},
 	},

@@ -210,7 +210,9 @@ export async function queueContactCleanups(): Promise<number> {
 	return contacts.length;
 }
 
-export async function queueIdentifyAgain(): Promise<number> {
+export async function queueIdentifyAgain(
+	only?: readonly string[],
+): Promise<number> {
 	const rows = await db.$queryRaw<Array<{ id: string }>>`
 		SELECT c.id
 		FROM "contact" AS c
@@ -228,6 +230,7 @@ export async function queueIdentifyAgain(): Promise<number> {
 			AND c.id NOT LIKE ${SAMPLE_ID_PATTERN}
 			AND last."startedAt" IS NULL
 			AND c."lastActivityAt" > last."finishedAt"
+			${only ? Prisma.sql`AND c.id = ANY(${[...only]}::text[])` : Prisma.empty}
 			AND NOT EXISTS (
 				SELECT 1 FROM "agentTask" AS o
 				WHERE o."contactId" = c.id

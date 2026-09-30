@@ -1,4 +1,5 @@
 import { db, EnrichmentStatus } from "@crm/db";
+import { REP_ASKED_REASON } from "@crm/db/agent-tasks";
 import { TYPESAFE } from "@crm/db/typesafe";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 import { COPY } from "./copy";
@@ -148,7 +149,7 @@ export async function identifyPrecheck(
 	deps: PrecheckDeps = {},
 ): Promise<PrecheckVerdict> {
 	if (task.kind !== IDENTIFY_KIND || !task.contactId) return "run";
-	if (task.reason.startsWith(PRECHECK.requestedReason)) return "run";
+	if (task.reason.startsWith(REP_ASKED_REASON)) return "run";
 
 	const contact = await readContact(task.contactId);
 	if (!contact) return "run";

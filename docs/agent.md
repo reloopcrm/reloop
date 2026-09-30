@@ -242,7 +242,9 @@ counts, never a mail body. Only an answer below `precheck.threshold` (0.2) skips
 the row finishes with `COPY.precheck.unlikely` and the contact settles `SKIPPED`, so
 the sign-in backfill does not queue it again. No key, no business description, no
 answer or an error all run the research as before. A reason that starts with
-`precheck.requestedReason` ("A rep asked", the Re-enrich click) never asks.
+`REP_ASKED_REASON` (`@crm/db/agent-tasks`), which the Re-enrich click in
+`ContactsService.enrich` writes, never asks. `AgentTask` has no field that names
+who asked, so the reason prefix is the signal.
 
 A skipped row finishes with `startedAt` cleared and its attempt returned, so
 `researchSessionsBetween` never counts it. `queueIdentifyAgain` in the sweep queues

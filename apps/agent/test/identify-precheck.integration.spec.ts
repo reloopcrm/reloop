@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { db, EnrichmentStatus } from "@crm/db";
-import { PRIORITY } from "@crm/db/agent-tasks";
+import { PRIORITY, REP_ASKED_REASON } from "@crm/db/agent-tasks";
 import { TYPESAFE } from "@crm/db/typesafe";
 import { COPY } from "../agent/lib/copy";
 import { DISPATCH } from "../agent/lib/dispatch-config";
@@ -203,11 +203,7 @@ describe("identify pre-check", () => {
 
 	it("never asks Jev about research a rep asked for", async () => {
 		const person = await contact({ local: "finn" });
-		const task = await claimed(
-			person.id,
-			new Date(),
-			`${DISPATCH.research.precheck.requestedReason} for a fresh look`,
-		);
+		const task = await claimed(person.id, new Date(), REP_ASKED_REASON);
 		const jev = answering(0.01);
 
 		expect(await identifyPrecheck(task, deps(jev.ask))).toBe("run");
@@ -229,7 +225,7 @@ describe("identify pre-check", () => {
 		const task = await claimed(person.id);
 		await skippedByPrecheck(task, deps(answering(0.05).ask));
 
-		await queueIdentifyAgain();
+		await queueIdentifyAgain([person.id]);
 		expect(
 			await db.agentTask.count({
 				where: { contactId: person.id, finishedAt: null },
@@ -240,7 +236,7 @@ describe("identify pre-check", () => {
 			where: { id: person.id },
 			data: { lastActivityAt: new Date(Date.now() + 60_000) },
 		});
-		await queueIdentifyAgain();
+		await queueIdentifyAgain([person.id]);
 
 		const open = await db.agentTask.findMany({
 			where: { contactId: person.id, finishedAt: null },

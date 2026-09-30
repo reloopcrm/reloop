@@ -39,7 +39,7 @@ import { say } from "./language";
 import { MODEL } from "./model-config";
 import { fixedAi } from "./plan-limits";
 import { withSpendMeter } from "./spend-meter";
-import { tenantState } from "./tenant";
+import { asTenant, tenantState } from "./tenant";
 
 type ModelObject = Exclude<LanguageModel, string>;
 
@@ -432,6 +432,18 @@ export async function resumeAt(): Promise<Date | null> {
 }
 
 function recordUsage(headers: UsageHeaders): void {
+	try {
+		storeUsage(headers);
+	} catch (error) {
+		console.error(
+			`[agent] could not record the subscription usage: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
+}
+
+function storeUsage(headers: UsageHeaders): void {
 	const now = Date.now();
 	const current = state();
 	if (now - current.lastUsageWrite < MODEL.usage.minIntervalMs) return;
@@ -461,7 +473,7 @@ function recordUsage(headers: UsageHeaders): void {
 	})();
 }
 
-function withUsageCapture(model: ModelObject): ModelObject {
+export function withUsageCapture(model: ModelObject): ModelObject {
 	const middleware: LanguageModelMiddleware = {
 		wrapGenerate: async ({ doGenerate }) => {
 			const result = await doGenerate();
@@ -566,9 +578,11 @@ export async function stepModel(
 		}
 
 		return {
-			model: withFallback(
-				chain,
-				chain.map((entry) => entry.build()),
+			model: withCallerTenant(
+				withFallback(
+					chain,
+					chain.map((entry) => entry.build()),
+				),
 			),
 			modelContextWindowTokens: first.contextWindowTokens,
 		};
@@ -715,4 +729,16 @@ export async function probeUsage(): Promise<string> {
 	return (await usageStampOf()) > before
 		? USAGE_PROBE_OUTCOMES.refreshed
 		: USAGE_PROBE_OUTCOMES.noLimit;
+}
+
+export function withCallerTenant(model: ModelObject): ModelObject {
+	const tenant = cloud.hosted() ? cloud.current() : null;
+	if (!tenant) return model;
+
+	const middleware: LanguageModelMiddleware = {
+		wrapGenerate: ({ doGenerate }) => asTenant(tenant, doGenerate),
+		wrapStream: ({ doStream }) => asTenant(tenant, doStream),
+	};
+
+	return wrapLanguageModel({ model, middleware }) as ModelObject;
 }

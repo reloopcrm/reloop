@@ -159,13 +159,18 @@ export class MicrosoftConnectionService {
 
 	async revoke(userId: string): Promise<RevokeAccessOutput> {
 		const revoked = await this.tokens.revoke(userId, MICROSOFT_PROVIDER_ID);
-		if (!revoked) return { revoked };
+		if (
+			!revoked &&
+			(await this.tokens.hasAccount(userId, MICROSOFT_PROVIDER_ID))
+		) {
+			return { revoked };
+		}
 
 		for (const source of MICROSOFT_SYNC_SOURCES) {
 			await this.state.remove(userId, source);
 		}
 
-		return { revoked };
+		return { revoked: true };
 	}
 
 	async setImportSince(

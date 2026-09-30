@@ -44,7 +44,7 @@ export function EnrichmentActions({
 				toast.success(
 					result.queued
 						? t(
-								"Researching. The brief lands on the timeline when it finishes.",
+								"Researching. The company card fills in from the website when it finishes.",
 							)
 						: t("Already researching."),
 				);

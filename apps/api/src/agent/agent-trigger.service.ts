@@ -1,9 +1,5 @@
 import { type Db, type FieldEntity, Prisma } from "@crm/db";
-import {
-	COMPANY_PROFILE_BUDGET,
-	PRIORITY,
-	USAGE_PROBE_KIND,
-} from "@crm/db/agent-tasks";
+import { PRIORITY, USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
 import { cloud } from "@crm/db/cloud/scope";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
@@ -92,14 +88,6 @@ export class AgentTriggerService {
 			reason,
 			priority: PRIORITY.brand,
 			budget: 2,
-		});
-
-		await this.enqueue({
-			companyId,
-			kind: "company-profile",
-			reason,
-			priority: PRIORITY.companyProfile,
-			budget: COMPANY_PROFILE_BUDGET,
 		});
 	}
 

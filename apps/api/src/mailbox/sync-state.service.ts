@@ -9,13 +9,32 @@ import type { CapacityUsage, PlanLimits } from "@crm/db/plans";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { serialiseBackfill, stoppedBackfill } from "./backfill-cursor";
-import { MAILBOX_SOURCES, type MailboxSource } from "./mailbox.constants";
+import {
+	MAILBOX_SOURCES,
+	type MailboxSource,
+	PROVIDER_FOR_SOURCE,
+	SCOPE_FOR_SOURCE,
+} from "./mailbox.constants";
 
 export const SYNC_LEASE_MS = 300_000;
 
 export async function countMailboxes(db: Db): Promise<number> {
 	const [synced, imap] = await Promise.all([
-		db.mailboxSync.count({ where: { source: { in: [...MAILBOX_SOURCES] } } }),
+		db.mailboxSync.count({
+			where: {
+				OR: MAILBOX_SOURCES.map((source) => ({
+					source,
+					user: {
+						accounts: {
+							some: {
+								providerId: PROVIDER_FOR_SOURCE[source],
+								scope: { contains: SCOPE_FOR_SOURCE[source] },
+							},
+						},
+					},
+				})),
+			},
+		}),
 		db.imapAccount.count(),
 	]);
 	return synced + imap;
@@ -78,10 +97,16 @@ export class SyncStateService {
 	}
 
 	async release(id: string): Promise<void> {
-		await this.db.mailboxSync.updateMany({
-			where: { id },
-			data: { retryAfter: null },
-		});
+		await this.db.$transaction([
+			this.db.mailboxSync.updateMany({
+				where: { id, status: GoogleSyncStatus.RUNNING },
+				data: { status: GoogleSyncStatus.IDLE },
+			}),
+			this.db.mailboxSync.updateMany({
+				where: { id },
+				data: { retryAfter: null },
+			}),
+		]);
 	}
 
 	async mailboxLimitReached(): Promise<PlanLimits | null> {

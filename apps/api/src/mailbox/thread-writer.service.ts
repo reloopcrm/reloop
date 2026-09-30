@@ -97,7 +97,7 @@ export class ThreadWriterService {
 		const outbound = parsed.from.email === options.mailbox;
 
 		if (!repair && !outbound) {
-			await this.match.reviveContact(parsed.from.email.toLowerCase());
+			await this.match.reviveContact(parsed.from, context);
 		}
 
 		const thread = existing

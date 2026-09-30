@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { db, type MailboxSyncModel as MailboxSync } from "@crm/db";
-import { CONTACT_LIMIT_MESSAGE } from "@crm/db/plans";
+import { db, type MailboxSyncModel as MailboxSync, Prisma } from "@crm/db";
+import { CONTACT_LIMIT_MESSAGE, PLANS } from "@crm/db/plans";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
@@ -15,9 +15,10 @@ import { withDiscardedCrmEvents } from "./agent-trigger.stub";
 const suffix = process.env.TEST_RUN_ID ?? "contact-limit-spec";
 const firstDomain = `first-${suffix}.test`;
 const secondDomain = `second-${suffix}.test`;
+const thirdDomain = `third-${suffix}.test`;
+const ownDomain = `own-${suffix}.test`;
 const userId = `user-${suffix}`;
-const mailbox = `rep-${suffix}@example.test`;
-const pattern = `%-${suffix}.test`;
+const mailbox = `rep@${ownDomain}`;
 
 const agent = {
 	contactCreated: async () => true,
@@ -27,17 +28,45 @@ const agent = {
 	threadStored: async () => undefined,
 } as unknown as AgentTriggerService;
 
+const limitedAgent = {
+	...agent,
+	withCrmEvents: async () => {
+		throw new Prisma.PrismaClientUnknownRequestError(
+			`Invalid \`tx.contact.create()\` invocation: ${CONTACT_LIMIT_MESSAGE}`,
+			{ clientVersion: Prisma.prismaVersion.client },
+		);
+	},
+} as unknown as AgentTriggerService;
+
+const fullDb = new Proxy(db, {
+	get(target, key) {
+		if (key === "appSetting") {
+			return { findUnique: async () => ({ plan: "trial" }) };
+		}
+		if (key === "contact") {
+			return new Proxy(target.contact, {
+				get: (inner, name) =>
+					name === "count"
+						? async () => PLANS.trial.contacts
+						: Reflect.get(inner, name),
+			});
+		}
+		return Reflect.get(target, key);
+	},
+});
+
 const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
 const threads = new ThreadWriterService(db, match, stamp, agent);
+const limitedMatch = new MailboxMatchService(db, directory, limitedAgent, log);
+const limited = new ThreadWriterService(db, limitedMatch, stamp, limitedAgent);
+const fullMatch = new MailboxMatchService(fullDb, directory, agent, log);
+const full = new ThreadWriterService(db, fullMatch, stamp, agent);
 
 let everyone: MailboxSync;
 let nobody: MailboxSync;
-let originalFunction: string | null = null;
-let hadTrigger = true;
-let createdTrigger = false;
 
 function inbound(person: string, id: string): IncomingMessage {
 	return {
@@ -61,45 +90,13 @@ async function clean() {
 		where: { email: { endsWith: `-${suffix}.test` } },
 	});
 	await db.company.deleteMany({
-		where: { domain: { in: [firstDomain, secondDomain] } },
+		where: { domain: { in: [firstDomain, secondDomain, thirdDomain] } },
 	});
 	await db.mailboxSync.deleteMany({ where: { userId } });
 	await db.user.deleteMany({ where: { id: userId } });
 }
 
-async function limitContactsToOne() {
-	await db.$executeRawUnsafe(`
-		CREATE OR REPLACE FUNCTION enforce_contact_plan_limit() RETURNS trigger LANGUAGE plpgsql AS $$
-		BEGIN
-			IF NEW.email LIKE '${pattern}'
-				AND (SELECT count(*) FROM "contact" WHERE email LIKE '${pattern}') >= 1 THEN
-				RAISE EXCEPTION '${CONTACT_LIMIT_MESSAGE}' USING ERRCODE = '23514';
-			END IF;
-			RETURN NEW;
-		END;
-		$$
-	`);
-
-	if (!hadTrigger) {
-		await db.$executeRawUnsafe(
-			`CREATE TRIGGER contact_plan_limit BEFORE INSERT ON "contact" FOR EACH ROW EXECUTE FUNCTION enforce_contact_plan_limit()`,
-		);
-		hadTrigger = true;
-		createdTrigger = true;
-	}
-}
-
 beforeAll(async () => {
-	const rows = await db.$queryRawUnsafe<{ def: string }[]>(
-		`SELECT pg_get_functiondef('enforce_contact_plan_limit'::regproc) AS def`,
-	);
-	originalFunction = rows[0]?.def ?? null;
-
-	const triggers = await db.$queryRawUnsafe<{ tgname: string }[]>(
-		`SELECT tgname FROM pg_trigger WHERE tgrelid = '"contact"'::regclass AND tgname = 'contact_plan_limit'`,
-	);
-	hadTrigger = triggers.length > 0;
-
 	await clean();
 	await db.user.create({
 		data: { id: userId, name: "Limit Rep", email: mailbox },
@@ -117,21 +114,11 @@ beforeAll(async () => {
 	});
 });
 
-afterAll(async () => {
-	if (createdTrigger) {
-		await db.$executeRawUnsafe(
-			`DROP TRIGGER IF EXISTS contact_plan_limit ON "contact"`,
-		);
-	}
-	if (originalFunction) await db.$executeRawUnsafe(originalFunction);
-	await clean();
-});
+afterAll(clean);
 
 describe("the contact limit during a mailbox sync", () => {
 	it("stores the mail as a pending thread and does not throw", async () => {
-		await limitContactsToOne();
-
-		const first = await threads.store(
+		const first = await limited.store(
 			everyone,
 			{ mailbox, origin: "imap", lane: "forward" },
 			inbound(`one@${firstDomain}`, `<one-${suffix}@mail.test>`),
@@ -139,7 +126,7 @@ describe("the contact limit during a mailbox sync", () => {
 		);
 		expect(first).toBe(true);
 
-		const second = await threads.store(
+		const second = await limited.store(
 			everyone,
 			{ mailbox, origin: "imap", lane: "forward" },
 			inbound(`two@${firstDomain}`, `<two-${suffix}@mail.test>`),
@@ -173,7 +160,7 @@ describe("the contact limit during a mailbox sync", () => {
 	});
 
 	it("keeps storing mail from a new company while the limit holds", async () => {
-		const stored = await threads.store(
+		const stored = await limited.store(
 			everyone,
 			{ mailbox, origin: "imap", lane: "forward" },
 			inbound(`three@${secondDomain}`, `<three-${suffix}@mail.test>`),
@@ -188,12 +175,31 @@ describe("the contact limit during a mailbox sync", () => {
 		expect(thread?.classification).toBe("PENDING");
 		expect(thread?.contactId).toBeNull();
 	});
+
+	it("creates no company when the contact cannot be created", async () => {
+		const stored = await full.store(
+			everyone,
+			{ mailbox, origin: "imap", lane: "forward" },
+			inbound(`four@${thirdDomain}`, `<four-${suffix}@mail.test>`),
+			await threads.context(),
+		);
+		expect(stored).toBe(true);
+
+		expect(
+			await db.company.findFirst({ where: { domain: thirdDomain } }),
+		).toBeNull();
+
+		const thread = await db.emailThread.findUnique({
+			where: { rootMessageId: `<four-${suffix}@mail.test>` },
+			select: { classification: true, companyId: true },
+		});
+		expect(thread?.classification).toBe("PENDING");
+		expect(thread?.companyId).toBeNull();
+	});
 });
 
 describe("a contact that writes again", () => {
 	it("comes back from the archive on new inbound mail", async () => {
-		if (originalFunction) await db.$executeRawUnsafe(originalFunction);
-
 		const email = `back@${firstDomain}`;
 		const archived = await db.contact.create({
 			data: {
@@ -246,6 +252,32 @@ describe("a contact that writes again", () => {
 				from: { email: mailbox, name: "Rep" },
 				recipients: [{ email, name: "Quiet", kind: "to" }],
 			},
+			await threads.context(),
+		);
+
+		const contact = await db.contact.findUnique({
+			where: { id: archived.id },
+			select: { archivedAt: true },
+		});
+		expect(contact?.archivedAt).not.toBeNull();
+	});
+
+	it("stays archived when the address is our own domain", async () => {
+		const email = `colleague@${ownDomain}`;
+		const archived = await db.contact.create({
+			data: {
+				firstName: "Colleague",
+				email,
+				source: "EMAIL",
+				archivedAt: new Date("2026-01-01T00:00:00Z"),
+			},
+			select: { id: true },
+		});
+
+		await threads.store(
+			nobody,
+			{ mailbox, origin: "imap", lane: "forward" },
+			inbound(email, `<colleague-${suffix}@mail.test>`),
 			await threads.context(),
 		);
 

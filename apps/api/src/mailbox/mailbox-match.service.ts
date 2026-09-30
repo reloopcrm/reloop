@@ -2,7 +2,8 @@ import { WORKSPACE_ID } from "@crm/auth";
 import { workspaceDomains } from "@crm/auth/workspace";
 import { type Db, RecordSource } from "@crm/db";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { CONTACT_LIMIT_MESSAGE } from "@crm/db/plans";
+import { CONTACT_LIMIT_MESSAGE, limitsOf } from "@crm/db/plans";
+import { readPlan } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -225,6 +226,11 @@ export class MailboxMatchService {
 
 		if (!lead) return { companyId: null, contactId: null, external };
 
+		if (await this.atContactLimit()) {
+			this.warnLimit(lead.email);
+			return { companyId: null, contactId: null, external, limited: true };
+		}
+
 		const companyId = await this.companies.companyForEmail(lead.email, {
 			ownerId: request.ownerId,
 		});
@@ -268,7 +274,13 @@ export class MailboxMatchService {
 		return { companyId, contactId: created.contactId, external };
 	}
 
-	async reviveContact(email: string): Promise<void> {
+	async reviveContact(
+		person: Participant,
+		context: MatchContext,
+	): Promise<void> {
+		if (externalParticipants([person], context).length === 0) return;
+
+		const email = person.email.toLowerCase();
 		const contact = await this.db.contact.findUnique({
 			where: { email },
 			select: {
@@ -301,6 +313,13 @@ export class MailboxMatchService {
 			body: "{email} wrote again.",
 			meta: { email },
 		});
+	}
+
+	private async atContactLimit(): Promise<boolean> {
+		const limit = limitsOf(await readPlan(this.db)).contacts;
+		if (limit === null) return false;
+
+		return (await this.db.contact.count()) >= limit;
 	}
 
 	private warnLimit(email: string): void {

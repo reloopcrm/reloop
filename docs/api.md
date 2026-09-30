@@ -388,20 +388,29 @@ the largest attachment upload the conversation contracts accept.
   `importCapRemaining` is read before every page and each batch is cut to the
   threads still allowed, and a message opens at most one thread. A rate limit
   persists the position and pauses, it never resets it.
-- **Gmail forward reads every history page.** `listHistory` follows `nextPageToken` up to
-  `MAILBOX.sync.gmail.historyPages` (20). The cursor moves to the last page's `historyId`
-  only when every page was read and every id was ingested; otherwise it stays, and
-  `alreadyHave` makes the next tick cheap. A message labelled `DRAFT`, `SPAM` or `TRASH`
-  (`MAILBOX.sync.gmail.skippedLabels`) is counted as fetched and never stored, and
-  `WORK_MAIL_QUERY` excludes the same three from the backfill.
+- **Gmail forward reads every history page.** `listHistory` asks for `messageAdded` and
+  `labelRemoved` and follows `nextPageToken` up to `MAILBOX.sync.gmail.historyPages` (20).
+  The cursor moves to the `id` of the last history entry whose ids were all fetched, and
+  to the response's `historyId` only when every page was read. So a history longer than
+  the page cap, the per-tick cap or the deadline still moves forward every tick. A
+  message labelled `DRAFT`, `SPAM` or `TRASH` (`MAILBOX.sync.gmail.skippedLabels`), or
+  one `store` refuses, counts as done and never holds the cursor. A `labelRemoved` of
+  `SPAM` or `TRASH` (`reenteringLabels`) reads that message like new mail, so mail marked
+  as spam by mistake arrives once it is moved out. `WORK_MAIL_QUERY` excludes the same
+  three from the backfill.
 - **The contact limit never stalls the sync.** `MailboxMatchService.createContact` and
   `ThreadWriterService.contactWithoutCompany` catch the `enforce_contact_plan_limit`
   error (matched by `CONTACT_LIMIT_MESSAGE`, SQLSTATE 23514 arrives as an unknown
   request error) and return no contact. `resolve` answers `limited: true`, `store` keeps
   the thread `PENDING`, and one warning per `LIMIT_WARNING.intervalMs` is logged. The
-  mailbox never turns `FAILED` and the cursor moves on.
+  mailbox never turns `FAILED` and the cursor moves on. Before `create` makes a new
+  company it counts contacts against `limitsOf(readPlan)`, the trigger's own rule, and at
+  the limit it creates neither the company nor the contact.
 - **A contact who writes again comes back.** `store` calls `reviveContact` for a new
-  INBOUND message: the contact with that exact address loses `archivedAt` (and its
+  INBOUND message. The sender first passes `externalParticipants` with the same
+  `MatchContext` as contact creation, so a colleague, a suppressed or blocked address and
+  a machine or automated sender stay archived. Otherwise the contact with that exact
+  address loses `archivedAt` (and its
   archived company is revived by the same rule as `revive`), and the change is logged
   through `EnrichmentLogService`. Mail the rep wrote does not revive anyone.
 - **Turning creation on re-reads history.** `SyncStateService.setAutoCreate(true)` and

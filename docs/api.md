@@ -369,8 +369,12 @@ the largest attachment upload the conversation contracts accept.
   tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`,
   at most `DIRECTION.repairBatch` per tick, and never the other way. Once a pass
   finds less than a batch, it skips until the identity changes, so a new mailbox
-  or a new alias corrects the history by itself. It deletes nothing and does not
-  re-read insights; `reactivation.ts` reads `direction` directly.
+  or a new alias corrects the history by itself. It deletes nothing;
+  `reactivation.ts` reads `direction` directly. A flipped thread that already has
+  a `ThreadInsight` gets a `thread-insight` task through `threadStored` with
+  `origin: "backfill"` and `reread: true` in the payload, so the agent reads it
+  again although `lastMessageAt` did not move and `unansweredByUs` follows the new
+  direction. The API only writes the row; the agent decides.
 
 - **`ThreadWriterService.store` is the only writer of `EmailThread`, `EmailMessage`
   and the `EMAIL` activity.** Gmail and Outlook each parse their own wire format down

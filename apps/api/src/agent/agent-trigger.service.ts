@@ -147,6 +147,7 @@ export class AgentTriggerService {
 		threadId: string,
 		reason: string,
 		origin: AgentTaskOrigin = "forward",
+		options: { reread?: boolean } = {},
 	): Promise<void> {
 		const priority =
 			origin === "backfill"
@@ -157,7 +158,11 @@ export class AgentTriggerService {
 			reason,
 			priority,
 			budget: 1,
-			payload: { threadId, origin } satisfies AgentTaskThreadPayload,
+			payload: {
+				threadId,
+				origin,
+				reread: options.reread ?? false,
+			} satisfies AgentTaskThreadPayload,
 			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
 			origin,
 		});

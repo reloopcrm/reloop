@@ -388,3 +388,49 @@ describe("the insight lane while a model works", () => {
 		expect(clearedLine()).toBeUndefined();
 	});
 });
+
+describe("a conversation whose direction was repaired", () => {
+	it("is read again although no new mail arrived", async () => {
+		noul = 0.1;
+		await spendTheModelWindow();
+		await describeTheBusiness();
+		const [id] = await queueThreads(1);
+		const task = await db.agentTask.findUniqueOrThrow({
+			where: { id: String(id) },
+			select: { payload: true },
+		});
+		const { threadId } = task.payload as { threadId: string };
+		const thread = await db.emailThread.findUniqueOrThrow({
+			where: { id: threadId },
+			select: { lastMessageAt: true },
+		});
+		await db.threadInsight.create({
+			data: {
+				threadId,
+				relevant: true,
+				topics: [],
+				products: [],
+				outcome: "OPEN",
+				unansweredByUs: true,
+				summary: "Stale verdict",
+				evidence: [],
+				modelId: "stale-model",
+				lastMessageAt: thread.lastMessageAt,
+			},
+		});
+		await db.agentTask.update({
+			where: { id: String(id) },
+			data: { payload: { threadId, reread: true } },
+		});
+
+		expect(await runInsightLane()).toBe(1);
+		expect(gateCalls).toBe(1);
+
+		const insight = await db.threadInsight.findUniqueOrThrow({
+			where: { threadId },
+			select: { modelId: true, unansweredByUs: true },
+		});
+		expect(insight.modelId).toBe("jev-latest");
+		expect(insight.unansweredByUs).toBe(false);
+	});
+});

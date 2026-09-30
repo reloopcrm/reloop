@@ -606,7 +606,10 @@ single noul: is this conversation about the workspace's business. `TYPESAFE` in
   id is how every gate-skipped row is found again.
 - **A skipped conversation is not re-read** until new mail moves its `lastMessageAt`.
   The threshold is 0.2 for that reason: a wrong skip costs a summary nobody asked for,
-  and 0.2 is a clear no rather than an uncertain one.
+  and 0.2 is a clear no rather than an uncertain one. The one exception is a task
+  whose payload says `reread: true` (`readAgentTaskReread`): the API writes it when
+  its direction repair turned received mail into sent mail, and the stored verdict,
+  `unansweredByUs` included, is read again.
 - **Never a throw, and off-path is byte identical.** No key, a 401, a 5xx, bad JSON, a
   timeout, a network error: every one of them falls through to the big model and nothing
   reaches the rep. The answer is parsed with zod at the read.

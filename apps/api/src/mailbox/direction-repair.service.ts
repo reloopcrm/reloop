@@ -1,6 +1,7 @@
 import { type Db, EmailDirection } from "@crm/db";
 import { cloud } from "@crm/db/cloud/scope";
 import { Injectable, Logger } from "@nestjs/common";
+import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
 import { DIRECTION } from "./mailbox.config";
 import { MailboxMatchService } from "./mailbox-match.service";
@@ -13,6 +14,7 @@ export class DirectionRepairService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly match: MailboxMatchService,
+		private readonly agent: AgentTriggerService,
 	) {}
 
 	async repair(): Promise<number> {
@@ -36,7 +38,7 @@ export class DirectionRepairService {
 					})),
 				],
 			},
-			select: { id: true },
+			select: { id: true, threadId: true },
 			take: DIRECTION.repairBatch,
 		});
 
@@ -51,9 +53,25 @@ export class DirectionRepairService {
 			data: { direction: EmailDirection.OUTBOUND },
 		});
 
+		const stale = await this.db.threadInsight.findMany({
+			where: {
+				threadId: { in: [...new Set(wrong.map((message) => message.threadId))] },
+			},
+			select: { threadId: true },
+		});
+		for (const { threadId } of stale) {
+			await this.agent.threadStored(
+				threadId,
+				"Mail from our own address was filed as received",
+				"backfill",
+				{ reread: true },
+			);
+		}
+
 		this.logger.log({
 			message: "Mail from our own addresses was marked as sent by us",
 			count,
+			reread: stale.length,
 		});
 
 		return count;

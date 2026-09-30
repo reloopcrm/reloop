@@ -227,19 +227,57 @@ describe("repairing mail stored with the wrong direction", () => {
 			data: { direction: EmailDirection.INBOUND },
 		});
 
+		const wrong = await db.emailMessage.findUniqueOrThrow({
+			where: { rfcMessageId: root("wrong") },
+			select: { threadId: true, thread: { select: { lastMessageAt: true } } },
+		});
+		await db.threadInsight.create({
+			data: {
+				threadId: wrong.threadId,
+				relevant: true,
+				topics: [],
+				products: [],
+				outcome: "OPEN",
+				unansweredByUs: true,
+				summary: "Waiting for our answer",
+				evidence: [],
+				modelId: "test",
+				lastMessageAt: wrong.thread.lastMessageAt,
+			},
+		});
+
 		const scoped = {
 			internalIdentity: async () => ({
 				addresses: new Set([mailboxB]),
 				domains: new Set<string>(),
 			}),
 		} as unknown as MailboxMatchService;
+		const requested: unknown[][] = [];
+		const trigger = {
+			threadStored: async (...args: unknown[]) => {
+				requested.push(args);
+			},
+		} as unknown as AgentTriggerService;
 
-		expect(await new DirectionRepairService(db, scoped).repair()).toBe(1);
+		expect(
+			await new DirectionRepairService(db, scoped, trigger).repair(),
+		).toBe(1);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);
 		expect(await directionOf("customer")).toBe(EmailDirection.INBOUND);
+		expect(requested).toEqual([
+			[
+				wrong.threadId,
+				"Mail from our own address was filed as received",
+				"backfill",
+				{ reread: true },
+			],
+		]);
 
-		expect(await new DirectionRepairService(db, scoped).repair()).toBe(0);
+		expect(
+			await new DirectionRepairService(db, scoped, trigger).repair(),
+		).toBe(0);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);
+		expect(requested).toHaveLength(1);
 	});
 });
 

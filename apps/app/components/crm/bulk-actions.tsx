@@ -42,7 +42,7 @@ export function reportBulk(
 	t: Translate,
 ): void {
 	if (result.succeeded === 0) {
-		toast.error(result.message ?? t("Nothing changed."));
+		toast.error(result.message ? t(result.message) : t("Nothing changed."));
 		return;
 	}
 
@@ -51,7 +51,7 @@ export function reportBulk(
 			result.failed === 1
 				? t("1 was left alone.")
 				: t("{count} were left alone.", { count: result.failed });
-		const why = result.message ? ` ${result.message}` : "";
+		const why = result.message ? ` ${t(result.message)}` : "";
 		toast.error(`${done(result.succeeded)} ${left}${why}`);
 		return;
 	}

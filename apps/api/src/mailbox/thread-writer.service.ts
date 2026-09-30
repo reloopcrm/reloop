@@ -420,7 +420,6 @@ export class ThreadWriterService {
 			if (!contactLimitError.safeParse(error).success) throw error;
 			this.logger.warn({
 				message: "The contact limit is reached. The thread stays pending",
-				email,
 			});
 			return null;
 		}

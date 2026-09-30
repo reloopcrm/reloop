@@ -23,7 +23,7 @@ export async function countMailboxes(db: Db): Promise<number> {
 
 export async function readCapacityUsage(db: Db): Promise<CapacityUsage> {
 	const [contacts, mailboxes] = await Promise.all([
-		db.contact.count(),
+		db.contact.count({ where: { archivedAt: null } }),
 		countMailboxes(db),
 	]);
 	return { contacts, mailboxes };

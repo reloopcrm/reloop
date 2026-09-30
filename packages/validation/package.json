@@ -24,6 +24,7 @@
 		"./field-backfill": "./src/field-backfill.ts",
 		"./field-proposal": "./src/field-proposal.ts",
 		"./field-templates": "./src/field-templates.ts",
+		"./mailbox-profile": "./src/mailbox-profile.ts",
 		"./saved-view": "./src/saved-view.ts",
 		"./tenant-signup": "./src/tenant-signup.ts",
 		"./waitlist": "./src/waitlist.ts",

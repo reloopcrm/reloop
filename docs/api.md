@@ -432,7 +432,8 @@ the largest attachment upload the conversation contracts accept.
   archived company is revived by the same rule as `revive`), and the change is logged
   through `EnrichmentLogService`. Mail the rep wrote does not revive anyone. `adopt`
   applies the same rule with the thread's `lastMessageAt`: when the contact it lands on
-  is archived and the rule says no, the thread stays `PENDING`.
+  is archived and the rule says no, the thread stays `PENDING`. At the contact limit a
+  revive leaves the contact archived and stores the mail.
 - **Turning creation on re-reads history.** `SyncStateService.setAutoCreate(true)` and
   `setCreatePolicy` with any creating policy (`autoCreate` or `createFrom: "relevant"`)
   set `backfill: null`, exactly like `setImportSince`.

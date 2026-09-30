@@ -1,4 +1,5 @@
 import type { Db } from "@crm/db";
+import { CONTACT_LIMIT_MESSAGE } from "@crm/db/plans";
 import { BadRequestException } from "@nestjs/common";
 import { z } from "zod";
 
@@ -35,6 +36,14 @@ export async function requireOwner(
 	}
 }
 
+function bulkErrorMessage(error: Error | null): string {
+	if (!error) return "Something went wrong.";
+	if (error.message.includes(CONTACT_LIMIT_MESSAGE)) {
+		return CONTACT_LIMIT_MESSAGE;
+	}
+	return error.message;
+}
+
 export async function runBulk(
 	ids: string[],
 	act: (id: string) => Promise<unknown>,
@@ -53,8 +62,7 @@ export async function runBulk(
 				succeeded += 1;
 			}
 		} catch (error) {
-			message ??=
-				error instanceof Error ? error.message : "Something went wrong.";
+			message ??= bulkErrorMessage(error instanceof Error ? error : null);
 		}
 	}
 

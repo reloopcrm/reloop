@@ -6,6 +6,7 @@ import { CompanyDirectoryService } from "../src/companies/company-directory.serv
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { readCapacityUsage } from "../src/mailbox/sync-state.service";
 import {
 	type IncomingMessage,
 	ThreadWriterService,
@@ -56,6 +57,25 @@ const fullDb = new Proxy(db, {
 	},
 });
 
+const reviveBlockedDb = new Proxy(db, {
+	get(target, key) {
+		if (key === "contact") {
+			return new Proxy(target.contact, {
+				get: (inner, name) =>
+					name === "updateMany"
+						? async () => {
+								throw new Prisma.PrismaClientUnknownRequestError(
+									`Invalid \`prisma.contact.updateMany()\` invocation: ${CONTACT_LIMIT_MESSAGE}`,
+									{ clientVersion: Prisma.prismaVersion.client },
+								);
+							}
+						: Reflect.get(inner, name),
+			});
+		}
+		return Reflect.get(target, key);
+	},
+});
+
 const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
@@ -65,6 +85,13 @@ const limitedMatch = new MailboxMatchService(db, directory, limitedAgent, log);
 const limited = new ThreadWriterService(db, limitedMatch, stamp, limitedAgent);
 const fullMatch = new MailboxMatchService(fullDb, directory, agent, log);
 const full = new ThreadWriterService(db, fullMatch, stamp, agent);
+const blockedMatch = new MailboxMatchService(
+	reviveBlockedDb,
+	directory,
+	limitedAgent,
+	log,
+);
+const blocked = new ThreadWriterService(db, blockedMatch, stamp, limitedAgent);
 
 let everyone: MailboxSync;
 let nobody: MailboxSync;
@@ -324,6 +351,86 @@ describe("a contact that writes again", () => {
 		);
 
 		expect(await archivedAtOf(id)).toBeNull();
+	});
+});
+
+describe("a revive at the contact limit", () => {
+	it("keeps the contact archived and still stores the mail", async () => {
+		const id = await archivedContact(
+			"capped",
+			new Date("2026-01-01T00:00:00Z"),
+		);
+
+		const stored = await blocked.store(
+			everyone,
+			{ mailbox, origin: "imap", lane: "forward" },
+			inbound(`capped@${firstDomain}`, `<capped-${suffix}@mail.test>`),
+			await threads.context(),
+		);
+		expect(stored).toBe(true);
+		expect(await archivedAtOf(id)).not.toBeNull();
+
+		const thread = await db.emailThread.findUnique({
+			where: { rootMessageId: `<capped-${suffix}@mail.test>` },
+			select: { messageCount: true },
+		});
+		expect(thread?.messageCount).toBe(1);
+
+		const sync = await db.mailboxSync.findUnique({
+			where: { id: everyone.id },
+			select: { status: true },
+		});
+		expect(sync?.status).not.toBe("FAILED");
+	});
+
+	it("leaves a pending thread pending on adoption", async () => {
+		const root = `<adopt-capped-${suffix}@mail.test>`;
+		await threads.store(
+			relevant,
+			{ mailbox, origin: "imap", lane: "backfill" },
+			inbound(`capped@${adoptDomain}`, root),
+			await threads.context(),
+		);
+		const pending = await db.emailThread.findUniqueOrThrow({
+			where: { rootMessageId: root },
+			select: { id: true },
+		});
+		const archived = await db.contact.create({
+			data: {
+				firstName: "Capped",
+				email: `capped@${adoptDomain}`,
+				source: "EMAIL",
+				archivedAt: new Date("2026-01-01T00:00:00Z"),
+			},
+			select: { id: true },
+		});
+
+		expect(await blocked.adopt(pending.id)).toBe(false);
+
+		const thread = await db.emailThread.findUnique({
+			where: { id: pending.id },
+			select: { contactId: true, classification: true },
+		});
+		expect(thread?.contactId).toBeNull();
+		expect(thread?.classification).toBe("PENDING");
+		expect(await archivedAtOf(archived.id)).not.toBeNull();
+	});
+});
+
+describe("plan usage", () => {
+	it("counts only active contacts", async () => {
+		const before = await readCapacityUsage(db);
+		await archivedContact("counted", new Date("2026-01-01T00:00:00Z"));
+		expect((await readCapacityUsage(db)).contacts).toBe(before.contacts);
+
+		await db.contact.create({
+			data: {
+				firstName: "Active",
+				email: `active@${firstDomain}`,
+				source: "EMAIL",
+			},
+		});
+		expect((await readCapacityUsage(db)).contacts).toBe(before.contacts + 1);
 	});
 });
 

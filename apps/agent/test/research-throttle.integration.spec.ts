@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
-import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
+import { MAX_ATTEMPTS, RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import { researchRunsInHour } from "../agent/lib/research-throttle";
 
 const MINUTE_MS = 60_000;
@@ -13,6 +13,8 @@ const now = new Date(
 );
 
 type Started = {
+	startedAt?: Date;
+	attempts?: number;
 	finishedAt?: Date | null;
 	leasedUntil?: Date | null;
 	outcome?: string | null;
@@ -24,8 +26,8 @@ async function startedTasks(count: number, shape: Started): Promise<void> {
 			kind: "company-profile",
 			reason,
 			dueAt: new Date(now.getTime() - MINUTE_MS),
-			startedAt: new Date(now.getTime() - MINUTE_MS),
-			attempts: 1,
+			startedAt: shape.startedAt ?? new Date(now.getTime() - MINUTE_MS),
+			attempts: shape.attempts ?? 1,
 			finishedAt: shape.finishedAt ?? null,
 			leasedUntil: shape.leasedUntil ?? null,
 			outcome: shape.outcome ?? null,
@@ -38,14 +40,18 @@ afterEach(async () => {
 });
 
 describe("the hourly research limit", () => {
-	it("does not count starts that failed", async () => {
-		await startedTasks(3, { finishedAt: now, outcome: RETIRED_OUTCOME });
+	it("counts every session that started in the hour, however it ended", async () => {
+		await startedTasks(3, {
+			attempts: MAX_ATTEMPTS,
+			finishedAt: now,
+			outcome: RETIRED_OUTCOME,
+		});
 		await startedTasks(3, {
 			leasedUntil: new Date(now.getTime() - MINUTE_MS),
 		});
 		await startedTasks(3, {});
 
-		expect(await researchRunsInHour(now)).toBe(0);
+		expect(await researchRunsInHour(now)).toBe(9);
 	});
 
 	it("counts sessions that run or finished", async () => {
@@ -56,5 +62,29 @@ describe("the hourly research limit", () => {
 		await startedTasks(1, { finishedAt: now });
 
 		expect(await researchRunsInHour(now)).toBe(4);
+	});
+
+	it("keeps counting a session that outlives its lease", async () => {
+		await startedTasks(1, {
+			startedAt: new Date(now.getTime() - 50 * MINUTE_MS),
+			leasedUntil: new Date(now.getTime() - 20 * MINUTE_MS),
+		});
+
+		expect(await researchRunsInHour(now)).toBe(1);
+	});
+
+	it("does not count a task that gave its only attempt back", async () => {
+		await startedTasks(2, { attempts: 0 });
+
+		expect(await researchRunsInHour(now)).toBe(0);
+	});
+
+	it("does not count sessions that started before the hour", async () => {
+		await startedTasks(2, {
+			startedAt: new Date(now.getTime() - HOUR_MS - MINUTE_MS),
+			finishedAt: now,
+		});
+
+		expect(await researchRunsInHour(now)).toBe(0);
 	});
 });

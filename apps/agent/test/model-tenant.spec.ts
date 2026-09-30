@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { db, type Prisma } from "@crm/db";
+import { db } from "@crm/db";
 import { cloud } from "@crm/db/cloud/scope";
 import {
 	exhaustedUntilOf,
@@ -44,23 +44,30 @@ function fakeModel(headers: Record<string, string>): ModelObject {
 const call = (model: ModelObject) =>
 	model.doGenerate({ prompt: [] } as never) as Promise<unknown>;
 
-let savedUsage: Prisma.ProviderUsageUncheckedCreateInput | null = null;
+const writes: { tenant: string | null; provider: string }[] = [];
 
-beforeAll(async () => {
-	if (!process.env.DATABASE_URL) return;
-	savedUsage = await db.providerUsage
-		.findUnique({ where: { provider: "chatgpt" } })
-		.catch(() => null);
+function tenantNow(): string | null {
+	try {
+		return cloud.scopeId();
+	} catch {
+		return null;
+	}
+}
+
+beforeAll(() => {
+	Object.defineProperty(db, "providerUsage", {
+		configurable: true,
+		value: {
+			upsert: async ({ where }: { where: { provider: string } }) => {
+				writes.push({ tenant: tenantNow(), provider: where.provider });
+			},
+		},
+	});
 });
 
-afterAll(async () => {
+afterAll(() => {
 	actSelfHosted();
-	if (!process.env.DATABASE_URL) return;
-	await new Promise((settle) => setTimeout(settle, 200));
-	await db.providerUsage
-		.deleteMany({ where: { provider: "chatgpt" } })
-		.catch(() => undefined);
-	if (savedUsage) await db.providerUsage.create({ data: savedUsage });
+	Reflect.deleteProperty(db, "providerUsage");
 });
 
 describe("subscription usage on the hosted cloud", () => {
@@ -78,6 +85,10 @@ describe("subscription usage on the hosted cloud", () => {
 			null,
 		);
 		expect(cloud.run(tenantB, () => exhaustedUntilOf("chatgpt"))).toBe(null);
+		expect(writes).toContainEqual({
+			tenant: "tenant-usage-a",
+			provider: "chatgpt",
+		});
 	});
 
 	it("never fails a finished call when there is no tenant to record for", async () => {

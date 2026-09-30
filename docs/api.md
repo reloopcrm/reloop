@@ -342,6 +342,13 @@ the largest attachment upload the conversation contracts accept.
 `MailboxMatchService`, `participants.ts`, `message-text.ts`, and
 `ThreadWriterService`.
 
+- **A name cut out of the address is a placeholder, and the next From name
+  replaces it.** `isDerivedName` (`participants.ts`) reads "M Beispiel",
+  "M. Beispiel" and "Beispiel, M." at `m.beispiel@` as placeholders, and
+  `MailboxMatchService` swaps them for the first From display name it sees. A full
+  name is never a placeholder. Which name is *right* beyond that is the agent's
+  decision, from the signature, not the API's.
+
 - **`ThreadWriterService.store` is the only writer of `EmailThread`, `EmailMessage`
   and the `EMAIL` activity.** Gmail and Outlook each parse their own wire format down
   to one `IncomingMessage` and hand it over; matching, threading, counting and

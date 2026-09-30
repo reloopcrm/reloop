@@ -1,4 +1,4 @@
-import { db } from "@crm/db";
+import { db, RecordSource } from "@crm/db";
 import { MEMORY } from "@crm/db/insights";
 import { stripQuotedHistory } from "@crm/db/message-text";
 import { streamText } from "ai";
@@ -201,6 +201,7 @@ export async function runContactClean(
 			lastName: true,
 			title: true,
 			phone: true,
+			source: true,
 			company: { select: { id: true, name: true, domain: true } },
 		},
 	});
@@ -230,9 +231,9 @@ export async function runContactClean(
 	];
 	const bodies = messages.map((m) => tail(m.body ?? m.snippet));
 
-	const betterSenderName = displayNames.some((name) =>
-		outranksRecord(name, contact),
-	);
+	const betterSenderName =
+		contact.source !== RecordSource.MANUAL &&
+		displayNames.some((name) => outranksRecord(name, contact));
 
 	if (
 		!betterSenderName &&

@@ -80,6 +80,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		sortable: true,
 		width: "w-[13%]",
 		hideBelow: "xl",
+		defaultHidden: true,
 		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.title ? (

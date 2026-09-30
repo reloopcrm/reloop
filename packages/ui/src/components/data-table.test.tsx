@@ -126,6 +126,12 @@ describe("DataTable", () => {
 						defaultHidden: true,
 						cell: () => "retail",
 					},
+					{
+						id: "title",
+						header: "Title",
+						defaultHidden: true,
+						cell: () => "cto",
+					},
 				]}
 				rows={[{ id: "1", name: "Ada" }]}
 				total={1}
@@ -135,5 +141,6 @@ describe("DataTable", () => {
 		expect(heads(hiddenMarkup)).toHaveLength(1);
 		expect(hiddenMarkup).not.toContain("ada.test");
 		expect(hiddenMarkup).not.toContain("retail");
+		expect(hiddenMarkup).not.toContain("cto");
 	});
 });

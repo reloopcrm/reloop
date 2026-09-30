@@ -228,6 +228,11 @@ than failing.
 `threadInsightBackfill` 10 · `recheck` 0. The top two are what a rep reads *before*
 deciding what to open.
 
+**`company-profile` runs only when a rep asks.** Nothing queues it on its own: a new
+company, an email-domain company, a changed domain and the sign-in backfill queue
+`brand` only. A click on Research or Re-enrich writes it at `requested`. A row queued
+before this rule at `companyProfile` still runs; nothing retires it.
+
 ### The fast lane and the slow lane
 
 A mailbox sync stores a thread with a lane, `forward` for mail that just arrived and
@@ -397,8 +402,8 @@ that fails logs and the turn runs without them.
 
 ### Backfills
 
-Sign-in sweep covers records never looked up (one homepage fetch and one small model
-call per company, no vendor credits);
+Sign-in sweep covers records never looked up with a `brand` row only (one homepage
+fetch and one small model call per company, no vendor credits, no research session);
 `ImageMirrorService` in the same sweep re-hosts off-site pictures (free);
 `backfill:images` fixes enriched records missing only pictures (free);
 `backfill:facts` is the blank-field sweep above run by hand, with `--dry` to read it

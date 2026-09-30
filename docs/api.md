@@ -28,6 +28,13 @@ Nest's half is to report *that something happened*: `AgentTriggerService` writes
 `AgentTask` row. A row, not an HTTP call — the agent already leases from that table,
 so the row survives the agent being down.
 
+**Company research runs only on a click.** `companyCreated` queues `brand` alone, for
+a company created by hand, from an email domain or on a changed domain, and the
+sign-in backfill queues `brand` alone too. The only writer of a `company-profile`
+row is `companyRequested`, behind the Research and Re-enrich buttons on the company
+sheet and the bulk enrich action. The plan gate (`companyResearch`,
+`@crm/db/plans`) still refuses it through `enqueue`.
+
 About to add a vendor client to `apps/api`? You want `apps/agent/agent/lib`. One
 documented exception, for timing: the exchange-rate fetcher, below.
 

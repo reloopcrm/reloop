@@ -156,24 +156,13 @@ export class BackfillService implements OnModuleInit {
 			]),
 		].slice(0, MAX_PER_RUN);
 
-		const brand = await this.agent.backfill({
+		const queued = await this.agent.backfill({
 			kind: "brand",
 			reason: "Backfill — this company has no logo or icon",
 			companyIds,
 			budget: 2,
 			priority: PRIORITY.brand,
 		});
-
-		const profile = await this.agent.backfill({
-			kind: "company-profile",
-			reason: "Backfill — this company was never successfully looked up",
-			companyIds: rows.map((row) => row.id),
-		});
-
-		const queued = {
-			queued: brand.queued + profile.queued,
-			alreadyQueued: brand.alreadyQueued + profile.alreadyQueued,
-		};
 
 		const iconsResolving = dealsOnly ? 0 : await this.sweepFavicons();
 

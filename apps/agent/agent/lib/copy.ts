@@ -202,6 +202,15 @@ export const COPY = {
 			tr: `İş kurallarını kendim çıkaramadım: ${error}`,
 			"zh-Hans": `我无法自行确定业务规则：${error}`,
 		}),
+		profileFailed: (error: string): Lines => ({
+			en: `I could not learn the mailbox profile again. The old profile stays: ${error}`,
+			de: `Ich konnte das Postfach-Profil nicht neu lernen. Das alte Profil bleibt: ${error}`,
+			es: `No he podido volver a aprender el perfil del buzón. Se mantiene el perfil anterior: ${error}`,
+			fr: `Je n'ai pas pu réapprendre le profil de la boîte mail. L'ancien profil reste en place : ${error}`,
+			"pt-BR": `Não consegui aprender de novo o perfil da caixa de e-mail. O perfil antigo continua: ${error}`,
+			tr: `Posta kutusu profilini yeniden öğrenemedim. Eski profil kalıyor: ${error}`,
+			"zh-Hans": `我无法重新学习邮箱画像。旧画像保持不变：${error}`,
+		}),
 	},
 
 	fields: {

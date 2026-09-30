@@ -1,14 +1,18 @@
 import { describe, expect, it } from "bun:test";
+import type { Db } from "../src/client";
 import { priceOf } from "../src/model-prices";
 import {
 	AGENT_DRAFT_DEFAULT,
 	AGENT_MODEL_OPTIONS,
+	AGENT_MODEL_SUCCESSORS,
 	AGENT_PROVIDER_DEFAULTS,
 	AGENT_READING_DEFAULT,
+	readAgentProvider,
 } from "../src/settings";
 
 const PRICED = new Set([
 	"gpt-6-astra",
+	"gpt-6.1-sol",
 	"gpt-6-sol",
 	"gpt-6-luna",
 	"gpt-5.6-sol",
@@ -72,5 +76,38 @@ describe("every default", () => {
 	it("never makes the dearest model the one a new install starts on", () => {
 		expect(AGENT_PROVIDER_DEFAULTS.chatgpt.model).not.toBe("gpt-6-astra");
 		expect(AGENT_READING_DEFAULT.chatgpt).not.toBe("gpt-6-astra");
+	});
+});
+
+describe("a model stored before its successor", () => {
+	const dbWith = (row: Record<string, string | null>) =>
+		({ appSetting: { findUnique: async () => row } }) as unknown as Db;
+
+	it("reads GPT-6 Sol as GPT-6.1 Sol", async () => {
+		const setting = await readAgentProvider(
+			dbWith({
+				agentProvider: "openrouter",
+				agentOpenrouterModel: "openai/gpt-6-sol",
+				agentChatgptModel: " gpt-6-sol ",
+				agentReadingModel: "openai/gpt-6-luna",
+				agentDraftModel: "openai/gpt-6-sol",
+			}),
+		);
+
+		expect(setting.openrouterModel).toBe("openai/gpt-6.1-sol");
+		expect(setting.chatgptModel).toBe("gpt-6.1-sol");
+		expect(setting.readingModel).toBe("openai/gpt-6-luna");
+		expect(setting.draftModel).toBe("openai/gpt-6.1-sol");
+	});
+
+	it("names only successors the settings offer and price", () => {
+		const offered: string[] = Object.values(AGENT_MODEL_OPTIONS)
+			.flat()
+			.map((option) => option.id);
+
+		for (const next of Object.values(AGENT_MODEL_SUCCESSORS)) {
+			expect(offered).toContain(next);
+			expect(priceOf(next)).not.toBeNull();
+		}
 	});
 });

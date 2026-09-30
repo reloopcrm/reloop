@@ -13,6 +13,7 @@ export const MODEL = {
 			"X-Title": "Reloop CRM",
 		},
 		pins: {
+			"openai/gpt-6.1-sol": { order: ["openai"], allow_fallbacks: false },
 			"openai/gpt-6-sol": { order: ["openai"], allow_fallbacks: false },
 			"openai/gpt-5.6-sol": { order: ["openai"], allow_fallbacks: false },
 		},
@@ -22,7 +23,7 @@ export const MODEL = {
 		provider: "openrouter",
 		chat: "openai/gpt-6-luna",
 		reading: "openai/gpt-6-luna",
-		draft: "openai/gpt-6-sol",
+		draft: "openai/gpt-6.1-sol",
 		contextWindowTokens: 200_000,
 		vendorWords:
 			/openrouter|openai|anthropic|chatgpt|codex|gpt[- ]?\d|claude|luna|terra|\bsol\b|api key|provider|model/i,

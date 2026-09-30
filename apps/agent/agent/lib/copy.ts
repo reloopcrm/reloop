@@ -70,6 +70,31 @@ export const COPY = {
 		},
 	},
 
+	precheck: {
+		filled: {
+			en: "Skipped by the pre-check: the record already has a name, a title, a company and a LinkedIn profile. No research session ran.",
+			de: "Von der Vorprüfung übersprungen: Der Datensatz hat schon Namen, Position, Firma und LinkedIn-Profil. Es lief keine Recherche.",
+			es: "Omitido por la comprobación previa: la ficha ya tiene nombre, cargo, empresa y perfil de LinkedIn. No se ejecutó ninguna investigación.",
+			fr: "Ignoré par la vérification préalable : la fiche a déjà un nom, un poste, une entreprise et un profil LinkedIn. Aucune recherche n'a été lancée.",
+			"pt-BR":
+				"Ignorado pela verificação prévia: o registro já tem nome, cargo, empresa e perfil do LinkedIn. Nenhuma pesquisa foi executada.",
+			tr: "Ön kontrol tarafından atlandı: kayıtta zaten ad, unvan, şirket ve LinkedIn profili var. Hiçbir araştırma çalışmadı.",
+			"zh-Hans":
+				"已被预检跳过：该记录已有姓名、职位、公司和 LinkedIn 资料。未运行任何调研。",
+		},
+		unlikely: {
+			en: "Skipped by the pre-check: this contact does not look worth a research session yet. New mail from them brings the check back.",
+			de: "Von der Vorprüfung übersprungen: Dieser Kontakt lohnt noch keine Recherche. Neue Mails von ihm lösen die Prüfung erneut aus.",
+			es: "Omitido por la comprobación previa: este contacto todavía no justifica una investigación. Un correo nuevo suyo repite la comprobación.",
+			fr: "Ignoré par la vérification préalable : ce contact ne justifie pas encore une recherche. Un nouveau mail de sa part relance la vérification.",
+			"pt-BR":
+				"Ignorado pela verificação prévia: este contato ainda não justifica uma pesquisa. Um novo e-mail dele repete a verificação.",
+			tr: "Ön kontrol tarafından atlandı: bu kişi henüz bir araştırmaya değmiyor. Ondan gelen yeni bir e-posta kontrolü yeniden başlatır.",
+			"zh-Hans":
+				"已被预检跳过：此联系人暂不值得调研。收到其新邮件时会重新检查。",
+		},
+	},
+
 	tasks: {
 		noThreadId: {
 			en: "No thread id on the task.",

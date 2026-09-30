@@ -83,6 +83,8 @@ export const COMPANY_PROFILE_BUDGET = 1;
 
 export const MAX_ATTEMPTS = 3;
 
+export const REP_ASKED_REASON = "A rep asked for a fresh look";
+
 export const RETIRED_OUTCOME = `Gave up after ${MAX_ATTEMPTS} attempts: the session never reported back.`;
 
 export const PRIORITY = {

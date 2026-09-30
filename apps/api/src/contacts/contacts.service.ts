@@ -7,6 +7,7 @@ import {
 	Prisma as PrismaNamespace,
 	RecordSource,
 } from "@crm/db";
+import { REP_ASKED_REASON } from "@crm/db/agent-tasks";
 import {
 	type ContactAttention,
 	readContactAttention,
@@ -890,8 +891,8 @@ export class ContactsService {
 		const queued = await this.agent.contactCreated(
 			id,
 			contact.linkedinUrl && !contact.imageUrl
-				? "A rep asked for a fresh look. They have a LinkedIn profile on file but no picture"
-				: "A rep asked for a fresh look",
+				? `${REP_ASKED_REASON}. They have a LinkedIn profile on file but no picture`
+				: REP_ASKED_REASON,
 			true,
 		);
 

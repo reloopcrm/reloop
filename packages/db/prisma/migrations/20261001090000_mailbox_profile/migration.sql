@@ -1,11 +1,11 @@
 CREATE TYPE "ArchiveActor" AS ENUM ('SWEEP', 'PERSON');
 
-ALTER TABLE "appSetting" ADD COLUMN "mailboxProfile" JSONB,
-ADD COLUMN "ownAddresses" TEXT[] DEFAULT ARRAY[]::TEXT[];
-
 ALTER TABLE "contact" ADD COLUMN "archivedBy" "ArchiveActor",
 ADD COLUMN "confirmedFields" TEXT[] DEFAULT ARRAY[]::TEXT[],
 ADD COLUMN "mobilePhone" TEXT;
+
+ALTER TABLE "appSetting" ADD COLUMN "mailboxProfile" JSONB,
+ADD COLUMN "ownAddresses" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 ALTER TABLE "mailboxSync" ADD COLUMN "address" TEXT;
 

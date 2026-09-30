@@ -228,7 +228,7 @@ export class MailboxMatchService {
 		if (!lead) return { companyId: null, contactId: null, external };
 
 		if (await this.atContactLimit()) {
-			this.warnLimit(lead.email);
+			this.warnLimit();
 			return { companyId: null, contactId: null, external, limited: true };
 		}
 
@@ -305,7 +305,7 @@ export class MailboxMatchService {
 			}));
 		} catch (error) {
 			if (!contactLimitError.safeParse(error).success) throw error;
-			this.warnLimit(email);
+			this.warnLimit(contact.id);
 			return false;
 		}
 		if (count === 0) return false;
@@ -338,7 +338,7 @@ export class MailboxMatchService {
 		);
 	}
 
-	private warnLimit(email: string): void {
+	private warnLimit(contactId?: string): void {
 		const now = Date.now();
 		if (now - this.limitWarnedAt < LIMIT_WARNING.intervalMs) return;
 
@@ -346,7 +346,7 @@ export class MailboxMatchService {
 		this.logger.warn({
 			message:
 				"The contact limit is reached. The mailbox sync keeps running and stores new threads as pending",
-			email,
+			contactId,
 		});
 	}
 
@@ -373,7 +373,7 @@ export class MailboxMatchService {
 			);
 		} catch (error) {
 			if (!contactLimitError.safeParse(error).success) throw error;
-			this.warnLimit(person.email);
+			this.warnLimit();
 			return { contactId: null, limited: true };
 		}
 		const { contact } = outcome;

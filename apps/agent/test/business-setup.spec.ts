@@ -534,7 +534,7 @@ describe("the profile limits", () => {
 		expect(
 			threads * (size.excerptChars + size.subjectChars),
 		).toBeLessThanOrEqual(40_000);
-		expect(model.maxOutputTokens).toBeLessThanOrEqual(2_000);
+		expect(model.maxOutputTokens).toBeLessThanOrEqual(3_000);
 		expect(MEMORY.jsonAttempts).toBeLessThanOrEqual(2);
 	});
 

@@ -1245,9 +1245,10 @@ in 24 hours. The numbers are `MAILBOX_PROFILE` in `agent/lib/mailbox-config.ts`.
 - **One reading call per build**, on the reading model (Luna on included AI). The sample
   is our own sent mail first (36 conversations), then 24 unanswered ones, 8 per sender
   kind, without a conversation the thread gate already called irrelevant. 400 characters
-  each, 1,500 output tokens, two attempts. That is about 12k input tokens, under one cent.
-  The model sees the sender kind, never an address. No Jev call: a gate costs more code
-  than the one call it would save.
+  each, 2,500 output tokens, two attempts. That is about 12k input tokens, under one cent.
+  Each conversation is labelled with the sender kind, not the address; the mail text
+  itself reaches the model as it always did. No new Jev call: the received conversations
+  reuse the stored gate verdicts, and a live gate costs more than the one call it saves.
 - **Deterministic where it can be.** `counterparts.freemail` and `roleAddresses` come
   from the counts, not the model. A follow-up sentence is kept only when it is a quote of
   our own sent mail with `{product}` in place of the product (`quotedFrom`).

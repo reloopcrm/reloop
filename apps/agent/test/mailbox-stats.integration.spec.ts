@@ -368,7 +368,7 @@ describe("a run of the business setup", () => {
 		const note = await runBusinessSetup(async () => stub.model);
 
 		expect(stub.calls()).toBeGreaterThan(0);
-		expect(note).toStartWith(say(COPY.business.failed("")).trim());
+		expect(note).toStartWith(say(COPY.business.profileFailed("")).trim());
 		expect(await readMailboxProfile(db)).toEqual({
 			ok: true,
 			profile: previous,

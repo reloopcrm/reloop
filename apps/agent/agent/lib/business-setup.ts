@@ -111,8 +111,8 @@ export const profileProposal = z.object({
 			].slice(0, 5),
 		),
 	followUp: z.object({
-		toSeller: z.array(z.string()).max(8),
-		toBuyer: z.array(z.string()).max(8),
+		toSeller: z.array(z.string()).max(MAILBOX_PROFILE.followUp.max),
+		toBuyer: z.array(z.string()).max(MAILBOX_PROFILE.followUp.max),
 	}),
 });
 
@@ -633,8 +633,9 @@ export async function runBusinessSetup(
 	);
 
 	if (!learned.ok) {
+		if (!learnBusiness) return say(COPY.business.profileFailed(learned.error));
 		const note = say(COPY.business.failed(learned.error));
-		if (learnBusiness) await writeWinBackRulesState(db, { note });
+		await writeWinBackRulesState(db, { note });
 		return note;
 	}
 

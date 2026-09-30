@@ -19,7 +19,7 @@ export const MAILBOX_PROFILE = {
 		subjectChars: 120,
 	},
 	model: {
-		maxOutputTokens: 1_500,
+		maxOutputTokens: 2_500,
 	},
 	followUp: {
 		max: 4,

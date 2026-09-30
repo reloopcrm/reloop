@@ -1,18 +1,16 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { db, type Prisma } from "@crm/db";
+import { afterEach, describe, expect, it } from "bun:test";
+import { db } from "@crm/db";
 import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
-import { appSecretKey, sealSecret } from "@crm/db/secrets";
-import { SETTINGS_ID, writeAgentProvider } from "@crm/db/settings";
-import { forgetProviderCache } from "../agent/lib/model";
-import { MODEL } from "../agent/lib/model-config";
-import { researchAllowance } from "../agent/lib/research-throttle";
+import { researchRunsInHour } from "../agent/lib/research-throttle";
 
-const PER_HOUR = 10;
 const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
 
 const reason = `research-throttle-${crypto.randomUUID()}`;
 
-let savedSetting: Prisma.AppSettingUncheckedCreateInput | null = null;
+const now = new Date(
+	Date.UTC(2200, 0, 1) + Math.floor(Math.random() * 100_000) * HOUR_MS,
+);
 
 type Started = {
 	finishedAt?: Date | null;
@@ -21,13 +19,12 @@ type Started = {
 };
 
 async function startedTasks(count: number, shape: Started): Promise<void> {
-	const now = Date.now();
 	await db.agentTask.createMany({
 		data: Array.from({ length: count }, () => ({
 			kind: "company-profile",
 			reason,
-			dueAt: new Date(now - MINUTE_MS),
-			startedAt: new Date(now - MINUTE_MS),
+			dueAt: new Date(now.getTime() - MINUTE_MS),
+			startedAt: new Date(now.getTime() - MINUTE_MS),
 			attempts: 1,
 			finishedAt: shape.finishedAt ?? null,
 			leasedUntil: shape.leasedUntil ?? null,
@@ -36,62 +33,28 @@ async function startedTasks(count: number, shape: Started): Promise<void> {
 	});
 }
 
-async function clean(): Promise<void> {
+afterEach(async () => {
 	await db.agentTask.deleteMany({ where: { reason } });
-}
-
-beforeAll(async () => {
-	savedSetting = await db.appSetting.findUnique({ where: { id: SETTINGS_ID } });
-	await writeAgentProvider(db, {
-		provider: "openrouter",
-		openrouterKey: sealSecret(
-			"sk-or-test",
-			appSecretKey(MODEL.secrets.purpose),
-		),
-		researchPerHour: PER_HOUR,
-	});
-	forgetProviderCache();
-});
-
-afterEach(clean);
-
-afterAll(async () => {
-	await clean();
-	if (savedSetting) {
-		await db.appSetting.upsert({
-			where: { id: SETTINGS_ID },
-			create: savedSetting,
-			update: savedSetting,
-		});
-	} else {
-		await db.appSetting.deleteMany({ where: { id: SETTINGS_ID } });
-	}
-	forgetProviderCache();
 });
 
 describe("the hourly research limit", () => {
 	it("does not count starts that failed", async () => {
-		const before = await researchAllowance(100);
-		expect(before.allowed).toBeGreaterThan(2);
-
-		await startedTasks(PER_HOUR, {
-			finishedAt: new Date(),
-			outcome: RETIRED_OUTCOME,
+		await startedTasks(3, { finishedAt: now, outcome: RETIRED_OUTCOME });
+		await startedTasks(3, {
+			leasedUntil: new Date(now.getTime() - MINUTE_MS),
 		});
-		await startedTasks(PER_HOUR, {
-			leasedUntil: new Date(Date.now() - MINUTE_MS),
-		});
-		await startedTasks(PER_HOUR, {});
+		await startedTasks(3, {});
 
-		expect(await researchAllowance(100)).toEqual(before);
+		expect(await researchRunsInHour(now)).toBe(0);
 	});
 
 	it("counts sessions that run or finished", async () => {
-		const before = await researchAllowance(100);
+		await startedTasks(2, {
+			leasedUntil: new Date(now.getTime() + MINUTE_MS),
+		});
+		await startedTasks(1, { finishedAt: now, outcome: "Done." });
+		await startedTasks(1, { finishedAt: now });
 
-		await startedTasks(1, { leasedUntil: new Date(Date.now() + MINUTE_MS) });
-		await startedTasks(1, { finishedAt: new Date(), outcome: "Done." });
-
-		expect((await researchAllowance(100)).allowed).toBe(before.allowed - 2);
+		expect(await researchRunsInHour(now)).toBe(4);
 	});
 });

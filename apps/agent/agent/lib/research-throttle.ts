@@ -13,6 +13,22 @@ export type ThrottleDecision = {
 	reason: string | null;
 };
 
+export function researchRunsInHour(now: Date): Promise<number> {
+	return db.agentTask.count({
+		where: {
+			kind: { notIn: [...DIRECT_KINDS] },
+			startedAt: { gte: new Date(now.getTime() - HOUR_MS) },
+			OR: [
+				{ finishedAt: null, leasedUntil: { gt: now } },
+				{
+					finishedAt: { not: null },
+					OR: [{ outcome: null }, { outcome: { not: RETIRED_OUTCOME } }],
+				},
+			],
+		},
+	});
+}
+
 export async function researchAllowance(
 	batch: number,
 	now = new Date(),
@@ -33,20 +49,7 @@ export async function researchAllowance(
 	const perHour =
 		clampResearchPerHour(setting.researchPerHour, limits) ??
 		AGENT_RESEARCH_PER_HOUR.default;
-	const since = new Date(now.getTime() - HOUR_MS);
-	const started = await db.agentTask.count({
-		where: {
-			kind: { notIn: [...DIRECT_KINDS] },
-			startedAt: { gte: since },
-			OR: [
-				{ finishedAt: null, leasedUntil: { gt: now } },
-				{
-					finishedAt: { not: null },
-					OR: [{ outcome: null }, { outcome: { not: RETIRED_OUTCOME } }],
-				},
-			],
-		},
-	});
+	const started = await researchRunsInHour(now);
 
 	const remaining = Math.max(0, perHour - started);
 	if (remaining === 0) {

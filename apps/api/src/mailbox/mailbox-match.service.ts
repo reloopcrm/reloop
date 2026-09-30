@@ -4,6 +4,7 @@ import { type Db, RecordSource } from "@crm/db";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { CONTACT_LIMIT_MESSAGE, limitsOf } from "@crm/db/plans";
 import { readPlan } from "@crm/db/settings";
+import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -277,8 +278,9 @@ export class MailboxMatchService {
 	async reviveContact(
 		person: Participant,
 		context: MatchContext,
-	): Promise<void> {
-		if (externalParticipants([person], context).length === 0) return;
+		mail: { lane: AgentTaskOrigin | null; sentAt: Date },
+	): Promise<boolean> {
+		if (externalParticipants([person], context).length === 0) return false;
 
 		const email = person.email.toLowerCase();
 		const contact = await this.db.contact.findUnique({
@@ -290,13 +292,16 @@ export class MailboxMatchService {
 				company: { select: { domain: true, archivedAt: true } },
 			},
 		});
-		if (!contact?.archivedAt) return;
+		if (!contact?.archivedAt) return false;
+		if (mail.lane !== "forward" && mail.sentAt <= contact.archivedAt) {
+			return false;
+		}
 
 		const { count } = await this.db.contact.updateMany({
 			where: { id: contact.id, archivedAt: { not: null } },
 			data: { archivedAt: null },
 		});
-		if (count === 0) return;
+		if (count === 0) return false;
 
 		if (
 			contact.companyId &&
@@ -313,6 +318,8 @@ export class MailboxMatchService {
 			body: "{email} wrote again.",
 			meta: { email },
 		});
+
+		return true;
 	}
 
 	private async atContactLimit(): Promise<boolean> {

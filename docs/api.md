@@ -393,8 +393,10 @@ the largest attachment upload the conversation contracts accept.
   The cursor moves to the `id` of the last history entry whose ids were all fetched, and
   to the response's `historyId` only when every page was read. So a history longer than
   the page cap, the per-tick cap or the deadline still moves forward every tick. A
-  message labelled `DRAFT`, `SPAM` or `TRASH` (`MAILBOX.sync.gmail.skippedLabels`), or
-  one `store` refuses, counts as done and never holds the cursor. A `labelRemoved` of
+  message labelled `DRAFT`, `SPAM` or `TRASH` (`MAILBOX.sync.gmail.skippedLabels`), one
+  `store` refuses, or one `getMessage` answers with a non-retryable failure (404 gone)
+  counts as done and never holds the cursor. A retryable failure (timeout, 5xx) is not
+  done, so the cursor stops before its entry and the next tick fetches it again. A `labelRemoved` of
   `SPAM` or `TRASH` (`reenteringLabels`) reads that message like new mail, so mail marked
   as spam by mistake arrives once it is moved out. `WORK_MAIL_QUERY` excludes the same
   three from the backfill.
@@ -409,10 +411,13 @@ the largest attachment upload the conversation contracts accept.
 - **A contact who writes again comes back.** `store` calls `reviveContact` for a new
   INBOUND message. The sender first passes `externalParticipants` with the same
   `MatchContext` as contact creation, so a colleague, a suppressed or blocked address and
-  a machine or automated sender stay archived. Otherwise the contact with that exact
-  address loses `archivedAt` (and its
+  a machine or automated sender stay archived. The mail must also be new: lane
+  `forward`, or `sentAt` after the contact's `archivedAt`, so a backfill of old mail
+  revives nobody. Otherwise the contact with that exact address loses `archivedAt` (and its
   archived company is revived by the same rule as `revive`), and the change is logged
-  through `EnrichmentLogService`. Mail the rep wrote does not revive anyone.
+  through `EnrichmentLogService`. Mail the rep wrote does not revive anyone. `adopt`
+  applies the same rule with the thread's `lastMessageAt`: when the contact it lands on
+  is archived and the rule says no, the thread stays `PENDING`.
 - **Turning creation on re-reads history.** `SyncStateService.setAutoCreate(true)` and
   `setCreatePolicy` with any creating policy (`autoCreate` or `createFrom: "relevant"`)
   set `backfill: null`, exactly like `setImportSince`.
@@ -526,7 +531,9 @@ row is still there, just filtered out of every list.
 `ARCHIVE.prune.maxBatch` (`archive/archive-config.ts`), then `purge` per row through
 the ordinary `runBulk`. **`purgeExpired` skips `source` `EMAIL` and `CALENDAR`**, for
 contacts and companies: the sweep archives those on its own, and a purge writes a
-permanent `SuppressedContact`. "Delete forever" by hand still purges them. Settings →
+permanent `SuppressedContact`. The schema does not record who archived a row, so this
+also keeps every synced contact and company a person archived: retention never removes
+them, whatever Settings → General says. "Delete forever" by hand still purges them. Settings →
 General has the day count (`settings.archiveRetention` / `setArchiveRetention`).
 
 Below is `purge`'s contract — everything that used to be `delete`'s:

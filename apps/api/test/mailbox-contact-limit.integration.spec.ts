@@ -17,6 +17,7 @@ const firstDomain = `first-${suffix}.test`;
 const secondDomain = `second-${suffix}.test`;
 const thirdDomain = `third-${suffix}.test`;
 const ownDomain = `own-${suffix}.test`;
+const adoptDomain = `adopt-${suffix}.test`;
 const userId = `user-${suffix}`;
 const mailbox = `rep@${ownDomain}`;
 
@@ -67,6 +68,7 @@ const full = new ThreadWriterService(db, fullMatch, stamp, agent);
 
 let everyone: MailboxSync;
 let nobody: MailboxSync;
+let relevant: MailboxSync;
 
 function inbound(person: string, id: string): IncomingMessage {
 	return {
@@ -90,7 +92,9 @@ async function clean() {
 		where: { email: { endsWith: `-${suffix}.test` } },
 	});
 	await db.company.deleteMany({
-		where: { domain: { in: [firstDomain, secondDomain, thirdDomain] } },
+		where: {
+			domain: { in: [firstDomain, secondDomain, thirdDomain, adoptDomain] },
+		},
 	});
 	await db.mailboxSync.deleteMany({ where: { userId } });
 	await db.user.deleteMany({ where: { id: userId } });
@@ -111,6 +115,14 @@ beforeAll(async () => {
 	});
 	nobody = await db.mailboxSync.create({
 		data: { userId, source: "imap:nobody", autoCreate: false },
+	});
+	relevant = await db.mailboxSync.create({
+		data: {
+			userId,
+			source: "imap:relevant",
+			autoCreate: false,
+			createFrom: "relevant",
+		},
 	});
 });
 
@@ -287,4 +299,111 @@ describe("a contact that writes again", () => {
 		});
 		expect(contact?.archivedAt).not.toBeNull();
 	});
+
+	it("stays archived on backfill mail older than the archive", async () => {
+		const id = await archivedContact("old", new Date("2026-03-01T00:00:00Z"));
+
+		await threads.store(
+			nobody,
+			{ mailbox, origin: "imap", lane: "backfill" },
+			inbound(`old@${firstDomain}`, `<old-${suffix}@mail.test>`),
+			await threads.context(),
+		);
+
+		expect(await archivedAtOf(id)).not.toBeNull();
+	});
+
+	it("comes back on backfill mail newer than the archive", async () => {
+		const id = await archivedContact("newer", new Date("2026-01-01T00:00:00Z"));
+
+		await threads.store(
+			nobody,
+			{ mailbox, origin: "imap", lane: "backfill" },
+			inbound(`newer@${firstDomain}`, `<newer-${suffix}@mail.test>`),
+			await threads.context(),
+		);
+
+		expect(await archivedAtOf(id)).toBeNull();
+	});
 });
+
+describe("adopting a pending thread of an archived contact", () => {
+	async function pendingThread(name: string) {
+		const root = `<adopt-${name}-${suffix}@mail.test>`;
+		await threads.store(
+			relevant,
+			{ mailbox, origin: "imap", lane: "backfill" },
+			inbound(`${name}@${adoptDomain}`, root),
+			await threads.context(),
+		);
+		const thread = await db.emailThread.findUniqueOrThrow({
+			where: { rootMessageId: root },
+			select: { id: true, contactId: true },
+		});
+		expect(thread.contactId).toBeNull();
+		return thread.id;
+	}
+
+	async function archived(name: string, archivedAt: Date) {
+		const row = await db.contact.create({
+			data: {
+				firstName: name,
+				email: `${name}@${adoptDomain}`,
+				source: "EMAIL",
+				archivedAt,
+			},
+			select: { id: true },
+		});
+		return row.id;
+	}
+
+	it("leaves the thread pending when the mail is older than the archive", async () => {
+		const threadId = await pendingThread("stale");
+		const id = await archived("stale", new Date("2026-03-01T00:00:00Z"));
+
+		expect(await threads.adopt(threadId)).toBe(false);
+
+		const thread = await db.emailThread.findUnique({
+			where: { id: threadId },
+			select: { contactId: true, classification: true },
+		});
+		expect(thread?.contactId).toBeNull();
+		expect(thread?.classification).toBe("PENDING");
+		expect(await archivedAtOf(id)).not.toBeNull();
+	});
+
+	it("revives the contact when the mail is newer than the archive", async () => {
+		const threadId = await pendingThread("fresh");
+		const id = await archived("fresh", new Date("2026-01-01T00:00:00Z"));
+
+		expect(await threads.adopt(threadId)).toBe(true);
+
+		const thread = await db.emailThread.findUnique({
+			where: { id: threadId },
+			select: { contactId: true },
+		});
+		expect(thread?.contactId).toBe(id);
+		expect(await archivedAtOf(id)).toBeNull();
+	});
+});
+
+async function archivedContact(name: string, archivedAt: Date) {
+	const row = await db.contact.create({
+		data: {
+			firstName: name,
+			email: `${name}@${firstDomain}`,
+			source: "EMAIL",
+			archivedAt,
+		},
+		select: { id: true },
+	});
+	return row.id;
+}
+
+async function archivedAtOf(id: string) {
+	const row = await db.contact.findUnique({
+		where: { id },
+		select: { archivedAt: true },
+	});
+	return row?.archivedAt ?? null;
+}

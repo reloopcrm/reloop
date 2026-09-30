@@ -97,7 +97,10 @@ export class ThreadWriterService {
 		const outbound = parsed.from.email === options.mailbox;
 
 		if (!repair && !outbound) {
-			await this.match.reviveContact(parsed.from, context);
+			await this.match.reviveContact(parsed.from, context, {
+				lane: options.lane,
+				sentAt: parsed.sentAt,
+			});
 		}
 
 		const thread = existing
@@ -302,6 +305,7 @@ export class ThreadWriterService {
 			}
 		}
 
+		const known = context ?? (await this.context());
 		const match = await this.match.resolve(
 			{
 				participants,
@@ -309,7 +313,7 @@ export class ThreadWriterService {
 				source: RecordSource.EMAIL,
 				ownerId,
 			},
-			context ?? (await this.context()),
+			known,
 		);
 
 		if (match.limited) return false;
@@ -330,6 +334,13 @@ export class ThreadWriterService {
 			if (!contactId) return false;
 
 			placed = { companyId: null, contactId };
+		}
+
+		if (
+			placed.contactId &&
+			!(await this.visible(placed.contactId, known, thread.lastMessageAt))
+		) {
+			return false;
 		}
 
 		const match2 = placed;
@@ -360,6 +371,25 @@ export class ThreadWriterService {
 		await this.agent.threadStored(threadId, "Thread adopted into the CRM");
 
 		return true;
+	}
+
+	private async visible(
+		contactId: string,
+		context: MatchContext,
+		sentAt: Date,
+	): Promise<boolean> {
+		const contact = await this.db.contact.findUnique({
+			where: { id: contactId },
+			select: { email: true, archivedAt: true },
+		});
+		if (!contact?.archivedAt) return true;
+		if (!contact.email) return false;
+
+		return this.match.reviveContact(
+			{ email: contact.email, name: null },
+			context,
+			{ lane: null, sentAt },
+		);
 	}
 
 	private async contactWithoutCompany(

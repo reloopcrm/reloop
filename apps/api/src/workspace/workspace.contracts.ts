@@ -1,8 +1,6 @@
-import { PASSWORD_RULES, WORKSPACE_ROLES } from "@crm/auth";
-import { LOCALES } from "@crm/db/locale";
+import { WORKSPACE_ROLES } from "@crm/auth";
 import { MAX_SLUG } from "@crm/db/workspace";
 import { z } from "zod";
-import { SIGNUP } from "../tenancy/tenancy.config";
 import { listInput } from "../trpc/list-input";
 
 export const memberListInput = listInput.extend({
@@ -90,30 +88,3 @@ export const memberListOutput = z.object({
 	total: z.number(),
 	facetCounts: z.record(z.string(), z.record(z.string(), z.number())),
 });
-
-export const deletionCodeInput = z.object({ locale: z.enum(LOCALES) });
-
-export const deleteWorkspaceInput = z.object({
-	name: z.string().trim().min(1).max(120),
-	reauth: z.discriminatedUnion("method", [
-		z.object({
-			method: z.literal("password"),
-			password: z.string().min(1).max(PASSWORD_RULES.maxLength),
-		}),
-		z.object({
-			method: z.literal("code"),
-			code: z
-				.string()
-				.trim()
-				.regex(new RegExp(`^\\d{${SIGNUP.code.digits}}$`)),
-		}),
-	]),
-});
-
-export type DeleteWorkspaceInput = z.infer<typeof deleteWorkspaceInput>;
-
-export const deletionCodeOutput = z.object({ ok: z.literal(true) });
-
-export const deletedWorkspaceOutput = z.object({ finished: z.boolean() });
-
-export type DeletedWorkspace = z.infer<typeof deletedWorkspaceOutput>;

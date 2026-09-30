@@ -1,69 +1,38 @@
-import {
-	activeTenants,
-	closeRegistry,
-	forEachTenant,
-	grantTenantSignIn,
-	pingRegistry,
-	revokeTenantSignIn,
-	scopeOf,
-	type Tenant,
-	tenant,
-	tenantById,
-	tenantBySite,
-} from "../tenancy";
-import { TENANCY } from "../tenancy-config";
-import { clientFor, disconnectClients } from "../tenant-clients";
-import {
-	currentTenant,
-	currentTenantId,
-	holdTenant,
-	isHosted,
-	isHostedCustomer,
-	operatorTenantId,
-	runAsTenant,
-	tenantScopedKey,
-} from "../tenant-context";
-import type { CloudScope, WorkspaceScope } from "./contract";
+import { CLOUD } from "./cloud-config";
+import type { CloudScope } from "./contract";
 
-function tenantOf(scope: WorkspaceScope): Tenant {
-	return tenant.parse(scope);
+class NoWorkspaceScope extends Error {
+	constructor() {
+		super(
+			"A self-hosted install has one workspace and no workspace scope. Guard the call with cloud.hosted() or cloud.customer().",
+		);
+		this.name = "NoWorkspaceScope";
+	}
 }
 
-async function signIn(
-	update: (tenantId: string, address: string) => Promise<void>,
-	email: string,
-): Promise<void> {
-	const tenantId = currentTenantId();
-	if (tenantId) await update(tenantId, email);
+function noScope(): never {
+	throw new NoWorkspaceScope();
 }
 
 export const cloud: CloudScope = {
-	loop: { budgetMs: TENANCY.loop.budgetMs },
-	backup: { retentionDays: TENANCY.backup.retentionDays },
-	hosted: isHosted,
-	customer: isHostedCustomer,
-	operatorId: operatorTenantId,
-	scopeId: currentTenantId,
-	current: () => scopeOf(currentTenant()),
-	addOns: () => currentTenant().billing.addOns,
-	scopedKey: tenantScopedKey,
-	hold: holdTenant,
-	run: (scope, fn) => runAsTenant(tenantOf(scope), fn),
-	byId: async (id) => {
-		const found = await tenantById(id);
-		return found ? scopeOf(found) : null;
-	},
-	activeBySite: async (siteId) => {
-		const found = await tenantBySite(siteId);
-		return found?.status === "active" ? scopeOf(found) : null;
-	},
-	active: async () => (await activeTenants()).map(scopeOf),
-	forEachScope: forEachTenant,
-	resolveClient: (single, create) =>
-		isHosted() ? clientFor(currentTenant(), create) : single(),
-	disconnectClients,
-	ping: pingRegistry,
-	close: closeRegistry,
-	onMemberAdded: (email) => signIn(grantTenantSignIn, email),
-	onMemberRemoved: (email) => signIn(revokeTenantSignIn, email),
+	loop: CLOUD.selfHost.loop,
+	hosted: () => false,
+	customer: () => false,
+	operatorId: () => null,
+	scopeId: () => null,
+	current: noScope,
+	addOns: noScope,
+	scopedKey: (key) => key,
+	hold: (fn) => fn(),
+	run: (_scope, fn) => fn(),
+	byId: async () => null,
+	activeBySite: async () => null,
+	active: async () => [],
+	forEachScope: (fn) => fn(new AbortController().signal),
+	resolveClient: (single) => single(),
+	disconnectClients: async () => {},
+	ping: async () => {},
+	close: async () => {},
+	onMemberAdded: async () => {},
+	onMemberRemoved: async () => {},
 };

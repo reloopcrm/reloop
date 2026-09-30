@@ -1,3 +1,4 @@
+import { cloud } from "@crm/db/cloud/scope";
 import { plainToInstance, Type } from "class-transformer";
 import {
 	IsEnum,
@@ -6,7 +7,6 @@ import {
 	IsOptional,
 	IsString,
 	IsUrl,
-	Matches,
 	Max,
 	Min,
 	MinLength,
@@ -44,47 +44,13 @@ export class EnvironmentVariables {
 	})
 	BETTER_AUTH_SECRET!: string;
 
-	@ValidateIf((env: EnvironmentVariables) => !env.RELOOP_REGISTRY_URL)
+	@ValidateIf(() => !cloud.hosted())
 	@IsString()
 	@MinLength(1, {
 		message:
 			'ALLOWED_SIGN_IN is required — it is the only thing deciding who can sign in. Set it to your email domain, e.g. ALLOWED_SIGN_IN="acme.com", or to a single address for a one-person install.',
 	})
 	ALLOWED_SIGN_IN?: string;
-
-	@IsOptional()
-	@IsString()
-	@MinLength(1)
-	RELOOP_REGISTRY_URL?: string;
-
-	@ValidateIf((env: EnvironmentVariables) => Boolean(env.RELOOP_REGISTRY_URL))
-	@IsString()
-	@Matches(/\{db\}/, {
-		message:
-			"RELOOP_TENANT_DATABASE_URL_TEMPLATE is required in hosted mode and must contain {db}, where the tenant's database name goes.",
-	})
-	RELOOP_TENANT_DATABASE_URL_TEMPLATE?: string;
-
-	@IsOptional()
-	@IsString()
-	@MinLength(1)
-	RELOOP_BACKUP_DIR?: string;
-
-	@IsOptional()
-	@IsString()
-	@Matches(/^[a-z0-9][a-z0-9-]{1,62}$/, {
-		message:
-			"RELOOP_OPERATOR_TENANT is a tenant id: lower case letters, digits and dashes.",
-	})
-	RELOOP_OPERATOR_TENANT?: string;
-
-	@IsOptional()
-	@IsString()
-	RESEND_API_KEY?: string;
-
-	@IsOptional()
-	@IsString()
-	MAIL_FROM?: string;
 
 	@IsOptional()
 	@IsIn(["0", "1"], {

@@ -28,7 +28,6 @@ export type CreateClient = (connectionString: string, max?: number) => Db;
 
 export type CloudScope = {
 	readonly loop: { readonly budgetMs: number };
-	readonly backup: { readonly retentionDays: number };
 	hosted(): boolean;
 	customer(): boolean;
 	operatorId(): string | null;

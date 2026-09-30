@@ -36,24 +36,26 @@ documented exception, for timing: the exchange-rate fetcher, below.
 Single tenant. No org header, no org interceptor, no org-scoped cache keys, **no
 `organizationId` on any CRM record.**
 
-Hosted mode does not change that: a customer gets a whole database, and `db` from
-`@crm/db` resolves to that customer's client through an `AsyncLocalStorage`. The
-tenant is resolved once per request by the middleware `cloudMiddleware()` hands
-to `create-app.ts` (`apps/api/src/cloud/cloud-middleware.ts`), and never travels
-as a parameter. Core code reaches the tenancy only through the port `cloud` from
-`@crm/db/cloud/scope`, typed by `@crm/db/cloud/contract`; `tools/tenancy-guard.ts`
-refuses a direct import of `@crm/db/tenancy`, `@crm/db/tenant-context` or
-`@crm/db/tenant-clients` outside the tenancy side. A process-wide cache key that
-is per workspace goes through `cloud.scopedKey()`, and a cron route that serves
-every workspace loops through `cloud.forEachScope()`. The loop runs
-`TENANCY.loop.concurrency` tenants at once with `cloud.loop.budgetMs` each
-(`packages/db/src/tenancy-config.ts`); a tenant past its budget is reported as
-failed and the others carry on. Work that outlives its request, a detached
-`void (async …)()`, wraps itself in `cloud.hold()` so the pool never disconnects
-the client under it. `cloud.run()` takes only a `WorkspaceScope` the port made
-(`cloud.byId`, `cloud.active`, `cloud.activeBySite`, `cloud.current`). The exchange-rate loop fetches the feed once per base
-currency (`RatesService.refreshAll`) and writes it to every tenant. The
-variables and the rules are in `docs/environment.md`.
+Hosted mode does not change that: the hosted Reloop Cloud gives each customer a
+whole database, from a private overlay. Core code reaches it only through the
+port `cloud` from `@crm/db/cloud/scope`, typed by `@crm/db/cloud/contract`, and
+`tools/tenancy-guard.ts` refuses an import of any other `@crm/db/cloud/*` module
+outside the slot folders. In this repository every slot is a no-op:
+`cloud.hosted()` is false; `run`, `hold` and `forEachScope` call the work exactly
+once; `resolveClient` returns the one client of `DATABASE_URL`; `byId`,
+`activeBySite` and `active` find nothing; the member hooks do nothing. Only
+`current()` and `addOns()` throw, because a self-hosted install has no scope:
+guard them with `cloud.hosted()` or `cloud.customer()`. `cloudMiddleware()`
+(`apps/api/src/cloud/cloud-middleware.ts`) mounts nothing.
+
+Code still has to be ready for the overlay. A process-wide cache key that is per
+workspace goes through `cloud.scopedKey()`, and a cron route that serves every
+workspace loops through `cloud.forEachScope()`, with `cloud.loop.budgetMs` per
+workspace. Work that outlives its request, a detached `void (async …)()`, wraps
+itself in `cloud.hold()`. `cloud.run()` takes only a `WorkspaceScope` the port
+made (`cloud.byId`, `cloud.active`, `cloud.activeBySite`, `cloud.current`). The
+exchange-rate loop fetches the feed once per base currency
+(`RatesService.refreshAll`) and writes it to every workspace.
 
 A **singleton workspace** exists — Better Auth's `organization` plugin, one row with
 id `WORKSPACE_ID` (the literal `workspace`, in `@crm/db`, re-exported by `@crm/auth`
@@ -84,17 +86,16 @@ here, what do we sell.
   `databaseHooks.session.create.before`, not the allow-list: a domain on
   `ALLOWED_SIGN_IN` still matches the address, and without the stamp the next sign-in
   would enrol the person again. The granted address in `AppSetting.signInAddresses` is
-  revoked too, and in hosted mode the address entry in the registry's `tenant_sign_in`
-  (`revokeTenantSignIn`); the shared domain entry stays. A removed user is left out of
+  revoked too, and `cloud.onMemberRemoved()` tells the hosted Cloud, a no-op here. A
+  removed user is left out of
   `users.list`, of the first enrolment in `ensureWorkspaceMembership`, and of the
   mailbox sync (`dueWhere`), so their inbox stops feeding the CRM. `addPerson` with the
   address of a removed person takes them back: it clears `removedAt`, creates the member
-  row with the chosen role, sets a new password and grants the address again, locally
-  and in `tenant_sign_in`. No second `user` row, so their records
+  row with the chosen role, sets a new password and grants the address again. No
+  second `user` row, so their records
   are theirs again. An active person still gets "That address already has an account."
-  Every `addPerson` in hosted mode writes the address to `tenant_sign_in` for the
-  current tenant (`grantTenantSignIn`, `ON CONFLICT DO NOTHING`), so a person whose
-  domain is not registered still finds the workspace at sign-in.
+  Every `addPerson` calls `cloud.onMemberAdded()`, a no-op here, so on the hosted
+  Cloud a person whose domain is not registered still finds the workspace at sign-in.
 - **Reads and writes go through tRPC**, not `authClient.organization.*`. `accessGuard`
   refuses every mutating `/api/auth/organization/*` path (`isOrganizationWrite`), so
   the raw plugin endpoints cannot skip the last-owner count or overwrite the slug and
@@ -107,8 +108,8 @@ here, what do we sell.
 - **The name starts as `DEFAULT_WORKSPACE_NAME` (`CRM`), a placeholder not an
   answer.** The header renders `<name> CRM`, so `workspaceLabel` tests the name rather
   than comparing to the default.
-  A hosted sign-up already asked for the company, so `provisionTenant` writes that
-  name and its slug into the new tenant's row, and `/onboarding` pre-fills both.
+  A hosted sign-up already asked for the company, so the hosted Cloud writes that
+  name and its slug into the new workspace's row, and `/onboarding` pre-fills both.
   Only `onboardedAt` settles the gate, so the website step still runs.
 - **The website queues the agent's `workspace-profile` task** and goes through
   `normalizeDomain`, rejecting null. Stored canonical, so re-saving uncanonically
@@ -599,18 +600,17 @@ webhook path and size limit, the return path and the rebuild delay. Both methods
 take a tenant id, never a registry row: the implementation loads the tenant
 itself. `CloudModule` (`cloud/cloud.module.ts`) is global and registered once in
 `AppModule`. Here it provides `NO_BILLING_PORT` with `useValue`, so every call is
-a no-op, and it imports and exports `TenancyModule`, so no other module imports
-the tenancy directly. The app's slots in `apps/app/cloud` are empty the same way: no billing
-page, no checkout, no marketing pages or redirects, and `/` sends a visitor to
-sign in, or a signed-in one to the workspace.
+a no-op, and nothing else. The app's slots in `apps/app/cloud` are empty the same
+way: no billing page, no checkout, no marketing pages, no hosted routes
+(`HOSTED_ROUTES`), no danger zone on Settings, General (`DangerZone`), and `/`
+sends a visitor to sign in, or a signed-in one to the workspace.
 
-The hosted Reloop Cloud adds billing and its marketing site from a private
-overlay. The overlay replaces exactly these files and only adds others:
+The hosted Reloop Cloud adds the tenancy, billing and its marketing site from a
+private overlay. The overlay replaces exactly these files and only adds others:
 
 - `apps/api/src/cloud/cloud.module.ts`
 - `apps/api/src/cloud/cloud-middleware.ts`
 - `packages/db/src/cloud/scope.ts`
-- `packages/auth/src/cloud/tenant-cookie.ts`
 - `apps/app/cloud/scope.server.ts`
 - `apps/app/cloud/slots.tsx`
 - `apps/app/cloud/slots.data.ts`
@@ -618,39 +618,12 @@ overlay. The overlay replaces exactly these files and only adds others:
 - `apps/app/lib/i18n/cloud.ts`
 - `apps/app/app/(landing)/page.tsx`
 - `apps/api/package.json` and `bun.lock`, for the `stripe` package
-- while the tenancy moves into the overlay, every tenancy file this repository
-  still holds, each replaced by a re-export of the overlay's copy, so a process
-  never holds two tenant contexts
 
 The overlay then runs `trpc:generate`, because the router set changes
 `src/generated/server.ts`. `apps/app/cloud/contract.ts` and `billing-port.ts`
 stay public: both sides build against them. A core test must pass with the empty
 slots and with the overlay's, so it reads its expectations from
 `apps/app/cloud/slots.data.ts` instead of naming a cloud page.
-
-## Deleting a workspace is the sweep's path, started by the owner
-
-Hosted only. Settings, General shows a danger zone to the owner of a customer
-workspace, and so does the paused page of a suspended one; a self-hosted install
-and the operator workspace never see it, and `workspace.delete` refuses both.
-`workspace.delete` and `workspace.deletionCode` are open while suspended
-(`openWhileSuspended`), next to `billing.*`. The owner types the workspace name
-and passes a re-auth: the password (`verifyPasswordFor`), or, with no password,
-a mail code (`workspace.deletionCode`, purpose `delete` in `tenant_code`). Both
-procedures take `SessionOnlyMiddleware`.
-
-The order is the guarantee. The status turns `deleted` first
-(`beginTenantDeletion`, which keeps `suspended_at`), and that locks every
-request out. Then the billing port's `cancelNow` ends the subscription, a no-op
-without billing. A refusal puts the old status back (`cancelTenantDeletion`) and
-the owner tries again. `TenantSweepService.finishDeletion` then clears the OAuth tokens
-(a Google grant is revoked with Google), the IMAP and Slack secrets and the API
-keys, ends every session, sends "workspace deleted" once (claim key
-`deleted:<tenant>`), and drops the database through the same `deleteTenant` the
-trial expiry uses. Every step is safe to run twice, and one process runs one
-tenant's deletion at a time. A tenant left `deleted`, by a failed step or a
-crash, is finished by the daily sweep. The response
-clears `crm.tenant`.
 
 ## Money
 

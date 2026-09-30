@@ -1,8 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { API_KEY_PREFIX } from "@crm/auth";
 import type { Db } from "@crm/db";
-import type { Tenant } from "@crm/db/tenancy";
-import { runAsTenant } from "@crm/db/tenant-context";
 import { SettingsService } from "../src/settings/settings.service";
 
 function settings(role: string | null) {
@@ -32,74 +30,7 @@ describe("workspace settings authorization", () => {
 		for (const write of writes)
 			await expect(write()).rejects.toThrow("Only a workspace admin");
 	});
-	it("refuses a ChatGPT sign-in on a hosted install", async () => {
-		const saved = process.env.RELOOP_REGISTRY_URL;
-		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
-		try {
-			const service = settings("owner");
-			const attempts = [
-				() => service.chatgptLogin("owner", "start"),
-				() => service.chatgptLogin("owner", "status"),
-				() =>
-					service.setAgentProvider("owner", { provider: "chatgpt" } as never),
-			];
-			for (const attempt of attempts)
-				await expect(attempt()).rejects.toThrow("not offered on a hosted");
-		} finally {
-			if (saved === undefined) delete process.env.RELOOP_REGISTRY_URL;
-			else process.env.RELOOP_REGISTRY_URL = saved;
-		}
-	});
-	it("offers the ChatGPT sign-in to the operator tenant only", async () => {
-		const saved = {
-			registry: process.env.RELOOP_REGISTRY_URL,
-			operator: process.env.RELOOP_OPERATOR_TENANT,
-		};
-		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
-		process.env.RELOOP_OPERATOR_TENANT = "reloop";
-		const tenantOf = (id: string) =>
-			({ id, plan: "none", billing: { addOns: {} } }) as unknown as Tenant;
-		const db = {
-			member: { findUnique: async () => ({ role: "owner" }) },
-			appSetting: { findUnique: async () => null },
-		} as unknown as Db;
-		const answer = {
-			status: "idle",
-			url: null,
-			code: null,
-			alreadyLoggedIn: false,
-			reason: null,
-			pollMs: 0,
-		} as const;
-		const researchKeys = { chatgptLogin: async () => answer } as never;
-		const service = new SettingsService(
-			db,
-			researchKeys,
-			undefined as never,
-			undefined as never,
-		);
-		try {
-			await expect(
-				runAsTenant(tenantOf("reloop"), () =>
-					service.chatgptLogin("owner", "status"),
-				),
-			).resolves.toEqual(answer);
-			await expect(
-				runAsTenant(tenantOf("acme"), () =>
-					service.chatgptLogin("owner", "status"),
-				),
-			).rejects.toThrow("not offered on a hosted");
-		} finally {
-			for (const [name, value] of [
-				["RELOOP_REGISTRY_URL", saved.registry],
-				["RELOOP_OPERATOR_TENANT", saved.operator],
-			] as const) {
-				if (value === undefined) delete process.env[name];
-				else process.env[name] = value;
-			}
-		}
-	});
-	it("never lends the operator's OpenRouter key to a hosted own-key plan", async () => {
+	it("lends the operator's OpenRouter key on a self-hosted install", async () => {
 		const db = {
 			member: { findUnique: async () => ({ role: "owner" }) },
 			appSetting: { findUnique: async () => ({ plan: "hosting" }) },
@@ -113,15 +44,6 @@ describe("workspace settings authorization", () => {
 		);
 		const attempt = () =>
 			service.setAgentProvider("owner", { provider: "openrouter" } as never);
-
-		const saved = process.env.RELOOP_REGISTRY_URL;
-		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
-		try {
-			await expect(attempt()).rejects.toThrow("Paste an OpenRouter API key");
-		} finally {
-			if (saved === undefined) delete process.env.RELOOP_REGISTRY_URL;
-			else process.env.RELOOP_REGISTRY_URL = saved;
-		}
 
 		const single = await attempt().catch((error: Error) => error);
 		expect(String(single)).not.toContain("Paste an OpenRouter API key");

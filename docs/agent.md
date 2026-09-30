@@ -88,8 +88,10 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
 
 ## Hosted mode: one agent, every tenant
 
-With `RELOOP_REGISTRY_URL` set the one agent process serves every tenant, and `db`
-resolves through the tenant in `AsyncLocalStorage` exactly as in the API. eve runs
+On the hosted Cloud, where the private overlay turns `cloud.hosted()` on, the one
+agent process serves every tenant, and `db` resolves through the tenant in
+`AsyncLocalStorage` exactly as in the API. In this repository `cloud.hosted()` is
+false and every wrapper below passes straight through. eve runs
 authored code step by step, so that context never survives a step boundary: every
 entry point reads the tenant again from `session.auth.attributes.tenantId` and
 `lib/tenant.ts` is the only place that does it.
@@ -103,8 +105,8 @@ entry point reads the tenant again from `session.auth.attributes.tenantId` and
 - **A session names its tenant in the auth attributes.** `taskAuth` adds it for the
   research lane, `dispatchBuilderSubmission` and `dispatchAgentRun` add it for the
   builder and the runner, and the bridge token carries it for a rep's chat. Without
-  it, hosted mode throws rather than guessing, and `db` throws
-  `TenantContextMissing` for a wrapper somebody forgot.
+  it, hosted mode throws rather than guessing, and `db` throws for a wrapper
+  somebody forgot.
 - **The dispatch tick loops over the active tenants**: `eachActiveTenant` runs
   `DISPATCH.tenants.concurrency` tenants at once, each under
   `DISPATCH.tenants.budgetMs`, the start rotates every tick, and one tenant's failure
@@ -143,10 +145,7 @@ signed up in. The API stores and serves the value and does nothing else with it.
   stay English on purpose: the app translates the first per reader, and telemetry
   compares the second.
 - **Every tenant gets a value when it is made.** A hosted sign-up stores the sign-up
-  language, `scripts/tenant.ts create --language` and
-  `scripts/import-single-tenant.ts --language` store theirs. Import without the flag
-  keeps a value in the dump, else reads the old install's `RELOOP_GERMAN` from
-  `IMPORT_RELOOP_GERMAN`.
+  language, and the hosted Cloud's own tools store theirs.
 - **The settings card says what the agent does now.** In hosted mode with no value it
   shows the fallback language with "not chosen yet", so an owner sees why the agent
   writes English.

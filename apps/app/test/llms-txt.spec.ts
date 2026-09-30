@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { MARKETING_LLMS } from "../cloud/slots.data";
 import { DOCS, docPath } from "../components/docs/docs-config";
+import { PRICING } from "../components/signup/config";
 
 const nextServer = await import("next/server");
 mock.module("next/server", () => ({
@@ -121,10 +123,13 @@ describe("/llms.txt with a hosted cloud elsewhere", () => {
 			.map((href) => new URL(href, "http://localhost").pathname);
 	}
 
-	it("lists the sign-up page when the cloud is this site", async () => {
+	it("lists the sign-up page when the cloud is this site and the build has one", async () => {
 		delete process.env.RELOOP_CLOUD_URL;
+		const offered = [...MARKETING_LLMS.lead, ...MARKETING_LLMS.rest].some(
+			(entry) => entry.path === PRICING.href.start,
+		);
 
-		expect(await pages()).toContain("/get-started");
+		expect((await pages()).includes(PRICING.href.start)).toBe(offered);
 	});
 
 	it("leaves the sign-up page out when it only redirects", async () => {

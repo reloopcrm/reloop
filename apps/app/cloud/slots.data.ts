@@ -5,16 +5,15 @@ import type {
 	SettingsNavSlot,
 	SlotRedirect,
 } from "@/cloud/contract";
-import { MARKDOWN_LINKS } from "@/lib/markdown-negotiation";
 
-export function landingMarkdown(): string {
+export function landingMarkdown(links: string): string {
 	return `# Reloop CRM
 
 An open source CRM that reads the mailbox you already have and shows which old customers are worth a call.
 
 ## Where to go next
 
-${MARKDOWN_LINKS}
+${links}
 `;
 }
 
@@ -23,6 +22,8 @@ export const BILLING_SETTINGS_NAV: readonly SettingsNavSlot[] = [];
 export const BILLING_PATH: string | null = null;
 
 export const MARKETING_ROUTES: readonly string[] = [];
+
+export const HOSTED_ROUTES: readonly string[] = [];
 
 export const MARKETING_REDIRECTS: readonly SlotRedirect[] = [];
 

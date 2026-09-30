@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import sitemap from "../app/sitemap";
 import { MARKETING_ROUTES, MARKETING_SITEMAP } from "../cloud/slots.data";
+import { PRICING } from "../components/signup/config";
 
 const MARKETING = [...MARKETING_SITEMAP.lead, ...MARKETING_SITEMAP.rest];
 
@@ -22,18 +23,24 @@ function paths(): string[] {
 }
 
 describe("sitemap.xml", () => {
-	it("lists the sign-up page when the cloud is this site", () => {
+	it("lists the sign-up page when the cloud is this site and the build has one", () => {
 		delete process.env.RELOOP_CLOUD_URL;
 
-		expect(paths()).toContain("/get-started");
+		expect(paths().includes(PRICING.href.start)).toBe(
+			MARKETING.includes(PRICING.href.start),
+		);
 		expect(paths()).toEqual(expect.arrayContaining(MARKETING));
 	});
 
 	it("leaves the sign-up page out when it only redirects", () => {
 		process.env.RELOOP_CLOUD_URL = "https://app.reloopcrm.com";
 
-		expect(paths()).not.toContain("/get-started");
-		expect(paths()).toEqual(expect.arrayContaining(MARKETING));
+		expect(paths()).not.toContain(PRICING.href.start);
+		expect(paths()).toEqual(
+			expect.arrayContaining(
+				MARKETING.filter((path) => path !== PRICING.href.start),
+			),
+		);
 	});
 
 	it("lists the landing page only when the build carries one", () => {

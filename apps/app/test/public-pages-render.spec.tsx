@@ -2,7 +2,7 @@ import { expect, it, mock } from "bun:test";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { z } from "zod";
-import { MARKETING_ROUTES } from "../cloud/slots.data";
+import { HOSTED_ROUTES, MARKETING_ROUTES } from "../cloud/slots.data";
 import { DICTIONARIES } from "../lib/i18n/dictionaries";
 import { PROXY } from "../lib/proxy-config";
 
@@ -18,7 +18,7 @@ const RENDERED = [
 	{ path: PROXY.path.notFound, file: "app/not-found.tsx" },
 	{ path: "/docs", file: "app/(landing)/docs/page.tsx" },
 	{ path: "/docs/[slug]", file: "app/(landing)/docs/[slug]/page.tsx" },
-	...[...PROXY.marketing, ...MARKETING_ROUTES]
+	...[...PROXY.marketing, ...MARKETING_ROUTES, ...HOSTED_ROUTES]
 		.filter((path) => path !== "/get-started" && path !== "/imprint")
 		.map((path) => ({ path, file: `app/(landing)${path}/page.tsx` })),
 ] as const;

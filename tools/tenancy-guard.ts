@@ -36,23 +36,17 @@ const DB_READING_DB_MODULES = [
 	"model-spend",
 	"plan-usage",
 	"provider-usage",
-	"provision",
 	"reactivation",
 	"settings",
 	"slack-inventory",
 	"win-back-outcome",
 ];
 
-const TENANCY_SIDE = [
-	"packages/db/src/",
-	"apps/api/src/tenancy/",
-	"apps/api/scripts/",
-	"apps/api/src/workspace/workspace-deletion.service.ts",
-	"apps/api/src/mail/billing-mail.service.ts",
-	"apps/api/src/mail/mail-copy.ts",
-	"apps/app/lib/tenant.ts",
-	"apps/app/cloud/scope.server.ts",
-	"packages/auth/src/tenant-cookie.ts",
+const CLOUD_SIDE = [
+	"packages/db/src/cloud/",
+	"apps/api/src/cloud/",
+	"apps/app/cloud/",
+	"packages/auth/src/cloud/",
 ];
 
 const namedImport = (names: readonly string[], from: string) =>
@@ -66,14 +60,14 @@ const RULES: readonly Rule[] = [
 		pattern: /new Prisma(Client|Pg)\(/,
 		allowed: ["packages/db/src/client.ts"],
 		skipTests: false,
-		why: "Every client comes from packages/db/src/client.ts, which resolves the tenant.",
+		why: "Every client comes from packages/db/src/client.ts, which asks the cloud port for the workspace client.",
 	},
 	{
 		name: "process.env.ALLOWED_SIGN_IN",
 		pattern: /(?<!delete )process\.env\.ALLOWED_SIGN_IN(?!\s*=[^=])/,
 		allowed: ["packages/auth/src/workspace.ts"],
 		skipTests: true,
-		why: "The allow-list is read through allowList() in packages/auth/src/workspace.ts, which knows the tenant.",
+		why: "The allow-list is read through allowList() in packages/auth/src/workspace.ts, which asks the cloud port first.",
 	},
 	{
 		name: "db from @crm/db in apps/app",
@@ -81,7 +75,7 @@ const RULES: readonly Rule[] = [
 		scope: APP,
 		allowed: APP_TENANT_WRAPPERS,
 		skipTests: true,
-		why: "The app renders outside runAsTenant(). Read through a cache()d helper in apps/app/lib/session.ts that wraps inScope() from apps/app/cloud/scope.server.ts.",
+		why: "The app renders outside any workspace scope. Read through a cache()d helper in apps/app/lib/session.ts that wraps inScope() from apps/app/cloud/scope.server.ts.",
 	},
 	{
 		name: "a db-reading @crm/auth helper in apps/app",
@@ -102,12 +96,12 @@ const RULES: readonly Rule[] = [
 		why: "These modules read db. Load them through an inScope() helper in apps/app/lib. The list is every packages/db/src module that imports ./client, except tracking and workspace, whose app imports are constants.",
 	},
 	{
-		name: "a tenancy module imported by the core",
+		name: "a cloud module other than the port imported by the core",
 		pattern:
-			/(from\s*|import\(\s*)"@crm\/db\/(tenant-context|tenancy|tenant-clients)"/,
-		allowed: TENANCY_SIDE,
+			/(from\s*|import\(\s*)"@crm\/db\/cloud\/(?!scope"|contract")[^"]+"/,
+		allowed: CLOUD_SIDE,
 		skipTests: true,
-		why: "Core code reaches the tenancy through the cloud port, cloud.* from @crm/db/cloud/scope. Only the tenancy side imports it directly.",
+		why: "Core code reaches the hosted Cloud through the port, cloud.* from @crm/db/cloud/scope, typed by @crm/db/cloud/contract. Only the slots import anything else under @crm/db/cloud.",
 	},
 ];
 

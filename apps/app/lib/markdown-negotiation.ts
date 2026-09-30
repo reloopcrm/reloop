@@ -55,14 +55,16 @@ export function markdownHeaders(): Headers {
 	return headers;
 }
 
-export const MARKDOWN_LINKS = [
-	"- [Documentation](/docs)",
-	"- [Get started](/get-started)",
-	"- [Sitemap](/sitemap.xml)",
-	"- [llms.txt](/llms.txt)",
-].join("\n");
+export function markdownLinks(signUp: string | null): string {
+	return [
+		"- [Documentation](/docs)",
+		...(signUp ? [`- [Get started](${signUp})`] : []),
+		"- [Sitemap](/sitemap.xml)",
+		"- [llms.txt](/llms.txt)",
+	].join("\n");
+}
 
-export function notFoundMarkdown(path: string): string {
+export function notFoundMarkdown(path: string, links: string): string {
 	const asked = pathname.parse(path);
 
 	return `# 404 Not Found
@@ -74,6 +76,6 @@ The documentation lists every guide. The sitemap lists every public page. The ll
 ## Where to go next
 
 - [Reloop CRM home](/)
-${MARKDOWN_LINKS}
+${links}
 `;
 }

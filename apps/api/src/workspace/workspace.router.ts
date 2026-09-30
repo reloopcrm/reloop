@@ -1,5 +1,3 @@
-import { appUrl } from "@crm/auth";
-import { clearedTenantCookieHeader } from "@crm/auth/cloud/tenant-cookie";
 import { Inject, UnauthorizedException } from "@nestjs/common";
 import {
 	Ctx,
@@ -17,10 +15,6 @@ import { restMeta } from "../trpc/openapi";
 import {
 	addedPersonOutput,
 	addPersonInput,
-	deletedWorkspaceOutput,
-	deleteWorkspaceInput,
-	deletionCodeInput,
-	deletionCodeOutput,
 	memberListInput,
 	memberListOutput,
 	removedMemberOutput,
@@ -31,15 +25,12 @@ import {
 	workspaceOutput,
 } from "./workspace.contracts";
 import { WorkspaceService } from "./workspace.service";
-import { WorkspaceDeletionService } from "./workspace-deletion.service";
 
 @Router({ alias: "workspace" })
 @UseMiddlewares(AuthMiddleware)
 export class WorkspaceRouter {
 	constructor(
 		@Inject(WorkspaceService) private readonly workspace: WorkspaceService,
-		@Inject(WorkspaceDeletionService)
-		private readonly deletion: WorkspaceDeletionService,
 	) {}
 
 	@Query({
@@ -114,39 +105,5 @@ export class WorkspaceRouter {
 		@Input() input: z.infer<typeof removeMemberInput>,
 	) {
 		return this.workspace.removeMember(ctx.user.id, input);
-	}
-
-	@Mutation({
-		input: deletionCodeInput,
-		output: deletionCodeOutput,
-		meta: restMeta("POST", "/workspace/deletion-code", ["Workspace"]),
-	})
-	@UseMiddlewares(SessionOnlyMiddleware)
-	async deletionCode(
-		@Ctx() ctx: AuthedTrpcContext,
-		@Input() input: z.infer<typeof deletionCodeInput>,
-	) {
-		return this.deletion.sendCode(ctx.user, input.locale);
-	}
-
-	@Mutation({
-		input: deleteWorkspaceInput,
-		output: deletedWorkspaceOutput,
-		meta: restMeta("POST", "/workspace/delete", ["Workspace"]),
-	})
-	@UseMiddlewares(SessionOnlyMiddleware)
-	async delete(
-		@Ctx() ctx: AuthedTrpcContext,
-		@Input() input: z.infer<typeof deleteWorkspaceInput>,
-	) {
-		const deleted = await this.deletion.delete(ctx.user, input);
-		ctx.req?.res?.append(
-			"set-cookie",
-			clearedTenantCookieHeader({
-				secure: appUrl.startsWith("https://"),
-				domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
-			}),
-		);
-		return deleted;
 	}
 }

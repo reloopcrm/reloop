@@ -6,21 +6,20 @@ const base = { ...process.env };
 
 describe("validateEnv", () => {
 	it("treats an empty optional value as unset", () => {
-		expect(() =>
-			validateEnv({ ...base, RELOOP_OPERATOR_TENANT: "", RESEND_API_KEY: "" }),
-		).not.toThrow();
+		expect(() => validateEnv({ ...base, PASSWORD_SIGN_IN: "" })).not.toThrow();
 	});
 
-	it("still rejects a malformed operator tenant", () => {
-		expect(() =>
-			validateEnv({ ...base, RELOOP_OPERATOR_TENANT: "Not A Tenant" }),
-		).toThrow("RELOOP_OPERATOR_TENANT");
+	it("requires ALLOWED_SIGN_IN on a self-hosted install", () => {
+		expect(() => validateEnv({ ...base, ALLOWED_SIGN_IN: "" })).toThrow(
+			"ALLOWED_SIGN_IN",
+		);
 	});
 
-	it("keeps a valid operator tenant", () => {
-		expect(
-			validateEnv({ ...base, RELOOP_OPERATOR_TENANT: "tt-handelslogistik" })
-				.RELOOP_OPERATOR_TENANT,
-		).toBe("tt-handelslogistik");
+	it("needs no hosted variable on a self-hosted install", () => {
+		const env = { ...base };
+		for (const name of Object.keys(env)) {
+			if (name.startsWith("RELOOP_")) delete env[name];
+		}
+		expect(() => validateEnv(env)).not.toThrow();
 	});
 });

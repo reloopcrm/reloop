@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
 import { landingMarkdown } from "../cloud/slots.data";
-import { notFoundMarkdown, prefersMarkdown } from "../lib/markdown-negotiation";
+import {
+	markdownLinks,
+	notFoundMarkdown,
+	prefersMarkdown,
+} from "../lib/markdown-negotiation";
 import { MARKETING_PATHS, proxy } from "../proxy";
 
 const BROWSER_ACCEPT =
@@ -63,7 +67,7 @@ describe("prefersMarkdown", () => {
 
 describe("the Markdown body", () => {
 	it("names the product and links the three agent entry points", () => {
-		const body = landingMarkdown();
+		const body = landingMarkdown(markdownLinks(null));
 
 		expect(body).toContain("# Reloop CRM");
 		expect(body).toContain("](/docs)");
@@ -72,7 +76,7 @@ describe("the Markdown body", () => {
 	});
 
 	it("explains the error and points the reader on", () => {
-		const body = notFoundMarkdown("/no-such-path");
+		const body = notFoundMarkdown("/no-such-path", markdownLinks(null));
 
 		expect(body.length).toBeGreaterThan(20);
 		expect(body).toContain("404 Not Found");
@@ -83,7 +87,7 @@ describe("the Markdown body", () => {
 	});
 
 	it("strips the markup a hostile path carries", () => {
-		const body = notFoundMarkdown("/`x`[a](b)<script>");
+		const body = notFoundMarkdown("/`x`[a](b)<script>", markdownLinks(null));
 
 		expect(body).not.toContain("<script>");
 		expect(body).toContain("/xab");

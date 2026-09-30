@@ -1,12 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { LOCALES } from "@crm/db/locale";
 import type { AgentProviderSetting } from "@crm/db/settings";
-import type { Tenant } from "@crm/db/tenancy";
-import { runAsTenant } from "@crm/db/tenant-context";
 import type { LanguageModel } from "ai";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { chatgptLoginExists } from "../agent/lib/codex-binary";
 import { COPY } from "../agent/lib/copy";
 import { inLane, type KeyBucket, type Lane } from "../agent/lib/key-bucket";
 import {
@@ -18,7 +15,6 @@ import {
 } from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
 import { rotated, tenantTool } from "../agent/lib/tenant";
-import { fakeCodexHome } from "./codex-home";
 
 describe("the fixed AI chain", () => {
 	it("is one OpenRouter candidate on the operator key, by purpose", () => {
@@ -123,53 +119,6 @@ describe("the operator's OpenRouter key on an own-key plan", () => {
 		OPENROUTER_API_KEY: "sk-or-operator",
 		CODEX_HOME: "/nonexistent",
 	};
-
-	it("is never read on a hosted install", () => {
-		const saved = process.env.RELOOP_REGISTRY_URL;
-		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
-		try {
-			expect(openrouterKeyOf(setting, env)).toBeNull();
-			expect(candidatesFor(setting, env)).toEqual([]);
-		} finally {
-			if (saved === undefined) delete process.env.RELOOP_REGISTRY_URL;
-			else process.env.RELOOP_REGISTRY_URL = saved;
-		}
-	});
-
-	it("still serves the operator's own tenant on the hosted install", () => {
-		const saved = {
-			registry: process.env.RELOOP_REGISTRY_URL,
-			operator: process.env.RELOOP_OPERATOR_TENANT,
-		};
-		process.env.RELOOP_REGISTRY_URL = "http://registry.test";
-		process.env.RELOOP_OPERATOR_TENANT = "reloop";
-		const tenantOf = (id: string) => ({ id, plan: "none" }) as Tenant;
-		const codex = fakeCodexHome(true);
-		try {
-			expect(
-				runAsTenant(tenantOf("reloop"), () => openrouterKeyOf(setting, env)),
-			).toBe("sk-or-operator");
-			expect(
-				runAsTenant(tenantOf("acme"), () => openrouterKeyOf(setting, env)),
-			).toBeNull();
-			expect(runAsTenant(tenantOf("reloop"), () => chatgptLoginExists())).toBe(
-				true,
-			);
-			expect(runAsTenant(tenantOf("acme"), () => chatgptLoginExists())).toBe(
-				false,
-			);
-			expect(chatgptLoginExists()).toBe(false);
-		} finally {
-			codex.restore();
-			for (const [name, value] of [
-				["RELOOP_REGISTRY_URL", saved.registry],
-				["RELOOP_OPERATOR_TENANT", saved.operator],
-			] as const) {
-				if (value === undefined) delete process.env[name];
-				else process.env[name] = value;
-			}
-		}
-	});
 
 	it("still serves a single-tenant install", () => {
 		expect(openrouterKeyOf(setting, env)).toBe("sk-or-operator");

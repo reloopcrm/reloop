@@ -4,7 +4,7 @@ import {
 	contactWorth,
 	type QuantityRule,
 } from "@crm/db/contact-worth";
-import { isFreeEmailDomain } from "@crm/db/email-domains";
+import { isFreeEmailDomain, isPlatformDomain } from "@crm/db/email-domains";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 
 export const PRUNE = {
@@ -26,7 +26,13 @@ export function ownDomainsOf(values: readonly (string | null | undefined)[]) {
 			?.split("@")
 			.pop();
 		const bare = (host ?? "").replace(/^www\./, "");
-		if (bare.includes(".") && !isFreeEmailDomain(bare)) domains.add(bare);
+		if (
+			bare.includes(".") &&
+			!isFreeEmailDomain(bare) &&
+			!isPlatformDomain(bare)
+		) {
+			domains.add(bare);
+		}
 	}
 
 	return domains;

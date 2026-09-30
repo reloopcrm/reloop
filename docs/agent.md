@@ -1166,15 +1166,15 @@ the fix. `test/crm-token.spec.ts` pins all three forms.
 The general rule: **a channel handler must not assume the token it receives is
 byte-identical to the one it sent.** Parse for your own marker.
 
-## No sweep archives a contact on its own
+## The own-domain sweep archives only the workspace's own domains
 
-**A sweep never archives a contact of a freemail domain.** A user who signs in with
-`@gmail.com` does not make `gmail.com` the workspace's own domain. `ownDomainsOf` in
-`agent/lib/contact-prune.ts` skips every domain in `FREE_EMAIL_DOMAINS`
-(`packages/db/src/email-domains.ts`, the one list for every app).
-
-`archiveOwnContacts` touches only contacts whose source is `EMAIL` or `CALENDAR`.
-A contact somebody typed, imported or captured is never swept.
+**`archiveOwnContacts` still runs on the dispatch tick.** It archives a contact only
+when the contact's source is `EMAIL` or `CALENDAR` and its address sits on one of the
+workspace's own domains. `ownDomainsOf` in `agent/lib/contact-prune.ts` reads those
+domains from the workspace website, the IMAP mailboxes and the users. It drops every
+domain in `FREE_EMAIL_DOMAINS` and every domain in `PLATFORM_DOMAINS`, such as
+`linkedin.com` or `wixsite.com` (both in `packages/db/src/email-domains.ts`). A user who
+signs in with `@gmail.com` does not make `gmail.com` an own domain.
 
 `pruneContacts` and `pruneCompanies` are off (`PRUNE.enabled` is `false`) and return 0.
 Turning them off does not restore or delete anything already archived.

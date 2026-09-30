@@ -80,7 +80,6 @@ export const FREE_EMAIL_DOMAINS: ReadonlySet<string> = new Set([
 	"sina.com",
 	"sina.cn",
 	"sohu.com",
-	"aliyun.com",
 	"naver.com",
 	"daum.net",
 	"hanmail.net",
@@ -96,13 +95,9 @@ export const FREE_EMAIL_DOMAINS: ReadonlySet<string> = new Set([
 	"bigpond.com",
 	"optusnet.com.au",
 	"btinternet.com",
-	"sky.com",
-	"ziggo.nl",
 	"kpnmail.nl",
-	"telenet.be",
 	"skynet.be",
 	"gmx.fr",
-	"laposte.fr",
 	"inbox.ru",
 	"bk.ru",
 	"list.ru",
@@ -123,4 +118,39 @@ export function isFreeEmailDomain(domain: string | null | undefined): boolean {
 		.toLowerCase()
 		.replace(/^www\./, "");
 	return FREE_EMAIL_DOMAINS.has(bare);
+}
+
+export const PLATFORM_DOMAINS: readonly string[] = [
+	"linkedin.com",
+	"facebook.com",
+	"instagram.com",
+	"xing.com",
+	"twitter.com",
+	"x.com",
+	"youtube.com",
+	"tiktok.com",
+	"github.com",
+	"google.com",
+	"wixsite.com",
+	"wix.com",
+	"jimdo.com",
+	"jimdosite.com",
+	"jimdofree.com",
+	"squarespace.com",
+	"weebly.com",
+	"wordpress.com",
+	"blogspot.com",
+	"business.site",
+	"myshopify.com",
+	"linktr.ee",
+];
+
+export function isPlatformDomain(domain: string | null | undefined): boolean {
+	const bare = (domain ?? "")
+		.trim()
+		.toLowerCase()
+		.replace(/^www\./, "");
+	return PLATFORM_DOMAINS.some(
+		(platform) => bare === platform || bare.endsWith(`.${platform}`),
+	);
 }

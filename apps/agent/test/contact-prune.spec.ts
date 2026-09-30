@@ -8,6 +8,17 @@ describe("ownDomainsOf", () => {
 		]).toEqual(["acme.de"]);
 	});
 
+	it("never takes a platform domain from the website", () => {
+		const domains = ownDomainsOf([
+			"https://www.linkedin.com/company/x",
+			"https://acme.wixsite.com/shop",
+			"https://x.com/acme",
+			"y@acme.de",
+		]);
+
+		expect([...domains]).toEqual(["acme.de"]);
+	});
+
 	it("drops every freemail domain", () => {
 		const domains = ownDomainsOf([
 			"a@gmx.de",

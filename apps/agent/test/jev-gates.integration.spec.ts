@@ -63,6 +63,7 @@ function reads() {
 				fullName: null,
 				title: null,
 				phone: null,
+				mobile: null,
 				companyName: null,
 				signatureQuote: null,
 				foundInSignature: false,
@@ -126,7 +127,7 @@ beforeAll(async () => {
 	const contact = await db.contact.create({
 		data: {
 			email: contactEmail,
-			firstName: "A",
+			firstName: "Anna",
 			lastName: "Mueller",
 			companyId,
 		},

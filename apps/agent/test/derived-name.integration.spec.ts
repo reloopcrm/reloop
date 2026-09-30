@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { db, EmailDirection } from "@crm/db";
+import { db, EmailDirection, RecordSource } from "@crm/db";
 import { recordFact } from "../agent/lib/facts";
 import { queueContactCleanups } from "../agent/lib/housekeeping";
 
@@ -33,6 +33,7 @@ async function seed(input: {
 			firstName: input.firstName,
 			lastName: input.lastName,
 			email: input.email,
+			source: RecordSource.EMAIL,
 			cleanedAt: input.cleanedAt,
 			lastActivityAt: new Date(),
 		},

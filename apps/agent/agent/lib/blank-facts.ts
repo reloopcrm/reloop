@@ -19,6 +19,7 @@ const CONTACT_SELECT = {
 	email: true,
 	firstName: true,
 	lastName: true,
+	source: true,
 	title: true,
 	phone: true,
 	seniority: true,
@@ -89,7 +90,7 @@ export async function sweepBlankFacts(
 		const column = factColumn(field);
 		const current = applied.get(key(best.contactId, field));
 
-		if (!fillsBlank({ field, contact, hasAgentFact: current !== undefined })) {
+		if (!fillsBlank({ field, contact, agentValue: current ?? null })) {
 			const value = current ?? (column ? contact[column] : null);
 			const stale = redundant(group, value);
 
@@ -154,19 +155,7 @@ type Proposal = {
 	value: string;
 	score: number;
 	evidence: Prisma.JsonValue;
-	contact: {
-		id: string;
-		email: string | null;
-		firstName: string;
-		lastName: string | null;
-		title: string | null;
-		phone: string | null;
-		seniority: string | null;
-		function: string | null;
-		linkedinUrl: string | null;
-		twitterUrl: string | null;
-		githubUrl: string | null;
-	};
+	contact: FactSubject & { id: string };
 };
 
 async function appliedValues(

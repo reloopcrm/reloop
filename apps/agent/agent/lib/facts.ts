@@ -1,7 +1,7 @@
-import { db, FactBand, FactStatus, type Prisma } from "@crm/db";
+import { db, FactBand, FactStatus, type Prisma, RecordSource } from "@crm/db";
 import { type Evidence, scoreEvidence, selfAssertedOnly } from "./evidence";
 import { currentFocus } from "./focus";
-import { isDerivedName, splitName } from "./names";
+import { isDerivedName, nameRank, splitName } from "./names";
 
 const FIELDS = {
 	name: { column: null },
@@ -27,6 +27,7 @@ export type FactSubject = {
 	email: string | null;
 	firstName: string;
 	lastName: string | null;
+	source: RecordSource;
 } & { [Column in FactColumn]: string | null };
 
 export function factColumn(field: FactField): FactColumn | null {
@@ -36,7 +37,7 @@ export function factColumn(field: FactField): FactColumn | null {
 export function fillsBlank(input: {
 	field: FactField;
 	contact: FactSubject;
-	hasAgentFact: boolean;
+	agentValue: string | null;
 }): boolean {
 	const column = FIELDS[input.field].column;
 	if (humanOwns({ ...input, column })) return false;
@@ -96,6 +97,7 @@ export async function recordFact(
 			email: true,
 			firstName: true,
 			lastName: true,
+			source: true,
 			title: true,
 			phone: true,
 			seniority: true,
@@ -149,9 +151,9 @@ export async function recordFact(
 	}
 
 	const column = FIELDS[field].column;
-	const hasAgentFact = Boolean(currentApplied);
+	const agentValue = currentApplied?.value ?? null;
 
-	if (humanOwns({ field, column, contact, hasAgentFact })) {
+	if (humanOwns({ field, column, contact, agentValue })) {
 		return {
 			...base,
 			stored: false,
@@ -160,10 +162,20 @@ export async function recordFact(
 		};
 	}
 
+	if (field === "name" && lessComplete(trimmed, contact)) {
+		return {
+			...base,
+			stored: false,
+			applied: false,
+			reason:
+				"The record already carries a fuller name than this one. A name is only ever replaced by one that says as much or more.",
+		};
+	}
+
 	const applies =
 		scored.band === FactBand.VERIFIED ||
 		(mayFillBlank(field, input.evidence) &&
-			fillsBlank({ field, contact, hasAgentFact }));
+			fillsBlank({ field, contact, agentValue }));
 
 	if (
 		!applies &&
@@ -337,38 +349,57 @@ export async function writeBrief(input: {
 	return { written: true, score: scored.score };
 }
 
+function lessComplete(candidate: string, contact: FactSubject): boolean {
+	const split = splitName(candidate);
+	if (!split) return true;
+
+	return (
+		nameRank(split.firstName, split.lastName) <
+		nameRank(contact.firstName, contact.lastName)
+	);
+}
+
+function recordName(contact: FactSubject): string {
+	return [contact.firstName, contact.lastName].filter(Boolean).join(" ");
+}
+
 function humanOwns({
 	field,
 	column,
 	contact,
-	hasAgentFact,
+	agentValue,
 }: {
 	field: FactField;
 	column: FactColumn | null;
 	contact: FactSubject;
-	hasAgentFact: boolean;
+	agentValue: string | null;
 }): boolean {
 	if (field === "name") {
+		if (contact.source === RecordSource.MANUAL) return true;
+		if (agentValue !== null && !sameValue(agentValue, recordName(contact))) {
+			return true;
+		}
 		return !isDerivedName(contact.email, contact.firstName, contact.lastName);
 	}
 
-	if (!column || hasAgentFact) return false;
+	const value = column ? contact[column] : null;
+	if (!value) return false;
 
-	return Boolean(contact[column]);
+	return agentValue === null || !sameValue(agentValue, value);
 }
 
 function isEmpty({
 	field,
 	column,
 	contact,
-	hasAgentFact,
+	agentValue,
 }: {
 	field: FactField;
 	column: FactColumn | null;
 	contact: FactSubject;
-	hasAgentFact: boolean;
+	agentValue: string | null;
 }): boolean {
-	if (hasAgentFact) return false;
+	if (agentValue !== null) return false;
 	if (field === "name") return true;
 	if (!column) return true;
 

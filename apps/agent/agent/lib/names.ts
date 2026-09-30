@@ -145,6 +145,28 @@ export function looksMachineMade(
 	return joined.length > 0 && (joined === handle || initialJoined === handle);
 }
 
+export function nameRank(firstName: string, lastName: string | null): number {
+	return partRank(firstName) + partRank(lastName);
+}
+
+function partRank(part: string | null): number {
+	return Math.min(normalise(part ?? "").length, 2);
+}
+
+export function outranksRecord(
+	candidate: string,
+	record: { email: string | null; firstName: string; lastName: string | null },
+): boolean {
+	const split = splitName(candidate);
+	if (!split || !record.email) return false;
+
+	return (
+		nameRank(split.firstName, split.lastName) >
+			nameRank(record.firstName, record.lastName) &&
+		nameMatchesLocalPart(split, record.email.split("@")[0] ?? "")
+	);
+}
+
 export function splitName(
 	fullName: string,
 ): { firstName: string; lastName: string | null } | null {

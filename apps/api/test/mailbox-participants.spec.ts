@@ -315,3 +315,32 @@ describe("isDerivedName", () => {
 		expect(isDerivedName("jane.doe@acme.com", "Jane", "Doherty")).toBe(false);
 	});
 });
+
+describe("isDerivedName — an initial the address already spells", () => {
+	it("reads an initial with a dot as a name cut out of the address", () => {
+		expect(isDerivedName("m.beispiel@example.com", "M.", "Beispiel")).toBe(
+			true,
+		);
+		expect(isDerivedName("m.beispiel@example.com", "M", "Beispiel")).toBe(true);
+	});
+
+	it("reads the comma form of a display name the same way", () => {
+		const { firstName, lastName } = splitName(
+			"Beispiel, M.",
+			"m.beispiel@example.com",
+		);
+		expect(isDerivedName("m.beispiel@example.com", firstName, lastName)).toBe(
+			true,
+		);
+	});
+
+	it("never reads a full name as a placeholder", () => {
+		expect(isDerivedName("m.beispiel@example.com", "Maria", "Beispiel")).toBe(
+			false,
+		);
+		expect(
+			isDerivedName("maria.beispiel@example.com", "Maria", "Beispiel"),
+		).toBe(true);
+		expect(isDerivedName("m.beispiel@example.com", "M.", "Muster")).toBe(false);
+	});
+});

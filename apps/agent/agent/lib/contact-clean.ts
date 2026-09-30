@@ -9,7 +9,7 @@ import { askNoul, type JevNoulAsk, type JevQuestion, typesafeKey } from "./jev";
 import { countGate } from "./jev-meter";
 import { say } from "./language";
 import { directModel } from "./model";
-import { looksMachineMade, properCase } from "./names";
+import { looksMachineMade, outranksRecord, properCase } from "./names";
 import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
 const CLEAN = {
@@ -20,6 +20,7 @@ const CLEAN = {
 		threshold: 0.35,
 		mailMaxChars: 4_000,
 	},
+	phone: { minDigits: 6 },
 } as const;
 
 export const CLEAN_GATE = "contact-clean";
@@ -32,12 +33,24 @@ const found = z.object({
 	fullName: z.string().max(120).nullable(),
 	title: z.string().max(120).nullable(),
 	phone: z.string().max(60).nullable(),
+	mobile: z.string().max(60).nullable(),
 	companyName: z.string().max(120).nullable(),
 	signatureQuote: z.string().max(300).nullable(),
 	foundInSignature: z.boolean(),
 });
 
 type Found = z.infer<typeof found>;
+
+export function normalisePhone(raw: string): string | null {
+	const compact = raw
+		.replace(/\(0\)/g, "")
+		.replace(/[^\d+]/g, "")
+		.replace(/^00/, "+");
+	const digits = compact.replace(/\D/g, "");
+	if (digits.length < CLEAN.phone.minDigits) return null;
+
+	return compact.startsWith("+") ? `+${digits}` : digits;
+}
 
 function tail(body: string | null): string {
 	if (!body) return "";
@@ -90,7 +103,9 @@ async function extract(input: {
 			UNTRUSTED_RULE,
 			"Report only what the signature or the sender line states. Never guess a name from the email address alone.",
 			"fullName is the person's full name as written by them, without titles like Herr, Frau, Dr. or job titles.",
-			"title is their job title, companyName the company they sign for, phone the number in the signature.",
+			"Report the fullest form of the name that the signature or the sender line gives. When the signature shows only an initial and the sender line shows the full first name of the same person, report the full first name.",
+			"title is their job title, companyName the company they sign for, phone the landline number in the signature, mobile the mobile number in the signature.",
+			"Email 1 is the newest. When the emails disagree, report what the newest one says.",
 			"foundInSignature is true only when a signature block or a name in the sender line supports fullName.",
 			`The reader's own side is ${input.ours.names.join(", ")} (${input.ours.emails.join(", ")}). Quoted replies from that side are not the sender. Never report our own names, titles or phone numbers as the sender's.`,
 			"signatureQuote quotes the signature lines you used, at most 300 characters.",
@@ -215,7 +230,14 @@ export async function runContactClean(
 	];
 	const bodies = messages.map((m) => tail(m.body ?? m.snippet));
 
-	if (!(await hasSignature({ displayNames, bodies }, ask))) {
+	const betterSenderName = displayNames.some((name) =>
+		outranksRecord(name, contact),
+	);
+
+	if (
+		!betterSenderName &&
+		!(await hasSignature({ displayNames, bodies }, ask))
+	) {
 		return done(cleanSkipped());
 	}
 
@@ -242,7 +264,8 @@ export async function runContactClean(
 		{
 			kind: "crm.signature-block" as const,
 			detail:
-				facts.signatureQuote ?? `Signed as ${facts.fullName ?? contact.email}`,
+				facts.signatureQuote ??
+				`Sender line: ${displayNames.join(" | ") || contact.email}`,
 		},
 		{
 			kind: "crm.thread-reply" as const,
@@ -270,7 +293,7 @@ export async function runContactClean(
 				`${say(COPY.clean.field.name)} ${say(COPY.clean.proposed)}: ${facts.fullName}`,
 			);
 
-		if (facts.title && !contact.title) {
+		if (facts.title) {
 			const titleResult = await recordFact({
 				contactId,
 				field: "title",
@@ -283,19 +306,22 @@ export async function runContactClean(
 		}
 	}
 
-	if (facts.phone && !contact.phone) {
+	const phone =
+		normalisePhone(facts.phone ?? "") ?? normalisePhone(facts.mobile ?? "");
+
+	if (phone) {
 		const phoneResult = await recordFact({
 			contactId,
 			field: "phone",
-			value: facts.phone,
+			value: phone,
 			evidence,
 			method: "contact-clean",
 		});
 		if (phoneResult.applied)
-			changes.push(`${say(COPY.clean.field.phone)} → ${facts.phone}`);
+			changes.push(`${say(COPY.clean.field.phone)} → ${phone}`);
 		else if (phoneResult.stored)
 			changes.push(
-				`${say(COPY.clean.field.phone)} ${say(COPY.clean.proposed)}: ${facts.phone}`,
+				`${say(COPY.clean.field.phone)} ${say(COPY.clean.proposed)}: ${phone}`,
 			);
 	}
 

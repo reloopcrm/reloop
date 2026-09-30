@@ -55,7 +55,9 @@ export class DirectionRepairService {
 
 		const stale = await this.db.threadInsight.findMany({
 			where: {
-				threadId: { in: [...new Set(wrong.map((message) => message.threadId))] },
+				threadId: {
+					in: [...new Set(wrong.map((message) => message.threadId))],
+				},
 			},
 			select: { threadId: true },
 		});

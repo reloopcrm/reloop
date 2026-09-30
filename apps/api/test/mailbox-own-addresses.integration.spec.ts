@@ -259,9 +259,9 @@ describe("repairing mail stored with the wrong direction", () => {
 			},
 		} as unknown as AgentTriggerService;
 
-		expect(
-			await new DirectionRepairService(db, scoped, trigger).repair(),
-		).toBe(1);
+		expect(await new DirectionRepairService(db, scoped, trigger).repair()).toBe(
+			1,
+		);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);
 		expect(await directionOf("customer")).toBe(EmailDirection.INBOUND);
 		expect(requested).toEqual([
@@ -273,9 +273,9 @@ describe("repairing mail stored with the wrong direction", () => {
 			],
 		]);
 
-		expect(
-			await new DirectionRepairService(db, scoped, trigger).repair(),
-		).toBe(0);
+		expect(await new DirectionRepairService(db, scoped, trigger).repair()).toBe(
+			0,
+		);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);
 		expect(requested).toHaveLength(1);
 	});

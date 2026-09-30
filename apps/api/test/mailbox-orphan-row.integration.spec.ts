@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
 import {
 	GMAIL_SCOPE,
 	GOOGLE_PROVIDER_ID,
@@ -172,7 +179,8 @@ describe("an unfinished mailbox connection that finishes", () => {
 		await writePlan(db, "trial");
 		expect(await countMailboxes(db)).toBe(0);
 		for (const id of users) await microsoft.setImportSince(id, null);
-		for (const id of users) await grant(id, MICROSOFT_PROVIDER_ID, OUTLOOK_MAIL_SCOPE);
+		for (const id of users)
+			await grant(id, MICROSOFT_PROVIDER_ID, OUTLOOK_MAIL_SCOPE);
 		expect(await countMailboxes(db)).toBe(2);
 
 		for (const id of users) await microsoft.onConnected(id);

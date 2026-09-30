@@ -22,11 +22,7 @@ import {
 	type MatchContext,
 } from "./mailbox-match.service";
 import { snippetOf } from "./message-text";
-import {
-	isOwnAddress,
-	type Participant,
-	splitName,
-} from "./participants";
+import { isOwnAddress, type Participant, splitName } from "./participants";
 
 const storedRecipient = z.object({
 	email: z.string().trim().min(1),

@@ -1,5 +1,5 @@
 import { db } from "@crm/db";
-import { DIRECT_KINDS, RETIRED_OUTCOME } from "@crm/db/agent-tasks";
+import { DIRECT_KINDS } from "@crm/db/agent-tasks";
 import { usageWindowOf } from "@crm/db/plan-usage";
 import { clampResearchPerHour } from "@crm/db/plans";
 import { AGENT_RESEARCH_PER_HOUR, readAgentProvider } from "@crm/db/settings";
@@ -13,20 +13,21 @@ export type ThrottleDecision = {
 	reason: string | null;
 };
 
-export function researchRunsInHour(now: Date): Promise<number> {
+export function researchSessionsBetween(
+	since: Date,
+	until: Date,
+): Promise<number> {
 	return db.agentTask.count({
 		where: {
 			kind: { notIn: [...DIRECT_KINDS] },
-			startedAt: { gte: new Date(now.getTime() - HOUR_MS) },
-			OR: [
-				{ finishedAt: null, leasedUntil: { gt: now } },
-				{
-					finishedAt: { not: null },
-					OR: [{ outcome: null }, { outcome: { not: RETIRED_OUTCOME } }],
-				},
-			],
+			startedAt: { gte: since, lte: until },
+			attempts: { gte: 1 },
 		},
 	});
+}
+
+export function researchRunsInHour(now: Date): Promise<number> {
+	return researchSessionsBetween(new Date(now.getTime() - HOUR_MS), now);
 }
 
 export async function researchAllowance(
@@ -65,12 +66,7 @@ export async function researchAllowance(
 	}
 
 	const { since: windowStart } = await usageWindowOf(db, now);
-	const startedThisMonth = await db.agentTask.count({
-		where: {
-			kind: { notIn: [...DIRECT_KINDS] },
-			startedAt: { gte: windowStart },
-		},
-	});
+	const startedThisMonth = await researchSessionsBetween(windowStart, now);
 	const monthRemaining = Math.max(0, perMonth - startedThisMonth);
 	if (monthRemaining === 0) {
 		return {

@@ -71,7 +71,7 @@ describe("whose mails become the sender's voice", () => {
 			"Hallo Herr Probe, hier schreibt die Kollegin.",
 		);
 
-		const voice = await ownVoice({
+		const { senderName, voice } = await ownVoice({
 			id: maria,
 			owner: null,
 			emailThreads: [
@@ -93,6 +93,7 @@ describe("whose mails become the sender's voice", () => {
 			],
 		});
 
+		expect(senderName).toBe("Tom Muster");
 		expect(voice.toContact.map((sample) => sample.body)).toEqual([
 			"Hallo Maria, hast du Lust auf den Workshop?",
 		]);

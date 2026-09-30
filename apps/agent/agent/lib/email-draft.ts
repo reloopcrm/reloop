@@ -110,15 +110,25 @@ async function sentBy(where: {
 
 type VoiceOwner = Pick<DraftRecipient, "id" | "owner" | "emailThreads">;
 
-async function sender(
-	person: VoiceOwner,
-): Promise<{ fromEmail: string } | { syncedByUserId: string } | null> {
-	const address = person.emailThreads
+type Sender = {
+	where: { fromEmail: string } | { syncedByUserId: string };
+	name: string | null;
+};
+
+async function sender(person: VoiceOwner): Promise<Sender | null> {
+	const latest = person.emailThreads
 		.flatMap((thread) => thread.messages)
-		.filter((message) => message.direction === "OUTBOUND")
-		.sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime())[0]?.fromEmail;
-	if (address) return { fromEmail: address };
-	if (person.owner) return { syncedByUserId: person.owner.id };
+		.filter((message) => message.direction === "OUTBOUND" && message.fromEmail)
+		.sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime())[0];
+	if (latest?.fromEmail) {
+		return { where: { fromEmail: latest.fromEmail }, name: latest.fromName };
+	}
+	if (person.owner) {
+		return {
+			where: { syncedByUserId: person.owner.id },
+			name: person.owner.name,
+		};
+	}
 
 	const addresses = await db.emailMessage.groupBy({
 		by: ["fromEmail"],
@@ -127,22 +137,30 @@ async function sender(
 		take: 2,
 	});
 	const only = addresses.length === 1 ? addresses[0]?.fromEmail : undefined;
+	if (!only) return null;
 
-	return only ? { fromEmail: only } : null;
+	const named = await db.emailMessage.findFirst({
+		where: { direction: "OUTBOUND", fromEmail: only, fromName: { not: null } },
+		orderBy: { sentAt: "desc" },
+		select: { fromName: true },
+	});
+
+	return { where: { fromEmail: only }, name: named?.fromName ?? null };
 }
 
-export async function ownVoice(
-	person: VoiceOwner,
-): Promise<DraftPromptInput["voice"]> {
+export async function ownVoice(person: VoiceOwner): Promise<{
+	senderName: string | null;
+	voice: DraftPromptInput["voice"];
+}> {
 	const who = await sender(person);
-	if (!who) return { toContact: [], general: [] };
+	if (!who) return { senderName: null, voice: { toContact: [], general: [] } };
 
 	const [toContact, general] = await Promise.all([
-		sentBy({ ...who, thread: { contactId: person.id } }),
-		sentBy({ ...who, thread: { contactId: { not: person.id } } }),
+		sentBy({ ...who.where, thread: { contactId: person.id } }),
+		sentBy({ ...who.where, thread: { contactId: { not: person.id } } }),
 	]);
 
-	return { toContact, general };
+	return { senderName: who.name, voice: { toContact, general } };
 }
 
 export async function recentOpenings(exceptContactId: string): Promise<string> {
@@ -174,7 +192,7 @@ export async function recentOpenings(exceptContactId: string): Promise<string> {
 	].join("\n");
 }
 
-function facts(person: DraftRecipient): string {
+function facts(person: DraftRecipient, senderName: string | null): string {
 	const memory = person.memory;
 	const name = [person.firstName, person.lastName].filter(Boolean).join(" ");
 
@@ -182,7 +200,7 @@ function facts(person: DraftRecipient): string {
 		`Recipient: ${name}`,
 		person.title ? `Their role: ${person.title}` : "",
 		person.company ? `Their company: ${person.company.name}` : "",
-		person.owner?.name ? `The email comes from: ${person.owner.name}` : "",
+		senderName ? `The email comes from: ${senderName}` : "",
 		memory ? `What we know about them: ${untrusted(memory.summary)}` : "",
 		memory?.didBusiness ? `Closed deals with them: ${memory.didBusiness}` : "",
 		memory?.openInquiries
@@ -201,7 +219,7 @@ async function context(
 	buildModel: typeof directModel,
 	previous: DraftPromptInput["previous"],
 ) {
-	const [rules, playbook, style, voice, openings, model] = await Promise.all([
+	const [rules, playbook, style, own, openings, model] = await Promise.all([
 		readWinBackRules(db),
 		readPlaybook(),
 		readDraftStyle(db),
@@ -220,9 +238,10 @@ async function context(
 	];
 
 	const { system, prompt } = draftPrompt({
-		facts: facts(person),
+		today: new Date(),
+		facts: facts(person, own.senderName),
 		threads: person.emailThreads,
-		voice,
+		voice: own.voice,
 		previous,
 		openings,
 		style: draftStylePrompt(style),
@@ -342,6 +361,8 @@ async function revise(
 			"",
 			`What the sender wants different:\n${instruction}`,
 		].join("\n"),
+		revisedSchema,
+		{ maxOutputTokens: DRAFT.maxOutputTokens },
 	);
 
 	await store(person.id, person, object, model.modelId);
@@ -374,7 +395,16 @@ export async function runEmailDraft(
 	});
 	const { system, prompt, model } = await context(person, buildModel, previous);
 
-	const object = await askJson(model, draftSchema, system, prompt);
+	const object = await askJson(
+		model,
+		draftSchema,
+		system,
+		prompt,
+		draftSchema,
+		{
+			maxOutputTokens: DRAFT.maxOutputTokens,
+		},
+	);
 
 	await store(contactId, person, object, model.modelId);
 

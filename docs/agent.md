@@ -158,12 +158,18 @@ signed up in. The API stores and serves the value and does nothing else with it.
   real message is marked: the draft picks that up and keeps the thread's subject.
   The voice comes only from `OUTBOUND` mail of one address: the one that last wrote to
   this contact, else the contact owner's mailbox, else the only sending address of the
-  workspace. With none of them there are no examples, never a colleague's mail. Mail to
-  this contact comes first, then mail to others; du or Sie, language, greeting, sign
-  off and length are read from it. The openings this contact already read are listed
-  so the next draft opens differently. There is no fixed template and no trade
-  wording. Every bound is `DRAFT` in `lib/draft-config.ts`: `conversationMaxChars`,
-  `bodyMaxChars` per message, and `voice.*` for the examples.
+  workspace. With none of them there are no examples, never a colleague's mail. The
+  same source names the sender in the prompt. Greeting, du or Sie and the example
+  texts come only from mail to this contact; with none, du or Sie comes from how the
+  contact writes. Mail to other customers gives only language, length and sign off,
+  never its text, so no other customer's name or amount reaches the prompt. The
+  prompt names today and the age of the last message, and an old conversation is
+  reopened, not answered as if fresh. The draft never promises a price, discount,
+  date, bank change or contract the sender has not made. The openings this contact
+  already read are listed so the next draft opens differently. There is no fixed
+  template and no trade wording. Every bound is `DRAFT` in `lib/draft-config.ts`:
+  `conversationMaxChars`, `bodyMaxChars` per message, `voice.*` for the examples
+  and lists, and `maxOutputTokens` for the answer.
 - **Stored text is not rewritten.** A summary or a unit the agent wrote before stays
   in the language it was written in; only new runs follow the setting. The business
   unit and description are edited by hand in Win back, Rules, because business setup

@@ -63,6 +63,7 @@ const toOthers: SentSample[] = [
 
 function input(overrides: Partial<DraftPromptInput> = {}): DraftPromptInput {
 	return {
+		today: new Date("2026-08-05T09:00:00.000Z"),
 		facts: "Recipient: Maria Beispiel",
 		threads: [workshop],
 		voice: { toContact: toMaria, general: toOthers },
@@ -108,6 +109,47 @@ describe("the draft prompt is built on this conversation", () => {
 
 		expect(prompt).not.toContain("im Urlaub");
 		expect(prompt).toContain("LAST MESSAGE [2026-08-03]");
+	});
+
+	it("keeps a reply written under a quote", () => {
+		const reply = message(
+			"OUTBOUND",
+			"08-04",
+			"> passt Dienstag?\n\nJa, 10 Uhr",
+		);
+		const { prompt } = draftPrompt(
+			input({
+				threads: [{ ...workshop, messages: [...workshop.messages, reply] }],
+			}),
+		);
+
+		expect(prompt).toContain("LAST MESSAGE [2026-08-04] SENDER:\nJa, 10 Uhr");
+		expect(prompt).not.toContain("> passt Dienstag?");
+	});
+
+	it("names today and the age of the last message", () => {
+		const { system } = draftPrompt(input());
+
+		expect(system).toContain(
+			"Today is 2026-08-05. The last message is 2 days old.",
+		);
+		expect(system).not.toContain("Reopen the conversation");
+	});
+
+	it("reopens an old conversation instead of answering it as fresh", () => {
+		const { system } = draftPrompt(
+			input({ today: new Date("2026-11-01T09:00:00.000Z") }),
+		);
+
+		expect(system).toContain("The last message is 90 days old.");
+		expect(system).toContain("Reopen the conversation naturally");
+	});
+
+	it("forbids promising what the sender did not commit to", () => {
+		const { system } = draftPrompt(input());
+
+		expect(system).toContain("Never promise, confirm or change anything");
+		expect(system).toContain("IBAN");
 	});
 
 	it("puts the current thread before an older one", () => {
@@ -160,7 +202,7 @@ describe("the draft prompt carries the sender's own voice", () => {
 				body: "Sehr geehrte Frau Beispiel,\n\nkönnen Sie mir Ihren Terminvorschlag für den Workshop schicken? Ich richte mich gern nach Ihnen.\n\nBeste Grüße\nTom Muster",
 			},
 		];
-		const section = voiceSection({ toContact: formal, general: toMaria });
+		const section = voiceSection({ toContact: formal, general: toMaria }, []);
 
 		expect(section).toContain('Use "Sie" in this email.');
 		expect(section).not.toContain('Use "du"');
@@ -177,7 +219,9 @@ describe("the draft prompt carries the sender's own voice", () => {
 			input({ voice: { toContact: formal, general: [] } }),
 		);
 
-		expect(system).toContain('His greetings: "Sehr geehrter Herr Probe,"');
+		expect(system).toContain(
+			'His greetings to this contact: "Sehr geehrter Herr Probe,"',
+		);
 		expect(system).not.toContain("- Sehr geehrter Herr Probe,");
 		expect(system).toContain(
 			"- anbei erhalten Sie das Angebot für die Beratung.",
@@ -191,7 +235,7 @@ describe("the draft prompt carries the sender's own voice", () => {
 				body: "Hi Maria,\n\nthanks for the note, we can have the room on the ground floor. Would you like coffee as well?\n\nCheers\nTom",
 			},
 		];
-		const section = voiceSection({ toContact: english, general: [] });
+		const section = voiceSection({ toContact: english, general: [] }, []);
 
 		expect(section).toContain("He writes to this contact in English.");
 		expect(section).not.toContain('"du"');
@@ -203,18 +247,62 @@ describe("the draft prompt carries the sender's own voice", () => {
 			subject: "WG: Raum",
 			body: "Danke dir, passt so. Viele Grüße Tom -----Original Message----- From: Maria Beispiel Sent: Monday To: Tom Hallo Tom, der Raum im Erdgeschoss ist frei.",
 		};
-		const section = voiceSection({
-			toContact: [forwarded, ...toMaria],
-			general: [],
-		});
+		const section = voiceSection(
+			{ toContact: [forwarded, ...toMaria], general: [] },
+			[],
+		);
 
 		expect(section).not.toContain("der Raum im Erdgeschoss ist frei");
 		expect(section).not.toContain("Original Message");
 		expect(section).toContain("anbei die Fotos vom Sommerfest");
 	});
 
+	it("takes nothing personal from his mails to other customers", () => {
+		const others: SentSample[] = [
+			{
+				subject: "Angebot",
+				body: "Sehr geehrter Herr Probe,\n\ndas Angebot liegt bei 4.500 Euro und gilt bis Freitag.\n\nMit freundlichen Grüßen\nTom Muster",
+			},
+			{
+				subject: "Rechnung",
+				body: "Hallo Frau Kranz,\n\ndu bekommst die Rechnung über 1.200 Euro morgen.\n\nViele Grüße\nTom",
+			},
+		];
+		const { system } = draftPrompt(
+			input({ voice: { toContact: [], general: others } }),
+		);
+
+		expect(system).not.toContain("Probe");
+		expect(system).not.toContain("Kranz");
+		expect(system).not.toContain("4.500");
+		expect(system).not.toContain("1.200");
+		expect(system).not.toContain("Angebot liegt");
+		expect(system).toContain("He writes to other people in German.");
+		expect(system).toContain("He never wrote to this contact before.");
+		expect(system).toContain('"Mit freundlichen Grüßen / Tom Muster"');
+	});
+
+	it("takes du or Sie from how the contact writes when he never wrote to her", () => {
+		const asked = message(
+			"INBOUND",
+			"08-04",
+			"Hallo Tom,\n\nkannst du mir den Raum bestätigen? Dein Plan passt mir.\n\nLiebe Grüße\nMaria",
+		);
+		const { system } = draftPrompt(
+			input({
+				threads: [{ subject: "Raum", messages: [asked] }],
+				voice: { toContact: [], general: toOthers },
+			}),
+		);
+
+		expect(system).toContain(
+			'This contact says "du" to him. Use "du" in this email.',
+		);
+		expect(system).not.toContain('Use "Sie"');
+	});
+
 	it("says nothing about his voice when he never sent a mail", () => {
-		expect(voiceSection({ toContact: [], general: [] })).toBe("");
+		expect(voiceSection({ toContact: [], general: [] }, [])).toBe("");
 	});
 
 	it("asks for a different opening than the one this contact already read", () => {
@@ -254,16 +342,32 @@ describe("the draft prompt stays inside its bounds", () => {
 			subject: `Mail ${index}`,
 			body: `Hallo Maria,\n\n${long}\n\nViele Grüße\nTom`,
 		}));
-		const section = voiceSection({ toContact: many, general: many });
-		const examples = section
-			.split("\n")
-			.filter((line) => /^#\d+ \(/.test(line));
+		const section = voiceSection({ toContact: many, general: many }, []);
+		const examples = section.split("\n").filter((line) => /^#\d+$/.test(line));
 
 		expect(examples.length).toBeGreaterThan(0);
-		expect(examples.length).toBeLessThanOrEqual(
-			DRAFT.voice.toContact + DRAFT.voice.general,
-		);
+		expect(examples.length).toBeLessThanOrEqual(DRAFT.voice.examples);
 		expect(section.length).toBeLessThan(DRAFT.voice.totalMaxChars + 1_000);
+	});
+
+	it("keeps the greeting and sign off lists short", () => {
+		const many: SentSample[] = Array.from({ length: 10 }, (_, index) => ({
+			subject: `Mail ${index}`,
+			body: `Hallo Maria ${"x".repeat(index * 12)},\n\nkurze Frage zum Workshop Nummer ${index}.\n\nViele Grüße ${index}x\nTom`,
+		}));
+		const section = voiceSection({ toContact: many, general: [] }, []);
+		const line =
+			section
+				.split("\n")
+				.find((part) => part.startsWith("His greetings to this contact:")) ??
+			"";
+		const items = line.match(/"[^"]*"/g) ?? [];
+
+		expect(items.length).toBeGreaterThan(0);
+		expect(items.length).toBeLessThanOrEqual(DRAFT.voice.listItems);
+		for (const item of items) {
+			expect(item.length - 2).toBeLessThanOrEqual(DRAFT.voice.listItemMaxChars);
+		}
 	});
 
 	it("keeps the conversation under its cap and keeps the last message", () => {

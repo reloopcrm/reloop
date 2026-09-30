@@ -222,6 +222,7 @@ export async function askJson<T>(
 	system: string,
 	prompt: string,
 	shape: z.ZodType = schema,
+	limits: { maxOutputTokens?: number } = {},
 ): Promise<T> {
 	let lastError = "";
 
@@ -229,6 +230,7 @@ export async function askJson<T>(
 		const result = streamText({
 			model,
 			abortSignal: AbortSignal.timeout(MEMORY.callTimeoutMs),
+			maxOutputTokens: limits.maxOutputTokens,
 			instructions: [
 				{
 					role: "system",

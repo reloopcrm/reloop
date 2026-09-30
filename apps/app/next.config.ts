@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { loadRootEnv } from "@crm/env";
 import type { NextConfig } from "next";
+import { DOCS } from "./components/docs/docs-config";
 
 loadRootEnv();
 
@@ -25,6 +26,11 @@ const nextConfig: NextConfig = {
 	output: "standalone",
 	distDir: process.env.NEXT_DIST_DIR ?? ".next",
 	outputFileTracingRoot: join(import.meta.dirname, "../.."),
+	outputFileTracingIncludes: {
+		[DOCS.path]: Object.values(DOCS.files).map((file) =>
+			join(...DOCS.root, ...file),
+		),
+	},
 
 	async redirects() {
 		return [

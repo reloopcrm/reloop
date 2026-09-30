@@ -20,7 +20,12 @@ const CLEAN = {
 		threshold: 0.35,
 		mailMaxChars: 4_000,
 	},
-	phone: { minDigits: 6 },
+	phone: {
+		minDigits: 6,
+		maxDigits: 15,
+		extension: /(?<![a-z])(?:extension|ext|durchwahl|dw|x)(?![a-z])|#/i,
+		trunkZeroKept: ["39"],
+	},
 } as const;
 
 export const CLEAN_GATE = "contact-clean";
@@ -42,12 +47,21 @@ const found = z.object({
 type Found = z.infer<typeof found>;
 
 export function normalisePhone(raw: string): string | null {
-	const compact = raw
-		.replace(/\(0\)/g, "")
-		.replace(/[^\d+]/g, "")
-		.replace(/^00/, "+");
+	const main = raw.split(CLEAN.phone.extension)[0] ?? "";
+	const kept = main.replace(/[^\d+()]/g, "").replace(/^00/, "+");
+	const trunk = CLEAN.phone.trunkZeroKept.some((code) =>
+		kept.startsWith(`+${code}`),
+	)
+		? "0"
+		: "";
+	const compact = kept.replace(/\(0\)/g, trunk);
 	const digits = compact.replace(/\D/g, "");
-	if (digits.length < CLEAN.phone.minDigits) return null;
+	if (
+		digits.length < CLEAN.phone.minDigits ||
+		digits.length > CLEAN.phone.maxDigits
+	) {
+		return null;
+	}
 
 	return compact.startsWith("+") ? `+${digits}` : digits;
 }

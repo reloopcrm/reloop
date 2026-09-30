@@ -127,6 +127,26 @@ describe("a name is only ever replaced by a fuller one", () => {
 		});
 	});
 
+	it("never replaces a first name with its own prefix", async () => {
+		const id = await seed({
+			local: "johannes",
+			firstName: "Johannes",
+			lastName: null,
+		});
+
+		const result = await recordFact({
+			contactId: id,
+			field: "name",
+			value: "Jo",
+			evidence: signed,
+			method: "contact-clean",
+		});
+
+		expect(result.applied).toBe(false);
+		expect(result.reason).toContain("fuller name");
+		expect((await record(id)).firstName).toBe("Johannes");
+	});
+
 	it("never touches a name a person typed into the CRM", async () => {
 		const id = await seed({
 			local: "m.beispiel",
@@ -218,6 +238,22 @@ describe("normalisePhone", () => {
 		expect(normalisePhone("+49 (0)30 1234567")).toBe("+49301234567");
 		expect(normalisePhone("0049 30 / 123 45 67")).toBe("+49301234567");
 		expect(normalisePhone("030-1234567")).toBe("0301234567");
+	});
+
+	it("keeps the main number and drops an extension", () => {
+		expect(normalisePhone("+1 555 123 4567 ext. 89")).toBe("+15551234567");
+		expect(normalisePhone("+1 555 123 4567 x89")).toBe("+15551234567");
+		expect(normalisePhone("+49 30 123456 Durchwahl 12")).toBe("+4930123456");
+		expect(normalisePhone("+49 30 123456-DW 12")).toBe("+4930123456");
+	});
+
+	it("keeps the leading zero of an Italian number", () => {
+		expect(normalisePhone("+39 (0)6 1234 5678")).toBe("+390612345678");
+		expect(normalisePhone("0039 06 1234 5678")).toBe("+390612345678");
+	});
+
+	it("refuses more digits than a phone number can have", () => {
+		expect(normalisePhone("+49 30 1234 5678 9012 345")).toBeNull();
 	});
 
 	it("drops a fragment that is no phone number", () => {

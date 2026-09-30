@@ -10,7 +10,7 @@ import { actHosted, actSelfHosted, workspace } from "./hosted-cloud";
 
 type ModelObject = ReturnType<typeof withUsageCapture>;
 
-function spentHeaders(): Record<string, string> {
+function spentHeaders() {
 	return {
 		"x-codex-primary-used-percent": "100",
 		"x-codex-primary-reset-at": String(Math.floor(Date.now() / 1_000) + 3_600),

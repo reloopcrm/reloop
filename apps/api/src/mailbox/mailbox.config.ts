@@ -6,6 +6,10 @@ export const ADOPTION = {
 	batch: 50,
 } as const;
 
+export const LIMIT_WARNING = {
+	intervalMs: 60 * SECOND_MS,
+} as const;
+
 export const SYNC_TICK = {
 	selfHostBudgetMs: 60 * SECOND_MS,
 	settleReserveMs: 2 * SECOND_MS,
@@ -52,6 +56,8 @@ export function mailboxSyncConfig(env: MailboxSyncEnv) {
 				parsed.MAILBOX_SYNC_MAX_PER_TICK,
 				gmailPerMinute,
 			),
+			historyPages: 20,
+			skippedLabels: ["DRAFT", "SPAM", "TRASH"] as readonly string[],
 		},
 	} as const;
 }

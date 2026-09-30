@@ -185,30 +185,42 @@ export class GmailSyncService {
 		startHistoryId: string,
 		deadlineAt: number,
 	): Promise<GmailSyncOutcome> {
-		const history = await this.gmail.listHistory(accessToken, {
-			startHistoryId,
-		});
-
-		if (history.outcome === "cursor-invalid") {
-			await this.state.clearCursor(row.id, history.reason);
-
-			return {
-				source: "gmail",
-				userId: row.userId,
-				status: "synced",
-				reason: "History expired; resuming from now.",
-			};
-		}
-
-		if (history.outcome !== "ok") {
-			return this.handleFailure(row, history);
-		}
-
 		const ids = new Set<string>();
-		for (const entry of history.data.history ?? []) {
-			for (const added of entry.messagesAdded ?? []) {
-				if (added.message?.id) ids.add(added.message.id);
+		let pageToken: string | undefined;
+		let latestHistoryId: string | undefined;
+		let more = false;
+
+		for (let page = 1; page <= MAILBOX.sync.gmail.historyPages; page += 1) {
+			const history = await this.gmail.listHistory(accessToken, {
+				startHistoryId,
+				pageToken,
+			});
+
+			if (history.outcome === "cursor-invalid") {
+				await this.state.clearCursor(row.id, history.reason);
+
+				return {
+					source: "gmail",
+					userId: row.userId,
+					status: "synced",
+					reason: "History expired; resuming from now.",
+				};
 			}
+
+			if (history.outcome !== "ok") {
+				return this.handleFailure(row, history);
+			}
+
+			for (const entry of history.data.history ?? []) {
+				for (const added of entry.messagesAdded ?? []) {
+					if (added.message?.id) ids.add(added.message.id);
+				}
+			}
+
+			latestHistoryId = history.data.historyId ?? latestHistoryId;
+			pageToken = history.data.nextPageToken;
+			more = pageToken !== undefined;
+			if (!more) break;
 		}
 
 		const forward = await this.ingest(
@@ -222,9 +234,9 @@ export class GmailSyncService {
 		);
 
 		const cursor =
-			forward.remaining > 0
+			forward.remaining > 0 || more
 				? startHistoryId
-				: (history.data.historyId ?? startHistoryId);
+				: (latestHistoryId ?? startHistoryId);
 
 		if (forward.failure) {
 			await this.state.settle(row.id, {
@@ -442,6 +454,7 @@ export class GmailSyncService {
 
 			fetched += 1;
 			if (message.outcome !== "ok") continue;
+			if (this.skipped(message.data)) continue;
 
 			const parsed = this.parse(message.data);
 			if (!parsed) continue;
@@ -463,6 +476,12 @@ export class GmailSyncService {
 			remaining: remaining + batch.length - fetched,
 			oldest,
 		};
+	}
+
+	private skipped(message: GmailMessage): boolean {
+		return (message.labelIds ?? []).some((label) =>
+			MAILBOX.sync.gmail.skippedLabels.includes(label),
+		);
 	}
 
 	private parse(message: GmailMessage): IncomingMessage | null {

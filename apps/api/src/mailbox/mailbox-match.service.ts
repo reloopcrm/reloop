@@ -2,12 +2,14 @@ import { WORKSPACE_ID } from "@crm/auth";
 import { workspaceDomains } from "@crm/auth/workspace";
 import { type Db, RecordSource } from "@crm/db";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { CONTACT_LIMIT_MESSAGE } from "@crm/db/plans";
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../companies/company-directory.service";
 import { normalizeDomain } from "../companies/domain";
 import { EnrichmentLogService } from "../crm/enrichment-log.service";
 import { InjectDatabase } from "../database/database.constants";
+import { LIMIT_WARNING } from "./mailbox.config";
 import {
 	dominantDomain,
 	externalParticipants,
@@ -25,7 +27,16 @@ export type MatchResult = {
 	companyId: string | null;
 	contactId: string | null;
 	external: Participant[];
+	limited?: true;
 };
+
+type CreatedContact = { contactId: string | null; limited: boolean };
+
+export function isContactLimitError(error: unknown): boolean {
+	return (
+		error instanceof Error && error.message.includes(CONTACT_LIMIT_MESSAGE)
+	);
+}
 
 export type MatchContext = {
 	ourAddresses: ReadonlySet<string>;
@@ -44,6 +55,7 @@ export type MatchRequest = {
 @Injectable()
 export class MailboxMatchService {
 	private readonly logger = new Logger(MailboxMatchService.name);
+	private limitWarnedAt = 0;
 
 	constructor(
 		@InjectDatabase() private readonly db: Db,
@@ -158,15 +170,19 @@ export class MailboxMatchService {
 
 		const existing = known.find((company) => company.domain === domain);
 		if (existing) {
-			const contactId = request.allowCreate
+			const created = request.allowCreate
 				? await this.createContact(external, domain, existing.id, request)
-				: null;
+				: { contactId: null, limited: false };
 
-			if (existing.archivedAt && contactId) {
+			if (created.limited) {
+				return { companyId: null, contactId: null, external, limited: true };
+			}
+
+			if (existing.archivedAt && created.contactId) {
 				await this.revive(existing.id, domain);
 			}
 
-			return { companyId: existing.id, contactId, external };
+			return { companyId: existing.id, contactId: created.contactId, external };
 		}
 
 		if (!request.allowCreate) {
@@ -222,7 +238,7 @@ export class MailboxMatchService {
 			data: { source: request.source },
 		});
 
-		const contactId = await this.createContact(
+		const created = await this.createContact(
 			external,
 			domain,
 			companyId,
@@ -246,7 +262,58 @@ export class MailboxMatchService {
 			source: request.source,
 		});
 
-		return { companyId, contactId, external };
+		if (created.limited) {
+			return { companyId: null, contactId: null, external, limited: true };
+		}
+
+		return { companyId, contactId: created.contactId, external };
+	}
+
+	async reviveContact(email: string): Promise<void> {
+		const contact = await this.db.contact.findUnique({
+			where: { email },
+			select: {
+				id: true,
+				companyId: true,
+				archivedAt: true,
+				company: { select: { domain: true, archivedAt: true } },
+			},
+		});
+		if (!contact?.archivedAt) return;
+
+		const { count } = await this.db.contact.updateMany({
+			where: { id: contact.id, archivedAt: { not: null } },
+			data: { archivedAt: null },
+		});
+		if (count === 0) return;
+
+		if (
+			contact.companyId &&
+			contact.company?.archivedAt &&
+			contact.company.domain
+		) {
+			await this.revive(contact.companyId, contact.company.domain);
+		}
+
+		await this.log.record({
+			contactId: contact.id,
+			companyId: contact.companyId,
+			subject: "Contact restored from the archive",
+			body: "{email} wrote again.",
+			meta: { email },
+		});
+	}
+
+	private warnLimit(email: string): void {
+		const now = Date.now();
+		if (now - this.limitWarnedAt < LIMIT_WARNING.intervalMs) return;
+
+		this.limitWarnedAt = now;
+		this.logger.warn({
+			message:
+				"The contact limit is reached. The mailbox sync keeps running and stores new threads as pending",
+			email,
+		});
 	}
 
 	private async createContact(
@@ -254,15 +321,75 @@ export class MailboxMatchService {
 		domain: string,
 		companyId: string,
 		request: MatchRequest,
-	): Promise<string | null> {
+	): Promise<CreatedContact> {
 		const person = external.find(
 			(candidate) => workDomain(candidate.email) === domain,
 		);
-		if (!person) return null;
+		if (!person) return { contactId: null, limited: false };
 
 		const { firstName, lastName } = splitName(person.name, person.email);
 
-		const outcome = await this.agent.withCrmEvents(async (tx, emit) => {
+		let outcome: Awaited<ReturnType<MailboxMatchService["insertContact"]>>;
+		try {
+			outcome = await this.insertContact(
+				person,
+				{ firstName, lastName },
+				companyId,
+				request,
+			);
+		} catch (error) {
+			if (!isContactLimitError(error)) throw error;
+			this.warnLimit(person.email);
+			return { contactId: null, limited: true };
+		}
+		const { contact } = outcome;
+
+		if (outcome.created) {
+			await this.log.record({
+				contactId: contact.id,
+				companyId,
+				subject: "Contact added from your inbox",
+				body:
+					request.source === "CALENDAR"
+						? "{email} appeared in a meeting."
+						: "{email} appeared in a thread.",
+				meta: { source: request.source, email: person.email },
+			});
+		}
+
+		const hasRealName = Boolean(person.name?.trim());
+		const isPlaceholder = isDerivedName(
+			person.email,
+			contact.firstName,
+			contact.lastName,
+		);
+
+		if (hasRealName && isPlaceholder) {
+			await this.db.contact.update({
+				where: { id: contact.id },
+				data: { firstName, lastName },
+			});
+			return { contactId: contact.id, limited: false };
+		}
+
+		if (isPlaceholder && !hasRealName) {
+			await this.agent.contactCreated(
+				contact.id,
+				"Created by the sync from an address, with no name on it",
+			);
+		}
+
+		return { contactId: contact.id, limited: false };
+	}
+
+	private async insertContact(
+		person: Participant,
+		name: { firstName: string; lastName: string | null },
+		companyId: string,
+		request: MatchRequest,
+	) {
+		const { firstName, lastName } = name;
+		return this.agent.withCrmEvents(async (tx, emit) => {
 			await lockIdempotencyKey(tx, `mailbox-contact:${person.email}`);
 			const existing = await tx.contact.findUnique({
 				where: { email: person.email },
@@ -309,43 +436,5 @@ export class MailboxMatchService {
 			});
 			return { contact, created: true as const };
 		});
-		const { contact } = outcome;
-
-		if (outcome.created) {
-			await this.log.record({
-				contactId: contact.id,
-				companyId,
-				subject: "Contact added from your inbox",
-				body:
-					request.source === "CALENDAR"
-						? "{email} appeared in a meeting."
-						: "{email} appeared in a thread.",
-				meta: { source: request.source, email: person.email },
-			});
-		}
-
-		const hasRealName = Boolean(person.name?.trim());
-		const isPlaceholder = isDerivedName(
-			person.email,
-			contact.firstName,
-			contact.lastName,
-		);
-
-		if (hasRealName && isPlaceholder) {
-			await this.db.contact.update({
-				where: { id: contact.id },
-				data: { firstName, lastName },
-			});
-			return contact.id;
-		}
-
-		if (isPlaceholder && !hasRealName) {
-			await this.agent.contactCreated(
-				contact.id,
-				"Created by the sync from an address, with no name on it",
-			);
-		}
-
-		return contact.id;
 	}
 }

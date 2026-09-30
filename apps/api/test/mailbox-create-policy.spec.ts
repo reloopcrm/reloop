@@ -5,6 +5,7 @@ import { CompanyDirectoryService } from "../src/companies/company-directory.serv
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { SyncStateService } from "../src/mailbox/sync-state.service";
 import {
 	type IncomingMessage,
 	ThreadWriterService,
@@ -114,5 +115,56 @@ describe("who becomes a contact from an inbound email", () => {
 			select: { contactId: true },
 		});
 		expect(thread?.contactId).toBe(contact?.id ?? null);
+	});
+});
+
+describe("turning contact creation on reads the history again", () => {
+	const state = new SyncStateService(db);
+	const source = "imap:replied" as const;
+
+	async function backfillOf() {
+		const found = await db.mailboxSync.findUnique({
+			where: { id: repliedOnly.id },
+			select: { backfill: true },
+		});
+		return found?.backfill ?? null;
+	}
+
+	async function useBackfill() {
+		await db.mailboxSync.update({
+			where: { id: repliedOnly.id },
+			data: { backfill: '{"state":"done"}' },
+		});
+	}
+
+	it("clears the backfill when creation is switched on", async () => {
+		await useBackfill();
+		await state.setAutoCreate(userId, source, false);
+		expect(await backfillOf()).not.toBeNull();
+
+		await state.setAutoCreate(userId, source, true);
+		expect(await backfillOf()).toBeNull();
+	});
+
+	it("clears the backfill for every creating policy", async () => {
+		for (const policy of [
+			{ autoCreate: true, createWithoutReply: false, createFrom: "replied" },
+			{ autoCreate: true, createWithoutReply: true, createFrom: "everyone" },
+			{ autoCreate: false, createWithoutReply: false, createFrom: "relevant" },
+		]) {
+			await useBackfill();
+			await state.setCreatePolicy(userId, source, policy);
+			expect(await backfillOf()).toBeNull();
+		}
+	});
+
+	it("keeps the backfill when the policy stops creating", async () => {
+		await useBackfill();
+		await state.setCreatePolicy(userId, source, {
+			autoCreate: false,
+			createWithoutReply: false,
+			createFrom: "nobody",
+		});
+		expect(await backfillOf()).not.toBeNull();
 	});
 });

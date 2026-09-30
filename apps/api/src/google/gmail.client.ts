@@ -38,7 +38,7 @@ export type Profile = {
 };
 
 export const WORK_MAIL_QUERY =
-	"-in:chats -category:promotions -category:social -category:forums";
+	"-in:chats -in:drafts -in:spam -in:trash -category:promotions -category:social -category:forums";
 
 export const SENT_MAIL_QUERY = `${WORK_MAIL_QUERY} in:sent`;
 

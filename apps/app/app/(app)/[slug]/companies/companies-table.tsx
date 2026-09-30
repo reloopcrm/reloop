@@ -87,6 +87,7 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		sortable: true,
 		width: "w-[15%]",
 		hideBelow: "md",
+		defaultHidden: true,
 		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.domain ? (
@@ -101,6 +102,7 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		sortable: true,
 		width: "w-[14%]",
 		hideBelow: "xl",
+		defaultHidden: true,
 		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.industry ? (

@@ -107,4 +107,26 @@ describe("DataTable", () => {
 		const [checkboxHead] = heads(selectionMarkup);
 		expect(checkboxHead).toContain("overflow-visible");
 	});
+
+	it("hides a defaultHidden column until the user switches it on", () => {
+		const hiddenMarkup = renderToStaticMarkup(
+			<DataTable
+				query={query}
+				columns={[
+					{ id: "name", header: "Name", cell: (row) => row.name },
+					{
+						id: "domain",
+						header: "Domain",
+						defaultHidden: true,
+						cell: () => "ada.test",
+					},
+				]}
+				rows={[{ id: "1", name: "Ada" }]}
+				total={1}
+				getRowId={(row) => row.id}
+			/>,
+		);
+		expect(heads(hiddenMarkup)).toHaveLength(1);
+		expect(hiddenMarkup).not.toContain("ada.test");
+	});
 });

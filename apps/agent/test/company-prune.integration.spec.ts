@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, RecordSource } from "@crm/db";
-import { pruneCompanies } from "../agent/lib/contact-prune";
+import { archiveEmptyCompanies } from "../agent/lib/contact-prune";
 
 const suffix = process.env.TEST_RUN_ID ?? "company-prune-spec";
 const domain = `prune-${suffix}.example.test`;
@@ -72,12 +72,12 @@ afterEach(async () => {
 	await db.user.deleteMany({ where: { id: ownerId } });
 });
 
-describe("pruneCompanies", () => {
+describe("archiveEmptyCompanies", () => {
 	it("archives a company whose contacts are all archived", async () => {
 		const companyId = await makeCompany({});
 		await makeContact({ companyId, archived: true });
 
-		await pruneCompanies();
+		await archiveEmptyCompanies();
 
 		expect(await archivedAtOf(companyId)).not.toBeNull();
 	});
@@ -87,7 +87,7 @@ describe("pruneCompanies", () => {
 		await makeContact({ companyId, archived: true });
 		await makeContact({ companyId, archived: false });
 
-		await pruneCompanies();
+		await archiveEmptyCompanies();
 
 		expect(await archivedAtOf(companyId)).toBeNull();
 	});
@@ -99,7 +99,7 @@ describe("pruneCompanies", () => {
 			data: { name: `Deal ${domain}`, companyId, ownerId },
 		});
 
-		await pruneCompanies();
+		await archiveEmptyCompanies();
 
 		expect(await archivedAtOf(companyId)).toBeNull();
 	});
@@ -108,7 +108,7 @@ describe("pruneCompanies", () => {
 		const companyId = await makeCompany({ source: RecordSource.MANUAL });
 		await makeContact({ companyId, archived: true });
 
-		await pruneCompanies();
+		await archiveEmptyCompanies();
 
 		expect(await archivedAtOf(companyId)).toBeNull();
 	});

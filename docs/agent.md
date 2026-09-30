@@ -1169,6 +1169,19 @@ the fix. `test/crm-token.spec.ts` pins all three forms.
 The general rule: **a channel handler must not assume the token it receives is
 byte-identical to the one it sent.** Parse for your own marker.
 
+## The own-domain sweep archives only the workspace's own domains
+
+**`archiveOwnContacts` still runs on the dispatch tick.** It archives a contact only
+when the contact's source is `EMAIL` or `CALENDAR` and its address sits on one of the
+workspace's own domains. `ownDomainsOf` in `agent/lib/contact-prune.ts` reads those
+domains from the workspace website, the IMAP mailboxes and the users. It drops every
+domain in `FREE_EMAIL_DOMAINS` and every domain in `PLATFORM_DOMAINS`, such as
+`linkedin.com` or `wixsite.com` (both in `packages/db/src/email-domains.ts`). A user who
+signs in with `@gmail.com` does not make `gmail.com` an own domain.
+
+`pruneContacts` and `pruneCompanies` are off (`PRUNE.enabled` is `false`) and return 0.
+Turning them off does not restore or delete anything already archived.
+
 ## Tests
 
 `bun run --filter=agent test`. The integration specs need `DATABASE_URL` and run

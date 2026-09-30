@@ -17,6 +17,7 @@ import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import type { SyncOrigin } from "./mailbox.constants";
 import {
+	contactLimitError,
 	MailboxMatchService,
 	type MatchContext,
 } from "./mailbox-match.service";
@@ -95,6 +96,13 @@ export class ThreadWriterService {
 		const participants = [parsed.from, ...parsed.recipients];
 		const outbound = parsed.from.email === options.mailbox;
 
+		if (!repair && !outbound) {
+			await this.match.reviveContact(parsed.from, context, {
+				lane: options.lane,
+				sentAt: parsed.sentAt,
+			});
+		}
+
 		const thread = existing
 			? {
 					id: existing.threadId,
@@ -133,7 +141,10 @@ export class ThreadWriterService {
 			contactId = match.contactId;
 
 			if (!companyId && !contactId) {
-				if (!relevantOnly || match.external.length === 0) return false;
+				const held = match.limited === true;
+				if (!held && (!relevantOnly || match.external.length === 0)) {
+					return false;
+				}
 				pending = true;
 			}
 		}
@@ -294,6 +305,7 @@ export class ThreadWriterService {
 			}
 		}
 
+		const known = context ?? (await this.context());
 		const match = await this.match.resolve(
 			{
 				participants,
@@ -301,8 +313,10 @@ export class ThreadWriterService {
 				source: RecordSource.EMAIL,
 				ownerId,
 			},
-			context ?? (await this.context()),
+			known,
 		);
+
+		if (match.limited) return false;
 
 		let placed = { companyId: match.companyId, contactId: match.contactId };
 
@@ -316,10 +330,17 @@ export class ThreadWriterService {
 				return false;
 			}
 
-			placed = {
-				companyId: null,
-				contactId: await this.contactWithoutCompany(person, ownerId),
-			};
+			const contactId = await this.contactWithoutCompany(person, ownerId);
+			if (!contactId) return false;
+
+			placed = { companyId: null, contactId };
+		}
+
+		if (
+			placed.contactId &&
+			!(await this.visible(placed.contactId, known, thread.lastMessageAt))
+		) {
+			return false;
 		}
 
 		const match2 = placed;
@@ -352,28 +373,57 @@ export class ThreadWriterService {
 		return true;
 	}
 
+	private async visible(
+		contactId: string,
+		context: MatchContext,
+		sentAt: Date,
+	): Promise<boolean> {
+		const contact = await this.db.contact.findUnique({
+			where: { id: contactId },
+			select: { email: true, archivedAt: true },
+		});
+		if (!contact?.archivedAt) return true;
+		if (!contact.email) return false;
+
+		return this.match.reviveContact(
+			{ email: contact.email, name: null },
+			context,
+			{ lane: null, sentAt },
+		);
+	}
+
 	private async contactWithoutCompany(
 		person: Participant,
 		ownerId: string,
-	): Promise<string> {
+	): Promise<string | null> {
 		const email = person.email.toLowerCase();
-		const existing = await this.db.contact.findFirst({
-			where: { email, archivedAt: null },
+		const existing = await this.db.contact.findUnique({
+			where: { email },
 			select: { id: true },
 		});
 		if (existing) return existing.id;
 
 		const { firstName, lastName } = splitName(person.name, email);
-		const created = await this.db.contact.create({
-			data: {
-				firstName,
-				lastName,
+		let created: { id: string };
+		try {
+			created = await this.db.contact.create({
+				data: {
+					firstName,
+					lastName,
+					email,
+					ownerId,
+					source: RecordSource.EMAIL,
+				},
+				select: { id: true },
+			});
+		} catch (error) {
+			if (!contactLimitError.safeParse(error).success) throw error;
+			this.logger.warn({
+				message: "The contact limit is reached. The thread stays pending",
 				email,
-				ownerId,
-				source: RecordSource.EMAIL,
-			},
-			select: { id: true },
-		});
+			});
+			return null;
+		}
 
 		await this.agent.contactCreated(created.id, "Emailed about your business");
 

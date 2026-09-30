@@ -3,7 +3,7 @@ import {
 	type EnrichmentStatus,
 	type Prisma,
 	Prisma as PrismaNamespace,
-	type RecordSource,
+	RecordSource,
 } from "@crm/db";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
 import type {
@@ -573,7 +573,10 @@ export class CompaniesService {
 
 	async purgeExpired(before: Date): Promise<BulkResult> {
 		const expired = await this.db.company.findMany({
-			where: { archivedAt: { lte: before } },
+			where: {
+				archivedAt: { lte: before },
+				source: { notIn: [RecordSource.EMAIL, RecordSource.CALENDAR] },
+			},
 			select: { id: true },
 			take: ARCHIVE.prune.maxBatch,
 		});

@@ -233,7 +233,9 @@ export class SyncStateService {
 	): Promise<void> {
 		await this.db.mailboxSync.updateMany({
 			where: { userId, source },
-			data: { autoCreate: enabled },
+			data: enabled
+				? { autoCreate: true, backfill: null }
+				: { autoCreate: false },
 		});
 	}
 
@@ -246,9 +248,10 @@ export class SyncStateService {
 			createFrom: string;
 		},
 	): Promise<void> {
+		const creates = policy.autoCreate || policy.createFrom === "relevant";
 		await this.db.mailboxSync.updateMany({
 			where: { userId, source },
-			data: policy,
+			data: creates ? { ...policy, backfill: null } : policy,
 		});
 	}
 

@@ -6,6 +6,10 @@ export const ADOPTION = {
 	batch: 50,
 } as const;
 
+export const DIRECTION = {
+	repairBatch: 500,
+} as const;
+
 export const LIMIT_WARNING = {
 	intervalMs: 60 * SECOND_MS,
 } as const;

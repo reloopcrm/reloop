@@ -139,6 +139,15 @@ export class SyncStateService {
 		});
 	}
 
+	async recordAddress(row: MailboxSync, address: string): Promise<void> {
+		if (row.address === address) return;
+
+		await this.db.mailboxSync.update({
+			where: { id: row.id },
+			data: { address },
+		});
+	}
+
 	async settle(
 		id: string,
 		update: {

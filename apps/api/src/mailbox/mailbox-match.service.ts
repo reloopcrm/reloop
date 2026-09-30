@@ -1,9 +1,10 @@
 import { WORKSPACE_ID } from "@crm/auth";
 import { workspaceDomains } from "@crm/auth/workspace";
 import { type Db, RecordSource } from "@crm/db";
+import { isFreeEmailDomain } from "@crm/db/email-domains";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { CONTACT_LIMIT_MESSAGE, limitsOf } from "@crm/db/plans";
-import { readPlan } from "@crm/db/settings";
+import { readPlan, SETTINGS_ID } from "@crm/db/settings";
 import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
@@ -14,6 +15,7 @@ import { EnrichmentLogService } from "../crm/enrichment-log.service";
 import { InjectDatabase } from "../database/database.constants";
 import { LIMIT_WARNING } from "./mailbox.config";
 import {
+	betterName,
 	dominantDomain,
 	externalParticipants,
 	isDerivedName,
@@ -69,36 +71,54 @@ export class MailboxMatchService {
 		addresses: Set<string>;
 		domains: Set<string>;
 	}> {
-		const [users, mailboxes, workspace] = await Promise.all([
-			this.db.user.findMany({ select: { email: true } }),
-			this.db.imapAccount.findMany({ select: { email: true } }),
-			this.db.organization.findUnique({
-				where: { id: WORKSPACE_ID },
-				select: { website: true },
-			}),
-		]);
+		const [users, imapAccounts, syncs, settings, workspace] = await Promise.all(
+			[
+				this.db.user.findMany({ select: { email: true } }),
+				this.db.imapAccount.findMany({ select: { email: true } }),
+				this.db.mailboxSync.findMany({
+					where: { address: { not: null } },
+					select: { address: true },
+				}),
+				this.db.appSetting.findUnique({
+					where: { id: SETTINGS_ID },
+					select: { ownAddresses: true },
+				}),
+				this.db.organization.findUnique({
+					where: { id: WORKSPACE_ID },
+					select: { website: true },
+				}),
+			],
+		);
 
 		const addresses = new Set<string>();
 		const domains = new Set<string>(workspaceDomains());
 
-		for (const user of users) {
-			const email = user.email.toLowerCase();
+		const mailboxes = [
+			...users.map((user) => user.email),
+			...imapAccounts.map((account) => account.email),
+			...syncs.map((sync) => sync.address ?? ""),
+		];
+
+		for (const mailbox of mailboxes) {
+			const email = mailbox.trim().toLowerCase();
+			if (!email) continue;
 			addresses.add(email);
 
 			const domain = workDomain(email);
 			if (domain) domains.add(domain);
 		}
 
-		for (const mailbox of mailboxes) {
-			const email = mailbox.email.toLowerCase();
-			addresses.add(email);
-
-			const domain = workDomain(email);
-			if (domain) domains.add(domain);
+		for (const alias of settings?.ownAddresses ?? []) {
+			const email = alias.trim().toLowerCase();
+			if (email) addresses.add(email);
 		}
 
 		const own = normalizeDomain(workspace?.website ?? "");
 		if (own) domains.add(own);
+
+		for (const domain of domains) {
+			if (isFreeEmailDomain(domain)) domains.delete(domain);
+		}
 
 		return { addresses, domains };
 	}
@@ -391,22 +411,20 @@ export class MailboxMatchService {
 			});
 		}
 
-		const hasRealName = Boolean(person.name?.trim());
-		const isPlaceholder = isDerivedName(
-			person.email,
-			contact.firstName,
-			contact.lastName,
-		);
-
-		if (hasRealName && isPlaceholder) {
+		const upgrade = betterName(person.name, person.email, contact);
+		if (upgrade) {
 			await this.db.contact.update({
 				where: { id: contact.id },
-				data: { firstName, lastName },
+				data: upgrade,
 			});
 			return { contactId: contact.id, limited: false };
 		}
 
-		if (isPlaceholder && !hasRealName) {
+		const hasRealName = Boolean(person.name?.trim());
+		if (
+			!hasRealName &&
+			isDerivedName(person.email, contact.firstName, contact.lastName)
+		) {
 			await this.agent.contactCreated(
 				contact.id,
 				"Created by the sync from an address, with no name on it",

@@ -148,6 +148,19 @@ export function workDomain(email: string): string | null {
 	return domainFromEmail(email);
 }
 
+export type OwnIdentity = {
+	ourAddresses: ReadonlySet<string>;
+	ourDomains: ReadonlySet<string>;
+};
+
+export function isOwnAddress(email: string, own: OwnIdentity): boolean {
+	const address = email.toLowerCase();
+	if (own.ourAddresses.has(address)) return true;
+
+	const domain = workDomain(address);
+	return domain !== null && own.ourDomains.has(domain);
+}
+
 export type ExternalFilterOptions = {
 	ourDomains: ReadonlySet<string>;
 	ourAddresses: ReadonlySet<string>;
@@ -237,6 +250,30 @@ export function splitName(name: string | null, email: string): PersonName {
 		firstName: words[0] as string,
 		lastName: words.length > 1 ? words.slice(1).join(" ") : null,
 	};
+}
+
+export function nameRank(name: PersonName): number {
+	return partRank(name.firstName) + partRank(name.lastName);
+}
+
+function partRank(part: string | null): number {
+	return Math.min(letters(part ?? "").length, 2);
+}
+
+export function betterName(
+	fromLine: string | null,
+	email: string,
+	current: PersonName,
+): PersonName | null {
+	if (!fromLine?.trim()) return null;
+	if (!isDerivedName(email, current.firstName, current.lastName)) return null;
+
+	const candidate = splitName(fromLine, email);
+	if (isDerivedName(email, candidate.firstName, candidate.lastName)) {
+		return null;
+	}
+
+	return nameRank(candidate) >= nameRank(current) ? candidate : null;
 }
 
 function isEmailish(value: string): boolean {

@@ -4,6 +4,7 @@ import { PRIORITY } from "@crm/db/agent-tasks";
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	readAgentTaskOrigin,
+	readAgentTaskReread,
 } from "@crm/validation/agent-task-payload";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 
@@ -77,6 +78,21 @@ describe("a stored thread carries its lane into the task", () => {
 
 		const rows = await pending();
 		expect(rows).toHaveLength(1);
+		expect(rows[0]?.priority).toBe(PRIORITY.threadInsight);
+	});
+
+	it("asks the waiting row to read again when the direction was repaired", async () => {
+		await service.threadStored(
+			threadId,
+			"Mail from our own address was filed as received",
+			"backfill",
+			{ reread: true },
+		);
+
+		const rows = await pending();
+		expect(rows).toHaveLength(1);
+		expect(readAgentTaskReread(rows[0]?.payload)).toBe(true);
+		expect(readAgentTaskOrigin(rows[0]?.payload)).toBe("backfill");
 		expect(rows[0]?.priority).toBe(PRIORITY.threadInsight);
 	});
 });

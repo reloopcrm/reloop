@@ -92,18 +92,22 @@ export class GoogleConnectionService {
 			this.state.listForUser(userId, GOOGLE_SYNC_SOURCES),
 		]);
 
-		const known = new Set(existing.map((row) => row.source));
+		const known = new Map(existing.map((row) => [row.source, row]));
 
 		const added: string[] = [];
 
 		for (const source of GOOGLE_SYNC_SOURCES) {
 			if (!granted.has(SCOPE_FOR_SOURCE[source])) continue;
-			if (known.has(source)) continue;
+			const row = known.get(source);
+			if (row) {
+				await this.state.admitGranted(row);
+				continue;
+			}
 
-			const row = await this.state.ensure(userId, source, {
+			const created = await this.state.ensure(userId, source, {
 				autoCreate: source === "calendar",
 			});
-			if (!row) continue;
+			if (!created) continue;
 
 			added.push(source);
 		}

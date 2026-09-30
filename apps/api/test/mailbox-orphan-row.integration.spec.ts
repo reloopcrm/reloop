@@ -1,5 +1,12 @@
-import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import {
+	GMAIL_SCOPE,
+	GOOGLE_PROVIDER_ID,
+	MICROSOFT_PROVIDER_ID,
+	OUTLOOK_MAIL_SCOPE,
+} from "@crm/auth";
 import { db, GoogleSyncStatus } from "@crm/db";
+import { readPlan, writePlan } from "@crm/db/settings";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
@@ -18,6 +25,9 @@ import { OutlookSyncService } from "../src/microsoft/outlook-sync.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "orphan-row-spec";
 const userId = `orphan-${suffix}`;
+const secondId = `orphan-second-${suffix}`;
+const users = [userId, secondId];
+let planBefore: string | null = null;
 
 const agent = {} as AgentTriggerService;
 const stamp = new ActivityStampService(db);
@@ -40,18 +50,40 @@ const outlook = new OutlookSyncService(
 );
 
 async function clean() {
-	await db.mailboxSync.deleteMany({ where: { userId } });
-	await db.user.deleteMany({ where: { id: userId } });
+	await db.mailboxSync.deleteMany({ where: { userId: { in: users } } });
+	await db.account.deleteMany({ where: { userId: { in: users } } });
+	await db.user.deleteMany({ where: { id: { in: users } } });
 }
+
+async function grant(id: string, providerId: string, scope: string) {
+	await db.account.create({
+		data: {
+			id: `account-${id}`,
+			accountId: `account-${id}`,
+			providerId,
+			userId: id,
+			scope,
+		},
+	});
+}
+
+beforeAll(async () => {
+	planBefore = await readPlan(db);
+});
 
 beforeEach(async () => {
 	await clean();
-	await db.user.create({
-		data: { id: userId, name: "Orphan", email: `${userId}@example.com` },
-	});
+	for (const id of users) {
+		await db.user.create({
+			data: { id, name: "Orphan", email: `${id}@example.com` },
+		});
+	}
 });
 
-afterAll(clean);
+afterAll(async () => {
+	await clean();
+	await writePlan(db, planBefore);
+});
 
 describe("a mailbox row whose OAuth never finished", () => {
 	it("goes back to idle after a skipped tick", async () => {
@@ -105,5 +137,49 @@ describe("a mailbox row whose OAuth never finished", () => {
 
 		expect(await google.revoke(userId)).toEqual({ revoked: true });
 		expect(await state.get(userId, "gmail")).toBeNull();
+	});
+});
+
+describe("an unfinished mailbox connection that finishes", () => {
+	it("stays when the plan has room for it", async () => {
+		await writePlan(db, "trial");
+		expect(await countMailboxes(db)).toBe(0);
+		await google.setImportSince(userId, null);
+		await grant(userId, GOOGLE_PROVIDER_ID, GMAIL_SCOPE);
+
+		await google.onConnected(userId);
+
+		expect(await state.get(userId, "gmail")).not.toBeNull();
+		expect(await countMailboxes(db)).toBe(1);
+	});
+
+	it("keeps two Gmail connections inside a one-mailbox plan", async () => {
+		await writePlan(db, "trial");
+		expect(await countMailboxes(db)).toBe(0);
+		for (const id of users) await google.setImportSince(id, null);
+		for (const id of users) await grant(id, GOOGLE_PROVIDER_ID, GMAIL_SCOPE);
+		expect(await countMailboxes(db)).toBe(2);
+
+		for (const id of users) await google.onConnected(id);
+
+		expect(await countMailboxes(db)).toBe(1);
+		expect(
+			await db.mailboxSync.count({ where: { userId: { in: users } } }),
+		).toBe(1);
+	});
+
+	it("keeps two Outlook connections inside a one-mailbox plan", async () => {
+		await writePlan(db, "trial");
+		expect(await countMailboxes(db)).toBe(0);
+		for (const id of users) await microsoft.setImportSince(id, null);
+		for (const id of users) await grant(id, MICROSOFT_PROVIDER_ID, OUTLOOK_MAIL_SCOPE);
+		expect(await countMailboxes(db)).toBe(2);
+
+		for (const id of users) await microsoft.onConnected(id);
+
+		expect(await countMailboxes(db)).toBe(1);
+		expect(
+			await db.mailboxSync.count({ where: { userId: { in: users } } }),
+		).toBe(1);
 	});
 });

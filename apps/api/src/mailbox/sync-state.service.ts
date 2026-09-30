@@ -124,17 +124,10 @@ export class SyncStateService {
 			createFrom?: string;
 		},
 	): Promise<MailboxSync | null> {
-		const isMailbox = (MAILBOX_SOURCES as readonly string[]).includes(source);
-		if (isMailbox && !(await this.get(userId, source))) {
+		if (isMailboxSource(source) && !(await this.get(userId, source))) {
 			const limits = await this.mailboxLimitReached();
 			if (limits) {
-				this.logger.warn({
-					message: "Mailbox not connected: the plan's mailbox limit is reached",
-					userId,
-					source,
-					plan: limits.label,
-					allowed: limits.mailboxes,
-				});
+				this.warnMailboxLimit(userId, source, limits);
 				return null;
 			}
 		}
@@ -154,6 +147,32 @@ export class SyncStateService {
 				lastError: null,
 				retryAfter: null,
 			},
+		});
+	}
+
+	async admitGranted(row: MailboxSync): Promise<boolean> {
+		if (row.lastSyncedAt || !isMailboxSource(row.source)) return true;
+
+		const limits = await planLimitsOf(this.db);
+		if (limits.mailboxes === null) return true;
+		if ((await countMailboxes(this.db)) <= limits.mailboxes) return true;
+
+		this.warnMailboxLimit(row.userId, row.source, limits);
+		await this.db.mailboxSync.deleteMany({ where: { id: row.id } });
+		return false;
+	}
+
+	private warnMailboxLimit(
+		userId: string,
+		source: string,
+		limits: PlanLimits,
+	): void {
+		this.logger.warn({
+			message: "Mailbox not connected: the plan's mailbox limit is reached",
+			userId,
+			source,
+			plan: limits.label,
+			allowed: limits.mailboxes,
 		});
 	}
 
@@ -295,6 +314,10 @@ export class SyncStateService {
 
 		await this.db.mailboxSync.deleteMany({ where });
 	}
+}
+
+function isMailboxSource(source: string): boolean {
+	return (MAILBOX_SOURCES as readonly string[]).includes(source);
 }
 
 function dueWhere(now: Date) {

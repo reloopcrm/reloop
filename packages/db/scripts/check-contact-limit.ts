@@ -36,17 +36,24 @@ try {
 	await first.query(
 		'CREATE TABLE "appSetting" (id text PRIMARY KEY, plan text)',
 	);
-	await first.query("CREATE TABLE contact (id text PRIMARY KEY)");
+	await first.query(
+		'CREATE TABLE contact (id text PRIMARY KEY, "archivedAt" timestamptz)',
+	);
+	await first.query('CREATE TABLE "mailboxSync" (id text PRIMARY KEY)');
+	await first.query('CREATE TABLE "threadInsight" (id text PRIMARY KEY)');
 	await first.query('INSERT INTO "appSetting" VALUES ($1, $2)', [
 		"app",
 		"trial",
 	]);
-	await first.query("INSERT INTO contact SELECT generate_series(1, $1)::text", [
-		PLANS.trial.contacts - 1,
-	]);
+	await first.query(
+		"INSERT INTO contact (id) SELECT generate_series(1, $1)::text",
+		[PLANS.trial.contacts - 1],
+	);
 	for (const migration of [
 		"20260913000000_enforce_contact_plan_limit",
 		"20260921120000_plan_ids",
+		"20261001090000_mailbox_profile",
+		"20261001100000_contact_limit_revive",
 	]) {
 		await first.query(
 			await readFile(
@@ -60,7 +67,9 @@ try {
 	}
 	const results = await Promise.allSettled(
 		clients.map((client, index) =>
-			client.query("INSERT INTO contact VALUES ($1)", [`parallel-${index}`]),
+			client.query("INSERT INTO contact (id) VALUES ($1)", [
+				`parallel-${index}`,
+			]),
 		),
 	);
 	assert.equal(
@@ -74,10 +83,10 @@ try {
 	const count = await first.query("SELECT count(*)::int AS total FROM contact");
 	assert.equal(count.rows[0].total, PLANS.trial.contacts);
 	await first.query(
-		"INSERT INTO contact VALUES ('1') ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id",
+		"INSERT INTO contact (id) VALUES ('1') ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id",
 	);
 	await assert.rejects(
-		first.query("INSERT INTO contact VALUES ('over-limit')"),
+		first.query("INSERT INTO contact (id) VALUES ('over-limit')"),
 		{ code: "23514" },
 	);
 	assert.equal(

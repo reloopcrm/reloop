@@ -297,10 +297,17 @@ export class MailboxMatchService {
 			return false;
 		}
 
-		const { count } = await this.db.contact.updateMany({
-			where: { id: contact.id, archivedAt: { not: null } },
-			data: { archivedAt: null },
-		});
+		let count: number;
+		try {
+			({ count } = await this.db.contact.updateMany({
+				where: { id: contact.id, archivedAt: { not: null } },
+				data: { archivedAt: null },
+			}));
+		} catch (error) {
+			if (!contactLimitError.safeParse(error).success) throw error;
+			this.warnLimit(email);
+			return false;
+		}
 		if (count === 0) return false;
 
 		if (
@@ -326,7 +333,9 @@ export class MailboxMatchService {
 		const limit = limitsOf(await readPlan(this.db)).contacts;
 		if (limit === null) return false;
 
-		return (await this.db.contact.count()) >= limit;
+		return (
+			(await this.db.contact.count({ where: { archivedAt: null } })) >= limit
+		);
 	}
 
 	private warnLimit(email: string): void {

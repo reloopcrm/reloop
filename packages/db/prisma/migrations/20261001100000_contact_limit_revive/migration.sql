@@ -1,0 +1,1 @@
+CREATE TRIGGER contact_plan_limit_revive AFTER UPDATE OF "archivedAt" ON "contact" FOR EACH ROW WHEN (OLD."archivedAt" IS NOT NULL AND NEW."archivedAt" IS NULL) EXECUTE FUNCTION enforce_contact_plan_limit();

@@ -125,9 +125,23 @@ export function isDerivedName(
 	lastName: string | null,
 ): boolean {
 	const derived = splitName(null, email);
-	return (
-		derived.firstName === firstName && (derived.lastName ?? null) === lastName
-	);
+	if (
+		derived.firstName === firstName &&
+		(derived.lastName ?? null) === lastName
+	) {
+		return true;
+	}
+
+	const first = letters(firstName);
+	const last = letters(lastName ?? "");
+	if (!first || !last || (first.length > 1 && last.length > 1)) return false;
+
+	const handle = letters(email.split("@")[0] ?? "");
+	return handle === `${first}${last}` || handle === `${last}${first}`;
+}
+
+function letters(value: string): string {
+	return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 export function workDomain(email: string): string | null {

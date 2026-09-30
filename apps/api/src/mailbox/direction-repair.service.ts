@@ -38,7 +38,7 @@ export class DirectionRepairService {
 					})),
 				],
 			},
-			select: { id: true, threadId: true },
+			select: { id: true, threadId: true, fromEmail: true },
 			take: DIRECTION.repairBatch,
 		});
 
@@ -73,6 +73,13 @@ export class DirectionRepairService {
 		this.logger.log({
 			message: "Mail from our own addresses was marked as sent by us",
 			count,
+			senderDomains: new Set(
+				wrong.map((message) =>
+					message.fromEmail
+						.slice(message.fromEmail.lastIndexOf("@") + 1)
+						.toLowerCase(),
+				),
+			).size,
 			reread: stale.length,
 		});
 

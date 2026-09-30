@@ -4,6 +4,7 @@ import {
 	looksMachineMade,
 	nameRank,
 	outranksRecord,
+	shortensName,
 } from "../agent/lib/names";
 
 describe("isDerivedName", () => {
@@ -79,5 +80,31 @@ describe("outranksRecord", () => {
 
 	it("never prefers somebody else's name", () => {
 		expect(outranksRecord("Klara Muster", record)).toBe(false);
+	});
+});
+
+describe("shortensName", () => {
+	it("treats a prefix of the name on the record as shorter", () => {
+		expect(
+			shortensName(
+				{ firstName: "Jo", lastName: "Beispiel" },
+				{ firstName: "Johannes", lastName: null },
+			),
+		).toBe(true);
+		expect(
+			shortensName(
+				{ firstName: "Maria", lastName: "Beisp" },
+				{ firstName: "Maria", lastName: "Beispiel" },
+			),
+		).toBe(true);
+	});
+
+	it("lets a full first name replace its initial", () => {
+		expect(
+			shortensName(
+				{ firstName: "Maria", lastName: "Beispiel" },
+				{ firstName: "M.", lastName: "Beispiel" },
+			),
+		).toBe(false);
 	});
 });

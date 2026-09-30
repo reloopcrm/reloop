@@ -485,16 +485,18 @@ wrong in the direction that looks useful.
   from the agent's own `APPLIED` fact was changed by a person after the agent wrote
   it. Both are refused. `nameRank` (`lib/names.ts`) orders "Maria Beispiel" above
   "M. Beispiel" above "Maria", and `recordFact` refuses a name that ranks below the
-  record. `participants.ts` in the API reads "M. Beispiel" and "Beispiel, M." at
-  `m.beispiel@` as a placeholder too, so the sync replaces it with the next fuller
-  From name.
+  record, or one part that is a prefix of the part on the record ("Jo" never
+  replaces "Johannes"). The sync never renames a contact that already exists, so
+  this path is the one that upgrades an old placeholder.
 - **The sender line alone is enough to upgrade a name.** `contact-clean` skips the
   signature gate when a From display name outranks the record and matches the
   address, because a mail without a signature still carries the full first name
   in its sender line. The model is told that Email 1 is the newest and wins when
   the signatures disagree. The phone number is written as digits with a leading
-  `+` for an international number, and a mobile number fills `phone` only when the
-  signature has no landline, because the contact has no mobile column.
+  `+` for an international number. An extension is cut off, "(0)" is dropped
+  except after +39, and more than 15 digits is no number. A mobile number fills
+  `phone` only when the signature has no landline, because the contact has no
+  mobile column.
 - **A name is written only by a source that identifies the person.**
   `fillsBlank` treats the `name` field as always empty, so before this rule any
   kept evidence, down to `POSSIBLE`, could rename a machine-made contact. A web

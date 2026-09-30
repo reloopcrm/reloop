@@ -1,7 +1,7 @@
 import { db, FactBand, FactStatus, type Prisma, RecordSource } from "@crm/db";
 import { type Evidence, scoreEvidence, selfAssertedOnly } from "./evidence";
 import { currentFocus } from "./focus";
-import { isDerivedName, nameRank, splitName } from "./names";
+import { isDerivedName, shortensName, splitName } from "./names";
 
 const FIELDS = {
 	name: { column: null },
@@ -353,10 +353,7 @@ function lessComplete(candidate: string, contact: FactSubject): boolean {
 	const split = splitName(candidate);
 	if (!split) return true;
 
-	return (
-		nameRank(split.firstName, split.lastName) <
-		nameRank(contact.firstName, contact.lastName)
-	);
+	return shortensName(split, contact);
 }
 
 function recordName(contact: FactSubject): string {

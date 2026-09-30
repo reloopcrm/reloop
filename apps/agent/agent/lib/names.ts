@@ -153,9 +153,33 @@ function partRank(part: string | null): number {
 	return Math.min(normalise(part ?? "").length, 2);
 }
 
+type PersonName = { firstName: string; lastName: string | null };
+
+export function shortensName(
+	candidate: PersonName,
+	record: PersonName,
+): boolean {
+	return (
+		nameRank(candidate.firstName, candidate.lastName) <
+			nameRank(record.firstName, record.lastName) ||
+		shortensPart(candidate.firstName, record.firstName) ||
+		shortensPart(candidate.lastName, record.lastName)
+	);
+}
+
+function shortensPart(
+	candidate: string | null,
+	record: string | null,
+): boolean {
+	const next = normalise(candidate ?? "");
+	const current = normalise(record ?? "");
+
+	return next.length < current.length && current.startsWith(next);
+}
+
 export function outranksRecord(
 	candidate: string,
-	record: { email: string | null; firstName: string; lastName: string | null },
+	record: { email: string | null } & PersonName,
 ): boolean {
 	const split = splitName(candidate);
 	if (!split || !record.email) return false;
@@ -163,6 +187,7 @@ export function outranksRecord(
 	return (
 		nameRank(split.firstName, split.lastName) >
 			nameRank(record.firstName, record.lastName) &&
+		!shortensName(split, record) &&
 		nameMatchesLocalPart(split, record.email.split("@")[0] ?? "")
 	);
 }

@@ -4,6 +4,7 @@ import { type Db, RecordSource } from "@crm/db";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { CONTACT_LIMIT_MESSAGE } from "@crm/db/plans";
 import { Injectable, Logger } from "@nestjs/common";
+import { z } from "zod";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../companies/company-directory.service";
 import { normalizeDomain } from "../companies/domain";
@@ -32,11 +33,9 @@ export type MatchResult = {
 
 type CreatedContact = { contactId: string | null; limited: boolean };
 
-export function isContactLimitError(error: unknown): boolean {
-	return (
-		error instanceof Error && error.message.includes(CONTACT_LIMIT_MESSAGE)
-	);
-}
+export const contactLimitError = z
+	.instanceof(Error)
+	.refine((error) => error.message.includes(CONTACT_LIMIT_MESSAGE));
 
 export type MatchContext = {
 	ourAddresses: ReadonlySet<string>;
@@ -338,7 +337,7 @@ export class MailboxMatchService {
 				request,
 			);
 		} catch (error) {
-			if (!isContactLimitError(error)) throw error;
+			if (!contactLimitError.safeParse(error).success) throw error;
 			this.warnLimit(person.email);
 			return { contactId: null, limited: true };
 		}

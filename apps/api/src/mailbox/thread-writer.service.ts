@@ -17,7 +17,7 @@ import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import type { SyncOrigin } from "./mailbox.constants";
 import {
-	isContactLimitError,
+	contactLimitError,
 	MailboxMatchService,
 	type MatchContext,
 } from "./mailbox-match.service";
@@ -387,7 +387,7 @@ export class ThreadWriterService {
 				select: { id: true },
 			});
 		} catch (error) {
-			if (!isContactLimitError(error)) throw error;
+			if (!contactLimitError.safeParse(error).success) throw error;
 			this.logger.warn({
 				message: "The contact limit is reached. The thread stays pending",
 				email,

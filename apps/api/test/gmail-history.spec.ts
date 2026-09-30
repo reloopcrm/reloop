@@ -106,7 +106,11 @@ function harness(options: {
 		async context() {
 			return {};
 		},
-		async store(_row: MailboxSync, _options: unknown, parsed: IncomingMessage) {
+		async store(
+			_row: MailboxSync,
+			_options: { mailbox: string },
+			parsed: IncomingMessage,
+		) {
 			stored.push(parsed);
 			return true;
 		},

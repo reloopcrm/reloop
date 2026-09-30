@@ -196,6 +196,9 @@ the trial or the first of the next month, and the settings page names that day.
 `readMonthlyUsage` (`@crm/db/plan-usage`) is the one counter for both apps. Chat and
 builder count `message.received` events by conversation kind.
 
+Backfill reading never uses the last 20 % of `insightsPerMonth` (`PLAN_RESERVE.insightForwardShare` in
+`@crm/db/plans`). That share stays for new mail. It applies only with plan limits: an install without them reserves nothing.
+
 ### Retention
 
 `pruneAgentHistory` runs in the sweep and is off unless `AGENT_HISTORY_RETENTION_DAYS`

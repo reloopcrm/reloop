@@ -86,6 +86,12 @@ export async function queueUnreadThreads(): Promise<number> {
 			? null
 			: Math.max(0, left - forwardReserve(INSIGHT_KIND, await planLimits()));
 	if (room !== null && room <= 0) {
+		if (left !== null && left > 0) {
+			console.error(
+				"[agent] backfill paused: the rest of the reading budget is kept for new mail",
+			);
+			return 0;
+		}
 		console.error(
 			`[agent] reading waits: ${limitOutcome(INSIGHT_KIND, await limitResumesAt())}`,
 		);

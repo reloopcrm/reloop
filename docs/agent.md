@@ -152,6 +152,18 @@ signed up in. The API stores and serves the value and does nothing else with it.
 - **A draft keeps the language of its conversation.** `lib/email-draft.ts` tells the
   model to answer in the language the thread uses; only the style rule it learns is in
   the workspace language. A rep's chat answers in the language the rep writes in.
+- **A draft continues the conversation in the sender's own voice.** `lib/draft-prompt.ts`
+  builds the prompt from plain data, so `test/draft-prompt.spec.ts` checks it without a
+  model. The current thread comes first, quotes and auto replies cut out, and its last
+  real message is marked: the draft picks that up and keeps the thread's subject.
+  The voice comes only from `OUTBOUND` mail of one address: the one that last wrote to
+  this contact, else the contact owner's mailbox, else the only sending address of the
+  workspace. With none of them there are no examples, never a colleague's mail. Mail to
+  this contact comes first, then mail to others; du or Sie, language, greeting, sign
+  off and length are read from it. The openings this contact already read are listed
+  so the next draft opens differently. There is no fixed template and no trade
+  wording. Every bound is `DRAFT` in `lib/draft-config.ts`: `conversationMaxChars`,
+  `bodyMaxChars` per message, and `voice.*` for the examples.
 - **Stored text is not rewritten.** A summary or a unit the agent wrote before stays
   in the language it was written in; only new runs follow the setting. The business
   unit and description are edited by hand in Win back, Rules, because business setup

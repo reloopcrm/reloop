@@ -1,0 +1,23 @@
+export const DRAFT = {
+	threads: 3,
+	messagesPerThread: 8,
+	earlierThreadMessages: 2,
+	bodyMaxChars: 1_200,
+	conversationMaxChars: 6_000,
+	subjectMaxChars: 140,
+	textMaxChars: 2_000,
+	learnAttempts: 3,
+	recentDrafts: 8,
+	openingMaxChars: 120,
+	voice: {
+		pool: 40,
+		toContact: 2,
+		general: 2,
+		minChars: 20,
+		exampleMaxChars: 400,
+		totalMaxChars: 1_600,
+		avoidLines: 6,
+		signOffLines: 2,
+		signOffLineMaxChars: 40,
+	},
+} as const;

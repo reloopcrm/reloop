@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, RecordSource } from "@crm/db";
-import { DRAFT, recentOpenings } from "../agent/lib/email-draft";
+import { DRAFT } from "../agent/lib/draft-config";
+import { recentOpenings } from "../agent/lib/email-draft";
 
 const suffix = process.env.TEST_RUN_ID ?? "draft-openings-spec";
 const domain = `openings-${suffix}.test`;

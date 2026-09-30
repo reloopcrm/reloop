@@ -142,6 +142,8 @@ export class OutlookSyncService {
 			};
 		}
 
+		await this.state.recordAddress(row, mailbox);
+
 		if (!row.cursor) {
 			return this.start(row, initializedAt);
 		}
@@ -419,11 +421,11 @@ export class OutlookSyncService {
 			const parsed = this.parse(message);
 			if (!parsed) continue;
 
-			context ??= await this.threads.context();
+			context ??= await this.threads.context(mailbox);
 
 			const stored = await this.threads.store(
 				row,
-				{ mailbox, origin: "outlook", lane },
+				{ origin: "outlook", lane },
 				parsed,
 				context,
 			);

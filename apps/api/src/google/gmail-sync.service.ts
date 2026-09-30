@@ -133,6 +133,8 @@ export class GmailSyncService {
 			};
 		}
 
+		await this.state.recordAddress(row, mailbox);
+
 		if (!row.cursor) {
 			return this.start(row, profile.data.historyId ?? null);
 		}
@@ -445,7 +447,7 @@ export class GmailSyncService {
 
 		if (batch.length === 0) return { ...empty, done, remaining };
 
-		const context: MatchContext = await this.threads.context();
+		const context: MatchContext = await this.threads.context(mailbox);
 
 		let written = 0;
 		let fetched = 0;
@@ -482,7 +484,7 @@ export class GmailSyncService {
 
 			const stored = await this.threads.store(
 				row,
-				{ mailbox, origin: "gmail", lane },
+				{ origin: "gmail", lane },
 				parsed,
 				context,
 			);

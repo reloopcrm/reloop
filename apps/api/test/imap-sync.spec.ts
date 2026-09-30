@@ -154,9 +154,9 @@ function harness(options: {
 	} as unknown as SyncStateService;
 
 	const threads = {
-		async context() {
+		async context(mailbox: string) {
 			return {
-				ourAddresses: new Set<string>(),
+				ourAddresses: new Set<string>([mailbox.toLowerCase()]),
 				ourDomains: new Set<string>(),
 				suppressedDomains: new Set<string>(),
 				suppressedEmails: new Set<string>(),
@@ -164,10 +164,14 @@ function harness(options: {
 		},
 		async store(
 			_row: MailboxSync,
-			storeOptions: { mailbox: string },
+			_options: { origin: string },
 			parsed: IncomingMessage,
+			context: { ourAddresses: ReadonlySet<string> },
 		) {
-			stored.push({ mailbox: storeOptions.mailbox, message: parsed });
+			stored.push({
+				mailbox: [...context.ourAddresses].join(","),
+				message: parsed,
+			});
 			return true;
 		},
 	} as unknown as ThreadWriterService;

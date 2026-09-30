@@ -22,7 +22,12 @@ import {
 	type MatchContext,
 } from "./mailbox-match.service";
 import { snippetOf } from "./message-text";
-import { type Participant, splitName } from "./participants";
+import {
+	betterName,
+	isOwnAddress,
+	type Participant,
+	splitName,
+} from "./participants";
 
 const storedRecipient = z.object({
 	email: z.string().trim().min(1),
@@ -56,12 +61,14 @@ export class ThreadWriterService {
 		private readonly agent: AgentTriggerService,
 	) {}
 
-	async context(): Promise<MatchContext> {
+	async context(mailbox?: string): Promise<MatchContext> {
 		const [internal, suppressedDomains, suppressedEmails] = await Promise.all([
 			this.match.internalIdentity(),
 			this.match.suppressedDomains(),
 			this.match.suppressedEmails(),
 		]);
+
+		if (mailbox) internal.addresses.add(mailbox.toLowerCase());
 
 		return {
 			ourAddresses: internal.addresses,
@@ -73,7 +80,7 @@ export class ThreadWriterService {
 
 	async store(
 		row: MailboxSync,
-		options: { mailbox: string; origin: SyncOrigin; lane: AgentTaskOrigin },
+		options: { origin: SyncOrigin; lane: AgentTaskOrigin },
 		parsed: IncomingMessage,
 		context: MatchContext,
 	): Promise<boolean> {
@@ -94,7 +101,7 @@ export class ThreadWriterService {
 
 		const repair = existing !== null;
 		const participants = [parsed.from, ...parsed.recipients];
-		const outbound = parsed.from.email === options.mailbox;
+		const outbound = isOwnAddress(parsed.from.email, context);
 
 		if (!repair && !outbound) {
 			await this.match.reviveContact(parsed.from, context, {
@@ -121,8 +128,7 @@ export class ThreadWriterService {
 
 		if (!thread) {
 			const repliedTo =
-				outbound ||
-				(await this.hasOutboundInThread(parsed.rootId, options.mailbox));
+				outbound || (await this.hasOutboundInThread(parsed.rootId, context));
 
 			const auto = isAutoReply(parsed.subject, parsed.body);
 
@@ -399,9 +405,18 @@ export class ThreadWriterService {
 		const email = person.email.toLowerCase();
 		const existing = await this.db.contact.findUnique({
 			where: { email },
-			select: { id: true },
+			select: { id: true, firstName: true, lastName: true },
 		});
-		if (existing) return existing.id;
+		if (existing) {
+			const upgrade = betterName(person.name, email, existing);
+			if (upgrade) {
+				await this.db.contact.update({
+					where: { id: existing.id },
+					data: upgrade,
+				});
+			}
+			return existing.id;
+		}
 
 		const { firstName, lastName } = splitName(person.name, email);
 		let created: { id: string };
@@ -467,12 +482,15 @@ export class ThreadWriterService {
 
 	private async hasOutboundInThread(
 		rootMessageId: string,
-		mailbox: string,
+		context: MatchContext,
 	): Promise<boolean> {
 		const found = await this.db.emailMessage.findFirst({
 			where: {
 				thread: { rootMessageId },
-				fromEmail: mailbox,
+				OR: [
+					{ direction: EmailDirection.OUTBOUND },
+					{ fromEmail: { in: [...context.ourAddresses] } },
+				],
 			},
 			select: { id: true },
 		});

@@ -5,7 +5,7 @@ import {
 	FactStatus,
 	type Prisma,
 	Prisma as PrismaNamespace,
-	type RecordSource,
+	RecordSource,
 } from "@crm/db";
 import {
 	type ContactAttention,
@@ -548,7 +548,10 @@ export class ContactsService {
 
 	async purgeExpired(before: Date): Promise<BulkResult> {
 		const expired = await this.db.contact.findMany({
-			where: { archivedAt: { lte: before } },
+			where: {
+				archivedAt: { lte: before },
+				source: { notIn: [RecordSource.EMAIL, RecordSource.CALENDAR] },
+			},
 			select: { id: true },
 			take: ARCHIVE.prune.maxBatch,
 		});

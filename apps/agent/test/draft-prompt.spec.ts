@@ -198,6 +198,21 @@ describe("the draft prompt carries the sender's own voice", () => {
 		expect(section).not.toContain('"Sie"');
 	});
 
+	it("drops a sent mail that still carries someone else's quoted header", () => {
+		const forwarded: SentSample = {
+			subject: "WG: Raum",
+			body: "Danke dir, passt so. Viele Grüße Tom -----Original Message----- From: Maria Beispiel Sent: Monday To: Tom Hallo Tom, der Raum im Erdgeschoss ist frei.",
+		};
+		const section = voiceSection({
+			toContact: [forwarded, ...toMaria],
+			general: [],
+		});
+
+		expect(section).not.toContain("der Raum im Erdgeschoss ist frei");
+		expect(section).not.toContain("Original Message");
+		expect(section).toContain("anbei die Fotos vom Sommerfest");
+	});
+
 	it("says nothing about his voice when he never sent a mail", () => {
 		expect(voiceSection({ toContact: [], general: [] })).toBe("");
 	});

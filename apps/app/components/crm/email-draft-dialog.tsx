@@ -233,13 +233,7 @@ export function EmailDraftDialog({
 
 				{draft ? (
 					<p className="text-muted-foreground text-xs">
-						{draft.role === "buyer"
-							? t("Written for a buyer.")
-							: draft.role === "seller"
-								? t("Written for a seller.")
-								: t(
-										"The role is unclear, so it asks the seller question.",
-									)}{" "}
+						{t("It continues the latest conversation in your own style.")}{" "}
 						{draft.modelId
 							? t("Written by {model}.", { model: draft.modelId })
 							: null}{" "}
@@ -256,7 +250,7 @@ export function EmailDraftDialog({
 							value={instruction}
 							disabled={blocked}
 							placeholder={t(
-								"Say what you want different, for example: shorter, and ask about Gitterboxen too.",
+								"Say what you want different, for example: shorter, and ask whether next week works.",
 							)}
 							onChange={(event) => setInstruction(event.target.value)}
 							aria-label={t("What should be different?")}

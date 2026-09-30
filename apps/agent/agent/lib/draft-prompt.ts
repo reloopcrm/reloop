@@ -58,6 +58,13 @@ const DU_WORDS =
 	/\b(du|dich|dir|dein|deine|deinen|deinem|deiner|euch|euer|eure)\b/gi;
 const SIE_WORDS = /\b(Sie|Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer)\b/g;
 
+const QUOTED_HEADER = [
+	/\bOn\s.+?\swrote:/i,
+	/\bAm\s.+?\sschrieb\b/i,
+	/-{2,}\s*(Original Message|Ursprüngliche Nachricht|Weitergeleitete Nachricht|Forwarded message)\s*-{2,}/i,
+	/\b(Von|From):\s.+\b(Gesendet|Sent|An|To):\s/i,
+];
+
 const GREETING =
 	/^(hallo|hi|hey|moin|servus|liebe[rs]?|werte[rs]?|sehr geehrte[rs]?|guten (tag|morgen|abend)|dear|hello|good (morning|afternoon))\b/i;
 
@@ -170,7 +177,11 @@ function unique(values: (string | null)[]): string[] {
 function usable(samples: SentSample[]): string[] {
 	return samples
 		.map((sample) => ownText(sample.body))
-		.filter((text) => text.length >= DRAFT.voice.minChars);
+		.filter(
+			(text) =>
+				text.length >= DRAFT.voice.minChars &&
+				!QUOTED_HEADER.some((pattern) => pattern.test(text)),
+		);
 }
 
 export function voiceSection(voice: DraftPromptInput["voice"]): string {

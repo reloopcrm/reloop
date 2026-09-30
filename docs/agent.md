@@ -157,8 +157,11 @@ signed up in. The API stores and serves the value and does nothing else with it.
   model. The current thread comes first, quotes and auto replies cut out, and its last
   real message is marked: the draft picks that up and keeps the thread's subject.
   The voice comes only from `OUTBOUND` mail of one address: the one that last wrote to
-  this contact, else the contact owner's mailbox, else the only sending address of the
-  workspace. With none of them there are no examples, never a colleague's mail. The
+  this contact, else the contact owner's own addresses (login, `MailboxSync.address`,
+  IMAP), else the only sending address of the workspace. A colleague's mail is
+  `OUTBOUND` too and can sit in the owner's mailbox, so the filter is always
+  `fromEmail`, never `syncedByUserId`. With none of them there are no examples,
+  never a colleague's mail. The
   same source names the sender in the prompt. Greeting, sign off, du or Sie and the
   example texts come only from mail to this contact; with none, du or Sie comes from
   how the contact writes. Mail to other customers gives only language and length,

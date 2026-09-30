@@ -6,6 +6,7 @@ const suffix = process.env.TEST_RUN_ID ?? "draft-voice-spec";
 const domain = `voice-${suffix}.test`;
 const tom = `tom@${domain}`;
 const colleague = `kollegin@${domain}`;
+const ownerId = `voice-owner-${suffix}`;
 const at = new Date("2026-08-01T09:00:00.000Z");
 
 async function person(local: string): Promise<string> {
@@ -20,7 +21,12 @@ async function person(local: string): Promise<string> {
 	return row.id;
 }
 
-async function sent(contactId: string, fromEmail: string, body: string) {
+async function sent(
+	contactId: string,
+	fromEmail: string,
+	body: string,
+	syncedByUserId?: string,
+) {
 	const thread = await db.emailThread.create({
 		data: {
 			rootMessageId: `root-${crypto.randomUUID()}@${domain}`,
@@ -41,6 +47,7 @@ async function sent(contactId: string, fromEmail: string, body: string) {
 			subject: "Workshop",
 			body,
 			fromEmail,
+			syncedByUserId,
 			recipients: [`someone@${domain}`],
 		},
 	});
@@ -54,6 +61,7 @@ async function clean(): Promise<void> {
 	const ids = people.map((row) => row.id);
 	await db.emailThread.deleteMany({ where: { contactId: { in: ids } } });
 	await db.contact.deleteMany({ where: { id: { in: ids } } });
+	await db.user.deleteMany({ where: { id: ownerId } });
 }
 
 beforeEach(clean);
@@ -99,6 +107,32 @@ describe("whose mails become the sender's voice", () => {
 		]);
 		expect(voice.general.map((sample) => sample.body)).toEqual([
 			"Sehr geehrter Herr Probe, anbei das Angebot.",
+		]);
+	});
+
+	it("takes only the owner's own mails when nobody wrote to the contact yet", async () => {
+		const maria = await person("maria");
+		const other = await person("probe");
+		await db.user.create({
+			data: { id: ownerId, name: "Tom Muster", email: tom },
+		});
+		await sent(other, tom, "Hallo Herr Probe, anbei das Angebot.", ownerId);
+		await sent(
+			other,
+			colleague,
+			"Hallo Herr Probe, hier schreibt die Kollegin.",
+			ownerId,
+		);
+
+		const { senderName, voice } = await ownVoice({
+			id: maria,
+			owner: { id: ownerId, name: "Tom Muster" },
+			emailThreads: [],
+		});
+
+		expect(senderName).toBe("Tom Muster");
+		expect(voice.general.map((sample) => sample.body)).toEqual([
+			"Hallo Herr Probe, anbei das Angebot.",
 		]);
 	});
 });

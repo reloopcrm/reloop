@@ -1,43 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { AsyncLocalStorage } from "node:async_hooks";
 import { db, type Prisma } from "@crm/db";
-import type { WorkspaceScope } from "@crm/db/cloud/contract";
 import { cloud } from "@crm/db/cloud/scope";
 import {
 	exhaustedUntilOf,
 	withCallerTenant,
 	withUsageCapture,
 } from "../agent/lib/model";
+import { actHosted, actSelfHosted, workspace } from "./hosted-cloud";
 
 type ModelObject = ReturnType<typeof withUsageCapture>;
-
-const store = new AsyncLocalStorage<WorkspaceScope>();
-
-function tenantContextMissing(): never {
-	const error = new Error("No tenant in context");
-	error.name = "TenantContextMissing";
-	throw error;
-}
-
-function scope(id: string): WorkspaceScope {
-	return {
-		id,
-		slug: id,
-		plan: "pro",
-		allowList: [],
-		createdAt: new Date(),
-		trialEndsAt: null,
-	} as unknown as WorkspaceScope;
-}
-
-const selfHosted = { ...cloud };
-
-const hosted = {
-	hosted: () => true,
-	scopeId: () => store.getStore()?.id ?? tenantContextMissing(),
-	current: () => store.getStore() ?? tenantContextMissing(),
-	run: <T>(tenant: WorkspaceScope, fn: () => T): T => store.run(tenant, fn),
-};
 
 function spentHeaders(): Record<string, string> {
 	return {
@@ -83,7 +54,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	Object.assign(cloud, selfHosted);
+	actSelfHosted();
 	if (!process.env.DATABASE_URL) return;
 	await new Promise((settle) => setTimeout(settle, 200));
 	await db.providerUsage
@@ -94,9 +65,9 @@ afterAll(async () => {
 
 describe("subscription usage on the hosted cloud", () => {
 	it("records the usage for the tenant that built the model", async () => {
-		Object.assign(cloud, hosted);
-		const tenantA = scope("tenant-usage-a");
-		const tenantB = scope("tenant-usage-b");
+		actHosted();
+		const tenantA = workspace("tenant-usage-a");
+		const tenantB = workspace("tenant-usage-b");
 
 		const model = cloud.run(tenantA, () =>
 			withCallerTenant(withUsageCapture(fakeModel(spentHeaders()))),
@@ -110,14 +81,14 @@ describe("subscription usage on the hosted cloud", () => {
 	});
 
 	it("never fails a finished call when there is no tenant to record for", async () => {
-		Object.assign(cloud, hosted);
+		actHosted();
 		const model = withUsageCapture(fakeModel(spentHeaders()));
 
 		await expect(call(model)).resolves.toBeDefined();
 	});
 
 	it("leaves a self-hosted model untouched", async () => {
-		Object.assign(cloud, selfHosted);
+		actSelfHosted();
 		const inner = withUsageCapture(fakeModel({}));
 
 		expect(withCallerTenant(inner)).toBe(inner);

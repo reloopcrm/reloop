@@ -1,5 +1,5 @@
 import { db } from "@crm/db";
-import { DIRECT_KINDS } from "@crm/db/agent-tasks";
+import { DIRECT_KINDS, RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import { usageWindowOf } from "@crm/db/plan-usage";
 import { clampResearchPerHour } from "@crm/db/plans";
 import { AGENT_RESEARCH_PER_HOUR, readAgentProvider } from "@crm/db/settings";
@@ -38,6 +38,13 @@ export async function researchAllowance(
 		where: {
 			kind: { notIn: [...DIRECT_KINDS] },
 			startedAt: { gte: since },
+			OR: [
+				{ finishedAt: null, leasedUntil: { gt: now } },
+				{
+					finishedAt: { not: null },
+					OR: [{ outcome: null }, { outcome: { not: RETIRED_OUTCOME } }],
+				},
+			],
 		},
 	});
 

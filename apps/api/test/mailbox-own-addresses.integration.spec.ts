@@ -245,10 +245,12 @@ describe("repairing mail stored with the wrong direction", () => {
 describe("own identity rules", () => {
 	it("never treats a freemail domain as our own", async () => {
 		const before = process.env.ALLOWED_SIGN_IN;
-		process.env.ALLOWED_SIGN_IN = "example.com,gmail.com";
+		process.env.ALLOWED_SIGN_IN = "example.com,gmail.com,outlook.at,mynet.com";
 		try {
 			const own = await match.internalIdentity();
 			expect(own.domains.has("gmail.com")).toBe(false);
+			expect(own.domains.has("outlook.at")).toBe(false);
+			expect(own.domains.has("mynet.com")).toBe(false);
 			expect(own.domains.has("example.com")).toBe(true);
 		} finally {
 			process.env.ALLOWED_SIGN_IN = before;

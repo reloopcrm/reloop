@@ -41,6 +41,7 @@ function harness(options: {
 	pageSize?: number;
 	labels?: Record<string, string[]>;
 	dropped?: string[];
+	failures?: ReadonlyMap<string, boolean>;
 }) {
 	const stored: IncomingMessage[] = [];
 	const settled: { cursor?: string | null }[] = [];
@@ -83,6 +84,10 @@ function harness(options: {
 			return ok({ messages: [] });
 		},
 		async getMessage(_token: string, id: string) {
+			const retryable = options.failures?.get(id);
+			if (retryable !== undefined) {
+				return { outcome: "failed", reason: "Gmail failed", retryable };
+			}
 			return ok(gmailMessage(id, options.labels?.[id] ?? ["INBOUND"]));
 		},
 	} as unknown as GmailClient;
@@ -215,6 +220,31 @@ describe("Gmail incremental history", () => {
 
 		await kit.service.sync(rowAt(first ?? "1000"));
 		expect(kit.settled.at(-1)?.cursor).toBe("3124");
+	});
+
+	it("keeps a message pending after a retryable error and drops one that is gone", async () => {
+		const failures = new Map([
+			["g1", false],
+			["t1", true],
+		]);
+		const kit = harness({
+			entries: [
+				{ id: 1100, added: ["a1"] },
+				{ id: 1200, added: ["g1"] },
+				{ id: 1300, added: ["t1"] },
+				{ id: 1400, added: ["z1"] },
+			],
+			failures,
+		});
+
+		await kit.service.sync(rowAt("1000"));
+		expect(ids(kit)).toEqual(["a1", "z1"]);
+		expect(kit.settled.at(-1)?.cursor).toBe("1200");
+
+		failures.delete("t1");
+		await kit.service.sync(rowAt("1200"));
+		expect(ids(kit)).toContain("t1");
+		expect(kit.settled.at(-1)?.cursor).toBe("1400");
 	});
 
 	it("skips drafts, spam and trash", async () => {

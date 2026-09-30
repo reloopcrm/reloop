@@ -471,7 +471,7 @@ export class GmailSyncService {
 			}
 
 			fetched += 1;
-			done.add(id);
+			if (message.outcome !== "failed" || !message.retryable) done.add(id);
 			if (message.outcome !== "ok") continue;
 			if (this.skipped(message.data)) continue;
 

@@ -1225,6 +1225,43 @@ signs in with `@gmail.com` does not make `gmail.com` an own domain.
 `pruneContacts` and `pruneCompanies` are off (`PRUNE.enabled` is `false`) and return 0.
 Turning them off does not restore or delete anything already archived.
 
+## The mailbox profile is learned from the workspace's own mail
+
+The `business-setup` task (`agent/lib/business-setup.ts`) learns two things. The win-back
+business rules, once. And `AppSetting.mailboxProfile` (`@crm/validation/mailbox-profile`),
+again whenever the mailbox changes. The API queues the task on the sync tick, at most once
+in 24 hours. The numbers are `MAILBOX_PROFILE` in `agent/lib/mailbox-config.ts`.
+
+- **Below 20 conversations nothing changes.** The website pass fills an empty business
+  description, as before.
+- **Every run is free until the rule says build.** `mailboxStats` counts, in SQL over the
+  2,000 newest conversations, how many inbound senders are freemail, role (`info@`,
+  `office@` …) or work addresses, and how many of each we answered.
+  `recordOwnAddresses` appends every address our sent mail came from to
+  `AppSetting.ownAddresses`, in one atomic `UPDATE`, capped at 200, never removing one.
+- **`profileDue` decides.** Build when there is no readable profile. Never within 7 days
+  of the last build. After that, build when the profile is 90 days old, when the
+  conversation count has doubled, or when the freemail or role share changed.
+- **One reading call per build**, on the reading model (Luna on included AI). The sample
+  is our own sent mail first (36 conversations), then 24 unanswered ones, 8 per sender
+  kind, without a conversation the thread gate already called irrelevant. 400 characters
+  each, 1,500 output tokens, two attempts. That is about 12k input tokens, under one cent.
+  The model sees the sender kind, never an address. No Jev call: a gate costs more code
+  than the one call it would save.
+- **Deterministic where it can be.** `counterparts.freemail` and `roleAddresses` come
+  from the counts, not the model. A follow-up sentence is kept only when it is a quote of
+  our own sent mail with `{product}` in place of the product (`quotedFrom`).
+- **Nothing a person set is replaced.** The business rules merge only on the first mail
+  pass, as before. A rebuild writes the profile and nothing else. It keeps follow-up
+  sentences, `bulkUnit`, `currency` and `minAmount` that are already set, and it never
+  drops `quantity` from `measure` while the rules or earlier readings count quantities.
+- **A failure writes nothing.** A model that never answers in shape, or no model at all,
+  leaves the old profile as it was. An unreadable stored profile logs its reason and is
+  built again.
+- **Read it with `currentMailboxProfile()`** in `agent/lib/mailbox-stats.ts`. It returns
+  the parsed profile or `null`. `senderKind(email)` is the one freemail, role or work
+  classifier on the agent side.
+
 ## Tests
 
 `bun run --filter=agent test`. The integration specs need `DATABASE_URL` and run

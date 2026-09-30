@@ -86,12 +86,14 @@ describe("a mailbox row whose OAuth never finished", () => {
 		const before = await countMailboxes(db);
 		await microsoft.setImportSince(userId, null);
 		await google.setImportSince(userId, null);
+		expect(await state.listForUser(userId)).toHaveLength(2);
 
 		expect(await countMailboxes(db)).toBe(before);
 	});
 
 	it("is removed by Disconnect Microsoft", async () => {
 		await microsoft.setImportSince(userId, null);
+		expect(await state.get(userId, "outlook")).not.toBeNull();
 
 		expect(await microsoft.revoke(userId)).toEqual({ revoked: true });
 		expect(await state.get(userId, "outlook")).toBeNull();
@@ -99,6 +101,7 @@ describe("a mailbox row whose OAuth never finished", () => {
 
 	it("is removed by Disconnect Google", async () => {
 		await google.setImportSince(userId, null);
+		expect(await state.get(userId, "gmail")).not.toBeNull();
 
 		expect(await google.revoke(userId)).toEqual({ revoked: true });
 		expect(await state.get(userId, "gmail")).toBeNull();

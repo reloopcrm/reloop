@@ -5,6 +5,7 @@ import { RESEARCH_RUN_KIND } from "@crm/db/plans";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	readAgentTaskInstruction,
+	readAgentTaskReread,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
@@ -146,7 +147,10 @@ async function clearWithGate(
 	}
 
 	try {
-		await completeTask(task.id, await runThreadInsight(threadId, true));
+		await completeTask(
+			task.id,
+			await runThreadInsight(threadId, true, readAgentTaskReread(task.payload)),
+		);
 		return "cleared";
 	} catch (error) {
 		await postponeTask(task.id, until);
@@ -367,7 +371,14 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 		}
 
 		try {
-			await completeTask(task.id, await runThreadInsight(threadId));
+			await completeTask(
+				task.id,
+				await runThreadInsight(
+					threadId,
+					false,
+					readAgentTaskReread(task.payload),
+				),
+			);
 		} catch (error) {
 			const until = await resumeAt();
 			if (!until || !isExhaustion(readProviderFailure(error))) throw error;

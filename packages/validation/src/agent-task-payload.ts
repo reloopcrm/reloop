@@ -8,6 +8,7 @@ export type AgentTaskOrigin = (typeof AGENT_TASK_ORIGINS)[number];
 export const agentTaskThreadPayload = z.object({
 	threadId: z.string().min(1),
 	origin: z.enum(AGENT_TASK_ORIGINS).default("forward"),
+	reread: z.boolean().default(false),
 });
 
 export type AgentTaskThreadPayload = z.input<typeof agentTaskThreadPayload>;
@@ -23,6 +24,11 @@ export function readAgentTaskThreadId(value: unknown): string | null {
 export function readAgentTaskOrigin(value: unknown): AgentTaskOrigin {
 	const parsed = agentTaskThreadPayload.safeParse(value);
 	return parsed.success ? parsed.data.origin : "forward";
+}
+
+export function readAgentTaskReread(value: unknown): boolean {
+	const parsed = agentTaskThreadPayload.safeParse(value);
+	return parsed.success ? parsed.data.reread : false;
 }
 
 export const agentTaskDraftPayload = z.object({

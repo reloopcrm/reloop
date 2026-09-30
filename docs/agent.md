@@ -157,8 +157,11 @@ signed up in. The API stores and serves the value and does nothing else with it.
   model. The current thread comes first, quotes and auto replies cut out, and its last
   real message is marked: the draft picks that up and keeps the thread's subject.
   The voice comes only from `OUTBOUND` mail of one address: the one that last wrote to
-  this contact, else the contact owner's mailbox, else the only sending address of the
-  workspace. With none of them there are no examples, never a colleague's mail. The
+  this contact, else the contact owner's own addresses (login, `MailboxSync.address`,
+  IMAP), else the only sending address of the workspace. A colleague's mail is
+  `OUTBOUND` too and can sit in the owner's mailbox, so the filter is always
+  `fromEmail`, never `syncedByUserId`. With none of them there are no examples,
+  never a colleague's mail. The
   same source names the sender in the prompt. Greeting, sign off, du or Sie and the
   example texts come only from mail to this contact; with none, du or Sie comes from
   how the contact writes. Mail to other customers gives only language and length,
@@ -603,7 +606,10 @@ single noul: is this conversation about the workspace's business. `TYPESAFE` in
   id is how every gate-skipped row is found again.
 - **A skipped conversation is not re-read** until new mail moves its `lastMessageAt`.
   The threshold is 0.2 for that reason: a wrong skip costs a summary nobody asked for,
-  and 0.2 is a clear no rather than an uncertain one.
+  and 0.2 is a clear no rather than an uncertain one. The one exception is a task
+  whose payload says `reread: true` (`readAgentTaskReread`): the API writes it when
+  its direction repair turned received mail into sent mail, and the stored verdict,
+  `unansweredByUs` included, is read again.
 - **Never a throw, and off-path is byte identical.** No key, a 401, a 5xx, bad JSON, a
   timeout, a network error: every one of them falls through to the big model and nothing
   reaches the rep. The answer is parsed with zod at the read.

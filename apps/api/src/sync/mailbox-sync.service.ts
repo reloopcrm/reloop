@@ -6,6 +6,7 @@ import { GoogleConnectionService } from "../google/google-connection.service";
 import { GoogleSyncService } from "../google/google-sync.service";
 import { ImapConnectionService } from "../imap/imap-connection.service";
 import { ImapSyncService } from "../imap/imap-sync.service";
+import { DirectionRepairService } from "../mailbox/direction-repair.service";
 import { SYNC_TICK } from "../mailbox/mailbox.config";
 import {
 	isGoogleSyncSource,
@@ -52,6 +53,7 @@ export class MailboxSyncService {
 		private readonly imapConnections: ImapConnectionService,
 		private readonly adoption: ThreadAdoptionService,
 		private readonly agent: AgentTriggerService,
+		private readonly direction: DirectionRepairService,
 	) {}
 
 	async runDue(signal?: AbortSignal): Promise<TickSummary> {
@@ -82,6 +84,14 @@ export class MailboxSyncService {
 		} catch (error) {
 			this.logger.error(
 				{ message: "Thread adoption failed" },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
+		try {
+			await this.direction.repair();
+		} catch (error) {
+			this.logger.error(
+				{ message: "Mail direction repair failed" },
 				error instanceof Error ? error.stack : String(error),
 			);
 		}

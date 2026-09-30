@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { GMAIL_SCOPE, GOOGLE_PROVIDER_ID } from "@crm/auth";
 import { db } from "@crm/db";
 import {
 	DRAFT_KIND,
@@ -9,7 +10,10 @@ import {
 } from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
-import { SyncStateService } from "../src/mailbox/sync-state.service";
+import {
+	countMailboxes,
+	SyncStateService,
+} from "../src/mailbox/sync-state.service";
 import { SettingsService } from "../src/settings/settings.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "plan-limits";
@@ -142,6 +146,18 @@ describe("plan limits in the API", () => {
 			autoCreate: false,
 		});
 		expect(gmail).not.toBeNull();
+		expect(await countMailboxes(db)).toBe(0);
+
+		await db.account.create({
+			data: {
+				id: `plan-account-${suffix}`,
+				accountId: `plan-account-${suffix}`,
+				providerId: GOOGLE_PROVIDER_ID,
+				userId: reps[0] ?? "",
+				scope: GMAIL_SCOPE,
+			},
+		});
+		expect(await countMailboxes(db)).toBe(1);
 
 		const outlook = await state.ensure(reps[1] ?? "", "outlook", {
 			autoCreate: false,

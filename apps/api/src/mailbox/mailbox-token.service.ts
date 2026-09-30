@@ -56,6 +56,17 @@ export class MailboxTokenService {
 		});
 	}
 
+	async hasAccount(
+		userId: string,
+		providerId: MailboxProviderId,
+	): Promise<boolean> {
+		const found = await this.db.account.count({
+			where: { userId, providerId },
+		});
+
+		return found > 0;
+	}
+
 	async hasRefreshToken(
 		userId: string,
 		providerId: MailboxProviderId,

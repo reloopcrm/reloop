@@ -8,6 +8,7 @@ import type { GoogleConnectionService } from "../src/google/google-connection.se
 import type { GoogleSyncService } from "../src/google/google-sync.service";
 import type { ImapConnectionService } from "../src/imap/imap-connection.service";
 import type { ImapSyncService } from "../src/imap/imap-sync.service";
+import type { DirectionRepairService } from "../src/mailbox/direction-repair.service";
 import { SYNC_TICK } from "../src/mailbox/mailbox.config";
 import {
 	SYNC_LEASE_MS,
@@ -144,6 +145,7 @@ function build(
 				return true;
 			},
 		} as unknown as AgentTriggerService,
+		{ repair: async () => 0 } as unknown as DirectionRepairService,
 	);
 }
 

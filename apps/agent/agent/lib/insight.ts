@@ -485,6 +485,7 @@ async function refreshMemory(
 export async function runThreadInsight(
 	threadId: string,
 	gateOnly = false,
+	reread = false,
 ): Promise<string> {
 	const thread = await db.emailThread.findUnique({
 		where: { id: threadId },
@@ -515,6 +516,7 @@ export async function runThreadInsight(
 
 	const rules = await readWinBackRules(db);
 	const unchanged =
+		!reread &&
 		thread.insight !== null &&
 		thread.insight.lastMessageAt.getTime() === thread.lastMessageAt.getTime();
 

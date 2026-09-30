@@ -91,8 +91,7 @@ async function recipient(contactId: string) {
 }
 
 async function sentBy(where: {
-	fromEmail?: string;
-	syncedByUserId?: string;
+	fromEmail: string | { in: string[] };
 	thread: { contactId: string | { not: string } };
 }): Promise<SentSample[]> {
 	const rows = await db.emailMessage.findMany({
@@ -111,9 +110,28 @@ async function sentBy(where: {
 type VoiceOwner = Pick<DraftRecipient, "id" | "owner" | "emailThreads">;
 
 type Sender = {
-	where: { fromEmail: string } | { syncedByUserId: string };
+	where: { fromEmail: string | { in: string[] } };
 	name: string | null;
 };
+
+async function addressesOf(userId: string): Promise<string[]> {
+	const [user, mailboxes, imap] = await Promise.all([
+		db.user.findUnique({ where: { id: userId }, select: { email: true } }),
+		db.mailboxSync.findMany({
+			where: { userId, address: { not: null } },
+			select: { address: true },
+		}),
+		db.imapAccount.findMany({ where: { userId }, select: { email: true } }),
+	]);
+
+	return [
+		user?.email,
+		...mailboxes.map((row) => row.address),
+		...imap.map((row) => row.email),
+	]
+		.filter((address): address is string => Boolean(address))
+		.map((address) => address.trim().toLowerCase());
+}
 
 async function sender(person: VoiceOwner): Promise<Sender | null> {
 	const latest = person.emailThreads
@@ -125,7 +143,7 @@ async function sender(person: VoiceOwner): Promise<Sender | null> {
 	}
 	if (person.owner) {
 		return {
-			where: { syncedByUserId: person.owner.id },
+			where: { fromEmail: { in: await addressesOf(person.owner.id) } },
 			name: person.owner.name,
 		};
 	}

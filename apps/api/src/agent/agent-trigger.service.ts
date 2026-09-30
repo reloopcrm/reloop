@@ -20,6 +20,7 @@ import {
 	type AgentTaskDraftPayload,
 	type AgentTaskOrigin,
 	type AgentTaskThreadPayload,
+	agentTaskThreadPayload,
 } from "@crm/validation/agent-task-payload";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { Injectable, Logger } from "@nestjs/common";
@@ -147,6 +148,7 @@ export class AgentTriggerService {
 		threadId: string,
 		reason: string,
 		origin: AgentTaskOrigin = "forward",
+		options: { reread?: boolean } = {},
 	): Promise<void> {
 		const priority =
 			origin === "backfill"
@@ -157,11 +159,17 @@ export class AgentTriggerService {
 			reason,
 			priority,
 			budget: 1,
-			payload: { threadId, origin } satisfies AgentTaskThreadPayload,
+			payload: {
+				threadId,
+				origin,
+				reread: options.reread ?? false,
+			} satisfies AgentTaskThreadPayload,
 			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
 			origin,
 		});
-		if (created || origin === "backfill") return;
+		if (created) return;
+		if (options.reread) await this.markReread(threadId);
+		if (origin === "backfill") return;
 
 		await this.db.agentTask.updateMany({
 			where: {
@@ -172,6 +180,28 @@ export class AgentTriggerService {
 			},
 			data: { priority, reason },
 		});
+	}
+
+	private async markReread(threadId: string): Promise<void> {
+		const open = await this.db.agentTask.findMany({
+			where: {
+				kind: "thread-insight",
+				finishedAt: null,
+				payload: { path: [AGENT_TASK_THREAD_ID_KEY], equals: threadId },
+			},
+			select: { id: true, payload: true },
+		});
+		for (const task of open) {
+			await this.db.agentTask.update({
+				where: { id: task.id },
+				data: {
+					payload: {
+						...agentTaskThreadPayload.parse(task.payload),
+						reread: true,
+					},
+				},
+			});
+		}
 	}
 
 	async threadDigestRequested(threadId: string): Promise<boolean> {

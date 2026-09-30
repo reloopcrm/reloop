@@ -349,13 +349,34 @@ the largest attachment upload the conversation contracts accept.
 `MailboxMatchService`, `participants.ts`, `message-text.ts`, and
 `ThreadWriterService`.
 
-- **A name cut out of the address is a placeholder, and the sync does not fix it
-  later.** `isDerivedName` (`participants.ts`) reads "M Beispiel", "M. Beispiel"
-  and "Beispiel, M." at `m.beispiel@` as placeholders. `MailboxMatchService`
-  replaces one only while it creates the contact, when a concurrent sync created it
-  first with no name. For a contact that already exists, `resolve` returns before
-  it reads any name. `contact-clean` in the agent upgrades the name on new
-  activity, from the From line or the signature.
+- **The sync never renames a contact that already exists.** A new contact takes
+  its name from the From line through `splitName`. A contact that `resolve`,
+  `createContact` or `contactWithoutCompany` finds by address keeps its name, even
+  when it is a placeholder ("M Beispiel" at `m.beispiel@`, read by `isDerivedName`).
+  A sender line such as "Buchhaltung Beispiel AG" is not a person's name.
+  `contact-clean` in the agent upgrades the name on new activity, from the From line
+  or the signature, with the rule in `lib/names.ts`.
+- **"From us" means any own address, in every mailbox.** `internalIdentity`
+  collects users, IMAP accounts, every `MailboxSync.address`, the confirmed aliases
+  in `AppSetting.ownAddresses`, the allow-list and the website, and drops every
+  freemail domain. `isOwnAddress` makes a message `OUTBOUND` when its sender is one
+  of those addresses or sits on an own work domain. So a colleague's mail read by
+  another mailbox is ours, and two mailboxes that read one message agree. Gmail and
+  Outlook write `MailboxSync.address` from the provider profile on every sync,
+  before the first message. The API only reads `ownAddresses`; deciding that an
+  address is an alias is the agent's job.
+- **Old rows follow the identity.** `DirectionRepairService` runs once per sync
+  tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`,
+  at most `DIRECTION.repairBatch` per tick, and never the other way. Once a pass
+  finds less than a batch, it skips until the identity changes, so a new mailbox
+  or a new alias corrects the history by itself. It deletes nothing;
+  `reactivation.ts` reads `direction` directly. A flipped thread that already has
+  a `ThreadInsight` gets a `thread-insight` task through `threadStored` with
+  `origin: "backfill"` and `reread: true` in the payload, so the agent reads it
+  again although `lastMessageAt` did not move and `unansweredByUs` follows the new
+  direction. A task already waiting for the thread takes `reread: true` into its
+  payload. Each pass logs the flipped `count` and the number of distinct sender
+  domains, never an address. The API only writes the row; the agent decides.
 
 - **`ThreadWriterService.store` is the only writer of `EmailThread`, `EmailMessage`
   and the `EMAIL` activity.** Gmail and Outlook each parse their own wire format down

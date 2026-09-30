@@ -171,6 +171,7 @@ function harness(options: {
 
 	const state = {
 		async markRunning() {},
+		async recordAddress() {},
 		async settle(
 			_id: string,
 			update: { cursor?: string | null; backfill?: string | null },

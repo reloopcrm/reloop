@@ -9,13 +9,32 @@ import type { CapacityUsage, PlanLimits } from "@crm/db/plans";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { serialiseBackfill, stoppedBackfill } from "./backfill-cursor";
-import { MAILBOX_SOURCES, type MailboxSource } from "./mailbox.constants";
+import {
+	MAILBOX_SOURCES,
+	type MailboxSource,
+	PROVIDER_FOR_SOURCE,
+	SCOPE_FOR_SOURCE,
+} from "./mailbox.constants";
 
 export const SYNC_LEASE_MS = 300_000;
 
 export async function countMailboxes(db: Db): Promise<number> {
 	const [synced, imap] = await Promise.all([
-		db.mailboxSync.count({ where: { source: { in: [...MAILBOX_SOURCES] } } }),
+		db.mailboxSync.count({
+			where: {
+				OR: MAILBOX_SOURCES.map((source) => ({
+					source,
+					user: {
+						accounts: {
+							some: {
+								providerId: PROVIDER_FOR_SOURCE[source],
+								scope: { contains: SCOPE_FOR_SOURCE[source] },
+							},
+						},
+					},
+				})),
+			},
+		}),
 		db.imapAccount.count(),
 	]);
 	return synced + imap;
@@ -78,10 +97,16 @@ export class SyncStateService {
 	}
 
 	async release(id: string): Promise<void> {
-		await this.db.mailboxSync.updateMany({
-			where: { id },
-			data: { retryAfter: null },
-		});
+		await this.db.$transaction([
+			this.db.mailboxSync.updateMany({
+				where: { id, status: GoogleSyncStatus.RUNNING },
+				data: { status: GoogleSyncStatus.IDLE },
+			}),
+			this.db.mailboxSync.updateMany({
+				where: { id },
+				data: { retryAfter: null },
+			}),
+		]);
 	}
 
 	async mailboxLimitReached(): Promise<PlanLimits | null> {
@@ -99,17 +124,10 @@ export class SyncStateService {
 			createFrom?: string;
 		},
 	): Promise<MailboxSync | null> {
-		const isMailbox = (MAILBOX_SOURCES as readonly string[]).includes(source);
-		if (isMailbox && !(await this.get(userId, source))) {
+		if (isMailboxSource(source) && !(await this.get(userId, source))) {
 			const limits = await this.mailboxLimitReached();
 			if (limits) {
-				this.logger.warn({
-					message: "Mailbox not connected: the plan's mailbox limit is reached",
-					userId,
-					source,
-					plan: limits.label,
-					allowed: limits.mailboxes,
-				});
+				this.warnMailboxLimit(userId, source, limits);
 				return null;
 			}
 		}
@@ -132,10 +150,53 @@ export class SyncStateService {
 		});
 	}
 
+	async admitGranted(row: MailboxSync): Promise<boolean> {
+		if (row.lastSyncedAt || !isMailboxSource(row.source)) return true;
+
+		const limits = await planLimitsOf(this.db);
+		if (limits.mailboxes === null) return true;
+		if ((await countMailboxes(this.db)) <= limits.mailboxes) return true;
+
+		const { count } = await this.db.mailboxSync.deleteMany({
+			where: {
+				id: row.id,
+				status: GoogleSyncStatus.IDLE,
+				lastSyncedAt: null,
+			},
+		});
+		if (count === 0) return true;
+
+		this.warnMailboxLimit(row.userId, row.source, limits);
+		return false;
+	}
+
+	private warnMailboxLimit(
+		userId: string,
+		source: string,
+		limits: PlanLimits,
+	): void {
+		this.logger.warn({
+			message: "Mailbox not connected: the plan's mailbox limit is reached",
+			userId,
+			source,
+			plan: limits.label,
+			allowed: limits.mailboxes,
+		});
+	}
+
 	async markRunning(id: string): Promise<void> {
 		await this.db.mailboxSync.update({
 			where: { id },
 			data: { status: GoogleSyncStatus.RUNNING, lastError: null },
+		});
+	}
+
+	async recordAddress(row: MailboxSync, address: string): Promise<void> {
+		if (row.address === address) return;
+
+		await this.db.mailboxSync.update({
+			where: { id: row.id },
+			data: { address },
 		});
 	}
 
@@ -261,6 +322,10 @@ export class SyncStateService {
 
 		await this.db.mailboxSync.deleteMany({ where });
 	}
+}
+
+function isMailboxSource(source: string): boolean {
+	return (MAILBOX_SOURCES as readonly string[]).includes(source);
 }
 
 function dueWhere(now: Date) {

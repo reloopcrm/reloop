@@ -80,18 +80,22 @@ export class MicrosoftConnectionService {
 			this.state.listForUser(userId, MICROSOFT_SYNC_SOURCES),
 		]);
 
-		const known = new Set(existing.map((row) => row.source));
+		const known = new Map(existing.map((row) => [row.source, row]));
 
 		const added: string[] = [];
 
 		for (const source of MICROSOFT_SYNC_SOURCES) {
 			if (!granted.has(SCOPE_FOR_SOURCE[source])) continue;
-			if (known.has(source)) continue;
+			const row = known.get(source);
+			if (row) {
+				await this.state.admitGranted(row);
+				continue;
+			}
 
-			const row = await this.state.ensure(userId, source, {
+			const created = await this.state.ensure(userId, source, {
 				autoCreate: false,
 			});
-			if (!row) continue;
+			if (!created) continue;
 
 			added.push(source);
 		}
@@ -159,13 +163,18 @@ export class MicrosoftConnectionService {
 
 	async revoke(userId: string): Promise<RevokeAccessOutput> {
 		const revoked = await this.tokens.revoke(userId, MICROSOFT_PROVIDER_ID);
-		if (!revoked) return { revoked };
+		if (
+			!revoked &&
+			(await this.tokens.hasAccount(userId, MICROSOFT_PROVIDER_ID))
+		) {
+			return { revoked };
+		}
 
 		for (const source of MICROSOFT_SYNC_SOURCES) {
 			await this.state.remove(userId, source);
 		}
 
-		return { revoked };
+		return { revoked: true };
 	}
 
 	async setImportSince(

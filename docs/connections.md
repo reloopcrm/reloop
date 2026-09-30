@@ -82,8 +82,17 @@ day it is connected, and keeps reading new mail at the same time.
   preference.
 - **The answer is stored before the OAuth redirect**, through
   `google.setImportSince` / `microsoft.setImportSince`, which creates the
-  `MailboxSync` row if there is none. A row without a grant is skipped by the
-  sync tick, so it costs nothing.
+  `MailboxSync` row if there is none. When the OAuth never finishes, that row has
+  no grant. The sync tick skips it and `SyncStateService.release` puts a still
+  `RUNNING` row back to `IDLE`, so it never reads as syncing. `countMailboxes`
+  counts only a Gmail or Outlook row whose user has an `account` with the
+  mailbox scope, so the row does not use up the plan's mailbox limit. When the
+  grant arrives, `onConnected` passes the row through `admitGranted`: a row that
+  never synced, is `IDLE` and pushes the count past the limit is removed, with the
+  same warning as a refused new connection. A row a sync tick is running on stays. So two unfinished connections never end
+  as two mailboxes on a one-mailbox plan. Disconnect
+  (`revoke`) removes the row also when there is no account; Google keeps it only
+  when Google refuses to revoke a token that exists.
 - **The card says what is happening while it happens.** The status reads
   `Reading mail` and the line under it reads `Reading the history, back to
   <date>`, with a percentage and a bar when the backfill has a floor. The

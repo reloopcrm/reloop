@@ -159,7 +159,7 @@ describe("the contact limit during a mailbox sync", () => {
 	it("stores the mail as a pending thread and does not throw", async () => {
 		const first = await limited.store(
 			everyone,
-			{ mailbox, origin: "imap", lane: "forward" },
+			{ origin: "imap", lane: "forward" },
 			inbound(`one@${firstDomain}`, `<one-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -167,7 +167,7 @@ describe("the contact limit during a mailbox sync", () => {
 
 		const second = await limited.store(
 			everyone,
-			{ mailbox, origin: "imap", lane: "forward" },
+			{ origin: "imap", lane: "forward" },
 			inbound(`two@${firstDomain}`, `<two-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -201,7 +201,7 @@ describe("the contact limit during a mailbox sync", () => {
 	it("keeps storing mail from a new company while the limit holds", async () => {
 		const stored = await limited.store(
 			everyone,
-			{ mailbox, origin: "imap", lane: "forward" },
+			{ origin: "imap", lane: "forward" },
 			inbound(`three@${secondDomain}`, `<three-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -218,7 +218,7 @@ describe("the contact limit during a mailbox sync", () => {
 	it("creates no company when the contact cannot be created", async () => {
 		const stored = await full.store(
 			everyone,
-			{ mailbox, origin: "imap", lane: "forward" },
+			{ origin: "imap", lane: "forward" },
 			inbound(`four@${thirdDomain}`, `<four-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -252,7 +252,7 @@ describe("a contact that writes again", () => {
 
 		const stored = await threads.store(
 			nobody,
-			{ mailbox, origin: "imap", lane: "forward" },
+			{ origin: "imap", lane: "forward" },
 			inbound(email, `<back-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -285,7 +285,7 @@ describe("a contact that writes again", () => {
 
 		await threads.store(
 			nobody,
-			{ mailbox, origin: "imap", lane: "forward" },
+			{ origin: "imap", lane: "forward" },
 			{
 				...inbound(mailbox, `<quiet-${suffix}@mail.test>`),
 				from: { email: mailbox, name: "Rep" },
@@ -315,7 +315,7 @@ describe("a contact that writes again", () => {
 
 		await threads.store(
 			nobody,
-			{ mailbox, origin: "imap", lane: "forward" },
+			{ origin: "imap", lane: "forward" },
 			inbound(email, `<colleague-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -332,7 +332,7 @@ describe("a contact that writes again", () => {
 
 		await threads.store(
 			nobody,
-			{ mailbox, origin: "imap", lane: "backfill" },
+			{ origin: "imap", lane: "backfill" },
 			inbound(`old@${firstDomain}`, `<old-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -345,7 +345,7 @@ describe("a contact that writes again", () => {
 
 		await threads.store(
 			nobody,
-			{ mailbox, origin: "imap", lane: "backfill" },
+			{ origin: "imap", lane: "backfill" },
 			inbound(`newer@${firstDomain}`, `<newer-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -363,7 +363,7 @@ describe("a revive at the contact limit", () => {
 
 		const stored = await blocked.store(
 			everyone,
-			{ mailbox, origin: "imap", lane: "forward" },
+			{ origin: "imap", lane: "forward" },
 			inbound(`capped@${firstDomain}`, `<capped-${suffix}@mail.test>`),
 			await threads.context(),
 		);
@@ -387,7 +387,7 @@ describe("a revive at the contact limit", () => {
 		const root = `<adopt-capped-${suffix}@mail.test>`;
 		await threads.store(
 			relevant,
-			{ mailbox, origin: "imap", lane: "backfill" },
+			{ origin: "imap", lane: "backfill" },
 			inbound(`capped@${adoptDomain}`, root),
 			await threads.context(),
 		);
@@ -439,7 +439,7 @@ describe("adopting a pending thread of an archived contact", () => {
 		const root = `<adopt-${name}-${suffix}@mail.test>`;
 		await threads.store(
 			relevant,
-			{ mailbox, origin: "imap", lane: "backfill" },
+			{ origin: "imap", lane: "backfill" },
 			inbound(`${name}@${adoptDomain}`, root),
 			await threads.context(),
 		);

@@ -51,7 +51,6 @@ type FolderRun = {
 	account: ImapAccount;
 	folder: ImapFolder;
 	uidValidity: string;
-	mailbox: string;
 	context: MatchContext;
 };
 
@@ -199,12 +198,7 @@ export class ImapSyncService {
 		cursor: ImapCursor,
 		deadlineAt: number,
 	): Promise<number> {
-		const mailbox = account.email.toLowerCase();
-		const base = await this.threads.context();
-		const context: MatchContext = {
-			...base,
-			ourAddresses: new Set([...base.ourAddresses, mailbox]),
-		};
+		const context = await this.threads.context(account.email);
 
 		let budget = IMAP.sync.maxMessagesPerTick;
 		let written = 0;
@@ -245,7 +239,6 @@ export class ImapSyncService {
 				account,
 				folder,
 				uidValidity: opened.uidValidity,
-				mailbox,
 				context,
 			};
 
@@ -322,7 +315,7 @@ export class ImapSyncService {
 
 			const stored = await this.threads.store(
 				run.row,
-				{ mailbox: run.mailbox, origin: "imap", lane },
+				{ origin: "imap", lane },
 				parsed,
 				run.context,
 			);

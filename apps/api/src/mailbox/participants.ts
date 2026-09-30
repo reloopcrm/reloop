@@ -148,6 +148,19 @@ export function workDomain(email: string): string | null {
 	return domainFromEmail(email);
 }
 
+export type OwnIdentity = {
+	ourAddresses: ReadonlySet<string>;
+	ourDomains: ReadonlySet<string>;
+};
+
+export function isOwnAddress(email: string, own: OwnIdentity): boolean {
+	const address = email.toLowerCase();
+	if (own.ourAddresses.has(address)) return true;
+
+	const domain = workDomain(address);
+	return domain !== null && own.ourDomains.has(domain);
+}
+
 export type ExternalFilterOptions = {
 	ourDomains: ReadonlySet<string>;
 	ourAddresses: ReadonlySet<string>;

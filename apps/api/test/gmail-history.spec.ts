@@ -30,13 +30,22 @@ function gmailMessage(id: string, labelIds: string[]): GmailMessage {
 	};
 }
 
+type Entry = {
+	id: number;
+	added?: string[];
+	removed?: { id: string; labelIds: string[] }[];
+};
+
 function harness(options: {
-	pages: { ids: string[]; historyId: string }[];
+	entries: Entry[];
+	pageSize?: number;
 	labels?: Record<string, string[]>;
+	dropped?: string[];
 }) {
 	const stored: IncomingMessage[] = [];
 	const settled: { cursor?: string | null }[] = [];
 	const requested: (string | undefined)[] = [];
+	const size = options.pageSize ?? 1;
 
 	const gmail = {
 		async profile() {
@@ -47,23 +56,34 @@ function harness(options: {
 			request: { startHistoryId: string; pageToken?: string },
 		) {
 			requested.push(request.pageToken);
-			const at = request.pageToken ? Number(request.pageToken) : 0;
-			const page = options.pages[at];
+			const after = options.entries.filter(
+				(entry) => entry.id > Number(request.startHistoryId),
+			);
+			const from = request.pageToken ? Number(request.pageToken) : 0;
+			const page = after.slice(from, from + size);
+			const last = after.at(-1);
 
 			return ok({
-				history: (page?.ids ?? []).map((id) => ({
-					messagesAdded: [{ message: { id } }],
+				history: page.map((entry) => ({
+					id: String(entry.id),
+					messagesAdded: (entry.added ?? []).map((id) => ({
+						message: { id },
+					})),
+					labelsRemoved: (entry.removed ?? []).map((removed) => ({
+						message: { id: removed.id },
+						labelIds: removed.labelIds,
+					})),
 				})),
-				historyId: page?.historyId,
+				historyId: last ? String(last.id) : request.startHistoryId,
 				nextPageToken:
-					at + 1 < options.pages.length ? String(at + 1) : undefined,
+					from + size < after.length ? String(from + size) : undefined,
 			});
 		},
 		async listMessages() {
 			return ok({ messages: [] });
 		},
 		async getMessage(_token: string, id: string) {
-			return ok(gmailMessage(id, options.labels?.[id] ?? ["INBOX"]));
+			return ok(gmailMessage(id, options.labels?.[id] ?? ["INBOUND"]));
 		},
 	} as unknown as GmailClient;
 
@@ -111,6 +131,7 @@ function harness(options: {
 			_options: { mailbox: string },
 			parsed: IncomingMessage,
 		) {
+			if (options.dropped?.includes(parsed.gmailMessageId ?? "")) return false;
 			stored.push(parsed);
 			return true;
 		},
@@ -124,62 +145,103 @@ function harness(options: {
 	};
 }
 
-const row = {
-	id: "sync-1",
-	userId: "user-1",
-	source: "gmail",
-	cursor: "1000",
-	backfill: null,
-	importSince: null,
-	autoCreate: true,
-	createFrom: null,
-	status: "IDLE",
-} as unknown as MailboxSync;
+function rowAt(cursor: string) {
+	return {
+		id: "sync-1",
+		userId: "user-1",
+		source: "gmail",
+		cursor,
+		backfill: null,
+		importSince: null,
+		autoCreate: true,
+		createFrom: null,
+		status: "IDLE",
+	} as unknown as MailboxSync;
+}
+
+const ids = (kit: { stored: IncomingMessage[] }) =>
+	kit.stored.map((message) => message.gmailMessageId);
 
 describe("Gmail incremental history", () => {
-	it("reads every history page and moves the cursor to the last page", async () => {
+	it("reads every history page and moves the cursor to the last entry", async () => {
 		const kit = harness({
-			pages: [
-				{ ids: ["a1", "a2"], historyId: "1100" },
-				{ ids: ["b1"], historyId: "1200" },
+			entries: [
+				{ id: 1100, added: ["a1", "a2"] },
+				{ id: 1200, added: ["b1"] },
 			],
 		});
 
-		await kit.service.sync(row);
+		await kit.service.sync(rowAt("1000"));
 
-		expect(kit.stored.map((message) => message.gmailMessageId)).toEqual([
-			"a1",
-			"a2",
-			"b1",
-		]);
+		expect(ids(kit)).toEqual(["a1", "a2", "b1"]);
 		expect(kit.requested).toEqual([undefined, "1"]);
 		expect(kit.settled.at(-1)?.cursor).toBe("1200");
 	});
 
-	it("keeps the cursor when the history has more pages than the cap", async () => {
-		const pages = Array.from({ length: 22 }, (_, at) => ({
-			ids: [`m${at}`],
-			historyId: String(2000 + at),
+	it("makes progress across ticks when the history is longer than the page cap", async () => {
+		const entries = Array.from({ length: 22 }, (_, at) => ({
+			id: 2000 + at,
+			added: [`m${at}`],
 		}));
-		const kit = harness({ pages });
+		const kit = harness({ entries });
 
-		await kit.service.sync(row);
+		await kit.service.sync(rowAt("1000"));
 
 		expect(kit.requested).toHaveLength(20);
-		expect(kit.stored).toHaveLength(20);
-		expect(kit.settled.at(-1)?.cursor).toBe("1000");
+		expect(ids(kit)).toHaveLength(20);
+		const first = kit.settled.at(-1)?.cursor;
+		expect(first).toBe("2019");
+
+		await kit.service.sync(rowAt(first ?? "1000"));
+
+		expect(ids(kit)).toHaveLength(22);
+		expect(kit.settled.at(-1)?.cursor).toBe("2021");
+	});
+
+	it("moves past messages that are skipped or not stored", async () => {
+		const entries = Array.from({ length: 125 }, (_, at) => ({
+			id: 3000 + at,
+			added: [`n${at}`],
+		}));
+		const kit = harness({
+			entries,
+			pageSize: 10,
+			dropped: entries.map((_, at) => `n${at}`),
+		});
+
+		await kit.service.sync(rowAt("1000"));
+		const first = kit.settled.at(-1)?.cursor;
+		expect(first).toBe("3119");
+
+		await kit.service.sync(rowAt(first ?? "1000"));
+		expect(kit.settled.at(-1)?.cursor).toBe("3124");
 	});
 
 	it("skips drafts, spam and trash", async () => {
 		const kit = harness({
-			pages: [{ ids: ["d1", "s1", "t1", "i1"], historyId: "1100" }],
+			entries: [{ id: 1100, added: ["d1", "s1", "t1", "i1"] }],
 			labels: { d1: ["DRAFT"], s1: ["SPAM"], t1: ["TRASH", "INBOX"] },
 		});
 
-		await kit.service.sync(row);
+		await kit.service.sync(rowAt("1000"));
 
-		expect(kit.stored.map((message) => message.gmailMessageId)).toEqual(["i1"]);
+		expect(ids(kit)).toEqual(["i1"]);
 		expect(kit.settled.at(-1)?.cursor).toBe("1100");
+	});
+
+	it("reads a message that leaves spam as new mail", async () => {
+		const kit = harness({
+			entries: [
+				{ id: 1100, removed: [{ id: "x1", labelIds: ["SPAM"] }] },
+				{ id: 1200, removed: [{ id: "x2", labelIds: ["UNREAD"] }] },
+			],
+			labels: { x1: ["INBOX"], x2: ["INBOX"] },
+		});
+
+		await kit.service.sync(rowAt("1000"));
+
+		expect(ids(kit)).toEqual(["x1"]);
+		expect(kit.settled.at(-1)?.cursor).toBe("1200");
 	});
 
 	it("keeps drafts, spam and trash out of the backfill query", () => {

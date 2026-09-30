@@ -58,6 +58,7 @@ export function mailboxSyncConfig(env: MailboxSyncEnv) {
 			),
 			historyPages: 20,
 			skippedLabels: ["DRAFT", "SPAM", "TRASH"] as readonly string[],
+			reenteringLabels: ["SPAM", "TRASH"] as readonly string[],
 		},
 	} as const;
 }

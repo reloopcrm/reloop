@@ -55,6 +55,7 @@ type MailboxFailure = {
 };
 
 type Ingested = {
+	done: Set<string>;
 	written: number;
 	fetched: number;
 	remaining: number;
@@ -185,7 +186,7 @@ export class GmailSyncService {
 		startHistoryId: string,
 		deadlineAt: number,
 	): Promise<GmailSyncOutcome> {
-		const ids = new Set<string>();
+		const entries: { id: string | undefined; ids: string[] }[] = [];
 		let pageToken: string | undefined;
 		let latestHistoryId: string | undefined;
 		let more = false;
@@ -212,9 +213,17 @@ export class GmailSyncService {
 			}
 
 			for (const entry of history.data.history ?? []) {
+				const found: string[] = [];
 				for (const added of entry.messagesAdded ?? []) {
-					if (added.message?.id) ids.add(added.message.id);
+					if (added.message?.id) found.push(added.message.id);
 				}
+				for (const removed of entry.labelsRemoved ?? []) {
+					const reentered = (removed.labelIds ?? []).some((label) =>
+						MAILBOX.sync.gmail.reenteringLabels.includes(label),
+					);
+					if (reentered && removed.message?.id) found.push(removed.message.id);
+				}
+				entries.push({ id: entry.id, ids: found });
 			}
 
 			latestHistoryId = history.data.historyId ?? latestHistoryId;
@@ -227,16 +236,22 @@ export class GmailSyncService {
 			row,
 			accessToken,
 			mailbox,
-			[...ids],
+			[...new Set(entries.flatMap((entry) => entry.ids))],
 			MAILBOX.sync.forwardMax,
 			deadlineAt,
 			"forward",
 		);
 
-		const cursor =
-			forward.remaining > 0 || more
-				? startHistoryId
-				: (latestHistoryId ?? startHistoryId);
+		let cursor = startHistoryId;
+		let complete = true;
+		for (const entry of entries) {
+			if (!entry.ids.every((id) => forward.done.has(id))) {
+				complete = false;
+				break;
+			}
+			cursor = entry.id ?? cursor;
+		}
+		if (complete && !more) cursor = latestHistoryId ?? cursor;
 
 		if (forward.failure) {
 			await this.state.settle(row.id, {
@@ -407,6 +422,7 @@ export class GmailSyncService {
 		lane: AgentTaskOrigin,
 	): Promise<Ingested> {
 		const empty: Ingested = {
+			done: new Set<string>(),
 			written: 0,
 			fetched: 0,
 			remaining: 0,
@@ -422,11 +438,12 @@ export class GmailSyncService {
 			alreadyHave.map((existing) => existing.gmailMessageId),
 		);
 
+		const done = new Set<string>(ids.filter((id) => seen.has(id)));
 		const pending = ids.filter((id) => !seen.has(id));
 		const batch = pending.slice(0, Math.max(cap, 0));
 		const remaining = pending.length - batch.length;
 
-		if (batch.length === 0) return { ...empty, remaining };
+		if (batch.length === 0) return { ...empty, done, remaining };
 
 		const context: MatchContext = await this.threads.context();
 
@@ -444,6 +461,7 @@ export class GmailSyncService {
 				message.outcome === "unauthorized"
 			) {
 				return {
+					done,
 					written,
 					fetched,
 					remaining: remaining + batch.length - fetched,
@@ -453,6 +471,7 @@ export class GmailSyncService {
 			}
 
 			fetched += 1;
+			done.add(id);
 			if (message.outcome !== "ok") continue;
 			if (this.skipped(message.data)) continue;
 
@@ -471,6 +490,7 @@ export class GmailSyncService {
 		}
 
 		return {
+			done,
 			written,
 			fetched,
 			remaining: remaining + batch.length - fetched,

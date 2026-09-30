@@ -27,6 +27,10 @@ export type HistoryList = {
 	history?: {
 		id?: string;
 		messagesAdded?: { message?: { id?: string; threadId?: string } }[];
+		labelsRemoved?: {
+			message?: { id?: string; threadId?: string };
+			labelIds?: string[];
+		}[];
 	}[];
 	nextPageToken?: string;
 	historyId?: string;
@@ -78,12 +82,15 @@ export class GmailClient {
 		accessToken: string,
 		options: { startHistoryId: string; pageToken?: string },
 	): Promise<MailboxResult<HistoryList>> {
-		return this.api.get<HistoryList>(`${BASE}/history`, accessToken, {
-			startHistoryId: options.startHistoryId,
-			historyTypes: "messageAdded",
-			maxResults: 500,
-			pageToken: options.pageToken,
-		});
+		return this.api.get<HistoryList>(
+			`${BASE}/history?historyTypes=messageAdded&historyTypes=labelRemoved`,
+			accessToken,
+			{
+				startHistoryId: options.startHistoryId,
+				maxResults: 500,
+				pageToken: options.pageToken,
+			},
+		);
 	}
 
 	async getMessage(

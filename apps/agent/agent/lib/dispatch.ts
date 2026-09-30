@@ -30,9 +30,11 @@ import {
 	cancelSampleWork,
 	pruneAgentHistory,
 	queueContactCleanups,
+	queueIdentifyAgain,
 	queuePlaybookLearn,
 	queueUnreadThreads,
 } from "./housekeeping";
+import { skippedByPrecheck } from "./identify-precheck";
 import {
 	GATE_UNAVAILABLE,
 	NEEDS_FULL_READ,
@@ -588,6 +590,8 @@ async function beginResearch(
 		return;
 	}
 
+	if (await skippedByPrecheck(task)) return;
+
 	try {
 		await markRunning(task);
 	} catch (error) {
@@ -788,6 +792,7 @@ async function sweepOnce(
 	const sweep = (async () => {
 		await Promise.all([
 			runSweep("contact cleanup sweep failed", queueContactCleanups),
+			runSweep("identify again sweep failed", queueIdentifyAgain),
 			runSweep("playbook sweep failed", queuePlaybookLearn),
 			runSweep("stalled deal sweep failed", () => queueStalledDeals()),
 			runSweep("own-contact sweep failed", archiveOwnContacts),

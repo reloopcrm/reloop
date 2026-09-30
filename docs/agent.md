@@ -233,6 +233,24 @@ company, an email-domain company, a changed domain and the sign-in backfill queu
 `brand` only. A click on Research or Re-enrich writes it at `requested`. A row queued
 before this rule at `companyProfile` still runs; nothing retires it.
 
+**`identify` passes a cheap pre-check first** (`lib/identify-precheck.ts`, called
+from `beginResearch` before `markRunning`). A record that already has a real name, a
+title, a company and a LinkedIn URL finishes with `COPY.precheck.filled` and settles
+`COMPLETE`. Otherwise Jev answers `DISPATCH.research.precheck.question` from the
+workspace business, the name, the email domain, the company and the mail and deal
+counts, never a mail body. Only an answer below `precheck.threshold` (0.2) skips:
+the row finishes with `COPY.precheck.unlikely` and the contact settles `SKIPPED`, so
+the sign-in backfill does not queue it again. No key, no business description, no
+answer or an error all run the research as before. A reason that starts with
+`precheck.requestedReason` ("A rep asked", the Re-enrich click) never asks.
+
+A skipped row finishes with `startedAt` cleared and its attempt returned, so
+`researchSessionsBetween` never counts it. `queueIdentifyAgain` in the sweep queues
+`identify` again for a `SKIPPED` contact whose last `identify` never started and
+whose `lastActivityAt` is newer than that row. The gate meter counts both checks as
+`identify-filled` and `identify-precheck` in the per-pass `cheap gates` log line
+and in `dispatchHealth().cheapGates`. `recheck` has no pre-check.
+
 ### The fast lane and the slow lane
 
 A mailbox sync stores a thread with a lane, `forward` for mail that just arrived and

@@ -23,6 +23,12 @@ export const DISPATCH = {
 		batch: 12,
 		leaseMs: 30 * MINUTE_MS,
 		link: { attempts: 3, retryMs: 250 },
+		precheck: {
+			question: "worthResearch",
+			threshold: 0.2,
+			requestedReason: "A rep asked",
+			againBatch: 40,
+		},
 	},
 
 	builder: {

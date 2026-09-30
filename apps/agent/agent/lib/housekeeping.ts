@@ -1,7 +1,11 @@
 import { db, Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { forwardReserve, INSIGHT_KIND } from "@crm/db/plans";
-import { NOT_SAMPLE_RECORD, SAMPLE_DATA } from "@crm/db/sample-data";
+import {
+	NOT_SAMPLE_RECORD,
+	SAMPLE_DATA,
+	SAMPLE_ID_PATTERN,
+} from "@crm/db/sample-data";
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskThreadPayload,
@@ -10,6 +14,7 @@ import {
 import { z } from "zod";
 import { COPY } from "./copy";
 import { DISPATCH } from "./dispatch-config";
+import { IDENTIFY_KIND } from "./identify-precheck";
 import { say } from "./language";
 import { isDerivedName } from "./names";
 import {
@@ -203,6 +208,48 @@ export async function queueContactCleanups(): Promise<number> {
 	}
 
 	return contacts.length;
+}
+
+export async function queueIdentifyAgain(): Promise<number> {
+	const rows = await db.$queryRaw<Array<{ id: string }>>`
+		SELECT c.id
+		FROM "contact" AS c
+		JOIN LATERAL (
+			SELECT t."finishedAt", t."startedAt"
+			FROM "agentTask" AS t
+			WHERE t."contactId" = c.id
+				AND t.kind = ${IDENTIFY_KIND}
+				AND t."finishedAt" IS NOT NULL
+			ORDER BY t."finishedAt" DESC
+			LIMIT 1
+		) AS last ON true
+		WHERE c."enrichmentStatus" = 'SKIPPED'
+			AND c."archivedAt" IS NULL
+			AND c.id NOT LIKE ${SAMPLE_ID_PATTERN}
+			AND last."startedAt" IS NULL
+			AND c."lastActivityAt" > last."finishedAt"
+			AND NOT EXISTS (
+				SELECT 1 FROM "agentTask" AS o
+				WHERE o."contactId" = c.id
+					AND o.kind = ${IDENTIFY_KIND}
+					AND o."finishedAt" IS NULL
+			)
+		ORDER BY c."lastActivityAt" DESC
+		LIMIT ${DISPATCH.research.precheck.againBatch}
+	`;
+
+	for (const row of rows) {
+		await scheduleTask({
+			contactId: row.id,
+			kind: IDENTIFY_KIND,
+			reason: "Active again since the pre-check skipped the research",
+			dueAt: new Date(),
+			priority: PRIORITY.identify,
+			budget: 4,
+		});
+	}
+
+	return rows.length;
 }
 
 export async function queuePlaybookLearn(): Promise<boolean> {

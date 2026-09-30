@@ -374,7 +374,9 @@ the largest attachment upload the conversation contracts accept.
   a `ThreadInsight` gets a `thread-insight` task through `threadStored` with
   `origin: "backfill"` and `reread: true` in the payload, so the agent reads it
   again although `lastMessageAt` did not move and `unansweredByUs` follows the new
-  direction. The API only writes the row; the agent decides.
+  direction. A task already waiting for the thread takes `reread: true` into its
+  payload. Each pass logs the flipped `count` and the number of distinct sender
+  domains, never an address. The API only writes the row; the agent decides.
 
 - **`ThreadWriterService.store` is the only writer of `EmailThread`, `EmailMessage`
   and the `EMAIL` activity.** Gmail and Outlook each parse their own wire format down

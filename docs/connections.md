@@ -88,8 +88,8 @@ day it is connected, and keeps reading new mail at the same time.
   counts only a Gmail or Outlook row whose user has an `account` with the
   mailbox scope, so the row does not use up the plan's mailbox limit. When the
   grant arrives, `onConnected` passes the row through `admitGranted`: a row that
-  never synced and pushes the count past the limit is removed, with the same
-  warning as a refused new connection. So two unfinished connections never end
+  never synced, is `IDLE` and pushes the count past the limit is removed, with the
+  same warning as a refused new connection. A row a sync tick is running on stays. So two unfinished connections never end
   as two mailboxes on a one-mailbox plan. Disconnect
   (`revoke`) removes the row also when there is no account; Google keeps it only
   when Google refuses to revoke a token that exists.

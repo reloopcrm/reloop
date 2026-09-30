@@ -1,6 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
-import { DRAFT_KIND, PLANS, startOfMonth } from "@crm/db/plans";
+import {
+	DRAFT_KIND,
+	forwardReserve,
+	INSIGHT_KIND,
+	PLANS,
+	startOfMonth,
+} from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
@@ -70,6 +76,57 @@ describe("plan limits in the API", () => {
 		expect(await trigger.emailDraftRequested(contactId)).toBe(true);
 		await db.agentTask.deleteMany({
 			where: { kind: DRAFT_KIND, contactId, finishedAt: null },
+		});
+	});
+
+	it("keeps the reserved share of the reading budget for new mail", async () => {
+		await writePlan(db, "start");
+		const budget = PLANS.start.insightsPerMonth;
+		const ceiling = budget - forwardReserve(INSIGHT_KIND, PLANS.start);
+		const used = await db.agentTask.count({
+			where: { kind: INSIGHT_KIND, createdAt: { gte: startOfMonth() } },
+		});
+		expect(used).toBeLessThan(budget);
+
+		await db.agentTask.createMany({
+			data: Array.from({ length: Math.max(0, ceiling - used) }, (_, index) => ({
+				kind: INSIGHT_KIND,
+				reason: `reserve ${suffix} ${index}`,
+				priority: 0,
+				budget: 1,
+				dueAt: new Date(),
+				finishedAt: new Date(),
+			})),
+		});
+
+		const count = () =>
+			db.agentTask.count({
+				where: { kind: INSIGHT_KIND, reason: { contains: `late ${suffix}` } },
+			});
+
+		await trigger.threadStored(
+			`old-${suffix}`,
+			`late ${suffix} old`,
+			"backfill",
+		);
+		expect(await count()).toBe(0);
+
+		await trigger.threadStored(
+			`new-${suffix}`,
+			`late ${suffix} new`,
+			"forward",
+		);
+		expect(await count()).toBe(1);
+
+		await writePlan(db, "hosting");
+		await trigger.threadStored(
+			`old-${suffix}`,
+			`late ${suffix} old`,
+			"backfill",
+		);
+		expect(await count()).toBe(2);
+		await db.agentTask.deleteMany({
+			where: { kind: INSIGHT_KIND, reason: { contains: suffix } },
 		});
 	});
 

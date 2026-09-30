@@ -9,6 +9,7 @@ import {
 	clampImportSince,
 	clampResearchPerHour,
 	DRAFT_KIND,
+	forwardReserve,
 	INSIGHT_KIND,
 	isPlanId,
 	LEGACY_PLAN_IDS,
@@ -346,5 +347,18 @@ describe("the contact trigger", () => {
 		for (const [old, current] of Object.entries(LEGACY_PLAN_IDS)) {
 			expect(sql).toContain(`WHEN '${old}' THEN '${current}'`);
 		}
+	});
+});
+
+describe("the reading reserve for new mail", () => {
+	it("holds a fifth of the reading budget", () => {
+		expect(
+			forwardReserve(INSIGHT_KIND, { ...PLANS.trial, insightsPerMonth: 100 }),
+		).toBe(20);
+	});
+
+	it("holds nothing without a limit or for other kinds", () => {
+		expect(forwardReserve(INSIGHT_KIND, NO_PLAN)).toBe(0);
+		expect(forwardReserve(DRAFT_KIND, PLANS.trial)).toBe(0);
 	});
 });

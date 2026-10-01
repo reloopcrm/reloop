@@ -1,6 +1,5 @@
 "use client";
 
-import ChevronDown from "@carbon/icons-react/es/ChevronDown";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -11,7 +10,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@crm/ui/components/alert-dialog";
-import { Button } from "@crm/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -19,6 +17,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
+import type { MarkTone } from "@crm/ui/components/mark";
+import { RowMenuTrigger } from "@crm/ui/components/row-controls";
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -28,20 +28,20 @@ import { useTRPC } from "@/lib/trpc/client";
 import { WIN_BACK_UI } from "./win-back-config";
 
 const TRIGGER_LABEL = {
-	good: "Worth it",
+	good: "Go",
 	bad: "Not for us",
 	later: "Later",
 	mixed: "Mixed",
 	none: "No verdict",
 } as const;
 
-const TRIGGER_TEXT = {
-	good: "text-foreground",
-	bad: "text-muted-foreground",
-	later: "text-muted-foreground",
-	mixed: "text-foreground",
-	none: "text-muted-foreground",
-} as const;
+const TRIGGER_TONE = {
+	good: "blue",
+	bad: "faint",
+	later: "ink",
+	mixed: "ink",
+	none: "hollow",
+} as const satisfies Record<keyof typeof TRIGGER_LABEL, MarkTone>;
 
 function keyOf(
 	verdict: string | null,
@@ -60,14 +60,12 @@ export function WinBackVerdictMenu({
 	companyId,
 	verdict,
 	mixed = false,
-	size = "sm",
 }: {
 	name: string;
 	contactIds: string[];
 	companyId?: string;
 	verdict: string | null;
 	mixed?: boolean;
-	size?: "sm" | "xs";
 }) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
@@ -134,19 +132,15 @@ export function WinBackVerdictMenu({
 		<>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<Button
+					<RowMenuTrigger
 						ref={trigger}
-						variant="outline"
-						size={size}
+						tone={TRIGGER_TONE[current]}
 						onClick={(event) => event.stopPropagation()}
 					>
-						<span className={TRIGGER_TEXT[current]}>
-							{t(TRIGGER_LABEL[current])}
-						</span>
-						<ChevronDown data-icon="inline-end" />
-					</Button>
+						{t(TRIGGER_LABEL[current])}
+					</RowMenuTrigger>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
+				<DropdownMenuContent align="start">
 					<DropdownMenuItem
 						disabled={current === "good"}
 						onSelect={() => save("good")}

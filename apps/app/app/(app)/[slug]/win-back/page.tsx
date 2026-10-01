@@ -3,8 +3,10 @@ import { Suspense } from "react";
 import { ConnectMailbox } from "@/components/connect-mailbox";
 import {
 	PageShell,
+	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
+	PageShellEyebrow,
 	PageShellHeader,
 	PageShellHeading,
 	PageShellLoading,
@@ -17,6 +19,7 @@ import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { workspaceUrl } from "@/lib/workspace-url";
+import { WinBackActions } from "./win-back-actions";
 import {
 	winBackInput,
 	winBackSearchParams,
@@ -45,13 +48,21 @@ export default async function WinBackPage({
 		<PageShell className="min-h-0">
 			<PageShellHeader>
 				<PageShellHeading>
-					<PageShellTitle>{t("Win back")}</PageShellTitle>
+					<PageShellEyebrow tone="orange">{t("Win back")}</PageShellEyebrow>
+					<PageShellTitle>
+						{t("Companies worth getting back to")}
+					</PageShellTitle>
 					<PageShellDescription>
 						{t(
-							"Companies worth getting back to, ranked by what actually happened in your email: deals done, inquiries left open, quantities, products. Open a company to see the people behind it.",
+							"Ranked by what happened in your mail. Open a row to see the people, then open a person to write to them.",
 						)}
 					</PageShellDescription>
 				</PageShellHeading>
+				{connected ? (
+					<PageShellActions>
+						<WinBackActions />
+					</PageShellActions>
+				) : null}
 			</PageShellHeader>
 
 			<PageShellContent className="min-h-0">

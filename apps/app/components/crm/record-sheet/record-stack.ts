@@ -61,12 +61,16 @@ export function useRecordStack() {
 	);
 
 	const write = useCallback(
-		(next: RecordRef[], history: "push" | "replace") => {
+		(
+			next: RecordRef[],
+			history: "push" | "replace",
+			tab: string | null = null,
+		) => {
 			void setParams(
 				{
 					[SEARCH_PARAM.record.stack]:
 						next.length === 0 ? null : next.map(recordKey),
-					[SEARCH_PARAM.record.tab]: null,
+					[SEARCH_PARAM.record.tab]: tab,
 					[SEARCH_PARAM.record.add]: null,
 					[SEARCH_PARAM.record.thread]: null,
 					[SEARCH_PARAM.record.message]: null,
@@ -80,16 +84,19 @@ export function useRecordStack() {
 		[setParams],
 	);
 
-	const open = useCallback(
-		(ref: RecordRef) => {
+	const openAt = useCallback(
+		(ref: RecordRef, tab: string | null) => {
 			const key = recordKey(ref);
 			write(
 				[...stack.filter((entry) => recordKey(entry) !== key), ref],
 				stack.length === 0 ? "push" : "replace",
+				tab,
 			);
 		},
 		[stack, write],
 	);
+
+	const open = useCallback((ref: RecordRef) => openAt(ref, null), [openAt]);
 
 	const close = useCallback(
 		() => write(stack.slice(0, -1), "replace"),
@@ -102,6 +109,7 @@ export function useRecordStack() {
 		stack,
 		top: stack.at(-1) ?? null,
 		open,
+		openAt,
 		close,
 		closeAll,
 	};

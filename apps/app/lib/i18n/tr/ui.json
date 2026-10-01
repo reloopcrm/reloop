@@ -34,5 +34,18 @@
 	"Select a date": "Tarih seç",
 	"Reasoning": "Düşünce akışı",
 	"Command Palette": "Komut Paleti",
-	"Search for a command to run.": "Çalıştırmak için bir komut ara."
+	"Search for a command to run.": "Çalıştırmak için bir komut ara.",
+	"Filter": "Filtrele",
+	"Where": "Koşul",
+	"{field} is {values}": "{field}: {values}",
+	"Remove filter": "Filtreyi kaldır",
+	"Selection": "Seçim",
+	"1 selected": "1 seçildi",
+	"{count} selected": "{count} seçildi",
+	"Clear selection": "Seçimi temizle",
+	"Select {name}": "{name} seç",
+	"Nothing matches these filters.": "Bu filtrelere uyan bir şey yok.",
+	"Reset filters": "Filtreleri sıfırla",
+	"Rows per page": "Sayfa başına satır",
+	"Pages": "Sayfalar"
 }

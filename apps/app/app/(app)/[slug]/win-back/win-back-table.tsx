@@ -43,30 +43,27 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		header: "Company",
 		sortable: true,
 		hideable: false,
-		width: "w-[30%] max-sm:w-auto",
+		size: 340,
 		cell: (row) => <GroupName row={row} />,
 	},
 	{
 		id: "potential",
 		header: "Potential",
 		sortable: true,
-		width: "w-[10%]",
-		hideBelow: "sm",
+		size: 120,
 		cell: (row) => <PotentialCell potential={row.potential} />,
 	},
 	{
 		id: "business",
 		header: "What happened",
-		width: "w-[24%]",
-		hideBelow: "md",
+		size: 280,
 		cell: (row) => <FactCell source={row} />,
 	},
 	{
 		id: "people",
 		header: "People",
 		sortable: true,
-		width: "w-[10%]",
-		hideBelow: "lg",
+		size: 120,
 		cell: (row) => (
 			<span className="text-2sm text-body-foreground tabular-nums">
 				{row.people.length}
@@ -77,8 +74,7 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		id: "last",
 		header: "Last contact",
 		sortable: true,
-		width: "w-[12%]",
-		hideBelow: "sm",
+		size: 140,
 		cell: (row) => (
 			<span className="text-2sm text-muted-foreground tabular-nums">
 				<LocalRelativeTime date={row.lastContactAt} />
@@ -89,7 +85,7 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		id: "verdict",
 		header: "Verdict",
 		align: "right",
-		width: "w-[14%]",
+		size: 160,
 		hideable: false,
 		cell: (row) => (
 			<WinBackVerdictMenu

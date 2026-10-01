@@ -1,12 +1,5 @@
 "use client";
 
-import ArrowDown from "@carbon/icons-react/es/ArrowDown";
-import ArrowsVertical from "@carbon/icons-react/es/ArrowsVertical";
-import ArrowUp from "@carbon/icons-react/es/ArrowUp";
-import ChevronDown from "@carbon/icons-react/es/ChevronDown";
-import ChevronRight from "@carbon/icons-react/es/ChevronRight";
-import Column from "@carbon/icons-react/es/Column";
-import Filter from "@carbon/icons-react/es/Filter";
 import { Button } from "@crm/ui/components/button";
 import { Checkbox } from "@crm/ui/components/checkbox";
 import {
@@ -42,20 +35,33 @@ import {
 	TableRow,
 } from "@crm/ui/components/table";
 import type { TableSelection } from "@crm/ui/hooks/use-table-selection";
-import { ROW_ACCENT, ROW_ACCENT_EXPANDABLE } from "@crm/ui/lib/row-accent";
-import { insideRow } from "@crm/ui/lib/row-click";
-import type { TableQueryState } from "@crm/ui/lib/table-query";
 import { useUiT } from "@crm/ui/lib/i18n";
+import { insideRow } from "@crm/ui/lib/row-click";
+import { fitColumnWidths, TABLE } from "@crm/ui/lib/table-config";
+import type { TableQueryState } from "@crm/ui/lib/table-query";
 import { cn } from "@crm/ui/lib/utils";
-import type { ClassValue } from "clsx";
+import {
+	ArrowDown,
+	ArrowUp,
+	ChevronDown,
+	ChevronRight,
+	Columns3,
+	ListFilter,
+	Plus,
+	X,
+} from "lucide-react";
 import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
 import {
+	type ComponentType,
 	Fragment,
+	type KeyboardEvent,
 	type MouseEvent,
 	type ReactNode,
 	useDeferredValue,
-	useId,
+	useEffect,
+	useLayoutEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 
@@ -65,13 +71,13 @@ export type DataTableColumn<TRow> = {
 	cell: (row: TRow) => ReactNode;
 	label?: string;
 	sortable?: boolean;
-	width?: string;
+	size?: number;
 	align?: "left" | "right" | "center";
+	icon?: ComponentType<{ "aria-hidden"?: boolean }>;
 	headClassName?: string;
 	cellClassName?: string;
 	hideable?: boolean;
 	defaultHidden?: boolean;
-	hideBelow?: "sm" | "md" | "lg" | "xl";
 	control?: boolean;
 };
 
@@ -92,12 +98,25 @@ export type DataTableTabs = {
 	options: { value: string; label: string }[];
 };
 
+export type DataTableQuickFilter = {
+	id: string;
+	label: string;
+	active: boolean;
+	onToggle: () => void;
+};
+
+export type DataTableGroups<TRow> = {
+	keyOf: (row: TRow) => string;
+	header: (key: string, rows: TRow[]) => ReactNode;
+};
+
 export type DataTableExpandable<TRow, TSub> = {
 	isExpandable: (row: TRow) => boolean;
 	getSubRows: (row: TRow) => TSub[];
 	getSubRowId: (sub: TSub, row: TRow) => string;
 	renderSubCell: (sub: TSub, columnId: string, row: TRow) => ReactNode;
 	onSubRowClick?: (sub: TSub, row: TRow) => void;
+	label?: (row: TRow) => string;
 };
 
 export type DataTableSelection<TRow> = {
@@ -115,7 +134,9 @@ export type DataTableProps<TRow, TSub> = {
 	facetCounts?: Record<string, Record<string, number>>;
 	loading?: boolean;
 	facets?: DataTableFacet[];
+	quickFilters?: DataTableQuickFilter[];
 	tabs?: DataTableTabs;
+	groups?: DataTableGroups<TRow>;
 	onRowClick?: (row: TRow) => void;
 	onRowHover?: (row: TRow) => void;
 	expandable?: DataTableExpandable<TRow, TSub>;
@@ -129,82 +150,60 @@ export type DataTableProps<TRow, TSub> = {
 	tableClassName?: string;
 };
 
-const HIDE_BELOW_CLASS = {
-	sm: "hidden sm:table-cell",
-	md: "hidden md:table-cell",
-	lg: "hidden lg:table-cell",
-	xl: "hidden xl:table-cell",
-} as const;
-
 const ALIGN_CLASS = {
 	left: "",
 	right: "text-right",
 	center: "text-center",
 } as const;
 
-const CONTROL_COLUMN_WIDTH = "w-17";
+const CONTROL_SELECTOR =
+	"a,button,input,select,textarea,label,[role=checkbox],[role=menuitem],[role=combobox]";
 
-function columnClass<TRow>(
-	column: DataTableColumn<TRow>,
-	className: ClassValue,
-): string {
-	return cn(
-		column.control
-			? (column.width ?? CONTROL_COLUMN_WIDTH)
-			: ["max-w-0 truncate", column.width],
-		ALIGN_CLASS[column.align ?? "left"],
-		column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
-		className,
-	);
-}
+const CARD_ROW =
+	"max-lg:flex max-lg:flex-wrap max-lg:gap-x-3 max-lg:gap-y-2 max-lg:py-3 max-lg:pr-3 max-lg:hover:bg-transparent";
 
-function headClass<TRow>(
-	column: DataTableColumn<TRow>,
-	className: ClassValue,
-): string {
-	return cn(
-		"whitespace-nowrap",
-		column.control ? (column.width ?? CONTROL_COLUMN_WIDTH) : column.width,
-		ALIGN_CLASS[column.align ?? "left"],
-		column.hideBelow && HIDE_BELOW_CLASS[column.hideBelow],
-		className,
-	);
-}
+const CARD_CELL =
+	"max-lg:block max-lg:h-auto max-lg:min-w-0 max-lg:basis-[calc(50%-6px)] max-lg:border-0 max-lg:p-0 max-lg:text-left max-lg:whitespace-normal";
+
+const CARD_LABEL =
+	"max-lg:before:mb-0.5 max-lg:before:block max-lg:before:font-mono max-lg:before:text-[10px] max-lg:before:text-muted-foreground max-lg:before:uppercase max-lg:before:tracking-label max-lg:before:content-[attr(data-label)]";
 
 function columnLabel<TRow>(column: DataTableColumn<TRow>): string {
 	if (column.label) return column.label;
 	return typeof column.header === "string" ? column.header : column.id;
 }
 
-function SortIndicator({
-	active,
-	dir,
-}: {
-	active: boolean;
-	dir: "asc" | "desc";
-}) {
+function fromControl(event: MouseEvent<HTMLElement>): boolean {
+	const target = event.target;
+	if (!(target instanceof Element)) return false;
+	const control = target.closest(CONTROL_SELECTOR);
 	return (
-		<span className="text-muted-foreground">
-			{active ? (
-				dir === "asc" ? (
-					<ArrowUp size={12} />
-				) : (
-					<ArrowDown size={12} />
-				)
-			) : (
-				<ArrowsVertical size={12} className="opacity-40" />
-			)}
-		</span>
+		control !== null &&
+		control !== event.currentTarget &&
+		event.currentTarget.contains(control)
 	);
 }
 
-function facetLabel(facet: DataTableFacet, selected: string[]): string {
-	if (selected.length === 0) return facet.label;
-	if (selected.length === 1) {
-		const option = facet.options.find((o) => o.value === selected[0]);
-		return option?.label ?? facet.label;
-	}
-	return `${facet.label} (${selected.length})`;
+function useFittedWidths(
+	container: React.RefObject<HTMLDivElement | null>,
+	sizes: number[],
+	reserved: number,
+): number[] {
+	const [available, setAvailable] = useState<number | null>(null);
+
+	useLayoutEffect(() => {
+		const element = container.current;
+		if (!element) return;
+		const measure = () => setAvailable(element.clientWidth);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, [container]);
+
+	return available === null
+		? sizes
+		: fitColumnWidths(available - reserved, sizes);
 }
 
 function toggle(selected: string[], value: string, checked: boolean): string[] {
@@ -226,7 +225,7 @@ function FacetSubmenu({
 			<DropdownMenuSubTrigger>
 				<span className="flex-1">{facet.label}</span>
 				{selected.length > 0 && (
-					<span className="tabular-nums opacity-60">({selected.length})</span>
+					<span className="tabular-nums opacity-60">{selected.length}</span>
 				)}
 			</DropdownMenuSubTrigger>
 			<DropdownMenuSubContent className="max-h-72 min-w-52 overflow-hidden">
@@ -321,22 +320,17 @@ export function FacetFilterMenu({
 	onChange: (id: string, values: string[]) => void;
 }) {
 	const t = useUiT();
-	const active = facets.filter(
-		(facet) => (filters[facet.id]?.length ?? 0) > 0,
-	).length;
 
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" size="sm" align="toolbar">
-					<Filter data-icon="inline-start" />
-					{t("Filters")}
-					{active > 0 && (
-						<span className="tabular-nums opacity-60">({active})</span>
-					)}
+				<Button variant="outline" size="sm">
+					<ListFilter data-icon="inline-start" />
+					{t("Filter")}
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="min-w-48">
+			<DropdownMenuContent align="start" className="min-w-52">
+				<DropdownMenuLabel>{t("Where")}</DropdownMenuLabel>
 				{facets.map((facet) => (
 					<FacetSubmenu
 						key={facet.id}
@@ -350,6 +344,134 @@ export function FacetFilterMenu({
 	);
 }
 
+function FilterChip({
+	label,
+	onRemove,
+}: {
+	label: string;
+	onRemove: () => void;
+}) {
+	const t = useUiT();
+	return (
+		<span
+			data-slot="filter-chip"
+			className="inline-flex h-7 min-w-0 max-w-full items-center gap-1 rounded-md bg-accent pr-1 pl-2 text-2sm text-foreground"
+		>
+			<span className="min-w-0 truncate">{label}</span>
+			<button
+				type="button"
+				onClick={onRemove}
+				aria-label={t("Remove filter")}
+				className="grid size-5 shrink-0 cursor-pointer place-items-center rounded-xs text-muted-foreground outline-none hover:bg-border hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+			>
+				<X aria-hidden className="size-3" />
+			</button>
+		</span>
+	);
+}
+
+function activeFilterChips(
+	facets: DataTableFacet[],
+	filters: Record<string, string[]>,
+	describe: (field: string, values: string) => string,
+): { id: string; label: string }[] {
+	return facets.flatMap((facet) => {
+		const selected = filters[facet.id] ?? [];
+		if (selected.length === 0) return [];
+		const values = selected.map(
+			(value) =>
+				facet.options.find((option) => option.value === value)?.label ?? value,
+		);
+		return [{ id: facet.id, label: describe(facet.label, values.join(", ")) }];
+	});
+}
+
+function ColumnsMenu<TRow>({
+	columns,
+	hidden,
+	visibleCount,
+	onToggle,
+}: {
+	columns: DataTableColumn<TRow>[];
+	hidden: string[];
+	visibleCount: number;
+	onToggle: (id: string, visible: boolean) => void;
+}) {
+	const t = useUiT();
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button variant="outline" size="sm">
+					<Columns3 data-icon="inline-start" />
+					{t("Columns")}
+					<span className="font-medium text-foreground tabular-nums">
+						{visibleCount}
+					</span>
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end" className="min-w-48">
+				{columns.map((column) => (
+					<DropdownMenuCheckboxItem
+						key={column.id}
+						checked={!hidden.includes(column.id)}
+						disabled={column.hideable === false}
+						onSelect={(event) => event.preventDefault()}
+						onCheckedChange={(checked) => onToggle(column.id, checked)}
+					>
+						{columnLabel(column)}
+					</DropdownMenuCheckboxItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+function SelectionBar({
+	count,
+	actions,
+	onClear,
+}: {
+	count: number;
+	actions: ReactNode;
+	onClear: () => void;
+}) {
+	const t = useUiT();
+
+	useEffect(() => {
+		const onKey = (event: globalThis.KeyboardEvent) => {
+			if (event.key !== "Escape" || event.defaultPrevented) return;
+			if (document.querySelector("[role=dialog],[role=menu]")) return;
+			onClear();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [onClear]);
+
+	return (
+		<div
+			role="region"
+			aria-label={t("Selection")}
+			data-slot="selection-bar"
+			className="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-md border border-border-strong bg-popover px-3 py-2 text-2sm shadow-lg max-lg:bottom-3 max-lg:w-[calc(100vw-2rem)] max-lg:justify-start"
+		>
+			<span className="tabular-nums">
+				{count === 1
+					? t("1 selected")
+					: t("{count} selected", { count: String(count) })}
+			</span>
+			<span className="flex flex-wrap items-center gap-1.5">{actions}</span>
+			<Button
+				variant="link"
+				size="sm"
+				onClick={onClear}
+				className="max-lg:ml-auto"
+			>
+				{t("Clear selection")}
+			</Button>
+		</div>
+	);
+}
+
 export function DataTable<TRow, TSub = unknown>({
 	query,
 	columns,
@@ -359,7 +481,9 @@ export function DataTable<TRow, TSub = unknown>({
 	facetCounts,
 	loading,
 	facets,
+	quickFilters,
 	tabs,
+	groups,
 	onRowClick,
 	onRowHover,
 	expandable,
@@ -386,14 +510,24 @@ export function DataTable<TRow, TSub = unknown>({
 		"hide",
 		parseAsArrayOf(parseAsString).withDefault(defaultHiddenIds),
 	);
-	const [filtersOpen, setFiltersOpen] = useState(false);
-	const filtersId = useId();
+	const [closedGroups, setClosedGroups] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	);
+	const lastPicked = useRef<string | null>(null);
+	const container = useRef<HTMLDivElement>(null);
 
 	const hideable = columns.filter((column) => column.hideable !== false);
 	const visibleColumns = columns.filter(
-		(column) => !hidden.includes(column.id),
+		(column) => column.hideable === false || !hidden.includes(column.id),
 	);
-	const sortableColumns = columns.filter((column) => column.sortable);
+	const [primary, ...secondary] = visibleColumns;
+	const sizes = secondary.map((column) =>
+		column.control
+			? (column.size ?? TABLE.column.controlPx)
+			: (column.size ?? TABLE.column.defaultPx),
+	);
+	const reserved = selection ? TABLE.column.selectPx : 0;
+	const widths = useFittedWidths(container, sizes, reserved);
 
 	const tabCounts = tabs ? facetCounts?.[tabs.id] : undefined;
 	const activeTabOption =
@@ -405,441 +539,524 @@ export function DataTable<TRow, TSub = unknown>({
 		: (tabs?.allLabel ?? "All");
 
 	const deferredRows = useDeferredValue(rows);
-	const anyExpandable =
-		expandable != null &&
-		deferredRows.some((row) => expandable.isExpandable(row));
+	const rowIds = deferredRows.map((row) => getRowId(row));
 	const selecting = selection != null && selection.state.count > 0;
 
-	const pageSize = query.pageSize;
-	const totalPages = Math.max(1, Math.ceil(total / pageSize));
+	const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
 
 	const availableFacets = useMemo(
 		() => availableFacetsOf(facets, query.filters),
 		[facets, query.filters],
 	);
+	const chips = activeFilterChips(availableFacets, query.filters, (field, values) =>
+		t("{field} is {values}", { field, values }),
+	);
+	const filtering =
+		chips.length > 0 ||
+		query.search.length > 0 ||
+		(quickFilters ?? []).some((filter) => filter.active) ||
+		(tabs != null && query.tab !== "all");
+	const columnCount = visibleColumns.length + (selection ? 1 : 0);
 
-	const hasFilterControls =
-		tabs != null ||
-		availableFacets.length > 0 ||
-		sortableColumns.length > 0 ||
-		anyExpandable ||
-		hideable.length > 0 ||
-		actions != null ||
-		leadingActions != null;
-	const activeFacetFilterCount = availableFacets.filter(
-		(facet) => (query.filters[facet.id]?.length ?? 0) > 0,
-	).length;
-	const activeFilterCount =
-		(tabs && query.tab !== "all" ? 1 : 0) + activeFacetFilterCount;
+	const toggleExpanded = (id: string) =>
+		setExpandedIds((prev) => {
+			const set = new Set(prev ?? []);
+			if (set.has(id)) set.delete(id);
+			else set.add(id);
+			const next = [...set];
+			return next.length > 0 ? next : null;
+		});
 
-	return (
-		<div className={cn("flex min-h-0 flex-1 flex-col gap-3", className)}>
-			{selecting && selection ? (
-				<div className="flex h-8 items-center gap-2">
-					<span className="truncate text-xs text-muted-foreground">
-						<span className="font-medium text-foreground tabular-nums">
-							{selection.state.count}
-						</span>{" "}
-						{t("selected")}
-					</span>
-					<div className="ml-auto flex items-center gap-2">
-						{selection.actions}
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => selection.state.clear()}
-						>
-							{t("Clear")}
-						</Button>
-					</div>
-				</div>
-			) : null}
-			<div
-				className={cn(
-					"flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between",
-					selecting && "hidden",
-				)}
-			>
-				{search}
-				{hasFilterControls && (
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						className="w-full justify-between sm:hidden"
-						aria-expanded={filtersOpen}
-						aria-controls={filtersId}
-						onClick={() => setFiltersOpen((open) => !open)}
-					>
-						<span className="flex items-center gap-2">
-							<Filter />
-							{t("Filters")}
-							{activeFilterCount > 0 && (
-								<span className="tabular-nums opacity-60">
-									({activeFilterCount})
-								</span>
-							)}
-						</span>
-						<ChevronDown
-							className={cn(
-								"shrink-0 opacity-60 transition-transform",
-								filtersOpen && "rotate-180",
-							)}
-						/>
-					</Button>
-				)}
-				{/* `lg:contents` so the controls join the search on one row on desktop
-				    while staying a group the Filters button can collapse on mobile —
-				    search itself must never be inside that collapse. */}
-				<div
-					id={filtersId}
+	const pick = (id: string, next: boolean, range: boolean) => {
+		if (!selection) return;
+		const anchor = lastPicked.current;
+		if (range && anchor && anchor !== id) {
+			const from = rowIds.indexOf(anchor);
+			const to = rowIds.indexOf(id);
+			if (from !== -1 && to !== -1) {
+				for (const rowId of rowIds.slice(
+					Math.min(from, to),
+					Math.max(from, to) + 1,
+				)) {
+					selection.state.toggle(rowId, next);
+				}
+				lastPicked.current = id;
+				return;
+			}
+		}
+		selection.state.toggle(id, next);
+		lastPicked.current = id;
+	};
+
+	const groupedRows: { key: string | null; rows: TRow[] }[] = [];
+	for (const row of deferredRows) {
+		const key = groups ? groups.keyOf(row) : null;
+		const last = groupedRows.at(-1);
+		if (last && last.key === key) last.rows.push(row);
+		else groupedRows.push({ key, rows: [row] });
+	}
+
+	const renderRow = (row: TRow) => {
+		const id = getRowId(row);
+		const canExpand = expandable?.isExpandable(row) ?? false;
+		const isOpen = canExpand && expanded.has(id);
+		const isSelected = selection?.state.has(id) ?? false;
+		const clickable = canExpand || !!onRowClick;
+		const activate = () => {
+			if (canExpand) toggleExpanded(id);
+			else onRowClick?.(row);
+		};
+		const handleClick = (event: MouseEvent<HTMLTableRowElement>) => {
+			if (!insideRow(event) || fromControl(event)) return;
+			activate();
+		};
+		const handleKey = (event: KeyboardEvent<HTMLTableRowElement>) => {
+			if (event.target !== event.currentTarget) return;
+			if (event.key !== "Enter" && event.key !== " ") return;
+			event.preventDefault();
+			activate();
+		};
+
+		return (
+			<Fragment key={id}>
+				<TableRow
+					data-state={isSelected ? "selected" : undefined}
+					aria-expanded={canExpand ? isOpen : undefined}
+					tabIndex={clickable ? 0 : undefined}
+					onClick={clickable ? handleClick : undefined}
+					onKeyDown={clickable ? handleKey : undefined}
+					onMouseEnter={onRowHover ? () => onRowHover(row) : undefined}
+					onFocus={onRowHover ? () => onRowHover(row) : undefined}
 					className={cn(
-						"flex-col gap-2 lg:contents",
-						filtersOpen ? "flex" : "hidden sm:flex",
+						"group/row",
+						CARD_ROW,
+						clickable &&
+							"cursor-pointer outline-none focus-visible:bg-active focus-visible:shadow-[inset_2px_0_0_var(--ring)]",
+						isOpen && "bg-muted",
 					)}
 				>
-					{tabs && (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="w-full justify-between sm:w-auto sm:min-w-44"
-								>
-									<span className="truncate">{activeTabLabel}</span>
-									<ChevronDown className="shrink-0 opacity-60" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="start" className="min-w-52">
-								<DropdownMenuRadioGroup
-									value={query.tab}
-									onValueChange={(value) => query.setTab(value)}
-								>
-									<DropdownMenuRadioItem value="all">
-										<span className="flex-1">{tabs.allLabel ?? "All"}</span>
-									</DropdownMenuRadioItem>
-									{tabs.options.map((option) => {
-										if (tabCounts?.[option.value] === 0) return null;
-										return (
-											<DropdownMenuRadioItem
-												key={option.value}
-												value={option.value}
-											>
-												<span className="flex-1">{option.label}</span>
-											</DropdownMenuRadioItem>
-										);
-									})}
-								</DropdownMenuRadioGroup>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
-
-					{leadingActions}
-
-					<div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center lg:ml-auto">
-						{availableFacets.length > 0 && (
-							<FacetFilterMenu
-								facets={availableFacets}
-								filters={query.filters}
-								onChange={query.setFilter}
+					{selection && (
+						<TableCell
+							className={cn(
+								CARD_CELL,
+								"max-lg:order-1 max-lg:basis-5 max-lg:pt-0.5",
+							)}
+							onClick={(event) => event.stopPropagation()}
+						>
+							<Checkbox
+								checked={isSelected}
+								onClick={(event) => {
+									event.preventDefault();
+									pick(id, !isSelected, event.shiftKey);
+								}}
+								aria-label={
+									selection.rowLabel
+										? t("Select {name}", { name: selection.rowLabel(row) })
+										: t("Select row")
+								}
+								className={cn(
+									"opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 max-lg:opacity-100",
+									(selecting || isSelected) && "opacity-100",
+								)}
 							/>
-						)}
-						{(sortableColumns.length > 0 || anyExpandable) && (
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className="justify-start sm:justify-center"
-									>
-										<ArrowsVertical data-icon="inline-start" />
-										{t("Sort")}
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" className="min-w-48">
-									<DropdownMenuLabel>{t("Sort by")}</DropdownMenuLabel>
-									<DropdownMenuRadioGroup
-										value={query.sort}
-										onValueChange={query.setSort}
-									>
-										{anyExpandable && (
-											<DropdownMenuRadioItem value="detail">
-												{t("Detail")}
-											</DropdownMenuRadioItem>
-										)}
-										{sortableColumns.map((column) => (
-											<DropdownMenuRadioItem key={column.id} value={column.id}>
-												{columnLabel(column)}
-											</DropdownMenuRadioItem>
-										))}
-									</DropdownMenuRadioGroup>
-									<DropdownMenuSeparator />
-									<DropdownMenuRadioGroup
-										value={query.dir}
-										onValueChange={(value) =>
-											query.setDir(value === "desc" ? "desc" : "asc")
+						</TableCell>
+					)}
+					{primary && (
+						<TableCell
+							className={cn(
+								CARD_CELL,
+								"max-w-0 truncate max-lg:max-w-none max-lg:flex-1 max-lg:basis-[calc(100%-2rem)]",
+								primary.cellClassName,
+							)}
+						>
+							<span className="flex min-w-0 items-center gap-1.5">
+								{canExpand ? (
+									<button
+										type="button"
+										aria-expanded={isOpen}
+										aria-label={
+											expandable?.label ? expandable.label(row) : t("Show more")
 										}
+										onClick={(event) => {
+											event.stopPropagation();
+											toggleExpanded(id);
+										}}
+										className="grid size-4 shrink-0 cursor-pointer place-items-center rounded-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
 									>
-										<DropdownMenuRadioItem value="asc">
-											{t("Ascending")}
-										</DropdownMenuRadioItem>
-										<DropdownMenuRadioItem value="desc">
-											{t("Descending")}
-										</DropdownMenuRadioItem>
-									</DropdownMenuRadioGroup>
-								</DropdownMenuContent>
-							</DropdownMenu>
-						)}
-						{hideable.length > 0 && (
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className="justify-start sm:justify-center"
-									>
-										<Column data-icon="inline-start" />
-										{t("Columns")}
-										<span className="tabular-nums opacity-60">
-											({visibleColumns.length})
-										</span>
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" className="min-w-48">
-									<DropdownMenuLabel>{t("Toggle columns")}</DropdownMenuLabel>
-									{hideable.map((column) => (
-										<DropdownMenuCheckboxItem
-											key={column.id}
-											checked={!hidden.includes(column.id)}
-											onCheckedChange={(checked) =>
-												setHidden((prev) => {
-													const set = new Set(prev);
-													if (checked) set.delete(column.id);
-													else set.add(column.id);
-													return [...set];
-												})
-											}
-										>
-											{columnLabel(column)}
-										</DropdownMenuCheckboxItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
-						)}
-						{actions}
-					</div>
-				</div>
-			</div>
-
-			<Table
-				className={tableClassName}
-				containerClassName="min-h-0 flex-1 overflow-auto rounded-lg border bg-card"
-				overlay={
-					deferredRows.length === 0 ? (
-						<div className="absolute inset-x-0 top-10 bottom-0 flex items-center justify-center px-4 py-8 text-center text-muted-foreground">
-							{loading ? <Spinner /> : (empty ?? t("No results found."))}
-						</div>
-					) : null
-				}
-			>
-				<TableHeader className="sticky top-0 z-10 [&_th]:bg-muted [&_tr]:border-0 [&_tr]:shadow-[inset_0_-1px_0_var(--border)]">
-					<TableRow>
-						{selection && (
-							<TableHead className={cn("w-10", HIDE_BELOW_CLASS.sm)}>
-								<Checkbox
-									checked={
-										selection.state.allSelected
-											? true
-											: selection.state.someSelected
-												? "indeterminate"
-												: false
-									}
-									onCheckedChange={(checked) =>
-										selection.state.toggleAll(checked === true)
-									}
-									disabled={deferredRows.length === 0}
-									aria-label={t("Select every row on this page")}
-								/>
-							</TableHead>
-						)}
-						{anyExpandable && (
-							<TableHead className="w-10">
-								<span className="sr-only">{t("Detail")}</span>
-							</TableHead>
-						)}
-						{visibleColumns.map((column) => {
-							const isActive = query.sort === column.id;
-							return (
-								<TableHead
-									key={column.id}
-									className={headClass(column, column.headClassName)}
-									control
-									aria-sort={
-										isActive
-											? query.dir === "asc"
-												? "ascending"
-												: "descending"
-											: undefined
-									}
-								>
-									{column.sortable ? (
-										<Button
-											variant="ghost"
-											size="xs"
-											onClick={() => query.toggleSort(column.id)}
+										<ChevronRight
+											aria-hidden
 											className={cn(
-												"-ml-3 font-normal text-muted-foreground hover:text-foreground",
-												column.align === "right" && "-mr-3 ml-0 flex-row-reverse",
-												column.align === "center" && "mx-auto",
+												"size-3 transition-transform",
+												isOpen && "rotate-90",
 											)}
-										>
-											<span>{column.header}</span>
-											<SortIndicator active={isActive} dir={query.dir} />
-										</Button>
-									) : (
-										column.header
-									)}
-								</TableHead>
-							);
-						})}
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{deferredRows.map((row) => {
-						const id = getRowId(row);
-						const canExpand = expandable?.isExpandable(row) ?? false;
-						const isOpen = canExpand && expanded.has(id);
-						const isSelected = selection?.state.has(id) ?? false;
-						const clickable = canExpand || !!onRowClick;
-						const handleClick = (event: MouseEvent<HTMLTableRowElement>) => {
-							if (!insideRow(event)) return;
-							if (canExpand) {
-								setExpandedIds((prev) => {
-									const set = new Set(prev ?? []);
-									if (set.has(id)) set.delete(id);
-									else set.add(id);
-									const next = [...set];
-									return next.length > 0 ? next : null;
-								});
-							} else {
-								onRowClick?.(row);
-							}
-						};
+										/>
+									</button>
+								) : expandable ? (
+									<span aria-hidden className="size-4 shrink-0" />
+								) : null}
+								<span className="flex min-w-0 flex-1 items-center">
+									{primary.cell(row)}
+								</span>
+							</span>
+						</TableCell>
+					)}
+					{secondary.map((column) => (
+						<TableCell
+							key={column.id}
+							data-label={columnLabel(column)}
+							className={cn(
+								CARD_CELL,
+								CARD_LABEL,
+								!column.control && "max-w-0 truncate max-lg:max-w-none",
+								ALIGN_CLASS[column.align ?? "left"],
+								"max-lg:order-2",
+								column.cellClassName,
+							)}
+						>
+							{column.control ? (
+								column.cell(row)
+							) : (
+								<div className="min-w-0 truncate">{column.cell(row)}</div>
+							)}
+						</TableCell>
+					))}
+				</TableRow>
+				{isOpen &&
+					expandable?.getSubRows(row).map((sub) => {
+						const subClickable = !!expandable.onSubRowClick;
+						const openSub = () => expandable.onSubRowClick?.(sub, row);
 						return (
-							<Fragment key={id}>
-								<TableRow
-									data-state={isSelected ? "selected" : undefined}
-									onClick={clickable ? handleClick : undefined}
-									onMouseEnter={onRowHover ? () => onRowHover(row) : undefined}
-									onFocus={onRowHover ? () => onRowHover(row) : undefined}
-									className={
-										clickable
-											? anyExpandable
-												? ROW_ACCENT_EXPANDABLE
-												: ROW_ACCENT
-											: undefined
-									}
-								>
-									{selection && (
-										<TableCell
-											className={cn("w-10", HIDE_BELOW_CLASS.sm)}
-											onClick={(event) => event.stopPropagation()}
-										>
-											<Checkbox
-												checked={isSelected}
-												onCheckedChange={(checked) =>
-													selection.state.toggle(id, checked === true)
-												}
-												aria-label={
-													selection.rowLabel
-														? `Select ${selection.rowLabel(row)}`
-														: t("Select row")
-												}
-											/>
-										</TableCell>
-									)}
-									{anyExpandable && (
-										<TableCell className="w-10 text-center text-muted-foreground">
-											{canExpand && (
-												<ChevronRight
-													size={12}
-													className={cn(
-														"inline-block transition-transform",
-														isOpen && "rotate-90",
-													)}
-												/>
-											)}
-										</TableCell>
-									)}
-									{visibleColumns.map((column) => (
-										<TableCell
-											key={column.id}
-											className={columnClass(column, column.cellClassName)}
-										>
-											{column.cell(row)}
-										</TableCell>
-									))}
-								</TableRow>
-								{isOpen &&
-									expandable?.getSubRows(row).map((sub) => {
-										const subClickable = !!expandable.onSubRowClick;
-										return (
-											<TableRow
-												key={expandable.getSubRowId(sub, row)}
-												onClick={
-													subClickable
-														? (event) => {
-																if (!insideRow(event)) return;
-																expandable.onSubRowClick?.(sub, row);
-															}
-														: undefined
-												}
-												className={cn(
-													"bg-muted/30",
-													subClickable &&
-														(anyExpandable
-															? ROW_ACCENT_EXPANDABLE
-															: ROW_ACCENT),
-												)}
-											>
-												{selection && (
-													<TableCell
-														className={cn("w-10", HIDE_BELOW_CLASS.sm)}
-													/>
-												)}
-												{anyExpandable && (
-													<TableCell className="w-10" />
-												)}
-												{visibleColumns.map((column) => (
-													<TableCell
-														key={column.id}
-														className={columnClass(column, [
-															"align-top",
-															column.cellClassName,
-														])}
-													>
-														{expandable.renderSubCell(sub, column.id, row)}
-													</TableCell>
-												))}
-											</TableRow>
-										);
-									})}
-							</Fragment>
+							<TableRow
+								key={expandable.getSubRowId(sub, row)}
+								tabIndex={subClickable ? 0 : undefined}
+								onClick={
+									subClickable
+										? (event) => {
+												if (!insideRow(event) || fromControl(event)) return;
+												openSub();
+											}
+										: undefined
+								}
+								onKeyDown={
+									subClickable
+										? (event) => {
+												if (event.target !== event.currentTarget) return;
+												if (event.key !== "Enter" && event.key !== " ") return;
+												event.preventDefault();
+												openSub();
+											}
+										: undefined
+								}
+								className={cn(
+									"bg-muted text-body-foreground",
+									CARD_ROW,
+									"max-lg:pl-3",
+									subClickable &&
+										"cursor-pointer outline-none focus-visible:shadow-[inset_2px_0_0_var(--ring)]",
+								)}
+							>
+								{selection && (
+									<TableCell className={cn(CARD_CELL, "max-lg:hidden")} />
+								)}
+								{visibleColumns.map((column, index) => (
+									<TableCell
+										key={column.id}
+										data-label={index === 0 ? undefined : columnLabel(column)}
+										className={cn(
+											CARD_CELL,
+											index > 0 && CARD_LABEL,
+											!column.control && "max-w-0 truncate max-lg:max-w-none",
+											index === 0 &&
+												"pl-8 max-lg:basis-full max-lg:pl-0 [&>*]:max-w-full",
+											ALIGN_CLASS[column.align ?? "left"],
+											column.cellClassName,
+										)}
+									>
+										<div className="min-w-0 truncate">
+											{expandable.renderSubCell(sub, column.id, row)}
+										</div>
+									</TableCell>
+								))}
+							</TableRow>
 						);
 					})}
-				</TableBody>
-			</Table>
+			</Fragment>
+		);
+	};
+
+	return (
+		<div
+			className={cn(
+				"flex min-w-0 flex-col",
+				selecting && "pb-24 max-lg:pb-40",
+				className,
+			)}
+		>
+			<div
+				data-slot="data-table-toolbar"
+				className="flex min-h-11 flex-wrap items-center gap-2 border-y py-1.5"
+			>
+				{search ? (
+					<div className="max-lg:order-last max-lg:w-full">{search}</div>
+				) : null}
+				{tabs && (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button type="button" variant="outline" size="sm">
+								<span className="truncate">{activeTabLabel}</span>
+								<ChevronDown data-icon="inline-end" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start" className="min-w-52">
+							<DropdownMenuRadioGroup
+								value={query.tab}
+								onValueChange={(value) => query.setTab(value)}
+							>
+								<DropdownMenuRadioItem value="all">
+									<span className="flex-1">{tabs.allLabel ?? "All"}</span>
+								</DropdownMenuRadioItem>
+								{tabs.options.map((option) => {
+									if (tabCounts?.[option.value] === 0) return null;
+									return (
+										<DropdownMenuRadioItem
+											key={option.value}
+											value={option.value}
+										>
+											<span className="flex-1">{option.label}</span>
+										</DropdownMenuRadioItem>
+									);
+								})}
+							</DropdownMenuRadioGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)}
+				{availableFacets.length > 0 && (
+					<FacetFilterMenu
+						facets={availableFacets}
+						filters={query.filters}
+						onChange={query.setFilter}
+					/>
+				)}
+				{chips.map((chip) => (
+					<FilterChip
+						key={chip.id}
+						label={chip.label}
+						onRemove={() => query.setFilter(chip.id, [])}
+					/>
+				))}
+				{(quickFilters ?? []).map((filter) =>
+					filter.active ? (
+						<FilterChip
+							key={filter.id}
+							label={filter.label}
+							onRemove={filter.onToggle}
+						/>
+					) : (
+						<Button
+							key={filter.id}
+							type="button"
+							variant="dashed"
+							size="sm"
+							onClick={filter.onToggle}
+						>
+							<Plus data-icon="inline-start" />
+							{filter.label}
+						</Button>
+					),
+				)}
+				{leadingActions}
+				<span className="flex-1 max-lg:hidden" />
+				{hideable.length > 0 && (
+					<ColumnsMenu
+						columns={columns}
+						hidden={hidden}
+						visibleCount={visibleColumns.length}
+						onToggle={(id, visible) =>
+							setHidden((prev) => {
+								const set = new Set(prev);
+								if (visible) set.delete(id);
+								else set.add(id);
+								return [...set];
+							})
+						}
+					/>
+				)}
+				{actions}
+			</div>
+
+			<div ref={container} className="relative min-w-0">
+				<Table
+					className={cn("table-fixed max-lg:block", tableClassName)}
+					containerClassName="overflow-x-clip"
+				>
+					<colgroup className="max-lg:hidden">
+						{selection && <col style={{ width: TABLE.column.selectPx }} />}
+						{primary && <col />}
+						{secondary.map((column, index) => (
+							<col key={column.id} style={{ width: widths[index] }} />
+						))}
+					</colgroup>
+					<TableHeader className="sticky top-0 z-10 max-lg:hidden">
+						<TableRow className="hover:bg-transparent">
+							{selection && (
+								<TableHead className="pr-0 pl-3">
+									<Checkbox
+										checked={
+											selection.state.allSelected
+												? true
+												: selection.state.someSelected
+													? "indeterminate"
+													: false
+										}
+										onCheckedChange={(checked) =>
+											selection.state.toggleAll(checked === true)
+										}
+										disabled={deferredRows.length === 0}
+										aria-label={t("Select every row on this page")}
+									/>
+								</TableHead>
+							)}
+							{visibleColumns.map((column) => {
+								const isActive = query.sort === column.id;
+								const Icon = column.icon;
+								const label = (
+									<span className="flex min-w-0 items-center gap-1.5">
+										{Icon ? (
+											<span className="shrink-0 text-faint-foreground [&_svg]:size-3">
+												<Icon aria-hidden />
+											</span>
+										) : null}
+										<span className="min-w-0 truncate">{column.header}</span>
+										{isActive ? (
+											query.dir === "asc" ? (
+												<ArrowUp aria-hidden className="size-3 shrink-0 text-foreground" />
+											) : (
+												<ArrowDown aria-hidden className="size-3 shrink-0 text-foreground" />
+											)
+										) : null}
+									</span>
+								);
+								return (
+									<TableHead
+										key={column.id}
+										control={column.control}
+										className={cn(
+											!column.control && "truncate",
+											ALIGN_CLASS[column.align ?? "left"],
+											column.headClassName,
+										)}
+										aria-sort={
+											isActive
+												? query.dir === "asc"
+													? "ascending"
+													: "descending"
+												: undefined
+										}
+									>
+										{column.sortable ? (
+											<button
+												type="button"
+												onClick={() => query.toggleSort(column.id)}
+												className={cn(
+													"flex w-full min-w-0 cursor-pointer items-center uppercase outline-none hover:text-foreground focus-visible:text-foreground focus-visible:underline",
+													isActive && "text-foreground",
+													column.align === "right" && "justify-end",
+												)}
+											>
+												{label}
+											</button>
+										) : (
+											label
+										)}
+									</TableHead>
+								);
+							})}
+						</TableRow>
+					</TableHeader>
+					<TableBody className="max-lg:block">
+						{groupedRows.map((group) => {
+							if (group.key === null || !groups) {
+								return group.rows.map(renderRow);
+							}
+							const key = group.key;
+							const closed = closedGroups.has(key);
+							return (
+								<Fragment key={`group:${key}`}>
+									<TableRow
+										className="bg-muted hover:bg-muted max-lg:block max-lg:bg-transparent"
+										aria-expanded={!closed}
+									>
+										<TableCell
+											colSpan={columnCount}
+											className="h-8 max-lg:block max-lg:border-0 max-lg:px-0"
+										>
+											<button
+												type="button"
+												aria-expanded={!closed}
+												onClick={() =>
+													setClosedGroups((prev) => {
+														const next = new Set(prev);
+														if (next.has(key)) next.delete(key);
+														else next.add(key);
+														return next;
+													})
+												}
+												className="flex w-full min-w-0 cursor-pointer items-center gap-2.5 text-left text-foreground text-xs outline-none focus-visible:underline"
+											>
+												<ChevronDown
+													aria-hidden
+													className={cn(
+														"size-2.5 shrink-0 text-muted-foreground transition-transform",
+														closed && "-rotate-90",
+													)}
+												/>
+												{groups.header(key, group.rows)}
+											</button>
+										</TableCell>
+									</TableRow>
+									{closed ? null : group.rows.map(renderRow)}
+								</Fragment>
+							);
+						})}
+					</TableBody>
+				</Table>
+				{deferredRows.length === 0 ? (
+					<div className="flex min-h-40 flex-col items-center justify-center gap-2 border-b px-4 py-8 text-center text-2sm text-muted-foreground">
+						{loading ? (
+							<Spinner />
+						) : filtering ? (
+							<>
+								<span>{t("Nothing matches these filters.")}</span>
+								<Button variant="link" size="sm" onClick={query.reset}>
+									{t("Reset filters")}
+								</Button>
+							</>
+						) : (
+							(empty ?? t("No results found."))
+						)}
+					</div>
+				) : null}
+			</div>
 
 			<TablePagination
 				page={query.page}
 				totalPages={totalPages}
-				pageSize={pageSize}
+				pageSize={query.pageSize}
 				total={total}
 				onPageChange={(page) => query.setPage(page)}
+				onPageSizeChange={query.setPageSize}
 				loading={loading}
 				meta={meta}
 			/>
+
+			{selecting && selection ? (
+				<SelectionBar
+					count={selection.state.count}
+					actions={selection.actions}
+					onClear={selection.state.clear}
+				/>
+			) : null}
 		</div>
 	);
 }
+

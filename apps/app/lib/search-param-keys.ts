@@ -4,6 +4,7 @@ export const SEARCH_PARAM = {
 		sort: "sort",
 		dir: "dir",
 		page: "page",
+		size: "size",
 		fields: "fields",
 		archived: "archived",
 	},

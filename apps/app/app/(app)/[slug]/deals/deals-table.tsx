@@ -40,21 +40,21 @@ const COLUMNS: LabeledColumn<DealRow>[] = [
 		header: "Deal",
 		sortable: true,
 		hideable: false,
-		width: "w-[24%]",
+		size: 280,
 		cell: (row) => <span className="truncate font-medium">{row.name}</span>,
 	},
 	{
 		id: "company",
 		header: "Company",
 		sortable: true,
-		width: "w-[18%]",
+		size: 210,
 		cell: (row) => <CompanyCell company={row.company} />,
 	},
 	{
 		id: "stage",
 		header: "Stage",
 		sortable: true,
-		width: "w-[18%]",
+		size: 210,
 		cell: (row) => <DealStageMenu dealId={row.id} stage={row.stage} />,
 	},
 	{
@@ -62,8 +62,7 @@ const COLUMNS: LabeledColumn<DealRow>[] = [
 		header: "Amount",
 		sortable: true,
 		align: "right",
-		width: "w-[12%]",
-		hideBelow: "sm",
+		size: 140,
 		cell: (row) => (
 			<DealAmount amountCents={row.amountCents} currency={row.currency} />
 		),
@@ -72,8 +71,7 @@ const COLUMNS: LabeledColumn<DealRow>[] = [
 		id: "owner",
 		header: "Owner",
 		sortable: true,
-		width: "w-[14%]",
-		hideBelow: "md",
+		size: 160,
 		defaultHidden: true,
 		cell: (row) => <OwnerCell owner={row.owner} />,
 	},
@@ -81,8 +79,7 @@ const COLUMNS: LabeledColumn<DealRow>[] = [
 		id: "expectedCloseDate",
 		header: "Close date",
 		sortable: true,
-		width: "w-[12%]",
-		hideBelow: "lg",
+		size: 140,
 		cell: (row) =>
 			row.expectedCloseDate ? (
 				<span className="text-muted-foreground">
@@ -98,7 +95,7 @@ const COLUMNS: LabeledColumn<DealRow>[] = [
 		label: "Created date",
 		sortable: true,
 		align: "right",
-		width: "w-[10%]",
+		size: 120,
 		defaultHidden: true,
 		cell: (row) => (
 			<span className="text-muted-foreground">
@@ -111,8 +108,7 @@ const COLUMNS: LabeledColumn<DealRow>[] = [
 		header: "Last activity",
 		sortable: true,
 		align: "right",
-		width: "w-[12%]",
-		hideBelow: "lg",
+		size: 140,
 		cell: (row) => (
 			<span className="text-muted-foreground">
 				{row.lastActivityAt ? (
@@ -132,7 +128,7 @@ const ARCHIVED_COLUMNS: LabeledColumn<DealRow>[] = [
 		label: "Archived date",
 		sortable: true,
 		align: "right",
-		width: "w-[12%]",
+		size: 140,
 		cell: (row) => (
 			<span className="text-muted-foreground">
 				{row.archivedAt ? (

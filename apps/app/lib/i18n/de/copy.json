@@ -265,5 +265,6 @@
 	"The AI is included in this plan. There is no model to choose.": "Die KI ist in diesem Tarif enthalten. Es gibt kein Modell zu wählen.",
 	"Only an owner or an admin can remove a member.": "Nur Eigentümer und Administratoren dürfen ein Mitglied entfernen.",
 	"You cannot remove yourself from the workspace.": "Du kannst dich nicht selbst aus dem Arbeitsbereich entfernen.",
-	"Only an owner can remove an owner.": "Nur ein Eigentümer darf einen Eigentümer entfernen."
+	"Only an owner can remove an owner.": "Nur ein Eigentümer darf einen Eigentümer entfernen.",
+	"Show archived": "Archivierte zeigen"
 }

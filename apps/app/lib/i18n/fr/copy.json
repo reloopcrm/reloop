@@ -265,5 +265,6 @@
 	"The AI is included in this plan. There is no model to choose.": "L'IA est incluse dans ce forfait. Il n'y a aucun modèle à choisir.",
 	"Only an owner or an admin can remove a member.": "Seul un propriétaire ou un admin peut retirer un membre.",
 	"You cannot remove yourself from the workspace.": "Tu ne peux pas te retirer toi-même de l'espace de travail.",
-	"Only an owner can remove an owner.": "Seul un propriétaire peut retirer un propriétaire."
+	"Only an owner can remove an owner.": "Seul un propriétaire peut retirer un propriétaire.",
+	"Show archived": "Afficher les archivés"
 }

@@ -54,8 +54,7 @@ function columns(
 		{
 			id: "start",
 			header: t("Key"),
-			width: "w-[20%]",
-			hideBelow: "sm",
+			size: 230,
 			cell: (row) => (
 				<Badge variant="mono">{row.start ? `${row.start}…` : "-"}</Badge>
 			),
@@ -64,8 +63,7 @@ function columns(
 			id: "createdAt",
 			header: t("Created"),
 			sortable: true,
-			width: "w-[16%]",
-			hideBelow: "md",
+			size: 180,
 			cell: (row) => (
 				<span className="text-muted-foreground">
 					<LocalRelativeTime date={row.createdAt} />
@@ -77,8 +75,7 @@ function columns(
 			header: t("Last used"),
 			label: t("Last used date"),
 			sortable: true,
-			width: "w-[16%]",
-			hideBelow: "lg",
+			size: 180,
 			cell: (row) => (
 				<span className="text-muted-foreground">
 					{row.lastRequest ? (
@@ -93,8 +90,7 @@ function columns(
 			id: "expiresAt",
 			header: t("Expires"),
 			sortable: true,
-			width: "w-[14%]",
-			hideBelow: "lg",
+			size: 160,
 			cell: (row) =>
 				row.expiresAt ? (
 					<span

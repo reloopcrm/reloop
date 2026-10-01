@@ -34,7 +34,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
 	return (
 		<thead
 			data-slot="table-header"
-			className={cn("bg-muted [&_tr]:border-b", className)}
+			className={cn("bg-background [&_tr]:border-b", className)}
 			{...props}
 		/>
 	);
@@ -68,7 +68,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 		<tr
 			data-slot="table-row"
 			className={cn(
-				"border-b transition-colors hover:bg-muted/60 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted site:hover:bg-transparent",
+				"border-b transition-colors hover:bg-active data-[state=selected]:bg-active site:hover:bg-transparent",
 				className,
 			)}
 			{...props}
@@ -88,7 +88,7 @@ function TableHead({
 				data-slot="table-head"
 				scope={scope}
 				className={cn(
-					"px-4 py-3 text-left align-middle font-normal whitespace-nowrap text-muted-foreground site:align-top",
+					"px-3 py-2 text-left align-middle font-normal whitespace-nowrap text-muted-foreground site:align-top",
 					className,
 				)}
 				{...props}
@@ -100,7 +100,7 @@ function TableHead({
 			data-slot="table-head"
 			scope={scope}
 			className={cn(
-				"h-10 px-4 text-left align-middle text-xs font-normal text-muted-foreground [&:has([role=checkbox])]:overflow-visible [&:has([role=checkbox])]:pr-0 site:h-auto site:py-3 site:font-mono site:font-(--site-weight-medium) site:uppercase site:tracking-(--site-tracking-label)",
+				"h-9 border-r px-3 text-left align-middle font-mono text-2xs font-normal uppercase tracking-label text-muted-foreground last:border-r-0 [&:has([role=checkbox])]:overflow-visible [&:has([role=checkbox])]:pr-0 site:h-auto site:border-r-0 site:py-3 site:font-(--site-weight-medium) site:text-(length:--site-text-label) site:tracking-(--site-tracking-label)",
 				control ? "overflow-visible" : "truncate",
 				className,
 			)}
@@ -114,7 +114,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 		<td
 			data-slot="table-cell"
 			className={cn(
-				"px-4 py-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 site:align-top site:[&_code]:whitespace-nowrap site:[&_code]:wrap-normal",
+				"h-10 border-r px-3 py-2 align-middle text-2sm whitespace-nowrap text-body-foreground last:border-r-0 [&:has([role=checkbox])]:pr-0 site:h-auto site:border-r-0 site:px-4 site:py-3 site:align-top site:text-sm site:text-foreground site:[&_code]:whitespace-nowrap site:[&_code]:wrap-normal",
 				className,
 			)}
 			{...props}

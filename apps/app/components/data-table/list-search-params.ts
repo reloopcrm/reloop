@@ -1,3 +1,4 @@
+import { isPageSize, TABLE } from "@crm/ui/lib/table-config";
 import type { SortDirection } from "@crm/ui/lib/table-query";
 import {
 	createLoader,
@@ -8,6 +9,7 @@ import {
 	parseAsInteger,
 	parseAsJson,
 	parseAsNativeArrayOf,
+	parseAsNumberLiteral,
 	parseAsString,
 	parseAsStringLiteral,
 } from "nuqs/server";
@@ -31,6 +33,9 @@ export const searchParsers = {
 	[SEARCH_PARAM.list.page]: parseAsInteger
 		.withDefault(1)
 		.withOptions({ history: "push" }),
+	[SEARCH_PARAM.list.size]: parseAsNumberLiteral(TABLE.pageSizes).withDefault(
+		TABLE.defaultPageSize,
+	),
 	[SEARCH_PARAM.list.fields]: parseAsJson<FieldFilters>(
 		fieldFiltersSchema.parse,
 	).withDefault({}),
@@ -42,6 +47,7 @@ type ListParsers<TTab extends string, TFacet extends string> = {
 	sort: StringParser;
 	dir: ParserBuilder<SortDirection> & { defaultValue: SortDirection };
 	page: ParserBuilder<number> & { defaultValue: number };
+	size: ParserBuilder<number> & { defaultValue: number };
 	fields: ParserBuilder<FieldFilters> & { defaultValue: FieldFilters };
 	archived: ParserBuilder<boolean> & { defaultValue: boolean };
 } & { [K in TTab]: StringParser } & { [K in TFacet]: ArrayParser };
@@ -51,6 +57,7 @@ export type ListSearchValues<TTab extends string, TFacet extends string> = {
 	sort: string;
 	dir: SortDirection;
 	page: number;
+	size: number;
 	fields: FieldFilters;
 	archived: boolean;
 } & { [K in TTab]: string } & { [K in TFacet]: string[] };
@@ -93,7 +100,7 @@ export function createListSearchParams<
 	const {
 		defaultSort = "",
 		defaultDir = "asc",
-		pageSize = 25,
+		pageSize = TABLE.defaultPageSize,
 		tabId,
 		facetIds = [],
 		facetDefaults,
@@ -141,7 +148,7 @@ export function createListSearchParams<
 			sort: values.sort,
 			dir: values.dir,
 			page: values.page > 0 ? values.page : 1,
-			pageSize,
+			pageSize: isPageSize(values.size) ? values.size : pageSize,
 			fields: values.fields,
 			archived: values.archived,
 			...selectedTab,

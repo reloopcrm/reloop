@@ -22,15 +22,7 @@ export function exportFilename(
 	return FILENAME.exec(disposition ?? "")?.[1] ?? fallback;
 }
 
-export function ExportButton({
-	entity,
-	input,
-	variant = "outline",
-}: {
-	entity: ExportEntity;
-	input: unknown;
-	variant?: "outline" | "link";
-}) {
+export function useCsvExport(entity: ExportEntity, input: unknown) {
 	const t = useT();
 	const locale = useLocale();
 
@@ -73,7 +65,20 @@ export function ExportButton({
 		setTimeout(() => URL.revokeObjectURL(url), 0);
 	};
 
-	const action = useAsyncAction({ action: download });
+	return useAsyncAction({ action: download });
+}
+
+export function ExportButton({
+	entity,
+	input,
+	variant = "outline",
+}: {
+	entity: ExportEntity;
+	input: unknown;
+	variant?: "outline" | "link";
+}) {
+	const t = useT();
+	const action = useCsvExport(entity, input);
 
 	return (
 		<Button

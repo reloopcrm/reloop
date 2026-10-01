@@ -62,8 +62,7 @@ export function useFieldColumns<Row extends WithFields>(
 			.map((field) => ({
 				id: `field:${field.key}`,
 				header: field.label,
-				width: "w-[12%]",
-				hideBelow: "lg" as const,
+				size: 140,
 				cell: (row: Row) => (
 					<span className="truncate">
 						{render(field.type, row.fields[field.key] ?? null, byId, t, locale)}

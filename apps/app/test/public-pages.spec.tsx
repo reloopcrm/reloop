@@ -56,6 +56,7 @@ const PAGES = [
 const SHARED_GLOBS = [
 	"components/landing/**/*.tsx",
 	"components/docs/**/*.tsx",
+	"components/site/**/*.tsx",
 	"components/signup/**/*.tsx",
 	"components/language-switcher.tsx",
 	"components/copy-command.tsx",

@@ -244,5 +244,17 @@
 	"Completed": "Terminé",
 	"What happened?": "Que s'est-il passé ?",
 	"Head of Purchasing": "Responsable des achats",
-	"The limit of your plan for drafts is reached. Upgrade your plan to continue now, or the agent writes this draft on": "La limite de ton forfait pour les brouillons est atteinte. Passe à un forfait supérieur pour continuer maintenant, sinon l'agent écrit ce brouillon le"
+	"The limit of your plan for drafts is reached. Upgrade your plan to continue now, or the agent writes this draft on": "La limite de ton forfait pour les brouillons est atteinte. Passe à un forfait supérieur pour continuer maintenant, sinon l'agent écrit ce brouillon le",
+	"Every company your mailbox has done business with.": "Chaque entreprise avec laquelle ta boîte mail a fait affaire.",
+	"The people behind the companies, read from your own mailbox.": "Les personnes derrière les entreprises, lues dans ta propre boîte mail.",
+	"Search companies": "Chercher des entreprises",
+	"Search contacts": "Chercher des contacts",
+	"Customers": "Clients",
+	"Active in 30 days": "Actif sur 30 jours",
+	"Research again": "Rechercher à nouveau",
+	"Archive 1 company?": "Archiver 1 entreprise ?",
+	"Archive {count} companies?": "Archiver {count} entreprises ?",
+	"Archive 1 contact?": "Archiver 1 contact ?",
+	"Archive {count} contacts?": "Archiver {count} contacts ?",
+	"They leave this list and stay under Show archived, where you can restore them.": "Ils quittent cette liste et restent sous Afficher les archivés, où tu peux les restaurer."
 }

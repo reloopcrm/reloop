@@ -1,23 +1,13 @@
 "use client";
 
-import Archive from "@carbon/icons-react/es/Archive";
-import Renew from "@carbon/icons-react/es/Renew";
-import Undo from "@carbon/icons-react/es/Undo";
-import {
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
-} from "@crm/ui/components/dropdown-menu";
+import { Button } from "@crm/ui/components/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
-	BulkActionsMenu,
 	BulkDeleteDialog,
-	BulkOwnerMenu,
+	BulkMenuButton,
+	BulkOwnerButton,
 	reportBulk,
 } from "@/components/crm/bulk-actions";
 import { CompanyMenuSearch } from "@/components/crm/company-picker";
@@ -41,7 +31,7 @@ export function ContactsBulkActions({
 	const users = useQuery(trpc.users.list.queryOptions());
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [confirming, setConfirming] = useState(false);
-	const companySearch = useRef<HTMLInputElement>(null);
+	const [archiving, setArchiving] = useState(false);
 
 	const onError = (error: { message: string }) =>
 		toast.error(errorMessage(error.message));
@@ -162,23 +152,22 @@ export function ContactsBulkActions({
 
 		return (
 			<>
-				<BulkActionsMenu pending={pending}>
-					<DropdownMenuGroup>
-						<DropdownMenuItem onSelect={() => restore.mutate({ ids })}>
-							<Undo />
-							{t("Restore")}
-						</DropdownMenuItem>
-					</DropdownMenuGroup>
-					<DropdownMenuSeparator />
-					<DropdownMenuGroup>
-						<DropdownMenuItem
-							variant="destructive"
-							onSelect={() => setConfirming(true)}
-						>
-							{t("Delete forever")}
-						</DropdownMenuItem>
-					</DropdownMenuGroup>
-				</BulkActionsMenu>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={pending}
+					onClick={() => restore.mutate({ ids })}
+				>
+					{t("Restore")}
+				</Button>
+				<Button
+					variant="destructive"
+					size="sm"
+					disabled={pending}
+					onClick={() => setConfirming(true)}
+				>
+					{t("Delete forever")}
+				</Button>
 
 				<BulkDeleteDialog
 					open={confirming}
@@ -204,49 +193,63 @@ export function ContactsBulkActions({
 		archive.isPending;
 
 	return (
-		<BulkActionsMenu
-			pending={pending}
-			open={menuOpen}
-			onOpenChange={setMenuOpen}
-		>
-			<BulkOwnerMenu
+		<>
+			<BulkOwnerButton
 				users={users.data ?? []}
 				unassignedLabel={t("Nobody")}
+				pending={pending}
 				onSelect={(ownerId) => assignOwner.mutate({ ids, ownerId })}
 			/>
-			<DropdownMenuSub>
-				<DropdownMenuSubTrigger>{t("Move to company")}</DropdownMenuSubTrigger>
-				<DropdownMenuSubContent
-					className="w-64 p-0"
-					onFocus={(event) => {
-						if (event.target === event.currentTarget) {
-							companySearch.current?.focus();
-						}
-					}}
-				>
+			<BulkMenuButton
+				label={t("Move to company")}
+				pending={pending}
+				open={menuOpen}
+				onOpenChange={setMenuOpen}
+			>
+				<div className="w-64">
 					<CompanyMenuSearch
 						none={t("No company")}
-						inputRef={companySearch}
 						onSelect={(companyId) => {
 							setMenuOpen(false);
 							setCompany.mutate({ ids, companyId });
 						}}
 					/>
-				</DropdownMenuSubContent>
-			</DropdownMenuSub>
-			<DropdownMenuGroup>
-				<DropdownMenuItem onSelect={() => enrich.mutate({ ids })}>
-					<Renew />
-					{t("Re-enrich")}
-				</DropdownMenuItem>
-			</DropdownMenuGroup>
-			<DropdownMenuSeparator />
-			<DropdownMenuGroup>
-				<DropdownMenuItem onSelect={() => archive.mutate({ ids })}>
-					<Archive />
-					{t("Archive")}
-				</DropdownMenuItem>
-			</DropdownMenuGroup>
-		</BulkActionsMenu>
+				</div>
+			</BulkMenuButton>
+			<Button
+				variant="outline"
+				size="sm"
+				disabled={pending}
+				onClick={() => enrich.mutate({ ids })}
+			>
+				{t("Research again")}
+			</Button>
+			<Button
+				variant="outline"
+				size="sm"
+				disabled={pending}
+				onClick={() => setArchiving(true)}
+			>
+				{t("Archive")}
+			</Button>
+			<BulkDeleteDialog
+				open={archiving}
+				onOpenChange={setArchiving}
+				destructive={false}
+				confirmLabel={t("Archive")}
+				title={
+					ids.length === 1
+						? t("Archive 1 contact?")
+						: t("Archive {count} contacts?", { count: ids.length })
+				}
+				description={t(
+					"They leave this list and stay under Show archived, where you can restore them.",
+				)}
+				onConfirm={() => {
+					setArchiving(false);
+					archive.mutate({ ids });
+				}}
+			/>
+		</>
 	);
 }

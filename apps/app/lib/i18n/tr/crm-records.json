@@ -244,5 +244,17 @@
 	"Completed": "Tamamlandı",
 	"What happened?": "Ne oldu?",
 	"Head of Purchasing": "Satın alma müdürü",
-	"The limit of your plan for drafts is reached. Upgrade your plan to continue now, or the agent writes this draft on": "Planının taslak sınırına ulaşıldı. Şimdi devam etmek için planını yükselt, yoksa ajan bu taslağı şu tarihte yazar:"
+	"The limit of your plan for drafts is reached. Upgrade your plan to continue now, or the agent writes this draft on": "Planının taslak sınırına ulaşıldı. Şimdi devam etmek için planını yükselt, yoksa ajan bu taslağı şu tarihte yazar:",
+	"Every company your mailbox has done business with.": "Posta kutunun iş yaptığı her şirket.",
+	"The people behind the companies, read from your own mailbox.": "Şirketlerin arkasındaki insanlar, kendi posta kutundan okundu.",
+	"Search companies": "Şirket ara",
+	"Search contacts": "Kişi ara",
+	"Customers": "Müşteriler",
+	"Active in 30 days": "Son 30 günde aktif",
+	"Research again": "Yeniden araştır",
+	"Archive 1 company?": "1 firma arşivlensin mi?",
+	"Archive {count} companies?": "{count} firma arşivlensin mi?",
+	"Archive 1 contact?": "1 kişi arşivlensin mi?",
+	"Archive {count} contacts?": "{count} kişi arşivlensin mi?",
+	"They leave this list and stay under Show archived, where you can restore them.": "Bu listeden çıkarlar ve Arşivlenenleri göster altında kalırlar. Oradan geri yükleyebilirsin."
 }

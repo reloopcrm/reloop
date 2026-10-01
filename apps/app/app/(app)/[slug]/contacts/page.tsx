@@ -5,6 +5,7 @@ import {
 	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
+	PageShellEyebrow,
 	PageShellHeader,
 	PageShellHeading,
 	PageShellLoading,
@@ -31,9 +32,10 @@ export default async function ContactsPage({
 		<PageShell className="min-h-0">
 			<PageShellHeader>
 				<PageShellHeading>
+					<PageShellEyebrow>{t("Contacts")}</PageShellEyebrow>
 					<PageShellTitle>{t("Contacts")}</PageShellTitle>
 					<PageShellDescription>
-						{t("Everyone in the pipeline.")}
+						{t("The people behind the companies, read from your own mailbox.")}
 					</PageShellDescription>
 				</PageShellHeading>
 				<PageShellActions>

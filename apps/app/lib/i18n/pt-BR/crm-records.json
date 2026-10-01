@@ -244,5 +244,17 @@
 	"Completed": "Concluído",
 	"What happened?": "O que aconteceu?",
 	"Head of Purchasing": "Chefe de compras",
-	"The limit of your plan for drafts is reached. Upgrade your plan to continue now, or the agent writes this draft on": "O limite do seu plano para rascunhos foi atingido. Faça upgrade do plano para continuar agora, ou o agente escreve este rascunho em"
+	"The limit of your plan for drafts is reached. Upgrade your plan to continue now, or the agent writes this draft on": "O limite do seu plano para rascunhos foi atingido. Faça upgrade do plano para continuar agora, ou o agente escreve este rascunho em",
+	"Every company your mailbox has done business with.": "Cada empresa com que sua caixa de entrada já fez negócio.",
+	"The people behind the companies, read from your own mailbox.": "As pessoas por trás das empresas, lidas da sua própria caixa de entrada.",
+	"Search companies": "Buscar empresas",
+	"Search contacts": "Buscar contatos",
+	"Customers": "Clientes",
+	"Active in 30 days": "Ativo em 30 dias",
+	"Research again": "Pesquisar de novo",
+	"Archive 1 company?": "Arquivar 1 empresa?",
+	"Archive {count} companies?": "Arquivar {count} empresas?",
+	"Archive 1 contact?": "Arquivar 1 contato?",
+	"Archive {count} contacts?": "Arquivar {count} contatos?",
+	"They leave this list and stay under Show archived, where you can restore them.": "Eles saem desta lista e ficam em Mostrar arquivados, onde você pode restaurá-los."
 }

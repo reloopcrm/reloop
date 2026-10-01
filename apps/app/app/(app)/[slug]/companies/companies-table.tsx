@@ -1,13 +1,21 @@
 "use client";
 
-import Archive from "@carbon/icons-react/es/Archive";
-import { Button } from "@crm/ui/components/button";
 import { DataTable, type DataTableFacet } from "@crm/ui/components/data-table";
 import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import {
 	EntityLogo,
 	type EntityLogoTone,
 } from "@crm/ui/components/entity-logo";
+import {
+	CompaniesIcon,
+	ContactsIcon,
+	DateIcon,
+	EmailIcon,
+	NumberIcon,
+	SignalIcon,
+	TextIcon,
+} from "@crm/ui/components/line-icons";
+import { LinkText } from "@crm/ui/components/link-text";
 import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -15,10 +23,11 @@ import { EnrichmentIndicator } from "@/components/crm/enrichment-status";
 import { useFieldColumns } from "@/components/crm/fields/field-columns";
 import { useFieldFacets } from "@/components/crm/fields/field-facets";
 import { OwnerCell } from "@/components/crm/owner-cell";
+import { useRecordQuickFilters } from "@/components/crm/record-quick-filters";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { PotentialCell, StandingCell } from "@/components/crm/standing-cell";
-import { ExportButton } from "@/components/data-table/export-button";
+import { ListMoreMenu } from "@/components/data-table/list-more-menu";
 import { ListSearch } from "@/components/data-table/list-search";
 import {
 	type LabeledColumn,
@@ -49,10 +58,11 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 	{
 		id: "name",
 		header: "Company",
+		icon: CompaniesIcon,
 		sortable: true,
 		hideable: false,
 		cell: (row) => (
-			<span className="flex min-w-0 items-center gap-2.5">
+			<span className="flex min-w-0 items-center gap-2">
 				<EntityLogo
 					src={row.iconUrl ?? row.logoUrl}
 					darkSrc={row.iconDarkUrl}
@@ -60,46 +70,26 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 					name={row.name}
 					size="sm"
 				/>
-				<span className="truncate font-medium">{row.name}</span>
+				<span className="truncate">{row.name}</span>
 			</span>
 		),
 	},
 	{
-		id: "standing",
-		header: "Status",
-		sortable: true,
-		size: 140,
-		cell: (row) => <StandingCell standing={row.standing} />,
-	},
-	{
-		id: "potential",
-		header: "Potential",
-		sortable: true,
-		size: 100,
-		cellClassName: "text-2sm",
-		cell: (row) => <PotentialCell potential={row.potential} />,
-	},
-	{
 		id: "domain",
 		header: "Domain",
+		icon: EmailIcon,
 		sortable: true,
-		size: 170,
-		defaultHidden: true,
-		cellClassName: "text-2sm",
+		size: 230,
 		cell: (row) =>
-			row.domain ? (
-				<span className="truncate text-muted-foreground">{row.domain}</span>
-			) : (
-				<EmptyCellValue />
-			),
+			row.domain ? <LinkText>{row.domain}</LinkText> : <EmptyCellValue />,
 	},
 	{
 		id: "industry",
 		header: "Industry",
+		icon: TextIcon,
 		sortable: true,
-		size: 160,
+		size: 180,
 		defaultHidden: true,
-		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.industry ? (
 				<span className="truncate">{row.industry}</span>
@@ -108,69 +98,79 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 			),
 	},
 	{
-		id: "owner",
-		header: "Owner",
-		sortable: true,
-		size: 160,
-		defaultHidden: true,
-		cellClassName: "text-2sm",
-		cell: (row) => <OwnerCell owner={row.owner} />,
-	},
-	{
 		id: "contacts",
-		header: "Contacts",
+		header: "People",
+		icon: ContactsIcon,
 		sortable: true,
 		align: "right",
-		size: 90,
-		cellClassName: "text-2sm",
+		size: 110,
 		cell: (row) => <span className="tabular-nums">{row.contactCount}</span>,
 	},
 	{
+		id: "standing",
+		header: "Status",
+		icon: SignalIcon,
+		sortable: true,
+		size: 130,
+		defaultHidden: true,
+		cell: (row) => <StandingCell standing={row.standing} />,
+	},
+	{
+		id: "potential",
+		header: "Potential",
+		icon: SignalIcon,
+		sortable: true,
+		size: 130,
+		defaultHidden: true,
+		cell: (row) => <PotentialCell potential={row.potential} />,
+	},
+	{
+		id: "lastActivity",
+		header: "Last contact",
+		icon: DateIcon,
+		sortable: true,
+		size: 130,
+		cell: (row) =>
+			row.lastActivityAt ? (
+				<LocalRelativeTime date={row.lastActivityAt} />
+			) : (
+				<EmptyCellValue />
+			),
+	},
+	{
 		id: "deals",
-		header: "Deals",
-		label: "Open deals",
+		header: "Open deals",
+		icon: NumberIcon,
 		sortable: true,
 		align: "right",
-		size: 90,
-		cellClassName: "text-2sm",
+		size: 120,
+		defaultHidden: true,
 		cell: (row) => <span className="tabular-nums">{row.openDealCount}</span>,
+	},
+	{
+		id: "owner",
+		header: "Owner",
+		icon: ContactsIcon,
+		sortable: true,
+		size: 160,
+		defaultHidden: true,
+		cell: (row) => <OwnerCell owner={row.owner} />,
 	},
 	{
 		id: "createdAt",
 		header: "Created",
 		label: "Created date",
+		icon: DateIcon,
 		sortable: true,
-		align: "right",
-		size: 120,
+		size: 130,
 		defaultHidden: true,
-		cellClassName: "text-2sm",
-		cell: (row) => (
-			<span className="text-muted-foreground">
-				<LocalRelativeTime date={row.createdAt} />
-			</span>
-		),
-	},
-	{
-		id: "lastActivity",
-		header: "Last activity",
-		sortable: true,
-		align: "right",
-		size: 150,
-		cellClassName: "text-2sm",
-		cell: (row) => (
-			<span className="text-muted-foreground">
-				{row.lastActivityAt ? (
-					<LocalRelativeTime date={row.lastActivityAt} />
-				) : (
-					<EmptyCellValue />
-				)}
-			</span>
-		),
+		cell: (row) => <LocalRelativeTime date={row.createdAt} />,
 	},
 	{
 		id: "enrichment",
 		header: "Enrichment",
 		label: "Enrichment status",
+		icon: SignalIcon,
 		defaultHidden: true,
 		size: 160,
 		cell: (row) => (
@@ -184,19 +184,15 @@ const ARCHIVED_COLUMNS: LabeledColumn<CompanyRow>[] = [
 		id: "archivedAt",
 		header: "Archived",
 		label: "Archived date",
+		icon: DateIcon,
 		sortable: true,
-		align: "right",
-		size: 150,
-		cellClassName: "text-2sm",
-		cell: (row) => (
-			<span className="text-muted-foreground">
-				{row.archivedAt ? (
-					<LocalRelativeTime date={row.archivedAt} />
-				) : (
-					<EmptyCellValue />
-				)}
-			</span>
-		),
+		size: 130,
+		cell: (row) =>
+			row.archivedAt ? (
+				<LocalRelativeTime date={row.archivedAt} />
+			) : (
+				<EmptyCellValue />
+			),
 	},
 ];
 
@@ -278,6 +274,8 @@ export function CompaniesTable() {
 		...fieldFacets,
 	];
 
+	const quickFilters = useRecordQuickFilters(query);
+
 	const fieldColumns = useFieldColumns<CompanyRow>("COMPANY");
 	const baseColumns = useLocalizedColumns(COLUMNS);
 	const archivedColumns = useLocalizedColumns(ARCHIVED_COLUMNS);
@@ -292,22 +290,17 @@ export function CompaniesTable() {
 	return (
 		<DataTable
 			query={query}
-			search={
-				<ListSearch placeholder={t("Search companies by name or domain…")} />
-			}
+			search={<ListSearch placeholder={t("Search companies")} />}
+			quickFilters={quickFilters}
 			actions={
 				<>
 					<SavedViewsMenu entity="COMPANY" table={table} />
-					<ExportButton entity="companies" input={input} />
-					<Button
-						variant={input.archived ? "contrast" : "outline"}
-						size="sm"
-						className="justify-start sm:justify-center"
-						onClick={() => setArchived(!input.archived)}
-					>
-						<Archive data-icon="inline-start" />
-						{t("Archived")}
-					</Button>
+					<ListMoreMenu
+						entity="companies"
+						input={input}
+						archived={input.archived}
+						onArchivedChange={setArchived}
+					/>
 				</>
 			}
 			columns={columns}

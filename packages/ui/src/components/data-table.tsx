@@ -148,6 +148,7 @@ export type DataTableProps<TRow, TSub> = {
 	empty?: ReactNode;
 	className?: string;
 	tableClassName?: string;
+	onReset?: () => void;
 };
 
 const ALIGN_CLASS = {
@@ -495,6 +496,7 @@ export function DataTable<TRow, TSub = unknown>({
 	empty,
 	className,
 	tableClassName,
+	onReset,
 }: DataTableProps<TRow, TSub>) {
 	const t = useUiT();
 	const [expandedIds, setExpandedIds] = useQueryState(
@@ -1027,7 +1029,14 @@ export function DataTable<TRow, TSub = unknown>({
 						) : filtering ? (
 							<>
 								<span>{t("Nothing matches these filters.")}</span>
-								<Button variant="link" size="sm" onClick={query.reset}>
+								<Button
+									variant="link"
+									size="sm"
+									onClick={() => {
+										query.reset();
+										onReset?.();
+									}}
+								>
 									{t("Reset filters")}
 								</Button>
 							</>

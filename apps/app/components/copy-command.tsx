@@ -36,7 +36,7 @@ export function CopyCommand({ command }: { command: string }) {
 			<pre className="overflow-x-auto rounded-lg border border-border bg-background p-4 font-mono text-foreground text-xs/5">
 				<code>{command}</code>
 			</pre>
-			<div className="flex flex-wrap items-center gap-3">
+			<div className="flex flex-wrap items-center gap-3 noscript:hidden">
 				<Button onClick={copy}>
 					{state === "copied" ? (
 						<Checkmark data-icon="inline-start" />
@@ -66,7 +66,7 @@ export function CopyCode({ code }: { code: string }) {
 				onClick={copy}
 				className={cn(
 					SITE_TYPE.mono,
-					"absolute top-3 right-3 h-7 rounded-(--site-radius) border px-2.5 max-[900px]:static max-[900px]:mx-4 max-[900px]:mb-4 outline-none transition-colors duration-200 ease-(--site-ease) focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+					"absolute top-3 right-3 h-7 rounded-(--site-radius) border px-2.5 noscript:hidden max-[900px]:static max-[900px]:mx-4 max-[900px]:mb-4 outline-none transition-colors duration-200 ease-(--site-ease) focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
 					state === "copied"
 						? "border-transparent bg-foreground text-background"
 						: "border-(--line-strong) bg-background text-(--ink-70) hover:text-foreground",

@@ -28,7 +28,11 @@ const tabsListVariants = cva(
 	{
 		variants: {
 			variant: {
-				default: "gap-0.5 rounded-full border bg-card p-0.75",
+				default: [
+					"gap-0.5 rounded-full border bg-card p-0.75",
+					"site:grid site:w-full site:auto-cols-fr site:grid-flow-col site:gap-0 site:rounded-none site:border-0 site:bg-transparent site:p-0",
+					"site:*:-me-px site:*:h-14.5 site:*:justify-start site:*:rounded-none site:*:border site:*:border-border site:*:px-4 site:*:text-start site:*:font-normal site:*:text-(--ink-50) site:*:text-(length:--site-text-title-20) site:*:tracking-(--site-tracking-lede) site:*:hover:text-foreground site:*:focus-visible:z-10 site:*:data-active:bg-(--off) site:*:data-active:text-foreground site:max-[900px]:*:h-14 site:max-[900px]:*:text-lg",
+				],
 				line: "gap-6 rounded-none bg-transparent p-0",
 			},
 		},

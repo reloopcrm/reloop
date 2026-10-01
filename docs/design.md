@@ -158,7 +158,43 @@ values, so `.site` does not change them: the site's own weights stop at 500
 `Button`, `Input`, `InputGroup`, `Textarea`, the `Select` trigger, `Label` and the
 `Field` texts, `Toggle` and `ToggleGroup`, `Badge`, `Alert`, `CardTitle` and
 `EmptyTitle` carry these classes: 4px corners, 40px buttons and fields, 16px
-field text, 14px labels and help text, and weights of 400 and 500.
+field text, 14px labels and help text, and weights of 400 and 500. Inside `.site`
+the default `Badge` is the blue label: `--blue` fill, `--on-blue` text, DM Mono in
+capitals. `Switch` is a 36 by 20 box with an ink edge and a square knob, not a
+pill. The default `TabsList` is a row of bordered cells, 58px tall with 20px text,
+the active cell on `--off`; the `line` tabs keep their shape. `Table` holds a
+`--site-table-min` (560px) floor instead of a width per cell: it fits every
+desktop column and scrolls inside its own frame on a phone.
+
+A menu, a popover or a toast opened from a public page is portalled to `<body>`,
+outside the shell. The `site:` variant (`:has(.site) *`) and the token block
+(`body:has(.site)`) therefore reach the whole document while a `.site` element is
+on the page, so those layers take the site tokens, 4px corners and Inter Tight.
+In the app no element carries `.site`, so neither selector matches.
+
+The type scale is a set of `--site-text-*` sizes that step down with the
+viewport, composed with leading and tracking in `SITE_TYPE`
+(`components/site/typography.ts`). A page never writes a pixel size; it picks the
+role:
+
+| Role | `SITE_TYPE` | Desktop | 1340px and below | 900px and below | 480px and below |
+| --- | --- | --- | --- | --- | --- |
+| Hero and closing headline | `display1` | 80 | 80 | 40 | 36 |
+| Section headline | `display2` | 54 | 54 | 34 | 34 |
+| Headline beside a picture | `display3` | 44 | 40 | 34 | 34 |
+| Large measured number | `figure` | 64 | 64 | 48 | 48 |
+| Price | `amount` | 64 | 64 | 44 | 44 |
+| Word between two prices | `plus` | 32 | 32 | 40 | 40 |
+| Quote in a numbers card | `quote` | 28 | 28 | 24 | 24 |
+| Card title | `title24` | 24 | 24 | 22 | 22 |
+| Item title | `title20` | 20 | 20 | 20 | 20 |
+| Lede | `lede` | 16 serif | 16 | 16 | 16 |
+| Label | `mono` | 12 mono | 12 | 12 | 12 |
+
+The header banner carries `data-slot="site-banner"`. While it is on the page,
+`.site` sets `--site-banner-offset` to the banner height; once it is closed the
+offset is 0. A sticky element below the header adds the offset, never the banner
+height, so closing the banner leaves no gap.
 Fields meet WCAG AA on every site surface (paper, off, tile) in both themes: the
 field edge is `--field` (3:1 or more), placeholders use `--ink-60` (4.5:1 or
 more). `--destructive` is the one token that differs per theme inside `.site`:

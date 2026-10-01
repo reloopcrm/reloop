@@ -90,6 +90,14 @@ describe("the docs Markdown renderer", () => {
 		]);
 	});
 
+	it("reads all five GitHub alert types", () => {
+		expect(
+			parseMarkdown(
+				"> [!NOTE]\n> a\n\n> [!TIP]\n> b\n\n> [!IMPORTANT]\n> c\n\n> [!WARNING]\n> d\n\n> [!caution]\n> e\n\n> [!OTHER]\n> f",
+			).map((block) => (block.kind === "callout" ? block.tone : null)),
+		).toEqual(["note", "tip", "important", "warning", "caution", "note"]);
+	});
+
 	it("outlines the second-level headings as plain text", () => {
 		expect(
 			outline(parseMarkdown("## One `.env`\n\nText\n\n### Deep\n\n## Two")),

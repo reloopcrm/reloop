@@ -12,7 +12,6 @@ import { cn } from "@crm/ui/lib/utils";
 import { cacheLife } from "next/cache";
 import NextLink from "next/link";
 import type * as React from "react";
-import { MARKETING_NAV } from "@/cloud/slots.data";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { Section } from "@/components/site/section";
 import { SITE_TYPE } from "@/components/site/typography";
@@ -32,21 +31,12 @@ const LABEL = cn(
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const OFFSET = {
-	nav: {
-		top: "top-[calc(var(--site-nav-height)+--spacing(8))]",
-		height: "max-h-[calc(100svh-var(--site-nav-height)-(--spacing(16)))]",
-		anchor: "[&_[id]]:scroll-mt-[calc(var(--site-nav-height)+--spacing(6))]",
-	},
-	banner: {
-		top: "top-[calc(var(--site-banner-height)+var(--site-nav-height)+--spacing(8))]",
-		height:
-			"max-h-[calc(100svh-var(--site-banner-height)-var(--site-nav-height)-(--spacing(16)))]",
-		anchor:
-			"[&_[id]]:scroll-mt-[calc(var(--site-banner-height)+var(--site-nav-height)+--spacing(6))]",
-	},
+	top: "top-[calc(var(--site-banner-offset)+var(--site-nav-height)+--spacing(8))]",
+	height:
+		"max-h-[calc(100svh-var(--site-banner-offset)-var(--site-nav-height)-(--spacing(16)))]",
+	anchor:
+		"[&_[id]]:scroll-mt-[calc(var(--site-banner-offset)+var(--site-nav-height)+--spacing(6))]",
 } as const;
-
-type Offset = (typeof OFFSET)[keyof typeof OFFSET];
 
 function order(t: Translate): DocLink[] {
 	return [
@@ -147,15 +137,7 @@ function PageLinks({
 	);
 }
 
-function Outline({
-	headings,
-	offset,
-	t,
-}: {
-	headings: DocHeading[];
-	offset: Offset;
-	t: Translate;
-}) {
+function Outline({ headings, t }: { headings: DocHeading[]; t: Translate }) {
 	if (!headings.length) return null;
 
 	return (
@@ -163,8 +145,8 @@ function Outline({
 			aria-label={t("On this page")}
 			className={cn(
 				"sticky overflow-y-auto max-[1240px]:hidden",
-				offset.top,
-				offset.height,
+				OFFSET.top,
+				OFFSET.height,
 			)}
 		>
 			<p className={LABEL}>{t("On this page")}</p>
@@ -224,7 +206,6 @@ export async function DocsShell({
 }) {
 	const t = await getT();
 	const items = order(t);
-	const offset = MARKETING_NAV.pricing ? OFFSET.banner : OFFSET.nav;
 
 	return (
 		<LandingShell>
@@ -234,7 +215,7 @@ export async function DocsShell({
 				className="pt-18 pb-28 max-[900px]:pt-10 max-[900px]:pb-16"
 			>
 				<div className="grid grid-cols-[--spacing(55)_minmax(0,1fr)_--spacing(50)] items-start gap-14 max-[1240px]:grid-cols-[--spacing(50)_minmax(0,1fr)] max-[1240px]:gap-12 max-[900px]:grid-cols-1 max-[900px]:gap-8">
-					<aside className={cn("sticky max-[900px]:hidden", offset.top)}>
+					<aside className={cn("sticky max-[900px]:hidden", OFFSET.top)}>
 						<p className={LABEL}>{t("All pages")}</p>
 						<nav aria-label={t("Documentation")}>
 							<DocsNavList items={items} current={current} />
@@ -262,12 +243,12 @@ export async function DocsShell({
 						</CollapsibleContent>
 					</Collapsible>
 
-					<div className={cn("min-w-0 max-w-(--site-prose)", offset.anchor)}>
+					<div className={cn("min-w-0 max-w-(--site-prose)", OFFSET.anchor)}>
 						{children}
 						<PageLinks items={items} current={current} t={t} />
 					</div>
 
-					<Outline headings={outline} offset={offset} t={t} />
+					<Outline headings={outline} t={t} />
 				</div>
 			</Section>
 		</LandingShell>

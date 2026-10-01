@@ -79,11 +79,26 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 function TableHead({
 	className,
 	control,
+	scope,
 	...props
 }: React.ComponentProps<"th"> & { control?: boolean }) {
+	if (scope === "row") {
+		return (
+			<th
+				data-slot="table-head"
+				scope={scope}
+				className={cn(
+					"px-4 py-3 text-left align-middle font-normal whitespace-nowrap text-muted-foreground site:align-top",
+					className,
+				)}
+				{...props}
+			/>
+		);
+	}
 	return (
 		<th
 			data-slot="table-head"
+			scope={scope}
 			className={cn(
 				"h-10 px-4 text-left align-middle text-xs font-normal text-muted-foreground [&:has([role=checkbox])]:overflow-visible [&:has([role=checkbox])]:pr-0 site:h-auto site:py-3 site:font-mono site:font-(--site-weight-medium) site:uppercase site:tracking-(--site-tracking-label)",
 				control ? "overflow-visible" : "truncate",

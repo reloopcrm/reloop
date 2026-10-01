@@ -265,5 +265,6 @@
 	"The AI is included in this plan. There is no model to choose.": "Yapay zeka bu plana dahil. Seçilecek bir model yok.",
 	"Only an owner or an admin can remove a member.": "Bir üyeyi sadece sahip veya yönetici kaldırır.",
 	"You cannot remove yourself from the workspace.": "Kendini çalışma alanından kaldıramazsın.",
-	"Only an owner can remove an owner.": "Bir sahibi sadece bir sahip kaldırır."
+	"Only an owner can remove an owner.": "Bir sahibi sadece bir sahip kaldırır.",
+	"Show archived": "Arşivlenenleri göster"
 }

@@ -34,5 +34,18 @@
 	"Select a date": "选择日期",
 	"Reasoning": "推理过程",
 	"Command Palette": "命令面板",
-	"Search for a command to run.": "搜索要执行的命令。"
+	"Search for a command to run.": "搜索要执行的命令。",
+	"Filter": "筛选",
+	"Where": "条件",
+	"{field} is {values}": "{field}为{values}",
+	"Remove filter": "移除筛选",
+	"Selection": "选择",
+	"1 selected": "已选 1 项",
+	"{count} selected": "已选 {count} 项",
+	"Clear selection": "取消选择",
+	"Select {name}": "选择 {name}",
+	"Nothing matches these filters.": "没有符合这些筛选条件的内容。",
+	"Reset filters": "重置筛选",
+	"Rows per page": "每页行数",
+	"Pages": "页码"
 }

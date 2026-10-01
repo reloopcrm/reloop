@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { fitColumnWidths, pageWindow, TABLE } from "../lib/table-config";
 
 const parser = { withDefault: (value: unknown) => value };
 
@@ -12,6 +13,7 @@ mock.module("nuqs", () => ({
 const { DataTable } = await import("./data-table");
 
 const query = {
+	search: "",
 	page: 1,
 	pageSize: 25,
 	sort: "name",
@@ -19,11 +21,24 @@ const query = {
 	tab: "all",
 	filters: {},
 	setPage: async () => {},
+	setPageSize: () => {},
 	setSort: () => {},
 	setDir: () => {},
 	setTab: () => {},
 	setFilter: () => {},
 	toggleSort: () => {},
+	reset: () => {},
+};
+
+const noSelection = {
+	ids: [],
+	count: 0,
+	has: () => false,
+	toggle: () => {},
+	toggleAll: () => {},
+	clear: () => {},
+	allSelected: false,
+	someSelected: false,
 };
 
 function cells(markup: string): string[] {
@@ -40,6 +55,7 @@ describe("DataTable", () => {
 			query={query}
 			columns={[
 				{ id: "name", header: "Name", cell: (row) => row.name },
+				{ id: "city", header: "City", size: 160, cell: () => "Genoa" },
 				{
 					id: "actions",
 					header: "Actions",
@@ -50,35 +66,71 @@ describe("DataTable", () => {
 			rows={[{ id: "1", name: "Ada" }]}
 			total={1}
 			getRowId={(row) => row.id}
+			onRowClick={() => {}}
 		/>,
 	);
-	const [text, control] = cells(markup);
-	const [textHead, controlHead] = heads(markup);
+	const [text, second, control] = cells(markup);
+	const [, , controlHead] = heads(markup);
 
-	it("truncates a text cell", () => {
+	it("keeps every cell on one line and cuts it with an ellipsis", () => {
 		expect(text).toContain("truncate");
-	});
-
-	it("never truncates a control cell and gives it a fixed width", () => {
-		expect(control).not.toContain("truncate");
-		expect(control).toContain("w-17");
-	});
-
-	it("never truncates a text column header, so the column is at least as wide as its heading", () => {
-		expect(textHead).not.toContain("truncate");
-		expect(textHead).toContain("whitespace-nowrap");
-	});
-
-	it("lets a text cell shrink below its content so it truncates instead of widening the column", () => {
 		expect(text).toContain("max-w-0");
+		expect(second).toContain("truncate");
 	});
 
-	it("sizes columns automatically instead of fixing them", () => {
-		expect(markup).not.toContain("table-fixed");
+	it("fixes the column widths so a long value never widens the table", () => {
+		expect(markup).toContain("table-fixed");
+		expect(markup).toContain("width:160px");
+		expect(markup).toContain(`width:${TABLE.column.controlPx}px`);
 	});
 
-	it("never truncates a control column header", () => {
+	it("never truncates a control cell or its header", () => {
+		expect(control).not.toContain("truncate");
 		expect(controlHead).not.toContain("truncate");
+	});
+
+	it("clips instead of scrolling sideways", () => {
+		expect(markup).toContain("overflow-x-clip");
+		expect(markup).not.toContain("overflow-x-auto");
+	});
+
+	it("labels each secondary cell for the phone card", () => {
+		expect(second).toContain('data-label="City"');
+	});
+
+	it("lets the keyboard open a clickable row", () => {
+		expect(markup).toMatch(/<tr[^>]*tabindex="0"/);
+	});
+
+	it("shows the selection bar only while something is selected", () => {
+		const idle = renderToStaticMarkup(
+			<DataTable
+				query={query}
+				columns={[{ id: "name", header: "Name", cell: (row) => row.name }]}
+				rows={[{ id: "1", name: "Ada" }]}
+				total={1}
+				getRowId={(row) => row.id}
+				selection={{ state: noSelection, actions: null }}
+			/>,
+		);
+		expect(idle).not.toContain('data-slot="selection-bar"');
+
+		const picked = renderToStaticMarkup(
+			<DataTable
+				query={query}
+				columns={[{ id: "name", header: "Name", cell: (row) => row.name }]}
+				rows={[{ id: "1", name: "Ada" }]}
+				total={1}
+				getRowId={(row) => row.id}
+				selection={{
+					state: { ...noSelection, ids: ["1"], count: 1, has: () => true },
+					actions: <button type="button">Archive</button>,
+				}}
+			/>,
+		);
+		expect(picked).toContain('data-slot="selection-bar"');
+		expect(picked).toContain("Archive");
+		expect(picked).toContain("Clear selection");
 	});
 
 	it("lets the select-all checkbox header overflow its cell", () => {
@@ -89,23 +141,25 @@ describe("DataTable", () => {
 				rows={[{ id: "1", name: "Ada" }]}
 				total={1}
 				getRowId={(row) => row.id}
-				selection={{
-					state: {
-						ids: [],
-						count: 0,
-						has: () => false,
-						toggle: () => {},
-						toggleAll: () => {},
-						clear: () => {},
-						allSelected: false,
-						someSelected: false,
-					},
-					actions: null,
-				}}
+				selection={{ state: noSelection, actions: null }}
 			/>,
 		);
 		const [checkboxHead] = heads(selectionMarkup);
 		expect(checkboxHead).toContain("overflow-visible");
+	});
+
+	it("offers to reset the filters when they match nothing", () => {
+		const emptyMarkup = renderToStaticMarkup(
+			<DataTable
+				query={{ ...query, search: "nobody" }}
+				columns={[{ id: "name", header: "Name", cell: () => "" }]}
+				rows={[]}
+				total={0}
+				getRowId={() => ""}
+			/>,
+		);
+		expect(emptyMarkup).toContain("Nothing matches these filters.");
+		expect(emptyMarkup).toContain("Reset filters");
 	});
 
 	it("hides a defaultHidden column until the user switches it on", () => {
@@ -126,12 +180,6 @@ describe("DataTable", () => {
 						defaultHidden: true,
 						cell: () => "retail",
 					},
-					{
-						id: "title",
-						header: "Title",
-						defaultHidden: true,
-						cell: () => "cto",
-					},
 				]}
 				rows={[{ id: "1", name: "Ada" }]}
 				total={1}
@@ -141,6 +189,33 @@ describe("DataTable", () => {
 		expect(heads(hiddenMarkup)).toHaveLength(1);
 		expect(hiddenMarkup).not.toContain("ada.test");
 		expect(hiddenMarkup).not.toContain("retail");
-		expect(hiddenMarkup).not.toContain("cto");
+	});
+});
+
+describe("fitColumnWidths", () => {
+	const sum = (widths: number[]) => widths.reduce((a, b) => a + b, 0);
+
+	it("keeps the asked widths when they fit", () => {
+		expect(fitColumnWidths(1200, [230, 90, 130])).toEqual([230, 90, 130]);
+	});
+
+	it("shrinks every column so the first one keeps its room", () => {
+		const widths = fitColumnWidths(600, [230, 230, 130]);
+		expect(sum(widths)).toBeLessThanOrEqual(600 - TABLE.column.primaryMinPx);
+		for (const width of widths)
+			expect(width).toBeGreaterThanOrEqual(TABLE.column.minPx);
+	});
+
+	it("never asks for more room than there is, even below the minimum", () => {
+		const widths = fitColumnWidths(400, [200, 200, 200, 200, 200]);
+		expect(sum(widths)).toBeLessThanOrEqual(400 - TABLE.column.primaryMinPx);
+	});
+});
+
+describe("pageWindow", () => {
+	it("shows the first, the last and the pages around the current one", () => {
+		expect(pageWindow(1, 1)).toEqual([1]);
+		expect(pageWindow(5, 10)).toEqual([1, 4, 5, 6, 10]);
+		expect(pageWindow(1, 3)).toEqual([1, 2, 3]);
 	});
 });

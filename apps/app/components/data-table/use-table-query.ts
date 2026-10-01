@@ -1,5 +1,6 @@
 "use client";
 
+import { isPageSize } from "@crm/ui/lib/table-config";
 import type { SortDirection, TableQueryState } from "@crm/ui/lib/table-query";
 import type { SavedViewFilters } from "@crm/validation/saved-view";
 import type { Nullable, Values } from "nuqs";
@@ -41,6 +42,7 @@ const rawValuesSchema = z
 		sort: z.string().default(""),
 		dir: z.string().default("asc"),
 		page: z.number().default(1),
+		size: z.number().nullable().default(null),
 		fields: fieldFiltersValueSchema.default({}),
 		archived: z.boolean().default(false),
 	})
@@ -81,6 +83,8 @@ export function useTableQuery<TTab extends string, TFacet extends string>(
 	const dir = values.dir === "desc" ? "desc" : "asc";
 	const rawPage = values.page;
 	const page = rawPage > 0 ? rawPage : 1;
+	const size = values.size;
+	const currentPageSize = size != null && isPageSize(size) ? size : pageSize;
 	const fields = values.fields;
 	const archived = values.archived;
 	const tab = tabId ? asString(values[tabId]) : "all";
@@ -95,10 +99,11 @@ export function useTableQuery<TTab extends string, TFacet extends string>(
 	}
 
 	const query: TableQueryState = {
+		search: q,
 		sort,
 		dir,
 		page,
-		pageSize,
+		pageSize: currentPageSize,
 		tab,
 		tabId,
 		filters,
@@ -115,6 +120,13 @@ export function useTableQuery<TTab extends string, TFacet extends string>(
 		setSort: (id) => setValues({ sort: id, page: 1 }),
 		setDir: (nextDir) => setValues({ dir: nextDir, page: 1 }),
 		setPage: (next) => setValues({ page: next }),
+		setPageSize: (next) =>
+			setValues({ size: next === pageSize ? null : next, page: 1 }),
+		reset: () => {
+			const update: RawUpdate = { q: null, fields: null, page: 1 };
+			for (const id of facetIds ?? []) update[id] = null;
+			setValues(update);
+		},
 		setTab: (value) => {
 			if (!tabId) return;
 			setValues({ [tabId]: value, page: 1 });
@@ -138,6 +150,7 @@ export function useTableQuery<TTab extends string, TFacet extends string>(
 		sort,
 		dir,
 		page: rawPage,
+		size,
 		fields,
 		archived,
 		...Object.fromEntries(

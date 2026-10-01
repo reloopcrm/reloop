@@ -61,25 +61,22 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		id: "standing",
 		header: "Status",
 		sortable: true,
-		width: "w-[12%]",
-		hideBelow: "sm",
+		size: 140,
 		cell: (row) => <StandingCell standing={row.standing} />,
 	},
 	{
 		id: "potential",
 		header: "Potential",
 		sortable: true,
-		width: "w-[9%]",
+		size: 100,
 		cellClassName: "text-2sm",
-		hideBelow: "xl",
 		cell: (row) => <PotentialCell potential={row.potential} />,
 	},
 	{
 		id: "title",
 		header: "Title",
 		sortable: true,
-		width: "w-[13%]",
-		hideBelow: "xl",
+		size: 150,
 		defaultHidden: true,
 		cellClassName: "text-2sm",
 		cell: (row) =>
@@ -93,8 +90,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		id: "email",
 		header: "Email",
 		sortable: true,
-		width: "w-[17%]",
-		hideBelow: "lg",
+		size: 200,
 		cellClassName: "text-2sm",
 		cell: (row) =>
 			row.email ? (
@@ -107,7 +103,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		id: "company",
 		header: "Company",
 		sortable: true,
-		width: "w-[15%]",
+		size: 170,
 		cellClassName: "text-2sm",
 		cell: (row) => <CompanyCell company={row.company} />,
 	},
@@ -115,9 +111,8 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		id: "owner",
 		header: "Owner",
 		sortable: true,
-		width: "w-[14%]",
+		size: 160,
 		cellClassName: "text-2sm",
-		hideBelow: "md",
 		defaultHidden: true,
 		cell: (row) => <OwnerCell owner={row.owner} />,
 	},
@@ -127,7 +122,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		label: "Created date",
 		sortable: true,
 		align: "right",
-		width: "w-[10%]",
+		size: 120,
 		defaultHidden: true,
 		cellClassName: "text-2sm",
 		cell: (row) => (
@@ -141,8 +136,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 		header: "Last activity",
 		sortable: true,
 		align: "right",
-		width: "w-[13%]",
-		hideBelow: "sm",
+		size: 150,
 		cellClassName: "text-2sm",
 		cell: (row) => (
 			<span className="text-muted-foreground">
@@ -163,7 +157,7 @@ const ARCHIVED_COLUMNS: LabeledColumn<ContactRow>[] = [
 		label: "Archived date",
 		sortable: true,
 		align: "right",
-		width: "w-[13%]",
+		size: 150,
 		cellClassName: "text-2sm",
 		cell: (row) => (
 			<span className="text-muted-foreground">

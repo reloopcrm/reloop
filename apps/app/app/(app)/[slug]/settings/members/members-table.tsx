@@ -95,8 +95,7 @@ function columns(
 			id: "email",
 			header: t("Email"),
 			sortable: true,
-			width: "w-[32%]",
-			hideBelow: "md",
+			size: 370,
 			cell: (row) => (
 				<span className="truncate text-muted-foreground">{row.email}</span>
 			),
@@ -105,7 +104,7 @@ function columns(
 			id: "role",
 			header: t("Role"),
 			sortable: true,
-			width: "w-[14%] min-w-20",
+			size: 160,
 			cell: (row) => (
 				<span className="text-muted-foreground">{t(ROLE_LABEL[row.role])}</span>
 			),
@@ -116,8 +115,7 @@ function columns(
 			label: t("Joined date"),
 			sortable: true,
 			align: "right",
-			width: "w-[14%] min-w-28",
-			hideBelow: "lg",
+			size: 160,
 			cell: (row) => (
 				<span className="text-muted-foreground">
 					<LocalRelativeTime date={row.joinedAt} />

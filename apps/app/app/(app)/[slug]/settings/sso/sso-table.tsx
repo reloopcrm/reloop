@@ -57,8 +57,7 @@ function columns(
 			id: "domain",
 			header: t("Email domain"),
 			sortable: true,
-			width: "w-[22%]",
-			hideBelow: "sm",
+			size: 250,
 			cell: (row) => (
 				<span className="truncate text-muted-foreground">
 					{row.domains.join(", ")}
@@ -69,8 +68,7 @@ function columns(
 			id: "issuer",
 			header: t("Issuer"),
 			sortable: true,
-			width: "w-[22%]",
-			hideBelow: "md",
+			size: 250,
 			cell: (row) => (
 				<span className="truncate text-muted-foreground">{row.issuer}</span>
 			),
@@ -78,8 +76,7 @@ function columns(
 		{
 			id: "callbackURL",
 			header: t("Redirect URI"),
-			width: "w-[20%]",
-			hideBelow: "lg",
+			size: 230,
 			cell: (row) => (
 				<span className="flex min-w-0 items-center gap-1 text-muted-foreground">
 					<span className="truncate">{row.callbackURL}</span>

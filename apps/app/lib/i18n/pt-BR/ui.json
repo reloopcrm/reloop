@@ -34,5 +34,18 @@
 	"Select a date": "Escolher uma data",
 	"Reasoning": "Raciocínio",
 	"Command Palette": "Paleta de comandos",
-	"Search for a command to run.": "Busque um comando para rodar."
+	"Search for a command to run.": "Busque um comando para rodar.",
+	"Filter": "Filtrar",
+	"Where": "Onde",
+	"{field} is {values}": "{field} é {values}",
+	"Remove filter": "Remover filtro",
+	"Selection": "Seleção",
+	"1 selected": "1 selecionado",
+	"{count} selected": "{count} selecionados",
+	"Clear selection": "Limpar seleção",
+	"Select {name}": "Selecionar {name}",
+	"Nothing matches these filters.": "Nada corresponde a estes filtros.",
+	"Reset filters": "Redefinir filtros",
+	"Rows per page": "Linhas por página",
+	"Pages": "Páginas"
 }

@@ -134,26 +134,35 @@ a heading.
 ## Public site
 
 The public site is the `(landing)` route group: marketing pages, docs, sign-in,
-onboarding, grant-access, contact, privacy and imprint. It renders inside `.site`,
-set once by `app/(landing)/layout.tsx`. `.site` is a second token scope in
-`packages/ui/src/styles/site.css`: paper and ink greys, one blue for reading and
-one orange for win back, 4px corners, Inter Tight, Newsreader for ledes, DM Mono
-for labels, weights up to 500. The same file holds the site's type scale, spacing
-rhythm and hairlines as `--site-*` variables, light under `.site` and dark under
-`.dark .site`. Every selector in it starts at `.site`, because a stylesheet a
-route group loads stays loaded after client navigation into the app.
+onboarding, grant-access, contact, privacy and imprint. Its design lives in a
+second token scope, `.site`, in `packages/ui/src/styles/site.css`: paper and ink
+greys, one blue for reading and one orange for win back, 4px corners, Inter Tight,
+Newsreader for ledes, DM Mono for labels. The same file holds the site's type
+scale, weights, spacing rhythm and hairlines as `--site-*` variables, light under
+`.site` and dark under `.dark .site`. Every selector in it is scoped to `.site`,
+because a stylesheet a route group loads stays loaded after client navigation into
+the app.
 
-The shared components from `packages/ui` render there unchanged. Where a shape
-differs, the component carries a `site:` class in `packages/ui`, never at the call
-site. Lime, the pill and the 590 weight belong to the app and never appear inside
-`.site`. A product image may carry the one shadow token `--shadow`; nothing else in
-`.site` has a shadow. Marketing blocks live in `apps/app/components/site/` (public)
-or `components/landing/` (hosted overlay). The app never renders inside `.site`.
+`app/(landing)/layout.tsx` loads the stylesheet and the three fonts as
+`--font-site-*` variables, nothing else. A page enters the scope only when its
+shell puts the `.site` class on its root; the site shells that do so come with the
+new header, footer and sign-in. Until then every public page renders as before.
 
-On a public-site host (`RELOOP_MARKETING_HOST`, or a build with `IS_MARKETING`) the
-theme defaults to the device. Every other host defaults to dark. `Display` at weight 900
-through `font-display` is the old landing headline: it stays until the last block
-that imports it is gone, and nothing new uses it.
+The shared components from `packages/ui` render inside `.site` unchanged.
+`@theme inline` writes their weights (510, 590) and their larger radii as fixed
+values, so `.site` does not change them: the site's own weights stop at 500
+(`--site-weight-*`), and a component reaches them through a `site:` class in
+`packages/ui`, never at the call site. Where a shape differs, the same rule holds.
+Lime, the pill and the 590 weight belong to the app and never appear inside `.site`.
+A product image may carry the one shadow token `--shadow`; nothing else in `.site`
+has a shadow. Marketing blocks live in `apps/app/components/site/` (public) or
+`components/landing/` (hosted overlay). The app never renders inside `.site`.
+
+The theme default is chosen per route group in `apps/app/lib/theme-config.ts`.
+The app is dark. The public site is dark too until its shells stop forcing `.dark`;
+then `(landing)` follows the device. `Display` at weight 900 through `font-display`
+is the old landing headline: it stays until the last block that imports it is gone,
+and nothing new uses it.
 
 ## Shell
 

@@ -11,7 +11,11 @@ import {
 } from "@crm/ui/components/dropdown-menu";
 import { DownloadIcon, MoreIcon } from "@crm/ui/components/line-icons";
 import { useT } from "@/lib/i18n/client";
-import { type ExportEntity, useCsvExport } from "./export-button";
+import {
+	type ExportEntity,
+	type ExportInput,
+	useCsvExport,
+} from "./export-button";
 
 export function ListMoreMenu({
 	entity,
@@ -20,7 +24,7 @@ export function ListMoreMenu({
 	onArchivedChange,
 }: {
 	entity: ExportEntity;
-	input: unknown;
+	input: ExportInput;
 	archived?: boolean;
 	onArchivedChange?: (archived: boolean) => void;
 }) {

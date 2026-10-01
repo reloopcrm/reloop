@@ -8,8 +8,14 @@ import {
 import { Button } from "@crm/ui/components/button";
 import { toast } from "sonner";
 import { useLocale, useT } from "@/lib/i18n/client";
+import type { RouterInputs } from "@/lib/trpc/types";
 
 export type ExportEntity = "contacts" | "companies" | "deals";
+
+export type ExportInput =
+	| RouterInputs["contacts"]["list"]
+	| RouterInputs["companies"]["list"]
+	| RouterInputs["deals"]["list"];
 
 class ExportFailed extends Error {}
 
@@ -22,7 +28,7 @@ export function exportFilename(
 	return FILENAME.exec(disposition ?? "")?.[1] ?? fallback;
 }
 
-export function useCsvExport(entity: ExportEntity, input: unknown) {
+export function useCsvExport(entity: ExportEntity, input: ExportInput) {
 	const t = useT();
 	const locale = useLocale();
 
@@ -74,7 +80,7 @@ export function ExportButton({
 	variant = "outline",
 }: {
 	entity: ExportEntity;
-	input: unknown;
+	input: ExportInput;
 	variant?: "outline" | "link";
 }) {
 	const t = useT();

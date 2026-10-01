@@ -6,18 +6,28 @@ import { useT } from "@/lib/i18n/client";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { overviewParsers } from "./overview-search-params";
 
+function useWelcomeBack(firstName: string | undefined) {
+	const t = useT();
+	return firstName
+		? t("Welcome back, {name}", { name: firstName })
+		: t("Welcome back");
+}
+
 export function OverviewGreetingFallback({
 	connected,
+	firstName,
 }: {
 	connected: boolean;
+	firstName?: string;
 }) {
 	const t = useT();
+	const title = useWelcomeBack(firstName);
 
 	if (!connected) return <FirstVisit />;
 
 	return (
 		<>
-			<PageShellTitle>{t("Welcome back")}</PageShellTitle>
+			<PageShellTitle>{title}</PageShellTitle>
 			<PageShellDescription>
 				{t(
 					"What you have closed, what is still in play, and what needs you today.",
@@ -27,8 +37,15 @@ export function OverviewGreetingFallback({
 	);
 }
 
-export function OverviewGreeting({ connected }: { connected: boolean }) {
+export function OverviewGreeting({
+	connected,
+	firstName,
+}: {
+	connected: boolean;
+	firstName?: string;
+}) {
 	const t = useT();
+	const title = useWelcomeBack(firstName);
 	const [scope] = useQueryState(
 		SEARCH_PARAM.overview.scope,
 		overviewParsers[SEARCH_PARAM.overview.scope],
@@ -38,7 +55,7 @@ export function OverviewGreeting({ connected }: { connected: boolean }) {
 
 	return (
 		<>
-			<PageShellTitle>{t("Welcome back")}</PageShellTitle>
+			<PageShellTitle>{title}</PageShellTitle>
 			<PageShellDescription>
 				{scope === "me"
 					? t(

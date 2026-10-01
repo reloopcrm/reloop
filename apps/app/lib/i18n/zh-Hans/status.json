@@ -51,5 +51,13 @@
 	"Submit answer": "提交答案",
 	"Back": "返回",
 	"Agent is researching": "智能体正在调研",
-	"Not known yet": "尚不清楚"
+	"Not known yet": "尚不清楚",
+	"Add a deal": "添加交易",
+	"Owner is me": "负责人是我",
+	"Welcome back, {name}": "欢迎回来，{name}",
+	"Outcome": "结果",
+	"{days} d": "{days} 天",
+	"Archive 1 deal?": "归档 1 笔交易？",
+	"Archive {count} deals?": "归档 {count} 笔交易？",
+	"They leave this list and stay under Show archived, where you can restore them.": "它们会从此列表中移除，并保留在“显示已归档”中，你可以在那里恢复。"
 }

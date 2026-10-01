@@ -51,5 +51,13 @@
 	"Submit answer": "Antwort senden",
 	"Back": "Zurück",
 	"Agent is researching": "Der Agent recherchiert",
-	"Not known yet": "Noch nicht bekannt"
+	"Not known yet": "Noch nicht bekannt",
+	"Add a deal": "Deal hinzufügen",
+	"Owner is me": "Ich bin zuständig",
+	"Welcome back, {name}": "Willkommen zurück, {name}",
+	"Outcome": "Ergebnis",
+	"{days} d": "{days} Tg.",
+	"Archive 1 deal?": "1 Geschäft archivieren?",
+	"Archive {count} deals?": "{count} Geschäfte archivieren?",
+	"They leave this list and stay under Show archived, where you can restore them.": "Sie verschwinden aus dieser Liste und bleiben unter „Archivierte zeigen“. Dort kannst du sie wiederherstellen."
 }

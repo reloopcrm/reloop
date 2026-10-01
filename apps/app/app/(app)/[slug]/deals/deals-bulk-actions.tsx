@@ -15,10 +15,6 @@ import {
 import {
 	DropdownMenuGroup,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
 } from "@crm/ui/components/dropdown-menu";
 import { Field, FieldLabel } from "@crm/ui/components/field";
 import { Spinner } from "@crm/ui/components/spinner";
@@ -27,9 +23,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import {
-	BulkActionsMenu,
 	BulkDeleteDialog,
-	BulkOwnerMenu,
+	BulkMenuButton,
+	BulkOwnerButton,
 	reportBulk,
 } from "@/components/crm/bulk-actions";
 import { LOSING_STAGES } from "@/lib/deal-stage";
@@ -57,6 +53,7 @@ export function DealsBulkActions({
 	const [closing, setClosing] = useState<DealStage | null>(null);
 	const [reason, setReason] = useState("");
 	const [confirming, setConfirming] = useState(false);
+	const [archiving, setArchiving] = useState(false);
 
 	const onError = (error: { message: string }) =>
 		toast.error(errorMessage(error.message));
@@ -155,27 +152,26 @@ export function DealsBulkActions({
 	);
 
 	if (archived) {
-		const archivedPending = restore.isPending || purge.isPending;
-
 		return (
 			<>
-				<BulkActionsMenu pending={archivedPending}>
-					<DropdownMenuGroup>
-						<DropdownMenuItem onSelect={() => restore.mutate({ ids })}>
-							<Undo />
-							{t("Restore")}
-						</DropdownMenuItem>
-					</DropdownMenuGroup>
-					<DropdownMenuSeparator />
-					<DropdownMenuGroup>
-						<DropdownMenuItem
-							variant="destructive"
-							onSelect={() => setConfirming(true)}
-						>
-							{t("Delete forever")}
-						</DropdownMenuItem>
-					</DropdownMenuGroup>
-				</BulkActionsMenu>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={restore.isPending}
+					onClick={() => restore.mutate({ ids })}
+				>
+					{restore.isPending ? <Spinner /> : <Undo data-icon="inline-start" />}
+					{t("Restore")}
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={purge.isPending}
+					onClick={() => setConfirming(true)}
+				>
+					{purge.isPending ? <Spinner /> : null}
+					{t("Delete forever")}
+				</Button>
 
 				<BulkDeleteDialog
 					open={confirming}
@@ -194,47 +190,58 @@ export function DealsBulkActions({
 		);
 	}
 
-	const pending =
-		assignOwner.isPending || setStage.isPending || archive.isPending;
-
 	return (
 		<>
-			<BulkActionsMenu pending={pending}>
-				<BulkOwnerMenu
-					users={users.data ?? []}
-					onSelect={(ownerId) =>
-						ownerId && assignOwner.mutate({ ids, ownerId })
-					}
-				/>
-				<DropdownMenuSub>
-					<DropdownMenuSubTrigger>{t("Change stage")}</DropdownMenuSubTrigger>
-					<DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-						<DropdownMenuGroup>
-							{stageOptions.map((option) => (
-								<DropdownMenuItem
-									key={option.value}
-									onSelect={() => {
-										if (LOSING_STAGES.includes(option.value)) {
-											setClosing(option.value);
-											return;
-										}
-										setStage.mutate({ ids, stage: option.value });
-									}}
-								>
-									{option.label}
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuGroup>
-					</DropdownMenuSubContent>
-				</DropdownMenuSub>
-				<DropdownMenuSeparator />
+			<BulkMenuButton label={t("Change stage")} pending={setStage.isPending}>
 				<DropdownMenuGroup>
-					<DropdownMenuItem onSelect={() => archive.mutate({ ids })}>
-						<Archive />
-						{t("Archive")}
-					</DropdownMenuItem>
+					{stageOptions.map((option) => (
+						<DropdownMenuItem
+							key={option.value}
+							onSelect={() => {
+								if (LOSING_STAGES.includes(option.value)) {
+									setClosing(option.value);
+									return;
+								}
+								setStage.mutate({ ids, stage: option.value });
+							}}
+						>
+							{option.label}
+						</DropdownMenuItem>
+					))}
 				</DropdownMenuGroup>
-			</BulkActionsMenu>
+			</BulkMenuButton>
+			<BulkOwnerButton
+				users={users.data ?? []}
+				pending={assignOwner.isPending}
+				onSelect={(ownerId) => ownerId && assignOwner.mutate({ ids, ownerId })}
+			/>
+			<Button
+				variant="outline"
+				size="sm"
+				disabled={archive.isPending}
+				onClick={() => setArchiving(true)}
+			>
+				{archive.isPending ? <Spinner /> : <Archive data-icon="inline-start" />}
+				{t("Archive")}
+			</Button>
+			<BulkDeleteDialog
+				open={archiving}
+				onOpenChange={setArchiving}
+				destructive={false}
+				confirmLabel={t("Archive")}
+				title={
+					ids.length === 1
+						? t("Archive 1 deal?")
+						: t("Archive {count} deals?", { count: ids.length })
+				}
+				description={t(
+					"They leave this list and stay under Show archived, where you can restore them.",
+				)}
+				onConfirm={() => {
+					setArchiving(false);
+					archive.mutate({ ids });
+				}}
+			/>
 
 			<Dialog
 				open={closing !== null}

@@ -1,3 +1,4 @@
+import { MonoLabel } from "@crm/ui/components/mark";
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
 
@@ -5,55 +6,15 @@ type TrendDirection = "up" | "down" | "neutral";
 
 type StatDelta = {
 	value: string;
-	direction?: TrendDirection;
+	direction: TrendDirection;
 	label?: string;
 };
 
-const TREND_COLOR: Record<TrendDirection, string> = {
-	up: "text-success",
-	down: "text-destructive",
-	neutral: "text-muted-foreground",
-};
-
-const TREND_GLYPH: Record<TrendDirection, string> = {
-	up: "↑",
-	down: "↓",
-	neutral: "→",
-};
-
-function inferDirection(value: string): TrendDirection {
-	if (value.trim().startsWith("-")) return "down";
-	if (value.trim().startsWith("+")) return "up";
-	return "neutral";
-}
-
-function StatDeltaText({
-	delta,
-	className,
-}: {
-	delta: StatDelta;
-	className?: string;
-}) {
-	const direction = delta.direction ?? inferDirection(delta.value);
-	return (
-		<span className={cn("inline-flex items-baseline gap-1.5", className)}>
-			<span
-				className={cn(
-					"inline-flex items-baseline gap-0.5 font-medium text-xs tabular-nums",
-					TREND_COLOR[direction],
-				)}
-			>
-				{direction !== "neutral" ? (
-					<span aria-hidden>{TREND_GLYPH[direction]}</span>
-				) : null}
-				{delta.value}
-			</span>
-			{delta.label ? (
-				<span className="text-muted-foreground text-xs">{delta.label}</span>
-			) : null}
-		</span>
-	);
-}
+const TREND = {
+	up: { color: "text-blue", glyph: "\u2191" },
+	down: { color: "text-foreground", glyph: "\u2193" },
+	neutral: { color: "text-muted-foreground", glyph: "" },
+} as const satisfies Record<TrendDirection, { color: string; glyph: string }>;
 
 function StatCard({
 	label,
@@ -72,20 +33,36 @@ function StatCard({
 	return (
 		<div
 			data-slot="stat-card"
-			className={cn("flex flex-col gap-2.5 p-4 md:p-6", className)}
+			className={cn("flex min-w-0 flex-col px-4 pt-5 pb-5.5 md:px-5", className)}
 			{...props}
 		>
 			{label != null ? (
-				<span className="text-pretty text-sm text-body-foreground">{label}</span>
+				<MonoLabel className="text-pretty leading-relaxed">{label}</MonoLabel>
 			) : null}
-			<div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-				<span className="font-semibold text-3xl leading-none tracking-tight tabular-nums">
-					{value}
-				</span>
-				{delta ? <StatDeltaText delta={delta} /> : null}
-			</div>
-			{description ? (
-				<p className="text-pretty text-2sm text-muted-foreground">{description}</p>
+			<span className="mt-2.5 font-normal text-[2rem] leading-none tracking-tight tabular-nums">
+				{value}
+			</span>
+			{delta || description ? (
+				<p className="mt-2.5 text-pretty text-2sm text-muted-foreground">
+					{delta ? (
+						<>
+							<span
+								className={cn(
+									"font-medium tabular-nums",
+									TREND[delta.direction].color,
+								)}
+							>
+								{TREND[delta.direction].glyph ? (
+									<span aria-hidden>{TREND[delta.direction].glyph} </span>
+								) : null}
+								{delta.value}
+							</span>
+							{delta.label ? ` ${delta.label}` : null}
+							{description ? " · " : null}
+						</>
+					) : null}
+					{description}
+				</p>
 			) : null}
 			{children}
 		</div>
@@ -93,4 +70,4 @@ function StatCard({
 }
 
 export type { StatDelta, TrendDirection };
-export { StatCard, StatDeltaText };
+export { StatCard };

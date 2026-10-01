@@ -6,10 +6,9 @@ import { cn } from "@crm/ui/lib/utils";
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { Suspense } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/lib/i18n/client";
-import { DEFAULT_LOCALE, DOCUMENT_LANGUAGE_SCRIPT } from "@/lib/i18n/locale";
+import { DOCUMENT_LANGUAGE_SCRIPT } from "@/lib/i18n/locale";
 import { getDictionary, getLocale, getT } from "@/lib/i18n/server";
 import { siteAddress } from "@/lib/site-address";
 import { TRPCReactProvider } from "@/lib/trpc/client";
@@ -66,14 +65,18 @@ const metadata: Metadata = {
 		: undefined,
 };
 
-export default function RootLayout({
+export const instant = false;
+
+export default async function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	const locale = await getLocale();
+
 	return (
 		<html
-			lang={DEFAULT_LOCALE}
+			lang={locale}
 			suppressHydrationWarning
 			className={cn(fontSans.variable, fontMono.variable, "h-full antialiased")}
 		>
@@ -81,27 +84,17 @@ export default function RootLayout({
 				<script>{DOCUMENT_LANGUAGE_SCRIPT}</script>
 			</head>
 			<body className="flex min-h-full flex-col font-sans">
-				<Suspense fallback={null}>
-					<Localised>{children}</Localised>
-				</Suspense>
+				<I18nProvider locale={locale} dictionary={getDictionary(locale)}>
+					<NuqsAdapter>
+						<TRPCReactProvider>
+							<ThemeProvider>
+								<TooltipProvider>{children}</TooltipProvider>
+								<Toaster richColors />
+							</ThemeProvider>
+						</TRPCReactProvider>
+					</NuqsAdapter>
+				</I18nProvider>
 			</body>
 		</html>
-	);
-}
-
-async function Localised({ children }: { children: React.ReactNode }) {
-	const locale = await getLocale();
-
-	return (
-		<I18nProvider locale={locale} dictionary={getDictionary(locale)}>
-			<NuqsAdapter>
-				<TRPCReactProvider>
-					<ThemeProvider>
-						<TooltipProvider>{children}</TooltipProvider>
-						<Toaster richColors />
-					</ThemeProvider>
-				</TRPCReactProvider>
-			</NuqsAdapter>
-		</I18nProvider>
 	);
 }

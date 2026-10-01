@@ -19,7 +19,10 @@ function Table({
 		>
 			<table
 				data-slot="table"
-				className={cn("w-full caption-bottom text-sm", className)}
+				className={cn(
+					"w-full caption-bottom text-sm site:min-w-(--site-table-min)",
+					className,
+				)}
 				{...props}
 			/>
 			{overlay}
@@ -96,7 +99,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 		<td
 			data-slot="table-cell"
 			className={cn(
-				"px-4 py-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 site:min-w-40 site:align-top site:last:min-w-65 site:[&_code]:whitespace-nowrap site:[&_code]:wrap-normal",
+				"px-4 py-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 site:align-top site:[&_code]:whitespace-nowrap site:[&_code]:wrap-normal",
 				className,
 			)}
 			{...props}

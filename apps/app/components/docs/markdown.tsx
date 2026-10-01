@@ -23,14 +23,25 @@ export type Block =
 
 export type DocHeading = { id: string; title: string };
 
-export type CalloutTone = "note" | "warning";
+const CALLOUT_TONES = [
+	"note",
+	"tip",
+	"important",
+	"warning",
+	"caution",
+] as const;
+
+export type CalloutTone = (typeof CALLOUT_TONES)[number];
 
 const CALLOUT_TONE = {
 	note: "blue",
+	tip: "blue",
+	important: "ink",
 	warning: "orange",
+	caution: "red",
 } as const satisfies Record<CalloutTone, SiteTone>;
 
-const ALERT = /^\[!(NOTE|WARNING)\]$/;
+const ALERT = /^\[!([a-z]+)\]$/i;
 
 const LIST_ITEM = /^\s*(?:([-*])|\d+\.)\s+(.*)$/;
 
@@ -51,10 +62,11 @@ export function slugify(text: string): string {
 
 function callout(quote: string[]): Block {
 	const body = quote.map((line) => line.replace(/^>\s?/, "").trim());
-	const alert = ALERT.exec(body[0] ?? "");
+	const name = ALERT.exec(body[0] ?? "")?.[1]?.toLowerCase();
+	const alert = CALLOUT_TONES.find((tone) => tone === name);
 	return {
 		kind: "callout",
-		tone: alert?.[1] === "WARNING" ? "warning" : "note",
+		tone: alert ?? "note",
 		text: (alert ? body.slice(1) : body).filter(Boolean).join(" "),
 	};
 }
@@ -305,7 +317,7 @@ export function MarkdownBlocks({
 							key={key}
 							className="relative border border-border bg-(--tile)"
 						>
-							<pre className="overflow-x-auto py-5 ps-5 pe-24 font-mono max-[900px]:p-4 text-(length:--site-text-code) text-foreground leading-[1.6] [tab-size:4]">
+							<pre className="overflow-x-auto py-5 ps-5 pe-24 font-mono noscript:pe-5 max-[900px]:p-4 text-(length:--site-text-code) text-foreground leading-[1.6] [tab-size:4]">
 								<code>{block.text}</code>
 							</pre>
 							<CopyCode code={block.text} />

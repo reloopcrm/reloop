@@ -3,6 +3,15 @@ export const SITE_TYPE = {
 		"font-normal text-(length:--site-text-display-1) leading-(--site-leading-display) tracking-(--site-tracking-display)",
 	display2:
 		"font-normal text-(length:--site-text-display-2) leading-(--site-leading-display) tracking-(--site-tracking-display)",
+	display3:
+		"font-normal text-(length:--site-text-display-3) leading-(--site-leading-display) tracking-(--site-tracking-display)",
+	figure:
+		"font-normal text-(length:--site-text-figure) tabular-nums leading-(--site-leading-display) tracking-(--site-tracking-display)",
+	amount:
+		"font-normal text-(length:--site-text-amount) tabular-nums leading-(--site-leading-display) tracking-(--site-tracking-display)",
+	plus: "font-normal text-(length:--site-text-plus) leading-(--site-leading-display) tracking-(--site-tracking-title)",
+	quote:
+		"font-normal text-(length:--site-text-quote) leading-(--site-leading-display) tracking-(--site-tracking-display)",
 	title24:
 		"font-normal text-(length:--site-text-title-24) leading-(--site-leading-title) tracking-(--site-tracking-title)",
 	title20:

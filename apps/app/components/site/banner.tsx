@@ -14,7 +14,10 @@ export function Banner({ link }: { link: BannerLink }) {
 	if (!open) return null;
 
 	return (
-		<div className="relative flex h-(--site-banner-height) items-center gap-2 bg-(--banner) ps-4 pe-12 text-(--banner-foreground) text-(length:--site-text-small) tracking-[0.02em] min-[901px]:justify-center">
+		<div
+			data-slot="site-banner"
+			className="relative flex h-(--site-banner-height) items-center gap-2 bg-(--banner) ps-4 pe-12 text-(--banner-foreground) text-(length:--site-text-small) tracking-[0.02em] min-[901px]:justify-center"
+		>
 			<span className="hidden min-[901px]:inline">
 				{t(
 					"Reloop is open source under the GNU AGPL v3. Self-host it or use the cloud.",

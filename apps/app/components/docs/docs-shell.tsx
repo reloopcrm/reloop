@@ -33,13 +33,11 @@ function order(t: Translate): DocLink[] {
 export async function readDoc(file: DocFile): Promise<Block[] | null> {
 	"use cache";
 	cacheLife(DOCS.cache.life);
+	const path = join(process.cwd(), ...DOCS.root, ...DOCS.files[file]);
 	try {
-		const source = await readFile(
-			join(process.cwd(), ...DOCS.root, ...DOCS.files[file]),
-			"utf8",
-		);
-		return parseMarkdown(source);
-	} catch {
+		return parseMarkdown(await readFile(path, "utf8"));
+	} catch (error) {
+		console.error(`Docs: could not read ${path}.`, error);
 		return null;
 	}
 }

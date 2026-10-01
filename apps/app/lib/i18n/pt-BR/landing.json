@@ -148,8 +148,6 @@
 	"Soon": "Em breve",
 	"A hosted Reloop CRM, with updates and backups handled for you.": "Um Reloop CRM hospedado, com atualizações e backups cuidados por nós.",
 	"Previous and next page": "Página anterior e próxima",
-	"Previous: {title}": "Anterior: {title}",
-	"Next: {title}": "Próxima: {title}",
 	"Documentation": "Documentação",
 	"All pages": "Todas as páginas",
 	"How to install, update and back up a self-hosted Reloop CRM.": "Como instalar, atualizar e fazer backup de um Reloop CRM auto-hospedado.",
@@ -228,5 +226,6 @@
 	"Google Calendar": "Google Agenda",
 	"REST intake API": "API REST de entrada",
 	"Web research": "Pesquisa na web",
-	"Our company": "A empresa"
+	"Our company": "A empresa",
+	"On this page": "Nesta página"
 }

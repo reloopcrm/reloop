@@ -148,8 +148,6 @@
 	"Soon": "即将推出",
 	"A hosted Reloop CRM, with updates and backups handled for you.": "托管版 Reloop CRM，更新和备份都由我们处理。",
 	"Previous and next page": "上一页和下一页",
-	"Previous: {title}": "上一页：{title}",
-	"Next: {title}": "下一页：{title}",
 	"Documentation": "文档",
 	"All pages": "全部页面",
 	"How to install, update and back up a self-hosted Reloop CRM.": "如何安装、更新和备份自托管的 Reloop CRM。",
@@ -228,5 +226,6 @@
 	"Google Calendar": "Google 日历",
 	"REST intake API": "REST 接收 API",
 	"Web research": "网络调研",
-	"Our company": "公司"
+	"Our company": "公司",
+	"On this page": "本页内容"
 }

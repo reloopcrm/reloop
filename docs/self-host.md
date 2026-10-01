@@ -11,7 +11,8 @@ Reloop CRM runs on your own server with Docker. One command installs it.
 - `openssl` and `curl`. Most distributions ship both.
 - For a public install: a domain name whose DNS record points at the server, and ports 80 and 443 open.
 
-The images are built for `linux/amd64` and `linux/arm64`.
+> [!NOTE]
+> The images are built for `linux/amd64` and `linux/arm64`.
 
 ## Install
 
@@ -37,7 +38,8 @@ The script then:
 - pulls the images and starts them with Docker Compose,
 - creates the owner account and prints the address to open.
 
-Running the script again keeps an existing `deploy/.env`. It never replaces a secret and never touches the database volume. After the stack is up it asks the API whether an account exists. When none does, for example because the first run failed after writing `deploy/.env`, it asks for the owner email and password again and creates the account. When one does, it leaves that account and its password alone.
+> [!NOTE]
+> Running the script again keeps an existing `deploy/.env`. It never replaces a secret and never touches the database volume. After the stack is up it asks the API whether an account exists. When none does, for example because the first run failed after writing `deploy/.env`, it asks for the owner email and password again and creates the account. When one does, it leaves that account and its password alone.
 
 ### Which version it installs
 
@@ -92,7 +94,8 @@ This also helps on a keyboard where `@` needs the Option key. Some terminals sen
 | `caddy` | `caddy:2` | HTTPS. Runs only with the `caddy` profile. |
 | `updater` | `containrrr/watchtower:1.7.1` | The Update button in Settings. Runs only with the `updater` profile. |
 
-The browser only talks to the app. The app forwards `/api/*` to the API inside the Docker network.
+> [!NOTE]
+> The browser only talks to the app. The app forwards `/api/*` to the API inside the Docker network.
 
 ## Use an existing reverse proxy
 
@@ -106,7 +109,8 @@ crm.example.com {
 }
 ```
 
-When your proxy runs in its own container, `127.0.0.1` is not the host. Set `APP_BIND=0.0.0.0` in `deploy/.env`, block port 3000 in your firewall, and point the proxy at the host address. Then run `docker compose up -d` in the `deploy` folder.
+> [!NOTE]
+> When your proxy runs in its own container, `127.0.0.1` is not the host. Set `APP_BIND=0.0.0.0` in `deploy/.env`, block port 3000 in your firewall, and point the proxy at the host address. Then run `docker compose up -d` in the `deploy` folder.
 
 ## Move to another domain
 
@@ -207,7 +211,8 @@ Open **Settings, AI** and add an OpenAI or Anthropic API key. The agent uses it 
 
 ### ChatGPT subscription (experimental)
 
-The agent can use a ChatGPT subscription through the Codex login. This path is experimental and can stop working when OpenAI changes it.
+> [!WARNING]
+> The agent can use a ChatGPT subscription through the Codex login. This path is experimental and can stop working when OpenAI changes it.
 
 Open **Settings, AI** and start the ChatGPT sign-in. The page shows a link and a code. Open the link and enter the code.
 
@@ -238,7 +243,8 @@ Settings shows an **Update now** button to the workspace owner when a newer rele
 
 The updater is a separate container, [watchtower](https://containrrr.dev/watchtower/). It holds the Docker socket, so it can pull images and restart containers. It touches only the containers with the label `com.centurylinklabs.watchtower.scope=reloop`. The app itself never sees the Docker socket. The API reaches the updater inside the Docker network with the token `UPDATER_TOKEN` from `deploy/.env`.
 
-The trade-off in plain words: whoever reaches the updater with the token can restart Reloop at any time. That is why the updater is off by default and why the token must stay secret. Keep `deploy/.env` at permissions `600` and never publish port 8080 of the updater.
+> [!WARNING]
+> The trade-off in plain words: whoever reaches the updater with the token can restart Reloop at any time. That is why the updater is off by default and why the token must stay secret. Keep `deploy/.env` at permissions `600` and never publish port 8080 of the updater.
 
 To turn it on, add `updater` to `COMPOSE_PROFILES` in `deploy/.env`:
 
@@ -282,7 +288,8 @@ stops the container.
 
 ## Back up
 
-Everything lives in the `postgres-data` volume and in `deploy/.env`. Without that `.env` file the database cannot be opened again.
+> [!NOTE]
+> Everything lives in the `postgres-data` volume and in `deploy/.env`. Without that `.env` file the database cannot be opened again.
 
 One simple approach is a nightly compressed dump that overwrites the previous one. Add this line with `crontab -e`, and change the folder:
 
@@ -306,4 +313,5 @@ This stops Reloop and keeps the data. To delete the data as well, including the 
 docker compose down --volumes
 ```
 
-This cannot be undone. Make a backup first. Then remove the install folder.
+> [!WARNING]
+> This cannot be undone. Make a backup first. Then remove the install folder.

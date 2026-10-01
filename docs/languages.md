@@ -33,7 +33,8 @@ apps/app/lib/i18n/tr/          Turkish
 apps/app/lib/i18n/zh-Hans/     Simplified Chinese
 ```
 
-English has no folder. The key is the English text.
+> [!NOTE]
+> English has no folder. The key is the English text.
 
 Each folder holds the same thirteen files. The split is only there to keep a file
 small enough to read:

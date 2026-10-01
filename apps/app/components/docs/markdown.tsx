@@ -7,20 +7,36 @@ import {
 	TableHeader,
 	TableRow,
 } from "@crm/ui/components/table";
+import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
+import { CopyCode } from "@/components/copy-command";
+import { type SiteTone, Square } from "@/components/site/eyebrow";
+import { SITE_TYPE } from "@/components/site/typography";
 
 export type Block =
 	| { kind: "heading"; level: number; text: string }
 	| { kind: "code"; text: string }
+	| { kind: "callout"; tone: CalloutTone; text: string }
 	| { kind: "list"; ordered: boolean; items: string[] }
 	| { kind: "table"; rows: string[][] }
 	| { kind: "paragraph"; text: string };
+
+export type DocHeading = { id: string; title: string };
+
+export type CalloutTone = "note" | "warning";
+
+const CALLOUT_TONE = {
+	note: "blue",
+	warning: "orange",
+} as const satisfies Record<CalloutTone, SiteTone>;
+
+const ALERT = /^\[!(NOTE|WARNING)\]$/;
 
 const LIST_ITEM = /^\s*(?:([-*])|\d+\.)\s+(.*)$/;
 
 const CONTINUATION = /^\s+\S/;
 
-const BLOCK_START = /^(#{1,6}\s|```|\||\s*(?:[-*]|\d+\.)\s)/;
+const BLOCK_START = /^(#{1,6}\s|```|\||>|\s*(?:[-*]|\d+\.)\s)/;
 
 const TABLE_DIVIDER = /^\|?[\s:|-]+\|?$/;
 
@@ -31,6 +47,16 @@ export function slugify(text: string): string {
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "");
+}
+
+function callout(quote: string[]): Block {
+	const body = quote.map((line) => line.replace(/^>\s?/, "").trim());
+	const alert = ALERT.exec(body[0] ?? "");
+	return {
+		kind: "callout",
+		tone: alert?.[1] === "WARNING" ? "warning" : "note",
+		text: (alert ? body.slice(1) : body).filter(Boolean).join(" "),
+	};
 }
 
 export function parseMarkdown(source: string): Block[] {
@@ -50,6 +76,16 @@ export function parseMarkdown(source: string): Block[] {
 			}
 			i++;
 			blocks.push({ kind: "code", text: body.join("\n") });
+			continue;
+		}
+
+		if (line.startsWith(">")) {
+			const quote: string[] = [];
+			while (i < lines.length && (lines[i] ?? "").startsWith(">")) {
+				quote.push(lines[i] ?? "");
+				i++;
+			}
+			blocks.push(callout(quote));
 			continue;
 		}
 
@@ -124,6 +160,14 @@ export function parseMarkdown(source: string): Block[] {
 	return blocks;
 }
 
+export function outline(blocks: Block[]): DocHeading[] {
+	return blocks.flatMap((block) =>
+		block.kind === "heading" && block.level === 2
+			? [{ id: slugify(block.text), title: block.text.replace(/[`*]/g, "") }]
+			: [],
+	);
+}
+
 function headingId(block: Block, id: string): boolean {
 	return block.kind === "heading" && slugify(block.text) === id;
 }
@@ -151,6 +195,12 @@ export function sliceBlocks(
 		: slice;
 }
 
+const INLINE_CODE =
+	"wrap-anywhere rounded-(--site-radius) border border-border bg-(--tile) px-1.25 py-px font-mono text-(length:--site-text-code) text-foreground";
+
+const ARTICLE =
+	"mt-12 text-(--ink-80) text-(length:--site-text-body) leading-[1.6] [&>*+*]:mt-4 [&>h2]:mt-12 [&>h3]:mt-8 [&>h2+*]:mt-4 [&>h3+*]:mt-4 [&_a]:text-foreground [&_a]:underline-offset-3 max-[900px]:mt-9 max-[900px]:[&>h2]:mt-10";
+
 function safeHref(href: string): string | null {
 	return /^(https?:\/\/|\/|#)/.test(href) ? href : null;
 }
@@ -166,7 +216,7 @@ function inline(text: string): React.ReactNode[] {
 		const [whole, code, label, href, bold, italic] = match;
 		if (code !== undefined) {
 			nodes.push(
-				<code key={at} className="font-mono text-foreground">
+				<code key={at} className={INLINE_CODE}>
 					{code}
 				</code>,
 			);
@@ -183,7 +233,10 @@ function inline(text: string): React.ReactNode[] {
 			);
 		} else if (bold !== undefined) {
 			nodes.push(
-				<strong key={at} className="font-medium text-foreground">
+				<strong
+					key={at}
+					className="font-(--site-weight-medium) text-foreground"
+				>
 					{inline(bold)}
 				</strong>,
 			);
@@ -203,9 +256,15 @@ export function Markdown({ source }: { source: string }) {
 	return <MarkdownBlocks blocks={parseMarkdown(source)} />;
 }
 
-export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
+export function MarkdownBlocks({
+	blocks,
+	children,
+}: {
+	blocks: Block[];
+	children?: React.ReactNode;
+}) {
 	return (
-		<article className="flex flex-col gap-4 text-body-foreground text-sm/6">
+		<article className={ARTICLE}>
 			{blocks.map((block, index) => {
 				const key = `${block.kind}-${index}`;
 
@@ -213,11 +272,7 @@ export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 					const id = slugify(block.text);
 					if (block.level === 1) {
 						return (
-							<h1
-								key={key}
-								id={id}
-								className="font-medium text-3xl text-foreground tracking-tight"
-							>
+							<h1 key={key} id={id} className={SITE_TYPE.display2}>
 								{inline(block.text)}
 							</h1>
 						);
@@ -227,7 +282,7 @@ export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 							<h2
 								key={key}
 								id={id}
-								className="pt-4 font-medium text-foreground text-xl tracking-tight"
+								className={cn(SITE_TYPE.title24, "text-foreground")}
 							>
 								{inline(block.text)}
 							</h2>
@@ -237,7 +292,7 @@ export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 						<h3
 							key={key}
 							id={id}
-							className="font-medium text-base text-foreground"
+							className={cn(SITE_TYPE.title20, "text-foreground")}
 						>
 							{inline(block.text)}
 						</h3>
@@ -246,19 +301,36 @@ export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 
 				if (block.kind === "code") {
 					return (
-						<pre
+						<div
 							key={key}
-							className="overflow-x-auto rounded-lg border border-border bg-card p-4 font-mono text-muted-foreground text-xs/5"
+							className="relative border border-border bg-(--tile)"
 						>
-							<code>{block.text}</code>
-						</pre>
+							<pre className="overflow-x-auto py-5 ps-5 pe-24 font-mono max-[900px]:p-4 text-(length:--site-text-code) text-foreground leading-[1.6] [tab-size:4]">
+								<code>{block.text}</code>
+							</pre>
+							<CopyCode code={block.text} />
+						</div>
+					);
+				}
+
+				if (block.kind === "callout") {
+					return (
+						<div
+							key={key}
+							className="grid grid-cols-[--spacing(2)_1fr] items-start gap-4 border border-border bg-(--off) py-5 ps-5 pe-6 max-[900px]:gap-3 max-[900px]:p-4"
+						>
+							<span className="mt-2 flex">
+								<Square tone={CALLOUT_TONE[block.tone]} />
+							</span>
+							<p className="text-foreground">{inline(block.text)}</p>
+						</div>
 					);
 				}
 
 				if (block.kind === "table") {
 					const [head = [], ...body] = block.rows;
 					return (
-						<Table key={key} containerClassName="rounded-lg border bg-card">
+						<Table key={key} containerClassName="border">
 							<TableHeader>
 								<TableRow>
 									{head.map((cell, cellIndex) => (
@@ -290,12 +362,13 @@ export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 					const items = block.items.map((item, itemIndex) => (
 						<li key={`${key}-${itemIndex}`}>{inline(item)}</li>
 					));
+					const list = "flex flex-col gap-2 ps-5.5 marker:text-(--ink-50)";
 					return block.ordered ? (
-						<ol key={key} className="flex list-decimal flex-col gap-1 pl-5">
+						<ol key={key} className={cn(list, "list-decimal")}>
 							{items}
 						</ol>
 					) : (
-						<ul key={key} className="flex list-disc flex-col gap-1 pl-5">
+						<ul key={key} className={cn(list, "list-disc")}>
 							{items}
 						</ul>
 					);
@@ -303,6 +376,7 @@ export function MarkdownBlocks({ blocks }: { blocks: Block[] }) {
 
 				return <p key={key}>{inline(block.text)}</p>;
 			})}
+			{children}
 		</article>
 	);
 }

@@ -148,8 +148,6 @@
 	"Soon": "Yakında",
 	"A hosted Reloop CRM, with updates and backups handled for you.": "Güncellemeleri ve yedekleri senin için halledilen, barındırılan bir Reloop CRM.",
 	"Previous and next page": "Önceki ve sonraki sayfa",
-	"Previous: {title}": "Önceki: {title}",
-	"Next: {title}": "Sonraki: {title}",
 	"Documentation": "Belgeler",
 	"All pages": "Tüm sayfalar",
 	"How to install, update and back up a self-hosted Reloop CRM.": "Kendi sunucunda barındırılan bir Reloop CRM nasıl kurulur, güncellenir ve yedeklenir.",
@@ -228,5 +226,6 @@
 	"Google Calendar": "Google Takvim",
 	"REST intake API": "REST giriş API'si",
 	"Web research": "Web araştırması",
-	"Our company": "Şirket"
+	"Our company": "Şirket",
+	"On this page": "Bu sayfada"
 }

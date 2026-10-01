@@ -11,6 +11,7 @@
 	--tile: #f1eee9;
 	--line: #dedbd6;
 	--line-strong: #d3cec6;
+	--field: #8a857d;
 	--blue: #0007cb;
 	--on-blue: #ffffff;
 	--orange: #ff5600;
@@ -39,10 +40,11 @@
 	--tag: var(--tile);
 	--tag-foreground: var(--ink);
 	--body-foreground: var(--ink-80);
-	--faint-foreground: var(--ink-40);
+	--faint-foreground: var(--ink-60);
 	--border: var(--line);
 	--border-strong: var(--line-strong);
-	--input: var(--line-strong);
+	--input: var(--field);
+	--destructive: #b3261e;
 	--ring: var(--blue);
 	--sidebar: var(--off);
 	--sidebar-foreground: var(--ink);
@@ -92,6 +94,8 @@
 	--site-section-y: 112px;
 	--site-section-y-compact: 80px;
 	--site-prose: 680px;
+	--site-auth-width: 440px;
+	--site-dot-step: 8px;
 	--site-footer-top: 100px;
 	--site-footer-bottom-gap: 108px;
 	--site-marquee-height: 422px;
@@ -118,6 +122,7 @@
 	--tile: #1c1c1e;
 	--line: #2a2a2d;
 	--line-strong: #3b3b3f;
+	--field: #6b6b70;
 	--blue: #5b6cff;
 	--on-blue: #ffffff;
 	--orange: #ff7a33;
@@ -127,6 +132,7 @@
 	--shadow: 0 12px 40px rgb(0 0 0 / 0.55);
 	--banner: #1c1c1e;
 	--banner-foreground: #f4f3ef;
+	--destructive: #eb5757;
 }
 
 @media (max-width: 900px) {

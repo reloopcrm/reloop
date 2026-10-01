@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
 const textareaVariants = cva(
-	"flex field-sizing-content w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-base transition-colors outline-none placeholder:text-faint-foreground hover:border-border-strong focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/25 md:text-sm",
+	"flex field-sizing-content w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-base transition-colors outline-none placeholder:text-faint-foreground hover:border-border-strong site:hover:border-(--ink-60) focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/25 md:text-sm site:rounded-(--site-radius) site:px-3 site:text-base",
 	{
 		variants: {
 			variant: {

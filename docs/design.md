@@ -145,15 +145,26 @@ the app.
 
 `app/(landing)/layout.tsx` loads the stylesheet and the three fonts as
 `--font-site-*` variables, nothing else. A page enters the scope only when its
-shell puts the `.site` class on its root: `LandingShell` and the 404 page, which
-lives outside the route group and loads the stylesheet and fonts itself. `AuthShell`
-(sign-in, onboarding, grant-access) keeps the app's look until it is redesigned.
+shell puts the `.site` class on its root: `LandingShell`, `AuthShell` (sign-in,
+onboarding, grant-access) and the 404 page, which lives outside the route group and
+loads the stylesheet and fonts itself. `AuthShell` sets one card on the paper: the
+`--tile` fill with ink corner marks, `--site-auth-width` wide, on a dot grid.
 
 The shared components from `packages/ui` render inside `.site` unchanged.
 `@theme inline` writes their weights (510, 590) and their larger radii as fixed
 values, so `.site` does not change them: the site's own weights stop at 500
 (`--site-weight-*`), and a component reaches them through a `site:` class in
 `packages/ui`, never at the call site. Where a shape differs, the same rule holds.
+`Button`, `Input`, `InputGroup`, `Textarea`, the `Select` trigger, `Label` and the
+`Field` texts, `Toggle` and `ToggleGroup`, `Badge`, `Alert`, `CardTitle` and
+`EmptyTitle` carry these classes: 4px corners, 40px buttons and fields, 16px
+field text, 14px labels and help text, and weights of 400 and 500.
+Fields meet WCAG AA on every site surface (paper, off, tile) in both themes: the
+field edge is `--field` (3:1 or more), placeholders use `--ink-60` (4.5:1 or
+more). `--destructive` is the one token that differs per theme inside `.site`:
+`#b3261e` in light, `#eb5757` in dark, because error text sits on the light tile
+and `#eb5757` reaches only 3:1 there. The app keeps one `--destructive` for both
+themes.
 Lime, the pill and the 590 weight belong to the app and never appear inside `.site`.
 A product image may carry the one shadow token `--shadow`; nothing else in `.site`
 has a shadow. Marketing blocks live in `apps/app/components/site/` (public) or
@@ -170,8 +181,10 @@ image follows the theme button. Its alt text goes through `t()`.
 The theme default is chosen per route group in `apps/app/lib/theme-config.ts`.
 The app is dark. The public site follows the device, and the theme button in its
 header stores the visitor's choice under its own key, so a choice made on the site
-never changes the app. Sign-in, onboarding and grant-access use the app's theme
-and key, so entering the app never switches the theme mid-navigation. `Display` at weight 900 through
+never changes the app. Sign-in, onboarding and grant-access are part of the site
+and follow its theme. Entering the app from them is either a full page load or a
+navigation that crosses the scope, and both paint the app dark from its first
+frame. `Display` at weight 900 through
 `font-display` is the old landing headline: it stays until the last block that
 imports it is gone, and nothing new uses it.
 

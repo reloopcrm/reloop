@@ -159,6 +159,12 @@ values, so `.site` does not change them: the site's own weights stop at 500
 `Field` texts, `Toggle` and `ToggleGroup`, `Badge`, `Alert`, `CardTitle` and
 `EmptyTitle` carry these classes: 4px corners, 40px buttons and fields, 16px
 field text, 14px labels and help text, and weights of 400 and 500.
+Fields meet WCAG AA on every site surface (paper, off, tile) in both themes: the
+field edge is `--field` (3:1 or more), placeholders use `--ink-60` (4.5:1 or
+more). `--destructive` is the one token that differs per theme inside `.site`:
+`#b3261e` in light, `#eb5757` in dark, because error text sits on the light tile
+and `#eb5757` reaches only 3:1 there. The app keeps one `--destructive` for both
+themes.
 Lime, the pill and the 590 weight belong to the app and never appear inside `.site`.
 A product image may carry the one shadow token `--shadow`; nothing else in `.site`
 has a shadow. Marketing blocks live in `apps/app/components/site/` (public) or

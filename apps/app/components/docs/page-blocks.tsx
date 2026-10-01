@@ -62,7 +62,7 @@ export function Prose({ children }: { children: React.ReactNode }) {
 
 export function ProseHeading({ children }: { children: React.ReactNode }) {
 	return (
-		<h2 className="pt-8 font-(--site-weight-medium) text-2xl text-foreground tracking-tight">
+		<h2 className="pt-8 font-semibold text-2xl site:font-(--site-weight-medium) text-foreground tracking-tight">
 			{children}
 		</h2>
 	);

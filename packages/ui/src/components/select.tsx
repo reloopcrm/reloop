@@ -37,7 +37,7 @@ const selectTriggerVariants = cva(
 		variants: {
 			variant: {
 				default:
-					"border border-input bg-card pr-3 pl-3.5 hover:border-border-strong focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/25",
+					"border border-input bg-card pr-3 pl-3.5 hover:border-border-strong site:hover:border-(--ink-60) focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/25",
 				ghost:
 					"border border-transparent bg-transparent px-3 hover:border-input hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 data-[state=open]:border-input data-[state=open]:bg-muted/40 [&_svg]:opacity-0 hover:[&_svg]:opacity-100 focus-visible:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100",
 			},

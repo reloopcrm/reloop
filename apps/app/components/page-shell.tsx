@@ -44,12 +44,14 @@ function PageShellHeader({
 		<header
 			data-slot="page-shell-header"
 			className={cn(
-				"@container/page-header flex flex-col gap-3 @2xl/page-header:flex-row @2xl/page-header:items-end @2xl/page-header:justify-between @2xl/page-header:gap-6 [view-transition-name:page-header]",
+				"@container/page-header [view-transition-name:page-header]",
 				className,
 			)}
 			{...props}
 		>
-			{children}
+			<div className="flex flex-col gap-3 @2xl/page-header:flex-row @2xl/page-header:items-end @2xl/page-header:justify-between @2xl/page-header:gap-6">
+				{children}
+			</div>
 		</header>
 	);
 }

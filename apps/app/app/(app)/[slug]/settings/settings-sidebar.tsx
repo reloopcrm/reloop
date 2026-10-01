@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@crm/ui/components/button";
+import { MonoLabel } from "@crm/ui/components/mark";
 import { Separator } from "@crm/ui/components/separator";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -91,18 +92,13 @@ export function SettingsSidebarFallback() {
 				<nav
 					aria-label={t("Workspace settings")}
 					aria-busy="true"
-					className="flex flex-col gap-0.5 px-4 pt-(--spacing-page-top) pb-4"
+					className="flex flex-col gap-0.5 px-3 pt-(--spacing-page-top) pb-4"
 				>
-					<span className="px-3 pb-3 font-medium text-muted-foreground text-xs">
+					<MonoLabel className="flex h-7 items-center px-2">
 						{t("Settings")}
-					</span>
+					</MonoLabel>
 					{settingsNavItems({}).map((item) => (
-						<Button
-							key={item.href}
-							variant="nav"
-							disabled
-							className="w-full px-3"
-						>
+						<Button key={item.href} variant="nav" disabled className="w-full">
 							{t(item.title)}
 						</Button>
 					))}
@@ -149,22 +145,22 @@ export function SettingsSidebar({ hosted, admin }: SettingsNavAudience) {
 			<aside className="hidden w-(--container-sidebar) shrink-0 border-r md:block [view-transition-name:settings-sidebar]">
 				<nav
 					aria-label={t("Workspace settings")}
-					className="flex flex-col gap-0.5 px-4 pt-(--spacing-page-top) pb-4"
+					className="flex flex-col gap-0.5 px-3 pt-(--spacing-page-top) pb-4"
 				>
-					<span className="px-3 pb-3 font-medium text-muted-foreground text-xs">
+					<MonoLabel className="flex h-7 items-center px-2">
 						{t("Settings")}
-					</span>
+					</MonoLabel>
 					{items.map((item, index) => (
 						<Fragment key={item.href}>
 							{startsGroup(items, index) ? (
-								<div className="px-3 py-2">
+								<div className="px-2 py-2">
 									<Separator />
 								</div>
 							) : null}
 							<NavLink
 								item={item}
 								active={isActive(item.href, root, pathname)}
-								className="w-full px-3"
+								className="w-full"
 							/>
 						</Fragment>
 					))}

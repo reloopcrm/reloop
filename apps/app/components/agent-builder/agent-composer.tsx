@@ -518,7 +518,7 @@ export function AgentComposer({
 				onSubmit={submit}
 			/>
 
-			<div className="flex h-7 items-center justify-between">
+			<div className="flex h-8 items-center justify-between">
 				<ComposerTools
 					state={state}
 					resources={resourceResults.data ?? []}
@@ -534,7 +534,7 @@ export function AgentComposer({
 
 				<Button
 					variant="default"
-					size="icon-sm"
+					size="icon"
 					disabled={!canSend}
 					aria-busy={submitAction.pending || state.attachmentsReading}
 					aria-label={
@@ -543,7 +543,6 @@ export function AgentComposer({
 							: t("Send message")
 					}
 					onClick={submit}
-					className="rounded-full"
 				>
 					<AsyncButtonContent
 						status={state.attachmentsReading ? "pending" : submitAction.status}

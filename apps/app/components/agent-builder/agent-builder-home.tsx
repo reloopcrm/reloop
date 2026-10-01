@@ -1,7 +1,7 @@
 "use client";
 
-import ArrowRight from "@carbon/icons-react/es/ArrowRight";
-import { Icon } from "@crm/ui/components/icon";
+import { OpenIcon } from "@crm/ui/components/line-icons";
+import { MonoLabel } from "@crm/ui/components/mark";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -48,53 +48,55 @@ export function AgentBuilderHome({ name }: { name: string }) {
 	};
 
 	return (
-		<main className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pt-14 pb-20 sm:px-6 sm:pt-12 sm:pb-28">
-			<div className="flex w-full max-w-3xl flex-col items-center gap-3 pb-6 text-center">
-				<h1 className="text-balance font-medium text-2xl tracking-tight sm:text-3xl">
+		<main
+			data-slot="chat-home"
+			className="relative flex min-h-0 flex-1 flex-col items-center justify-start overflow-y-auto px-4 pt-12 pb-20 sm:px-6 md:justify-center md:pb-28"
+		>
+			<div className="flex w-full max-w-160 flex-col items-center gap-3 pb-6 text-center">
+				<h1 className="text-balance text-2xl tracking-tight">
 					{t("What can I help with, {name}?", {
 						name: firstName(name) || t("there"),
 					})}
 				</h1>
-				<p className="max-w-xl text-balance text-muted-foreground text-sm">
+				<p className="max-w-105 text-balance font-light font-serif text-body-foreground text-md">
 					{t(
 						"Ask about your CRM, tag a record or integration, or describe an agent to build to automate a task.",
 					)}
 				</p>
 			</div>
 
-			<div className="w-full max-w-3xl">
+			<div className="w-full max-w-160">
 				<AgentComposer
 					key={initialPrompt}
 					mode="home"
 					initialPrompt={initialPrompt}
 					onSubmit={submit}
 				/>
-				<p className="flex h-8 items-center px-px text-muted-foreground text-xs">
+				<p className="py-2 text-muted-foreground text-xs">
 					{t(
 						"Chats and agent drafts stay private to you. Deploying an agent makes it available to the whole team.",
 					)}
 				</p>
 
-				<div className="pt-1">
-					<p className="flex h-7 items-center text-muted-foreground text-xs">
-						{t("Suggested agents")}
-					</p>
-					{SUGGESTIONS.map((suggestion) => (
-						<button
-							key={suggestion}
-							type="button"
-							onClick={() => setInitialPrompt(`/Create agent ${t(suggestion)}`)}
-							className="flex h-[42px] w-full items-center border-t text-left outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
-						>
-							<span className="min-w-0 flex-1 font-medium text-sm">
-								{t(suggestion)}
-							</span>
-							<Icon
-								icon={ArrowRight}
-								className="size-4 text-muted-foreground"
-							/>
-						</button>
-					))}
+				<div className="flex flex-col gap-2 pt-6">
+					<MonoLabel>{t("Suggested agents")}</MonoLabel>
+					<div className="flex flex-col border-b">
+						{SUGGESTIONS.map((suggestion) => (
+							<button
+								key={suggestion}
+								type="button"
+								onClick={() =>
+									setInitialPrompt(`/Create agent ${t(suggestion)}`)
+								}
+								className="flex h-11 w-full items-center gap-3 border-t text-left outline-none transition-colors hover:bg-active focus-visible:bg-active"
+							>
+								<span className="min-w-0 flex-1 truncate text-sm">
+									{t(suggestion)}
+								</span>
+								<OpenIcon className="size-3.5 shrink-0 text-muted-foreground" />
+							</button>
+						))}
+					</div>
 				</div>
 			</div>
 		</main>

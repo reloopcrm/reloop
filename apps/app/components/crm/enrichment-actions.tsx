@@ -2,9 +2,8 @@
 
 import MagicWand from "@carbon/icons-react/es/MagicWand";
 import Renew from "@carbon/icons-react/es/Renew";
-import { Button } from "@crm/ui/components/button";
+import { DropdownMenuItem } from "@crm/ui/components/dropdown-menu";
 import { Icon } from "@crm/ui/components/icon";
-import { Spinner } from "@crm/ui/components/spinner";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
@@ -55,33 +54,21 @@ export function EnrichmentActions({
 
 	return (
 		<>
-			<Button
-				variant="outline"
-				size="sm"
+			<DropdownMenuItem
 				disabled={!hasDomain || enrich.isPending}
-				onClick={() => enrich.mutate({ id: companyId })}
+				onSelect={() => enrich.mutate({ id: companyId })}
 			>
-				{enrich.isPending ? (
-					<Spinner />
-				) : (
-					<Icon icon={Renew} data-icon="inline-start" />
-				)}
-				<span className="hidden sm:inline">{t("Re-enrich")}</span>
-			</Button>
+				<Icon icon={Renew} />
+				{t("Re-enrich")}
+			</DropdownMenuItem>
 
-			<Button
-				variant="outline"
-				size="sm"
+			<DropdownMenuItem
 				disabled={!hasDomain || research.isPending}
-				onClick={() => research.mutate({ id: companyId })}
+				onSelect={() => research.mutate({ id: companyId })}
 			>
-				{research.isPending ? (
-					<Spinner />
-				) : (
-					<Icon icon={MagicWand} data-icon="inline-start" />
-				)}
-				<span className="hidden sm:inline">{t("Research")}</span>
-			</Button>
+				<Icon icon={MagicWand} />
+				{t("Research")}
+			</DropdownMenuItem>
 		</>
 	);
 }
@@ -107,18 +94,12 @@ export function ContactEnrichmentAction({ contactId }: { contactId: string }) {
 	);
 
 	return (
-		<Button
-			variant="outline"
-			size="sm"
+		<DropdownMenuItem
 			disabled={enrich.isPending}
-			onClick={() => enrich.mutate({ id: contactId })}
+			onSelect={() => enrich.mutate({ id: contactId })}
 		>
-			{enrich.isPending ? (
-				<Spinner />
-			) : (
-				<Icon icon={Renew} data-icon="inline-start" />
-			)}
-			<span className="hidden sm:inline">{t("Re-enrich")}</span>
-		</Button>
+			<Icon icon={Renew} />
+			{t("Re-enrich")}
+		</DropdownMenuItem>
 	);
 }

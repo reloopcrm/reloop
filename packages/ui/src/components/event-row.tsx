@@ -140,11 +140,11 @@ function EventDayStrip({
 		<h3
 			data-slot="event-day-strip"
 			data-tone={tone}
-			className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-popover pt-2 pb-0.5 font-normal text-muted-foreground text-xs"
+			className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-popover pt-4 pb-1.5 font-mono font-normal text-2xs text-muted-foreground uppercase tracking-label"
 		>
 			<span className="truncate">{label}</span>
 			{note ? (
-				<span className="shrink-0 text-xs tabular-nums">{note}</span>
+				<span className="shrink-0 tabular-nums">{note}</span>
 			) : null}
 		</h3>
 	);
@@ -211,7 +211,7 @@ function EventRow({
 		<>
 			<span
 				className={cn(
-					"truncate text-muted-foreground text-xs tabular-nums",
+					"truncate font-mono text-2xs text-muted-foreground tabular-nums",
 					tone.time,
 				)}
 			>
@@ -250,7 +250,7 @@ function EventRow({
 				id={anchorId}
 				className={cn(
 					COLUMNS,
-					"scroll-mt-8 rounded-md py-2 text-sm hover:bg-muted",
+					"scroll-mt-8 border-b py-2 text-2sm hover:bg-active",
 					className,
 				)}
 				{...props}
@@ -267,7 +267,7 @@ function EventRow({
 			id={anchorId}
 			{...(defaultOpen ? { open: true } : {})}
 			className={cn(
-				"group/event scroll-mt-8 rounded-md text-sm open:my-1 open:bg-muted",
+				"group/event scroll-mt-8 border-b text-2sm open:bg-muted",
 				className,
 			)}
 			onToggle={(event) => {
@@ -277,7 +277,7 @@ function EventRow({
 			<summary
 				className={cn(
 					COLUMNS,
-					"cursor-pointer list-none rounded-md py-2 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 group-open/event:hover:bg-transparent [&::-webkit-details-marker]:hidden",
+					"cursor-pointer list-none py-2 outline-none hover:bg-active focus-visible:ring-2 focus-visible:ring-ring/60 group-open/event:hover:bg-transparent [&::-webkit-details-marker]:hidden",
 				)}
 				{...props}
 			>

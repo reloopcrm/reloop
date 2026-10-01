@@ -19,6 +19,8 @@ const sheetContentVariants = cva(
 				xl: "data-[side=left]:sm:max-w-4xl data-[side=right]:sm:max-w-4xl",
 				"2xl":
 					"data-[side=left]:sm:max-w-5xl data-[side=right]:sm:max-w-5xl data-[side=left]:lg:w-[68vw] data-[side=right]:lg:w-[68vw]",
+				record:
+					"text-sm sm:data-[side=right]:w-[calc(100vw-2.5rem)] data-[side=right]:sm:max-w-[1120px]",
 			},
 		},
 		defaultVariants: {
@@ -136,6 +138,7 @@ const sheetTitleVariants = cva("font-heading font-medium text-foreground", {
 		size: {
 			default: "text-sm",
 			lg: "text-lg leading-tight tracking-tight",
+			record: "font-normal text-[22px] leading-tight tracking-[-0.02em]",
 		},
 	},
 	defaultVariants: {

@@ -189,7 +189,7 @@ export function ShareChatDialog({
 							/>
 
 							{shared === true ? (
-								<div className="flex h-9 items-center gap-3 rounded-full border bg-card py-0.75 pr-0.75 pl-4">
+								<div className="flex h-9 items-center gap-3 rounded-md border bg-card py-0.75 pr-0.75 pl-4">
 									<span className="min-w-0 flex-1 truncate font-mono text-xs">
 										{shareToken
 											? `${workspaceUrl(`/chat/${shareToken.slice(0, 12)}`)}…`

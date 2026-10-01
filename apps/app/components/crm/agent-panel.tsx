@@ -1,12 +1,8 @@
 "use client";
 
-import Checkmark from "@carbon/icons-react/es/Checkmark";
-import CircleDash from "@carbon/icons-react/es/CircleDash";
 import Document from "@carbon/icons-react/es/Document";
 import LogoGithub from "@carbon/icons-react/es/LogoGithub";
 import LogoLinkedin from "@carbon/icons-react/es/LogoLinkedin";
-import Send from "@carbon/icons-react/es/Send";
-import Warning from "@carbon/icons-react/es/Warning";
 import {
 	Attachment,
 	AttachmentContent,
@@ -15,26 +11,30 @@ import {
 	AttachmentTitle,
 	AttachmentTrigger,
 } from "@crm/ui/components/attachment";
-import { Bubble, BubbleContent } from "@crm/ui/components/bubble";
+import { Avatar, AvatarFallback } from "@crm/ui/components/avatar";
+import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
+	DraftCard,
+	DraftCardActions,
+	DraftCardBody,
+	DraftCardHeader,
+	DraftCardMeta,
+} from "@crm/ui/components/draft-card";
+import {
 	Empty,
-	EmptyContent,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
 } from "@crm/ui/components/empty";
+import { EntityLogo } from "@crm/ui/components/entity-logo";
 import { type CarbonIcon, Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
+import { MailIcon, SendIcon } from "@crm/ui/components/line-icons";
 import { Loader } from "@crm/ui/components/loader";
+import { type MarkTone, MonoLabel } from "@crm/ui/components/mark";
 import { Markdown } from "@crm/ui/components/markdown";
-import { Marker, MarkerContent, MarkerIcon } from "@crm/ui/components/marker";
-import {
-	Message,
-	MessageAvatar,
-	MessageContent,
-} from "@crm/ui/components/message";
 import {
 	MessageScroller,
 	MessageScrollerButton,
@@ -44,7 +44,9 @@ import {
 	MessageScrollerViewport,
 } from "@crm/ui/components/message-scroller";
 import { Spinner } from "@crm/ui/components/spinner";
+import { Step, Steps } from "@crm/ui/components/steps";
 import Wordmark from "@crm/ui/components/wordmark";
+import { initialsFromName } from "@crm/ui/lib/format";
 import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEveAgent } from "eve/react";
@@ -55,6 +57,9 @@ import {
 	ConversationPicker,
 	useConversations,
 } from "@/components/crm/agent-conversations";
+import { contactName } from "@/components/crm/contact-name";
+import { EMAIL_DRAFT } from "@/components/crm/email-draft-config";
+import { EmailDraftDialog } from "@/components/crm/email-draft-dialog";
 import {
 	type AgentRecord,
 	recordCopy,
@@ -76,6 +81,7 @@ import {
 	splitLabel,
 	type Tone,
 	type TranscriptItem,
+	type TranscriptMessage,
 	toTranscript,
 } from "@/lib/agent-transcript";
 import { useT } from "@/lib/i18n/client";
@@ -244,23 +250,20 @@ function Thread({
 			<MessageScrollerProvider autoScroll defaultScrollPosition="end">
 				<MessageScroller className="flex-1">
 					<MessageScrollerViewport>
-						<MessageScrollerContent className="gap-3 px-4 py-4 sm:px-5">
+						<MessageScrollerContent className="gap-5 px-4 py-4 sm:px-5">
 							{messages.length === 0 && !busy ? (
-								<Idle kind={record.kind} onAsk={ask} />
+								<Idle kind={record.kind} />
 							) : null}
 
 							{messages.map((message) => (
 								<MessageScrollerItem key={message.id} messageId={message.id}>
-									<div className="space-y-3">
-										{message.items.map((item) =>
-											item.kind === "asked" &&
-											item.question.requestId === question?.requestId ? null : (
-												<Item key={item.id} item={item} />
-											),
-										)}
-									</div>
+									<Turn message={message} skip={question?.requestId ?? null} />
 								</MessageScrollerItem>
 							))}
+
+							{record.kind === "contact" ? (
+								<ContactDraft contactId={record.id} />
+							) : null}
 						</MessageScrollerContent>
 					</MessageScrollerViewport>
 
@@ -289,7 +292,21 @@ function Thread({
 				</div>
 			) : null}
 
-			<div className="border-t px-4 py-3 sm:px-5">
+			<div className="flex flex-col gap-3 border-t px-4 py-3 sm:px-5">
+				{!question && !locked ? (
+					<div className="flex flex-wrap gap-2">
+						{copy.suggestions.map((suggestion) => (
+							<Button
+								key={suggestion}
+								variant="outline"
+								size="sm"
+								onClick={() => ask(t(suggestion))}
+							>
+								{t(suggestion)}
+							</Button>
+						))}
+					</div>
+				) : null}
 				{question ? (
 					<AgentClarificationComposer
 						key={question.requestId}
@@ -311,13 +328,8 @@ function Thread({
 							placeholder={t(copy.placeholder)}
 							disabled={locked}
 						/>
-						<Button
-							type="submit"
-							size="icon-sm"
-							variant="outline"
-							disabled={locked}
-						>
-							{busy ? <Spinner /> : <Icon icon={Send} />}
+						<Button type="submit" size="icon" disabled={locked}>
+							{busy ? <Spinner /> : <SendIcon />}
 							<span className="sr-only">{t("Ask")}</span>
 						</Button>
 					</form>
@@ -327,13 +339,7 @@ function Thread({
 	);
 }
 
-function Idle({
-	kind,
-	onAsk,
-}: {
-	kind: AgentRecord["kind"];
-	onAsk: (question: string) => void;
-}) {
+function Idle({ kind }: { kind: AgentRecord["kind"] }) {
 	const t = useT();
 	const copy = recordCopy(kind);
 
@@ -348,19 +354,6 @@ function Idle({
 				<EmptyTitle>{t(copy.title)}</EmptyTitle>
 				<EmptyDescription>{t(copy.blurb)}</EmptyDescription>
 			</EmptyHeader>
-
-			<EmptyContent layout="row">
-				{copy.suggestions.map((suggestion) => (
-					<Button
-						key={suggestion}
-						variant="outline"
-						size="sm"
-						onClick={() => onAsk(t(suggestion))}
-					>
-						{t(suggestion)}
-					</Button>
-				))}
-			</EmptyContent>
 		</Empty>
 	);
 }
@@ -388,56 +381,74 @@ function Failure({ message }: { message: string }) {
 	);
 }
 
-const TONE_ICONS = {
-	neutral: CircleDash,
-	success: Checkmark,
-	warning: Warning,
-} satisfies Record<Tone, CarbonIcon>;
+const TONE_MARK = {
+	neutral: "ink",
+	success: "blue",
+	warning: "orange",
+} satisfies Record<Tone, MarkTone>;
 
-const SOURCE_ICONS = {
-	linkedin: LogoLinkedin,
-	github: LogoGithub,
-	web: Document,
-} satisfies Record<Source["network"], CarbonIcon>;
+type TurnGroup =
+	| {
+			kind: "steps";
+			id: string;
+			items: Extract<TranscriptItem, { kind: "did" }>[];
+	  }
+	| { kind: "item"; id: string; item: TranscriptItem };
 
-function Item({ item }: { item: TranscriptItem }) {
-	const t = useT();
-	if (item.kind === "said") {
-		return item.mine ? (
-			<Message align="end" className="min-w-0">
-				<MessageContent>
-					<Bubble variant="secondary" align="end">
-						<BubbleContent className="text-pretty">{item.text}</BubbleContent>
-					</Bubble>
-				</MessageContent>
-			</Message>
-		) : (
-			<Message className="min-w-0">
-				<AgentAvatar />
-				<MessageContent>
-					<Bubble variant="ghost">
-						<BubbleContent>
-							<Markdown className="wrap-break-word">{item.text}</Markdown>
-						</BubbleContent>
-					</Bubble>
-				</MessageContent>
-			</Message>
-		);
+function groupTurn(items: TranscriptItem[]): TurnGroup[] {
+	const groups: TurnGroup[] = [];
+	for (const item of items) {
+		const last = groups.at(-1);
+		if (item.kind === "did") {
+			if (last?.kind === "steps") last.items.push(item);
+			else groups.push({ kind: "steps", id: item.id, items: [item] });
+		} else {
+			groups.push({ kind: "item", id: item.id, item });
+		}
 	}
+	return groups;
+}
 
-	if (item.kind === "asked") {
-		return (
-			<div className="w-full max-w-sm rounded-lg border bg-muted/40 px-3 py-2.5">
-				<p className="font-medium text-xs">{t("Follow-up")}</p>
-				<Markdown className="mt-1.5 wrap-break-word text-sm leading-5">
-					{item.question.prompt}
-				</Markdown>
+function Turn({
+	message,
+	skip,
+}: {
+	message: TranscriptMessage;
+	skip: string | null;
+}) {
+	const items = message.items.filter(
+		(item) =>
+			item.kind !== "reasoned" &&
+			!(item.kind === "asked" && item.question.requestId === skip),
+	);
+	if (items.length === 0) return null;
+
+	return (
+		<div className="flex min-w-0 items-start gap-2.5">
+			{message.mine ? <MyAvatar /> : <AgentAvatar />}
+			<div className="flex min-w-0 flex-1 flex-col gap-4">
+				{groupTurn(items).map((group) =>
+					group.kind === "steps" ? (
+						<Steps key={group.id}>
+							{group.items.map((item) => (
+								<StepItem key={item.id} item={item} />
+							))}
+						</Steps>
+					) : (
+						<Item key={group.id} item={group.item} />
+					),
+				)}
 			</div>
-		);
-	}
+		</div>
+	);
+}
 
-	if (item.kind === "reasoned") return null;
-
+function StepItem({
+	item,
+}: {
+	item: Extract<TranscriptItem, { kind: "did" }>;
+}) {
+	const t = useT();
 	const split = splitLabel(item);
 	const label =
 		split === null
@@ -450,18 +461,119 @@ function Item({ item }: { item: TranscriptItem }) {
 					});
 
 	return (
-		<div className="min-w-0 space-y-1.5">
-			<Marker>
-				<MarkerIcon>
-					{item.pending ? <Spinner /> : <Icon icon={TONE_ICONS[item.tone]} />}
-				</MarkerIcon>
-				<MarkerContent>{label}</MarkerContent>
-			</Marker>
-
-			{item.sources.length > 0 ? <Sources sources={item.sources} /> : null}
-		</div>
+		<Step
+			tone={TONE_MARK[item.tone]}
+			marker={item.pending ? <Spinner /> : undefined}
+			detail={
+				item.sources.length > 0 ? <Sources sources={item.sources} /> : null
+			}
+		>
+			{label}
+		</Step>
 	);
 }
+
+function Item({ item }: { item: TranscriptItem }) {
+	const t = useT();
+	if (item.kind === "said") {
+		return item.mine ? (
+			<p className="wrap-break-word pt-0.5 text-sm">{item.text}</p>
+		) : (
+			<Markdown className="wrap-break-word text-sm">{item.text}</Markdown>
+		);
+	}
+
+	if (item.kind === "asked") {
+		return (
+			<div className="w-full max-w-sm rounded-md border bg-muted px-3 py-2.5">
+				<p className="text-xs">{t("Follow-up")}</p>
+				<Markdown className="mt-1.5 wrap-break-word text-sm leading-5">
+					{item.question.prompt}
+				</Markdown>
+			</div>
+		);
+	}
+
+	return null;
+}
+
+function ContactDraft({ contactId }: { contactId: string }) {
+	const t = useT();
+	const trpc = useTRPC();
+	const contact = useQuery(trpc.contacts.byId.queryOptions({ id: contactId }));
+	const state = useQuery(trpc.contacts.draft.queryOptions({ id: contactId }));
+
+	const email = contact.data?.email ?? null;
+	const draft = state.data?.draft ?? null;
+	if (!email || !contact.data) return null;
+
+	const name = contactName(contact.data);
+
+	if (!draft) {
+		return (
+			<div className="flex min-w-0 flex-wrap items-center gap-3">
+				<p className="text-2sm text-muted-foreground">
+					{t("No draft for {name} yet.", { name })}
+				</p>
+				<EmailDraftDialog
+					contactId={contactId}
+					email={email}
+					name={name}
+					label={t("Write a draft")}
+				/>
+			</div>
+		);
+	}
+
+	const mailto = `mailto:${email}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`;
+
+	return (
+		<DraftCard>
+			<DraftCardHeader>
+				<MonoLabel className="min-w-0 truncate">
+					{t("Draft · Email to {name}", { name })}
+				</MonoLabel>
+				<Badge variant="outline">{t("Not sent")}</Badge>
+			</DraftCardHeader>
+			<DraftCardMeta>
+				<dt>{t("To")}</dt>
+				<dd>{email}</dd>
+				<dt>{t("Subject")}</dt>
+				<dd>{draft.subject}</dd>
+			</DraftCardMeta>
+			<DraftCardBody>
+				{draft.body
+					.split(/\n{2,}/)
+					.filter((part) => part.trim())
+					.map((part) => (
+						<p key={part}>{part}</p>
+					))}
+			</DraftCardBody>
+			<DraftCardActions>
+				{mailto.length <= EMAIL_DRAFT.mailtoMaxChars ? (
+					<Button asChild>
+						<a href={mailto}>
+							<MailIcon data-icon="inline-start" />
+							{t("Open in mail")}
+						</a>
+					</Button>
+				) : null}
+				<EmailDraftDialog
+					contactId={contactId}
+					email={email}
+					name={name}
+					label={t("Edit draft")}
+				/>
+			</DraftCardActions>
+		</DraftCard>
+	);
+}
+
+const SOURCE_ICONS = {
+	linkedin: LogoLinkedin,
+	github: LogoGithub,
+	web: Document,
+} satisfies Record<Source["network"], CarbonIcon>;
 
 function Sources({ sources }: { sources: Source[] }) {
 	const t = useT();
@@ -490,12 +602,17 @@ function Sources({ sources }: { sources: Source[] }) {
 }
 
 function AgentAvatar() {
+	return <EntityLogo name="R" size="sm" className="mt-0.5" />;
+}
+
+function MyAvatar() {
+	const trpc = useTRPC();
+	const me = useQuery(trpc.users.me.queryOptions());
+
 	return (
-		<MessageAvatar>
-			<span className="flex h-7 items-center justify-center rounded-md bg-foreground px-2 text-background">
-				<Wordmark className="h-3 w-auto" />
-			</span>
-		</MessageAvatar>
+		<Avatar size="xs" className="mt-0.5">
+			<AvatarFallback>{initialsFromName(me.data?.name)}</AvatarFallback>
+		</Avatar>
 	);
 }
 

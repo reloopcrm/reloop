@@ -6,6 +6,16 @@ import { Button } from "@crm/ui/components/button";
 import { Checkbox } from "@crm/ui/components/checkbox";
 import { Icon } from "@crm/ui/components/icon";
 import {
+	ContactsIcon,
+	DateIcon,
+	EmailIcon,
+	NumberIcon,
+	OpenIcon,
+	SignalIcon,
+	TextIcon,
+	VerdictIcon,
+} from "@crm/ui/components/line-icons";
+import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
@@ -21,7 +31,10 @@ import {
 	type RecordKind,
 	useFieldsSheet,
 } from "@/components/crm/record-sheet/record-stack";
-import { DetailSheetProperty } from "@/components/detail-sheet";
+import {
+	DetailSheetProperty,
+	type PropertyIcon,
+} from "@/components/detail-sheet";
 import { useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -42,6 +55,19 @@ const NONE = "__none__";
 const UNASSIGNED = "Unassigned";
 
 const FORMER_MEMBER = "Former member";
+
+const TYPE_ICON = new Map([
+	["TEXT", TextIcon],
+	["LONG_TEXT", TextIcon],
+	["NUMBER", NumberIcon],
+	["DATE", DateIcon],
+	["CHECKBOX", VerdictIcon],
+	["SELECT", SignalIcon],
+	["URL", OpenIcon],
+	["EMAIL", EmailIcon],
+	["PHONE", NumberIcon],
+	["USER", ContactsIcon],
+]);
 
 export function FieldsCog({ kind }: { kind: RecordKind }) {
 	const t = useT();
@@ -97,10 +123,15 @@ export function RecordFields({
 					const save = (value: FieldValueJson) =>
 						onSave({ [field.key]: value });
 					const busy = saving(field.key);
+					const icon: PropertyIcon = TYPE_ICON.get(field.type) ?? TextIcon;
 
 					if (field.type === "CHECKBOX") {
 						return (
-							<DetailSheetProperty key={field.id} label={field.label}>
+							<DetailSheetProperty
+								key={field.id}
+								label={field.label}
+								icon={icon}
+							>
 								<Checkbox
 									checked={field.value === true}
 									disabled={busy}
@@ -112,7 +143,12 @@ export function RecordFields({
 
 					if (field.type === "LONG_TEXT") {
 						return (
-							<DetailSheetProperty key={field.id} label={field.label} wide>
+							<DetailSheetProperty
+								key={field.id}
+								label={field.label}
+								icon={icon}
+								wide
+							>
 								<InlineTextArea
 									label={field.label}
 									value={field.value === null ? null : String(field.value)}
@@ -128,6 +164,7 @@ export function RecordFields({
 							<InlineDateField
 								key={field.id}
 								label={field.label}
+								icon={icon}
 								value={field.value === null ? null : String(field.value)}
 								saving={busy}
 								onSave={save}
@@ -140,6 +177,7 @@ export function RecordFields({
 							<InlineSelectField
 								key={field.id}
 								label={field.label}
+								icon={icon}
 								value={field.value === null ? NONE : String(field.value)}
 								options={[
 									{ value: NONE, label: t("None") },
@@ -161,6 +199,7 @@ export function RecordFields({
 							<InlineSelectField
 								key={field.id}
 								label={field.label}
+								icon={icon}
 								value={current}
 								options={userOptionsFor(current)}
 								placeholder={t(UNASSIGNED)}
@@ -174,6 +213,7 @@ export function RecordFields({
 						<InlineField
 							key={field.id}
 							label={field.label}
+							icon={icon}
 							type={
 								field.type === "URL"
 									? "url"

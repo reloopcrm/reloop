@@ -1,16 +1,19 @@
 "use client";
 
 import Add from "@carbon/icons-react/es/Add";
+import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import { Icon } from "@crm/ui/components/icon";
 import { Loader } from "@crm/ui/components/loader";
+import { type MarkTone, Status } from "@crm/ui/components/mark";
 import { SimpleTableRow } from "@crm/ui/components/simple-table";
 import { TableCell } from "@crm/ui/components/table";
 import { formatMoney } from "@crm/ui/lib/format";
 import type { ReactNode } from "react";
 import {
 	DetailSheetHeader,
+	DetailSheetRecord,
 	type DetailSheetTab,
 	DetailSheetTabs,
 } from "@/components/detail-sheet";
@@ -25,7 +28,8 @@ export function RecordSheetFrame({
 	note,
 	media,
 	actions,
-	stats,
+	chips,
+	rail,
 	tabs,
 	tab,
 	onTabChange,
@@ -37,7 +41,8 @@ export function RecordSheetFrame({
 	note?: ReactNode;
 	media?: ReactNode;
 	actions?: ReactNode;
-	stats?: ReactNode;
+	chips?: ReactNode;
+	rail?: ReactNode;
 	tabs: DetailSheetTab[];
 	tab: string;
 	onTabChange: (tab: string) => void;
@@ -53,6 +58,7 @@ export function RecordSheetFrame({
 				description={description}
 				note={note}
 				actions={actions}
+				chips={chips}
 				onBack={stack.length > 1 ? close : undefined}
 				onClose={closeAll}
 			/>
@@ -63,22 +69,37 @@ export function RecordSheetFrame({
 				</div>
 			) : error ? (
 				<div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 p-6 text-center">
-					<p className="font-medium text-sm">
-						{t("This record could not be loaded")}
-					</p>
+					<p className="text-sm">{t("This record could not be loaded")}</p>
 					<p className="text-muted-foreground text-xs">{error}</p>
 				</div>
 			) : (
-				<>
-					{stats}
+				<DetailSheetRecord rail={rail} mainFirst={tab === "agent"}>
 					<DetailSheetTabs
 						tabs={tabs}
 						value={tab}
 						onValueChange={onTabChange}
 					/>
-				</>
+				</DetailSheetRecord>
 			)}
 		</>
+	);
+}
+
+export function RecordChip({ children }: { children: ReactNode }) {
+	return <Badge variant="outline">{children}</Badge>;
+}
+
+export function RecordStatusChip({
+	tone,
+	children,
+}: {
+	tone: MarkTone;
+	children: ReactNode;
+}) {
+	return (
+		<Badge>
+			<Status tone={tone}>{children}</Status>
+		</Badge>
 	);
 }
 

@@ -12,21 +12,28 @@ import {
 } from "@crm/ui/components/accordion";
 import { Button } from "@crm/ui/components/button";
 import { EmptyCellValue } from "@crm/ui/components/empty-cell";
-import {
-	EntityLogo,
-	type EntityLogoTone,
-} from "@crm/ui/components/entity-logo";
 import { Icon } from "@crm/ui/components/icon";
+import {
+	ContactsIcon,
+	DateIcon,
+	EmailIcon,
+	MailIcon,
+	NumberIcon,
+	OpenIcon,
+	SignalIcon,
+	TextIcon,
+} from "@crm/ui/components/line-icons";
+import { Status } from "@crm/ui/components/mark";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { SimpleTable, SimpleTableRow } from "@crm/ui/components/simple-table";
-import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { TableCell } from "@crm/ui/components/table";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
+import { unitLabel } from "@/app/(app)/[slug]/win-back/win-back-verdict";
 import { AgentPanel } from "@/components/crm/agent-panel";
 import { InlineCompanyField } from "@/components/crm/company-picker";
 import { contactName } from "@/components/crm/contact-name";
-import { EmailDraftDialog } from "@/components/crm/email-draft-dialog";
 import { ContactEnrichmentAction } from "@/components/crm/enrichment-actions";
 import { EnrichmentIndicator } from "@/components/crm/enrichment-status";
 import { FactProvenance, FactSuggestion } from "@/components/crm/facts";
@@ -40,32 +47,48 @@ import { OwnerCell } from "@/components/crm/owner-cell";
 import { ContactSocials } from "@/components/crm/social-links";
 import { DealStageMenu } from "@/components/crm/stage-change";
 import { Timeline } from "@/components/crm/timeline/timeline";
+import { TIMELINE } from "@/components/crm/timeline/timeline-config";
 import { WebsiteActivity } from "@/components/crm/website-activity";
 import {
 	DetailSheetBody,
 	DetailSheetEmpty,
+	DetailSheetGroup,
 	DetailSheetProperties,
 	DetailSheetProperty,
 	DetailSheetProse,
 	DetailSheetSection,
-	DetailSheetStat,
-	DetailSheetStats,
 	type DetailSheetTab,
 } from "@/components/detail-sheet";
 import { LocalDateTime, LocalRelativeDate } from "@/components/local-date-time";
 import { factsByField } from "@/lib/contact-facts";
+import { OPEN_STAGES } from "@/lib/deal-stage";
 import { ENRICHMENT_POLL_MS, isEnriching } from "@/lib/enrichment-status";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { savingField } from "@/lib/pending-field";
+import {
+	potentialPresentation,
+	RECORD_POTENTIALS,
+	RECORD_STANDINGS,
+	standingLabel,
+	standingTone,
+} from "@/lib/record-standing";
 import { hasContactLinks } from "@/lib/social-links";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { RecordActions } from "./record-actions";
-import { DealAmount, MetaLine, RecordSheetFrame } from "./record-parts";
+import {
+	DealAmount,
+	MetaLine,
+	RecordChip,
+	RecordSheetFrame,
+	RecordStatusChip,
+} from "./record-parts";
 import { useOpenRecord, useRecordSheetView } from "./record-stack";
 
 type Contact = RouterOutputs["contacts"]["byId"];
+type Attention = RouterOutputs["contacts"]["attention"];
+type AttentionField = Attention["fields"][number];
 
 const NONE = "none";
 
@@ -74,6 +97,22 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 	day: "numeric",
 	year: "numeric",
 };
+
+const POTENTIAL_CHIP = {
+	high: "High potential",
+	medium: "Medium potential",
+	low: "Low potential",
+} as const;
+
+const CONVERSATION_CHIP = {
+	"nothing-known": null,
+	"win-back": "Quiet for {days} days",
+	owed: "You owe an answer",
+	declined: "They said no",
+	waiting: "Waiting on them",
+	settled: "Business closed",
+	open: "Conversation is live",
+} as const satisfies Record<Attention["kind"], string | null>;
 
 const DEAL_COLUMNS = [
 	{ id: "deal", header: "Deal", width: "w-[32%]", className: "pl-5" },
@@ -88,12 +127,41 @@ const DEAL_COLUMNS = [
 	{ id: "owner", header: "Owner", width: "w-[14%]" },
 ];
 
+function fieldOf<K extends AttentionField["key"]>(
+	attention: Attention | undefined,
+	key: K,
+): (AttentionField & { key: K }) | null {
+	return (
+		attention?.fields.find(
+			(field): field is AttentionField & { key: K } => field.key === key,
+		) ?? null
+	);
+}
+
+function standingOf(attention: Attention | undefined) {
+	const field = fieldOf(attention, "standing");
+	return {
+		standing:
+			RECORD_STANDINGS.find((value) => value === field?.standing) ?? null,
+		potential:
+			RECORD_POTENTIALS.find((value) => value === field?.potential) ?? null,
+	};
+}
+
+function latest(attention: Attention | undefined): string | null {
+	const moments = [attention?.lastInbound?.at, attention?.lastOutbound?.at]
+		.filter((at): at is string => Boolean(at))
+		.sort();
+	return moments.at(-1) ?? null;
+}
+
 export function ContactSheet({ contactId }: { contactId: string }) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 	const { tab, setTab } = useRecordSheetView("activity");
+	const [taskAsked, setTaskAsked] = useState(0);
 
 	const query = useQuery({
 		...trpc.contacts.byId.queryOptions({ id: contactId }),
@@ -105,6 +173,14 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 		},
 	});
 	const contact = query.data;
+
+	const attention = useQuery(
+		trpc.contacts.attention.queryOptions({ id: contactId }),
+	);
+
+	const counts = useQuery(
+		trpc.activities.timelineCounts.queryOptions({ contactId }),
+	);
 
 	const setPrimary = useMutation(
 		trpc.companies.setPrimaryContact.mutationOptions({
@@ -121,6 +197,11 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 		}),
 	);
 
+	const createTask = () => {
+		setTab("activity");
+		setTaskAsked((count) => count + 1);
+	};
+
 	const tabs: DetailSheetTab[] = contact
 		? [
 				{
@@ -131,7 +212,14 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 				{
 					value: "activity",
 					label: t("Activity"),
-					content: <Timeline anchor={{ contactId: contact.id }} />,
+					count: counts.data?.all,
+					content: (
+						<Timeline
+							anchor={{ contactId: contact.id }}
+							taskAsked={taskAsked}
+							onTask={createTask}
+						/>
+					),
 				},
 				{
 					value: "deals",
@@ -159,24 +247,12 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 				) : undefined
 			}
 			note={
-				contact ? (
-					<>
-						{contact.isPrimaryContact ? (
-							<StatusIndicator
-								tone="success"
-								label={t("Primary contact at {company}", {
-									company: contact.company?.name ?? t("this company"),
-								})}
-							/>
-						) : null}
-						{contact.enrichmentStatus !== "COMPLETE" ? (
-							<EnrichmentIndicator
-								status={contact.enrichmentStatus}
-								queued={contact.queued}
-								title={contact.enrichmentError}
-							/>
-						) : null}
-					</>
+				contact && contact.enrichmentStatus !== "COMPLETE" ? (
+					<EnrichmentIndicator
+						status={contact.enrichmentStatus}
+						queued={contact.queued}
+						title={contact.enrichmentError}
+					/>
 				) : null
 			}
 			media={
@@ -190,18 +266,12 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 			actions={
 				contact ? (
 					<>
-						<ContactEnrichmentAction contactId={contact.id} />
-						{contact.email ? (
-							<EmailDraftDialog
-								contactId={contact.id}
-								email={contact.email}
-								name={contactName(contact)}
-							/>
-						) : null}
+						<Button variant="link" size="sm" onClick={createTask}>
+							{t("Create a task")}
+						</Button>
 						{contact.company ? (
 							<Button
 								variant="outline"
-								size="sm"
 								disabled={setPrimary.isPending}
 								onClick={() =>
 									setPrimary.mutate({
@@ -214,11 +284,15 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 									icon={contact.isPrimaryContact ? StarFilled : Star}
 									data-icon="inline-start"
 								/>
-								<span className="hidden sm:inline">
-									{contact.isPrimaryContact
-										? t("Remove as primary contact")
-										: t("Make primary")}
-								</span>
+								{contact.isPrimaryContact
+									? t("Remove as primary contact")
+									: t("Make primary")}
+							</Button>
+						) : null}
+						{contact.email ? (
+							<Button onClick={() => setTab("agent")}>
+								<MailIcon data-icon="inline-start" />
+								{t("Write to them")}
 							</Button>
 						) : null}
 						<RecordActions
@@ -238,51 +312,20 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 								.filter(Boolean)
 								.join(" ")}
 							archivedAt={contact.archivedAt}
-						/>
+						>
+							<ContactEnrichmentAction contactId={contact.id} />
+						</RecordActions>
 					</>
 				) : null
 			}
-			stats={
+			chips={
 				contact ? (
-					<DetailSheetStats>
-						<DetailSheetStat label={t("Company")} title={contact.company?.name}>
-							{contact.company ? (
-								<CompanyStat company={contact.company} />
-							) : (
-								<EmptyCellValue />
-							)}
-						</DetailSheetStat>
-						<DetailSheetStat
-							label={t("Email")}
-							title={contact.email ?? undefined}
-						>
-							{contact.email ? (
-								<a
-									href={`mailto:${contact.email}`}
-									className="underline-offset-2 hover:underline"
-								>
-									{contact.email}
-								</a>
-							) : (
-								<EmptyCellValue />
-							)}
-						</DetailSheetStat>
-						<DetailSheetStat
-							label={t("Phone")}
-							title={contact.phone ?? undefined}
-						>
-							{contact.phone ? (
-								<a
-									href={`tel:${contact.phone}`}
-									className="underline-offset-2 hover:underline"
-								>
-									{contact.phone}
-								</a>
-							) : (
-								<EmptyCellValue />
-							)}
-						</DetailSheetStat>
-					</DetailSheetStats>
+					<ContactChips contact={contact} attention={attention.data} />
+				) : null
+			}
+			rail={
+				contact ? (
+					<ContactRail contact={contact} attention={attention.data} />
 				) : null
 			}
 			tabs={tabs}
@@ -292,32 +335,69 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 	);
 }
 
-function CompanyStat({
-	company,
+function ContactChips({
+	contact,
+	attention,
 }: {
-	company: NonNullable<Contact["company"]>;
+	contact: Contact;
+	attention: Attention | undefined;
 }) {
-	const openRecord = useOpenRecord();
+	const t = useT();
+	const { standing, potential } = standingOf(attention);
+	const conversation = attention ? CONVERSATION_CHIP[attention.kind] : null;
+	const last = latest(attention);
+	const open = contact.deals.filter((deal) =>
+		OPEN_STAGES.includes(deal.stage),
+	).length;
 
 	return (
-		<button
-			type="button"
-			onClick={() => openRecord({ kind: "company", id: company.id })}
-			className="flex min-w-0 max-w-full items-center gap-2 underline-offset-2 hover:underline"
-		>
-			<EntityLogo
-				src={company.iconUrl}
-				darkSrc={company.iconDarkUrl}
-				tone={company.iconTone as EntityLogoTone | null | undefined}
-				name={company.name}
-				size="xs"
-			/>
-			<span className="truncate">{company.name}</span>
-		</button>
+		<>
+			{standing ? (
+				<RecordStatusChip tone={standingTone(standing)}>
+					{t(standingLabel(standing))}
+				</RecordStatusChip>
+			) : null}
+			{potential ? (
+				<RecordStatusChip tone={potentialPresentation(potential).tone}>
+					{t(POTENTIAL_CHIP[potential])}
+				</RecordStatusChip>
+			) : null}
+			{contact.isPrimaryContact ? (
+				<RecordChip>
+					{t("Primary contact at {company}", {
+						company: contact.company?.name ?? t("this company"),
+					})}
+				</RecordChip>
+			) : null}
+			{attention && conversation ? (
+				<RecordChip>
+					{t(conversation, { days: attention.quietDays })}
+				</RecordChip>
+			) : null}
+			{last ? (
+				<RecordChip>
+					{t("Last mail")}{" "}
+					<LocalDateTime date={last} options={TIMELINE.format.date} />
+				</RecordChip>
+			) : null}
+			{open > 0 ? (
+				<RecordChip>
+					{open === 1
+						? t("1 open deal")
+						: t("{count} open deals", { count: open })}
+				</RecordChip>
+			) : null}
+		</>
 	);
 }
 
-function ContactOverview({ contact }: { contact: Contact }) {
+function ContactRail({
+	contact,
+	attention,
+}: {
+	contact: Contact;
+	attention: Attention | undefined;
+}) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
@@ -356,102 +436,188 @@ function ContactOverview({ contact }: { contact: Contact }) {
 	const isSaving = savingField(update);
 
 	return (
-		<DetailSheetBody>
-			<DetailSheetSection
-				title={t("Details")}
+		<>
+			<DetailSheetGroup
+				title={t("Record")}
 				action={<FieldsCog kind="contact" />}
 			>
-				<DetailSheetProperties>
-					<InlineField
-						label={t("First name")}
-						value={contact.firstName}
-						saving={isSaving("firstName")}
-						onSave={(firstName) => firstName && save({ firstName })}
-					/>
-					<InlineField
-						label={t("Last name")}
-						value={contact.lastName}
-						saving={isSaving("lastName")}
-						onSave={(lastName) => save({ lastName })}
-					/>
-					<InlineField
-						label={t("Title")}
-						value={contact.title}
-						placeholder={t("Head of Purchasing")}
-						saving={isSaving("title")}
-						onSave={(title) => save({ title })}
-						{...agentProps("title")}
-					/>
-					<InlineField
-						label={t("Email")}
-						value={contact.email}
-						type="email"
-						saving={isSaving("email")}
-						onSave={(email) => save({ email })}
-					/>
-					<InlineField
-						label={t("Phone")}
-						value={contact.phone}
-						type="tel"
-						saving={isSaving("phone")}
-						onSave={(phone) => save({ phone })}
-						{...agentProps("phone")}
-					/>
-					<InlineField
-						label="LinkedIn"
-						value={contact.linkedinUrl}
-						type="url"
-						saving={isSaving("linkedinUrl")}
-						onSave={(linkedinUrl) => save({ linkedinUrl })}
-						{...agentProps("linkedinUrl")}
-					/>
-					<InlineField
-						label="X"
-						value={contact.twitterUrl}
-						type="url"
-						saving={isSaving("twitterUrl")}
-						onSave={(twitterUrl) => save({ twitterUrl })}
-						{...agentProps("twitterUrl")}
-					/>
-					<InlineField
-						label="GitHub"
-						value={contact.githubUrl}
-						type="url"
-						saving={isSaving("githubUrl")}
-						onSave={(githubUrl) => save({ githubUrl })}
-						{...agentProps("githubUrl")}
-					/>
-					<InlineCompanyField
-						value={contact.company?.id ?? NONE}
-						company={contact.company}
-						saving={isSaving("companyId")}
-						none={{ value: NONE, label: t("No company") }}
-						onSave={(companyId) =>
-							save({ companyId: companyId === NONE ? null : companyId })
-						}
-					/>
-					<InlineSelectField
-						label={t("Owner")}
-						value={contact.owner?.id ?? NONE}
-						options={[
-							{ value: NONE, label: t("Unassigned") },
-							...(users.data ?? []).map((user) => ({
-								value: user.id,
-								label: user.name,
-							})),
-						]}
-						onSave={(ownerId) =>
-							save({ ownerId: ownerId === NONE ? null : ownerId })
-						}
-					/>
-					<RecordFields
-						fields={contact.fields}
-						saving={isSavingField}
-						onSave={saveFields}
-					/>
-				</DetailSheetProperties>
-			</DetailSheetSection>
+				<InlineField
+					label={t("First name")}
+					icon={ContactsIcon}
+					value={contact.firstName}
+					saving={isSaving("firstName")}
+					onSave={(firstName) => firstName && save({ firstName })}
+				/>
+				<InlineField
+					label={t("Last name")}
+					icon={ContactsIcon}
+					value={contact.lastName}
+					saving={isSaving("lastName")}
+					onSave={(lastName) => save({ lastName })}
+				/>
+				<InlineField
+					label={t("Title")}
+					icon={TextIcon}
+					value={contact.title}
+					placeholder={t("Head of Purchasing")}
+					saving={isSaving("title")}
+					onSave={(title) => save({ title })}
+					{...agentProps("title")}
+				/>
+				<InlineCompanyField
+					value={contact.company?.id ?? NONE}
+					company={contact.company}
+					saving={isSaving("companyId")}
+					none={{ value: NONE, label: t("No company") }}
+					onSave={(companyId) =>
+						save({ companyId: companyId === NONE ? null : companyId })
+					}
+				/>
+				<InlineField
+					label={t("Email")}
+					icon={EmailIcon}
+					value={contact.email}
+					type="email"
+					placeholder={t("Set email")}
+					saving={isSaving("email")}
+					onSave={(email) => save({ email })}
+				/>
+				<InlineField
+					label={t("Phone")}
+					icon={NumberIcon}
+					value={contact.phone}
+					type="tel"
+					placeholder={t("Set phone")}
+					saving={isSaving("phone")}
+					onSave={(phone) => save({ phone })}
+					{...agentProps("phone")}
+				/>
+				<InlineField
+					label="LinkedIn"
+					icon={OpenIcon}
+					value={contact.linkedinUrl}
+					type="url"
+					saving={isSaving("linkedinUrl")}
+					onSave={(linkedinUrl) => save({ linkedinUrl })}
+					{...agentProps("linkedinUrl")}
+				/>
+				<InlineField
+					label="X"
+					icon={OpenIcon}
+					value={contact.twitterUrl}
+					type="url"
+					saving={isSaving("twitterUrl")}
+					onSave={(twitterUrl) => save({ twitterUrl })}
+					{...agentProps("twitterUrl")}
+				/>
+				<InlineField
+					label="GitHub"
+					icon={OpenIcon}
+					value={contact.githubUrl}
+					type="url"
+					saving={isSaving("githubUrl")}
+					onSave={(githubUrl) => save({ githubUrl })}
+					{...agentProps("githubUrl")}
+				/>
+				<RecordFields
+					fields={contact.fields}
+					saving={isSavingField}
+					onSave={saveFields}
+				/>
+			</DetailSheetGroup>
 
+			<ReadFromMails attention={attention} />
+
+			<DetailSheetGroup title={t("Ownership")}>
+				<InlineSelectField
+					label={t("Owner")}
+					icon={ContactsIcon}
+					value={contact.owner?.id ?? NONE}
+					options={[
+						{ value: NONE, label: t("Unassigned") },
+						...(users.data ?? []).map((user) => ({
+							value: user.id,
+							label: user.name,
+						})),
+					]}
+					onSave={(ownerId) =>
+						save({ ownerId: ownerId === NONE ? null : ownerId })
+					}
+				/>
+				<DetailSheetProperty label={t("Created")} icon={DateIcon}>
+					<LocalDateTime date={contact.createdAt} options={DATE_OPTIONS} />
+				</DetailSheetProperty>
+			</DetailSheetGroup>
+		</>
+	);
+}
+
+function ReadFromMails({ attention }: { attention: Attention | undefined }) {
+	const t = useT();
+	const { standing, potential } = standingOf(attention);
+	const quantity = fieldOf(attention, "quantity");
+	const goods = fieldOf(attention, "products");
+	const inbound = attention?.lastInbound ?? null;
+	const outbound = attention?.lastOutbound ?? null;
+
+	if (
+		!standing &&
+		!potential &&
+		!quantity?.pallets &&
+		!goods &&
+		!inbound &&
+		!outbound
+	)
+		return null;
+
+	return (
+		<DetailSheetGroup title={t("Read from the mails")}>
+			{standing ? (
+				<DetailSheetProperty label={t("Standing")} icon={SignalIcon}>
+					<Status tone={standingTone(standing)}>
+						{t(standingLabel(standing))}
+					</Status>
+				</DetailSheetProperty>
+			) : null}
+			{potential ? (
+				<DetailSheetProperty label={t("Potential")} icon={SignalIcon}>
+					<Status tone={potentialPresentation(potential).tone}>
+						{t(potentialPresentation(potential).label)}
+					</Status>
+				</DetailSheetProperty>
+			) : null}
+			{quantity?.pallets ? (
+				<DetailSheetProperty label={t("Quantity")} icon={NumberIcon}>
+					{t("{count} {unit}", {
+						count: quantity.pallets,
+						unit: unitLabel(quantity.unit, t),
+					})}
+				</DetailSheetProperty>
+			) : null}
+			{goods ? (
+				<DetailSheetProperty label={t("Goods")} icon={TextIcon}>
+					{goods.values.join(", ")}
+				</DetailSheetProperty>
+			) : null}
+			{inbound ? (
+				<DetailSheetProperty label={t("Their last mail")} icon={DateIcon}>
+					<LocalDateTime date={inbound.at} options={TIMELINE.format.date} />
+				</DetailSheetProperty>
+			) : null}
+			{outbound ? (
+				<DetailSheetProperty label={t("Your last mail")} icon={DateIcon}>
+					<LocalDateTime date={outbound.at} options={TIMELINE.format.date} />
+				</DetailSheetProperty>
+			) : null}
+		</DetailSheetGroup>
+	);
+}
+
+function ContactOverview({ contact }: { contact: Contact }) {
+	const t = useT();
+
+	return (
+		<DetailSheetBody>
 			{contact.brief ? <Background brief={contact.brief} /> : null}
 
 			<WeKnowThem
@@ -534,7 +700,7 @@ function PreviousRoles({ roles }: { roles: string[] }) {
 						: t("{count} roles", { count: roles.length })}
 				</AccordionTrigger>
 				<AccordionContent>
-					<ul className="space-y-1">
+					<ul className="flex flex-col gap-1">
 						{roles.map((role) => (
 							<li key={role}>{role}</li>
 						))}
@@ -564,7 +730,7 @@ function WeKnowThem({
 		<DetailSheetSection title={t("We know them")}>
 			<DetailSheetProperties>
 				{emails > 0 ? (
-					<DetailSheetProperty label={t("Emails")}>
+					<DetailSheetProperty label={t("Emails")} icon={MailIcon}>
 						<span className="tabular-nums">{emails}</span>
 						<span className="text-muted-foreground">
 							{" · "}
@@ -580,13 +746,13 @@ function WeKnowThem({
 				) : null}
 
 				{meetings > 0 ? (
-					<DetailSheetProperty label={t("Meetings")}>
+					<DetailSheetProperty label={t("Meetings")} icon={DateIcon}>
 						<span className="tabular-nums">{meetings}</span>
 					</DetailSheetProperty>
 				) : null}
 
 				{nextMeeting ? (
-					<DetailSheetProperty label={t("Next meeting")} wide>
+					<DetailSheetProperty label={t("Next meeting")} icon={DateIcon} wide>
 						{nextMeeting.title ?? t("Meeting")}
 						<span className="text-muted-foreground">
 							{" · "}
@@ -599,7 +765,7 @@ function WeKnowThem({
 				) : null}
 
 				{colleagues.length > 0 ? (
-					<DetailSheetProperty label={t("Also here")} wide>
+					<DetailSheetProperty label={t("Also here")} icon={ContactsIcon} wide>
 						<Colleagues colleagues={colleagues} />
 					</DetailSheetProperty>
 				) : null}
@@ -613,7 +779,7 @@ function Colleagues({
 }: {
 	colleagues: Contact["relationship"]["colleagues"];
 }) {
-	const openRecord = useOpenRecord();
+	const open = useOpenRecord();
 
 	return (
 		<span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
@@ -621,7 +787,7 @@ function Colleagues({
 				<button
 					key={colleague.id}
 					type="button"
-					onClick={() => openRecord({ kind: "contact", id: colleague.id })}
+					onClick={() => open({ kind: "contact", id: colleague.id })}
 					className="min-w-0 truncate underline-offset-2 hover:underline"
 				>
 					{colleague.name}
@@ -636,7 +802,7 @@ function Colleagues({
 
 function ContactDeals({ contact }: { contact: Contact }) {
 	const t = useT();
-	const openRecord = useOpenRecord();
+	const open = useOpenRecord();
 
 	if (contact.deals.length === 0) {
 		return (
@@ -665,9 +831,9 @@ function ContactDeals({ contact }: { contact: Contact }) {
 					key={deal.id}
 					clickable
 					className="max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-5 max-sm:py-2.5"
-					onClick={() => openRecord({ kind: "deal", id: deal.id })}
+					onClick={() => open({ kind: "deal", id: deal.id })}
 				>
-					<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium max-sm:w-full max-sm:p-0">
+					<TableCell className="truncate py-2.5 pr-3 pl-5 max-sm:w-full max-sm:p-0">
 						{deal.name}
 					</TableCell>
 					<TableCell className="truncate px-3 py-2.5 text-muted-foreground max-sm:hidden">

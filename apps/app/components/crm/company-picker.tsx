@@ -9,12 +9,13 @@ import {
 	CommandItem,
 	CommandList,
 } from "@crm/ui/components/command";
+import { CompaniesIcon } from "@crm/ui/components/line-icons";
 import { Spinner } from "@crm/ui/components/spinner";
 import { useSearchInput } from "@crm/ui/hooks/use-search-input";
 import { cn } from "@crm/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { type Ref, useId, useState } from "react";
-import { PROPERTY_LABEL, PROPERTY_ROW } from "@/components/detail-sheet";
+import { PROPERTY_ROW, PropertyLabel } from "@/components/detail-sheet";
 import { useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -180,9 +181,9 @@ export function InlineCompanyField({
 
 	return (
 		<div className={cn(PROPERTY_ROW, "items-center")}>
-			<label htmlFor={id} className={PROPERTY_LABEL}>
+			<PropertyLabel htmlFor={id} icon={CompaniesIcon}>
 				{label ?? t("Company")}
-			</label>
+			</PropertyLabel>
 			<div className="flex min-w-0 items-center gap-1.5">
 				<CompanyPicker
 					id={id}
@@ -194,7 +195,7 @@ export function InlineCompanyField({
 					}
 					disabled={saving}
 					variant="ghost"
-					className="w-full"
+					className="w-full px-2"
 				/>
 				{saving ? <Spinner /> : null}
 			</div>

@@ -6,13 +6,14 @@ import { cn } from "@crm/ui/lib/utils";
 import Image from "next/image";
 import { useState } from "react";
 
-export type EntityLogoSize = "xs" | "sm" | "default" | "lg" | "xl";
+export type EntityLogoSize = "xs" | "sm" | "default" | "lg" | "record" | "xl";
 
 const PX: Record<EntityLogoSize, number> = {
 	xs: 16,
 	sm: 20,
 	default: 24,
 	lg: 32,
+	record: 40,
 	xl: 48,
 };
 
@@ -53,7 +54,7 @@ export function EntityLogo({
 			data-size={size}
 			className={cn(
 				"inline-flex size-6 shrink-0 select-none items-center justify-center overflow-hidden text-center font-medium text-[10px] text-muted-foreground uppercase leading-none",
-				"data-[size=xs]:size-4 data-[size=xs]:text-[8px] data-[size=sm]:size-5 data-[size=sm]:text-[9px] data-[size=lg]:size-8 data-[size=lg]:text-xs data-[size=xl]:size-12 data-[size=xl]:text-base",
+				"data-[size=xs]:size-4 data-[size=xs]:text-[8px] data-[size=sm]:size-5 data-[size=sm]:text-[9px] data-[size=lg]:size-8 data-[size=lg]:text-xs data-[size=record]:size-10 data-[size=record]:rounded-md data-[size=record]:font-mono data-[size=record]:font-normal data-[size=record]:text-2sm data-[size=xl]:size-12 data-[size=xl]:text-base",
 				!showImage && "bg-muted",
 				className,
 			)}

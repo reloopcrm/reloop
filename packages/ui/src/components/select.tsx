@@ -32,7 +32,7 @@ function SelectValue({
 }
 
 const selectTriggerVariants = cva(
-	"flex items-center justify-between gap-2 rounded-full text-sm whitespace-nowrap transition-colors outline-none select-none disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-faint-foreground data-[size=default]:h-9 data-[size=sm]:h-8 data-[size=sm]:text-2sm *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+	"flex items-center justify-between gap-2 rounded-full text-sm whitespace-nowrap site:rounded-(--site-radius) site:text-base site:data-[size=default]:h-10 transition-colors outline-none select-none disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-faint-foreground data-[size=default]:h-9 data-[size=sm]:h-8 data-[size=sm]:text-2sm *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 	{
 		variants: {
 			variant: {

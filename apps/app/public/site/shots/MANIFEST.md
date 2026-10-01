@@ -1,6 +1,6 @@
 # Product shots
 
-Example data only. Every image shows the app's built-in sample data: invented companies on `.example` domains, the invented user Lena Hoffmann and the invented workspace Nordlicht Beratung, plus one invented follow-up draft for Chiara Benvenuti (Verdalba Hotels Srl).
+Example data only. Every image shows the app's built-in sample data from `apps/api/src/demo/demo-data.ts`: invented companies and people on `.example` domains. Two more things were invented for the capture and are not in the demo seed: the signed-in user Lena Hoffmann with the workspace Nordlicht Beratung, and one follow-up draft for Chiara Benvenuti (Verdalba Hotels Srl).
 
 Captured from the Reloop app at commit 5373ac9 against a separate, disposable local database (`crm_preview`), never a real workspace. The sample data banner and the Next.js dev indicator are hidden. UI language: English.
 

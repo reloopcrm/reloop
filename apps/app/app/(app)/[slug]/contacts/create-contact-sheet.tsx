@@ -1,10 +1,9 @@
 "use client";
 
-import Add from "@carbon/icons-react/es/Add";
 import { Button } from "@crm/ui/components/button";
 import { Field, FieldGroup, FieldLabel } from "@crm/ui/components/field";
-import { Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
+import { AddIcon } from "@crm/ui/components/line-icons";
 import {
 	Select,
 	SelectContent,
@@ -41,7 +40,7 @@ function AddButton(props: ComponentProps<typeof Button>) {
 
 	return (
 		<Button {...props}>
-			<Icon icon={Add} data-icon="inline-start" />
+			<AddIcon data-icon="inline-start" aria-hidden />
 			{t("New contact")}
 		</Button>
 	);

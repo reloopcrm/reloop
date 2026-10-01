@@ -244,5 +244,12 @@
 	"Completed": "已完成",
 	"What happened?": "发生了什么？",
 	"Head of Purchasing": "采购主管",
-	"The limit of your plan for drafts is reached. Upgrade your plan to continue now, or the agent writes this draft on": "你的套餐的草稿额度已用完。升级套餐即可现在继续，否则代理将在以下日期写这份草稿："
+	"The limit of your plan for drafts is reached. Upgrade your plan to continue now, or the agent writes this draft on": "你的套餐的草稿额度已用完。升级套餐即可现在继续，否则代理将在以下日期写这份草稿：",
+	"Every company your mailbox has done business with.": "你的邮箱打过交道的每一家公司。",
+	"The people behind the companies, read from your own mailbox.": "公司背后的人，从你自己的邮箱中读取。",
+	"Search companies": "搜索公司",
+	"Search contacts": "搜索联系人",
+	"Customers": "客户",
+	"Active in 30 days": "30 天内活跃",
+	"Research again": "重新调研"
 }

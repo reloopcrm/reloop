@@ -5,6 +5,7 @@ import {
 	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
+	PageShellEyebrow,
 	PageShellHeader,
 	PageShellHeading,
 	PageShellLoading,
@@ -31,9 +32,10 @@ export default async function CompaniesPage({
 		<PageShell className="min-h-0">
 			<PageShellHeader>
 				<PageShellHeading>
+					<PageShellEyebrow>{t("Companies")}</PageShellEyebrow>
 					<PageShellTitle>{t("Companies")}</PageShellTitle>
 					<PageShellDescription>
-						{t("Every account in the pipeline.")}
+						{t("Every company your mailbox has done business with.")}
 					</PageShellDescription>
 				</PageShellHeading>
 				<PageShellActions>

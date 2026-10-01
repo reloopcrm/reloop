@@ -1,14 +1,23 @@
 "use client";
 
-import Undo from "@carbon/icons-react/es/Undo";
-import { Button } from "@crm/ui/components/button";
 import { DataTable, type DataTableFacet } from "@crm/ui/components/data-table";
 import { EntityLogo } from "@crm/ui/components/entity-logo";
-import { Icon } from "@crm/ui/components/icon";
+import {
+	CompaniesIcon,
+	ContactsIcon,
+	DateIcon,
+	SignalIcon,
+	TextIcon,
+	VerdictIcon,
+} from "@crm/ui/components/line-icons";
+import { MonoLabel } from "@crm/ui/components/mark";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
+import { RowOpenButton } from "@crm/ui/components/row-controls";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
+import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryStates } from "nuqs";
+import { useMemo } from "react";
 import { contactName } from "@/components/crm/contact-name";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { PotentialCell } from "@/components/crm/standing-cell";
@@ -25,7 +34,8 @@ import { numberFormat } from "@/lib/i18n/format";
 import { POTENTIAL_FACET_OPTIONS } from "@/lib/record-standing";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
-import { WinBackRulesSheet } from "./win-back-rules-sheet";
+import { WinBackBulkVerdict } from "./win-back-bulk-verdict";
+import { WIN_BACK_UI } from "./win-back-config";
 import {
 	winBackInput,
 	winBackScopeParsers,
@@ -41,52 +51,51 @@ const COLUMNS: LabeledColumn<Group>[] = [
 	{
 		id: "name",
 		header: "Company",
+		icon: CompaniesIcon,
 		sortable: true,
 		hideable: false,
-		size: 340,
 		cell: (row) => <GroupName row={row} />,
 	},
 	{
 		id: "potential",
 		header: "Potential",
+		icon: SignalIcon,
 		sortable: true,
+		defaultHidden: true,
 		size: 120,
 		cell: (row) => <PotentialCell potential={row.potential} />,
 	},
 	{
 		id: "business",
 		header: "What happened",
-		size: 280,
+		icon: TextIcon,
+		size: 190,
 		cell: (row) => <FactCell source={row} />,
 	},
 	{
 		id: "people",
 		header: "People",
+		icon: ContactsIcon,
 		sortable: true,
-		size: 120,
-		cell: (row) => (
-			<span className="text-2sm text-body-foreground tabular-nums">
-				{row.people.length}
-			</span>
-		),
+		defaultHidden: true,
+		align: "right",
+		size: 90,
+		cell: (row) => <span className="tabular-nums">{row.people.length}</span>,
 	},
 	{
 		id: "last",
 		header: "Last contact",
+		icon: DateIcon,
 		sortable: true,
-		size: 140,
-		cell: (row) => (
-			<span className="text-2sm text-muted-foreground tabular-nums">
-				<LocalRelativeTime date={row.lastContactAt} />
-			</span>
-		),
+		size: 130,
+		cell: (row) => <LocalRelativeTime date={row.lastContactAt} />,
 	},
 	{
 		id: "verdict",
 		header: "Verdict",
-		align: "right",
-		size: 160,
-		hideable: false,
+		icon: VerdictIcon,
+		size: 150,
+		control: true,
 		cell: (row) => (
 			<WinBackVerdictMenu
 				name={row.name}
@@ -101,12 +110,13 @@ const COLUMNS: LabeledColumn<Group>[] = [
 
 function GroupName({ row }: { row: Group }) {
 	const t = useT();
-	const people = row.people.length;
+	const openRecord = useOpenRecord();
+	const company = row.company;
 
 	return (
 		<span className="flex min-w-0 items-center gap-2.5">
-			{row.company ? (
-				<EntityLogo name={row.company.name} size="sm" />
+			{company ? (
+				<EntityLogo name={company.name} size="sm" />
 			) : (
 				<PersonAvatar
 					src={row.people[0]?.imageUrl ?? null}
@@ -115,13 +125,14 @@ function GroupName({ row }: { row: Group }) {
 					size="sm"
 				/>
 			)}
-			<span className="flex min-w-0 flex-col">
+			<span className="flex min-w-0 items-center gap-1.5">
 				<span className="truncate font-medium">{row.name}</span>
-				<span className="truncate text-muted-foreground text-xs">
-					{people === 1
-						? (row.people[0]?.title ?? row.people[0]?.email ?? "")
-						: t("{count} people", { count: people })}
-				</span>
+				{company ? (
+					<RowOpenButton
+						aria-label={t("Open {name}", { name: company.name })}
+						onClick={() => openRecord({ kind: "company", id: company.id })}
+					/>
+				) : null}
 			</span>
 		</span>
 	);
@@ -139,10 +150,7 @@ function FactCell({
 	const unit = rules.data?.business.unit ?? "";
 
 	return (
-		<span
-			className="block truncate text-sm"
-			title={factTitle(source, t, locale, unit)}
-		>
+		<span className="block truncate" title={factTitle(source, t, locale, unit)}>
 			{shortFact(source, t, locale, unit)}
 		</span>
 	);
@@ -150,18 +158,21 @@ function FactCell({
 
 function PersonCell({ person }: { person: Person }) {
 	return (
-		<span className="flex min-w-0 items-center gap-2.5 pl-4">
+		<span className="flex min-w-0 items-center gap-2.5">
 			<PersonAvatar
 				src={person.imageUrl}
 				name={contactName(person)}
 				email={person.email}
 				size="sm"
 			/>
-			<span className="flex min-w-0 flex-col">
-				<span className="truncate">{contactName(person)}</span>
-				<span className="truncate text-muted-foreground text-xs">
-					{person.title ?? person.email ?? ""}
-				</span>
+			<span className="min-w-0 truncate">
+				{contactName(person)}
+				{person.title ? (
+					<span className="text-muted-foreground">
+						{" · "}
+						{person.title}
+					</span>
+				) : null}
 			</span>
 		</span>
 	);
@@ -174,11 +185,7 @@ function subCell(person: Person, columnId: string) {
 	}
 	if (columnId === "business") return <FactCell source={person} />;
 	if (columnId === "last") {
-		return (
-			<span className="text-2sm text-muted-foreground tabular-nums">
-				<LocalRelativeTime date={person.lastContactAt} />
-			</span>
-		);
+		return <LocalRelativeTime date={person.lastContactAt} />;
 	}
 	if (columnId === "verdict") {
 		return (
@@ -186,12 +193,35 @@ function subCell(person: Person, columnId: string) {
 				name={contactName(person)}
 				contactIds={[person.id]}
 				verdict={person.feedback}
-				size="xs"
 			/>
 		);
 	}
 
 	return null;
+}
+
+function GroupHeader({ rows }: { rows: Group[] }) {
+	const t = useT();
+	const locale = useLocale();
+	const first = rows[0];
+	if (!first) return null;
+	const people = rows.reduce((sum, row) => sum + row.people.length, 0);
+	const format = numberFormat(locale).format;
+
+	return (
+		<>
+			<PotentialCell potential={first.potential} />
+			<MonoLabel>
+				{rows.length === 1
+					? t("1 company")
+					: t("{count} companies", { count: format(rows.length) })}
+				{" · "}
+				{people === 1
+					? t("1 person")
+					: t("{count} people", { count: format(people) })}
+			</MonoLabel>
+		</>
+	);
 }
 
 function ReadingProgress() {
@@ -220,13 +250,13 @@ function ReadingProgress() {
 	const relevant = numberFormat(locale).format(data.relevant);
 
 	return (
-		<p className="text-body-foreground text-sm">
+		<p className="text-muted-foreground text-xs">
 			{data.pending > 0
 				? `${t("Reading your mail in the background: {read} of {threads} conversations read, {relevant} about your business", { read, threads, relevant })}${eta ? `, ${eta}` : ""}${data.paused ? t(". Paused until the subscription limit resets.") : t(". Keeps running when you close this page.")}`
-				: t("{read} conversations read, {relevant} about your business.", {
-						read,
-						relevant,
-					})}
+				: t(
+						"{read} conversations read, {relevant} about your business. The list updates when new mail arrives.",
+						{ read, relevant },
+					)}
 		</p>
 	);
 }
@@ -245,10 +275,17 @@ export function WinBackTable() {
 	});
 
 	const rows = query.data?.rows ?? [];
+	const selection = useTableSelection(
+		useMemo(() => rows.map((row) => row.key), [rows]),
+	);
+	const selectedPeople = rows
+		.filter((row) => selection.has(row.key))
+		.flatMap((row) => row.people.map((person) => person.id));
 	const facetCounts = query.data?.facetCounts;
 	const people = query.data?.people ?? 0;
 	const shown = rows.reduce((sum, row) => sum + row.people.length, 0);
 	const columns = useLocalizedColumns(COLUMNS);
+	const quietDays = WIN_BACK_UI.quickFilter.quietForDays;
 
 	const facets: DataTableFacet[] = [
 		{
@@ -260,49 +297,53 @@ export function WinBackTable() {
 		},
 	];
 
+	const setFilter = (next: { quiet?: number | null; rejected?: boolean }) => {
+		void setScope(next);
+		table.query.setPage(1);
+	};
+
 	return (
 		<div
-			className="flex min-h-0 flex-col gap-4"
+			className="flex min-h-0 flex-col gap-3"
 			data-demo={DEMO.mark.winBackTable}
 			data-demo-record={rows[0]?.people[0]?.id}
 		>
-			<ReadingProgress />
 			<DataTable
 				query={table.query}
 				search={<ListSearch placeholder={t("Search by company or person…")} />}
+				onReset={() => setFilter({ quiet: null, rejected: false })}
+				quickFilters={[
+					{
+						id: "quiet",
+						label: t("Quiet for {count} days", {
+							count: scope.quiet > 0 ? scope.quiet : quietDays,
+						}),
+						active: scope.quiet > 0,
+						onToggle: () =>
+							setFilter({ quiet: scope.quiet > 0 ? null : quietDays }),
+					},
+					{
+						id: "rejected",
+						label: t("Not for us"),
+						active: scope.rejected,
+						onToggle: () => setFilter({ rejected: !scope.rejected }),
+					},
+				]}
 				leadingActions={
-					<div className="flex items-center gap-2">
-						<ToggleGroup
-							type="single"
-							size="sm"
-							value={scope.scope}
-							onValueChange={(value) => {
-								if (value === "me" || value === "everyone") {
-									void setScope({ scope: value });
-									table.query.setPage(1);
-								}
-							}}
-						>
-							<ToggleGroupItem value="me">{t("Me")}</ToggleGroupItem>
-							<ToggleGroupItem value="everyone">
-								{t("Everyone")}
-							</ToggleGroupItem>
-						</ToggleGroup>
-						<Button
-							variant={scope.rejected ? "secondary" : "outline"}
-							size="sm"
-							onClick={() => {
-								void setScope({ rejected: !scope.rejected });
+					<ToggleGroup
+						type="single"
+						size="sm"
+						value={scope.scope}
+						onValueChange={(value) => {
+							if (value === "me" || value === "everyone") {
+								void setScope({ scope: value });
 								table.query.setPage(1);
-							}}
-						>
-							<Icon icon={Undo} data-icon="inline-start" />
-							{t("Not for us")}
-						</Button>
-					</div>
-				}
-				actions={
-					query.data ? <WinBackRulesSheet rules={query.data.rules} /> : null
+							}
+						}}
+					>
+						<ToggleGroupItem value="me">{t("Me")}</ToggleGroupItem>
+						<ToggleGroupItem value="everyone">{t("Everyone")}</ToggleGroupItem>
+					</ToggleGroup>
 				}
 				meta={
 					<span className="flex items-center gap-2 text-2sm text-muted-foreground">
@@ -323,23 +364,38 @@ export function WinBackTable() {
 				total={query.data?.total ?? 0}
 				facetCounts={facetCounts}
 				facets={facets}
+				groups={
+					table.query.sort === "potential"
+						? {
+								keyOf: (row) => row.potential,
+								header: (_key, groupRows) => <GroupHeader rows={groupRows} />,
+							}
+						: undefined
+				}
+				selection={{
+					state: selection,
+					actions: (
+						<WinBackBulkVerdict
+							contactIds={selectedPeople}
+							onDone={selection.clear}
+						/>
+					),
+					rowLabel: (row) => row.name,
+				}}
 				getRowId={(row) => row.key}
 				loading={query.isFetching}
 				expandable={{
-					isExpandable: (row) => row.people.length > 1,
+					isExpandable: (row) => row.people.length > 0,
 					getSubRows: (row) => row.people,
 					getSubRowId: (person) => person.id,
 					renderSubCell: (person, columnId) => subCell(person, columnId),
 					onSubRowClick: (person) =>
 						openRecord({ kind: "contact", id: person.id }),
-				}}
-				onRowClick={(row) => {
-					const first = row.people[0];
-					if (row.people.length > 1 || !first) return;
-					openRecord({ kind: "contact", id: first.id });
+					label: (row) => t("Show the people at {name}", { name: row.name }),
 				}}
 				empty={t("Nobody has gone quiet.")}
 			/>
+			<ReadingProgress />
 		</div>
 	);
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Settings from "@carbon/icons-react/es/Settings";
 import { DEFAULT_WIN_BACK_RULES } from "@crm/db/win-back-rules";
 import { Button } from "@crm/ui/components/button";
 import {
@@ -14,7 +13,6 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "@crm/ui/components/field";
-import { Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
 import {
 	Sheet,
@@ -212,8 +210,7 @@ export function WinBackRulesSheet({ rules }: { rules: WinBackRules }) {
 			}}
 		>
 			<SheetTrigger asChild>
-				<Button variant="outline" size="sm" disabled={!canManage}>
-					<Icon icon={Settings} data-icon="inline-start" />
+				<Button variant="link" disabled={!canManage}>
 					{t("Rules")}
 				</Button>
 			</SheetTrigger>

@@ -10,7 +10,7 @@ import {
 } from "@/components/data-table/list-search-params";
 
 export const winBackTable = createListSearchParams({
-	defaultSort: "",
+	defaultSort: "potential",
 	defaultDir: "desc",
 	pageSize: 25,
 	facetIds: ["potential"] as const,

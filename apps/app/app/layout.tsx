@@ -8,7 +8,6 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/lib/i18n/client";
-import { DOCUMENT_LANGUAGE_SCRIPT } from "@/lib/i18n/locale";
 import { getDictionary, getLocale, getT } from "@/lib/i18n/server";
 import { siteAddress } from "@/lib/site-address";
 import { TRPCReactProvider } from "@/lib/trpc/client";
@@ -80,9 +79,6 @@ export default async function RootLayout({
 			suppressHydrationWarning
 			className={cn(fontSans.variable, fontMono.variable, "h-full antialiased")}
 		>
-			<head>
-				<script>{DOCUMENT_LANGUAGE_SCRIPT}</script>
-			</head>
 			<body className="flex min-h-full flex-col font-sans">
 				<I18nProvider locale={locale} dictionary={getDictionary(locale)}>
 					<NuqsAdapter>

@@ -150,8 +150,8 @@ site. Lime, the pill and the 590 weight belong to the app and never appear insid
 `.site` has a shadow. Marketing blocks live in `apps/app/components/site/` (public)
 or `components/landing/` (hosted overlay). The app never renders inside `.site`.
 
-The public site follows the device theme on a marketing host (`IS_MARKETING` or
-`RELOOP_MARKETING_HOST`); the app stays dark by default. `Display` at weight 900
+On a public-site host (`RELOOP_MARKETING_HOST`, or a build with `IS_MARKETING`) the
+theme defaults to the device. Every other host defaults to dark. `Display` at weight 900
 through `font-display` is the old landing headline: it stays until the last block
 that imports it is gone, and nothing new uses it.
 

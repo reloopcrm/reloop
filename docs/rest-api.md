@@ -35,9 +35,10 @@ it and cannot show it again.
 Send the key in the `x-api-key` header on every call. Revoke a key on the same page. A revoked key
 stops working at once.
 
-A key carries the rights of the person who made it. Anyone who holds it reads and writes every
-contact, company, deal and activity in the CRM. Keep it in a secrets store and revoke it the
-moment it leaks.
+> [!WARNING]
+> A key carries the rights of the person who made it. Anyone who holds it reads and writes every
+> contact, company, deal and activity in the CRM. Keep it in a secrets store and revoke it the
+> moment it leaks.
 
 ## An example
 

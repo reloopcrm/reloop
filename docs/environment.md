@@ -331,10 +331,11 @@ excluded: recognising our URL for the image optimizer needs no token.
 
 ### There is no research vendor key
 
-**Context.dev is gone, and `CONTEXT_DEV_API_KEY` must not come back.** The key bought
-two places to look and returned almost nothing: on the reference install 2528 of 2537
-companies carried a `401 USAGE_EXCEEDED`, three had a logo, and no contact had a
-LinkedIn URL. It cost a paid key, an onboarding step and a settings card.
+> [!WARNING]
+> **Context.dev is gone, and `CONTEXT_DEV_API_KEY` must not come back.** The key bought
+> two places to look and returned almost nothing: on the reference install 2528 of 2537
+> companies carried a `401 USAGE_EXCEEDED`, three had a logo, and no contact had a
+> LinkedIn URL. It cost a paid key, an onboarding step and a settings card.
 
 - **Company brand data now reads the company's own website.** `lib/website-brand.ts`
   fetches the homepage through `@crm/db/safe-fetch` and asks the configured model for

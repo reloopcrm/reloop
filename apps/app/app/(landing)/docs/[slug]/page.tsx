@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DOCS, docPath } from "@/components/docs/docs-config";
 import { DocsHeading, DocsShell, readDoc } from "@/components/docs/docs-shell";
-import { MarkdownBlocks, sliceBlocks } from "@/components/docs/markdown";
+import {
+	MarkdownBlocks,
+	outline,
+	sliceBlocks,
+} from "@/components/docs/markdown";
 import { getT } from "@/lib/i18n/server";
 
 type Params = Promise<{ slug: string }>;
@@ -34,15 +38,15 @@ export default async function DocPage({ params }: { params: Params }) {
 	const blocks = source ? sliceBlocks(source, page.from, page.to) : [];
 
 	return (
-		<DocsShell current={docPath(page.slug)}>
-			<DocsHeading title={t(page.title)} lede={t(page.description)} />
-			{blocks.length ? (
-				<MarkdownBlocks blocks={blocks} />
-			) : (
-				<p className="text-body-foreground text-sm/6">
-					{t("This page is not published yet.")}
-				</p>
-			)}
+		<DocsShell current={docPath(page.slug)} outline={outline(blocks)}>
+			<DocsHeading
+				eyebrow={t(DOCS.index.title)}
+				title={t(page.title)}
+				lede={t(page.description)}
+			/>
+			<MarkdownBlocks blocks={blocks}>
+				{blocks.length ? null : <p>{t("This page is not published yet.")}</p>}
+			</MarkdownBlocks>
 		</DocsShell>
 	);
 }

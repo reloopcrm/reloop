@@ -65,7 +65,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 		<tr
 			data-slot="table-row"
 			className={cn(
-				"border-b transition-colors hover:bg-muted/60 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+				"border-b transition-colors hover:bg-muted/60 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted site:hover:bg-transparent",
 				className,
 			)}
 			{...props}
@@ -82,7 +82,7 @@ function TableHead({
 		<th
 			data-slot="table-head"
 			className={cn(
-				"h-10 px-4 text-left align-middle text-xs font-normal text-muted-foreground [&:has([role=checkbox])]:overflow-visible [&:has([role=checkbox])]:pr-0",
+				"h-10 px-4 text-left align-middle text-xs font-normal text-muted-foreground [&:has([role=checkbox])]:overflow-visible [&:has([role=checkbox])]:pr-0 site:h-auto site:py-3 site:font-mono site:font-(--site-weight-medium) site:uppercase site:tracking-(--site-tracking-label)",
 				control ? "overflow-visible" : "truncate",
 				className,
 			)}
@@ -96,7 +96,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 		<td
 			data-slot="table-cell"
 			className={cn(
-				"px-4 py-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+				"px-4 py-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 site:min-w-40 site:align-top site:last:min-w-65 site:[&_code]:whitespace-nowrap site:[&_code]:wrap-normal",
 				className,
 			)}
 			{...props}

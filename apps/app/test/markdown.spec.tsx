@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Markdown, parseMarkdown } from "../components/docs/markdown";
+import { Markdown, outline, parseMarkdown } from "../components/docs/markdown";
 
 const render = (source: string) =>
 	renderToStaticMarkup(createElement(Markdown, { source }));
@@ -60,8 +60,10 @@ describe("the docs Markdown renderer", () => {
 				items: ["**Always win**: the loader never overwrites", "next"],
 			},
 		]);
-		expect(render("**`KEY` *and* the sync**")).toBe(
-			'<article class="flex flex-col gap-4 text-body-foreground text-sm/6"><p><strong class="font-medium text-foreground"><code class="font-mono text-foreground">KEY</code> <em>and</em> the sync</strong></p></article>',
+		expect(
+			render("**`KEY` *and* the sync**").replace(/ class="[^"]*"/g, ""),
+		).toBe(
+			"<article><p><strong><code>KEY</code> <em>and</em> the sync</strong></p></article>",
 		);
 	});
 
@@ -72,6 +74,28 @@ describe("the docs Markdown renderer", () => {
 			{ kind: "paragraph", text: "One two" },
 			{ kind: "list", ordered: false, items: ["a `b`", "c"] },
 			{ kind: "list", ordered: true, items: ["first", "second"] },
+		]);
+	});
+
+	it("reads GitHub alerts as callouts and stops a paragraph at one", () => {
+		expect(
+			parseMarkdown(
+				"Before\n> [!WARNING]\n> Cannot be\n> undone.\n\n> [!NOTE]\n> Kept.\n\n> Plain quote.",
+			),
+		).toEqual([
+			{ kind: "paragraph", text: "Before" },
+			{ kind: "callout", tone: "warning", text: "Cannot be undone." },
+			{ kind: "callout", tone: "note", text: "Kept." },
+			{ kind: "callout", tone: "note", text: "Plain quote." },
+		]);
+	});
+
+	it("outlines the second-level headings as plain text", () => {
+		expect(
+			outline(parseMarkdown("## One `.env`\n\nText\n\n### Deep\n\n## Two")),
+		).toEqual([
+			{ id: "one-env", title: "One .env" },
+			{ id: "two", title: "Two" },
 		]);
 	});
 });

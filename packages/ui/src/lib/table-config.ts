@@ -9,6 +9,7 @@ export const TABLE = {
 		primaryMinPx: 180,
 	},
 	pager: { siblings: 1 },
+	selectionBar: { clearancePx: 32 },
 } as const;
 
 export type PageSize = (typeof TABLE.pageSizes)[number];

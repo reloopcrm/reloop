@@ -431,12 +431,28 @@ function SelectionBar({
 	count,
 	actions,
 	onClear,
+	onHeight,
 }: {
 	count: number;
 	actions: ReactNode;
 	onClear: () => void;
+	onHeight: (height: number) => void;
 }) {
 	const t = useUiT();
+	const bar = useRef<HTMLDivElement>(null);
+
+	useLayoutEffect(() => {
+		const element = bar.current;
+		if (!element) return;
+		const measure = () => onHeight(element.offsetHeight);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(element);
+		return () => {
+			observer.disconnect();
+			onHeight(0);
+		};
+	}, [onHeight]);
 
 	useEffect(() => {
 		const onKey = (event: globalThis.KeyboardEvent) => {
@@ -450,6 +466,7 @@ function SelectionBar({
 
 	return (
 		<div
+			ref={bar}
 			role="region"
 			aria-label={t("Selection")}
 			data-slot="selection-bar"
@@ -516,6 +533,7 @@ export function DataTable<TRow, TSub = unknown>({
 		() => new Set(),
 	);
 	const lastPicked = useRef<string | null>(null);
+	const [barHeight, setBarHeight] = useState(0);
 	const container = useRef<HTMLDivElement>(null);
 
 	const hideable = columns.filter((column) => column.hideable !== false);
@@ -788,11 +806,12 @@ export function DataTable<TRow, TSub = unknown>({
 
 	return (
 		<div
-			className={cn(
-				"flex min-w-0 flex-col",
-				selecting && "pb-24 max-lg:pb-40",
-				className,
-			)}
+			className={cn("flex min-w-0 flex-col", className)}
+			style={
+				selecting && barHeight > 0
+					? { paddingBottom: barHeight + TABLE.selectionBar.clearancePx }
+					: undefined
+			}
 		>
 			<div
 				data-slot="data-table-toolbar"
@@ -898,7 +917,7 @@ export function DataTable<TRow, TSub = unknown>({
 							<col key={column.id} style={{ width: widths[index] }} />
 						))}
 					</colgroup>
-					<TableHeader className="sticky top-0 z-10 max-lg:hidden">
+					<TableHeader className="sticky top-(--sticky-top,0px) z-10 max-lg:hidden">
 						<TableRow className="hover:bg-transparent">
 							{selection && (
 								<TableHead className="pr-0 pl-3">
@@ -1063,6 +1082,7 @@ export function DataTable<TRow, TSub = unknown>({
 					count={selection.state.count}
 					actions={selection.actions}
 					onClear={selection.state.clear}
+					onHeight={setBarHeight}
 				/>
 			) : null}
 		</div>

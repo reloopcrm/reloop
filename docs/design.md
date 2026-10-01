@@ -121,7 +121,9 @@ component. A view never rebuilds them.
   and shows the direction with an arrow.
 - **Toolbar**: search, Filter (field, then values), one removable chip per active
   filter, quick filters as dashed chips, then on the right Columns and the More
-  menu (export, archived). A list adds no other buttons to its toolbar.
+  menu (export, archived). Two more controls are allowed: the Me / Everyone
+  switch where a list has an owner scope, and the Saved views menu. A list adds no
+  other buttons to its toolbar.
 - **Selection**: a checkbox shows on row hover and stays once one row is picked;
   shift-click picks a range; the header box picks the page. A bar floats at the
   bottom centre with the count, the view's actions inline, and Clear selection;
@@ -265,9 +267,8 @@ is never committed. A page shows one through `Shot` from
 image follows the theme button. Its alt text goes through `t()`.
 
 The theme default is chosen per route group in `apps/app/lib/theme-config.ts`.
-The app is dark. The public site follows the device, and the theme button in its
-header stores the visitor's choice under its own key, so a choice made on the site
-never changes the app. Sign-in, onboarding and grant-access are part of the site
-and follow its theme. Entering the app from them is either a full page load or a
-navigation that crosses the scope, and both paint the app dark from its first
-frame.
+The app and the public site both follow the device. Each stores the person's
+choice under its own key, so a choice made on the site never changes the app.
+Sign-in, onboarding and grant-access are part of the site and follow its theme.
+Entering the app from them is either a full page load or a navigation that
+crosses the scope, and both paint the app in its own theme from the first frame.

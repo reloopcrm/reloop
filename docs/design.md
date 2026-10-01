@@ -2,137 +2,177 @@
 
 - /packages/ui is the single source of truth for all UI.
 - Always use shared shadcn components from /packages/ui.
-- Do not override component styles with className.
-- Do not introduce custom border radii, spacing, colours, shadows, or other visual deviations.
-- Corners are rounded, from the scale only, and **the pill is the default for
-  every control**: `rounded-full` for buttons, tags and badges, inputs, select
-  triggers, segmented controls and sidebar items. `rounded-lg` (12px) for every
-  surface that holds content or controls: cards, table shells, popovers, dialogs,
-  menus, textareas. `rounded-md` (6px) for a menu row or a small inset well,
-  `rounded-sm` (4px) for a checkbox, `rounded-xs` (2px) for the smallest marks.
-  That is the whole radius vocabulary, it is the same in both themes, and it stops
-  at 12px: `--radius-lg` through `--radius-4xl` all hold 12px, so a larger utility
-  returns the same corner. Never a literal radius at the call site.
-- `rounded-none` is still correct in one case: an element that must join its
-  neighbour edge to edge. The input inside an input group, the middle cells of
-  a selected date range, the underline tab and the drawer handle are the existing
-  examples.
-- If a component needs a new variant or style, implement it in /packages/ui so the entire application stays consistent.
-
-## Controls
-
-A button is a pill: 36px tall (`size="default"`), 32px (`sm`), 28px (`xs`), 40px
-(`lg`), 44px (`xl`), text 14px at weight 510, 18px of inline padding. An icon-only
-button is a round 36px disc (`size="icon"`). `outline` draws a `--border-strong`
-hairline on a transparent chip; `ghost` has no edge until hover; `nav` is the
-sidebar row. **A primary action pairs with an underlined text link**, never with a
-second filled button: `variant="link"` is always underlined, in `--border-strong`,
-3px below the text, and the underline turns to the text colour on hover. That pair
-is the whole action vocabulary of a header, a card footer and a dialog.
-
-A tag or badge is a 22px pill with 10px of inline padding, text 12px at 510. The
-default chip is `--tag` on `--tag-foreground`, the grey chip. `primary` exists for
-the one lime badge a view earns; it follows the same one-per-view rule as the
-button.
-
-A segmented control is one pill container (`--card` fill, hairline border, 3px of
-padding) holding 30px pill segments. **The active segment is lime**: `--primary`
-fill with `--primary-foreground` text, the same pair as the primary button. Both
-`Tabs` (default variant) and `ToggleGroup` render this way, so a page picks by
-semantics, not by look: `Tabs` switches content, `ToggleGroup` switches a value.
-`TabsList variant="line"` is the other tab: 40px tall text with a 2px lime
-underline under the active item, for the tabs of a record sheet. Those two are the
-only places lime appears without being a button.
-`ToggleGroup variant="quiet"` fills the active segment with `--muted` instead.
-It is for a form that asks several questions on one screen, where lime would mark
-every answer and leave nothing for the one action.
-
-Inputs and select triggers are 36px pills with 14px of inline padding, `--card`
-fill, `--input` hairline, `--faint-foreground` placeholder, no inset shadow.
-Textareas keep the same fill and edge with `rounded-lg`, because a pill cannot
-hold three lines. Focus is the ring, never a glow.
-
-A table is a 12px shell with a `--muted` header row (40px, text 12px muted) and
-rows separated by `--border` hairlines. Cells hold 16px of inline padding and 12px
-vertical, 14px text, and a row with two lines of text lands at 54px.
-
-A progress bar is a 4px pill on `--accent`, the bar in a status colour.
-
-## Surfaces
-
-Dark is the substrate, not a theme. The canvas is `#08090a`. Every surface climbs
-from it: `#0f1011` for cards, popovers, inputs and the sidebar, `#161718` for
-secondary and muted fills, `#23252a` for accent and tag chips. Light is the
-faithful counterpart: `#ffffff` canvas, `#ffffff` card, `#f4f5f6`, `#eaecee`.
-
-**Elevation comes from a hairline border, never from a drop shadow.** `--border`
-(`#23252a` dark, `#e3e5e8` light) draws the edge of a surface. `--border-strong`
-(`#383b3f`, `#c9ccd1`) draws a separator that must carry across a whole section,
-and the edge of an outline button. `--shadow-hairline` puts that same line inside
-the box, for a surface that must not grow by a pixel. Nothing carries a gradient.
-A card that floats on a drop shadow is wrong: the light ladder starts with paper on
-paper, so the line is the only thing that separates the card from the canvas.
+- Do not override component styles with className. `className` places a
+  component (width, gap, order, grid area); it never changes its colour, size,
+  corner or type.
+- Do not introduce custom border radii, spacing, colours, shadows, or other visual
+  deviations.
+- If a component needs a new variant or style, implement it in /packages/ui so the
+  entire application stays consistent.
+- The app and the public site share one look: the look of the approved app draft,
+  which follows the public site. Ink on paper, warm greys, one blue, one orange,
+  4px corners, Inter Tight with Newsreader for ledes and DM Mono for labels.
 
 ## Colour
 
-Flat near black, untinted greys, and one acid lime (`#e4f222`). The greys are
-untinted on purpose: there is no scene to tint them toward, and a tinted grey
-without a reason reads as indecision.
+The palette lives as raw tokens on `:root` and `.dark` in
+`packages/ui/src/styles/globals.css`, and every shadcn token maps onto it.
 
-**Only two things are filled**: `primary` for the action you want, `destructive`
-for the one you cannot undo. Everything else, secondary and outline and ghost, is a
-dark chip in dark and a white chip in light. That is what keeps a rep's eye landing
-on *go* or *stop* and skimming past the rest.
+| Token | Light | Dark | Use |
+| --- | --- | --- | --- |
+| `--ink` | `#111111` | `#f4f3ef` | Text, the primary fill, the active tab line |
+| `--ink-60` to `--ink-80` | ink at 60 to 80% | | Secondary and body text |
+| `--paper` | `#ffffff` | `#0c0c0d` | Canvas, cards, popovers |
+| `--off` | `#faf9f6` | `#141415` | Sidebar, muted fills, group rows, the open row |
+| `--tile` | `#f1eee9` | `#1c1c1e` | Chips, the active nav row, the active segment |
+| `--line` | `#dedbd6` | `#2a2a2d` | Every hairline and input edge |
+| `--line-strong` | `#d3cec6` | `#3b3b3f` | Outline buttons, dashed tiles |
+| `--blue` | `#0007cb` | `#5b6cff` | Links, customers, won, focus ring |
+| `--orange` | `#ff5600` | `#ff7a33` | Win back, high potential |
+| `--active` | black 3% | white 4% | Hover of a row or a quiet control |
+| `--dot` | ink 22% | ink 22% | A faint status dot |
 
-`#e4f222` marks **one action per view**. A second lime button on the same screen
-removes the meaning of the first. Lime is never decoration, never a hover state,
-never a card edge. The active segment of a segmented control and the underline of
-the active line tab are the two sanctioned exceptions: there the lime says "you
-are here", and a view holds one segmented control at most beside its one primary
-button.
+**Ink is the one filled action.** `--primary` is ink with paper text: one primary
+button per view, beside an underlined text link. `--destructive` is the fill for
+the one thing you cannot undo, always behind a confirmation that names the count.
+Everything else is a quiet control: a hairline on paper.
 
-`--success` (`#27a644`) and `--warning` are **status colours, never action
-colours**: a usage meter that is fine, near its limit, or full; a badge that
-reports a state. Neither is ever a button fill, a border or a hover state. Lime
-stays the one action colour.
+**Blue and orange are signals, not decoration.** Blue marks a link, a customer, a
+won deal, a positive change and the focus ring. Orange marks Win back and high
+potential. A status is a 7px dot in front of a word (`Status` in
+`packages/ui/src/components/mark.tsx`): blue, ink, orange, the faint `--dot`, or a
+hollow ring for "no verdict". Never colour a whole row, a card edge or a button
+with them. `--success` and `--info` map to blue and `--warning` to orange, so old
+status code reads in the same two signals.
 
-One exception, asked for by the owner: a quantity stepper. `Button
-variant="success"` fills the "+" with `--success`, and `variant="destructive"`
-fills the "−" beside it. Both are round icon buttons (`size="icon-sm"`), both
-open a confirmation before anything is billed, and neither appears anywhere
-else. The usage page's add-ons are the only stepper today.
-
-`--primary` and `--destructive` hold the **same value in both themes**. A brand
-colour that changes per theme is not one colour, it is two, and both then need
-maintaining. `--primary-foreground` is `#08090a` in both themes, so the accent
-always carries dark text. The single exception is `--ring`, which darkens in light
-through `--primary-strong`: a fill carries the brand, but a ring only has to be
-seen, and `#e4f222` is too bright to register on paper.
+Dark follows the device (`next-themes` with `system`), and the theme switch sits in
+the account row and the mobile top bar. Both themes are complete; neither is the
+default look.
 
 ## Type
 
-Inter, with `"cv01" on, "ss03" on, "zero" on` and `font-optical-sizing: auto` set on
-`body`. Those alternate glyphs are the typographic identity, so a component that
-drops them looks foreign. Body tracking is `-0.011em`. Display sizes take
-`tracking-tight` (`-0.022em`).
+Inter Tight for everything, Newsreader at weight 300 for a page's lede and an email
+draft's body, DM Mono for labels. The fonts load once in the root layout as
+`--font-site-sans`, `--font-site-serif` and `--font-site-mono`.
 
-The scale is 12px (`text-xs`), 13px (`text-2sm`), 14px (`text-sm`), 15px
-(`text-md`), 16px (`text-base`), then the headings. 13px is the secondary line: a
-card description, a segment label, a table caption, the second line of a row. A
-page title is `text-2xl` at 590, compact, with a 14px muted description one line
-below. A card or section title is `text-md` at 590.
+- Weights stop at 500: 300, 400, 500. `font-semibold` and heavier resolve to 500.
+- Page title: 24px (`text-2xl`), weight 400, `tracking-tight`.
+- Section title: 16px, weight 500.
+- Body: 14px. Table cells and secondary lines: 13px (`text-2sm`).
+- Label: `MonoLabel`, 11px (`text-2xs`) DM Mono in capitals with
+  `tracking-label` (0.06em). Table headers, eyebrows, field group headings,
+  counts in the sidebar and KPI captions use it.
+- Numbers that line up use `tabular-nums`; amounts on cards use DM Mono.
 
-**Weights stop at 590.** The scale is 300, 400, 510, 590, and emphasis runs 400 to
-510 to 590. The theme enforces the cap: `font-bold`, `font-extrabold` and
-`font-black` all resolve to 590, so a heavier utility gives the same weight under a
-misleading name. Past 590 the second lever is colour: `foreground`,
-`body-foreground`, `muted-foreground`, `faint-foreground`.
+No em dash or en dash in any visible text, in any language. A range reads "1 to
+25 of 312", an empty cell shows a faint middle dot.
 
-The public pages set their own type scale and weights inside `.site`. See
-[Public site](#public-site).
+## Corners and surfaces
 
-`font-mono` is for identifiers, keyboard shortcuts and technical metadata. Never for
-a heading.
+`--radius` is 4px and `rounded-md` through `rounded-4xl` all return it. `rounded-sm`
+and `rounded-xs` are 2px, for chips, checkboxes and segments. `rounded-full` is
+for true circles only: avatars of people, status dots, the switch.
+
+Elevation comes from a hairline (`--line`), never from a drop shadow. The one
+exception is a layer that floats over content: menus, popovers, dialogs and the
+selection bar carry `--shadow-lg`. Nothing carries a gradient.
+
+Corner marks are the signature: 8px squares at the corners of one framed block
+per view, blue for the KPI strip and an email draft. Use them once per view.
+
+## Controls
+
+| Control | Size | Look |
+| --- | --- | --- |
+| Button `default` | 32px, 12px inline padding, 14px text, weight 400 | Ink fill, paper text; hover 80% |
+| Button `sm` | 28px, 13px text | The toolbar chip |
+| Button `outline` | | `--line-strong` hairline on paper, hover `--active` |
+| Button `ghost` | | No edge until hover |
+| Button `link` | | Underlined, 3px offset, ink 80% to ink on hover |
+| Button `dashed` | | Dashed `--line-strong`, muted text; quick filters and "Add a deal" |
+| Icon button | 32px (`icon`), 28px (`icon-sm`) | |
+| Input, select trigger | 32px, 10px inline padding | `--line` edge on paper, the focus ring is blue |
+| Badge | 20px, 6px inline padding, 12px | `--tile` chip, 2px corners |
+| Segmented control | 2px padding, 24px segments, 13px | Active segment `--tile`, never a fill colour |
+| Line tabs | 40px, 14px | 1px ink line under the active tab |
+| Checkbox | 14px, 2px corners | Ink when checked |
+
+A header, a card footer and a dialog pair one primary button with one underlined
+text link. A second filled button on a screen removes the meaning of the first.
+
+## Lists
+
+Every list is a `DataTable` from `packages/ui`, and the rules below live in that
+component. A view never rebuilds them.
+
+- **No horizontal scrolling, anywhere.** Columns have a fixed width in px
+  (`size` on the column). `fitColumnWidths` in `packages/ui/src/lib/table-config.ts`
+  shrinks them to the room the table has; the first column takes the rest and
+  keeps at least 180px. The table clips; it never scrolls sideways.
+- **One line per cell.** Long values end in an ellipsis. A second line under a name
+  is not allowed in a list.
+- **Few columns by default.** A list shows four or five columns. Every other column
+  is in the Columns menu (`defaultHidden`), which shows the visible count.
+- **The row is the link.** Clicking anywhere on a row opens the record, Enter does
+  the same. Win back is the one exception: a company row expands to show its
+  people, even one person; a person row opens the person; the company record opens
+  through the small arrow after the company name.
+- **Headers** are mono labels with a small icon. A sortable header sorts on click
+  and shows the direction with an arrow.
+- **Toolbar**: search, Filter (field, then values), one removable chip per active
+  filter, quick filters as dashed chips, then on the right Columns and the More
+  menu (export, archived). A list adds no other buttons to its toolbar.
+- **Selection**: a checkbox shows on row hover and stays once one row is picked;
+  shift-click picks a range; the header box picks the page. A bar floats at the
+  bottom centre with the count, the view's actions inline, and Clear selection;
+  Esc clears. The list adds room below itself so the bar never covers the last row
+  or the pager. Only actions the API supports appear; a destructive one sits behind
+  a dialog that names the count.
+- **Pages**, never endless scroll: the range, page numbers, previous and next, and
+  25, 50 or 100 rows per page. The page, the size, the sort, the search and the
+  filters live in the URL, so a reload or a shared link shows the same view.
+- **Empty filter result**: a sentence and Reset filters.
+- **Phones (below 1024px)**: every row is a card. The first column is the title
+  line, every other visible column a labelled field, two to a line.
+
+## Records
+
+A record opens in a sheet addressed by the URL (`?record=contact:<id>`), wide enough
+on desktop for two columns and a drawer on a phone. The header holds the avatar
+(round for a person, square for a company), the name at 22px, a muted line with
+title, company and place, and on the right a text link, at most one outline button
+and the one primary button. A row of chips states the standing, the potential and
+the facts the mail gave. Below, a 300px rail lists the fields in groups under mono
+headings, each field a muted label with a small icon and a one-line value; the
+main side has line tabs.
+
+## Shell
+
+The app shell is a labelled sidebar, `container-sidebar` (224px) on `--off` with a
+hairline on its right: the wordmark, the workspace name as a mono label with a blue
+square, then Overview, Win back (with the number of companies), Companies,
+Contacts, Deals and Chat as 32px rows with 4px corners. The active row fills with
+`--tile` and its label goes to weight 500. A hairline separates Settings (a gear),
+the enrichment queue and the account row with the theme switch. Icons come from
+`packages/ui/src/components/line-icons.tsx`. Below 1024px the sidebar is a sheet
+behind the menu button of a 48px top bar that holds the wordmark, the theme switch
+and the menu. Settings has its own second sidebar with the same rows under a mono
+"Settings" label.
+
+A page head is an eyebrow (`PageShellEyebrow`: a square and a mono label, blue, or
+orange for Win back), the title, a serif lede, and on the right the text link and
+the primary button.
+
+## Spacing
+
+The base unit is 4px; gaps are 4, 8, 12, 16, 20, 24. 8px separates the controls of
+one group, 24px separates blocks. The page holds 32px at the sides, 28px at the top
+and 56px at the bottom on desktop (`--spacing-page-inline`, `--spacing-page-top`,
+`--spacing-page-bottom`) and 16px on a phone. Width comes from the container
+tokens: `container-narrow` (560px), `container-sheet` (640px), `container-page`
+(820px), `container-page-wide` (1440px), `container-sidebar` (224px). Never a
+literal width at the call site; a list column's `size` is the one sanctioned px
+value, because it is data the table fits.
 
 ## Public site
 
@@ -146,18 +186,18 @@ scale, weights, spacing rhythm and hairlines as `--site-*` variables, light unde
 because a stylesheet a route group loads stays loaded after client navigation into
 the app.
 
-`app/(landing)/layout.tsx` loads the stylesheet and the three fonts as
-`--font-site-*` variables, nothing else. A page enters the scope only when its
+`app/(landing)/layout.tsx` loads the stylesheet, nothing else. The three fonts
+load once in the root layout as `--font-site-*` variables, because the app uses
+them too. A page enters the scope only when its
 shell puts the `.site` class on its root: `LandingShell`, `AuthShell` (sign-in,
 onboarding, grant-access) and the 404 page, which lives outside the route group and
-loads the stylesheet and fonts itself. `AuthShell` sets one card on the paper: the
+loads the stylesheet itself. `AuthShell` sets one card on the paper: the
 `--tile` fill with ink corner marks, `--site-auth-width` wide, on a dot grid.
 
-The shared components from `packages/ui` render inside `.site` unchanged.
-`@theme inline` writes their weights (510, 590) and their larger radii as fixed
-values, so `.site` does not change them: the site's own weights stop at 500
-(`--site-weight-*`), and a component reaches them through a `site:` class in
-`packages/ui`, never at the call site. Where a shape differs, the same rule holds.
+The shared components from `packages/ui` render inside `.site` with the app's
+tokens, which are the same palette. The site differs in size, not in colour: a
+component reaches the site's sizes through a `site:` class in `packages/ui`, never
+at the call site.
 `Button`, `Input`, `InputGroup`, `Textarea`, the `Select` trigger, `Label` and the
 `Field` texts, `Toggle` and `ToggleGroup`, `Badge`, `Alert`, `CardTitle` and
 `EmptyTitle` carry these classes: 4px corners, 40px buttons and fields, 16px
@@ -209,11 +249,9 @@ offset is 0. A sticky element below the header adds the offset, never the banner
 height, so closing the banner leaves no gap.
 Fields meet WCAG AA on every site surface (paper, off, tile) in both themes: the
 field edge is `--field` (3:1 or more), placeholders use `--ink-60` (4.5:1 or
-more). `--destructive` is the one token that differs per theme inside `.site`:
+more). `--destructive` differs per theme, in the app and inside `.site`:
 `#b3261e` in light, `#eb5757` in dark, because error text sits on the light tile
-and `#eb5757` reaches only 3:1 there. The app keeps one `--destructive` for both
-themes.
-Lime, the pill and the 590 weight belong to the app and never appear inside `.site`.
+and `#eb5757` reaches only 3:1 there.
 A product image may carry the one shadow token `--shadow`; nothing else in `.site`
 has a shadow. Marketing blocks live in `apps/app/components/site/` (public) or
 `components/landing/` (hosted overlay). The app never renders inside `.site`.
@@ -233,29 +271,3 @@ never changes the app. Sign-in, onboarding and grant-access are part of the site
 and follow its theme. Entering the app from them is either a full page load or a
 navigation that crosses the scope, and both paint the app dark from its first
 frame.
-
-## Shell
-
-The app shell is a labelled sidebar, not an icon rail. It is `container-sidebar`
-(224px) wide on `--sidebar` with a `--border` hairline on its right: the wordmark
-and the workspace name at the top, then the six sections in this order, Overview,
-Win back, Companies, Contacts, Deals, Chat, as 36px pill rows (`Button
-variant="nav"`) with the icon in `--muted-foreground` and the label at 400. The
-active row fills with `--accent`, its text and icon go to `--foreground` and the
-label to 510. Settings sits at the bottom, then a hairline, then the enrichment
-queue and the account row. Between `md` and `lg` the sidebar collapses to
-`container-rail` (56px): icons only, labels in tooltips, the favicon in place of
-the wordmark. Below `md` it is a sheet behind the menu button of the 48px top bar,
-and the sheet shows the same list with labels. Settings has its own second sidebar
-of the same width and the same rows, with a 12px "Settings" label above them.
-
-## Spacing
-
-The base unit is 4px, and every gap is a multiple of it: 4, 8, 12, 16, 20, 24. 8px
-separates elements inside one control group, 16px separates a primary button from
-its text link. 24px is the gap between blocks. The page holds 40px on every side
-on desktop (`--spacing-page-inline`, `--spacing-page-top`, `--spacing-page-bottom`)
-and 16px on a phone. Width comes from the container tokens: `container-narrow`
-(560px), `container-sheet` (640px), `container-page` (820px), `container-page-wide`
-(1120px), `container-sidebar` (224px), `container-rail` (56px). Never a literal
-width at the call site.

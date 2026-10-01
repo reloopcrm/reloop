@@ -29,7 +29,7 @@ export default function LandingLayout({
 				siteSans.variable,
 				siteSerif.variable,
 				siteMono.variable,
-				"site min-h-svh bg-background text-foreground",
+				"contents",
 			)}
 		>
 			{children}

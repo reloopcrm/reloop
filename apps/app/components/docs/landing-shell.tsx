@@ -1,4 +1,3 @@
-import ArrowRight from "@carbon/icons-react/es/ArrowRight";
 import { Button } from "@crm/ui/components/button";
 import Wordmark from "@crm/ui/components/wordmark";
 import { cn } from "@crm/ui/lib/utils";
@@ -145,41 +144,13 @@ export async function LandingShell({
 					<div className="ms-auto flex items-center">
 						<NextLink
 							href={signIn.href}
-							className={cn(
-								NAV_LINK,
-								"hidden",
-								cta && signUp
-									? "min-[1101px]:inline-flex"
-									: "min-[901px]:inline-flex",
-							)}
+							className={cn(NAV_LINK, "hidden min-[901px]:inline-flex")}
 						>
 							{signIn.label}
 						</NextLink>
-						{asideLinks.map((link) => (
-							<NextLink
-								key={link.href}
-								href={link.href}
-								className={cn(NAV_LINK, "hidden min-[1101px]:inline-flex")}
-							>
-								{link.label}
-							</NextLink>
-						))}
 						{cta && signUp ? (
 							<Button size="sm" className="ms-3" asChild>
 								<NextLink href={signUp}>{t("Get started")}</NextLink>
-							</Button>
-						) : null}
-						{cta && pricing ? (
-							<Button
-								variant="outline"
-								size="sm"
-								className="ms-3 max-[480px]:hidden min-[901px]:ms-5"
-								asChild
-							>
-								<NextLink href={pricing.href}>
-									{t("See pricing")}
-									<ArrowRight data-icon="inline-end" />
-								</NextLink>
 							</Button>
 						) : null}
 						<span className="ms-2 flex">

@@ -5,7 +5,7 @@ import { Slot } from "radix-ui"
 import { cn } from "@crm/ui/lib/utils"
 
 const badgeVariants = cva(
-  "group/badge inline-flex h-5.5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-badge border border-transparent px-2.5 text-xs font-medium whitespace-nowrap site:rounded-(--site-radius) site:font-(--site-weight-medium) transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+  "group/badge inline-flex h-5 w-fit max-w-full shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-badge border border-transparent px-1.5 text-xs font-normal whitespace-nowrap site:rounded-(--site-radius) site:font-(--site-weight-medium) transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
       variant: {
@@ -17,7 +17,7 @@ const badgeVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
         outline:
-          "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+          "border-border text-body-foreground [a]:hover:bg-active [a]:hover:text-foreground",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-body-foreground underline-offset-4 hover:text-foreground hover:underline",

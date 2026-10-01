@@ -315,5 +315,6 @@
 	"Get back to {name}": "Retomar el contacto con {name}",
 	"Remind me in {count} days": "Recordármelo en {count} días",
 	"The limit of your plan for chat is reached. Upgrade your plan to continue now.": "Se alcanzó el límite de tu plan para el chat. Mejora tu plan para seguir ahora.",
-	"The limit of your plan for the agent builder is reached. Upgrade your plan to continue now.": "Se alcanzó el límite de tu plan para el constructor de agentes. Mejora tu plan para seguir ahora."
+	"The limit of your plan for the agent builder is reached. Upgrade your plan to continue now.": "Se alcanzó el límite de tu plan para el constructor de agentes. Mejora tu plan para seguir ahora.",
+	"{count} waiting": "{count} en espera"
 }

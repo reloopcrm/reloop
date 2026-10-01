@@ -11,6 +11,7 @@ import {
 	EntityLogo,
 	type EntityLogoTone,
 } from "@crm/ui/components/entity-logo";
+import { Dot, MonoLabel } from "@crm/ui/components/mark";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import {
 	Popover,
@@ -97,14 +98,14 @@ export function EnrichmentQueue() {
 			onOpenChange={(next) => (next ? setOpen(true) : close())}
 		>
 			<PopoverTrigger asChild>
-				<Button variant="outline" size="sm">
-					<IndicatorDot
-						tone={total > 0 ? "primary" : "neutral"}
-						aria-hidden="true"
-					/>
-					{total > 0
-						? t("Enriching {count}", { count: total })
-						: t("Enriching")}
+				<Button variant="nav" className="w-full">
+					<Dot tone={total > 0 ? "blue" : "faint"} />
+					<span className="truncate">{t("Enriching")}</span>
+					{total > 0 ? (
+						<MonoLabel className="ml-auto">
+							{t("{count} waiting", { count: total })}
+						</MonoLabel>
+					) : null}
 				</Button>
 			</PopoverTrigger>
 

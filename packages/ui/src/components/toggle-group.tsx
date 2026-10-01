@@ -52,7 +52,7 @@ function ToggleGroup({
 				{ "--gap": Math.max(spacing, SEGMENT_GAP) } as React.CSSProperties
 			}
 			className={cn(
-				"group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] rounded-full border bg-card p-0.75 data-vertical:w-full data-vertical:flex-col data-vertical:items-stretch data-vertical:rounded-lg data-[wrap]:w-full data-[wrap]:flex-wrap data-[wrap]:rounded-lg site:rounded-(--site-radius) site:data-vertical:rounded-(--site-radius) site:data-[wrap]:rounded-(--site-radius)",
+				"group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] rounded-md border bg-card p-0.5 data-vertical:w-full data-vertical:flex-col data-vertical:items-stretch data-[wrap]:w-full data-[wrap]:flex-wrap site:rounded-(--site-radius) site:data-vertical:rounded-(--site-radius) site:data-[wrap]:rounded-(--site-radius)",
 				className,
 			)}
 			{...props}
@@ -86,9 +86,9 @@ function ToggleGroupItem({
 					variant: resolved,
 					size: context.size || size,
 				}),
-				"shrink-0 rounded-full border-0 focus:z-10 focus-visible:z-10 site:rounded-xs",
+				"shrink-0 rounded-sm border-0 focus:z-10 focus-visible:z-10 site:rounded-xs",
 				resolved !== "quiet" &&
-					"data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
+					"data-[state=on]:bg-accent data-[state=on]:text-foreground",
 				className,
 			)}
 			{...props}

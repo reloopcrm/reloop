@@ -170,11 +170,11 @@ async function WorkspaceSidebar({
 async function WorkspaceHeader({
 	params,
 }: Pick<LayoutProps<"/[slug]">, "params">) {
-	const { user } = await loadChrome(params);
+	await loadChrome(params);
 
 	return (
 		<HydrateClient>
-			<AppHeader user={user} />
+			<AppHeader />
 		</HydrateClient>
 	);
 }

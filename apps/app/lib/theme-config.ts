@@ -1,5 +1,5 @@
 export const THEME = {
-	app: { defaultTheme: "dark", storageKey: "theme" },
+	app: { defaultTheme: "system", storageKey: "theme" },
 	site: { defaultTheme: "system", storageKey: "reloop-site-theme" },
 	siteSegments: ["(landing)", "/_not-found"],
 } as const;

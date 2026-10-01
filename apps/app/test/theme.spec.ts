@@ -15,10 +15,12 @@ describe("themeForSegments", () => {
 		expect(themeForSegments(["(landing)", "contact"])).toBe(THEME.site);
 	});
 
-	it("keeps sign-in and onboarding in the app scope, so entering the app never switches the theme", () => {
-		for (const page of THEME.authSegments)
-			expect(themeForSegments(["(landing)", page])).toBe(THEME.app);
-		expect(themeForSegments(["(landing)", "onboarding", "ai"])).toBe(THEME.app);
+	it("puts sign-in, onboarding and grant access on the site", () => {
+		for (const page of ["sign-in", "onboarding", "grant-access"])
+			expect(themeForSegments(["(landing)", page])).toBe(THEME.site);
+		expect(themeForSegments(["(landing)", "onboarding", "ai"])).toBe(
+			THEME.site,
+		);
 	});
 
 	it("stores the site choice apart from the app choice", () => {

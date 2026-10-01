@@ -91,6 +91,8 @@
 	--site-section-y: 112px;
 	--site-section-y-compact: 80px;
 	--site-prose: 680px;
+	--site-auth-width: 440px;
+	--site-dot-step: 8px;
 	--site-footer-top: 100px;
 	--site-footer-bottom-gap: 108px;
 	--site-marquee-height: 422px;

@@ -74,7 +74,7 @@
 	"The agent could not write this draft. Press Write again to retry.": "Der Agent konnte diesen Entwurf nicht schreiben. Drück auf Erneut schreiben.",
 	"There is no conversation yet to build an email on.": "Es gibt noch keine Unterhaltung, auf der eine E-Mail aufbauen kann.",
 	"Write again": "Erneut schreiben",
-	"It continues the latest conversation in your own style.": "Die Mail führt das letzte Gespräch in deinem eigenen Stil weiter.",
+	"It continues the latest conversation in your own style.": "Die E-Mail führt die letzte Unterhaltung in deinem eigenen Stil weiter.",
 	"Written by {model}.": "Geschrieben von {model}.",
 	"Language: {language}": "Sprache: {language}",
 	"Say what you want different, for example: shorter, and ask whether next week works.": "Sag, was anders sein soll, zum Beispiel: kürzer, und frag, ob nächste Woche passt.",

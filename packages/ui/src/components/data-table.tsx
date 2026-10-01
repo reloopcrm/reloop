@@ -559,7 +559,6 @@ export function DataTable<TRow, TSub = unknown>({
 		: (tabs?.allLabel ?? "All");
 
 	const deferredRows = useDeferredValue(rows);
-	const rowIds = deferredRows.map((row) => getRowId(row));
 	const selecting = selection != null && selection.state.count > 0;
 
 	const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
@@ -591,6 +590,9 @@ export function DataTable<TRow, TSub = unknown>({
 		if (!selection) return;
 		const anchor = lastPicked.current;
 		if (range && anchor && anchor !== id) {
+			const rowIds = deferredRows
+				.filter((row) => !(groups && closedGroups.has(groups.keyOf(row))))
+				.map((row) => getRowId(row));
 			const from = rowIds.indexOf(anchor);
 			const to = rowIds.indexOf(id);
 			if (from !== -1 && to !== -1) {

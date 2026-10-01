@@ -205,12 +205,16 @@ export function BulkDeleteDialog({
 	title,
 	description,
 	onConfirm,
+	confirmLabel,
+	destructive = true,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	title: string;
 	description: string;
 	onConfirm: () => void;
+	confirmLabel?: string;
+	destructive?: boolean;
 }) {
 	const t = useT();
 
@@ -224,8 +228,11 @@ export function BulkDeleteDialog({
 
 				<AlertDialogFooter>
 					<AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
-					<AlertDialogAction variant="destructive" onClick={onConfirm}>
-						{t("Delete")}
+					<AlertDialogAction
+						variant={destructive ? "destructive" : "default"}
+						onClick={onConfirm}
+					>
+						{confirmLabel ?? t("Delete")}
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>

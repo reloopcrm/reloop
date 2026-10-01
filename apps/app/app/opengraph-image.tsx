@@ -17,18 +17,18 @@ export default async function OpengraphImage() {
 				display: "flex",
 				flexDirection: "column",
 				justifyContent: "space-between",
-				background: "#08090a",
+				background: "#ffffff",
 				padding: "72px",
 			}}
 		>
 			<svg width="420" height="117" viewBox="0 0 1000 278" aria-hidden="true">
-				<path d={WORDMARK_PATH} fill="#f7f8f8" fillRule="evenodd" />
+				<path d={WORDMARK_PATH} fill="#111111" fillRule="evenodd" />
 			</svg>
 
 			<div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 				<div
 					style={{
-						color: "#f7f8f8",
+						color: "#111111",
 						fontSize: "64px",
 						lineHeight: 1.1,
 						letterSpacing: "-0.02em",
@@ -42,11 +42,10 @@ export default async function OpengraphImage() {
 						style={{
 							width: "56px",
 							height: "6px",
-							borderRadius: "3px",
-							background: "#e4f222",
+							background: "#0007cb",
 						}}
 					/>
-					<div style={{ color: "#8a8f98", fontSize: "30px" }}>
+					<div style={{ color: "#707070", fontSize: "30px" }}>
 						{t("The open-source, self-hosted CRM")}
 					</div>
 				</div>

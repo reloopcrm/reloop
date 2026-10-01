@@ -227,5 +227,19 @@
 	"REST intake API": "REST giriş API'si",
 	"Web research": "Web araştırması",
 	"Our company": "Şirket",
-	"On this page": "Bu sayfada"
+	"On this page": "Bu sayfada",
+	"Reloop overview: sidebar, KPIs, closed won chart and deals in progress": "Reloop genel bakış: kenar çubuğu, göstergeler, kazanılan anlaşmalar grafiği ve süren anlaşmalar",
+	"Reloop Win back list: companies ranked by what happened in mail": "Reloop Geri kazan listesi: e-postalarda olanlara göre sıralanmış şirketler",
+	"Reloop contact sheet with the conversation summary and mail timeline": "Reloop kişi sayfası, konuşma özeti ve e-posta zaman çizelgesiyle",
+	"Reloop follow-up draft dialog over the Win back list": "Reloop takip taslağı penceresi, Geri kazan listesinin üzerinde",
+	"Reloop Contacts list": "Reloop kişi listesi",
+	"Reloop Companies list": "Reloop şirket listesi",
+	"Reloop follow-up draft dialog with the change field": "Reloop takip taslağı penceresi, değişiklik alanıyla",
+	"Reloop contact record with the summary and the mail timeline": "Reloop kişi kaydı, özet ve e-posta zaman çizelgesiyle",
+	"Reloop overview KPI cards": "Reloop genel bakış gösterge kartları",
+	"Reloop overview: closed won versus new pipeline chart": "Reloop genel bakış: kazanılan anlaşmalar ve yeni pipeline grafiği",
+	"Reloop deals in progress": "Reloop'ta süren anlaşmalar",
+	"Reloop Win back table: companies ranked by potential": "Reloop Geri kazan tablosu: potansiyele göre sıralanmış şirketler",
+	"Reloop deals pipeline with three stages": "Üç aşamalı Reloop anlaşma pipeline'ı",
+	"Reloop Win back list, compact view": "Reloop Geri kazan listesi, sıkı görünüm"
 }

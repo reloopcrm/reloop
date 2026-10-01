@@ -227,5 +227,19 @@
 	"REST intake API": "REST-API für Anfragen",
 	"Web research": "Webrecherche",
 	"Our company": "Unternehmen",
-	"On this page": "Auf dieser Seite"
+	"On this page": "Auf dieser Seite",
+	"Reloop overview: sidebar, KPIs, closed won chart and deals in progress": "Reloop Überblick: Seitenleiste, Kennzahlen, Diagramm der gewonnenen Geschäfte und laufende Geschäfte",
+	"Reloop Win back list: companies ranked by what happened in mail": "Reloop Zurückgewinnen: Firmen, sortiert nach dem, was in den Mails passiert ist",
+	"Reloop contact sheet with the conversation summary and mail timeline": "Reloop Kontaktblatt mit der Zusammenfassung des Gesprächs und dem Mail-Verlauf",
+	"Reloop follow-up draft dialog over the Win back list": "Reloop Dialog mit dem Entwurf für die Nachfass-Mail über der Liste Zurückgewinnen",
+	"Reloop Contacts list": "Reloop Kontaktliste",
+	"Reloop Companies list": "Reloop Firmenliste",
+	"Reloop follow-up draft dialog with the change field": "Reloop Dialog mit dem Entwurf für die Nachfass-Mail und dem Feld für Änderungen",
+	"Reloop contact record with the summary and the mail timeline": "Reloop Kontaktdatensatz mit der Zusammenfassung und dem Mail-Verlauf",
+	"Reloop overview KPI cards": "Reloop Überblick mit den Kennzahl-Karten",
+	"Reloop overview: closed won versus new pipeline chart": "Reloop Überblick: Diagramm der gewonnenen Geschäfte gegen die neue Pipeline",
+	"Reloop deals in progress": "Reloop laufende Geschäfte",
+	"Reloop Win back table: companies ranked by potential": "Reloop Tabelle Zurückgewinnen: Firmen, sortiert nach Potenzial",
+	"Reloop deals pipeline with three stages": "Reloop Pipeline der Geschäfte mit drei Phasen",
+	"Reloop Win back list, compact view": "Reloop Liste Zurückgewinnen, kompakte Ansicht"
 }

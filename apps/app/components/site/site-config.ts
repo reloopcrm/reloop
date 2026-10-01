@@ -26,3 +26,74 @@ export const INTEGRATIONS: readonly Integration[] = [
 ];
 
 export const MARQUEE_SETS = 3;
+
+export const SHOTS = {
+	path: "/site/shots",
+	images: {
+		"hero-overview": {
+			width: 1600,
+			height: 1000,
+			alt: "Reloop overview: sidebar, KPIs, closed won chart and deals in progress",
+		},
+		"win-back": {
+			width: 1600,
+			height: 1000,
+			alt: "Reloop Win back list: companies ranked by what happened in mail",
+		},
+		"contact-activity": {
+			width: 1600,
+			height: 1000,
+			alt: "Reloop contact sheet with the conversation summary and mail timeline",
+		},
+		"follow-up-draft": {
+			width: 1600,
+			height: 1000,
+			alt: "Reloop follow-up draft dialog over the Win back list",
+		},
+		contacts: { width: 1600, height: 1000, alt: "Reloop Contacts list" },
+		companies: { width: 1600, height: 1000, alt: "Reloop Companies list" },
+		"follow-up-dialog": {
+			width: 1376,
+			height: 1348,
+			alt: "Reloop follow-up draft dialog with the change field",
+		},
+		"contact-record": {
+			width: 1600,
+			height: 1206,
+			alt: "Reloop contact record with the summary and the mail timeline",
+		},
+		"overview-kpis": {
+			width: 1600,
+			height: 325,
+			alt: "Reloop overview KPI cards",
+		},
+		"overview-chart": {
+			width: 1376,
+			height: 608,
+			alt: "Reloop overview: closed won versus new pipeline chart",
+		},
+		"overview-deals": {
+			width: 1600,
+			height: 705,
+			alt: "Reloop deals in progress",
+		},
+		"win-back-table": {
+			width: 1600,
+			height: 542,
+			alt: "Reloop Win back table: companies ranked by potential",
+		},
+		"deals-pipeline": {
+			width: 1600,
+			height: 890,
+			alt: "Reloop deals pipeline with three stages",
+		},
+		"win-back-compact": {
+			width: 1600,
+			height: 1138,
+			alt: "Reloop Win back list, compact view",
+		},
+	},
+	themes: ["light", "dark"],
+} as const;
+
+export type ShotName = keyof typeof SHOTS.images;

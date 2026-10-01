@@ -227,5 +227,19 @@
 	"REST intake API": "API REST d’entrée",
 	"Web research": "Recherche web",
 	"Our company": "L’entreprise",
-	"On this page": "Sur cette page"
+	"On this page": "Sur cette page",
+	"Reloop overview: sidebar, KPIs, closed won chart and deals in progress": "Aperçu de Reloop : barre latérale, indicateurs, graphique des affaires gagnées et affaires en cours",
+	"Reloop Win back list: companies ranked by what happened in mail": "Liste Reconquête de Reloop : entreprises classées selon ce qui s'est passé dans les e-mails",
+	"Reloop contact sheet with the conversation summary and mail timeline": "Fiche contact de Reloop avec le résumé de la conversation et l'historique des e-mails",
+	"Reloop follow-up draft dialog over the Win back list": "Fenêtre de brouillon de relance de Reloop au-dessus de la liste Reconquête",
+	"Reloop Contacts list": "Liste des contacts de Reloop",
+	"Reloop Companies list": "Liste des entreprises de Reloop",
+	"Reloop follow-up draft dialog with the change field": "Fenêtre de brouillon de relance de Reloop avec le champ de modification",
+	"Reloop contact record with the summary and the mail timeline": "Fiche contact de Reloop avec le résumé et l'historique des e-mails",
+	"Reloop overview KPI cards": "Cartes d'indicateurs de l'aperçu de Reloop",
+	"Reloop overview: closed won versus new pipeline chart": "Aperçu de Reloop : graphique des affaires gagnées face au nouveau pipeline",
+	"Reloop deals in progress": "Affaires en cours dans Reloop",
+	"Reloop Win back table: companies ranked by potential": "Tableau Reconquête de Reloop : entreprises classées par potentiel",
+	"Reloop deals pipeline with three stages": "Pipeline d'affaires de Reloop avec trois étapes",
+	"Reloop Win back list, compact view": "Liste Reconquête de Reloop, vue compacte"
 }

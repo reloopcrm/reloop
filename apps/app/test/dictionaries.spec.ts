@@ -8,6 +8,7 @@ import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import ts from "typescript";
 import { BILLING_SETTINGS_NAV, MARKETING_NAV } from "../cloud/slots.data";
 import { DOCS } from "../components/docs/docs-config";
+import { SHOTS } from "../components/site/site-config";
 import {
 	GRANT_ACCESS_COPY,
 	GRANT_ACCESS_COPY_BOTH,
@@ -85,7 +86,7 @@ describe("the German dictionary", () => {
 		expect(missing).toEqual([]);
 	});
 
-	it("holds every label a cloud slot hands to t()", () => {
+	it("holds every label a cloud slot or a shot hands to t()", () => {
 		const labels = [
 			...[MARKETING_NAV.pricing, MARKETING_NAV.selfHosted].flatMap((link) =>
 				link ? [link.label] : [],
@@ -93,6 +94,7 @@ describe("the German dictionary", () => {
 			...MARKETING_NAV.reading.map((link) => link.label),
 			...MARKETING_NAV.company.map((link) => link.label),
 			...BILLING_SETTINGS_NAV.map((item) => item.title),
+			...Object.values(SHOTS.images).map((shot) => shot.alt),
 		];
 
 		expect(labels.filter((label) => !(label in de))).toEqual([]);

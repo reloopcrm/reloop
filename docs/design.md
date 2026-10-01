@@ -159,6 +159,14 @@ A product image may carry the one shadow token `--shadow`; nothing else in `.sit
 has a shadow. Marketing blocks live in `apps/app/components/site/` (public) or
 `components/landing/` (hosted overlay). The app never renders inside `.site`.
 
+A product image shows invented sample data only, captured from a disposable
+database with the built-in sample data. Each file is listed in
+`public/site/shots/MANIFEST.md` with its source. A capture from a real workspace
+is never committed. A page shows one through `Shot` from
+`components/site/shot.tsx`, which takes a name from `SHOTS` in
+`components/site/site-config.ts` and renders the light and the dark file, so the
+image follows the theme button. Its alt text goes through `t()`.
+
 The theme default is chosen per route group in `apps/app/lib/theme-config.ts`.
 The app is dark. The public site follows the device, and the theme button in its
 header stores the visitor's choice under its own key, so a choice made on the site

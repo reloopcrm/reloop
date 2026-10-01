@@ -194,9 +194,11 @@ export function DetailSheetHeader({
 
 export function DetailSheetRecord({
 	rail,
+	mainFirst = false,
 	children,
 }: {
 	rail: ReactNode;
+	mainFirst?: boolean;
 	children: ReactNode;
 }) {
 	return (
@@ -209,6 +211,8 @@ export function DetailSheetRecord({
 					data-slot="record-rail"
 					className={cn(
 						"@container/record flex shrink-0 flex-col border-b pb-2 @3xl/record:min-h-0 @3xl/record:overflow-y-auto @3xl/record:border-r @3xl/record:border-b-0",
+						mainFirst &&
+							"@max-3xl/record:order-last @max-3xl/record:border-t @max-3xl/record:border-b-0",
 						GUTTER,
 					)}
 				>

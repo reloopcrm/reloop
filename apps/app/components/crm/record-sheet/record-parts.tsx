@@ -73,7 +73,7 @@ export function RecordSheetFrame({
 					<p className="text-muted-foreground text-xs">{error}</p>
 				</div>
 			) : (
-				<DetailSheetRecord rail={rail}>
+				<DetailSheetRecord rail={rail} mainFirst={tab === "agent"}>
 					<DetailSheetTabs
 						tabs={tabs}
 						value={tab}

@@ -289,10 +289,12 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 									: t("Make primary")}
 							</Button>
 						) : null}
-						<Button onClick={() => setTab("agent")}>
-							<MailIcon data-icon="inline-start" />
-							{t("Write to them")}
-						</Button>
+						{contact.email ? (
+							<Button onClick={() => setTab("agent")}>
+								<MailIcon data-icon="inline-start" />
+								{t("Write to them")}
+							</Button>
+						) : null}
 						<RecordActions
 							record={{ kind: "contact", id: contact.id }}
 							name={contactName(contact)}

@@ -1,9 +1,18 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { landingTarget } from "@/lib/landing-target";
 
-export default async function Home() {
+export default function Home() {
+	return (
+		<Suspense fallback={null}>
+			<Landing />
+		</Suspense>
+	);
+}
+
+async function Landing() {
 	const target = await landingTarget();
 	if (target) redirect(target);
 

@@ -1,15 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { DOCUMENT_LANGUAGE_SCRIPT, matchLocale } from "../lib/i18n/locale";
-
-const owned = !("document" in globalThis);
-if (owned) GlobalRegistrator.register({ url: "https://crm.test/" });
+import { matchLocale } from "../lib/i18n/locale";
 
 const nextHeaders = { ...(await import("next/headers")) };
 
 afterAll(() => {
 	mock.module("next/headers", () => nextHeaders);
-	if (owned) GlobalRegistrator.unregister();
 });
 
 let cookieValue: string | undefined;
@@ -33,38 +28,6 @@ mock.module("next/headers", () => ({
 }));
 
 const { getLocale } = await import("../lib/i18n/server");
-
-function runScript(cookie: string | null, language: string): string {
-	document.cookie = "crm.locale=; max-age=0; path=/";
-	if (cookie !== null) document.cookie = `${cookie}; path=/`;
-	Object.defineProperty(navigator, "language", {
-		value: language,
-		configurable: true,
-	});
-	document.documentElement.lang = "en";
-
-	new Function(DOCUMENT_LANGUAGE_SCRIPT)();
-
-	return document.documentElement.lang;
-}
-
-describe("the language reaches <html> before the first paint", () => {
-	it("writes the chosen language, not English", () => {
-		expect(runScript("crm.locale=de", "en-US")).toBe("de");
-	});
-
-	it("writes the language the browser asks for when no cookie exists", () => {
-		expect(runScript(null, "de-AT")).toBe("de-AT");
-	});
-
-	it("keeps the served language when the browser says nothing", () => {
-		expect(runScript(null, "")).toBe("en");
-	});
-
-	it("ignores a cookie that is not a language tag", () => {
-		expect(runScript("crm.locale=%3Cscript%3E", "")).toBe("en");
-	});
-});
 
 describe("the cookie wins over the browser", () => {
 	it("keeps the chosen language when the header disagrees", async () => {

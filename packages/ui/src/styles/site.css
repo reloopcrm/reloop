@@ -1,0 +1,133 @@
+.site {
+	color-scheme: light;
+	--ink: #111111;
+	--ink-40: rgb(17 17 17 / 0.4);
+	--ink-50: rgb(17 17 17 / 0.5);
+	--ink-60: rgb(17 17 17 / 0.6);
+	--ink-70: rgb(17 17 17 / 0.7);
+	--ink-80: rgb(17 17 17 / 0.8);
+	--paper: #ffffff;
+	--off: #faf9f6;
+	--tile: #f1eee9;
+	--line: #dedbd6;
+	--line-strong: #d3cec6;
+	--blue: #0007cb;
+	--on-blue: #ffffff;
+	--orange: #ff5600;
+	--logo: #9a9a9a;
+	--active: rgb(0 0 0 / 0.03);
+	--dot: rgb(17 17 17 / 0.22);
+	--shadow: 0 12px 40px rgb(17 17 17 / 0.14);
+	--banner: #111111;
+	--banner-foreground: #ffffff;
+
+	--background: var(--paper);
+	--foreground: var(--ink);
+	--card: var(--paper);
+	--card-foreground: var(--ink);
+	--popover: var(--paper);
+	--popover-foreground: var(--ink);
+	--primary: var(--ink);
+	--primary-foreground: var(--paper);
+	--primary-strong: var(--ink);
+	--secondary: var(--off);
+	--secondary-foreground: var(--ink);
+	--muted: var(--off);
+	--muted-foreground: var(--ink-60);
+	--accent: var(--tile);
+	--accent-foreground: var(--ink);
+	--tag: var(--tile);
+	--tag-foreground: var(--ink);
+	--body-foreground: var(--ink-80);
+	--faint-foreground: var(--ink-40);
+	--border: var(--line);
+	--border-strong: var(--line-strong);
+	--input: var(--line-strong);
+	--ring: var(--blue);
+	--sidebar: var(--off);
+	--sidebar-foreground: var(--ink);
+	--sidebar-primary: var(--ink);
+	--sidebar-primary-foreground: var(--paper);
+	--sidebar-accent: var(--tile);
+	--sidebar-accent-foreground: var(--ink);
+	--sidebar-border: var(--line);
+	--sidebar-ring: var(--blue);
+
+	--font-sans:
+		var(--font-site-sans, "Inter Tight"), ui-sans-serif, system-ui, sans-serif;
+	--font-serif: var(--font-site-serif, "Newsreader"), Georgia, serif;
+	--font-mono:
+		var(--font-site-mono, "DM Mono"), ui-monospace, SFMono-Regular, Menlo,
+		monospace;
+
+	--radius: 4px;
+	--site-radius: 4px;
+	--site-radius-shot: 6px;
+
+	--site-weight-light: 300;
+	--site-weight-normal: 400;
+	--site-weight-medium: 500;
+
+	--site-text-display-1: 80px;
+	--site-text-display-2: 54px;
+	--site-text-title-24: 24px;
+	--site-text-title-20: 20px;
+	--site-text-body: 16px;
+	--site-text-small: 14px;
+	--site-text-label: 12px;
+	--site-leading-display: 1;
+	--site-leading-title: 1.2;
+	--site-leading-lede: 1.4;
+	--site-leading-body: 1.5;
+	--site-tracking-display: -0.03em;
+	--site-tracking-title: -0.02em;
+	--site-tracking-lede: -0.01em;
+	--site-tracking-label: 0.05em;
+
+	--site-gutter: 16px;
+	--site-container: 1170px;
+	--site-banner-height: 36px;
+	--site-nav-height: 72px;
+	--site-section-y: 112px;
+	--site-section-y-compact: 80px;
+	--site-ease: cubic-bezier(0.165, 0.84, 0.44, 1);
+
+	font-family: var(--font-sans);
+	font-feature-settings: normal;
+	letter-spacing: normal;
+	line-height: var(--site-leading-body);
+}
+
+.dark .site {
+	color-scheme: dark;
+	--ink: #f4f3ef;
+	--ink-40: rgb(244 243 239 / 0.4);
+	--ink-50: rgb(244 243 239 / 0.5);
+	--ink-60: rgb(244 243 239 / 0.6);
+	--ink-70: rgb(244 243 239 / 0.7);
+	--ink-80: rgb(244 243 239 / 0.8);
+	--paper: #0c0c0d;
+	--off: #141415;
+	--tile: #1c1c1e;
+	--line: #2a2a2d;
+	--line-strong: #3b3b3f;
+	--blue: #5b6cff;
+	--on-blue: #ffffff;
+	--orange: #ff7a33;
+	--logo: #6c6c70;
+	--active: rgb(255 255 255 / 0.04);
+	--dot: rgb(244 243 239 / 0.22);
+	--shadow: 0 12px 40px rgb(0 0 0 / 0.55);
+	--banner: #1c1c1e;
+	--banner-foreground: #f4f3ef;
+}
+
+@media (max-width: 900px) {
+	.site {
+		--site-text-display-1: 40px;
+		--site-text-display-2: 34px;
+		--site-text-title-24: 22px;
+		--site-section-y: 64px;
+		--site-section-y-compact: 48px;
+	}
+}

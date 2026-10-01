@@ -5,9 +5,11 @@ import { TooltipProvider } from "@crm/ui/components/tooltip";
 import { cn } from "@crm/ui/lib/utils";
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
+import { isMarketing, isMarketingHost } from "@/lib/env";
 import { I18nProvider } from "@/lib/i18n/client";
 import { DEFAULT_LOCALE, DOCUMENT_LANGUAGE_SCRIPT } from "@/lib/i18n/locale";
 import { getDictionary, getLocale, getT } from "@/lib/i18n/server";
@@ -91,12 +93,16 @@ export default function RootLayout({
 
 async function Localised({ children }: { children: React.ReactNode }) {
 	const locale = await getLocale();
+	const request = await headers();
+	const publicSite =
+		isMarketing() ||
+		isMarketingHost(request.get("x-forwarded-host") ?? request.get("host"));
 
 	return (
 		<I18nProvider locale={locale} dictionary={getDictionary(locale)}>
 			<NuqsAdapter>
 				<TRPCReactProvider>
-					<ThemeProvider>
+					<ThemeProvider defaultTheme={publicSite ? "system" : "dark"}>
 						<TooltipProvider>{children}</TooltipProvider>
 						<Toaster richColors />
 					</ThemeProvider>

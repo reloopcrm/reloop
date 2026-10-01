@@ -5,6 +5,7 @@
 	"type": "module",
 	"exports": {
 		"./globals.css": "./src/styles/globals.css",
+		"./site.css": "./src/styles/site.css",
 		"./postcss.config": "./postcss.config.mjs",
 		"./components/*": "./src/components/*.tsx",
 		"./hooks/*": "./src/hooks/*.ts",

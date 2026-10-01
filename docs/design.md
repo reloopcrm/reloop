@@ -128,12 +128,32 @@ below. A card or section title is `text-md` at 590.
 misleading name. Past 590 the second lever is colour: `foreground`,
 `body-foreground`, `muted-foreground`, `faint-foreground`.
 
-One exception, for the public site only: `Display` from `packages/ui` sets landing
-headlines in weight 900 through `font-display`. The app never uses it. A screen
-inside the product that reaches for `Display` is wrong.
-
 `font-mono` is for identifiers, keyboard shortcuts and technical metadata. Never for
 a heading.
+
+## Public site
+
+The public site is the `(landing)` route group: marketing pages, docs, sign-in,
+onboarding, grant-access, contact, privacy and imprint. It renders inside `.site`,
+set once by `app/(landing)/layout.tsx`. `.site` is a second token scope in
+`packages/ui/src/styles/site.css`: paper and ink greys, one blue for reading and
+one orange for win back, 4px corners, Inter Tight, Newsreader for ledes, DM Mono
+for labels, weights up to 500. The same file holds the site's type scale, spacing
+rhythm and hairlines as `--site-*` variables, light under `.site` and dark under
+`.dark .site`. Every selector in it starts at `.site`, because a stylesheet a
+route group loads stays loaded after client navigation into the app.
+
+The shared components from `packages/ui` render there unchanged. Where a shape
+differs, the component carries a `site:` class in `packages/ui`, never at the call
+site. Lime, the pill and the 590 weight belong to the app and never appear inside
+`.site`. A product image may carry the one shadow token `--shadow`; nothing else in
+`.site` has a shadow. Marketing blocks live in `apps/app/components/site/` (public)
+or `components/landing/` (hosted overlay). The app never renders inside `.site`.
+
+The public site follows the device theme on a marketing host (`IS_MARKETING` or
+`RELOOP_MARKETING_HOST`); the app stays dark by default. `Display` at weight 900
+through `font-display` is the old landing headline: it stays until the last block
+that imports it is gone, and nothing new uses it.
 
 ## Shell
 

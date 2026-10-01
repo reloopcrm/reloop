@@ -14,7 +14,10 @@ const domain = `outcome-${suffix}.test`;
 const userId = `user-${suffix}`;
 
 const DAY_MS = 86_400_000;
-const now = new Date();
+const now = new Date(Date.UTC(2026, 2, 12, 12));
+const monthStart = new Date(
+	Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+);
 
 function daysAgo(days: number): Date {
 	return new Date(now.getTime() - days * DAY_MS);
@@ -128,7 +131,7 @@ async function person(
 
 function outcome() {
 	return readWinBackOutcome(db, {
-		since: new Date(now.getFullYear(), now.getMonth(), 1),
+		since: monthStart,
 		baseCurrency: "EUR",
 		ownerId: userId,
 	});
@@ -238,6 +241,24 @@ describe("the win back loop", () => {
 		expect(counted.deals).toBe(2);
 		expect(counted.dealAmount?.toNumber()).toBe(1200);
 		expect(counted.unconvertedDeals).toBe(1);
+	});
+
+	it("starts the month at its first instant, so last month's reach-out stays out", async () => {
+		await person("last-month", {
+			verdict: "good",
+			decidedAt: new Date(monthStart.getTime() - 3 * DAY_MS),
+			messages: [out(new Date(monthStart.getTime() - 1))],
+		});
+		await person("first-instant", {
+			verdict: "good",
+			decidedAt: new Date(monthStart.getTime() - 3 * DAY_MS),
+			messages: [out(monthStart)],
+		});
+
+		const counted = await outcome();
+
+		expect(counted.verdicts).toBe(8);
+		expect(counted.contacted).toBe(6);
 	});
 });
 

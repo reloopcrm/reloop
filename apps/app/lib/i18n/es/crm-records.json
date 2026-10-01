@@ -251,5 +251,10 @@
 	"Search contacts": "Buscar contactos",
 	"Customers": "Clientes",
 	"Active in 30 days": "Activo en 30 días",
-	"Research again": "Investigar de nuevo"
+	"Research again": "Investigar de nuevo",
+	"Archive 1 company?": "¿Archivar 1 empresa?",
+	"Archive {count} companies?": "¿Archivar {count} empresas?",
+	"Archive 1 contact?": "¿Archivar 1 contacto?",
+	"Archive {count} contacts?": "¿Archivar {count} contactos?",
+	"They leave this list and stay under Show archived, where you can restore them.": "Salen de esta lista y quedan en Mostrar archivados, donde puedes restaurarlos."
 }

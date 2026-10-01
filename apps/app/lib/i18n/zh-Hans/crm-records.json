@@ -251,5 +251,10 @@
 	"Search contacts": "搜索联系人",
 	"Customers": "客户",
 	"Active in 30 days": "30 天内活跃",
-	"Research again": "重新调研"
+	"Research again": "重新调研",
+	"Archive 1 company?": "归档 1 家公司？",
+	"Archive {count} companies?": "归档 {count} 家公司？",
+	"Archive 1 contact?": "归档 1 位联系人？",
+	"Archive {count} contacts?": "归档 {count} 位联系人？",
+	"They leave this list and stay under Show archived, where you can restore them.": "它们会从此列表中移除，并保留在“显示已归档”中，你可以在那里恢复。"
 }

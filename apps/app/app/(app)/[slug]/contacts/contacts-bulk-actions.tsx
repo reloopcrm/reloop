@@ -31,6 +31,7 @@ export function ContactsBulkActions({
 	const users = useQuery(trpc.users.list.queryOptions());
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [confirming, setConfirming] = useState(false);
+	const [archiving, setArchiving] = useState(false);
 
 	const onError = (error: { message: string }) =>
 		toast.error(errorMessage(error.message));
@@ -227,10 +228,28 @@ export function ContactsBulkActions({
 				variant="outline"
 				size="sm"
 				disabled={pending}
-				onClick={() => archive.mutate({ ids })}
+				onClick={() => setArchiving(true)}
 			>
 				{t("Archive")}
 			</Button>
+			<BulkDeleteDialog
+				open={archiving}
+				onOpenChange={setArchiving}
+				destructive={false}
+				confirmLabel={t("Archive")}
+				title={
+					ids.length === 1
+						? t("Archive 1 contact?")
+						: t("Archive {count} contacts?", { count: ids.length })
+				}
+				description={t(
+					"They leave this list and stay under Show archived, where you can restore them.",
+				)}
+				onConfirm={() => {
+					setArchiving(false);
+					archive.mutate({ ids });
+				}}
+			/>
 		</>
 	);
 }

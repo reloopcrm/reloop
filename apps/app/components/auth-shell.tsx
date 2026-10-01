@@ -11,7 +11,7 @@ export async function AuthShell({ children }: { children: ReactNode }) {
 	const t = await getT();
 
 	return (
-		<main className="site grid min-h-svh bg-background text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
+		<main className="dark grid min-h-svh bg-background text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
 			<section className="relative hidden min-h-svh overflow-hidden bg-muted p-8 lg:flex lg:flex-col lg:justify-between xl:p-12">
 				<AuthShader />
 

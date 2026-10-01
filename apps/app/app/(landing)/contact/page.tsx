@@ -25,7 +25,7 @@ export default async function ContactPage() {
 	return (
 		<LandingShell>
 			<ProsePage
-				eyebrow={t("Company")}
+				eyebrow={t("Our company")}
 				title={t("Contact")}
 				lede={t(
 					"Reloop CRM is built in the open. Most questions are answered faster in the repository than in an inbox, because the answer stays there for the next person.",

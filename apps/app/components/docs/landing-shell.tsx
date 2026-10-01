@@ -22,6 +22,30 @@ type FooterGroup = { title: string; links: ShellLink[] };
 const NAV_LINK =
 	"inline-flex h-10 items-center rounded-md px-3 text-(length:--site-text-body) text-foreground outline-none transition-colors hover:text-(--ink-60) focus-visible:ring-2 focus-visible:ring-ring max-[1100px]:px-2";
 
+const FOOTER_TITLE = cn(
+	SITE_TYPE.mono,
+	"font-(--site-weight-medium) text-(--ink-60) tracking-[0.1em]",
+);
+
+function FooterLinks({ links }: { links: readonly ShellLink[] }) {
+	return (
+		<ul className="mb-8 flex flex-col gap-3 text-(length:--site-text-small) leading-tight max-[900px]:mb-4">
+			{links.map((link) => (
+				<li key={link.href}>
+					<NextLink
+						href={link.href}
+						className={FOOTER_LINK}
+						target={link.external ? "_blank" : undefined}
+						rel={link.external ? "noreferrer" : undefined}
+					>
+						{link.label}
+					</NextLink>
+				</li>
+			))}
+		</ul>
+	);
+}
+
 const FOOTER_LINK =
 	"rounded-xs outline-none transition-colors hover:text-(--ink-60) focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -63,7 +87,7 @@ export async function LandingShell({
 			links: [docs, { href: REPO_URL, label: "GitHub", external: true }],
 		},
 		{
-			title: t("Company"),
+			title: t("Our company"),
 			links: [
 				...MARKETING_NAV.company.map(marketingLink),
 				signIn,
@@ -172,40 +196,24 @@ export async function LandingShell({
 				<div className={SITE_TYPE.container}>
 					<div className="grid gap-8 max-[900px]:gap-0 min-[901px]:grid-cols-5">
 						{footerGroups.map((group) => (
-							<details
-								key={group.title}
-								open
-								className="group max-[900px]:border-border max-[900px]:border-b"
-							>
-								<summary className="flex list-none items-center justify-between rounded-xs outline-none focus-visible:ring-2 focus-visible:ring-ring max-[900px]:cursor-pointer max-[900px]:py-4 min-[901px]:mb-4 [&::-webkit-details-marker]:hidden">
-									<span
-										className={cn(
-											SITE_TYPE.mono,
-											"font-(--site-weight-medium) text-(--ink-60) tracking-[0.1em] max-[900px]:text-foreground",
-										)}
-									>
-										{group.title}
-									</span>
-									<span
-										aria-hidden="true"
-										className="size-0 border-x-6 border-x-transparent border-t-8 border-t-foreground group-open:rotate-180 min-[901px]:hidden"
-									/>
-								</summary>
-								<ul className="mb-8 flex flex-col gap-3 text-(length:--site-text-small) leading-5 max-[900px]:mb-4">
-									{group.links.map((link) => (
-										<li key={link.href}>
-											<NextLink
-												href={link.href}
-												className={FOOTER_LINK}
-												target={link.external ? "_blank" : undefined}
-												rel={link.external ? "noreferrer" : undefined}
-											>
-												{link.label}
-											</NextLink>
-										</li>
-									))}
-								</ul>
-							</details>
+							<div key={group.title}>
+								<div className="hidden min-[901px]:block">
+									<p className={cn(FOOTER_TITLE, "mb-4")}>{group.title}</p>
+									<FooterLinks links={group.links} />
+								</div>
+								<details className="group border-border border-b min-[901px]:hidden">
+									<summary className="flex cursor-pointer list-none items-center justify-between rounded-xs py-4 outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+										<span className={cn(FOOTER_TITLE, "text-foreground")}>
+											{group.title}
+										</span>
+										<span
+											aria-hidden="true"
+											className="size-0 border-x-6 border-x-transparent border-t-8 border-t-foreground group-open:rotate-180"
+										/>
+									</summary>
+									<FooterLinks links={group.links} />
+								</details>
+							</div>
 						))}
 					</div>
 

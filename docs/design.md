@@ -167,10 +167,16 @@ the active cell on `--off`; the `line` tabs keep their shape. `Table` holds a
 desktop column and scrolls inside its own frame on a phone.
 
 A menu, a popover or a toast opened from a public page is portalled to `<body>`,
-outside the shell. The `site:` variant (`:has(.site) *`) and the token block
-(`body:has(.site)`) therefore reach the whole document while a `.site` element is
-on the page, so those layers take the site tokens, 4px corners and Inter Tight.
-In the app no element carries `.site`, so neither selector matches.
+outside the shell. Each site shell renders `SiteShellMarker`
+(`components/site/site-shell-marker.tsx`), which sets `data-site-shell` on
+`<body>` in a layout effect and removes it in the cleanup. The `site:` variant
+(`.site *, [data-site-shell] *`) and the token block (`body[data-site-shell]`)
+use that marker, so the portalled layers take the site tokens, 4px corners and
+Inter Tight. The marker follows visibility, not presence in the DOM: Next keeps a
+page the visitor left as a hidden subtree, and React runs the layout cleanup when
+it hides that subtree, before the next frame paints. A visible app page therefore
+never has the marker on `<body>`. A hidden site page can stay in the DOM with its
+`.site` class, but that class styles only its own hidden subtree.
 
 The type scale is a set of `--site-text-*` sizes that step down with the
 viewport, composed with leading and tracking in `SITE_TYPE`

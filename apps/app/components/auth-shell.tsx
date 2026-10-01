@@ -3,6 +3,7 @@ import { cn } from "@crm/ui/lib/utils";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { SiteShellMarker } from "@/components/site/site-shell-marker";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { SITE_TYPE } from "@/components/site/typography";
 import { getT } from "@/lib/i18n/server";
@@ -20,6 +21,7 @@ export async function AuthShell({ children }: { children: ReactNode }) {
 
 	return (
 		<div className="site relative isolate flex min-h-svh w-full flex-col bg-background text-foreground">
+			<SiteShellMarker />
 			<i
 				aria-hidden="true"
 				className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(var(--dot)_1px,transparent_1.2px)] bg-size-[var(--site-dot-step)_var(--site-dot-step)] mask-[radial-gradient(ellipse_70%_60%_at_50%_50%,#000,transparent)]"

@@ -9,6 +9,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { REPO_URL } from "@/components/site";
 import { Banner } from "@/components/site/banner";
 import { NavSheet } from "@/components/site/nav-sheet";
+import { SiteShellMarker } from "@/components/site/site-shell-marker";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { SITE_TYPE } from "@/components/site/typography";
 import { getT } from "@/lib/i18n/server";
@@ -106,6 +107,7 @@ export async function LandingShell({
 
 	return (
 		<div className="site flex min-h-svh w-full flex-col bg-background text-foreground">
+			<SiteShellMarker />
 			<a
 				href="#content"
 				className="sr-only rounded-xs bg-background px-3 py-2 focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:outline-none focus:ring-2 focus:ring-ring"

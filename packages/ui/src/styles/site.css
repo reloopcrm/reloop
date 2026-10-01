@@ -1,5 +1,5 @@
 .site,
-body:has(.site) {
+body[data-site-shell] {
 	color-scheme: light;
 	--ink: #111111;
 	--ink-40: rgb(17 17 17 / 0.4);
@@ -121,12 +121,12 @@ body:has(.site) {
 	--site-banner-offset: var(--site-banner-height);
 }
 
-body:has(.site) [data-sonner-toaster] {
+body[data-site-shell] [data-sonner-toaster] {
 	font-family: var(--font-sans);
 }
 
 .dark .site,
-.dark body:has(.site) {
+.dark body[data-site-shell] {
 	color-scheme: dark;
 	--ink: #f4f3ef;
 	--ink-40: rgb(244 243 239 / 0.4);
@@ -154,14 +154,14 @@ body:has(.site) [data-sonner-toaster] {
 
 @media (max-width: 1340px) {
 	.site,
-	body:has(.site) {
+	body[data-site-shell] {
 		--site-text-display-3: 40px;
 	}
 }
 
 @media (max-width: 900px) {
 	.site,
-	body:has(.site) {
+	body[data-site-shell] {
 		--site-text-display-1: 40px;
 		--site-text-display-2: 34px;
 		--site-text-display-3: 34px;
@@ -180,7 +180,7 @@ body:has(.site) [data-sonner-toaster] {
 
 @media (max-width: 480px) {
 	.site,
-	body:has(.site) {
+	body[data-site-shell] {
 		--site-text-display-1: 36px;
 	}
 }

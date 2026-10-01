@@ -307,7 +307,6 @@ export function ContactsTable() {
 
 	return (
 		<DataTable
-			className={selection.count > 0 ? "max-lg:pb-56" : undefined}
 			query={query}
 			search={<ListSearch placeholder={t("Search contacts")} />}
 			quickFilters={quickFilters}

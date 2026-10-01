@@ -38,7 +38,7 @@ export function MonoLabel({
 		<span
 			data-slot="mono-label"
 			className={cn(
-				"font-mono text-label text-muted-foreground uppercase tracking-label",
+				"font-mono text-2xs text-muted-foreground uppercase tracking-label",
 				className,
 			)}
 			{...props}

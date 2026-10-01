@@ -28,7 +28,9 @@ export function WinBackActions() {
 		enabled: false,
 		placeholderData: (previous) => previous,
 	});
-	const next = list.data?.rows[0]?.people[0];
+	const next = list.data?.rows
+		.flatMap((row) => row.people)
+		.find((person) => person.feedback === null && Boolean(person.email));
 
 	return (
 		<>

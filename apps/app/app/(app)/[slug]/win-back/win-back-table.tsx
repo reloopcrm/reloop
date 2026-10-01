@@ -1,8 +1,6 @@
 "use client";
 
-import { Button } from "@crm/ui/components/button";
 import { DataTable, type DataTableFacet } from "@crm/ui/components/data-table";
-import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import { EntityLogo } from "@crm/ui/components/entity-logo";
 import {
 	CompaniesIcon,
@@ -21,10 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useQueryStates } from "nuqs";
 import { useMemo } from "react";
 import { contactName } from "@/components/crm/contact-name";
-import {
-	useOpenRecord,
-	useRecordStack,
-} from "@/components/crm/record-sheet/record-stack";
+import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { PotentialCell } from "@/components/crm/standing-cell";
 import { ListSearch } from "@/components/data-table/list-search";
 import {
@@ -170,42 +165,37 @@ function PersonCell({ person }: { person: Person }) {
 				email={person.email}
 				size="sm"
 			/>
-			<span className="truncate">{contactName(person)}</span>
+			<span className="min-w-0 truncate">
+				{contactName(person)}
+				{person.title ? (
+					<span className="text-muted-foreground">
+						{" · "}
+						{person.title}
+					</span>
+				) : null}
+			</span>
 		</span>
-	);
-}
-
-function OpenPersonLink({ person }: { person: Person }) {
-	const t = useT();
-	const { openAt } = useRecordStack();
-
-	return (
-		<Button
-			variant="link"
-			size="sm"
-			onClick={() =>
-				openAt({ kind: "contact", id: person.id }, WIN_BACK_UI.agentTab)
-			}
-		>
-			{t("Open record")}
-		</Button>
 	);
 }
 
 function subCell(person: Person, columnId: string) {
 	if (columnId === "name") return <PersonCell person={person} />;
 	if (columnId === "potential") {
-		return person.title ? (
-			<span className="text-muted-foreground">{person.title}</span>
-		) : (
-			<EmptyCellValue />
-		);
+		return <PotentialCell potential={person.potential} />;
 	}
 	if (columnId === "business") return <FactCell source={person} />;
 	if (columnId === "last") {
 		return <LocalRelativeTime date={person.lastContactAt} />;
 	}
-	if (columnId === "verdict") return <OpenPersonLink person={person} />;
+	if (columnId === "verdict") {
+		return (
+			<WinBackVerdictMenu
+				name={contactName(person)}
+				contactIds={[person.id]}
+				verdict={person.feedback}
+			/>
+		);
+	}
 
 	return null;
 }

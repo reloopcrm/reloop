@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@crm/ui/components/button";
-import { MonoLabel, Square } from "@crm/ui/components/mark";
 import {
 	ChatIcon,
 	CompaniesIcon,
@@ -10,7 +9,8 @@ import {
 	OverviewIcon,
 	SettingsIcon,
 	WinBackIcon,
-} from "@crm/ui/components/nav-icons";
+} from "@crm/ui/components/line-icons";
+import { MonoLabel, Square } from "@crm/ui/components/mark";
 import {
 	Sheet,
 	SheetContent,

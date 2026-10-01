@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@crm/ui/components/button";
-import { DarkIcon, LightIcon } from "@crm/ui/components/nav-icons";
+import { DarkIcon, LightIcon } from "@crm/ui/components/line-icons";
 import { useTheme } from "next-themes";
 import { useT } from "@/lib/i18n/client";
 

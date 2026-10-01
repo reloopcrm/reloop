@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@crm/ui/components/button";
-import { MenuIcon } from "@crm/ui/components/nav-icons";
+import { MenuIcon } from "@crm/ui/components/line-icons";
 import Wordmark from "@crm/ui/components/wordmark";
 import Link from "next/link";
 import { useMobileNav } from "@/components/mobile-nav";

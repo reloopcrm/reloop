@@ -1,5 +1,8 @@
 export {
+	ArrowRight as OpenIcon,
 	Building2 as CompaniesIcon,
+	Download as DownloadIcon,
+	Ellipsis as MoreIcon,
 	LayoutGrid as OverviewIcon,
 	Menu as MenuIcon,
 	MessageSquare as ChatIcon,

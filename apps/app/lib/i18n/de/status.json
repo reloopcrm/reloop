@@ -56,5 +56,8 @@
 	"Owner is me": "Ich bin zuständig",
 	"Welcome back, {name}": "Willkommen zurück, {name}",
 	"Outcome": "Ergebnis",
-	"{days} d": "{days} Tg."
+	"{days} d": "{days} Tg.",
+	"Archive 1 deal?": "1 Geschäft archivieren?",
+	"Archive {count} deals?": "{count} Geschäfte archivieren?",
+	"They leave this list and stay under Show archived, where you can restore them.": "Sie verschwinden aus dieser Liste und bleiben unter „Archivierte zeigen“. Dort kannst du sie wiederherstellen."
 }

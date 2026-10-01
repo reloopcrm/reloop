@@ -32,6 +32,7 @@ import { OwnerCell } from "@/components/crm/owner-cell";
 import { DealAmount } from "@/components/crm/record-sheet/record-parts";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
+import { DealStageMenu } from "@/components/crm/stage-change";
 import { ListMoreMenu } from "@/components/data-table/list-more-menu";
 import { ListSearch } from "@/components/data-table/list-search";
 import {
@@ -183,7 +184,7 @@ const OPEN_COLUMNS: LabeledColumn<DealRow>[] = [
 		icon: SignalIcon,
 		sortable: true,
 		size: SIZE.stage,
-		cell: (row) => <StageStatus stage={row.stage} />,
+		cell: (row) => <DealStageMenu dealId={row.id} stage={row.stage} />,
 	},
 	VALUE_COLUMN,
 	{

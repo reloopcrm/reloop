@@ -2,10 +2,19 @@ import { MonoLabel } from "@crm/ui/components/mark";
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
 
+type TrendDirection = "up" | "down" | "neutral";
+
 type StatDelta = {
 	value: string;
+	direction: TrendDirection;
 	label?: string;
 };
+
+const TREND = {
+	up: { color: "text-blue", glyph: "\u2191" },
+	down: { color: "text-foreground", glyph: "\u2193" },
+	neutral: { color: "text-muted-foreground", glyph: "" },
+} as const satisfies Record<TrendDirection, { color: string; glyph: string }>;
 
 function StatCard({
 	label,
@@ -37,7 +46,15 @@ function StatCard({
 				<p className="mt-2.5 text-pretty text-2sm text-muted-foreground">
 					{delta ? (
 						<>
-							<span className="font-medium text-blue tabular-nums">
+							<span
+								className={cn(
+									"font-medium tabular-nums",
+									TREND[delta.direction].color,
+								)}
+							>
+								{TREND[delta.direction].glyph ? (
+									<span aria-hidden>{TREND[delta.direction].glyph} </span>
+								) : null}
 								{delta.value}
 							</span>
 							{delta.label ? ` ${delta.label}` : null}
@@ -52,5 +69,5 @@ function StatCard({
 	);
 }
 
-export type { StatDelta };
+export type { StatDelta, TrendDirection };
 export { StatCard };

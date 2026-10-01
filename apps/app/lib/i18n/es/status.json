@@ -56,5 +56,8 @@
 	"Owner is me": "Soy el responsable",
 	"Welcome back, {name}": "Bienvenido de nuevo, {name}",
 	"Outcome": "Resultado",
-	"{days} d": "{days} d"
+	"{days} d": "{days} d",
+	"Archive 1 deal?": "¿Archivar 1 trato?",
+	"Archive {count} deals?": "¿Archivar {count} tratos?",
+	"They leave this list and stay under Show archived, where you can restore them.": "Salen de esta lista y quedan en Mostrar archivados, donde puedes restaurarlos."
 }

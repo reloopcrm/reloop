@@ -56,5 +56,8 @@
 	"Owner is me": "Sorumlu benim",
 	"Welcome back, {name}": "Tekrar hoş geldin, {name}",
 	"Outcome": "Sonuç",
-	"{days} d": "{days} g"
+	"{days} d": "{days} g",
+	"Archive 1 deal?": "1 anlaşma arşivlensin mi?",
+	"Archive {count} deals?": "{count} anlaşma arşivlensin mi?",
+	"They leave this list and stay under Show archived, where you can restore them.": "Bu listeden çıkarlar ve Arşivlenenleri göster altında kalırlar. Oradan geri yükleyebilirsin."
 }

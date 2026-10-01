@@ -14,43 +14,36 @@ const ORDER = [
 
 type DealStagePresentation = Record<
 	DealStage,
-	{ tone: StatusTone; color: string; mark: MarkTone }
+	{ tone: StatusTone; mark: MarkTone }
 >;
 
 const PRESENTATION: DealStagePresentation = {
 	DEMO_BOOKED: {
 		tone: "neutral",
-		color: "var(--chart-2)",
 		mark: "faint",
 	},
 	QUALIFIED_TO_BUY: {
 		tone: "success",
-		color: "var(--chart-3)",
 		mark: "blue",
 	},
 	DECISION_MAKER_BOUGHT_IN: {
 		tone: "info",
-		color: "var(--chart-1)",
 		mark: "orange",
 	},
 	CONTRACT_SENT: {
 		tone: "warning",
-		color: "var(--chart-4)",
 		mark: "ink",
 	},
 	CLOSED_WON: {
 		tone: "success",
-		color: "var(--chart-5)",
 		mark: "blue",
 	},
 	CLOSED_LOST: {
 		tone: "error",
-		color: "var(--chart-5)",
 		mark: "faint",
 	},
 	UNQUALIFIED_TO_BUY: {
 		tone: "neutral",
-		color: "var(--chart-5)",
 		mark: "hollow",
 	},
 };
@@ -64,10 +57,6 @@ export const LOSING_STAGES: readonly DealStage[] = [
 
 export function isClosedStage(stage: DealStage): boolean {
 	return !OPEN_STAGES.includes(stage);
-}
-
-export function dealStageColor(stage: DealStage): string {
-	return PRESENTATION[stage].color;
 }
 
 export function dealStageMark(stage: DealStage): MarkTone {

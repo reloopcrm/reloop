@@ -53,6 +53,7 @@ export function DealsBulkActions({
 	const [closing, setClosing] = useState<DealStage | null>(null);
 	const [reason, setReason] = useState("");
 	const [confirming, setConfirming] = useState(false);
+	const [archiving, setArchiving] = useState(false);
 
 	const onError = (error: { message: string }) =>
 		toast.error(errorMessage(error.message));
@@ -218,11 +219,29 @@ export function DealsBulkActions({
 				variant="outline"
 				size="sm"
 				disabled={archive.isPending}
-				onClick={() => archive.mutate({ ids })}
+				onClick={() => setArchiving(true)}
 			>
 				{archive.isPending ? <Spinner /> : <Archive data-icon="inline-start" />}
 				{t("Archive")}
 			</Button>
+			<BulkDeleteDialog
+				open={archiving}
+				onOpenChange={setArchiving}
+				destructive={false}
+				confirmLabel={t("Archive")}
+				title={
+					ids.length === 1
+						? t("Archive 1 deal?")
+						: t("Archive {count} deals?", { count: ids.length })
+				}
+				description={t(
+					"They leave this list and stay under Show archived, where you can restore them.",
+				)}
+				onConfirm={() => {
+					setArchiving(false);
+					archive.mutate({ ids });
+				}}
+			/>
 
 			<Dialog
 				open={closing !== null}

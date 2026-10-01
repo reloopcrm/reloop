@@ -32,7 +32,11 @@ function changeDelta(
 ): StatDelta | undefined {
 	if (previous === 0) return undefined;
 	const change = Math.round(((current - previous) / previous) * 100);
-	return { value: `${change >= 0 ? "+" : ""}${change}%`, label };
+	return {
+		value: `${change >= 0 ? "+" : ""}${change}%`,
+		direction: change > 0 ? "up" : change < 0 ? "down" : "neutral",
+		label,
+	};
 }
 
 export function SalesDashboard({ summary }: { summary: Summary }) {

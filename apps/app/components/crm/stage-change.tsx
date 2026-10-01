@@ -20,18 +20,22 @@ import {
 } from "@crm/ui/components/dropdown-menu";
 import { Field, FieldLabel } from "@crm/ui/components/field";
 import { Icon } from "@crm/ui/components/icon";
+import { Status } from "@crm/ui/components/mark";
 import { Spinner } from "@crm/ui/components/spinner";
 import { Textarea } from "@crm/ui/components/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { parseAsString, useQueryStates } from "nuqs";
 import { useId, useState } from "react";
 import { toast } from "sonner";
-import { LOSING_STAGES } from "@/lib/deal-stage";
+import { dealStageMark, LOSING_STAGES } from "@/lib/deal-stage";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
-import { useDealStageOptions } from "@/lib/use-deal-stage-label";
+import {
+	useDealStageLabel,
+	useDealStageOptions,
+} from "@/lib/use-deal-stage-label";
 import { DealStageIndicator } from "./deal-stage";
 
 const closeReasonParams = {
@@ -65,6 +69,7 @@ export function DealStageMenu({
 	variant?: "inline" | "control";
 }) {
 	const options = useDealStageOptions();
+	const stageLabel = useDealStageLabel();
 	const [, setCloseParams] = useQueryStates(closeReasonParams);
 	const setStage = useStageMutation();
 
@@ -86,9 +91,9 @@ export function DealStageMenu({
 						type="button"
 						onClick={(event) => event.stopPropagation()}
 						disabled={setStage.isPending}
-						className="flex min-w-0 items-center text-left hover:text-foreground disabled:opacity-50"
+						className="flex min-w-0 max-w-full cursor-pointer items-center text-left hover:text-foreground disabled:opacity-50"
 					>
-						<DealStageIndicator stage={stage} />
+						<Status tone={dealStageMark(stage)}>{stageLabel(stage)}</Status>
 					</button>
 				)}
 			</DropdownMenuTrigger>

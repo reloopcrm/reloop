@@ -18,7 +18,7 @@ function PageShell({
 			<main
 				data-slot="page-shell-scroll"
 				className={cn(
-					"relative flex min-w-0 flex-1 flex-col px-4 pt-4 pb-10 lg:px-(--spacing-page-inline) lg:pt-(--spacing-page-top) lg:pb-(--spacing-page-bottom)",
+					"relative flex min-w-0 flex-1 flex-col px-4 pt-4 pb-10 [--sticky-top:-1rem] lg:px-(--spacing-page-inline) lg:pt-(--spacing-page-top) lg:pb-(--spacing-page-bottom) lg:[--sticky-top:calc(var(--spacing-page-top)*-1)]",
 					contained ? "min-h-0 overflow-hidden" : "overflow-y-auto",
 				)}
 			>

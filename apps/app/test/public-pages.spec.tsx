@@ -35,6 +35,7 @@ const TEXT_PROPS = new Set([
 	"link",
 	"absolute",
 	"tagline",
+	"eyebrow",
 ]);
 
 const VERBATIM_TAGS = new Set(["code", "pre"]);

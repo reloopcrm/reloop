@@ -150,10 +150,10 @@ export async function DocsShell({
 					</CollapsibleContent>
 				</Collapsible>
 
-				<main className="flex w-full min-w-0 max-w-(--container-page) flex-1 flex-col gap-6">
+				<div className="flex w-full min-w-0 max-w-(--container-page) flex-1 flex-col gap-6">
 					{children}
 					<PageLinks items={items} current={current} t={t} />
-				</main>
+				</div>
 			</div>
 		</LandingShell>
 	);

@@ -145,8 +145,9 @@ the app.
 
 `app/(landing)/layout.tsx` loads the stylesheet and the three fonts as
 `--font-site-*` variables, nothing else. A page enters the scope only when its
-shell puts the `.site` class on its root; the site shells that do so come with the
-new header, footer and sign-in. Until then every public page renders as before.
+shell puts the `.site` class on its root: `LandingShell` and the 404 page, which
+lives outside the route group and loads the stylesheet and fonts itself. `AuthShell`
+(sign-in, onboarding, grant-access) keeps the app's look until it is redesigned.
 
 The shared components from `packages/ui` render inside `.site` unchanged.
 `@theme inline` writes their weights (510, 590) and their larger radii as fixed
@@ -159,10 +160,12 @@ has a shadow. Marketing blocks live in `apps/app/components/site/` (public) or
 `components/landing/` (hosted overlay). The app never renders inside `.site`.
 
 The theme default is chosen per route group in `apps/app/lib/theme-config.ts`.
-The app is dark. The public site is dark too until its shells stop forcing `.dark`;
-then `(landing)` follows the device. `Display` at weight 900 through `font-display`
-is the old landing headline: it stays until the last block that imports it is gone,
-and nothing new uses it.
+The app is dark. The public site follows the device, and the theme button in its
+header stores the visitor's choice under its own key, so a choice made on the site
+never changes the app. Sign-in, onboarding and grant-access use the app's theme
+and key, so entering the app never switches the theme mid-navigation. `Display` at weight 900 through
+`font-display` is the old landing headline: it stays until the last block that
+imports it is gone, and nothing new uses it.
 
 ## Shell
 

@@ -75,15 +75,17 @@ function SheetContent({
 	side = "right",
 	size,
 	showCloseButton = true,
+	container,
 	...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
 	side?: "top" | "right" | "bottom" | "left";
 	size?: SheetSize;
 	showCloseButton?: boolean;
+	container?: React.ComponentProps<typeof SheetPrimitive.Portal>["container"];
 }) {
 	const t = useUiT();
 	return (
-		<SheetPortal>
+		<SheetPortal container={container}>
 			<SheetOverlay />
 			<SheetPrimitive.Content
 				data-slot="sheet-content"

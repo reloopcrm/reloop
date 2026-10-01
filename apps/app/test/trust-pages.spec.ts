@@ -122,7 +122,7 @@ describe("the trust anchor pages", () => {
 		).text();
 		const footer = source.slice(source.indexOf("<footer"));
 
-		expect(footer).toContain("companyLinks.map");
+		expect(footer).toContain("legalLinks.map");
 
 		const slotted = MARKETING_NAV.company.map((link) => link.path);
 

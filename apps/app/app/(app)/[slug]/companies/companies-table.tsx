@@ -103,7 +103,7 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 		icon: ContactsIcon,
 		sortable: true,
 		align: "right",
-		size: 90,
+		size: 110,
 		cell: (row) => <span className="tabular-nums">{row.contactCount}</span>,
 	},
 	{

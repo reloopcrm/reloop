@@ -4,24 +4,13 @@ import { Toaster } from "@crm/ui/components/sonner";
 import { TooltipProvider } from "@crm/ui/components/tooltip";
 import { cn } from "@crm/ui/lib/utils";
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { SITE_FONTS } from "@/components/site/fonts";
 import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/lib/i18n/client";
 import { getDictionary, getLocale, getT } from "@/lib/i18n/server";
 import { siteAddress } from "@/lib/site-address";
 import { TRPCReactProvider } from "@/lib/trpc/client";
-
-const fontSans = Inter({
-	variable: "--font-inter",
-	subsets: ["latin"],
-	axes: ["opsz"],
-});
-
-const fontMono = JetBrains_Mono({
-	variable: "--font-mono-variable",
-	subsets: ["latin"],
-});
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -77,7 +66,7 @@ export default async function RootLayout({
 		<html
 			lang={locale}
 			suppressHydrationWarning
-			className={cn(fontSans.variable, fontMono.variable, "h-full antialiased")}
+			className={cn(SITE_FONTS, "h-full antialiased")}
 		>
 			<body className="flex min-h-full flex-col font-sans">
 				<I18nProvider locale={locale} dictionary={getDictionary(locale)}>

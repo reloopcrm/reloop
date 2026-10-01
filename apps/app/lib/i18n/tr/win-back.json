@@ -315,5 +315,6 @@
 	"Get back to {name}": "{name} ile tekrar iletişime geç",
 	"Remind me in {count} days": "{count} gün sonra hatırlat",
 	"The limit of your plan for chat is reached. Upgrade your plan to continue now.": "Planının sohbet sınırına ulaşıldı. Şimdi devam etmek için planını yükselt.",
-	"The limit of your plan for the agent builder is reached. Upgrade your plan to continue now.": "Planının ajan oluşturucu sınırına ulaşıldı. Şimdi devam etmek için planını yükselt."
+	"The limit of your plan for the agent builder is reached. Upgrade your plan to continue now.": "Planının ajan oluşturucu sınırına ulaşıldı. Şimdi devam etmek için planını yükselt.",
+	"{count} waiting": "{count} bekliyor"
 }

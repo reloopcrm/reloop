@@ -315,5 +315,6 @@
 	"Get back to {name}": "再次联系 {name}",
 	"Remind me in {count} days": "{count} 天后提醒我",
 	"The limit of your plan for chat is reached. Upgrade your plan to continue now.": "你的套餐的聊天额度已用完。升级套餐即可现在继续。",
-	"The limit of your plan for the agent builder is reached. Upgrade your plan to continue now.": "你的套餐的代理构建器额度已用完。升级套餐即可现在继续。"
+	"The limit of your plan for the agent builder is reached. Upgrade your plan to continue now.": "你的套餐的代理构建器额度已用完。升级套餐即可现在继续。",
+	"{count} waiting": "{count} 个等待中"
 }

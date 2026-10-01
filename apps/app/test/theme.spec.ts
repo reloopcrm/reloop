@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { THEME, themeForSegments } from "../lib/theme-config";
 
 describe("themeForSegments", () => {
-	it("keeps the app dark", () => {
-		expect(THEME.app.defaultTheme).toBe("dark");
+	it("lets the app follow the device", () => {
+		expect(THEME.app.defaultTheme).toBe("system");
 		for (const segments of [[], ["(app)"], ["[slug]", "settings"], ["t"]])
 			expect(themeForSegments(segments)).toBe(THEME.app);
 	});

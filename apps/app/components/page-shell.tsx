@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader } from "@crm/ui/components/loader";
+import { type MarkTone, MonoLabel, Square } from "@crm/ui/components/mark";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
@@ -17,7 +18,7 @@ function PageShell({
 			<main
 				data-slot="page-shell-scroll"
 				className={cn(
-					"relative flex min-w-0 flex-1 flex-col px-4 pt-4 pb-4 md:px-(--spacing-page-inline) md:pt-(--spacing-page-top) md:pb-(--spacing-page-bottom)",
+					"relative flex min-w-0 flex-1 flex-col px-4 pt-4 pb-10 lg:px-(--spacing-page-inline) lg:pt-(--spacing-page-top) lg:pb-(--spacing-page-bottom)",
 					contained ? "min-h-0 overflow-hidden" : "overflow-y-auto",
 				)}
 			>
@@ -43,14 +44,12 @@ function PageShellHeader({
 		<header
 			data-slot="page-shell-header"
 			className={cn(
-				"@container/page-header flex flex-col gap-3 [view-transition-name:page-header]",
+				"@container/page-header flex flex-col gap-3 @2xl/page-header:flex-row @2xl/page-header:items-end @2xl/page-header:justify-between @2xl/page-header:gap-6 [view-transition-name:page-header]",
 				className,
 			)}
 			{...props}
 		>
-			<div className="grid grid-cols-[minmax(0,1fr)] items-center gap-x-6 gap-y-1.5 @lg/page-header:grid-cols-[minmax(0,1fr)_auto]">
-				{children}
-			</div>
+			{children}
 		</header>
 	);
 }
@@ -62,9 +61,27 @@ function PageShellHeading({
 	return (
 		<div
 			data-slot="page-shell-heading"
-			className={cn("contents", className)}
+			className={cn("flex min-w-0 flex-col gap-2", className)}
 			{...props}
 		/>
+	);
+}
+
+function PageShellEyebrow({
+	tone = "blue",
+	children,
+}: {
+	tone?: MarkTone;
+	children: React.ReactNode;
+}) {
+	return (
+		<div
+			data-slot="page-shell-eyebrow"
+			className="flex items-center gap-2 pb-0.5"
+		>
+			<Square tone={tone} />
+			<MonoLabel>{children}</MonoLabel>
+		</div>
 	);
 }
 
@@ -73,7 +90,7 @@ function PageShellTitle({ className, ...props }: React.ComponentProps<"h1">) {
 		<h1
 			data-slot="page-shell-title"
 			className={cn(
-				"col-start-1 row-start-1 min-w-0 self-center text-balance font-semibold text-2xl leading-tight tracking-tight",
+				"min-w-0 text-balance font-normal text-2xl leading-tight tracking-tight",
 				className,
 			)}
 			{...props}
@@ -89,7 +106,7 @@ function PageShellDescription({
 		<p
 			data-slot="page-shell-description"
 			className={cn(
-				"col-span-full row-start-2 max-w-(--container-page) text-pretty font-normal text-muted-foreground text-sm",
+				"max-w-(--container-page) text-pretty font-light font-serif text-base text-muted-foreground leading-snug",
 				className,
 			)}
 			{...props}
@@ -104,10 +121,7 @@ function PageShellActions({
 	return (
 		<div
 			data-slot="page-shell-actions"
-			className={cn(
-				"col-start-1 row-start-3 flex flex-wrap items-center gap-4 self-center justify-self-start @lg/page-header:col-start-2 @lg/page-header:row-start-1 @lg/page-header:justify-self-end",
-				className,
-			)}
+			className={cn("flex shrink-0 flex-wrap items-center gap-2", className)}
 			{...props}
 		/>
 	);
@@ -170,6 +184,7 @@ export {
 	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
+	PageShellEyebrow,
 	PageShellFallback,
 	PageShellHeader,
 	PageShellHeading,

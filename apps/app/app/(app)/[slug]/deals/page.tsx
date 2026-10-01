@@ -7,6 +7,7 @@ import {
 	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
+	PageShellEyebrow,
 	PageShellHeader,
 	PageShellHeading,
 	PageShellLoading,
@@ -41,10 +42,11 @@ export default async function DealsPage({
 		<PageShell className="min-h-0">
 			<PageShellHeader>
 				<PageShellHeading>
+					<PageShellEyebrow>{t("Deals")}</PageShellEyebrow>
 					<PageShellTitle>{t("Deals")}</PageShellTitle>
 					<PageShellDescription>
 						<Suspense fallback={description}>
-							<DealsSummary fallback={description} />
+							<Summary searchParams={searchParams} fallback={description} />
 						</Suspense>
 					</PageShellDescription>
 				</PageShellHeading>
@@ -65,6 +67,26 @@ export default async function DealsPage({
 	);
 }
 
+async function Summary({
+	searchParams,
+	fallback,
+}: Pick<PageProps<"/[slug]/deals">, "searchParams"> & { fallback: string }) {
+	const [, values] = await Promise.all([
+		requireSession(),
+		dealsSearchParams.load(searchParams),
+	]);
+	const input = dealsSearchParams.toInput(values);
+	await getServerQueryClient().prefetchQuery(
+		getServerTrpc().deals.board.queryOptions(input),
+	);
+
+	return (
+		<HydrateClient>
+			<DealsSummary fallback={fallback} />
+		</HydrateClient>
+	);
+}
+
 async function QuotesLink({
 	params,
 }: Pick<PageProps<"/[slug]/deals">, "params">) {
@@ -82,7 +104,7 @@ async function QuotesLink({
 async function Deals({
 	searchParams,
 }: Pick<PageProps<"/[slug]/deals">, "searchParams">) {
-	const [, values, view] = await Promise.all([
+	const [session, values, view] = await Promise.all([
 		requireSession(),
 		dealsSearchParams.load(searchParams),
 		loadDealView(searchParams),
@@ -93,12 +115,14 @@ async function Deals({
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
 	await Promise.all([
+		queryClient.prefetchQuery(trpc.deals.board.queryOptions(input)),
 		current === "pipeline"
-			? queryClient.prefetchQuery(trpc.deals.board.queryOptions(input))
+			? null
 			: queryClient.prefetchQuery(
-					trpc.deals.list.queryOptions(
-						current === "closed" ? { ...input, status: "closed" } : input,
-					),
+					trpc.deals.list.queryOptions({
+						...input,
+						status: current === "closed" ? "closed" : "open",
+					}),
 				),
 		queryClient.prefetchQuery(trpc.users.list.queryOptions()),
 		queryClient.prefetchQuery(trpc.companies.options.queryOptions({ q: "" })),
@@ -106,7 +130,7 @@ async function Deals({
 
 	return (
 		<HydrateClient>
-			<DealsView />
+			<DealsView userId={session.user.id} />
 		</HydrateClient>
 	);
 }

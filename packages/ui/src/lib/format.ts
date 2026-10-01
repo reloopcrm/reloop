@@ -64,6 +64,7 @@ export function formatMoneyCompact(
 		style: "currency",
 		currency: displayCurrencyCode(currency),
 		notation: "compact",
+		minimumFractionDigits: 0,
 		maximumFractionDigits: cents % 100_000 === 0 ? 0 : 1,
 	}).format(cents / 100);
 }

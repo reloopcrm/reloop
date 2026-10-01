@@ -4,11 +4,13 @@ import {
 	PageShell,
 	PageShellActions,
 	PageShellContent,
+	PageShellEyebrow,
 	PageShellHeader,
 	PageShellHeading,
 	PageShellLoading,
 } from "@/components/page-shell";
 import { LoadSampleData } from "@/components/sample-data";
+import { getT } from "@/lib/i18n/server";
 import { hasRecordsToShow } from "@/lib/mailbox-connection";
 import { CONNECTIONS_PATH } from "@/lib/onboarding";
 import { requireSession } from "@/lib/session";
@@ -31,18 +33,28 @@ export default async function OverviewPage({
 	params,
 	searchParams,
 }: PageProps<"/[slug]">) {
-	await requireSession();
-
-	const [{ slug }, connected] = await Promise.all([params, hasRecordsToShow()]);
+	const [session, { slug }, connected, t] = await Promise.all([
+		requireSession(),
+		params,
+		hasRecordsToShow(),
+		getT(),
+	]);
+	const firstName = session.user.name.trim().split(/\s+/)[0];
 
 	return (
 		<PageShell>
 			<PageShellHeader>
 				<PageShellHeading>
+					<PageShellEyebrow>{t("Overview")}</PageShellEyebrow>
 					<Suspense
-						fallback={<OverviewGreetingFallback connected={connected} />}
+						fallback={
+							<OverviewGreetingFallback
+								connected={connected}
+								firstName={firstName}
+							/>
+						}
 					>
-						<OverviewGreeting connected={connected} />
+						<OverviewGreeting connected={connected} firstName={firstName} />
 					</Suspense>
 				</PageShellHeading>
 				{connected ? (

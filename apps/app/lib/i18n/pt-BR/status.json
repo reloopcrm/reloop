@@ -51,5 +51,10 @@
 	"Submit answer": "Enviar resposta",
 	"Back": "Voltar",
 	"Agent is researching": "O agente está pesquisando",
-	"Not known yet": "Ainda não se sabe"
+	"Not known yet": "Ainda não se sabe",
+	"Add a deal": "Adicionar um negócio",
+	"Owner is me": "Sou o responsável",
+	"Welcome back, {name}": "Bem-vindo de volta, {name}",
+	"Outcome": "Resultado",
+	"{days} d": "{days} d"
 }

@@ -59,6 +59,7 @@ export function CreateDealHere({ stage }: { stage: DealStage }) {
 	return (
 		<Button
 			variant="dashed"
+			className="w-full"
 			onClick={() =>
 				setParams({
 					[SEARCH_PARAM.dialog.create]: true,
@@ -67,7 +68,7 @@ export function CreateDealHere({ stage }: { stage: DealStage }) {
 			}
 		>
 			<Icon icon={Add} data-icon="inline-start" />
-			{t("Create a deal here")}
+			{t("Add a deal")}
 		</Button>
 	);
 }

@@ -1,121 +1,76 @@
 "use client";
 
-import { Button } from "@crm/ui/components/button";
 import {
-	Card,
-	CardAction,
-	CardDescription,
-	CardHeader,
-	CardPanel,
-	CardPanelEmpty,
-	CardTitle,
-} from "@crm/ui/components/card";
-import { CardTableEmpty } from "@crm/ui/components/card-table";
+	BlockTable,
+	type BlockTableColumn,
+} from "@crm/ui/components/block-table";
+import { Button } from "@crm/ui/components/button";
 import { Checkbox } from "@crm/ui/components/checkbox";
-import { DashboardRow } from "@crm/ui/components/dashboard";
+import {
+	DashboardBlock,
+	DashboardEmpty,
+	DashboardRow,
+} from "@crm/ui/components/dashboard";
 import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import {
 	EntityLogo,
 	type EntityLogoTone,
 } from "@crm/ui/components/entity-logo";
-import { Loader } from "@crm/ui/components/loader";
-import { Progress } from "@crm/ui/components/progress";
 import {
-	SimpleTable,
-	type SimpleTableColumn,
-	SimpleTableRow,
-} from "@crm/ui/components/simple-table";
-import { StatusIndicator } from "@crm/ui/components/status-indicator";
-import { TableCell } from "@crm/ui/components/table";
+	CompaniesIcon,
+	ContactsIcon,
+	DateIcon,
+	DealsIcon,
+	NumberIcon,
+	SignalIcon,
+	TaskIcon,
+	TextIcon,
+} from "@crm/ui/components/line-icons";
+import { Loader } from "@crm/ui/components/loader";
+import { Status } from "@crm/ui/components/mark";
 import { formatMoneyCompact } from "@crm/ui/lib/format";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useQueryState } from "nuqs";
-import type { ReactNode } from "react";
 import { toast } from "sonner";
-import { DealStageIndicator } from "@/components/crm/deal-stage";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { contactName } from "@/components/crm/timeline/timeline-entry";
 import {
+	daysUntil,
+	LocalComputed,
 	LocalRelativeDate,
 	LocalRelativeTime,
 } from "@/components/local-date-time";
 import { activityLabel } from "@/lib/activity-presentation";
-import { dealStageColor } from "@/lib/deal-stage";
+import { dealStageMark } from "@/lib/deal-stage";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
-import type { Translate } from "@/lib/i18n/locale";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
+import type { RouterOutputs } from "@/lib/trpc/types";
+import { useDealStageLabel } from "@/lib/use-deal-stage-label";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { OVERVIEW } from "./overview-config";
 import { overviewParsers } from "./overview-search-params";
 import { SalesDashboard } from "./sales-dashboard";
 
-type TranslatableColumn = Omit<SimpleTableColumn, "header"> & {
-	header?: string;
-};
+type Summary = RouterOutputs["dashboard"]["summary"];
+type OpenDeal = Summary["biggestOpen"][number];
+type OverdueTask = Summary["overdueTasks"][number];
+type ActivityEntry = Summary["recentActivity"][number];
+type MyTask = RouterOutputs["activities"]["myTasks"][number];
 
-const OPEN_COLUMNS: TranslatableColumn[] = [
-	{ id: "deal", header: "Deal" },
-	{
-		id: "stage",
-		header: "Stage",
-		width: "w-36",
-		className: "hidden @lg/panel:table-cell",
-	},
-	{
-		id: "share",
-		srLabel: "Share of the largest",
-		width: "w-20",
-		className: "hidden @sm/panel:table-cell",
-	},
-	{ id: "value", header: "Value", width: "w-20", align: "right" },
-];
-const TASK_COLUMNS: TranslatableColumn[] = [
-	{ id: "done", srLabel: "Done", width: "w-8" },
-	{ id: "task", header: "Task" },
-	{ id: "overdue", header: "Overdue", width: "w-24", align: "right" },
-];
-const MY_TASK_COLUMNS: TranslatableColumn[] = [
-	{ id: "done", srLabel: "Done", width: "w-8" },
-	{ id: "task", header: "Task" },
-	{ id: "due", header: "Due", width: "w-24", align: "right" },
-];
-const ACTIVITY_COLUMNS: TranslatableColumn[] = [
-	{ id: "activity", header: "Activity" },
-	{
-		id: "company",
-		header: "Company",
-		width: "w-44",
-		className: "hidden md:table-cell",
-	},
-	{
-		id: "deal",
-		header: "Deal",
-		width: "w-48",
-		className: "hidden lg:table-cell",
-	},
-	{
-		id: "who",
-		header: "Who",
-		width: "w-32",
-		className: "hidden md:table-cell",
-	},
-	{ id: "when", header: "When", width: "w-20", align: "right" },
-];
-
-function localizeColumns(
-	columns: TranslatableColumn[],
-	t: Translate,
-): SimpleTableColumn[] {
-	return columns.map((column) => ({
-		...column,
-		header: column.header ? t(column.header) : column.header,
-		srLabel: column.srLabel ? t(column.srLabel) : column.srLabel,
-	}));
-}
+const SIZE = {
+	stage: 150,
+	inStage: 90,
+	value: 90,
+	done: 44,
+	due: 110,
+	company: 180,
+	who: 140,
+	when: 110,
+} as const;
 
 export function DashboardSummary() {
 	const t = useT();
@@ -125,6 +80,7 @@ export function DashboardSummary() {
 	const cache = useCrmCache();
 	const openRecord = useOpenRecord();
 	const workspaceUrl = useWorkspaceUrl();
+	const stageLabel = useDealStageLabel();
 
 	const [scope] = useQueryState(
 		SEARCH_PARAM.overview.scope,
@@ -159,328 +115,297 @@ export function DashboardSummary() {
 
 	const { biggestOpen, overdueTasks, recentActivity } = summary;
 	const myTasks = myTasksQuery.data ?? [];
-
 	const mine = scope === "me";
-	const largestOpenCents = biggestOpen[0]?.baseAmountCents ?? 0;
+
+	const doneColumn = <
+		TRow extends { id: string },
+	>(): BlockTableColumn<TRow> => ({
+		id: "done",
+		header: "",
+		size: SIZE.done,
+		cell: (task) => (
+			<Checkbox
+				checked={false}
+				disabled={complete.isPending}
+				aria-label={t("Mark as done")}
+				onCheckedChange={() =>
+					complete.mutate({ id: task.id, completed: true })
+				}
+			/>
+		),
+	});
+
+	const openColumns: BlockTableColumn<OpenDeal>[] = [
+		{
+			id: "deal",
+			header: t("Deal"),
+			icon: DealsIcon,
+			cell: (deal) => (
+				<span className="flex min-w-0 items-center gap-2">
+					<EntityLogo
+						src={deal.company.iconUrl}
+						darkSrc={deal.company.iconDarkUrl}
+						tone={deal.company.iconTone as EntityLogoTone | null | undefined}
+						name={deal.company.name}
+						size="sm"
+					/>
+					<span className="truncate">{deal.name}</span>
+				</span>
+			),
+		},
+		{
+			id: "stage",
+			header: t("Stage"),
+			icon: SignalIcon,
+			size: SIZE.stage,
+			cell: (deal) => (
+				<Status tone={dealStageMark(deal.stage)}>
+					{stageLabel(deal.stage)}
+				</Status>
+			),
+		},
+		{
+			id: "inStage",
+			header: t("In stage"),
+			icon: DateIcon,
+			size: SIZE.inStage,
+			cell: (deal) => (
+				<LocalComputed
+					text={t("{days} d", {
+						days: Math.max(0, -daysUntil(deal.stageChangedAt)),
+					})}
+				/>
+			),
+		},
+		{
+			id: "value",
+			header: t("Value"),
+			icon: NumberIcon,
+			size: SIZE.value,
+			align: "right",
+			cell: (deal) =>
+				deal.amountCents === null ? (
+					<EmptyCellValue />
+				) : (
+					formatMoneyCompact(deal.amountCents, deal.currency, locale)
+				),
+		},
+	];
+
+	const overdueColumns: BlockTableColumn<OverdueTask>[] = [
+		{
+			id: "task",
+			header: t("Task"),
+			icon: TaskIcon,
+			cell: (task) => (
+				<span className="flex min-w-0 flex-col">
+					<span className="truncate">
+						{task.subject ? t(task.subject) : null}
+					</span>
+					<span className="flex min-w-0 text-muted-foreground text-xs">
+						{task.deal ? (
+							<RecordLink kind="deal" id={task.deal.id}>
+								{task.deal.name}
+							</RecordLink>
+						) : task.company ? (
+							<RecordLink kind="company" id={task.company.id}>
+								{task.company.name}
+							</RecordLink>
+						) : null}
+					</span>
+				</span>
+			),
+		},
+		{
+			id: "overdue",
+			header: t("Overdue"),
+			icon: DateIcon,
+			size: SIZE.due,
+			align: "right",
+			cell: (task) =>
+				task.dueAt ? <LocalRelativeDate date={task.dueAt} /> : t("No due date"),
+		},
+		doneColumn<OverdueTask>(),
+	];
+
+	const myTaskColumns: BlockTableColumn<MyTask>[] = [
+		{
+			id: "task",
+			header: t("Task"),
+			icon: TaskIcon,
+			cell: (task) => (
+				<span className="flex min-w-0 flex-col">
+					<span className="truncate">
+						{task.subject ? t(task.subject) : null}
+					</span>
+					<span className="flex min-w-0 text-muted-foreground text-xs">
+						{task.deal ? (
+							<RecordLink kind="deal" id={task.deal.id}>
+								{task.deal.name}
+							</RecordLink>
+						) : task.contact ? (
+							<RecordLink kind="contact" id={task.contact.id}>
+								{contactName(task.contact)}
+							</RecordLink>
+						) : task.company ? (
+							<RecordLink kind="company" id={task.company.id}>
+								{task.company.name}
+							</RecordLink>
+						) : null}
+					</span>
+				</span>
+			),
+		},
+		{
+			id: "due",
+			header: t("Due"),
+			icon: DateIcon,
+			size: SIZE.due,
+			align: "right",
+			cell: (task) =>
+				task.dueAt ? (
+					<LocalRelativeDate date={task.dueAt} />
+				) : (
+					<EmptyCellValue />
+				),
+		},
+		doneColumn<MyTask>(),
+	];
+
+	const activityColumns: BlockTableColumn<ActivityEntry>[] = [
+		{
+			id: "activity",
+			header: t("Activity"),
+			icon: TextIcon,
+			cell: (entry) => (
+				<span className="truncate">
+					{entry.subject ?? activityLabel(entry.type)}
+				</span>
+			),
+		},
+		{
+			id: "company",
+			header: t("Company"),
+			icon: CompaniesIcon,
+			size: SIZE.company,
+			cell: (entry) =>
+				entry.company ? (
+					<RecordLink kind="company" id={entry.company.id}>
+						{entry.company.name}
+					</RecordLink>
+				) : (
+					<EmptyCellValue />
+				),
+		},
+		{
+			id: "who",
+			header: t("Who"),
+			icon: ContactsIcon,
+			size: SIZE.who,
+			cell: (entry) => entry.createdBy.name,
+		},
+		{
+			id: "when",
+			header: t("When"),
+			icon: DateIcon,
+			size: SIZE.when,
+			align: "right",
+			cell: (entry) => <LocalRelativeTime date={entry.createdAt} />,
+		},
+	];
 
 	return (
-		<div className="flex flex-col gap-6">
+		<div className="flex flex-col gap-8">
 			<SalesDashboard summary={summary} />
 
-			<DashboardRow split="wide">
-				<Card className="min-w-0">
-					<CardHeader>
-						<CardTitle>{t("Deals in progress")}</CardTitle>
-						<CardDescription>
-							{t(
-								"The largest open deals, and how long each has sat in its stage",
-							)}
-						</CardDescription>
-						<CardAction>
-							<Button asChild variant="outline">
-								<Link href={workspaceUrl("/deals")}>{t("Open deals")}</Link>
-							</Button>
-						</CardAction>
-					</CardHeader>
-					<CardPanel>
-						{biggestOpen.length === 0 ? (
-							<CardPanelEmpty>
-								{t("Nothing open. Time to fill the pipeline.")}
-							</CardPanelEmpty>
-						) : (
-							<SimpleTable
-								variant="panel"
-								surface="muted"
-								columns={localizeColumns(OPEN_COLUMNS, t)}
-							>
-								{biggestOpen.map((deal) => (
-									<SimpleTableRow
-										key={deal.id}
-										clickable
-										onClick={() => openRecord({ kind: "deal", id: deal.id })}
-									>
-										<TableCell>
-											<DealCell
-												name={deal.name}
-												company={deal.company}
-												meta={<LocalRelativeTime date={deal.stageChangedAt} />}
-											/>
-										</TableCell>
-										<TableCell className="hidden @lg/panel:table-cell">
-											<DealStageIndicator stage={deal.stage} className="flex" />
-										</TableCell>
-										<TableCell className="hidden @sm/panel:table-cell">
-											<ValueMeter
-												share={
-													largestOpenCents > 0
-														? ((deal.baseAmountCents ?? 0) / largestOpenCents) *
-															100
-														: 0
-												}
-												color={dealStageColor(deal.stage)}
-											/>
-										</TableCell>
-										<TableCell className="text-right font-medium tabular-nums">
-											{deal.amountCents === null ? (
-												<EmptyCellValue />
-											) : (
-												formatMoneyCompact(
-													deal.amountCents,
-													deal.currency,
-													locale,
-												)
-											)}
-										</TableCell>
-									</SimpleTableRow>
-								))}
-							</SimpleTable>
-						)}
-					</CardPanel>
-				</Card>
+			<DashboardRow>
+				<DashboardBlock
+					title={t("Deals in progress")}
+					description={t(
+						"The largest open deals, and how long each has sat in its stage",
+					)}
+					action={
+						<Button asChild variant="link">
+							<Link href={workspaceUrl("/deals")}>{t("Open deals")}</Link>
+						</Button>
+					}
+				>
+					{biggestOpen.length === 0 ? (
+						<DashboardEmpty>
+							{t("Nothing open. Time to fill the pipeline.")}
+						</DashboardEmpty>
+					) : (
+						<BlockTable
+							columns={openColumns}
+							rows={biggestOpen}
+							getRowId={(deal) => deal.id}
+							onRowClick={(deal) => openRecord({ kind: "deal", id: deal.id })}
+						/>
+					)}
+				</DashboardBlock>
 
-				<Card className="min-w-0">
-					<CardHeader>
-						<CardTitle>{t("Overdue tasks")}</CardTitle>
-						<CardDescription>
-							{overdueTasks.length === 0
-								? t(
-										"Every task you have logged is either done or still to come",
-									)
-								: overdueTasks.length === 1
-									? t("{count} task past due", { count: overdueTasks.length })
-									: t("{count} tasks past due", {
-											count: overdueTasks.length,
-										})}
-						</CardDescription>
-					</CardHeader>
-					<CardPanel>
-						{overdueTasks.length === 0 ? (
-							<CardPanelEmpty>{t("Nothing overdue. Good.")}</CardPanelEmpty>
-						) : (
-							<SimpleTable
-								variant="panel"
-								surface="muted"
-								columns={localizeColumns(TASK_COLUMNS, t)}
-							>
-								{overdueTasks.map((task) => (
-									<SimpleTableRow key={task.id}>
-										<TableCell>
-											<Checkbox
-												checked={false}
-												disabled={complete.isPending}
-												aria-label={t("Mark as done")}
-												onCheckedChange={() =>
-													complete.mutate({ id: task.id, completed: true })
-												}
-											/>
-										</TableCell>
-										<TableCell>
-											<span className="flex min-w-0 flex-col">
-												<span className="truncate">
-													{task.subject ? t(task.subject) : null}
-												</span>
-												<span className="flex min-w-0 text-muted-foreground text-xs">
-													{task.deal ? (
-														<RecordLink kind="deal" id={task.deal.id}>
-															{task.deal.name}
-														</RecordLink>
-													) : task.company ? (
-														<RecordLink kind="company" id={task.company.id}>
-															{task.company.name}
-														</RecordLink>
-													) : null}
-												</span>
-											</span>
-										</TableCell>
-										<TableCell className="text-right">
-											<StatusIndicator
-												tone="error"
-												label={
-													task.dueAt ? (
-														<LocalRelativeDate date={task.dueAt} />
-													) : (
-														t("No due date")
-													)
-												}
-											/>
-										</TableCell>
-									</SimpleTableRow>
-								))}
-							</SimpleTable>
-						)}
-					</CardPanel>
-				</Card>
+				<DashboardBlock
+					title={t("Overdue tasks")}
+					description={
+						overdueTasks.length === 0
+							? t("Every task you have logged is either done or still to come")
+							: overdueTasks.length === 1
+								? t("{count} task past due", { count: overdueTasks.length })
+								: t("{count} tasks past due", { count: overdueTasks.length })
+					}
+				>
+					{overdueTasks.length === 0 ? (
+						<DashboardEmpty>{t("Nothing overdue. Good.")}</DashboardEmpty>
+					) : (
+						<BlockTable
+							columns={overdueColumns}
+							rows={overdueTasks}
+							getRowId={(task) => task.id}
+						/>
+					)}
+				</DashboardBlock>
 			</DashboardRow>
 
-			<Card className="min-w-0">
-				<CardHeader>
-					<CardTitle>{t("Your tasks")}</CardTitle>
-					<CardDescription>
-						{t("Open tasks from today on, the soonest first, the undated last")}
-					</CardDescription>
-				</CardHeader>
-				<CardPanel>
-					{myTasks.length === 0 ? (
-						<CardPanelEmpty>{t("Nothing planned.")}</CardPanelEmpty>
-					) : (
-						<SimpleTable
-							variant="panel"
-							surface="muted"
-							columns={localizeColumns(MY_TASK_COLUMNS, t)}
-						>
-							{myTasks.map((task) => (
-								<SimpleTableRow key={task.id}>
-									<TableCell>
-										<Checkbox
-											checked={false}
-											disabled={complete.isPending}
-											aria-label={t("Mark as done")}
-											onCheckedChange={() =>
-												complete.mutate({ id: task.id, completed: true })
-											}
-										/>
-									</TableCell>
-									<TableCell>
-										<span className="flex min-w-0 flex-col">
-											<span className="truncate">
-												{task.subject ? t(task.subject) : null}
-											</span>
-											<span className="flex min-w-0 text-muted-foreground text-xs">
-												{task.deal ? (
-													<RecordLink kind="deal" id={task.deal.id}>
-														{task.deal.name}
-													</RecordLink>
-												) : task.contact ? (
-													<RecordLink kind="contact" id={task.contact.id}>
-														{contactName(task.contact)}
-													</RecordLink>
-												) : task.company ? (
-													<RecordLink kind="company" id={task.company.id}>
-														{task.company.name}
-													</RecordLink>
-												) : null}
-											</span>
-										</span>
-									</TableCell>
-									<TableCell className="text-right text-2sm text-muted-foreground">
-										{task.dueAt ? (
-											<LocalRelativeDate date={task.dueAt} />
-										) : null}
-									</TableCell>
-								</SimpleTableRow>
-							))}
-						</SimpleTable>
-					)}
-				</CardPanel>
-			</Card>
-
-			<Card className="min-w-0">
-				<CardHeader>
-					<CardTitle>
-						{mine ? t("Your recent activity") : t("Recent activity")}
-					</CardTitle>
-					<CardDescription>
-						{mine
-							? t("Every note, task and stage change you have logged")
-							: t("Every note, task and stage change across the workspace")}
-					</CardDescription>
-					<CardAction>
-						<Button asChild variant="outline">
-							<Link href={workspaceUrl("/companies")}>
-								{t("All companies")}
-							</Link>
-						</Button>
-					</CardAction>
-				</CardHeader>
-				{recentActivity.length === 0 ? (
-					<CardTableEmpty>{t("Nothing has happened yet.")}</CardTableEmpty>
-				) : (
-					<SimpleTable columns={localizeColumns(ACTIVITY_COLUMNS, t)}>
-						{recentActivity.map((entry) => (
-							<SimpleTableRow key={entry.id}>
-								<TableCell>
-									<span className="truncate">
-										{entry.subject ?? activityLabel(entry.type)}
-									</span>
-								</TableCell>
-								<TableCell className="hidden text-2sm text-body-foreground md:table-cell">
-									{entry.company ? (
-										<RecordLink kind="company" id={entry.company.id}>
-											{entry.company.name}
-										</RecordLink>
-									) : (
-										<EmptyCellValue />
-									)}
-								</TableCell>
-								<TableCell className="hidden text-2sm text-body-foreground lg:table-cell">
-									{entry.deal ? (
-										<RecordLink kind="deal" id={entry.deal.id}>
-											{entry.deal.name}
-										</RecordLink>
-									) : (
-										<EmptyCellValue />
-									)}
-								</TableCell>
-								<TableCell className="hidden truncate text-2sm text-body-foreground md:table-cell">
-									{entry.createdBy.name}
-								</TableCell>
-								<TableCell className="text-right text-2sm text-muted-foreground tabular-nums">
-									<LocalRelativeTime date={entry.createdAt} />
-								</TableCell>
-							</SimpleTableRow>
-						))}
-					</SimpleTable>
+			<DashboardBlock
+				title={t("Your tasks")}
+				description={t(
+					"Open tasks from today on, the soonest first, the undated last",
 				)}
-			</Card>
+			>
+				{myTasks.length === 0 ? (
+					<DashboardEmpty>{t("Nothing planned.")}</DashboardEmpty>
+				) : (
+					<BlockTable
+						columns={myTaskColumns}
+						rows={myTasks}
+						getRowId={(task) => task.id}
+					/>
+				)}
+			</DashboardBlock>
+
+			<DashboardBlock
+				title={mine ? t("Your recent activity") : t("Recent activity")}
+				description={
+					mine
+						? t("Every note, task and stage change you have logged")
+						: t("Every note, task and stage change across the workspace")
+				}
+				action={
+					<Button asChild variant="link">
+						<Link href={workspaceUrl("/companies")}>{t("All companies")}</Link>
+					</Button>
+				}
+			>
+				{recentActivity.length === 0 ? (
+					<DashboardEmpty>{t("Nothing has happened yet.")}</DashboardEmpty>
+				) : (
+					<BlockTable
+						columns={activityColumns}
+						rows={recentActivity}
+						getRowId={(entry) => entry.id}
+					/>
+				)}
+			</DashboardBlock>
 		</div>
-	);
-}
-
-function DealCell({
-	name,
-	company,
-	meta,
-}: {
-	name: string;
-	company: {
-		name: string;
-		iconUrl: string | null;
-		iconDarkUrl: string | null;
-		iconTone: string | null;
-	};
-	meta?: ReactNode;
-}) {
-	return (
-		<span className="flex min-w-0 items-center gap-2">
-			<EntityLogo
-				src={company.iconUrl}
-				darkSrc={company.iconDarkUrl}
-				tone={company.iconTone as EntityLogoTone | null | undefined}
-				name={company.name}
-				size="sm"
-			/>
-			<span className="flex min-w-0 flex-col">
-				<span className="truncate font-medium">{name}</span>
-				<span className="truncate text-muted-foreground text-xs">
-					{meta ? (
-						<>
-							{company.name} · {meta}
-						</>
-					) : (
-						company.name
-					)}
-				</span>
-			</span>
-		</span>
-	);
-}
-
-function ValueMeter({ share, color }: { share: number; color: string }) {
-	return (
-		<Progress
-			size="lg"
-			color={color}
-			value={Math.round(Math.max(Math.min(share, 100), 0))}
-		/>
 	);
 }

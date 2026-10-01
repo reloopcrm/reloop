@@ -1,25 +1,52 @@
+import type { MarkTone } from "@crm/ui/components/mark";
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
 
+const TONE_FILL = {
+	blue: "bg-blue",
+	orange: "bg-orange",
+	ink: "bg-foreground",
+	faint: "bg-dot",
+	hollow: "bg-transparent shadow-[inset_0_0_0_1px_var(--ink-60)]",
+	red: "bg-destructive",
+} as const satisfies Record<MarkTone, string>;
+
+function Corner({ className }: { className: string }) {
+	return (
+		<i
+			aria-hidden="true"
+			className={cn("pointer-events-none absolute size-2 bg-blue", className)}
+		/>
+	);
+}
+
+const STAT_COLUMNS = {
+	3: "md:grid-cols-3",
+	4: "md:grid-cols-4",
+} as const;
+
 function StatGroup({
 	className,
+	columns = 4,
 	children,
 	...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { columns?: keyof typeof STAT_COLUMNS }) {
 	return (
 		<div
 			data-slot="stat-group"
-			className={cn(
-				"@container/stats overflow-hidden rounded-lg border bg-card",
-				className,
-			)}
+			className={cn("relative border", className)}
 			{...props}
 		>
+			<Corner className="-top-px -left-px" />
+			<Corner className="-top-px -right-px" />
+			<Corner className="-bottom-px -left-px" />
+			<Corner className="-right-px -bottom-px" />
 			<div
 				className={cn(
-					"grid grid-cols-2 @2xl/stats:grid-cols-4",
+					"grid grid-cols-2",
+					STAT_COLUMNS[columns],
 					"[&>*:nth-child(2n)]:border-l [&>*:nth-child(n+3)]:border-t",
-					"@2xl/stats:[&>*]:border-t-0 @2xl/stats:[&>*]:border-l @2xl/stats:[&>*:first-child]:border-l-0",
+					"md:[&>*]:border-t-0 md:[&>*]:border-l md:[&>*:first-child]:border-l-0",
 				)}
 			>
 				{children}
@@ -28,125 +55,20 @@ function StatGroup({
 	);
 }
 
-const ROW_SPLIT = {
-	hero: "@3xl/dashboard:grid-cols-[2fr_1fr]",
-	wide: "@3xl/dashboard:grid-cols-[3fr_2fr]",
-	even: "@3xl/dashboard:grid-cols-2",
-} as const;
-
-const GRID_COLS = {
-	2: "@md/dashboard:grid-cols-2",
-	3: "@md/dashboard:grid-cols-2 @4xl/dashboard:grid-cols-3",
-	4: "@md/dashboard:grid-cols-2 @4xl/dashboard:grid-cols-4",
-} as const;
-
-function DashboardGrid({
-	className,
-	columns = 4,
-	...props
-}: React.ComponentProps<"div"> & { columns?: keyof typeof GRID_COLS }) {
-	return (
-		<div className="@container/dashboard">
-			<div
-				data-slot="dashboard-grid"
-				className={cn("grid grid-cols-1 gap-4", GRID_COLS[columns], className)}
-				{...props}
-			/>
-		</div>
-	);
-}
-
-function DashboardRow({
-	className,
-	split = "hero",
-	...props
-}: React.ComponentProps<"div"> & { split?: keyof typeof ROW_SPLIT }) {
-	return (
-		<div className="@container/dashboard">
-			<div
-				data-slot="dashboard-row"
-				className={cn(
-					"grid grid-cols-1 gap-4",
-					"@3xl/dashboard:has-[>[data-slot=card]]:grid-rows-[auto_1fr] @3xl/dashboard:[&>[data-slot=card]]:row-span-2 @3xl/dashboard:[&>[data-slot=card]]:grid @3xl/dashboard:[&>[data-slot=card]]:grid-rows-subgrid",
-					ROW_SPLIT[split],
-					className,
-				)}
-				{...props}
-			/>
-		</div>
-	);
-}
-
-function ChartCard({
-	className,
-	title,
-	description,
-	action,
-	footer,
-	children,
-	...props
-}: Omit<React.ComponentProps<"div">, "title"> & {
-	title?: React.ReactNode;
-	description?: React.ReactNode;
-	action?: React.ReactNode;
-	footer?: React.ReactNode;
-}) {
+function DashboardRow({ className, ...props }: React.ComponentProps<"div">) {
 	return (
 		<div
-			data-slot="chart-card"
-			className={cn("flex flex-col border", className)}
+			data-slot="dashboard-row"
+			className={cn(
+				"grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6",
+				className,
+			)}
 			{...props}
-		>
-			{title || description || action ? (
-				<div className="flex items-start justify-between gap-4 p-5 md:p-6">
-					<div className="flex min-w-0 flex-col gap-1">
-						{title ? (
-							<h3 className="truncate font-medium text-sm">{title}</h3>
-						) : null}
-						{description ? (
-							<p className="text-muted-foreground text-xs/relaxed">
-								{description}
-							</p>
-						) : null}
-					</div>
-					{action ? <div className="shrink-0">{action}</div> : null}
-				</div>
-			) : null}
-			<div className="flex flex-1 flex-col justify-center pb-5 md:pb-6">
-				{children}
-			</div>
-			{footer ? (
-				<div className="border-t px-5 py-3 text-muted-foreground text-xs md:px-6">
-					{footer}
-				</div>
-			) : null}
-		</div>
+		/>
 	);
 }
 
-function KpiCard({
-	className,
-	title,
-	children,
-	...props
-}: Omit<React.ComponentProps<"div">, "title"> & {
-	title: React.ReactNode;
-}) {
-	return (
-		<div
-			data-slot="kpi-card"
-			className={cn("flex flex-col gap-4 border p-5 md:p-6", className)}
-			{...props}
-		>
-			<h3 className="truncate font-medium text-muted-foreground text-sm">
-				{title}
-			</h3>
-			{children}
-		</div>
-	);
-}
-
-function DashboardSection({
+function DashboardBlock({
 	className,
 	title,
 	description,
@@ -154,40 +76,69 @@ function DashboardSection({
 	children,
 	...props
 }: Omit<React.ComponentProps<"section">, "title"> & {
-	title?: React.ReactNode;
+	title: React.ReactNode;
 	description?: React.ReactNode;
 	action?: React.ReactNode;
 }) {
-	const hasHeader = title || description || action;
 	return (
 		<section
-			data-slot="dashboard-section"
-			className={cn("flex flex-col gap-4", className)}
+			data-slot="dashboard-block"
+			className={cn("flex min-w-0 flex-col", className)}
 			{...props}
 		>
-			{hasHeader ? (
-				<div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-					<div className="flex flex-col gap-1">
-						{title ? (
-							<h2 className="font-medium text-base tracking-tight">{title}</h2>
-						) : null}
-						{description ? (
-							<p className="text-muted-foreground text-sm">{description}</p>
-						) : null}
-					</div>
-					{action ? <div className="shrink-0">{action}</div> : null}
+			<div className="mb-3.5 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+				<div className="flex min-w-0 flex-[1_1_16rem] flex-col gap-1">
+					<h2 className="font-normal text-base leading-snug tracking-tight">
+						{title}
+					</h2>
+					{description ? (
+						<p className="text-pretty text-2sm text-muted-foreground">
+							{description}
+						</p>
+					) : null}
 				</div>
-			) : null}
+				{action ? <div className="shrink-0">{action}</div> : null}
+			</div>
 			{children}
 		</section>
 	);
 }
 
-export {
-	ChartCard,
-	DashboardGrid,
-	DashboardRow,
-	DashboardSection,
-	KpiCard,
-	StatGroup,
-};
+function DashboardEmpty({ className, ...props }: React.ComponentProps<"div">) {
+	return (
+		<div
+			data-slot="dashboard-empty"
+			className={cn(
+				"grid min-h-40 place-items-center border border-border-strong border-dashed px-4 text-center text-2sm text-muted-foreground",
+				className,
+			)}
+			{...props}
+		/>
+	);
+}
+
+function StackedBar({
+	segments,
+	className,
+}: {
+	segments: { key: string; share: number; tone: MarkTone }[];
+	className?: string;
+}) {
+	return (
+		<div
+			data-slot="stacked-bar"
+			aria-hidden="true"
+			className={cn("flex h-1.5 gap-0.5", className)}
+		>
+			{segments.map((segment) => (
+				<i
+					key={segment.key}
+					className={cn("block", TONE_FILL[segment.tone])}
+					style={{ flex: segment.share }}
+				/>
+			))}
+		</div>
+	);
+}
+
+export { DashboardBlock, DashboardEmpty, DashboardRow, StackedBar, StatGroup };

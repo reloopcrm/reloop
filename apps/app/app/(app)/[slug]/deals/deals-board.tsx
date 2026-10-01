@@ -1,29 +1,27 @@
 "use client";
 
-import ChevronDown from "@carbon/icons-react/es/ChevronDown";
 import type { DealStage } from "@crm/db/enums";
+import {
+	Board,
+	BoardCard,
+	BoardColumn,
+	BoardToolbar,
+} from "@crm/ui/components/board";
 import { Button } from "@crm/ui/components/button";
 import {
 	availableFacetsOf,
 	type DataTableFacet,
 	FacetFilterMenu,
 } from "@crm/ui/components/data-table";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuTrigger,
-} from "@crm/ui/components/dropdown-menu";
-import { Icon } from "@crm/ui/components/icon";
+import { EntityLogo } from "@crm/ui/components/entity-logo";
 import { Loader } from "@crm/ui/components/loader";
-import { IndicatorDot } from "@crm/ui/components/status-indicator";
+import { MonoLabel, Status } from "@crm/ui/components/mark";
 import { formatMoney } from "@crm/ui/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { CLOSING_OPTIONS } from "@/components/crm/closing-window";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
-import { ExportButton } from "@/components/data-table/export-button";
+import { ListMoreMenu } from "@/components/data-table/list-more-menu";
 import { ListSearch } from "@/components/data-table/list-search";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import {
@@ -32,7 +30,7 @@ import {
 	LocalDateTime,
 	LocalRelativeDate,
 } from "@/components/local-date-time";
-import { dealStagePresentation } from "@/lib/deal-stage";
+import { dealStageMark } from "@/lib/deal-stage";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -41,36 +39,37 @@ import { CreateDealHere } from "./create-deal-sheet";
 import { dealsSearchParams } from "./deals-search-params";
 import { DealsViewTabs } from "./deals-view-tabs";
 
-type Board = RouterOutputs["deals"]["board"];
-type Column = Board["columns"][number];
+type BoardData = RouterOutputs["deals"]["board"];
+type Column = BoardData["columns"][number];
 type Card = Column["deals"][number];
+
+const BOARD_FILTERS = ["owner", "closing", "stage"] as const;
 
 const CLOSE_DATE: Intl.DateTimeFormatOptions = {
 	day: "numeric",
 	month: "short",
 };
 
-const ALL_OWNERS = "all";
-
-function useDealsBoard() {
-	const trpc = useTRPC();
-	const table = useTableQuery(dealsSearchParams);
-	const board = useQuery({
-		...trpc.deals.board.queryOptions(table.input),
-		placeholderData: (previous) => previous,
-	});
-	return { table, board };
-}
-
 export function DealsBoard() {
 	const t = useT();
 	const trpc = useTRPC();
-	const { table, board } = useDealsBoard();
-	const { query, input } = table;
+	const { query, input } = useTableQuery(dealsSearchParams);
+	const board = useQuery({
+		...trpc.deals.board.queryOptions(input),
+		placeholderData: (previous) => previous,
+	});
 	const users = useQuery(trpc.users.list.queryOptions());
 	const stageLabel = useDealStageLabel();
 
 	const facets: DataTableFacet[] = [
+		{
+			id: "owner",
+			label: t("Owner"),
+			options: (users.data ?? []).map((user) => ({
+				value: user.id,
+				label: user.name,
+			})),
+		},
 		{
 			id: "closing",
 			label: t("Closing"),
@@ -80,56 +79,34 @@ export function DealsBoard() {
 			})),
 		},
 	];
-	const owner = query.filters.owner?.[0] ?? ALL_OWNERS;
-	const ownerLabel =
-		users.data?.find((user) => user.id === owner)?.name ?? t("All owners");
+	const filtering = BOARD_FILTERS.some(
+		(id) => (query.filters[id]?.length ?? 0) > 0,
+	);
 
 	return (
-		<div className="flex flex-1 flex-col gap-5">
-			<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+		<div className="flex flex-1 flex-col gap-4">
+			<BoardToolbar>
 				<DealsViewTabs />
-				<ListSearch placeholder={t("Deal or company")} />
+				<div className="max-sm:order-last max-sm:w-full">
+					<ListSearch placeholder={t("Deal or company")} />
+				</div>
 				<FacetFilterMenu
 					facets={availableFacetsOf(facets, query.filters)}
 					filters={query.filters}
 					onChange={query.setFilter}
 				/>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="outline" size="sm" align="toolbar">
-							<Icon icon={ChevronDown} data-icon="inline-start" />
-							<span className="truncate">{ownerLabel}</span>
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="start" className="min-w-48">
-						<DropdownMenuRadioGroup
-							value={owner}
-							onValueChange={(value) =>
-								query.setFilter("owner", value === ALL_OWNERS ? [] : [value])
-							}
-						>
-							<DropdownMenuRadioItem value={ALL_OWNERS}>
-								{t("All owners")}
-							</DropdownMenuRadioItem>
-							{(users.data ?? []).map((user) => (
-								<DropdownMenuRadioItem key={user.id} value={user.id}>
-									{user.name}
-								</DropdownMenuRadioItem>
-							))}
-						</DropdownMenuRadioGroup>
-					</DropdownMenuContent>
-				</DropdownMenu>
-				<span className="sm:ml-auto">
-					<ExportButton
-						entity="deals"
-						input={{ ...input, status: "open" }}
-						variant="link"
-					/>
+				{filtering ? (
+					<Button variant="link" size="sm" onClick={query.reset}>
+						{t("Reset filters")}
+					</Button>
+				) : null}
+				<span className="ml-auto">
+					<ListMoreMenu entity="deals" input={{ ...input, status: "open" }} />
 				</span>
-			</div>
+			</BoardToolbar>
 
 			{board.data ? (
-				<div className="grid flex-1 grid-cols-1 items-start gap-5 md:grid-cols-2 xl:grid-cols-4">
+				<Board>
 					{board.data.columns.map((column) => (
 						<StageColumn
 							key={column.stage}
@@ -138,7 +115,7 @@ export function DealsBoard() {
 							currency={board.data.reportingCurrency}
 						/>
 					))}
-				</div>
+				</Board>
 			) : (
 				<div className="flex flex-1 items-center justify-center py-12">
 					<Loader />
@@ -163,27 +140,19 @@ function StageColumn({
 }) {
 	const t = useT();
 	const locale = useLocale();
-	const { tone } = dealStagePresentation(column.stage);
 	const hidden = column.count - column.deals.length;
 
 	return (
-		<section className="flex min-w-0 flex-col gap-2.5">
-			<div className="flex items-center gap-2 border-b px-1 pb-2">
-				<IndicatorDot
-					tone={tone}
-					aria-hidden="true"
-					className="size-2 rounded-full"
-				/>
-				<span className="truncate font-medium text-foreground">{label}</span>
-				<span className="text-muted-foreground text-xs tabular-nums">
-					{column.count}
-				</span>
-				<span className="ml-auto text-2sm text-body-foreground tabular-nums">
-					{column.sumCents === null
-						? null
-						: formatMoney(column.sumCents, currency, locale)}
-				</span>
-			</div>
+		<BoardColumn
+			tone={dealStageMark(column.stage)}
+			title={label}
+			count={column.count}
+			total={
+				column.sumCents === null
+					? null
+					: formatMoney(column.sumCents, currency, locale)
+			}
+		>
 			{column.deals.map((deal) => (
 				<DealCard key={deal.id} deal={deal} />
 			))}
@@ -193,7 +162,7 @@ function StageColumn({
 				</p>
 			) : null}
 			<CreateDealHere stage={column.stage as DealStage} />
-		</section>
+		</BoardColumn>
 	);
 }
 
@@ -205,29 +174,22 @@ function DealCard({ deal }: { deal: Card }) {
 	const days = Math.max(0, -daysUntil(deal.stageChangedAt));
 
 	return (
-		<button
-			type="button"
-			onClick={() => openRecord({ kind: "deal", id: deal.id })}
-			onMouseEnter={() => prefetchRecord({ kind: "deal", id: deal.id })}
-			onFocus={() => prefetchRecord({ kind: "deal", id: deal.id })}
-			className="flex flex-col gap-2.5 rounded-lg border bg-card px-4 py-3.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60"
-		>
-			<span className="flex min-w-0 flex-col gap-0.5">
-				<span className="truncate font-medium text-foreground">
-					{deal.name}
-				</span>
-				<span className="truncate text-muted-foreground text-xs">
-					{deal.company.name}
-				</span>
-			</span>
-			<span className="flex items-baseline justify-between gap-2">
-				<span className="font-semibold text-foreground text-md tabular-nums">
-					{deal.amountCents === null
-						? null
-						: formatMoney(deal.amountCents, deal.currency, locale)}
-				</span>
-				<span className="truncate text-muted-foreground text-xs tabular-nums">
-					<LocalComputed text={t("{days} d in stage", { days })} />
+		<BoardCard
+			title={deal.name}
+			subtitle={
+				<>
+					<EntityLogo name={deal.company.name} size="sm" />
+					<span className="truncate">{deal.company.name}</span>
+				</>
+			}
+			amount={
+				deal.amountCents === null
+					? null
+					: formatMoney(deal.amountCents, deal.currency, locale)
+			}
+			meta={
+				<>
+					<LocalComputed text={t("{days} d", { days })} />
 					{deal.expectedCloseDate ? (
 						<>
 							{" · "}
@@ -237,9 +199,12 @@ function DealCard({ deal }: { deal: Card }) {
 							/>
 						</>
 					) : null}
-				</span>
-			</span>
-		</button>
+				</>
+			}
+			onClick={() => openRecord({ kind: "deal", id: deal.id })}
+			onMouseEnter={() => prefetchRecord({ kind: "deal", id: deal.id })}
+			onFocus={() => prefetchRecord({ kind: "deal", id: deal.id })}
+		/>
 	);
 }
 
@@ -249,28 +214,21 @@ function RecentlyClosed({ deals }: { deals: Card[] }) {
 	const openRecord = useOpenRecord();
 
 	return (
-		<div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4 text-2sm text-muted-foreground">
-			<span className="font-medium text-body-foreground">
-				{t("Recently closed")}
-			</span>
+		<div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2.5 border-t pt-4 text-2sm text-body-foreground">
+			<MonoLabel>{t("Recently closed")}</MonoLabel>
 			{deals.map((deal) => (
 				<button
 					key={deal.id}
 					type="button"
 					onClick={() => openRecord({ kind: "deal", id: deal.id })}
-					className="inline-flex min-w-0 items-center gap-1.5 truncate hover:text-foreground"
+					className="min-w-0 max-w-full cursor-pointer text-left hover:text-foreground"
 				>
-					<IndicatorDot
-						tone={deal.stage === "CLOSED_WON" ? "success" : "error"}
-						aria-hidden="true"
-						className="size-2 rounded-full"
-					/>
-					<span className="truncate">
+					<Status tone={dealStageMark(deal.stage)}>
 						{deal.name} · {deal.company.name}
 						{deal.amountCents === null ? null : (
 							<>
 								{" · "}
-								<span className="text-foreground tabular-nums">
+								<span className="font-mono text-foreground tabular-nums">
 									{formatMoney(deal.amountCents, deal.currency, locale)}
 								</span>
 							</>
@@ -281,7 +239,7 @@ function RecentlyClosed({ deals }: { deals: Card[] }) {
 								<LocalRelativeDate date={deal.closedAt} />
 							</>
 						) : null}
-					</span>
+					</Status>
 				</button>
 			))}
 		</div>

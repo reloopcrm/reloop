@@ -321,6 +321,7 @@ export function WinBackTable() {
 			<DataTable
 				query={table.query}
 				search={<ListSearch placeholder={t("Search by company or person…")} />}
+				onReset={() => setFilter({ quiet: null, rejected: false })}
 				quickFilters={[
 					{
 						id: "quiet",

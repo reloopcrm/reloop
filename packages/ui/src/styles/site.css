@@ -101,6 +101,7 @@ body[data-site-shell] {
 	--site-section-y: 112px;
 	--site-section-y-compact: 80px;
 	--site-prose: 680px;
+	--site-aside: 400px;
 	--site-table-min: 560px;
 	--site-auth-width: 440px;
 	--site-dot-step: 8px;

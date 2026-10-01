@@ -128,6 +128,9 @@ below. A card or section title is `text-md` at 590.
 misleading name. Past 590 the second lever is colour: `foreground`,
 `body-foreground`, `muted-foreground`, `faint-foreground`.
 
+The public pages set their own type scale and weights inside `.site`. See
+[Public site](#public-site).
+
 `font-mono` is for identifiers, keyboard shortcuts and technical metadata. Never for
 a heading.
 
@@ -164,7 +167,10 @@ capitals. `Switch` is a 36 by 20 box with an ink edge and a square knob, not a
 pill. The default `TabsList` is a row of bordered cells, 58px tall with 20px text,
 the active cell on `--off`; the `line` tabs keep their shape. `Table` holds a
 `--site-table-min` (560px) floor instead of a width per cell: it fits every
-desktop column and scrolls inside its own frame on a phone.
+desktop column and scrolls inside its own frame on a phone. A row header is
+`TableHead scope="row"`: body text in `--muted-foreground` (`--ink-60` inside
+`.site`), no capitals, top aligned on the site. A side column beside a picker or a
+form is `--site-aside` (400px) wide.
 
 A menu, a popover or a toast opened from a public page is portalled to `<body>`,
 outside the shell. Each site shell renders `SiteShellMarker`
@@ -226,9 +232,7 @@ header stores the visitor's choice under its own key, so a choice made on the si
 never changes the app. Sign-in, onboarding and grant-access are part of the site
 and follow its theme. Entering the app from them is either a full page load or a
 navigation that crosses the scope, and both paint the app dark from its first
-frame. `Display` at weight 900 through
-`font-display` is the old landing headline: it stays until the last block that
-imports it is gone, and nothing new uses it.
+frame.
 
 ## Shell
 

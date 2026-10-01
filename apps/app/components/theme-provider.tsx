@@ -9,12 +9,14 @@ export function ThemeProvider({
 	children,
 	...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
-	const segment = useSelectedLayoutSegment();
+	const scope = themeForSegment(useSelectedLayoutSegment());
 
 	return (
 		<NextThemesProvider
+			key={scope.storageKey}
 			attribute="class"
-			defaultTheme={themeForSegment(segment)}
+			defaultTheme={scope.defaultTheme}
+			storageKey={scope.storageKey}
 			enableSystem
 			disableTransitionOnChange
 			{...props}

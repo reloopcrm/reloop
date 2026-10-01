@@ -25,6 +25,8 @@ export type MarketingNav = {
 	selfHosted: SlotLink | null;
 	reading: readonly SlotLink[];
 	company: readonly SlotLink[];
+	header?: readonly SlotLink[];
+	headerAside?: readonly SlotLink[];
 };
 
 export type MarketingSitemap = {

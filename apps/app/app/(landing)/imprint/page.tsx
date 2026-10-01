@@ -1,8 +1,9 @@
-import { Link } from "@crm/ui/components/link";
+import { cn } from "@crm/ui/lib/utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LandingShell } from "@/components/docs/landing-shell";
-import { Band, PageHero, Prose } from "@/components/docs/page-blocks";
+import { ProsePage } from "@/components/site/prose";
+import { SITE_TYPE } from "@/components/site/typography";
 import { getT } from "@/lib/i18n/server";
 import { getImprint, IMPRINT_ROBOTS } from "@/lib/imprint";
 
@@ -23,82 +24,50 @@ export default async function ImprintPage() {
 
 	const t = await getT();
 
+	const rows = [
+		{ label: t("Name"), value: imprint.name },
+		{ label: t("Business"), value: imprint.business },
+		{
+			label: t("Address"),
+			value:
+				imprint.addressLines.length > 0
+					? imprint.addressLines.map((line) => (
+							<span key={line} className="block">
+								{line}
+							</span>
+						))
+					: null,
+		},
+		{
+			label: t("Email"),
+			value: imprint.email ? (
+				<a href={`mailto:${imprint.email}`}>{imprint.email}</a>
+			) : null,
+		},
+		{ label: t("Phone"), value: imprint.phone },
+		{ label: t("VAT ID"), value: imprint.vatId },
+	].filter((row) => row.value);
+
 	return (
 		<LandingShell>
-			<PageHero
+			<ProsePage
+				eyebrow={t("Legal")}
 				title={t("Imprint")}
-				size="title"
 				lede={t(
 					"Legal information under Section 5 of the German Digital Services Act (DDG).",
 				)}
-				actions={null}
-			/>
-
-			<Band tone="secondary">
-				<Prose>
-					<dl className="flex w-full flex-col gap-6 rounded-lg border border-border bg-card p-6 text-base">
-						<div className="flex flex-col gap-1">
-							<dt className="text-muted-foreground text-xs/5">{t("Name")}</dt>
-							<dd className="text-foreground">{imprint.name}</dd>
+			>
+				<dl className="flex flex-col gap-6 border border-border p-6">
+					{rows.map((row) => (
+						<div key={row.label} className="flex flex-col gap-2">
+							<dt className={cn(SITE_TYPE.mono, "text-(--ink-60)")}>
+								{row.label}
+							</dt>
+							<dd className="text-foreground">{row.value}</dd>
 						</div>
-
-						{imprint.business ? (
-							<div className="flex flex-col gap-1">
-								<dt className="text-muted-foreground text-xs/5">
-									{t("Business")}
-								</dt>
-								<dd className="text-foreground">{imprint.business}</dd>
-							</div>
-						) : null}
-
-						{imprint.addressLines.length > 0 ? (
-							<div className="flex flex-col gap-1">
-								<dt className="text-muted-foreground text-xs/5">
-									{t("Address")}
-								</dt>
-								<dd className="text-foreground">
-									{imprint.addressLines.map((line) => (
-										<span key={line} className="block">
-											{line}
-										</span>
-									))}
-								</dd>
-							</div>
-						) : null}
-
-						{imprint.email ? (
-							<div className="flex flex-col gap-1">
-								<dt className="text-muted-foreground text-xs/5">
-									{t("Email")}
-								</dt>
-								<dd className="text-foreground">
-									<Link variant="quiet" href={`mailto:${imprint.email}`}>
-										{imprint.email}
-									</Link>
-								</dd>
-							</div>
-						) : null}
-
-						{imprint.phone ? (
-							<div className="flex flex-col gap-1">
-								<dt className="text-muted-foreground text-xs/5">
-									{t("Phone")}
-								</dt>
-								<dd className="text-foreground">{imprint.phone}</dd>
-							</div>
-						) : null}
-
-						{imprint.vatId ? (
-							<div className="flex flex-col gap-1">
-								<dt className="text-muted-foreground text-xs/5">
-									{t("VAT ID")}
-								</dt>
-								<dd className="text-foreground">{imprint.vatId}</dd>
-							</div>
-						) : null}
-					</dl>
-				</Prose>
-			</Band>
+					))}
+				</dl>
+			</ProsePage>
 		</LandingShell>
 	);
 }

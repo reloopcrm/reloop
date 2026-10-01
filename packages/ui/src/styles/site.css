@@ -90,6 +90,12 @@
 	--site-nav-height: 72px;
 	--site-section-y: 112px;
 	--site-section-y-compact: 80px;
+	--site-prose: 680px;
+	--site-footer-top: 100px;
+	--site-footer-bottom-gap: 108px;
+	--site-marquee-height: 422px;
+	--site-marquee-gap: 10px;
+	--site-marquee-duration: 24s;
 	--site-ease: cubic-bezier(0.165, 0.84, 0.44, 1);
 
 	font-family: var(--font-sans);
@@ -129,5 +135,16 @@
 		--site-text-title-24: 22px;
 		--site-section-y: 64px;
 		--site-section-y-compact: 48px;
+		--site-footer-top: 40px;
+		--site-footer-bottom-gap: 32px;
+		--site-marquee-height: 320px;
+	}
+}
+
+@keyframes site-marquee {
+	to {
+		transform: translateY(
+			calc((100% + var(--site-marquee-gap)) / var(--site-marquee-sets) * -1)
+		);
 	}
 }

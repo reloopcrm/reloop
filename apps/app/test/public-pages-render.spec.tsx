@@ -145,6 +145,13 @@ if (process.env.PUBLIC_PAGES_RENDER) {
 
 	mock.module("next/cache", () => ({ ...nextCache, cacheLife: () => {} }));
 
+	const font = () => ({ variable: "", className: "" });
+	mock.module("next/font/google", () => ({
+		DM_Mono: font,
+		Inter_Tight: font,
+		Newsreader: font,
+	}));
+
 	mock.module("next/navigation", () => ({
 		...nextNavigation,
 		useRouter: () => ({ refresh: () => {} }),

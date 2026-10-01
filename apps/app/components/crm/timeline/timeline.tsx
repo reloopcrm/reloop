@@ -10,13 +10,13 @@ import { Button } from "@crm/ui/components/button";
 import { EventGroup, EventList } from "@crm/ui/components/event-row";
 import type { CarbonIcon } from "@crm/ui/components/icon";
 import { Loader } from "@crm/ui/components/loader";
+import { MonoLabel } from "@crm/ui/components/mark";
 import { Spinner } from "@crm/ui/components/spinner";
 import { IndicatorDot } from "@crm/ui/components/status-indicator";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { cleanSubject } from "@crm/ui/lib/email-text";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { parseAsString, useQueryState } from "nuqs";
-import { useState } from "react";
 import { DetailSheetEmpty } from "@/components/detail-sheet";
 import { LocalDateTime, localDayKey } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -231,7 +231,15 @@ function WaitingLine({ entry }: { entry: TimelineEntryData }) {
 	);
 }
 
-export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
+export function Timeline({
+	anchor,
+	taskAsked,
+	onTask,
+}: {
+	anchor: TimelineAnchor;
+	taskAsked: number;
+	onTask: () => void;
+}) {
 	const t = useT();
 	const trpc = useTRPC();
 	const hydrated = useHydrated();
@@ -250,7 +258,6 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 		parseAsString,
 	);
 	const contactId = "contactId" in anchor ? anchor.contactId : null;
-	const [taskAsked, setTaskAsked] = useState(0);
 
 	const counts = useQuery(trpc.activities.timelineCounts.queryOptions(anchor));
 
@@ -290,15 +297,12 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 	return (
 		<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
 			{contactId ? (
-				<AttentionBlock
-					contactId={contactId}
-					onTask={() => setTaskAsked((count) => count + 1)}
-				/>
+				<AttentionBlock contactId={contactId} onTask={onTask} />
 			) : newestEmail ? (
 				<WaitingLine entry={newestEmail} />
 			) : null}
 
-			<div className="flex shrink-0 flex-col px-5 pt-4">
+			<div className="flex min-w-0 shrink-0 flex-col px-5 pt-4">
 				<ToggleGroup
 					type="single"
 					wrap
@@ -316,7 +320,7 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 							<ToggleGroupItem key={option} value={option}>
 								{t(TAB_LABELS[option])}
 								{count === null ? null : (
-									<span className="tabular-nums">{count}</span>
+									<MonoLabel className="tabular-nums">{count}</MonoLabel>
 								)}
 							</ToggleGroupItem>
 						);

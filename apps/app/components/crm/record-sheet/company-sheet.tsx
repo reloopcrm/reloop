@@ -13,6 +13,16 @@ import {
 	type EntityLogoTone,
 } from "@crm/ui/components/entity-logo";
 import { Icon } from "@crm/ui/components/icon";
+import {
+	CompaniesIcon,
+	ContactsIcon,
+	DateIcon,
+	DealsIcon,
+	EmailIcon,
+	NumberIcon,
+	OpenIcon,
+	PlaceIcon,
+} from "@crm/ui/components/line-icons";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { SimpleTable, SimpleTableRow } from "@crm/ui/components/simple-table";
 import { TableCell } from "@crm/ui/components/table";
@@ -23,6 +33,7 @@ import {
 } from "@crm/ui/components/tooltip";
 import { formatMoney } from "@crm/ui/lib/format";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { AgentPanel } from "@/components/crm/agent-panel";
 import { EnrichmentActions } from "@/components/crm/enrichment-actions";
@@ -41,15 +52,10 @@ import { WebsiteActivity } from "@/components/crm/website-activity";
 import {
 	DetailSheetBody,
 	DetailSheetEmpty,
-	DetailSheetMain,
+	DetailSheetGroup,
 	DetailSheetPending,
-	DetailSheetProperties,
+	DetailSheetProperty,
 	DetailSheetProse,
-	DetailSheetRail,
-	DetailSheetSection,
-	DetailSheetSplit,
-	DetailSheetStat,
-	DetailSheetStats,
 	type DetailSheetTab,
 } from "@/components/detail-sheet";
 import { LocalDay } from "@/components/local-date-time";
@@ -69,6 +75,7 @@ import {
 	DealAmount,
 	DomainLink,
 	MetaLine,
+	RecordChip,
 	RecordSheetFrame,
 } from "./record-parts";
 import { useOpenRecord, useRecordSheetView } from "./record-stack";
@@ -146,14 +153,14 @@ function nextClose(deals: CompanyDeal[]): string | null {
 
 export function CompanySheet({ companyId }: { companyId: string }) {
 	const t = useT();
-	const locale = useLocale();
 	const trpc = useTRPC();
 	const {
 		tab,
 		setTab,
 		form: adding,
 		setForm: setAdding,
-	} = useRecordSheetView("overview");
+	} = useRecordSheetView("contacts");
+	const [taskAsked, setTaskAsked] = useState(0);
 
 	const query = useQuery({
 		...trpc.companies.byId.queryOptions({ id: companyId }),
@@ -165,6 +172,10 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 		},
 	});
 
+	const counts = useQuery(
+		trpc.activities.timelineCounts.queryOptions({ companyId }),
+	);
+
 	const company = query.data;
 
 	const location = company
@@ -173,27 +184,16 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 				.join(", ")
 		: null;
 
-	const openDeals =
-		company?.deals.filter((deal) => OPEN_STAGES.includes(deal.stage)) ?? [];
-	const openValueCents = openDeals.reduce(
-		(total, deal) => total + (deal.baseAmountCents ?? 0),
-		0,
-	);
-	const openUncounted = openDeals.filter(
-		(deal) => deal.amountCents !== null && deal.baseAmountCents === null,
-	).length;
-	const closing = nextClose(openDeals);
+	const createTask = () => {
+		setTab("activity");
+		setTaskAsked((count) => count + 1);
+	};
 
 	const tabs: DetailSheetTab[] = company
 		? [
 				{
-					value: "overview",
-					label: t("Overview"),
-					content: <CompanyOverview company={company} />,
-				},
-				{
 					value: "contacts",
-					label: t("Contacts"),
+					label: t("People"),
 					count: company.contacts.length,
 					content: (
 						<CompanyContacts
@@ -207,7 +207,14 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 				{
 					value: "activity",
 					label: t("Activity"),
-					content: <Timeline anchor={{ companyId: company.id }} />,
+					count: counts.data?.all,
+					content: (
+						<Timeline
+							anchor={{ companyId: company.id }}
+							taskAsked={taskAsked}
+							onTask={createTask}
+						/>
+					),
 				},
 				{
 					value: "deals",
@@ -261,52 +268,31 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 					darkSrc={company?.iconDarkUrl}
 					tone={company?.iconTone as EntityLogoTone | null | undefined}
 					name={company?.name ?? "?"}
-					size="lg"
+					size="record"
 				/>
 			}
 			actions={
 				company ? (
 					<>
-						<EnrichmentActions
-							companyId={company.id}
-							hasDomain={company.domain !== null}
-						/>
+						<Button variant="link" size="sm" onClick={createTask}>
+							{t("Create a task")}
+						</Button>
 						<RecordActions
 							record={{ kind: "company", id: company.id }}
 							name={company.name}
 							consequence={companyConsequence(company, t)}
 							archivedAt={company.archivedAt}
-						/>
+						>
+							<EnrichmentActions
+								companyId={company.id}
+								hasDomain={company.domain !== null}
+							/>
+						</RecordActions>
 					</>
 				) : null
 			}
-			stats={
-				company ? (
-					<DetailSheetStats>
-						<DetailSheetStat label={t("Open pipeline")}>
-							<span className="tabular-nums">
-								{formatMoney(openValueCents, company.reportingCurrency, locale)}
-							</span>
-							{openUncounted > 0 ? (
-								<span className="text-muted-foreground">
-									{" "}
-									{"+"}
-									{t("{count} unconverted", { count: openUncounted })}
-								</span>
-							) : null}
-						</DetailSheetStat>
-						<DetailSheetStat label={t("Open deals")}>
-							<span className="tabular-nums">{openDeals.length}</span>
-						</DetailSheetStat>
-						<DetailSheetStat label={t("Next close")}>
-							{closing ? <LocalDay date={closing} /> : <EmptyCellValue />}
-						</DetailSheetStat>
-						<DetailSheetStat label={t("Owner")}>
-							<OwnerCell owner={company.owner} />
-						</DetailSheetStat>
-					</DetailSheetStats>
-				) : null
-			}
+			chips={company ? <CompanyChips company={company} /> : null}
+			rail={company ? <CompanyRail company={company} /> : null}
 			tabs={tabs}
 			tab={tab}
 			onTabChange={setTab}
@@ -314,8 +300,36 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 	);
 }
 
-function CompanyOverview({ company }: { company: Company }) {
+function CompanyChips({ company }: { company: Company }) {
 	const t = useT();
+	const openDeals = company.deals.filter((deal) =>
+		OPEN_STAGES.includes(deal.stage),
+	).length;
+	const people = company.contacts.length;
+
+	return (
+		<>
+			{people > 0 ? (
+				<RecordChip>
+					{people === 1
+						? t("1 person")
+						: t("{count} people", { count: people })}
+				</RecordChip>
+			) : null}
+			{openDeals > 0 ? (
+				<RecordChip>
+					{openDeals === 1
+						? t("1 open deal")
+						: t("{count} open deals", { count: openDeals })}
+				</RecordChip>
+			) : null}
+		</>
+	);
+}
+
+function CompanyRail({ company }: { company: Company }) {
+	const t = useT();
+	const locale = useLocale();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
@@ -338,108 +352,149 @@ function CompanyOverview({ company }: { company: Company }) {
 	const isSaving = savingField(update);
 	const isSavingField = savingValue(update);
 
+	const openDeals = company.deals.filter((deal) =>
+		OPEN_STAGES.includes(deal.stage),
+	);
+	const openValueCents = openDeals.reduce(
+		(total, deal) => total + (deal.baseAmountCents ?? 0),
+		0,
+	);
+	const openUncounted = openDeals.filter(
+		(deal) => deal.amountCents !== null && deal.baseAmountCents === null,
+	).length;
+	const closing = nextClose(openDeals);
+
 	return (
-		<DetailSheetBody>
-			<DetailSheetSplit>
-				<DetailSheetMain>
-					{company.description ? (
-						<DetailSheetSection title={t("About")}>
-							<DetailSheetProse>{company.description}</DetailSheetProse>
-						</DetailSheetSection>
+		<>
+			<DetailSheetGroup
+				title={t("Record")}
+				action={<FieldsCog kind="company" />}
+			>
+				<InlineField
+					label={t("Name")}
+					icon={CompaniesIcon}
+					value={company.name}
+					saving={isSaving("name")}
+					onSave={(name) => name && save({ name })}
+				/>
+				<InlineField
+					label={t("Domain")}
+					icon={EmailIcon}
+					value={company.domain}
+					type="url"
+					placeholder="stripe.com"
+					saving={isSaving("domain")}
+					onSave={(domain) => save({ domain })}
+				/>
+				<InlineField
+					label={t("Website")}
+					icon={OpenIcon}
+					value={company.website}
+					type="url"
+					placeholder="https://stripe.com"
+					saving={isSaving("website")}
+					onSave={(website) => save({ website })}
+				/>
+				<InlineField
+					label={t("Phone")}
+					icon={NumberIcon}
+					value={company.phone}
+					type="tel"
+					placeholder={t("Set phone")}
+					saving={isSaving("phone")}
+					onSave={(phone) => save({ phone })}
+				/>
+				<InlineField
+					label={t("Email")}
+					icon={EmailIcon}
+					value={company.email}
+					type="email"
+					placeholder={t("Set email")}
+					saving={isSaving("email")}
+					onSave={(email) => save({ email })}
+				/>
+				<InlineField
+					label={t("City")}
+					icon={PlaceIcon}
+					value={company.city}
+					placeholder={t("Set city")}
+					saving={isSaving("city")}
+					onSave={(city) => save({ city })}
+				/>
+				<InlineField
+					label={t("Country")}
+					icon={PlaceIcon}
+					value={company.country}
+					placeholder={t("Set country")}
+					saving={isSaving("country")}
+					onSave={(country) => save({ country })}
+				/>
+				<RecordFields
+					fields={company.fields}
+					saving={isSavingField}
+					onSave={saveFields}
+				/>
+			</DetailSheetGroup>
+
+			{company.description ? (
+				<DetailSheetGroup title={t("About")}>
+					<DetailSheetProse>{company.description}</DetailSheetProse>
+				</DetailSheetGroup>
+			) : null}
+
+			<DetailSheetPending
+				fields={pendingFields(company, t)}
+				running={isEnriching(company.enrichmentStatus, company.queued)}
+			/>
+
+			{openDeals.length > 0 ? (
+				<DetailSheetGroup title={t("Pipeline")}>
+					<DetailSheetProperty label={t("Open pipeline")} icon={DealsIcon}>
+						<span className="tabular-nums">
+							{formatMoney(openValueCents, company.reportingCurrency, locale)}
+						</span>
+						{openUncounted > 0 ? (
+							<span className="text-muted-foreground">
+								{" +"}
+								{t("{count} unconverted", { count: openUncounted })}
+							</span>
+						) : null}
+					</DetailSheetProperty>
+					{closing ? (
+						<DetailSheetProperty label={t("Next close")} icon={DateIcon}>
+							<LocalDay date={closing} />
+						</DetailSheetProperty>
 					) : null}
+				</DetailSheetGroup>
+			) : null}
 
-					<WebsiteActivity companyId={company.id} />
-				</DetailSheetMain>
+			<DetailSheetGroup title={t("Ownership")}>
+				<InlineSelectField
+					label={t("Owner")}
+					icon={ContactsIcon}
+					value={company.owner?.id ?? UNASSIGNED}
+					options={[
+						{ value: UNASSIGNED, label: t("Unassigned") },
+						...(users.data ?? []).map((user) => ({
+							value: user.id,
+							label: user.name,
+						})),
+					]}
+					onSave={(ownerId) =>
+						save({ ownerId: ownerId === UNASSIGNED ? null : ownerId })
+					}
+				/>
+				<DetailSheetProperty label={t("Created")} icon={DateIcon}>
+					<LocalDay date={company.createdAt} />
+				</DetailSheetProperty>
+			</DetailSheetGroup>
 
-				<DetailSheetRail>
-					<DetailSheetSection
-						title={t("Details")}
-						action={<FieldsCog kind="company" />}
-					>
-						<DetailSheetProperties columns={1}>
-							<InlineField
-								label={t("Name")}
-								value={company.name}
-								saving={isSaving("name")}
-								onSave={(name) => name && save({ name })}
-							/>
-							<InlineField
-								label={t("Domain")}
-								value={company.domain}
-								type="url"
-								placeholder="stripe.com"
-								saving={isSaving("domain")}
-								onSave={(domain) => save({ domain })}
-							/>
-							<InlineField
-								label={t("Website")}
-								value={company.website}
-								type="url"
-								placeholder="https://stripe.com"
-								saving={isSaving("website")}
-								onSave={(website) => save({ website })}
-							/>
-							<InlineField
-								label={t("Phone")}
-								value={company.phone}
-								type="tel"
-								saving={isSaving("phone")}
-								onSave={(phone) => save({ phone })}
-							/>
-							<InlineField
-								label={t("Email")}
-								value={company.email}
-								type="email"
-								saving={isSaving("email")}
-								onSave={(email) => save({ email })}
-							/>
-							<InlineField
-								label={t("City")}
-								value={company.city}
-								saving={isSaving("city")}
-								onSave={(city) => save({ city })}
-							/>
-							<InlineField
-								label={t("Country")}
-								value={company.country}
-								saving={isSaving("country")}
-								onSave={(country) => save({ country })}
-							/>
-							<InlineSelectField
-								label={t("Owner")}
-								value={company.owner?.id ?? UNASSIGNED}
-								options={[
-									{ value: UNASSIGNED, label: t("Unassigned") },
-									...(users.data ?? []).map((user) => ({
-										value: user.id,
-										label: user.name,
-									})),
-								]}
-								onSave={(ownerId) =>
-									save({ ownerId: ownerId === UNASSIGNED ? null : ownerId })
-								}
-							/>
-							<RecordFields
-								fields={company.fields}
-								saving={isSavingField}
-								onSave={saveFields}
-							/>
-						</DetailSheetProperties>
-					</DetailSheetSection>
-
-					<DetailSheetPending
-						fields={pendingFields(company, t)}
-						running={isEnriching(company.enrichmentStatus, company.queued)}
-					/>
-
-					{hasCompanyLinks(company) ? (
-						<DetailSheetSection title={t("Links")}>
-							<CompanySocials company={company} />
-						</DetailSheetSection>
-					) : null}
-				</DetailSheetRail>
-			</DetailSheetSplit>
-		</DetailSheetBody>
+			{hasCompanyLinks(company) ? (
+				<DetailSheetGroup title={t("Links")}>
+					<CompanySocials company={company} />
+				</DetailSheetGroup>
+			) : null}
+		</>
 	);
 }
 
@@ -500,10 +555,11 @@ function CompanyContacts({
 	}
 
 	return (
-		<>
+		<DetailSheetBody>
 			{form}
 			<SimpleTable
 				variant="panel"
+				containerClassName="flex-none overflow-visible"
 				columns={CONTACT_COLUMNS.map((column) => ({
 					...column,
 					header: column.header ? t(column.header) : column.header,
@@ -585,7 +641,8 @@ function CompanyContacts({
 					onClick={onAdd}
 				/>
 			</SimpleTable>
-		</>
+			<WebsiteActivity companyId={company.id} />
+		</DetailSheetBody>
 	);
 }
 

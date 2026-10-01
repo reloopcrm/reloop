@@ -10,7 +10,7 @@ export function AgentBuilderHomeFallback() {
 			className="flex min-h-0 flex-1 items-center justify-center px-4"
 			aria-busy="true"
 		>
-			<div className="flex w-full max-w-2xl flex-col items-center gap-5">
+			<div className="flex w-full max-w-160 flex-col items-center gap-5">
 				<div
 					className="flex w-full flex-col items-center gap-2"
 					aria-hidden="true"

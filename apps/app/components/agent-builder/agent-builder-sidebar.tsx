@@ -7,6 +7,7 @@ import CircleFilled from "@carbon/icons-react/es/CircleFilled";
 import Renew from "@carbon/icons-react/es/Renew";
 import { Button } from "@crm/ui/components/button";
 import { Icon } from "@crm/ui/components/icon";
+import { MonoLabel } from "@crm/ui/components/mark";
 import { cn } from "@crm/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -78,9 +79,11 @@ export function AgentBuilderSidebar({
 	const teamAgents = showData ? (agents.data ?? []) : [];
 
 	return (
-		<aside className={cn("min-h-0 min-w-0 flex-col p-4 font-sans", className)}>
-			<div className="flex h-7 shrink-0 items-center justify-between pl-2">
-				<span className="font-medium text-xs">{t("Chats")}</span>
+		<aside
+			className={cn("min-h-0 min-w-0 flex-col px-4 py-6 font-sans", className)}
+		>
+			<div className="flex h-7 shrink-0 items-center justify-between">
+				<MonoLabel>{t("Chats")}</MonoLabel>
 				<Button asChild variant="ghost" size="icon-xs">
 					<Link
 						href={workspaceUrl("/chat")}
@@ -98,8 +101,8 @@ export function AgentBuilderSidebar({
 			>
 				{groups.map((group) => (
 					<div key={group.label}>
-						<div className="flex h-8 items-end pb-1 pl-2 font-medium text-[11px] text-muted-foreground uppercase tracking-[0.08em]">
-							{t(group.label)}
+						<div className="flex h-8 items-end pb-1.5">
+							<MonoLabel>{t(group.label)}</MonoLabel>
 						</div>
 						{group.items.map((conversation) => {
 							const href = workspaceUrl(`/chat/${conversation.id}`);
@@ -120,11 +123,11 @@ export function AgentBuilderSidebar({
 											onNavigate?.();
 										}}
 										className={cn(
-											"flex h-7 min-w-0 flex-1 items-center gap-3 rounded-full pr-8 pl-2.5 text-xs outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60",
-											active && "bg-accent font-medium",
+											"flex h-7.5 min-w-0 flex-1 items-center gap-2 rounded-md pr-8 pl-2 text-2sm outline-none transition-colors hover:bg-active focus-visible:ring-2 focus-visible:ring-ring/60",
+											active && "bg-accent text-foreground",
 											!active &&
 												conversation.state === "idle" &&
-												"text-muted-foreground",
+												"text-body-foreground",
 										)}
 									>
 										<ConversationState state={conversation.state} />
@@ -145,7 +148,7 @@ export function AgentBuilderSidebar({
 				))}
 
 				{groups.length === 0 ? (
-					<p className="px-2 py-3 text-muted-foreground text-xs">
+					<p className="py-2 text-2sm text-body-foreground">
 						{t("No chats in the last 7 days.")}
 					</p>
 				) : null}
@@ -173,15 +176,15 @@ function TeamAgents({
 	const workspaceUrl = useWorkspaceUrl();
 
 	return (
-		<div className="mt-3 border-t pt-1">
+		<div className="mt-6">
 			<Link
 				href={workspaceUrl("/agents")}
 				transitionTypes={["nav-lateral"]}
 				onClick={onNavigate}
-				className="flex h-8 items-end gap-2 rounded-sm px-2 pb-1 font-medium text-[11px] text-muted-foreground uppercase tracking-[0.08em] outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60"
+				className="flex h-7 items-center gap-2 rounded-sm outline-none hover:[&_[data-slot=mono-label]]:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60"
 			>
-				<span className="min-w-0 flex-1">{t("Team agents")}</span>
-				<span className="shrink-0 font-mono">{agents.length}</span>
+				<MonoLabel className="min-w-0 flex-1">{t("Team agents")}</MonoLabel>
+				<MonoLabel className="shrink-0">{agents.length}</MonoLabel>
 			</Link>
 			{agents.map((agent) => {
 				const href = workspaceUrl(`/agents/${agent.id}`);
@@ -193,8 +196,8 @@ function TeamAgents({
 						aria-current={active ? "page" : undefined}
 						onClick={onNavigate}
 						className={cn(
-							"flex h-7 items-center gap-3 rounded-full px-2.5 text-xs outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60",
-							active ? "bg-accent font-medium" : "text-muted-foreground",
+							"flex h-7.5 items-center gap-2 rounded-md px-2 text-2sm outline-none transition-colors hover:bg-active focus-visible:ring-2 focus-visible:ring-ring/60",
+							active ? "bg-accent text-foreground" : "text-body-foreground",
 						)}
 					>
 						<span className="flex size-5 shrink-0 items-center justify-center">

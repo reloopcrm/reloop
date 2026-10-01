@@ -93,7 +93,7 @@ function SheetHeader(props: React.ComponentProps<"div">) {
 
 function SheetTitle(props: {
 	className?: string;
-	size?: "default" | "lg";
+	size?: "default" | "lg" | "record";
 	children?: React.ReactNode;
 }) {
 	return useResponsive() ? (

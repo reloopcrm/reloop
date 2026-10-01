@@ -1,7 +1,6 @@
 "use client";
 
 import Archive from "@carbon/icons-react/es/Archive";
-import OverflowMenuVertical from "@carbon/icons-react/es/OverflowMenuVertical";
 import TrashCan from "@carbon/icons-react/es/TrashCan";
 import Undo from "@carbon/icons-react/es/Undo";
 import {
@@ -18,12 +17,15 @@ import { Button } from "@crm/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
 import { Icon } from "@crm/ui/components/icon";
+import { MoreIcon } from "@crm/ui/components/line-icons";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
@@ -131,11 +133,13 @@ export function RecordActions({
 	name,
 	consequence,
 	archivedAt,
+	children,
 }: {
 	record: RecordRef;
 	name: string;
 	consequence: string;
 	archivedAt: string | null;
+	children?: ReactNode;
 }) {
 	const t = useT();
 	const [confirming, setConfirming] = useState(false);
@@ -150,12 +154,18 @@ export function RecordActions({
 		<>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<Button variant="outline-ghost" size="icon-sm" disabled={pending}>
-						<Icon icon={OverflowMenuVertical} />
+					<Button variant="outline" size="icon" disabled={pending}>
+						<MoreIcon />
 						<span className="sr-only">{t("More actions")}</span>
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="min-w-44">
+					{children ? (
+						<>
+							<DropdownMenuGroup>{children}</DropdownMenuGroup>
+							<DropdownMenuSeparator />
+						</>
+					) : null}
 					{archivedAt ? (
 						<>
 							<DropdownMenuItem

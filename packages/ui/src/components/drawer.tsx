@@ -10,6 +10,7 @@ const drawerTitleVariants = cva("font-heading font-medium text-foreground", {
 		size: {
 			default: "text-sm",
 			lg: "text-lg leading-tight tracking-tight",
+			record: "font-normal text-[22px] leading-tight tracking-[-0.02em]",
 		},
 	},
 	defaultVariants: {

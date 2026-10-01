@@ -16,11 +16,14 @@ import { Spinner } from "@crm/ui/components/spinner";
 import { Textarea } from "@crm/ui/components/textarea";
 import { cn } from "@crm/ui/lib/utils";
 import { useId, useState } from "react";
-import { PROPERTY_LABEL, PROPERTY_ROW } from "@/components/detail-sheet";
+import {
+	PROPERTY_ROW,
+	type PropertyIcon,
+	PropertyLabel,
+} from "@/components/detail-sheet";
 import { useT } from "@/lib/i18n/client";
 
 const ROW = cn(PROPERTY_ROW, "items-center");
-const LABEL = PROPERTY_LABEL;
 const CONTROL =
 	"h-8 w-full justify-start px-2 font-normal hover:border-input hover:bg-muted/40 border border-transparent";
 const BLOCK_CONTROL = cn(
@@ -56,12 +59,14 @@ export function InlineField({
 	render,
 	provenance,
 	suggestion,
+	icon,
 }: {
 	label: string;
 	value: string | null;
 	onSave: (next: string) => void;
 	saving?: boolean;
 	placeholder?: string;
+	icon?: PropertyIcon;
 	type?: "text" | "url" | "email" | "tel";
 	render?: (value: string) => React.ReactNode;
 	provenance?: React.ReactNode;
@@ -134,9 +139,9 @@ export function InlineField({
 	if (!suggestion) {
 		return (
 			<div className={ROW}>
-				<label htmlFor={id} className={LABEL}>
+				<PropertyLabel htmlFor={id} icon={icon}>
 					{label}
-				</label>
+				</PropertyLabel>
 				{body}
 			</div>
 		);
@@ -144,9 +149,11 @@ export function InlineField({
 
 	return (
 		<div className={cn(ROW, "items-start")}>
-			<label htmlFor={id} className={cn(LABEL, "pt-2")}>
-				{label}
-			</label>
+			<div className="pt-1">
+				<PropertyLabel htmlFor={id} icon={icon}>
+					{label}
+				</PropertyLabel>
+			</div>
 			<div className="min-w-0">
 				{body}
 				{suggestion}
@@ -303,20 +310,22 @@ export function InlineDateField({
 	onSave,
 	saving = false,
 	placeholder = "-",
+	icon,
 }: {
 	label: string;
 	value: string | null;
 	onSave: (next: string) => void;
 	saving?: boolean;
 	placeholder?: string;
+	icon?: PropertyIcon;
 }) {
 	const id = useId();
 
 	return (
 		<div className={ROW}>
-			<label htmlFor={id} className={LABEL}>
+			<PropertyLabel htmlFor={id} icon={icon}>
 				{label}
-			</label>
+			</PropertyLabel>
 			<div className="flex min-w-0 items-center gap-1.5">
 				<DatePicker
 					id={id}
@@ -338,6 +347,7 @@ export function InlineSelectField({
 	onSave,
 	saving = false,
 	placeholder,
+	icon,
 }: {
 	label: string;
 	value: string;
@@ -345,18 +355,24 @@ export function InlineSelectField({
 	onSave: (next: string) => void;
 	saving?: boolean;
 	placeholder?: string;
+	icon?: PropertyIcon;
 }) {
 	const t = useT();
 	const id = useId();
 
 	return (
 		<div className={ROW}>
-			<label htmlFor={id} className={LABEL}>
+			<PropertyLabel htmlFor={id} icon={icon}>
 				{label}
-			</label>
+			</PropertyLabel>
 			<div className="flex min-w-0 items-center gap-1.5">
 				<Select value={value} onValueChange={onSave} disabled={saving}>
-					<SelectTrigger id={id} variant="ghost" className="w-full">
+					<SelectTrigger
+						id={id}
+						variant="ghost"
+						size="sm"
+						className="w-full px-2"
+					>
 						<SelectValue placeholder={placeholder ?? t("None")} />
 					</SelectTrigger>
 					<SelectContent>

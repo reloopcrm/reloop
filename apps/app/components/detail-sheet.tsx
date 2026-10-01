@@ -13,6 +13,7 @@ import {
 } from "@crm/ui/components/empty";
 import type { CarbonIcon } from "@crm/ui/components/icon";
 import { Icon } from "@crm/ui/components/icon";
+import { MonoLabel } from "@crm/ui/components/mark";
 import type { SheetSize } from "@crm/ui/components/sheet";
 import {
 	Tabs,
@@ -26,13 +27,12 @@ import {
 	TooltipTrigger,
 } from "@crm/ui/components/tooltip";
 import { cn } from "@crm/ui/lib/utils";
-import { type ReactNode, useRef, useState } from "react";
+import { type ComponentType, type ReactNode, useRef, useState } from "react";
 import { DEMO } from "@/components/demo/demo-tour-config";
 import {
 	Sheet,
 	SheetContent,
 	SheetDescription,
-	SheetHeader,
 	SheetTitle,
 } from "@/components/responsive-sheet";
 import { useT } from "@/lib/i18n/client";
@@ -40,19 +40,35 @@ import { usePageSettled } from "@/lib/use-page-settled";
 
 const GUTTER = "px-5";
 
-export const SECTION_TITLE =
-	"font-medium text-muted-foreground text-xs uppercase tracking-wider";
+export type PropertyIcon = ComponentType<{ className?: string }>;
 
-export const PROPERTY_ROW = "grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2";
+export const PROPERTY_ROW =
+	"grid min-h-8 grid-cols-[110px_minmax(0,1fr)] gap-2";
 
-export const PROPERTY_LABEL = "truncate text-muted-foreground text-xs";
+export const PROPERTY_LABEL =
+	"flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap text-2sm text-muted-foreground";
 
-const PROPERTY_CELL = "border border-transparent py-1";
+export function PropertyLabel({
+	htmlFor,
+	icon: Glyph,
+	children,
+}: {
+	htmlFor?: string;
+	icon?: PropertyIcon;
+	children: ReactNode;
+}) {
+	return (
+		<label htmlFor={htmlFor} className={PROPERTY_LABEL}>
+			{Glyph ? <Glyph className="size-3 shrink-0 text-(--ink-50)" /> : null}
+			<span className="truncate">{children}</span>
+		</label>
+	);
+}
 
 export function DetailSheet({
 	open,
 	onOpenChange,
-	size = "2xl",
+	size = "record",
 	className,
 	children,
 }: {
@@ -90,6 +106,7 @@ export function DetailSheetHeader({
 	description,
 	note,
 	actions,
+	chips,
 	onBack,
 	onClose,
 }: {
@@ -98,17 +115,22 @@ export function DetailSheetHeader({
 	description?: ReactNode;
 	note?: ReactNode;
 	actions?: ReactNode;
+	chips?: ReactNode;
 	onBack?: () => void;
 	onClose: () => void;
 }) {
 	const t = useT();
 
 	return (
-		<SheetHeader
-			className={cn("@container/sheet-header gap-0 border-b py-4", GUTTER)}
+		<div
+			data-slot="record-header"
+			className={cn(
+				"@container/sheet-header flex shrink-0 flex-col gap-4 border-b pt-5 pb-4 text-left",
+				GUTTER,
+			)}
 		>
-			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3.5 gap-y-3 @3xl/sheet-header:flex">
-				<div className="flex items-start gap-3.5">
+			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-3 @3xl/sheet-header:flex">
+				<div className="flex items-center gap-3.5">
 					{onBack ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -124,8 +146,8 @@ export function DetailSheetHeader({
 					{media}
 				</div>
 
-				<div className="flex min-w-0 flex-1 flex-col gap-0.5 @3xl/sheet-header:min-w-1/3">
-					<SheetTitle size="lg" className="wrap-break-word">
+				<div className="flex min-w-0 flex-1 flex-col gap-1 @3xl/sheet-header:min-w-1/4">
+					<SheetTitle size="record" className="wrap-break-word">
 						{title}
 					</SheetTitle>
 					{description ? (
@@ -157,34 +179,69 @@ export function DetailSheetHeader({
 					<span className="sr-only">{t("Close")}</span>
 				</Button>
 			</div>
-		</SheetHeader>
+
+			{chips ? (
+				<div
+					data-slot="record-chips"
+					className="flex min-w-0 flex-wrap items-center gap-2"
+				>
+					{chips}
+				</div>
+			) : null}
+		</div>
 	);
 }
 
-export function DetailSheetStats({ children }: { children: ReactNode }) {
-	return (
-		<dl className="grid shrink-0 grid-cols-2 border-b sm:flex sm:divide-x">
-			{children}
-		</dl>
-	);
-}
-
-export function DetailSheetStat({
-	label,
-	title,
+export function DetailSheetRecord({
+	rail,
 	children,
 }: {
-	label: ReactNode;
-	title?: string;
+	rail: ReactNode;
 	children: ReactNode;
 }) {
 	return (
-		<div className={cn("flex min-w-0 flex-col gap-1 py-4 sm:flex-1", GUTTER)}>
-			<dt className="text-pretty text-muted-foreground text-xs/5">{label}</dt>
-			<dd title={title} className="min-w-0 truncate text-foreground text-sm/5">
-				{children}
-			</dd>
+		<div className="@container/record flex min-h-0 flex-1 flex-col">
+			<div
+				data-slot="record-body"
+				className="flex min-h-0 flex-1 flex-col overflow-y-auto @3xl/record:grid @3xl/record:grid-cols-[300px_minmax(0,1fr)] @3xl/record:grid-rows-1 @3xl/record:overflow-hidden"
+			>
+				<aside
+					data-slot="record-rail"
+					className={cn(
+						"@container/record flex shrink-0 flex-col border-b pb-2 @3xl/record:min-h-0 @3xl/record:overflow-y-auto @3xl/record:border-r @3xl/record:border-b-0",
+						GUTTER,
+					)}
+				>
+					{rail}
+				</aside>
+				<div
+					data-slot="record-main"
+					className="@container/record flex min-w-0 shrink-0 flex-col @3xl/record:min-h-0"
+				>
+					{children}
+				</div>
+			</div>
 		</div>
+	);
+}
+
+export function DetailSheetGroup({
+	title,
+	action,
+	children,
+}: {
+	title: ReactNode;
+	action?: ReactNode;
+	children: ReactNode;
+}) {
+	return (
+		<section className="flex flex-col gap-1 border-b py-3 last:border-b-0">
+			<div className="flex h-7 items-center justify-between gap-3">
+				<MonoLabel>{title}</MonoLabel>
+				{action}
+			</div>
+			<div className="flex min-w-0 flex-col">{children}</div>
+		</section>
 	);
 }
 
@@ -206,18 +263,21 @@ export function DetailSheetTabs({
 	onValueChange: (value: string) => void;
 }) {
 	const [opened] = useState(() => new Set<string>());
-	opened.add(value);
+	const active = tabs.some((tab) => tab.value === value)
+		? value
+		: (tabs[0]?.value ?? value);
+	opened.add(active);
 
 	return (
 		<Tabs
-			value={value}
+			value={active}
 			onValueChange={onValueChange}
 			className="flex min-h-0 flex-1 flex-col gap-0"
 		>
 			<TabsList
 				variant="line"
 				className={cn(
-					"w-full shrink-0 justify-start gap-6 overflow-x-auto border-b",
+					"w-full shrink-0 flex-wrap justify-start gap-x-5 border-b",
 					GUTTER,
 				)}
 			>
@@ -230,9 +290,7 @@ export function DetailSheetTabs({
 					>
 						{tab.label}
 						{tab.count ? (
-							<span className="text-muted-foreground tabular-nums">
-								{tab.count}
-							</span>
+							<MonoLabel className="tabular-nums">{tab.count}</MonoLabel>
 						) : null}
 					</TabsTrigger>
 				))}
@@ -276,39 +334,25 @@ export function DetailSheetSection({
 	return (
 		<section
 			className={cn(
-				"space-y-2 border-b py-3 last:border-b-0",
+				"flex flex-col gap-2 border-b py-4 last:border-b-0",
 				GUTTER,
 				className,
 			)}
 		>
 			{title || action ? (
 				<div className="flex h-5 items-center justify-between gap-3">
-					{title ? <h3 className={SECTION_TITLE}>{title}</h3> : <span />}
+					{title ? (
+						<h3>
+							<MonoLabel>{title}</MonoLabel>
+						</h3>
+					) : (
+						<span />
+					)}
 					{action}
 				</div>
 			) : null}
 			{children}
 		</section>
-	);
-}
-
-export function DetailSheetSplit({ children }: { children: ReactNode }) {
-	return (
-		<div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-			{children}
-		</div>
-	);
-}
-
-export function DetailSheetMain({ children }: { children: ReactNode }) {
-	return <div className="flex min-w-0 flex-1 flex-col">{children}</div>;
-}
-
-export function DetailSheetRail({ children }: { children: ReactNode }) {
-	return (
-		<div className="flex w-full min-w-0 shrink-0 flex-col lg:w-80">
-			{children}
-		</div>
 	);
 }
 
@@ -320,7 +364,9 @@ export function DetailSheetProperties({
 	columns?: 1 | 2;
 }) {
 	return (
-		<div className={cn("grid gap-x-8", columns === 2 && "sm:grid-cols-2")}>
+		<div
+			className={cn("grid gap-x-8", columns === 2 && "@xl/record:grid-cols-2")}
+		>
 			{children}
 		</div>
 	);
@@ -338,7 +384,7 @@ export function DetailSheetPending({
 	if (fields.length === 0) return null;
 
 	return (
-		<div className="flex flex-col gap-2 rounded-md bg-muted/40 p-3">
+		<div className="my-3 flex flex-col gap-2 rounded-md bg-muted p-3">
 			<div className="flex items-center gap-2">
 				<span
 					aria-hidden
@@ -347,7 +393,7 @@ export function DetailSheetPending({
 						running ? "bg-foreground" : "bg-muted-foreground",
 					)}
 				/>
-				<span className="font-medium text-xs">
+				<span className="text-xs">
 					{running ? t("Agent is researching") : t("Not known yet")}
 				</span>
 			</div>
@@ -360,19 +406,19 @@ export function DetailSheetPending({
 
 export function DetailSheetProperty({
 	label,
+	icon,
 	wide = false,
 	children,
 }: {
 	label: ReactNode;
+	icon?: PropertyIcon;
 	wide?: boolean;
 	children: ReactNode;
 }) {
 	return (
-		<div className={cn(PROPERTY_ROW, "items-start", wide && "sm:col-span-2")}>
-			<span className={cn(PROPERTY_LABEL, PROPERTY_CELL, "text-xs/5")}>
-				{label}
-			</span>
-			<div className={cn(PROPERTY_CELL, "min-w-0 px-2 text-xs/5")}>
+		<div className={cn(PROPERTY_ROW, "items-center", wide && "col-span-full")}>
+			<PropertyLabel icon={icon}>{label}</PropertyLabel>
+			<div className={cn("min-w-0 px-2 py-1.5 text-2sm", !wide && "truncate")}>
 				{children}
 			</div>
 		</div>
@@ -381,7 +427,7 @@ export function DetailSheetProperty({
 
 export function DetailSheetProse({ children }: { children: ReactNode }) {
 	return (
-		<p className="text-pretty text-muted-foreground text-xs/5">{children}</p>
+		<p className="text-pretty text-body-foreground text-2sm/5">{children}</p>
 	);
 }
 

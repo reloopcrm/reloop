@@ -1,5 +1,6 @@
 "use client";
 
+import { MonoLabel } from "@crm/ui/components/mark";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { useT } from "@/lib/i18n/client";
 
@@ -22,13 +23,13 @@ export function AgentBuilderSidebarFallback() {
 	const t = useT();
 	return (
 		<aside
-			className="hidden w-(--container-sidebar) flex-none flex-col border-r p-4 md:flex"
+			className="hidden w-(--container-sidebar) flex-none flex-col border-r px-4 py-6 md:flex"
 			aria-busy="true"
 		>
-			<div className="flex h-7 items-center pl-2 font-medium text-xs">
-				{t("Chats")}
+			<div className="flex h-7 items-center">
+				<MonoLabel>{t("Chats")}</MonoLabel>
 			</div>
-			<div className="mt-3 space-y-2 px-2" aria-hidden="true">
+			<div className="mt-3 flex flex-col gap-2" aria-hidden="true">
 				<Skeleton className="h-2.5 w-16" />
 				<Skeleton className="h-7 w-full" />
 				<Skeleton className="h-7 w-full" />

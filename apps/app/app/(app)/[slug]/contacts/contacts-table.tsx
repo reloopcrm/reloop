@@ -62,7 +62,7 @@ const COLUMNS: LabeledColumn<ContactRow>[] = [
 					email={row.email}
 					size="sm"
 				/>
-				<span className="truncate text-foreground">{contactName(row)}</span>
+				<span className="truncate">{contactName(row)}</span>
 			</span>
 		),
 	},

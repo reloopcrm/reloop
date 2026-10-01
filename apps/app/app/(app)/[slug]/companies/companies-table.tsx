@@ -70,7 +70,7 @@ const COLUMNS: LabeledColumn<CompanyRow>[] = [
 					name={row.name}
 					size="sm"
 				/>
-				<span className="truncate text-foreground">{row.name}</span>
+				<span className="truncate">{row.name}</span>
 			</span>
 		),
 	},

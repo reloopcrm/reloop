@@ -110,3 +110,25 @@ export function blockMessages<M extends { id: string; sentAt: string }>(
 			new Date(two.sentAt).getTime() - new Date(one.sentAt).getTime(),
 	);
 }
+
+export function threadLayout<M extends { id: string }>(
+	messages: readonly M[],
+	options: {
+		olderShown: number;
+		showOlder: boolean;
+		openMessageId: string | null;
+	},
+) {
+	const [newest = null, ...older] = messages;
+	const reveal =
+		options.showOlder ||
+		older
+			.slice(options.olderShown)
+			.some((message) => message.id === options.openMessageId);
+
+	return {
+		newest,
+		older: reveal ? older : older.slice(0, options.olderShown),
+		hidden: reveal ? 0 : Math.max(0, older.length - options.olderShown),
+	};
+}

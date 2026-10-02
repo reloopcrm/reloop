@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { byDay } from "./timeline";
-import { blockMessages, blockRecords, toBlocks } from "./timeline-blocks";
+import {
+	blockMessages,
+	blockRecords,
+	threadLayout,
+	toBlocks,
+} from "./timeline-blocks";
 
 function email(id: string, thread: string, subject: string, at: string) {
 	return {
@@ -168,5 +173,44 @@ describe("a merged panel reads from newest to oldest across the block", () => {
 			[message("a1", "2026-08-10T09:00:00.000Z")],
 		]);
 		expect(merged).toHaveLength(1);
+	});
+});
+
+describe("threadLayout", () => {
+	const messages = blockMessages([
+		[
+			{ id: "m1", sentAt: "2026-09-10T09:00:00.000Z" },
+			{ id: "m2", sentAt: "2026-09-11T09:00:00.000Z" },
+			{ id: "m3", sentAt: "2026-09-12T09:00:00.000Z" },
+			{ id: "m4", sentAt: "2026-09-13T09:00:00.000Z" },
+			{ id: "m5", sentAt: "2026-09-14T09:00:00.000Z" },
+		],
+	]);
+	const closed = { olderShown: 2, showOlder: false, openMessageId: null };
+
+	it("puts the newest message on top and the older ones below, newest first", () => {
+		const layout = threadLayout(messages, closed);
+		expect(layout.newest?.id).toBe("m5");
+		expect(layout.older.map((one) => one.id)).toEqual(["m4", "m3"]);
+		expect(layout.hidden).toBe(2);
+	});
+
+	it("shows every older message in descending order once asked", () => {
+		const layout = threadLayout(messages, { ...closed, showOlder: true });
+		expect(layout.older.map((one) => one.id)).toEqual(["m4", "m3", "m2", "m1"]);
+		expect(layout.hidden).toBe(0);
+	});
+
+	it("reveals the oldest messages when a link opens one of them", () => {
+		const layout = threadLayout(messages, { ...closed, openMessageId: "m1" });
+		expect(layout.older.map((one) => one.id)).toEqual(["m4", "m3", "m2", "m1"]);
+		expect(layout.hidden).toBe(0);
+	});
+
+	it("holds only the newest message in a thread of one", () => {
+		const layout = threadLayout(messages.slice(0, 1), closed);
+		expect(layout.newest?.id).toBe("m5");
+		expect(layout.older).toEqual([]);
+		expect(layout.hidden).toBe(0);
 	});
 });

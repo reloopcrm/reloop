@@ -177,10 +177,28 @@ signed up in. The API stores and serves the value and does nothing else with it.
   draft call asks an OpenAI route for low reasoning effort (`DRAFT.providerOptions`),
   so reasoning leaves room for the email; an answer cut off at the limit fails at
   once with that reason instead of retrying.
-- **Stored text is not rewritten.** A summary or a unit the agent wrote before stays
-  in the language it was written in; only new runs follow the setting. The business
-  unit and description are edited by hand in Win back, Rules, because business setup
-  keeps a value that is already set.
+- **A thread summary follows the workspace, or else the thread.** `summaryLanguage()`
+  in `@crm/validation/agent-language` picks the language for the thread summary, the
+  message lines, the contact memory and its brief: the stored workspace language, else
+  German with `RELOOP_GERMAN`, else `conversation`, which tells the model to write in
+  the language the conversation uses. English is never a silent default for them.
+- **A summary records its language.** `ThreadInsight.language` and
+  `ContactMemory.language` hold the `summaryLanguage()` it was written for; null means
+  it was written before this was tracked. When a rep opens a thread, or a contact whose
+  memory is stale, the API compares that value with the wanted one and queues one
+  `thread-insight` reread at the backfill priority (`summaryRefreshNeeded` in
+  `agent-trigger.service.ts`). The sample data is never reread. A reread also rewrites
+  the contact memory in the wanted language. `bun run refresh-summaries` in `apps/api`
+  counts every stale summary of one install and queues them with `--apply`. Every
+  other stored text keeps the language it was written in. The business unit and
+  description are edited by hand in Win back, Rules, because business setup keeps a
+  value that is already set.
+- **The record sheet shows the brief, not the memory.** `ContactMemory.summary` is the
+  long running memory a draft and the win back list read, at most
+  `MEMORY.summaryMaxChars`. `ContactMemory.brief` is written in the same call, at most
+  `MEMORY.briefMaxChars`: where things stand, what is open, who acts next. The Activity
+  tab shows the brief, and falls back to the memory until a reread writes one. Both are
+  cut at a word, never inside one (`@crm/validation/summary-text`).
 
 ### Included AI
 

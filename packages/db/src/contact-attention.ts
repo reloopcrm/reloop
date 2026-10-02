@@ -142,6 +142,7 @@ export type AttentionDeal = {
 
 export type AttentionFacts = {
 	candidate: ReactivationCandidate | null;
+	brief: string | null;
 	insight: AttentionInsight | null;
 	unanswered: AttentionInsight | null;
 	signals: readonly ThreadSignal[];
@@ -417,7 +418,7 @@ export function attentionOf(facts: AttentionFacts): ContactAttention {
 	return {
 		kind,
 		name: candidate ? personName(candidate.contact) : null,
-		summary: candidate?.memory.summary?.trim() || null,
+		summary: facts.brief?.trim() || candidate?.memory.summary?.trim() || null,
 		quietDays: candidate?.quietDays ?? 0,
 		emails:
 			(candidate?.messagesFromThem ?? 0) + (candidate?.messagesFromUs ?? 0),
@@ -503,9 +504,13 @@ export async function readContactAttention(
 	const rules = options.rules ?? DEFAULT_WIN_BACK_RULES;
 	const contactId = options.contactId;
 
-	const [candidate, thread, unanswered, signals, task, deal] =
+	const [candidate, memory, thread, unanswered, signals, task, deal] =
 		await Promise.all([
 			readReactivationCandidate(db, { contactId, now, rules }),
+			db.contactMemory.findUnique({
+				where: { contactId },
+				select: { brief: true },
+			}),
 			newestReadThread(db, contactId, false),
 			newestReadThread(db, contactId, true),
 			db.threadInsight.findMany({
@@ -537,6 +542,7 @@ export async function readContactAttention(
 
 	return attentionOf({
 		candidate,
+		brief: memory?.brief ?? null,
 		signals,
 		rule: {
 			minPallets: rules.business.minPallets,

@@ -6,6 +6,7 @@ import {
 	THREAD_CLASSIFICATION,
 } from "@crm/db/insights";
 import { TYPESAFE } from "@crm/db/typesafe";
+import { clampAtWord } from "@crm/validation/summary-text";
 import {
 	readWinBackRules,
 	type WinBackRules,
@@ -15,7 +16,7 @@ import { z } from "zod";
 import { COPY } from "./copy";
 import { askJev, type JevAsk, type JevState, typesafeKey } from "./jev";
 import { countGate, countGateFailure } from "./jev-meter";
-import { language, say } from "./language";
+import { say, summaryLanguage, summaryWrittenIn } from "./language";
 import { directModel } from "./model";
 import { MODEL } from "./model-config";
 import { playbookPrompt, readPlaybook } from "./playbook";
@@ -23,6 +24,10 @@ import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
 function clamped(max: number) {
 	return z.string().transform((text) => text.slice(0, max));
+}
+
+function clampedAtWord(max: number) {
+	return z.string().transform((text) => clampAtWord(text, max));
 }
 
 function capped<T extends z.ZodType>(item: T, max: number) {
@@ -101,7 +106,7 @@ export const threadInsightSchema = z.object({
 const lenientInsightSchema = threadInsightSchema.extend({
 	topics: capped(clamped(60), 8),
 	products: capped(clamped(60), 8),
-	summary: clamped(MEMORY.threadSummaryMaxChars),
+	summary: clampedAtWord(MEMORY.threadSummaryMaxChars),
 	evidence: capped(
 		z.object({
 			quote: clamped(MEMORY.evidenceQuoteMaxChars),
@@ -112,7 +117,7 @@ const lenientInsightSchema = threadInsightSchema.extend({
 	messageSummaries: capped(
 		z.object({
 			message: z.number().int().min(1),
-			summary: clamped(MEMORY.messageSummaryMaxChars),
+			summary: clampedAtWord(MEMORY.messageSummaryMaxChars),
 		}),
 		MEMORY.messagesPerThread,
 	),
@@ -122,7 +127,7 @@ const lenientDigestSchema = threadDigestSchema.extend({
 	messageSummaries: capped(
 		z.object({
 			message: z.number().int().min(1),
-			summary: clamped(MEMORY.messageSummaryMaxChars),
+			summary: clampedAtWord(MEMORY.messageSummaryMaxChars),
 		}),
 		MEMORY.messagesPerThread,
 	),
@@ -150,10 +155,12 @@ const GATE_SKIPPED: ThreadVerdict = {
 
 const memorySchema = z.object({
 	summary: z.string().max(MEMORY.summaryMaxChars),
+	brief: z.string().max(MEMORY.briefMaxChars),
 });
 
 const lenientMemorySchema = z.object({
-	summary: clamped(MEMORY.summaryMaxChars),
+	summary: clampedAtWord(MEMORY.summaryMaxChars),
+	brief: clampedAtWord(MEMORY.briefMaxChars),
 });
 
 type ThreadRecord = {
@@ -362,6 +369,7 @@ async function classifyWithModel(
 	rules: WinBackRules,
 ): Promise<ThreadClassification> {
 	const model = await directModel("reading", "thread-insight");
+	const writtenIn = summaryWrittenIn();
 
 	const object = await askJson(
 		model,
@@ -374,11 +382,11 @@ async function classifyWithModel(
 			"DEAL_DONE means an order was confirmed, delivered or invoiced in this conversation.",
 			"OPEN_INQUIRY_THEIRS means they asked to buy or sell and no agreement was reached.",
 			"OPEN_OFFER_OURS means we offered and they did not answer.",
-			`Write the summary in ${language()}, at most three sentences, naming what was discussed and where it ended.`,
+			`Write the summary in ${writtenIn}, at most three sentences, naming what was discussed and where it ended.`,
 			"Every evidence quote is copied from one message and names the number of that message.",
-			`messageSummaries holds one ${language()} line for every numbered message, with its number, each at most 20 words.`,
+			`messageSummaries holds one line in ${writtenIn} for every numbered message, with its number, each at most 20 words.`,
 			"A message line never names its sender and never starts with WE or THEY. It starts with the verb.",
-			`A message line leaves out the greeting, the sign-off and the signature. Write a range with the ${language()} word for to, as in '800 to 1000', never with a dash.`,
+			"A message line leaves out the greeting, the sign-off and the signature. Write a range with the word for to in that language, as in '800 to 1000', never with a dash.",
 			await businessPrompt(rules),
 		].join("\n"),
 		untrusted(
@@ -396,7 +404,12 @@ async function refreshMemory(
 	added: { threadId: string; verdict: ThreadVerdict },
 ): Promise<void> {
 	const existing = await db.contactMemory.findUnique({ where: { contactId } });
-	if (existing?.coveredThreadIds.includes(added.threadId)) return;
+	const wanted = summaryLanguage();
+	const fresh =
+		existing !== null &&
+		existing.brief !== null &&
+		existing.language === wanted;
+	if (fresh && existing.coveredThreadIds.includes(added.threadId)) return;
 
 	const insights = await db.threadInsight.findMany({
 		where: { thread: { contactId }, relevant: true },
@@ -433,28 +446,40 @@ async function refreshMemory(
 	const lastOutcome = insights[0]?.outcome ?? null;
 
 	let summary = existing?.summary ?? "";
+	let brief = existing?.brief ?? null;
+	let language = existing?.language ?? null;
 	let modelId = existing?.modelId ?? null;
 
-	if (added.verdict.relevant) {
+	if (added.verdict.relevant || (!fresh && summary.length > 0)) {
 		const model = await directModel("reading", "contact-memory");
+		const writtenIn = summaryWrittenIn(wanted);
 		const object = await askJson(
 			model,
 			lenientMemorySchema,
 			[
 				"You maintain a short running memory about one business contact for a sales rep.",
-				`Keep it under ${MEMORY.summaryMaxChars} characters, in ${language()}, facts only: what they buy or sell, quantities, prices if stated, what was agreed, what is still open, how the relationship ended.`,
-				"Merge the new conversation into the existing memory. Drop nothing that still matters, repeat nothing.",
+				`summary: under ${MEMORY.summaryMaxChars} characters, in ${writtenIn}, facts only: what they buy or sell, quantities, prices if stated, what was agreed, what is still open, how the relationship ended.`,
+				"Merge the new conversation into the existing memory. Drop nothing that still matters, repeat nothing. Rewrite the existing memory in that language when it is written in another one.",
+				`brief: at most three short sentences and under ${MEMORY.briefMaxChars} characters, in ${writtenIn}, for a rep who opens this contact: where things stand, what is still open, and who acts next. One overall picture, never one sentence per conversation. Name a number only when the next step depends on it.`,
 				UNTRUSTED_RULE,
 				await businessPrompt(rules),
 			].join("\n"),
 			untrusted(
-				`Existing memory:\n${summary || "(empty)"}\n\nNew conversation (${added.verdict.outcome}):\n${added.verdict.summary}`,
+				added.verdict.relevant
+					? `Existing memory:\n${summary || "(empty)"}\n\nNew conversation (${added.verdict.outcome}):\n${added.verdict.summary}`
+					: `Existing memory:\n${summary}`,
 			),
 			memorySchema,
 		);
 		summary = object.summary;
+		brief = object.brief;
+		language = wanted;
 		modelId = model.modelId;
 	}
+
+	const coveredThreadIds = [
+		...new Set([...(existing?.coveredThreadIds ?? []), added.threadId]),
+	];
 
 	await db.contactMemory.upsert({
 		where: { contactId },
@@ -466,7 +491,9 @@ async function refreshMemory(
 			maxPallets,
 			products,
 			lastOutcome,
-			coveredThreadIds: [...(existing?.coveredThreadIds ?? []), added.threadId],
+			coveredThreadIds,
+			brief,
+			language,
 			modelId,
 		},
 		update: {
@@ -476,7 +503,9 @@ async function refreshMemory(
 			maxPallets,
 			products,
 			lastOutcome,
-			coveredThreadIds: [...(existing?.coveredThreadIds ?? []), added.threadId],
+			coveredThreadIds,
+			brief,
+			language,
 			modelId,
 		},
 	});
@@ -549,18 +578,21 @@ export async function runThreadInsight(
 
 		const { messageSummaries: _lines, evidence, ...row } = verdict;
 		const quoted = quotedMessages(thread, evidence);
+		const language = summaryLanguage();
 		await db.threadInsight.upsert({
 			where: { threadId },
 			create: {
 				threadId,
 				...row,
 				...quoted,
+				language,
 				modelId: result.modelId,
 				lastMessageAt: thread.lastMessageAt,
 			},
 			update: {
 				...row,
 				...quoted,
+				language,
 				modelId: result.modelId,
 				lastMessageAt: thread.lastMessageAt,
 			},
@@ -666,11 +698,11 @@ export async function runThreadDigest(threadId: string): Promise<string> {
 		[
 			"You read one email conversation and write one short line for each message.",
 			UNTRUSTED_RULE,
-			`Write every line in ${language()}, at most 20 words, in the present tense.`,
+			`Write every line in ${summaryWrittenIn()}, at most 20 words, in the present tense.`,
 			"A line never names its sender and never starts with WE or THEY. It starts with the verb.",
 			"Say what the message asks, offers, confirms or answers. Name quantities and products when the message names them.",
 			"Report only what the message says. Never invent a fact.",
-			`Leave out the greeting, the sign-off and the signature. Write a range with the ${language()} word for to, as in '800 to 1000', never with a dash.`,
+			"Leave out the greeting, the sign-off and the signature. Write a range with the word for to in that language, as in '800 to 1000', never with a dash.",
 			"Answer with one line for every numbered message, with its number.",
 		].join("\n"),
 		untrusted(

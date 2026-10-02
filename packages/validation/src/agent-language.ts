@@ -13,6 +13,24 @@ export function defaultAgentLanguage(
 	return german === "true" ? "de" : "en";
 }
 
+export const CONVERSATION_LANGUAGE = "conversation";
+
+export type SummaryLanguage = AgentLanguage | typeof CONVERSATION_LANGUAGE;
+
+export function summaryLanguage(
+	stored: AgentLanguage | null,
+	german: string | undefined,
+): SummaryLanguage {
+	return stored ?? (german === "true" ? "de" : CONVERSATION_LANGUAGE);
+}
+
+export function summaryIsStale(
+	written: string | null,
+	wanted: SummaryLanguage,
+): boolean {
+	return written !== wanted;
+}
+
 export function agentLanguageFlag(value: string): AgentLanguage {
 	const parsed = agentLanguage.safeParse(value);
 	if (!parsed.success) {

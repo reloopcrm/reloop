@@ -16,6 +16,11 @@ import {
 	readAgentFunctions,
 } from "@crm/validation/agent-functions";
 import {
+	readAgentLanguage,
+	summaryIsStale,
+	summaryLanguage,
+} from "@crm/validation/agent-language";
+import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskDraftPayload,
 	type AgentTaskOrigin,
@@ -180,6 +185,25 @@ export class AgentTriggerService {
 			},
 			data: { priority, reason },
 		});
+	}
+
+	async summaryRefreshNeeded(
+		threadId: string,
+		written: string | null,
+		german: string | undefined = process.env.RELOOP_GERMAN,
+	): Promise<boolean> {
+		if (isSampleRecordId(threadId)) return false;
+
+		const wanted = summaryLanguage(await readAgentLanguage(this.db), german);
+		if (!summaryIsStale(written, wanted)) return false;
+
+		await this.threadStored(
+			threadId,
+			"A summary was written in another language than the workspace's",
+			"backfill",
+			{ reread: true },
+		);
+		return true;
 	}
 
 	private async markReread(threadId: string): Promise<void> {

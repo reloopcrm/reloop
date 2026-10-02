@@ -24,7 +24,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { forwardLink } from "./forward-link";
 import type { TimelineAnchor } from "./timeline";
-import { blockMessages } from "./timeline-blocks";
+import { blockMessages, threadLayout } from "./timeline-blocks";
 import { TIMELINE } from "./timeline-config";
 import { RecordLinks, type TimelineEntryData } from "./timeline-entry";
 
@@ -154,15 +154,11 @@ function ThreadPanel({
 	const messages = blockMessages(
 		results.map((result) => result.data?.messages ?? []),
 	);
-	const newest = messages[0] ?? null;
-	const older = messages.slice(1).reverse();
-	const tucked = older.slice(
-		0,
-		Math.max(0, older.length - TIMELINE.thread.olderShown),
-	);
-	const showTucked =
-		showOlder || tucked.some((message) => message.id === openMessageId);
-	const shownOlder = showTucked ? older : older.slice(tucked.length);
+	const { newest, older, hidden } = threadLayout(messages, {
+		olderShown: TIMELINE.thread.olderShown,
+		showOlder,
+		openMessageId,
+	});
 	const summary =
 		results
 			.map((result) => result.data?.insight?.summary?.trim())
@@ -193,44 +189,6 @@ function ThreadPanel({
 				<div className="flex flex-col gap-1">
 					<p className="text-muted-foreground text-xs">{t("In short")}</p>
 					<p className="text-pretty text-foreground">{summary}</p>
-				</div>
-			) : null}
-
-			{older.length > 0 ? (
-				<div className="flex flex-col">
-					{tucked.length > 0 && !showTucked ? (
-						<Button
-							variant="ghost"
-							size="xs"
-							align="start"
-							onClick={() => setShowOlder(true)}
-						>
-							<Icon icon={ChevronDown} data-icon="inline-start" />
-							{tucked.length === 1
-								? t("Show 1 older mail")
-								: t("Show {count} older mails", { count: tucked.length })}
-						</Button>
-					) : null}
-					{shownOlder.map((message) => (
-						<ThreadMessage
-							key={message.id}
-							id={messageAnchorId(message.id)}
-							ref={anchorRef(message.id)}
-							collapsed={openMessageId !== message.id}
-							preview={
-								message.body
-									? emailPreview(message.body, TIMELINE.preview.maxChars)
-									: null
-							}
-							from={speaker(message, t)}
-							fromEmail={message.fromEmail}
-							fromImageUrl={message.fromImageUrl}
-							sentAt={<MessageTime date={message.sentAt} day={day} />}
-							direction={message.direction}
-							body={message.body}
-							size="reading"
-						/>
-					))}
 				</div>
 			) : null}
 
@@ -279,6 +237,44 @@ function ThreadPanel({
 									mailbox: newest.mailboxName ?? "",
 								})}
 							</a>
+						</Button>
+					) : null}
+				</div>
+			) : null}
+
+			{older.length > 0 ? (
+				<div className="flex flex-col">
+					{older.map((message) => (
+						<ThreadMessage
+							key={message.id}
+							id={messageAnchorId(message.id)}
+							ref={anchorRef(message.id)}
+							collapsed={openMessageId !== message.id}
+							preview={
+								message.body
+									? emailPreview(message.body, TIMELINE.preview.maxChars)
+									: null
+							}
+							from={speaker(message, t)}
+							fromEmail={message.fromEmail}
+							fromImageUrl={message.fromImageUrl}
+							sentAt={<MessageTime date={message.sentAt} day={day} />}
+							direction={message.direction}
+							body={message.body}
+							size="reading"
+						/>
+					))}
+					{hidden > 0 ? (
+						<Button
+							variant="ghost"
+							size="xs"
+							align="start"
+							onClick={() => setShowOlder(true)}
+						>
+							<Icon icon={ChevronDown} data-icon="inline-start" />
+							{hidden === 1
+								? t("Show 1 older mail")
+								: t("Show {count} older mails", { count: hidden })}
 						</Button>
 					) : null}
 				</div>

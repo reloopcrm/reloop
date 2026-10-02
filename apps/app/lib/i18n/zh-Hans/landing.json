@@ -231,15 +231,15 @@
 	"Reloop overview: sidebar, KPIs, closed won chart and deals in progress": "Reloop 概览：侧边栏、关键指标、成交图表和进行中的交易",
 	"Reloop Win back list: companies ranked by what happened in mail": "Reloop 赢回列表：按邮件中发生的事情排序的公司",
 	"Reloop contact sheet with the conversation summary and mail timeline": "Reloop 联系人页面，含对话摘要和邮件时间线",
-	"Reloop follow-up draft dialog over the Win back list": "Reloop 跟进草稿对话框，位于赢回列表之上",
 	"Reloop Contacts list": "Reloop 联系人列表",
 	"Reloop Companies list": "Reloop 公司列表",
-	"Reloop follow-up draft dialog with the change field": "Reloop 跟进草稿对话框，含修改输入框",
 	"Reloop contact record with the summary and the mail timeline": "Reloop 联系人记录，含摘要和邮件时间线",
 	"Reloop overview KPI cards": "Reloop 概览中的指标卡片",
 	"Reloop overview: closed won versus new pipeline chart": "Reloop 概览：成交与新增管道对比图",
 	"Reloop deals in progress": "Reloop 中进行中的交易",
 	"Reloop Win back table: companies ranked by potential": "Reloop 赢回表格：按潜力排序的公司",
 	"Reloop deals pipeline with three stages": "Reloop 交易管道，含三个阶段",
-	"Reloop Win back list, compact view": "Reloop 赢回列表，紧凑视图"
+	"Reloop Win back list, compact view": "Reloop 赢回列表，紧凑视图",
+	"Reloop Win back person: the story from the mail and the ready follow-up": "Reloop 赢回中的一位联系人：来自邮件的故事和已备好的跟进消息",
+	"Reloop follow-up card with the ready message": "Reloop 跟进卡片，消息已备好"
 }

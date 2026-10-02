@@ -49,14 +49,14 @@ export const SHOTS = {
 		"follow-up-draft": {
 			width: 1600,
 			height: 1000,
-			alt: "Reloop follow-up draft dialog over the Win back list",
+			alt: "Reloop Win back person: the story from the mail and the ready follow-up",
 		},
 		contacts: { width: 1600, height: 1000, alt: "Reloop Contacts list" },
 		companies: { width: 1600, height: 1000, alt: "Reloop Companies list" },
 		"follow-up-dialog": {
 			width: 1376,
 			height: 1348,
-			alt: "Reloop follow-up draft dialog with the change field",
+			alt: "Reloop follow-up card with the ready message",
 		},
 		"contact-record": {
 			width: 1600,

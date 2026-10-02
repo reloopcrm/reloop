@@ -19,8 +19,13 @@ import { DEFAULT_LOCALE, type Locale } from "@crm/db/locale";
 import { SAMPLE_DATA } from "@crm/db/sample-data";
 import { readReportingCurrency } from "@crm/db/settings";
 import { WORKSPACE_ID } from "@crm/db/workspace";
+import {
+	readAgentLanguage,
+	summaryLanguage,
+} from "@crm/validation/agent-language";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 import { type DemoCopy, demoCopy } from "./demo-copy";
+import { demoStory, STORY_TEXTS, type StoryThread } from "./demo-story";
 
 const DAY_MS = 86_400_000;
 
@@ -1727,12 +1732,13 @@ function contactsOf(): Map<string, ContactRef> {
 
 function signalOf(spec: ThreadSpec): ThreadSignal {
 	const lines = linesOf(spec);
+	const last = lines[lines.length - 1];
 	return {
 		relevant: true,
 		outcome: THREADS[spec.kind].outcome,
 		quantityPallets: spec.qty,
 		unansweredByUs:
-			lines[lines.length - 1]?.direction === EmailDirection.INBOUND,
+			last?.direction === EmailDirection.INBOUND && last.text.includes("?"),
 		products: [spec.product],
 		topics: [spec.product],
 	};
@@ -1962,7 +1968,7 @@ async function writeThread(
 	ref: ContactRef,
 	spec: ThreadSpec,
 	threadId: string,
-): Promise<Date> {
+): Promise<StoryThread> {
 	const template = THREADS[spec.kind];
 	const product = copy.t(spec.product);
 	const voice: Voice = {
@@ -2006,10 +2012,12 @@ async function writeThread(
 		update: threadData,
 	});
 
+	const messages: StoryThread["messages"] = [];
 	for (const [index, line] of lines.entries()) {
 		const outbound = line.direction === EmailDirection.OUTBOUND;
 		const body = copy.t(line.text, voice);
 		const messageId = id("msg", bare(threadId), index + 1);
+		messages.push({ id: messageId, direction: line.direction, body });
 		const data = {
 			threadId,
 			rfcMessageId: `<${messageId}@${ref.company.domain}>`,
@@ -2096,7 +2104,17 @@ async function writeThread(
 		update: activity,
 	});
 
-	return last;
+	return {
+		kind: spec.kind,
+		product: voice.product,
+		qty: voice.qty,
+		hasQty: spec.qty !== null,
+		ref: voice.ref,
+		subject,
+		endDaysAgo: spec.endDaysAgo,
+		lastAt: last,
+		messages,
+	};
 }
 
 async function writeShowcaseNotes(
@@ -2133,6 +2151,7 @@ async function writeConversations(
 	db: DemoDb,
 	owner: Owner,
 	contacts: Map<string, ContactRef>,
+	storyLanguage: string,
 ): Promise<void> {
 	const companyLast = new Map<string, Date>();
 
@@ -2141,12 +2160,14 @@ async function writeConversations(
 		if (!ref) throw new Error(`Unknown contact ${candidate.contact}`);
 
 		const threadIds: string[] = [];
+		const written: StoryThread[] = [];
 		let lastAt = new Date(0);
 		for (const [index, spec] of candidate.threads.entries()) {
 			const threadId = id("th", candidate.contact, index + 1);
 			threadIds.push(threadId);
-			const at = await writeThread(db, owner, ref, spec, threadId);
-			if (at > lastAt) lastAt = at;
+			const thread = await writeThread(db, owner, ref, spec, threadId);
+			written.push(thread);
+			if (thread.lastAt > lastAt) lastAt = thread.lastAt;
 		}
 
 		await db.emailThread.deleteMany({
@@ -2161,10 +2182,36 @@ async function writeConversations(
 			await writeShowcaseDraft(db, owner, ref, lastAt, threadIds.length);
 		}
 
+		const summary = copy.t(candidate.memory.summary, {
+			city: ref.company.city,
+		});
+		const storyId = id("story", candidate.contact);
+		const story = {
+			contactId: ref.id,
+			story: demoStory({
+				copy,
+				name: ref.person.first,
+				summary,
+				threads: written,
+			}),
+			language: storyLanguage,
+			modelId: DEMO.modelId,
+			basedOnUntil: lastAt,
+			basedOnCount: written.reduce(
+				(sum, thread) => sum + thread.messages.length,
+				0,
+			),
+		};
+		await db.contactStory.upsert({
+			where: { id: storyId },
+			create: { id: storyId, ...story },
+			update: story,
+		});
+
 		const memoryId = id("mem", candidate.contact);
 		const memory = {
 			contactId: ref.id,
-			summary: copy.t(candidate.memory.summary, { city: ref.company.city }),
+			summary,
 			didBusiness: candidate.memory.didBusiness,
 			openInquiries: candidate.memory.openInquiries,
 			maxPallets: candidate.memory.maxPallets,
@@ -2286,6 +2333,7 @@ export function demoTexts(): string[] {
 	}
 	texts.add(SHOWCASE_DRAFT.subject);
 	texts.add(SHOWCASE_DRAFT.body);
+	for (const text of Object.values(STORY_TEXTS)) texts.add(text);
 	return [...texts];
 }
 
@@ -2383,7 +2431,12 @@ export async function seedDemoData(
 	await writeCompanies(db, owner, verdicts);
 	await writeContacts(db, owner, contacts, verdicts);
 	await writeDeals(reader, db, owner, contacts);
-	await writeConversations(db, owner, contacts);
+	await writeConversations(
+		db,
+		owner,
+		contacts,
+		summaryLanguage(await readAgentLanguage(reader), process.env.RELOOP_GERMAN),
+	);
 	await writeVerdicts(db, owner, contacts);
 
 	return demoCounts(db);

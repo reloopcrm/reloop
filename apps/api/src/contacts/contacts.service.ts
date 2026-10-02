@@ -867,6 +867,16 @@ export class ContactsService {
 				stale:
 					since !== null &&
 					(stored.basedOnUntil === null || since > stored.basedOnUntil),
+				oneOff:
+					stored.oneOffSubject !== null &&
+					stored.oneOffBody !== null &&
+					stored.oneOffAt !== null
+						? {
+								subject: stored.oneOffSubject,
+								body: stored.oneOffBody,
+								writtenAt: stored.oneOffAt.toISOString(),
+							}
+						: null,
 			},
 		};
 	}

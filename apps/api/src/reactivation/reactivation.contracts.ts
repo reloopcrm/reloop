@@ -211,7 +211,10 @@ export const winBackPersonViewOutput = z.object({
 
 export type WinBackPersonViewOutput = z.infer<typeof winBackPersonViewOutput>;
 
-export const rereadStoryOutput = z.object({ queued: z.boolean() });
+export const rereadStoryOutput = z.object({
+	queued: z.boolean(),
+	retryAt: z.string().nullable(),
+});
 
 export const winBackNextInput = reactivationListInput.extend({
 	contactId: z.string().min(1),

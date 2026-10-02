@@ -680,7 +680,9 @@ marked passages and the follow-up delay. It writes nothing but an
   or does not parse. A missing row is not asked for again within
   `PERSON_VIEW.retryAfterMs` of a finished try, so a person with no business mail
   does not queue a task on every open. A row that does not parse is logged and
-  shown as no story. `reactivation.rereadStory` queues it with `reread: true`.
+  shown as no story. `reactivation.rereadStory` queues it with `reread: true`, but not
+  within `PERSON_VIEW.rereadPauseMs` of the last finished story; then it answers with
+  `retryAt` and queues nothing.
 - **A reference to a message that no longer exists is dropped on read**
   (`keepKnownMessages`). A message the story names but older than the newest
   `PERSON_VIEW.mails` is added to the list, so "where Reloop knows this from" always
@@ -694,7 +696,14 @@ marked passages and the follow-up delay. It writes nothing but an
   address and is read once per person, not on every poll while a story is written.
 - **A story past the plan's budget is held back, not an error.** `storyState.limitUntil`
   names the end of the usage window when the conversation budget, which stories share
-  (`budgetKinds`), is spent; the page shows the person without a story and says so.
+  (`budgetKinds`) and of which they leave the new-mail reserve alone, is spent. A story
+  task the agent postponed is not "queued" either: its `dueAt` is `limitUntil`, so the
+  page stops polling and shows the date.
+- **A verdict keeps its note** unless the call sends a new one, and a "bad" verdict
+  that turns into "good" or "later" brings the archived person and company back, the
+  same as taking it off.
+- **`contacts.draft` carries a one-off version beside the draft** (`oneOff`), written
+  by `writeDraft` with `oneOff: true`; the stored draft stays as suggested.
 - **`followUpDays` is null when the win back follow-up function is off**, so the page
   never promises a reminder the sweep will not write.
 - The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared

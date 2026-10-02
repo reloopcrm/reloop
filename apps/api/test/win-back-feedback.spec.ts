@@ -168,6 +168,25 @@ describe("taking a bad verdict back", () => {
 		expect(await verdicts([id])).toBe(0);
 	});
 
+	it("brings the person back when the verdict turns into another one", async () => {
+		const companyId = await archivedCompany("Wieder Firma");
+		const id = await archivedPerson("wieder", { companyId, verdict: "bad" });
+		await db.potentialFeedback.update({
+			where: { contactId: id },
+			data: { note: "Zu klein" },
+		});
+
+		await service.setFeedback(userId, { contactIds: [id], verdict: "good" });
+
+		expect(await contactArchivedAt(id)).toBeNull();
+		expect(await companyArchivedAt(companyId)).toBeNull();
+		const row = await db.potentialFeedback.findUniqueOrThrow({
+			where: { contactId: id },
+		});
+		expect(row.verdict).toBe("good");
+		expect(row.note).toBe("Zu klein");
+	});
+
 	it("leaves a person archived for another reason alone", async () => {
 		const companyId = await archivedCompany("Andere Firma");
 		const id = await archivedPerson("ohnegrund", { companyId });

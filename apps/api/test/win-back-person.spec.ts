@@ -276,6 +276,24 @@ describe("WinBackPersonService.person", () => {
 });
 
 describe("the story budget", () => {
+	it("shows a held task's date instead of reading", async () => {
+		const seeded = await setUp();
+		const dueAt = new Date(Date.now() + 5 * 86_400_000);
+		await db.agentTask.create({
+			data: {
+				contactId: seeded.contactId,
+				kind: "person-story",
+				reason: "held by the budget",
+				dueAt,
+			},
+		});
+
+		const view = await service.person(seeded.contactId);
+
+		expect(view.storyState.queued).toBe(false);
+		expect(view.storyState.limitUntil).toBe(dueAt.toISOString());
+	});
+
 	it("says until when the month's budget holds the story back", async () => {
 		const planBefore = await readPlan(db);
 		const seeded = await setUp();
@@ -382,11 +400,40 @@ describe("WinBackPersonService.next", () => {
 });
 
 describe("WinBackPersonService.rereadStory", () => {
+	it("waits a while after the last story before reading again", async () => {
+		const seeded = await setUp();
+		const finishedAt = new Date("2026-10-02T10:00:00.000Z");
+		await db.agentTask.create({
+			data: {
+				contactId: seeded.contactId,
+				kind: "person-story",
+				reason: "done",
+				dueAt: finishedAt,
+				finishedAt,
+			},
+		});
+
+		const soon = await service.rereadStory(
+			seeded.contactId,
+			new Date("2026-10-02T10:05:00.000Z"),
+		);
+		expect(soon.queued).toBe(false);
+		expect(soon.retryAt).toBe("2026-10-02T10:15:00.000Z");
+		expect(asked).toEqual([]);
+
+		const later = await service.rereadStory(
+			seeded.contactId,
+			new Date("2026-10-02T10:20:00.000Z"),
+		);
+		expect(later).toEqual({ queued: true, retryAt: null });
+	});
+
 	it("queues a re-read", async () => {
 		const seeded = await setUp();
 
 		expect(await service.rereadStory(seeded.contactId)).toEqual({
 			queued: true,
+			retryAt: null,
 		});
 		expect(asked).toEqual([{ contactId: seeded.contactId, reread: true }]);
 	});

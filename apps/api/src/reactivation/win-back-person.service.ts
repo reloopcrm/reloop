@@ -1,7 +1,12 @@
 import { type Db, DealStage } from "@crm/db";
 import type { InsightOutcome } from "@crm/db/insights";
 import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
-import { budgetKinds, monthlyBudget, STORY_KIND } from "@crm/db/plans";
+import {
+	budgetKinds,
+	forwardReserve,
+	monthlyBudget,
+	STORY_KIND,
+} from "@crm/db/plans";
 import {
 	listReactivationCandidates,
 	REACTIVATION,
@@ -163,11 +168,17 @@ export class WinBackPersonService {
 				(newestAt !== null &&
 					(contact.story.basedOnUntil === null ||
 						newestAt > contact.story.basedOnUntil)));
-		const queued = await this.queueStory(
-			contactId,
-			contact.story === null || stale,
-			newestAt,
-		);
+		const open = await this.openStory(contactId);
+		const heldUntil =
+			open !== null && open.dueAt.getTime() > Date.now() ? open.dueAt : null;
+		const queued =
+			open !== null
+				? heldUntil === null
+				: await this.queueStory(
+						contactId,
+						contact.story === null || stale,
+						newestAt,
+					);
 
 		const shown = new Set(newestMails.map((mail) => mail.id));
 		const older = stored.story
@@ -266,9 +277,10 @@ export class WinBackPersonService {
 				stale,
 				writtenAt: stored.writtenAt,
 				limitUntil:
-					!queued && (contact.story === null || stale)
+					heldUntil?.toISOString() ??
+					(!queued && (contact.story === null || stale)
 						? await this.storyLimitUntil()
-						: null,
+						: null),
 			},
 			brief: contact.memory?.brief ?? null,
 			timeline: [
@@ -307,7 +319,10 @@ export class WinBackPersonService {
 		};
 	}
 
-	async rereadStory(contactId: string): Promise<{ queued: boolean }> {
+	async rereadStory(
+		contactId: string,
+		now: Date = new Date(),
+	): Promise<{ queued: boolean; retryAt: string | null }> {
 		const contact = await this.db.contact.findUnique({
 			where: { id: contactId },
 			select: { id: true },
@@ -316,8 +331,24 @@ export class WinBackPersonService {
 			throw new NotFoundException(`No contact with id ${contactId}.`);
 		}
 
-		const queued = await this.agent.personStoryRequested(contactId, true);
-		return { queued: queued || (await this.storyQueued(contactId)) };
+		if (await this.openStory(contactId)) return { queued: true, retryAt: null };
+
+		const last = await this.db.agentTask.findFirst({
+			where: { contactId, kind: STORY_KIND, finishedAt: { not: null } },
+			orderBy: { finishedAt: "desc" },
+			select: { finishedAt: true },
+		});
+		const retryAt = last?.finishedAt
+			? new Date(last.finishedAt.getTime() + PERSON_VIEW.rereadPauseMs)
+			: null;
+		if (retryAt && retryAt > now) {
+			return { queued: false, retryAt: retryAt.toISOString() };
+		}
+
+		return {
+			queued: await this.agent.personStoryRequested(contactId, true),
+			retryAt: null,
+		};
 	}
 
 	private async storedStory(
@@ -344,7 +375,8 @@ export class WinBackPersonService {
 	}
 
 	private async storyLimitUntil(): Promise<string | null> {
-		const budget = monthlyBudget(STORY_KIND, await planLimitsOf(this.db));
+		const limits = await planLimitsOf(this.db);
+		const budget = monthlyBudget(STORY_KIND, limits);
 		if (budget === null) return null;
 
 		const { since, until } = await usageWindowOf(this.db);
@@ -354,15 +386,17 @@ export class WinBackPersonService {
 				createdAt: { gte: since },
 			},
 		});
-		return used >= budget ? until.toISOString() : null;
+		return used >= budget - forwardReserve(STORY_KIND, limits)
+			? until.toISOString()
+			: null;
 	}
 
-	private async storyQueued(contactId: string): Promise<boolean> {
-		const open = await this.db.agentTask.findFirst({
+	private openStory(contactId: string): Promise<{ dueAt: Date } | null> {
+		return this.db.agentTask.findFirst({
 			where: { contactId, kind: STORY_KIND, finishedAt: null },
-			select: { id: true },
+			orderBy: { dueAt: "asc" },
+			select: { dueAt: true },
 		});
-		return open !== null;
 	}
 
 	private async queueStory(
@@ -370,7 +404,6 @@ export class WinBackPersonService {
 		wanted: boolean,
 		newestAt: Date | null,
 	): Promise<boolean> {
-		if (await this.storyQueued(contactId)) return true;
 		if (!wanted || newestAt === null) return false;
 
 		const recent = await this.db.agentTask.findFirst({

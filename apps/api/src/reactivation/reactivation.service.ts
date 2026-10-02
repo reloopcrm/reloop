@@ -238,7 +238,7 @@ export class ReactivationService {
 				await tx.potentialFeedback.upsert({
 					where: { contactId },
 					create: { contactId, verdict, note: note ?? null, userId },
-					update: { verdict, userId, ...(note === undefined ? {} : { note }) },
+					update: { verdict, userId, note },
 					select: { contactId: true },
 				});
 			}

@@ -184,7 +184,7 @@ export const winBackPersonViewOutput = z.object({
 	lastContactAt: z.string(),
 	feedback: z.string().nullable(),
 	facts: z.object({
-		wonDeals: z.number(),
+		orders: z.number(),
 		maxPallets: z.number().nullable(),
 		products: z.array(z.string()),
 		unit: z.string(),

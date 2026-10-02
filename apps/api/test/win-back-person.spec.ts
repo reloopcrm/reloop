@@ -219,7 +219,7 @@ describe("WinBackPersonService.person", () => {
 		expect(ask?.marks).toEqual(["zwei Tage frei"]);
 		expect(ask?.unanswered).toBe(false);
 
-		expect(view.facts.wonDeals).toBe(1);
+		expect(view.facts.orders).toBe(1);
 		expect(view.timeline.map((entry) => entry.kind)).toEqual([
 			"order",
 			"mail",
@@ -227,6 +227,20 @@ describe("WinBackPersonService.person", () => {
 			"mail",
 		]);
 		expect(view.mailCount).toBe(3);
+	});
+
+	it("counts a thread the agent read as a done deal as an order", async () => {
+		const seeded = await setUp();
+		await db.threadInsight.updateMany({
+			where: { thread: { contactId: seeded.contactId } },
+			data: { outcome: "DEAL_DONE" },
+		});
+
+		const view = await service.person(seeded.contactId);
+
+		expect(
+			view.timeline.filter((entry) => entry.kind === "order"),
+		).toHaveLength(2);
 	});
 
 	it("asks the agent for a story when none is stored", async () => {

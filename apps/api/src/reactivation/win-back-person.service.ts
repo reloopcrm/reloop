@@ -1,4 +1,5 @@
 import { type Db, DealStage } from "@crm/db";
+import type { InsightOutcome } from "@crm/db/insights";
 import {
 	listReactivationCandidates,
 	REACTIVATION,
@@ -30,6 +31,8 @@ import type { WinBackPersonViewOutput } from "./reactivation.contracts";
 import { sortGroups } from "./win-back-groups";
 
 const STORY_KIND = "person-story";
+
+const DEAL_DONE = "DEAL_DONE" satisfies InsightOutcome;
 
 const NO_MAIL = "This person has no mail to win back from.";
 
@@ -133,6 +136,9 @@ export class WinBackPersonService {
 						evidence: true,
 						evidenceMessageIds: true,
 						unansweredByUs: true,
+						outcome: true,
+						lastMessageAt: true,
+						thread: { select: { subject: true } },
 					},
 				}),
 				this.db.emailThread.aggregate({
@@ -187,6 +193,21 @@ export class WinBackPersonService {
 				)
 			: null;
 
+		const orderEvents = [
+			...orders.map((deal) => ({
+				at: (deal.closedAt ?? deal.stageChangedAt).toISOString(),
+				kind: "order" as const,
+				label: deal.name,
+			})),
+			...insights
+				.filter((insight) => insight.outcome === DEAL_DONE)
+				.map((insight) => ({
+					at: insight.lastMessageAt.toISOString(),
+					kind: "order" as const,
+					label: insight.thread.subject ?? "",
+				})),
+		];
+
 		const marks = new Map<string, string[]>();
 		const mark = (messageId: string, text: string) => {
 			const list = marks.get(messageId) ?? [];
@@ -231,7 +252,7 @@ export class WinBackPersonService {
 			lastContactAt: candidate.lastContactAt.toISOString(),
 			feedback: candidate.feedback,
 			facts: {
-				wonDeals: orders.length,
+				orders: Math.max(orders.length, candidate.memory.didBusiness),
 				maxPallets: candidate.memory.maxPallets,
 				products: candidate.memory.products,
 				unit: rules.business.unit,
@@ -240,11 +261,7 @@ export class WinBackPersonService {
 			storyState: { queued, stale, writtenAt: stored.writtenAt },
 			brief: contact.memory?.brief ?? null,
 			timeline: [
-				...orders.map((deal) => ({
-					at: (deal.closedAt ?? deal.stageChangedAt).toISOString(),
-					kind: "order" as const,
-					label: deal.name,
-				})),
+				...orderEvents,
 				...ticks.map((tick) => ({
 					at: tick.sentAt.toISOString(),
 					kind: "mail" as const,

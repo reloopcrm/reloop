@@ -10,6 +10,7 @@ import {
 	requestScope,
 } from "@/cloud/scope.server";
 import { CheckoutBanner } from "@/cloud/slots";
+import { AgreementGate } from "@/cloud/slots.server";
 import { AppHeader, AppHeaderFallback } from "@/components/app-header";
 import { AppSidebar, AppSidebarFallback } from "@/components/app-sidebar";
 import { QuickSwitcher } from "@/components/crm/quick-switcher";
@@ -71,6 +72,10 @@ export default function AppLayout({
 
 				<Suspense fallback={null}>
 					<QuickSwitcher />
+				</Suspense>
+
+				<Suspense fallback={null}>
+					<AgreementGate />
 				</Suspense>
 
 				{demoOffered() ? (

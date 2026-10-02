@@ -676,7 +676,8 @@ itself. `CloudModule` (`cloud/cloud.module.ts`) is global and registered once in
 `AppModule`. Here it provides `NO_BILLING_PORT` with `useValue`, so every call is
 a no-op, and nothing else. The app's slots in `apps/app/cloud` are empty the same
 way: no billing page, no checkout, no marketing pages, no hosted routes
-(`HOSTED_ROUTES`), no danger zone on Settings, General (`DangerZone`), and `/`
+(`HOSTED_ROUTES`), no danger zone on Settings, General (`DangerZone`), no agreement prompt in the
+workspace layout (`AgreementGate`), and `/`
 sends a visitor to sign in, or a signed-in one to the workspace.
 
 The hosted Reloop Cloud adds the tenancy, billing and its marketing site from a

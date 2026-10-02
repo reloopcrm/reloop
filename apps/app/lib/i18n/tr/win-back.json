@@ -398,5 +398,9 @@
 	"Is something wrong in the story?": "Hikâyede yanlış bir şey mi var?",
 	"Tell Reloop": "Reloop'a söyle",
 	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop {name} ile e-postaları yeniden okuyamıyor. Hikâyeler kapalı ya da bunlar örnek veriler.",
-	"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.": "Planının bu ayki okuma bütçesi doldu. Reloop {name} kişisinin hikâyesini {date} tarihinden itibaren yazar."
+	"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.": "Planının bu ayki okuma bütçesi doldu. Reloop {name} kişisinin hikâyesini {date} tarihinden itibaren yazar.",
+	"Reloop has not written a shorter version.": "Reloop henüz daha kısa bir sürüm yazmadı.",
+	"The suggested version comes back. Your changes to the text are lost.": "Önerilen sürüm geri gelir. Metindeki değişikliklerin kaybolur.",
+	"Show the suggestion": "Öneriyi göster",
+	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop {name} ile e-postaları az önce okudu. {time} sonrasında yeniden iste."
 }

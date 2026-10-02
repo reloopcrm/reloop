@@ -54,6 +54,7 @@ import {
 
 const CARD_ID = "win-back-next-step";
 const LONG_DAY = { day: "numeric", month: "long", year: "numeric" } as const;
+const TIME = { hour: "2-digit", minute: "2-digit" } as const;
 
 type Tab = "story" | "mails";
 
@@ -203,6 +204,7 @@ function Gist({ view }: { view: PersonView }) {
 
 export function WinBackPerson({ contactId }: { contactId: string }) {
 	const t = useT();
+	const locale = useLocale();
 	const trpc = useTRPC();
 	const errorMessage = useErrorMessage();
 	const [tab, setTab] = useState<Tab>("story");
@@ -275,14 +277,24 @@ export function WinBackPerson({ contactId }: { contactId: string }) {
 					{
 						onSuccess: (result) =>
 							toast(
-								result.queued
-									? t("Thanks. Reloop reads the emails with {name} again.", {
-											name,
-										})
-									: t(
-											"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.",
-											{ name },
-										),
+								result.retryAt
+									? t(
+											"Reloop read the emails with {name} a moment ago. Ask again after {time}.",
+											{
+												name,
+												time: dateFormat(locale, TIME).format(
+													new Date(result.retryAt),
+												),
+											},
+										)
+									: result.queued
+										? t("Thanks. Reloop reads the emails with {name} again.", {
+												name,
+											})
+										: t(
+												"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.",
+												{ name },
+											),
 							),
 					},
 				);

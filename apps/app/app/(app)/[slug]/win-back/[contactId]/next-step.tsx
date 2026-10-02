@@ -61,7 +61,7 @@ const LONG_DAY = { day: "numeric", month: "long" } as const;
 
 type Variant = "full" | "short";
 
-type Verdict = "good" | "later" | null;
+type Verdict = "good" | "bad" | "later" | null;
 
 type Done =
 	| { kind: "later"; reminderId: string }
@@ -69,7 +69,9 @@ type Done =
 	| { kind: "sent"; previous: Verdict; marked: boolean };
 
 function verdictOf(value: string | null): Verdict {
-	return value === "good" || value === "later" ? value : null;
+	return value === "good" || value === "bad" || value === "later"
+		? value
+		: null;
 }
 
 function paragraphs(text: string): string[] {
@@ -98,14 +100,20 @@ export function useNextStep(view: PersonView, next: NextPerson) {
 	const [body, setBody] = useState<string | null>(null);
 	const [editing, setEditing] = useState(false);
 	const [variant, setVariant] = useState<Variant>("full");
-	const [suggested, setSuggested] = useState<string | null>(null);
 	const [asking, setAsking] = useState<Variant | null>(null);
 	const [done, setDone] = useState<Done | null>(null);
 
 	const draft = useEmailDraft(contactId, true);
 	const email = view.contact.email;
-	const subject = draft.draft?.subject ?? "";
-	const text = body ?? draft.draft?.body ?? "";
+	const shortVersion = draft.draft?.oneOff ?? null;
+	const shown =
+		variant === "short"
+			? shortVersion
+			: draft.draft
+				? { subject: draft.draft.subject, body: draft.draft.body }
+				: null;
+	const subject = shown?.subject ?? draft.draft?.subject ?? "";
+	const text = body ?? shown?.body ?? "";
 	const remindOn = new Date(Date.now() + days * WIN_BACK_UI.person.dayMs);
 	const remindText = dateFormat(locale, LONG_DAY).format(remindOn);
 
@@ -208,7 +216,7 @@ export function useNextStep(view: PersonView, next: NextPerson) {
 	const copy = () => copyText(`${subject}\n\n${text}`, t);
 
 	const send = () => {
-		if (!email || !draft.draft) return;
+		if (!email || !shown) return;
 		const href = mailtoHref(email, subject, text);
 		if (mailtoFits(href)) {
 			window.location.href = href;
@@ -236,11 +244,7 @@ export function useNextStep(view: PersonView, next: NextPerson) {
 
 	const changeVariant = (next: Variant) => {
 		if (next === variant || draft.blocked) return;
-		if (
-			body !== null &&
-			body !== (draft.draft?.body ?? "") &&
-			next === "short"
-		) {
+		if (body !== null && body !== (shown?.body ?? "")) {
 			setAsking(next);
 			return;
 		}
@@ -250,26 +254,23 @@ export function useNextStep(view: PersonView, next: NextPerson) {
 	const applyVariant = (next: Variant) => {
 		setAsking(null);
 		setEditing(false);
-		if (next === "short") {
-			setSuggested(draft.draft?.body ?? null);
-			setBody(null);
-			setVariant("short");
+		setBody(null);
+		setVariant(next);
+		if (next === "short" && !shortVersion) {
 			draft.write(WIN_BACK_UI.person.shorter, true);
-			return;
 		}
-		setVariant("full");
-		setBody(suggested);
 	};
 
 	const toggleEdit = () => {
 		if (editing) toast(t("Your change is kept for this message."));
-		if (!editing && body === null) setBody(draft.draft?.body ?? "");
+		if (!editing && body === null) setBody(shown?.body ?? "");
 		setEditing(!editing);
 	};
 
 	return {
 		view,
 		next,
+		shown,
 		step,
 		first,
 		days,
@@ -338,6 +339,13 @@ function DraftState({ step }: { step: NextStep }) {
 			</p>
 		);
 	}
+	if (step.variant === "short" && !step.shown) {
+		return (
+			<p className="text-muted-foreground text-sm">
+				{t("Reloop has not written a shorter version.")}
+			</p>
+		);
+	}
 	if (draft.failed) {
 		return (
 			<p className="text-muted-foreground text-sm">
@@ -377,7 +385,7 @@ function OpenMail({ step }: { step: NextStep }) {
 				</ToggleGroup>
 			</DraftCardMailHeader>
 			<DraftState step={step} />
-			{draft.draft && !draft.waiting ? (
+			{step.shown && !draft.waiting ? (
 				step.editing ? (
 					<Textarea
 						variant="draft"
@@ -464,13 +472,13 @@ function CardBody({ step }: { step: NextStep }) {
 				<DraftCardTitle>{t("Read it once, then send")}</DraftCardTitle>
 				<OpenMail step={step} />
 				<DraftCardActions>
-					<Button disabled={!draft.draft || draft.waiting} onClick={step.send}>
+					<Button disabled={!step.shown || draft.waiting} onClick={step.send}>
 						<MailIcon data-icon="inline-start" />
 						{t("Send")}
 					</Button>
 					<Button
 						variant="outline"
-						disabled={!draft.draft || draft.waiting}
+						disabled={!step.shown || draft.waiting}
 						onClick={step.toggleEdit}
 					>
 						{step.editing ? t("Done") : t("Edit text")}
@@ -577,9 +585,13 @@ export function NextStepCard({ step, id }: { step: NextStep; id: string }) {
 					<AlertDialogHeader>
 						<AlertDialogTitle>{t("Discard your changes?")}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{t(
-								"Reloop writes a shorter version from the suggestion. Your changes to the text are lost.",
-							)}
+							{step.asking === "full"
+								? t(
+										"The suggested version comes back. Your changes to the text are lost.",
+									)
+								: t(
+										"Reloop writes a shorter version from the suggestion. Your changes to the text are lost.",
+									)}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
@@ -587,7 +599,9 @@ export function NextStepCard({ step, id }: { step: NextStep; id: string }) {
 						<AlertDialogAction
 							onClick={() => step.asking && step.applyVariant(step.asking)}
 						>
-							{t("Write shorter")}
+							{step.asking === "full"
+								? t("Show the suggestion")
+								: t("Write shorter")}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -636,7 +650,7 @@ export function NextStepBar({
 			<ActionBar>
 				<Button
 					size="lg"
-					disabled={!draft.draft || draft.waiting}
+					disabled={!step.shown || draft.waiting}
 					onClick={step.send}
 				>
 					<MailIcon data-icon="inline-start" />

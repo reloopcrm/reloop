@@ -86,7 +86,10 @@ export function WinBackVerdictMenu({
 		}),
 	);
 	const single = contactIds.length === 1;
-	const previous = verdict === "good" || verdict === "later" ? verdict : null;
+	const previous =
+		verdict === "good" || verdict === "bad" || verdict === "later"
+			? verdict
+			: null;
 
 	const days = WIN_BACK_UI.remindLater.afterDays;
 

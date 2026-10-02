@@ -398,5 +398,9 @@
 	"Is something wrong in the story?": "Quelque chose cloche dans l'histoire ?",
 	"Tell Reloop": "Dis-le à Reloop",
 	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop ne peut pas relire les e-mails avec {name}. Les histoires sont désactivées, ou ce sont des données d'exemple.",
-	"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.": "Le budget de lecture de ton forfait est épuisé pour ce mois. Reloop écrit l'histoire de {name} à partir du {date}."
+	"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.": "Le budget de lecture de ton forfait est épuisé pour ce mois. Reloop écrit l'histoire de {name} à partir du {date}.",
+	"Reloop has not written a shorter version.": "Reloop n'a pas encore écrit de version plus courte.",
+	"The suggested version comes back. Your changes to the text are lost.": "La version proposée revient. Tes modifications du texte sont perdues.",
+	"Show the suggestion": "Afficher la proposition",
+	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop vient de lire les e-mails avec {name}. Redemande après {time}."
 }

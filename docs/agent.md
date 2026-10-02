@@ -275,10 +275,10 @@ make one direct model call to read the homepage it fetched, which is not a sessi
 not a conversation; with no provider it falls back to the page's own metadata rather
 than failing.
 
-**Priority**: `brand` 900 · `portrait` 800 · `threadRefresh` 750 · `threadInsight` 700 · `workspace` 500 ·
+**Priority**: `personStory` 960 · `brand` 900 · `portrait` 800 · `threadRefresh` 750 · `threadInsight` 700 · `workspace` 500 ·
 `requested` 300 · `meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 ·
-`threadInsightBackfill` 10 · `recheck` 0. The top two are what a rep reads *before*
-deciding what to open.
+`threadInsightBackfill` 10 · `recheck` 0. `brand` and `portrait` are what a rep reads
+*before* deciding what to open; `personStory` is what a rep waits for after opening.
 
 **`company-profile` runs only when a rep asks.** Nothing queues it on its own: a new
 company, an email-domain company, a changed domain and the sign-in backfill queue
@@ -1317,6 +1317,34 @@ in 24 hours. The numbers are `MAILBOX_PROFILE` in `agent/lib/mailbox-config.ts`.
 - **Read it with `currentMailboxProfile()`** in `agent/lib/mailbox-stats.ts`. It returns
   the parsed profile or `null`. `senderKind(email)` is the one freemail, role or work
   classifier on the agent side.
+
+## A win back story is written when a rep opens the person
+
+`person-story` (`lib/person-story.ts`) writes what happened with one quiet customer:
+a gist of at most two sentences, what you did together, when and why it stopped with
+one quote of theirs, and what can bring them back with up to four points. The shape is
+`@crm/validation/person-story`, stored in `ContactStory.story`, one row per contact.
+
+- **Only the API's person view queues it**, when a rep opens the person in Win back
+  and the row is missing, written in another language, or older than the newest mail.
+  "Sag es Reloop" queues it with `reread: true`; the prompt then carries the old story
+  and says the rep rejected it. Nothing sweeps every win back candidate.
+- **Every part names the messages it is built on.** The model answers with the numbers
+  of the transcript, `storyFromAnswer` (`lib/story-prompt.ts`) turns them into message
+  ids, and a part that names no existing message is stored as null. A quote or a
+  passage is kept only when it is in that message, compared without case, spacing or
+  quote marks. Nothing the mail does not say reaches the page.
+- **The mail is the relevant threads of the contact**, or the ones not read yet, at
+  most `STORY.threads`, `STORY.messages` and `STORY.transcriptMaxChars`
+  (`lib/story-config.ts`), quoted history cut, oldest first, wrapped in
+  `untrusted()`. Deals of the contact and of its company and the contact memory go in
+  beside it.
+- **The language is `summaryLanguage()`**, like the thread summaries. A quote stays in
+  the language of the mail. A spaced dash in the text becomes a comma.
+- **`basedOnUntil` is the newest mail of the contact, read before the model call**, so
+  mail that arrives during the call makes the story stale, not covered.
+- **It has no monthly limit of its own.** One model call per opened person, and only
+  again after new mail or a re-read.
 
 ## Tests
 

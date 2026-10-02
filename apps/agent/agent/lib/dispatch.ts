@@ -6,6 +6,7 @@ import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	readAgentTaskInstruction,
 	readAgentTaskReread,
+	readAgentTaskStoryReread,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
@@ -55,6 +56,7 @@ import {
 	readProviderFailure,
 	resumeAt,
 } from "./model";
+import { runPersonStory } from "./person-story";
 import {
 	fixedAi,
 	limitOutcome,
@@ -91,6 +93,7 @@ export const RESEARCH_LEASE_MS = DISPATCH.research.leaseMs;
 
 const INSIGHT_KIND = "thread-insight";
 const REFRESH_KIND = "thread-refresh";
+const STORY_KIND = "person-story";
 const MODEL_KINDS = new Set([
 	INSIGHT_KIND,
 	"thread-digest",
@@ -100,6 +103,7 @@ const MODEL_KINDS = new Set([
 	"email-draft",
 	"business-setup",
 	DEAL_STALL_KIND,
+	STORY_KIND,
 ]);
 const VISIBLE_KINDS = DIRECT_KINDS.filter(
 	(kind) =>
@@ -452,6 +456,27 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 			await postponeTask(task.id, until);
 			console.error(
 				`[agent] a draft waits until ${until.toISOString()}: the usage limit is reached`,
+			);
+		}
+		return;
+	}
+
+	if (task.kind === STORY_KIND && task.contactId) {
+		try {
+			await completeTask(
+				task.id,
+				await runPersonStory(
+					task.contactId,
+					readAgentTaskStoryReread(task.payload),
+				),
+			);
+		} catch (error) {
+			const until = await resumeAt();
+			if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+			await postponeTask(task.id, until);
+			console.error(
+				`[agent] a story waits until ${until.toISOString()}: the usage limit is reached`,
 			);
 		}
 		return;

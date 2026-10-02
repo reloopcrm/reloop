@@ -200,7 +200,7 @@ function transcript(thread: ThreadRecord): string {
 		.join("\n\n---\n\n");
 }
 
-async function businessPrompt(rules: WinBackRules): Promise<string> {
+export async function businessPrompt(rules: WinBackRules): Promise<string> {
 	return [
 		rules.business.description
 			? `The workspace's business: ${rules.business.description}`

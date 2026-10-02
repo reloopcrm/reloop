@@ -16,13 +16,17 @@ import {
 	reactivationListInput,
 	reactivationListOutput,
 	readingProgressOutput,
+	rereadStoryOutput,
 	setPotentialFeedbackInput,
 	setWinBackRulesInput,
 	setWinBackRulesModeInput,
+	winBackPersonViewInput,
+	winBackPersonViewOutput,
 	winBackRulesOutput,
 	winBackRulesStateOutput,
 } from "./reactivation.contracts";
 import { ReactivationService } from "./reactivation.service";
+import { WinBackPersonService } from "./win-back-person.service";
 
 @Router({ alias: "reactivation" })
 @UseMiddlewares(AuthMiddleware)
@@ -30,7 +34,29 @@ export class ReactivationRouter {
 	constructor(
 		@Inject(ReactivationService)
 		private readonly reactivation: ReactivationService,
+		@Inject(WinBackPersonService)
+		private readonly people: WinBackPersonService,
 	) {}
+
+	@Query({
+		input: winBackPersonViewInput,
+		output: winBackPersonViewOutput,
+		meta: restMeta("GET", "/reactivation/people/{contactId}", ["Reactivation"]),
+	})
+	async person(@Input("contactId") contactId: string) {
+		return this.people.person(contactId);
+	}
+
+	@Mutation({
+		input: winBackPersonViewInput,
+		output: rereadStoryOutput,
+		meta: restMeta("POST", "/reactivation/people/{contactId}/reread", [
+			"Reactivation",
+		]),
+	})
+	async rereadStory(@Input("contactId") contactId: string) {
+		return this.people.rereadStory(contactId);
+	}
 
 	@Query({
 		input: reactivationListInput,

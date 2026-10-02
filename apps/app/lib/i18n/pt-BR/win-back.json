@@ -332,5 +332,6 @@
 	"Quiet for {count} days": "Em silêncio há {count} dias",
 	"Show the people at {name}": "Mostrar as pessoas de {name}",
 	"{read} conversations read, {relevant} about your business. The list updates when new mail arrives.": "{read} conversas lidas, {relevant} sobre o seu negócio. A lista se atualiza quando chega e-mail novo.",
-	"Continued": "Continuação"
+	"Continued": "Continuação",
+	"This person has no mail to win back from.": "Não há e-mails com esta pessoa a partir dos quais reconquistá-la."
 }

@@ -5,11 +5,17 @@ import { ReactivationRouter } from "./reactivation.router";
 import { ReactivationService } from "./reactivation.service";
 import { WinBackFollowUpController } from "./win-back-follow-up.controller";
 import { WinBackFollowUpService } from "./win-back-follow-up.service";
+import { WinBackPersonService } from "./win-back-person.service";
 
 @Module({
 	imports: [TrpcModule, AgentModule],
 	controllers: [WinBackFollowUpController],
-	providers: [ReactivationService, ReactivationRouter, WinBackFollowUpService],
+	providers: [
+		ReactivationService,
+		ReactivationRouter,
+		WinBackFollowUpService,
+		WinBackPersonService,
+	],
 	exports: [WinBackFollowUpService],
 })
 export class ReactivationModule {}

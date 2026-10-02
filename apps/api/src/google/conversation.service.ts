@@ -4,6 +4,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { z } from "zod";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
+import { mailboxLinkOf } from "../mailbox/mailbox-link";
 
 const storedRecipient = z.object({
 	email: z.string(),
@@ -87,14 +88,7 @@ export class ConversationService {
 				sentAt: message.sentAt.toISOString(),
 				recipients: recipientsOf(message.recipients),
 				fromImageUrl: faces.get(message.fromEmail.toLowerCase()) ?? null,
-				mailboxUrl: message.gmailMessageId
-					? `https://mail.google.com/mail/u/0/#all/${message.gmailMessageId}`
-					: message.outlookWebLink,
-				mailboxName: message.gmailMessageId
-					? "Gmail"
-					: message.outlookWebLink
-						? "Outlook"
-						: null,
+				...mailboxLinkOf(message),
 			})),
 		};
 	}

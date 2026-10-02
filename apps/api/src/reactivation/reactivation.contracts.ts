@@ -1,4 +1,5 @@
 import { REACTIVATION } from "@crm/db/reactivation";
+import { personStory } from "@crm/validation/person-story";
 import { winBackRules } from "@crm/validation/win-back-rules";
 import { z } from "zod";
 
@@ -142,3 +143,72 @@ export const setWinBackRulesModeInput = z.object({
 });
 
 export type WinBackRulesState = z.infer<typeof winBackRulesStateOutput>;
+
+export const winBackPersonViewInput = z.object({
+	contactId: z.string().min(1),
+});
+
+const personMail = z.object({
+	id: z.string(),
+	threadId: z.string(),
+	subject: z.string().nullable(),
+	direction: z.enum(["INBOUND", "OUTBOUND"]),
+	fromName: z.string().nullable(),
+	fromEmail: z.string(),
+	sentAt: z.string(),
+	body: z.string().nullable(),
+	summary: z.string().nullable(),
+	mailboxUrl: z.string().nullable(),
+	mailboxName: z.string().nullable(),
+	marks: z.array(z.string()),
+	key: z.boolean(),
+	unanswered: z.boolean(),
+});
+
+export const winBackPersonViewOutput = z.object({
+	contact: z.object({
+		id: z.string(),
+		firstName: z.string(),
+		lastName: z.string().nullable(),
+		email: z.string().nullable(),
+		title: z.string().nullable(),
+		imageUrl: z.string().nullable(),
+		company: z
+			.object({ id: z.string(), name: z.string(), city: z.string().nullable() })
+			.nullable(),
+	}),
+	potential: winBackBand.nullable(),
+	waitingOnUs: z.boolean(),
+	quietDays: z.number(),
+	firstContactAt: z.string(),
+	lastContactAt: z.string(),
+	feedback: z.string().nullable(),
+	facts: z.object({
+		wonDeals: z.number(),
+		maxPallets: z.number().nullable(),
+		products: z.array(z.string()),
+		unit: z.string(),
+	}),
+	story: personStory.nullable(),
+	storyState: z.object({
+		queued: z.boolean(),
+		stale: z.boolean(),
+		writtenAt: z.string().nullable(),
+	}),
+	brief: z.string().nullable(),
+	timeline: z.array(
+		z.object({
+			at: z.string(),
+			kind: z.enum(["order", "mail"]),
+			label: z.string(),
+		}),
+	),
+	mails: z.array(personMail),
+	mailCount: z.number(),
+	next: z.object({ id: z.string(), name: z.string() }).nullable(),
+	followUpDays: z.number().nullable(),
+});
+
+export type WinBackPersonViewOutput = z.infer<typeof winBackPersonViewOutput>;
+
+export const rereadStoryOutput = z.object({ queued: z.boolean() });

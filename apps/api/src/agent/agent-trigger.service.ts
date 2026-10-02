@@ -9,6 +9,7 @@ import {
 	allowsCompanyResearch,
 	budgetKinds,
 	forwardReserve,
+	keepsReserve,
 	monthlyBudget,
 } from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
@@ -703,8 +704,9 @@ export class AgentTriggerService {
 
 		const budget = monthlyBudget(kind, limits);
 		if (budget === null) return true;
-		const ceiling =
-			origin === "backfill" ? budget - forwardReserve(kind, limits) : budget;
+		const ceiling = keepsReserve(kind, origin)
+			? budget - forwardReserve(kind, limits)
+			: budget;
 
 		const { since } = await usageWindowOf(this.db);
 		const used = await this.db.agentTask.count({

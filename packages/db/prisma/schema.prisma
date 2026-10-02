@@ -1376,6 +1376,10 @@ model EmailDraft {
   basedOnUntil DateTime?
   basedOnCount Int       @default(0)
 
+  oneOffSubject String?
+  oneOffBody    String?
+  oneOffAt      DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -13,6 +13,7 @@ import {
 	forwardReserve,
 	INSIGHT_KIND,
 	isPlanId,
+	keepsReserve,
 	LEGACY_PLAN_IDS,
 	limitsOf,
 	monthlyBudget,
@@ -379,7 +380,13 @@ describe("a win back story", () => {
 		expect(budgetKinds(DRAFT_KIND)).toEqual([DRAFT_KIND]);
 	});
 
-	it("keeps no backfill reserve", () => {
-		expect(forwardReserve(STORY_KIND, PLANS.trial)).toBe(0);
+	it("leaves the reserve for new mail alone, like a backfill", () => {
+		expect(forwardReserve(STORY_KIND, PLANS.trial)).toBe(
+			forwardReserve(INSIGHT_KIND, PLANS.trial),
+		);
+		expect(keepsReserve(STORY_KIND, "forward")).toBe(true);
+		expect(keepsReserve(INSIGHT_KIND, "forward")).toBe(false);
+		expect(keepsReserve(INSIGHT_KIND, "backfill")).toBe(true);
+		expect(keepsReserve(DRAFT_KIND, "forward")).toBe(false);
 	});
 });

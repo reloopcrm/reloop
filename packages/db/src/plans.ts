@@ -339,9 +339,13 @@ export const PLAN_RESERVE = { insightForwardShare: 0.2 } as const;
 
 export function forwardReserve(kind: string, limits: PlanLimits): number {
 	const budget = monthlyBudget(kind, limits);
-	if (budget === null || kind !== INSIGHT_KIND) return 0;
+	if (budget === null || !budgetKinds(INSIGHT_KIND).includes(kind)) return 0;
 
 	return Math.ceil(budget * PLAN_RESERVE.insightForwardShare);
+}
+
+export function keepsReserve(kind: string, origin: string): boolean {
+	return kind === STORY_KIND || origin === "backfill";
 }
 
 export function nextMonthStart(now: Date = new Date()): Date {

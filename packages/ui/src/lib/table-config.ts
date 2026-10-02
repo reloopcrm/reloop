@@ -36,6 +36,19 @@ export function fitColumnWidths(
 	return sizes.map((size) => Math.floor(size * scale));
 }
 
+export function pageAfterEnd(state: {
+	page: number;
+	pageSize: number;
+	total: number;
+	rows: number;
+	loading: boolean;
+}): number | null {
+	const lastPage = Math.max(1, Math.ceil(state.total / state.pageSize));
+	if (state.loading || state.rows > 0 || state.total === 0) return null;
+
+	return state.page > lastPage ? lastPage : null;
+}
+
 export function pageWindow(page: number, totalPages: number): number[] {
 	const { siblings } = TABLE.pager;
 	const pages = new Set<number>([1, totalPages]);

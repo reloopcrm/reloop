@@ -34,10 +34,15 @@ import {
 	TableHeader,
 	TableRow,
 } from "@crm/ui/components/table";
+import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import type { TableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useUiT } from "@crm/ui/lib/i18n";
 import { insideRow } from "@crm/ui/lib/row-click";
-import { fitColumnWidths, TABLE } from "@crm/ui/lib/table-config";
+import {
+	fitColumnWidths,
+	pageAfterEnd,
+	TABLE,
+} from "@crm/ui/lib/table-config";
 import type { TableQueryState } from "@crm/ui/lib/table-query";
 import { cn } from "@crm/ui/lib/utils";
 import {
@@ -427,6 +432,11 @@ function ColumnsMenu<TRow>({
 	);
 }
 
+function GoToPage({ go }: { go: () => void }) {
+	useMountEffect(go);
+	return null;
+}
+
 function SelectionBar({
 	count,
 	actions,
@@ -562,6 +572,13 @@ export function DataTable<TRow, TSub = unknown>({
 	const selecting = selection != null && selection.state.count > 0;
 
 	const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
+	const lastPage = pageAfterEnd({
+		page: query.page,
+		pageSize: query.pageSize,
+		total,
+		rows: deferredRows.length,
+		loading: loading ?? false,
+	});
 
 	const availableFacets = useMemo(
 		() => availableFacetsOf(facets, query.filters),
@@ -1045,7 +1062,15 @@ export function DataTable<TRow, TSub = unknown>({
 				</Table>
 				{deferredRows.length === 0 ? (
 					<div className="flex min-h-40 flex-col items-center justify-center gap-2 border-b px-4 py-8 text-center text-2sm text-muted-foreground">
-						{loading ? (
+						{lastPage !== null ? (
+							<GoToPage
+								key={`${query.page}:${lastPage}`}
+								go={() => {
+									void query.setPage(lastPage);
+								}}
+							/>
+						) : null}
+						{loading || lastPage !== null ? (
 							<Spinner />
 						) : filtering ? (
 							<>

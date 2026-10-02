@@ -1,6 +1,11 @@
 import { describe, expect, it, mock } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { fitColumnWidths, pageWindow, TABLE } from "../lib/table-config";
+import {
+	fitColumnWidths,
+	pageAfterEnd,
+	pageWindow,
+	TABLE,
+} from "../lib/table-config";
 
 const parser = { withDefault: (value: unknown) => value };
 
@@ -209,6 +214,37 @@ describe("fitColumnWidths", () => {
 	it("never asks for more room than there is, even below the minimum", () => {
 		const widths = fitColumnWidths(400, [200, 200, 200, 200, 200]);
 		expect(sum(widths)).toBeLessThanOrEqual(400 - TABLE.column.primaryMinPx);
+	});
+});
+
+describe("a page past the end", () => {
+	const state = { page: 4, pageSize: 25, total: 75, rows: 0, loading: false };
+
+	it("goes to the last page that still has rows", () => {
+		expect(pageAfterEnd(state)).toBe(3);
+		expect(pageAfterEnd({ ...state, page: 9, total: 1 })).toBe(1);
+	});
+
+	it("stays while rows show, while loading and when the list is empty", () => {
+		expect(pageAfterEnd({ ...state, rows: 1 })).toBeNull();
+		expect(pageAfterEnd({ ...state, loading: true })).toBeNull();
+		expect(pageAfterEnd({ ...state, total: 0 })).toBeNull();
+		expect(pageAfterEnd({ ...state, page: 3 })).toBeNull();
+	});
+
+	it("shows a spinner, not the empty text, until the page moves", () => {
+		const markup = renderToStaticMarkup(
+			<DataTable
+				query={{ ...query, page: 4 }}
+				columns={[{ id: "name", header: "Name", cell: () => "x" }]}
+				rows={[]}
+				total={75}
+				getRowId={() => "1"}
+				empty="Nobody here"
+			/>,
+		);
+
+		expect(markup).not.toContain("Nobody here");
 	});
 });
 

@@ -118,7 +118,7 @@ export function threadLayout<M extends { id: string }>(
 		showOlder: boolean;
 		openMessageId: string | null;
 	},
-): { newest: M | null; older: M[]; hidden: number } {
+) {
 	const [newest = null, ...older] = messages;
 	const reveal =
 		options.showOlder ||

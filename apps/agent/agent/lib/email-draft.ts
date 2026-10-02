@@ -310,6 +310,7 @@ async function revise(
 	person: DraftRecipient,
 	instruction: string,
 	buildModel: typeof directModel,
+	oneOff: boolean,
 ): Promise<string> {
 	const current = await db.emailDraft.findUnique({
 		where: { contactId: person.id },
@@ -331,10 +332,16 @@ async function revise(
 		"Keep everything he did not complain about.",
 		"A price, a quantity, a quality class or a date he writes goes into the email exactly as he wrote it. Never round it, never widen it into a range, never invent a second number beside it.",
 		"Write a price the way the email's language does, in German '5,00 € zzgl. MwSt.'.",
-		"Then decide whether his wish is a lasting rule for every future email, or whether it only fits this one email.",
-		`A lasting rule goes into styleRule, in ${language()}, as one short sentence under ${DRAFT_STYLE.ruleMaxChars} characters.`,
-		"Set styleRule to null when the wish only fits this one email, for example a name, a quantity or a date.",
-		"Set styleRule to null when a rule below already says the same thing.",
+		...(oneOff
+			? [
+					"His wish is for this one email only. It is never a rule for other emails. Set styleRule to null.",
+				]
+			: [
+					"Then decide whether his wish is a lasting rule for every future email, or whether it only fits this one email.",
+					`A lasting rule goes into styleRule, in ${language()}, as one short sentence under ${DRAFT_STYLE.ruleMaxChars} characters.`,
+					"Set styleRule to null when the wish only fits this one email, for example a name, a quantity or a date.",
+					"Set styleRule to null when a rule below already says the same thing.",
+				]),
 	].join("\n");
 
 	const object = await askJson(
@@ -356,7 +363,7 @@ async function revise(
 	);
 
 	await store(person.id, person, object, model.modelId);
-	await learn(object.styleRule);
+	if (!oneOff) await learn(object.styleRule);
 
 	return say(
 		COPY.drafts.rewritten(
@@ -369,11 +376,12 @@ export async function runEmailDraft(
 	contactId: string,
 	instruction?: string | null,
 	buildModel: typeof directModel = directModel,
+	oneOff = false,
 ): Promise<string> {
 	const person = await recipient(contactId);
 	if (!person) return say(COPY.drafts.contactGone);
 
-	if (instruction) return revise(person, instruction, buildModel);
+	if (instruction) return revise(person, instruction, buildModel, oneOff);
 
 	if (!conversation(person.emailThreads).trim()) {
 		return say(COPY.drafts.noConversation);

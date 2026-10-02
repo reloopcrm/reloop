@@ -5,6 +5,7 @@ import { RESEARCH_RUN_KIND } from "@crm/db/plans";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	readAgentTaskInstruction,
+	readAgentTaskOneOff,
 	readAgentTaskReread,
 	readAgentTaskStoryReread,
 	readAgentTaskThreadId,
@@ -447,6 +448,8 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 				await runEmailDraft(
 					task.contactId,
 					readAgentTaskInstruction(task.payload),
+					undefined,
+					readAgentTaskOneOff(task.payload),
 				),
 			);
 		} catch (error) {
@@ -462,6 +465,14 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	}
 
 	if (task.kind === STORY_KIND && task.contactId) {
+		const room = await monthlyRoom(task.kind, new Date(), task.id);
+		if (room !== null && room <= 0) {
+			const until = await limitResumesAt();
+			await postponeTask(task.id, until);
+			console.error(`[agent] a story waits: ${limitOutcome(task.kind, until)}`);
+			return;
+		}
+
 		try {
 			await completeTask(
 				task.id,

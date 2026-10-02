@@ -239,7 +239,7 @@ the trial or the first of the next month, and the settings page names that day.
 
 | Limit | Where | What happens past it |
 | --- | --- | --- |
-| `insightsPerMonth` | `queueUnreadThreads` | queues at most the room left, then nothing until the window ends |
+| `insightsPerMonth` | `queueUnreadThreads`, and `handleDirect` for `person-story` | queues at most the room left, then nothing until the window ends |
 | `draftsPerMonth` | `handleDirect` for `email-draft` | `postponeTask` to the end of the window; the draft dialog names the day |
 | `researchSessionsPerMonth` | `researchAllowance` in `lib/research-throttle.ts` | the lane starts at most the room left in the window, then nothing until it ends |
 | `researchPerMonth` | `runResearchLane` | `company-profile` rows past the room are postponed to the end of the window, the rest run |
@@ -1343,8 +1343,15 @@ one quote of theirs, and what can bring them back with up to four points. The sh
   the language of the mail. A spaced dash in the text becomes a comma.
 - **`basedOnUntil` is the newest mail of the contact, read before the model call**, so
   mail that arrives during the call makes the story stale, not covered.
-- **It has no monthly limit of its own.** One model call per opened person, and only
-  again after new mail or a re-read.
+- **It spends the conversation budget.** `monthlyBudget` gives `person-story` the
+  plan's `insightsPerMonth`, and `budgetKinds` counts stories and thread readings
+  together, in the agent, in the API's gate and on the usage page. Past the budget the
+  task is postponed to the end of the window like a draft, and the API queues none.
+  One model call per opened person, and only again after new mail or a re-read.
+- **A rewrite from the person page is for one mail.** `oneOff: true` in the
+  `email-draft` payload (`agentTaskDraftPayload`) tells the model the wish is never a
+  rule, and `revise` never calls `learn`, whatever the model answers
+  (`test/run-email-draft.integration.spec.ts`).
 
 ## Tests
 

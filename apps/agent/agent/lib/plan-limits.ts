@@ -12,6 +12,7 @@ import {
 	monthlyBudget,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
+	STORY_KIND,
 } from "@crm/db/plans";
 
 export function planId(): Promise<string | null> {
@@ -60,7 +61,7 @@ export async function monthlyRoom(
 
 export function limitOutcome(kind: string, until: Date): string {
 	const what =
-		kind === INSIGHT_KIND
+		kind === INSIGHT_KIND || kind === STORY_KIND
 			? "conversations"
 			: kind === DRAFT_KIND
 				? "drafts"

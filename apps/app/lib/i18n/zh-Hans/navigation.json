@@ -45,6 +45,7 @@
 	"{wins} won · {losses} lost": "赢 {wins} · 输 {losses}",
 	"Average deal ({days}d)": "平均交易额（{days} 天）",
 	"No wins to measure": "还没有赢单可以统计",
+	"1-day average cycle": "1 天平均周期",
 	"{days}-day average cycle": "{days} 天平均周期",
 	"{count} deal": "{count} 个交易",
 	"{count} deals": "{count} 个交易",

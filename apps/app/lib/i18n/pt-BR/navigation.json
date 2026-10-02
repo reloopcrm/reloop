@@ -45,6 +45,7 @@
 	"{wins} won · {losses} lost": "{wins} ganhos · {losses} perdidos",
 	"Average deal ({days}d)": "Negócio médio ({days} dias)",
 	"No wins to measure": "Nenhuma vitória para medir",
+	"1-day average cycle": "Duração média em 1 dia",
 	"{days}-day average cycle": "Duração média em {days} dias",
 	"{count} deal": "{count} negócio",
 	"{count} deals": "{count} negócios",

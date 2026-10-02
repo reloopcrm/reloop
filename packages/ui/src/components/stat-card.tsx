@@ -22,9 +22,8 @@ function StatCard({
 	delta,
 	description,
 	className,
-	children,
 	...props
-}: Omit<React.ComponentProps<"div">, "title"> & {
+}: Omit<React.ComponentProps<"div">, "title" | "children"> & {
 	label?: React.ReactNode;
 	value: React.ReactNode;
 	delta?: StatDelta;
@@ -33,17 +32,17 @@ function StatCard({
 	return (
 		<div
 			data-slot="stat-card"
-			className={cn("flex min-w-0 flex-col px-4 pt-5 pb-5.5 md:px-5", className)}
+			className={cn("row-span-3 grid min-w-0 grid-cols-1 grid-rows-subgrid px-4 pt-5 pb-5.5 md:px-5", className)}
 			{...props}
 		>
 			{label != null ? (
 				<MonoLabel className="text-pretty leading-relaxed">{label}</MonoLabel>
 			) : null}
-			<span className="mt-2.5 font-normal text-[2rem] leading-none tracking-tight tabular-nums">
+			<span className="row-start-2 mt-2.5 font-normal text-[2rem] leading-none tracking-tight tabular-nums">
 				{value}
 			</span>
 			{delta || description ? (
-				<p className="mt-2.5 text-pretty text-2sm text-muted-foreground">
+				<p className="row-start-3 mt-2.5 text-pretty text-2sm text-muted-foreground">
 					{delta ? (
 						<>
 							<span
@@ -64,7 +63,6 @@ function StatCard({
 					{description}
 				</p>
 			) : null}
-			{children}
 		</div>
 	);
 }

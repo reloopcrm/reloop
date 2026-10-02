@@ -30,7 +30,7 @@ function PairBarChart({
 		<div
 			data-slot="pair-bar-chart"
 			className={cn(
-				"grid h-50 auto-cols-fr grid-flow-col items-end gap-2.5 border px-3 pt-4 pb-3 md:h-60 md:gap-6 md:px-6 md:pt-6 md:pb-4",
+				"grid min-h-50 auto-cols-fr grid-flow-col items-end gap-2.5 border px-3 pt-4 pb-3 md:min-h-60 md:gap-6 md:px-6 md:pt-6 md:pb-4",
 				className,
 			)}
 		>

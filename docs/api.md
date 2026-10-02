@@ -689,8 +689,8 @@ marked passages, the next person and the follow-up delay. It writes nothing but 
   message it came from. `key` is the message of the story's quote. `unanswered` is
   the newest message of a thread the agent marked `unansweredByUs`, when it is theirs.
 - **The next person follows the list's default order**, potential first, with no
-  filter and no search, skipping anyone with a verdict or without an address. The
-  list's own filters are not carried into the person page.
+  filter and no search, skipping anyone without an address. "Not for us" people are
+  not in that list. The list's own filters are not carried into the person page.
 - **`followUpDays` is null when the win back follow-up function is off**, so the page
   never promises a reminder the sweep will not write.
 - The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared

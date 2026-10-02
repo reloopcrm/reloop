@@ -400,9 +400,7 @@ export class WinBackPersonService {
 		const after = [...order.slice(index + 1), ...order.slice(0, index)];
 		const next = after.find(
 			(person) =>
-				person.feedback === null &&
-				person.contact.email !== null &&
-				person.contact.id !== contactId,
+				person.contact.email !== null && person.contact.id !== contactId,
 		);
 
 		return next ? { id: next.contact.id, name: nameOf(next.contact) } : null;

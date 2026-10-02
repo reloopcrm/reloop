@@ -33,13 +33,19 @@ export function readAgentTaskReread(value: unknown): boolean {
 
 export const agentTaskDraftPayload = z.object({
 	instruction: z.string().trim().min(1).max(DRAFT_STYLE.instructionMaxChars),
+	oneOff: z.boolean().default(false),
 });
 
-export type AgentTaskDraftPayload = z.infer<typeof agentTaskDraftPayload>;
+export type AgentTaskDraftPayload = z.input<typeof agentTaskDraftPayload>;
 
 export function readAgentTaskInstruction(value: unknown): string | null {
 	const parsed = agentTaskDraftPayload.safeParse(value);
 	return parsed.success ? parsed.data.instruction : null;
+}
+
+export function readAgentTaskOneOff(value: unknown): boolean {
+	const parsed = agentTaskDraftPayload.safeParse(value);
+	return parsed.success ? parsed.data.oneOff : false;
 }
 
 export const agentTaskStoryPayload = z.object({

@@ -1,11 +1,13 @@
 import { EnrichmentStatus } from "@crm/db";
 import { PRIORITY, waitsForPerson } from "@crm/db/agent-tasks";
 import { cloud } from "@crm/db/cloud/scope";
-import { RESEARCH_RUN_KIND } from "@crm/db/plans";
+import { forwardReserve, RESEARCH_RUN_KIND, STORY_KIND } from "@crm/db/plans";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	readAgentTaskInstruction,
+	readAgentTaskOneOff,
 	readAgentTaskReread,
+	readAgentTaskStoryReread,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
@@ -55,12 +57,14 @@ import {
 	readProviderFailure,
 	resumeAt,
 } from "./model";
+import { runPersonStory } from "./person-story";
 import {
 	fixedAi,
 	limitOutcome,
 	limitResumesAt,
 	monthlyRoom,
 	planId,
+	planLimits,
 } from "./plan-limits";
 import { runPlaybookLearn } from "./playbook";
 import { collapsing, runLimited } from "./pool";
@@ -100,6 +104,7 @@ const MODEL_KINDS = new Set([
 	"email-draft",
 	"business-setup",
 	DEAL_STALL_KIND,
+	STORY_KIND,
 ]);
 const VISIBLE_KINDS = DIRECT_KINDS.filter(
 	(kind) =>
@@ -443,6 +448,8 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 				await runEmailDraft(
 					task.contactId,
 					readAgentTaskInstruction(task.payload),
+					undefined,
+					readAgentTaskOneOff(task.payload),
 				),
 			);
 		} catch (error) {
@@ -452,6 +459,36 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 			await postponeTask(task.id, until);
 			console.error(
 				`[agent] a draft waits until ${until.toISOString()}: the usage limit is reached`,
+			);
+		}
+		return;
+	}
+
+	if (task.kind === STORY_KIND && task.contactId) {
+		const room = await monthlyRoom(task.kind, new Date(), task.id);
+		const reserve = forwardReserve(task.kind, await planLimits());
+		if (room !== null && room - reserve <= 0) {
+			const until = await limitResumesAt();
+			await postponeTask(task.id, until);
+			console.error(`[agent] a story waits: ${limitOutcome(task.kind, until)}`);
+			return;
+		}
+
+		try {
+			await completeTask(
+				task.id,
+				await runPersonStory(
+					task.contactId,
+					readAgentTaskStoryReread(task.payload),
+				),
+			);
+		} catch (error) {
+			const until = await resumeAt();
+			if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+			await postponeTask(task.id, until);
+			console.error(
+				`[agent] a story waits until ${until.toISOString()}: the usage limit is reached`,
 			);
 		}
 		return;

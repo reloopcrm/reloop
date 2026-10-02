@@ -573,6 +573,44 @@ export const COPY = {
 		}),
 	},
 
+	stories: {
+		contactGone: {
+			en: "The contact is gone.",
+			de: "Der Kontakt ist weg.",
+			es: "El contacto ya no existe.",
+			fr: "Le contact n'existe plus.",
+			"pt-BR": "O contato não existe mais.",
+			tr: "Kişi artık yok.",
+			"zh-Hans": "该联系人已不存在。",
+		},
+		noConversation: {
+			en: "There is no business conversation to tell a story from.",
+			de: "Es gibt keinen geschäftlichen Verlauf, aus dem eine Geschichte entstehen kann.",
+			es: "No hay ninguna conversación de negocio de la que contar una historia.",
+			fr: "Il n'y a aucune conversation d'affaires dont tirer une histoire.",
+			"pt-BR": "Não há conversa de negócio para contar uma história.",
+			tr: "Hikâye çıkarılacak bir iş yazışması yok.",
+			"zh-Hans": "没有可以据此讲述故事的业务对话。",
+		},
+		written: {
+			en: "The story is written.",
+			de: "Die Geschichte ist geschrieben.",
+			es: "La historia está escrita.",
+			fr: "L'histoire est écrite.",
+			"pt-BR": "A história está escrita.",
+			tr: "Hikâye yazıldı.",
+			"zh-Hans": "故事已写好。",
+		},
+		reread: {
+			en: "The mail was read again and the story is rewritten.",
+			de: "Die Mails wurden noch einmal gelesen und die Geschichte ist neu geschrieben.",
+			es: "Se volvieron a leer los correos y la historia está reescrita.",
+			fr: "Les e-mails ont été relus et l'histoire est réécrite.",
+			"pt-BR": "Os e-mails foram lidos de novo e a história foi reescrita.",
+			tr: "E-postalar yeniden okundu ve hikâye yeniden yazıldı.",
+			"zh-Hans": "邮件已重新阅读，故事已重写。",
+		},
+	},
 	clean: {
 		skipped: {
 			en: "Their mail carries no signature block. Nothing changed.",

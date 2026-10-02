@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, RecordSource } from "@crm/db";
 import { readDraftStyle, writeDraftStyle } from "@crm/validation/draft-style";
+import { simulateReadableStream } from "ai";
+import { MockLanguageModelV4 } from "ai/test";
 import { runEmailDraft } from "../agent/lib/email-draft";
 
 const suffix = process.env.TEST_RUN_ID ?? "run-email-draft-spec";
@@ -13,6 +15,43 @@ let modelCalls = 0;
 async function refuseModel(): Promise<never> {
 	modelCalls += 1;
 	throw new Error(NO_MODEL);
+}
+
+function answering(text: string) {
+	const model = new MockLanguageModelV4({
+		modelId: "draft-test-model",
+		doStream: async () => ({
+			stream: simulateReadableStream({
+				chunks: [
+					{ type: "stream-start", warnings: [] },
+					{ type: "text-start", id: "t" },
+					{ type: "text-delta", id: "t", delta: text },
+					{ type: "text-end", id: "t" },
+					{
+						type: "finish",
+						finishReason: { unified: "stop", raw: "stop" },
+						usage: {
+							inputTokens: {
+								total: 10,
+								noCache: 10,
+								cacheRead: 0,
+								cacheWrite: 0,
+							},
+							outputTokens: { total: 10, text: 10, reasoning: 0 },
+						},
+					},
+				],
+			}),
+		}),
+	});
+
+	return {
+		model,
+		build: async () => {
+			modelCalls += 1;
+			return model;
+		},
+	};
 }
 
 async function person(local: string, last: string): Promise<string> {
@@ -136,6 +175,36 @@ describe("runEmailDraft before it reaches a model", () => {
 		).rejects.toThrow(NO_MODEL);
 
 		expect(modelCalls).toBe(1);
+	});
+
+	it("keeps a one-off rewrite beside the draft and learns no rule from it", async () => {
+		const before = await readDraftStyle(db);
+		const id = await person("einmal", "Kuerzer");
+		await talked(id);
+		await db.emailDraft.create({
+			data: { contactId: id, subject: "Alt", body: "Alter langer Text" },
+		});
+		const fake = answering(
+			JSON.stringify({
+				subject: "Kurz",
+				body: "Kurzer Text",
+				language: "de",
+				role: "seller",
+				styleRule: "Schreib immer kurz.",
+			}),
+		);
+
+		await runEmailDraft(id, "Mach diese Mail kürzer.", fake.build, true);
+
+		expect(await readDraftStyle(db)).toEqual(before);
+		const stored = await db.emailDraft.findUniqueOrThrow({
+			where: { contactId: id },
+		});
+		expect(stored.body).toBe("Alter langer Text");
+		expect(stored.oneOffBody).toBe("Kurzer Text");
+		expect(JSON.stringify(fake.model.doStreamCalls[0]?.prompt)).toContain(
+			"never a rule for other emails",
+		);
 	});
 
 	it("leaves the stored style untouched on the happy path it never reached", async () => {

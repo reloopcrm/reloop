@@ -44,7 +44,8 @@ import {
 import { factTitle, shortFact } from "./win-back-verdict";
 import { WinBackVerdictMenu } from "./win-back-verdict-menu";
 
-type Group = RouterOutputs["reactivation"]["list"]["rows"][number];
+type List = RouterOutputs["reactivation"]["list"];
+type Group = List["rows"][number];
 type Person = Group["people"][number];
 
 const COLUMNS: LabeledColumn<Group>[] = [
@@ -200,21 +201,31 @@ function subCell(person: Person, columnId: string) {
 	return null;
 }
 
-function GroupHeader({ rows }: { rows: Group[] }) {
+function GroupHeader({
+	rows,
+	bands,
+	continued,
+}: {
+	rows: Group[];
+	bands: List["bands"] | undefined;
+	continued: List["continued"] | undefined;
+}) {
 	const t = useT();
 	const locale = useLocale();
 	const first = rows[0];
-	if (!first) return null;
-	const people = rows.reduce((sum, row) => sum + row.people.length, 0);
+	const band = first ? bands?.[first.potential] : undefined;
+	if (!first || !band) return null;
+	const { companies, people } = band;
 	const format = numberFormat(locale).format;
 
 	return (
 		<>
 			<PotentialCell potential={first.potential} />
 			<MonoLabel>
-				{rows.length === 1
+				{continued === first.potential ? `${t("Continued")} · ` : null}
+				{companies === 1
 					? t("1 company")
-					: t("{count} companies", { count: format(rows.length) })}
+					: t("{count} companies", { count: format(companies) })}
 				{" · "}
 				{people === 1
 					? t("1 person")
@@ -368,7 +379,13 @@ export function WinBackTable() {
 					table.query.sort === "potential"
 						? {
 								keyOf: (row) => row.potential,
-								header: (_key, groupRows) => <GroupHeader rows={groupRows} />,
+								header: (_key, groupRows) => (
+									<GroupHeader
+										rows={groupRows}
+										bands={query.data?.bands}
+										continued={query.data?.continued}
+									/>
+								),
 							}
 						: undefined
 				}

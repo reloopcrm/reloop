@@ -64,6 +64,35 @@ export function filterBands(
 	return groups.filter((group) => bands.includes(group.potential));
 }
 
+export function bandTotals(groups: readonly ReactivationGroup[]) {
+	const totals = {
+		high: { companies: 0, people: 0 },
+		medium: { companies: 0, people: 0 },
+		low: { companies: 0, people: 0 },
+	};
+
+	for (const group of groups) {
+		totals[group.potential].companies += 1;
+		totals[group.potential].people += group.people.length;
+	}
+
+	return totals;
+}
+
+export function continuedBand(
+	groups: readonly ReactivationGroup[],
+	page: number,
+	pageSize: number,
+): ReactivationBand | null {
+	const start = (page - 1) * pageSize;
+	const first = groups[start];
+	const before = groups[start - 1];
+
+	return first && before?.potential === first.potential
+		? first.potential
+		: null;
+}
+
 export function countPeople(groups: readonly ReactivationGroup[]): number {
 	return groups.reduce((sum, group) => sum + group.people.length, 0);
 }

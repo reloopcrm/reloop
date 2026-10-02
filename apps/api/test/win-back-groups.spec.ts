@@ -4,6 +4,8 @@ import {
 	type ReactivationCandidate,
 } from "@crm/db/reactivation";
 import {
+	bandTotals,
+	continuedBand,
 	countBands,
 	countPeople,
 	filterBands,
@@ -210,5 +212,77 @@ describe("searching, filtering and paging the rows", () => {
 		expect(pageOf(groups, 1, 1)).toHaveLength(1);
 		expect(pageOf(groups, 2, 1)[0]?.key).toBe("person:b");
 		expect(pageOf(groups, 3, 1)).toHaveLength(0);
+	});
+});
+
+describe("paging the rows grouped by potential", () => {
+	const bands = ["low", "high", "medium"] as const;
+	const groups = groupCandidates(
+		Array.from({ length: 12 }, (_, index) => {
+			const company = { id: `co${index}`, name: `Firma ${index}` };
+			const potential = bands[index % bands.length];
+
+			return [
+				person({ id: `a${index}`, company, potential, points: 100 - index }),
+				...(index % 2 === 0
+					? [person({ id: `b${index}`, company, potential, points: 1 })]
+					: []),
+			];
+		}).flat(),
+	);
+	const pageSize = 5;
+	const pages = (dir: "asc" | "desc") => {
+		const sorted = sortGroups(groups, "potential", dir);
+		return [1, 2, 3].map((page) => pageOf(sorted, page, pageSize));
+	};
+
+	it("keeps every band in one run across the pages", () => {
+		for (const dir of ["desc", "asc"] as const) {
+			const seen = pages(dir)
+				.flat()
+				.map((group) => group.potential);
+			const runs = seen.filter((band, index) => band !== seen[index - 1]);
+
+			expect(runs).toEqual(
+				dir === "desc" ? ["high", "medium", "low"] : ["low", "medium", "high"],
+			);
+		}
+	});
+
+	it("ranks by points inside a band", () => {
+		const points = sortGroups(groups, "potential", "desc")
+			.filter((group) => group.potential === "high")
+			.map((group) => group.points);
+
+		expect(points).toEqual([...points].sort((a, b) => b - a));
+	});
+
+	it("puts every company on exactly one page with all its people", () => {
+		const shown = pages("desc").flat();
+
+		expect(new Set(shown.map((group) => group.key)).size).toBe(12);
+		expect(shown).toHaveLength(12);
+		for (const group of shown) {
+			const index = Number(group.key.replace("company:co", ""));
+			expect(group.people).toHaveLength(index % 2 === 0 ? 2 : 1);
+		}
+	});
+
+	it("marks the band that runs on from the page before", () => {
+		const sorted = sortGroups(groups, "potential", "desc");
+
+		expect(continuedBand(sorted, 1, pageSize)).toBeNull();
+		expect(continuedBand(sorted, 2, pageSize)).toBe("medium");
+		expect(continuedBand(sorted, 2, 4)).toBeNull();
+		expect(continuedBand(sorted, 9, pageSize)).toBeNull();
+	});
+
+	it("counts each band over the whole list, not the page", () => {
+		expect(bandTotals(groups)).toEqual({
+			high: { companies: 4, people: 6 },
+			medium: { companies: 4, people: 6 },
+			low: { companies: 4, people: 6 },
+		});
+		expect(bandTotals(filterBands(groups, ["high"])).high.companies).toBe(4);
 	});
 });

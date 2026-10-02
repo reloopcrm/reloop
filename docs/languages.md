@@ -149,7 +149,9 @@ and one unfinished language must never hold up a release.
   `docs/environment.md` and `docs/agent.md`.
 - **The sample data follows the reader.** `sampleData.load` takes the locale of
   the person who clicks, and `apps/api/src/demo/demo-copy.ts` holds the German
-  lines keyed by the English text. Every other language gets English.
+  lines keyed by the English text. Every other language gets English. A German
+  reader also gets a German roster of companies and people, every other reader an
+  international one with deals in GBP, USD, CHF and EUR.
   `apps/api/test/demo-copy.spec.ts` fails when a seeded text has no German line.
 
 ## Text outside the dictionaries

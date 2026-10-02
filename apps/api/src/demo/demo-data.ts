@@ -14,6 +14,7 @@ import {
 } from "@crm/db/contact-standing";
 import type { QuantityRule, ThreadSignal } from "@crm/db/contact-worth";
 import { convertToBase } from "@crm/db/fx";
+import { POTENTIAL_VERDICT, type PotentialVerdict } from "@crm/db/insights";
 import { DEFAULT_LOCALE, type Locale } from "@crm/db/locale";
 import { SAMPLE_DATA } from "@crm/db/sample-data";
 import { readReportingCurrency } from "@crm/db/settings";
@@ -25,11 +26,10 @@ const DAY_MS = 86_400_000;
 
 export const DEMO = {
 	prefix: SAMPLE_DATA.prefix,
-	currency: "EUR",
 	modelId: "demo-data",
 	snippetChars: 120,
 	message: { gapDays: 1.4, firstHour: 9, hourStep: 3 },
-	showcase: { contact: "lindenhof-1", taskDueInDays: 3 },
+	showcase: { contact: "lindenhof-1" },
 } as const;
 
 type ThreadKind =
@@ -40,7 +40,8 @@ type ThreadKind =
 	| "delivery"
 	| "invoice"
 	| "claim"
-	| "meeting";
+	| "meeting"
+	| "winback";
 
 type Person = { first: string; last: string; title: string };
 
@@ -52,8 +53,11 @@ type Company = {
 	city: string;
 	country: string;
 	countryCode: string;
+	currency: string;
 	people: Person[];
 };
+
+type Roster = "german" | "international";
 
 type ThreadSpec = {
 	kind: ThreadKind;
@@ -62,6 +66,7 @@ type ThreadSpec = {
 	ref: string;
 	endDaysAgo: number;
 	take: number;
+	gapDays?: number;
 };
 
 type Memory = {
@@ -88,358 +93,709 @@ type DealSpec = {
 	closedReason: string | null;
 };
 
-const COMPANIES: Company[] = [
-	{
-		key: "lindenhof",
-		name: "Lindenhof Wohnen GmbH",
-		domain: "lindenhof-wohnen.example",
-		industry: "Furniture retail",
-		city: "Hamburg",
-		country: "Germany",
-		countryCode: "DE",
-		people: [
-			{ first: "Jana", last: "Reimers", title: "Head of Purchasing" },
-			{ first: "Moritz", last: "Ahlers", title: "Office Manager" },
-			{ first: "Clara", last: "Wendt", title: "Managing Director" },
-		],
-	},
-	{
-		key: "brakelsveld",
-		name: "Brakelsveld Groothandel B.V.",
-		domain: "brakelsveld.example",
-		industry: "Wholesale",
-		city: "Rotterdam",
-		country: "Netherlands",
-		countryCode: "NL",
-		people: [
-			{ first: "Roos", last: "Verhagen", title: "Purchasing Manager" },
-			{ first: "Bram", last: "Oudejans", title: "Owner" },
-			{ first: "Lotte", last: "Kampen", title: "Project Manager" },
-		],
-	},
-	{
-		key: "warnow",
-		name: "Warnow Maschinenbau GmbH",
-		domain: "warnow-maschinenbau.example",
-		industry: "Mechanical engineering",
-		city: "Rostock",
-		country: "Germany",
-		countryCode: "DE",
-		people: [
-			{ first: "Silke", last: "Brandes", title: "Operations Manager" },
-			{ first: "Jannik", last: "Petersen", title: "Team Lead" },
-			{ first: "Doreen", last: "Mahnke", title: "Finance Lead" },
-		],
-	},
-	{
-		key: "vautrin",
-		name: "Atelier Vautrin SAS",
-		domain: "atelier-vautrin.example",
-		industry: "Design agency",
-		city: "Lyon",
-		country: "France",
-		countryCode: "FR",
-		people: [
-			{ first: "Claire", last: "Dumontel", title: "Purchasing Director" },
-			{ first: "Hugo", last: "Ravanel", title: "Site Manager" },
-			{ first: "Lea", last: "Fournel", title: "Project Coordinator" },
-		],
-	},
-	{
-		key: "pizolt",
-		name: "Pizolt Software AG",
-		domain: "pizolt-software.example",
-		industry: "Software house",
-		city: "Chur",
-		country: "Switzerland",
-		countryCode: "CH",
-		people: [
-			{ first: "Flurin", last: "Caduff", title: "Technical Manager" },
-			{ first: "Seraina", last: "Derungs", title: "Purchasing" },
-			{ first: "Andri", last: "Vieli", title: "CEO" },
-		],
-	},
-	{
-		key: "verdalba",
-		name: "Verdalba Hotels Srl",
-		domain: "verdalba-hotels.example",
-		industry: "Hospitality",
-		city: "Genoa",
-		country: "Italy",
-		countryCode: "IT",
-		people: [
-			{ first: "Chiara", last: "Benvenuti", title: "Purchasing Director" },
-			{ first: "Matteo", last: "Scorza", title: "Customer Service Lead" },
-		],
-	},
-	{
-		key: "fjellbru",
-		name: "Fjellbru Bygg AS",
-		domain: "fjellbru-bygg.example",
-		industry: "Construction",
-		city: "Bergen",
-		country: "Norway",
-		countryCode: "NO",
-		people: [
-			{ first: "Ingrid", last: "Vollan", title: "Procurement Lead" },
-			{ first: "Torstein", last: "Myre", title: "Operations" },
-		],
-	},
-	{
-		key: "kvarnby",
-		name: "Kvarnby Kontor AB",
-		domain: "kvarnby-kontor.example",
-		industry: "Office supplies",
-		city: "Gothenburg",
-		country: "Sweden",
-		countryCode: "SE",
-		people: [
-			{ first: "Elin", last: "Sjoedal", title: "Category Buyer" },
-			{ first: "Viktor", last: "Hallberg", title: "Founder" },
-		],
-	},
-	{
-		key: "bramblecote",
-		name: "Bramblecote Media Ltd",
-		domain: "bramblecote-media.example",
-		industry: "Media agency",
-		city: "Southampton",
-		country: "United Kingdom",
-		countryCode: "GB",
-		people: [
-			{ first: "Anika", last: "Rawal", title: "Operations Director" },
-			{ first: "Declan", last: "Fairweather", title: "Office Assistant" },
-		],
-	},
-	{
-		key: "almendra",
-		name: "Almendra Cosmetica SL",
-		domain: "almendra-cosmetica.example",
-		industry: "Cosmetics",
-		city: "Valencia",
-		country: "Spain",
-		countryCode: "ES",
-		people: [
-			{ first: "Lucia", last: "Ortuno", title: "Purchasing Officer" },
-			{ first: "Jordi", last: "Canals", title: "Plant Manager" },
-		],
-	},
-	{
-		key: "wierzbak",
-		name: "Wierzbak Elektro Sp. z o.o.",
-		domain: "wierzbak-elektro.example",
-		industry: "Electrical wholesale",
-		city: "Poznan",
-		country: "Poland",
-		countryCode: "PL",
-		people: [
-			{ first: "Magdalena", last: "Sowinska", title: "Head of Operations" },
-		],
-	},
-	{
-		key: "tarcal",
-		name: "Tarcal Print Kft.",
-		domain: "tarcal-print.example",
-		industry: "Printing",
-		city: "Budapest",
-		country: "Hungary",
-		countryCode: "HU",
-		people: [{ first: "Gergely", last: "Hollosi", title: "Sales Manager" }],
-	},
-	{
-		key: "oostermeer",
-		name: "Oostermeer Interieur B.V.",
-		domain: "oostermeer-interieur.example",
-		industry: "Interior design",
-		city: "Utrecht",
-		country: "Netherlands",
-		countryCode: "NL",
-		people: [{ first: "Thijs", last: "Roodveld", title: "Account Manager" }],
-	},
-	{
-		key: "traunblick",
-		name: "Traunblick Gastro GmbH",
-		domain: "traunblick-gastro.example",
-		industry: "Catering",
-		city: "Linz",
-		country: "Austria",
-		countryCode: "AT",
-		people: [{ first: "Theresa", last: "Moosbrugger", title: "Purchasing" }],
-	},
-	{
-		key: "ballyfinch",
-		name: "Ballyfinch Architects Ltd",
-		domain: "ballyfinch-architects.example",
-		industry: "Architecture",
-		city: "Cork",
-		country: "Ireland",
-		countryCode: "IE",
-		people: [{ first: "Siobhan", last: "Carrig", title: "Managing Director" }],
-	},
-	{
-		key: "alvorada",
-		name: "Alvorada Eventos Lda",
-		domain: "alvorada-eventos.example",
-		industry: "Event management",
-		city: "Lisbon",
-		country: "Portugal",
-		countryCode: "PT",
-		people: [{ first: "Tiago", last: "Serrano", title: "Technical Director" }],
-	},
-	{
-		key: "morsko",
-		name: "Morsko Textil OOD",
-		domain: "morsko-textil.example",
-		industry: "Textile production",
-		city: "Varna",
-		country: "Bulgaria",
-		countryCode: "BG",
-		people: [{ first: "Radostina", last: "Petkova", title: "Senior Buyer" }],
-	},
-	{
-		key: "norrebakke",
-		name: "Norrebakke Bageri ApS",
-		domain: "norrebakke-bageri.example",
-		industry: "Bakery chain",
-		city: "Aalborg",
-		country: "Denmark",
-		countryCode: "DK",
-		people: [{ first: "Frederik", last: "Holmgaard", title: "COO" }],
-	},
-	{
-		key: "tannhoff",
-		name: "Tannhoff Beratung GmbH",
-		domain: "tannhoff-beratung.example",
-		industry: "Consulting",
-		city: "Duesseldorf",
-		country: "Germany",
-		countryCode: "DE",
-		people: [
-			{ first: "Annette", last: "Voskuhl", title: "Head of Purchasing" },
-		],
-	},
-	{
-		key: "kadakas",
-		name: "Kadakas Digital OU",
-		domain: "kadakas-digital.example",
-		industry: "IT services",
-		city: "Tallinn",
-		country: "Estonia",
-		countryCode: "EE",
-		people: [{ first: "Mart", last: "Kuusik", title: "Commercial Manager" }],
-	},
-	{
-		key: "scaligera",
-		name: "Scaligera Ottica Srl",
-		domain: "scaligera-ottica.example",
-		industry: "Optician chain",
-		city: "Verona",
-		country: "Italy",
-		countryCode: "IT",
-		people: [
-			{ first: "Federica", last: "Zanotti", title: "Procurement Manager" },
-		],
-	},
-	{
-		key: "whitcliff",
-		name: "Whitcliff Accountants Ltd",
-		domain: "whitcliff-accountants.example",
-		industry: "Accounting",
-		city: "Dover",
-		country: "United Kingdom",
-		countryCode: "GB",
-		people: [{ first: "Grace", last: "Adeyemi", title: "Senior Consultant" }],
-	},
-	{
-		key: "solvik",
-		name: "Solvik Spelstudio AB",
-		domain: "solvik-spelstudio.example",
-		industry: "Game studio",
-		city: "Stockholm",
-		country: "Sweden",
-		countryCode: "SE",
-		people: [{ first: "Maja", last: "Ekstrand", title: "IT Manager" }],
-	},
-	{
-		key: "havelgrund",
-		name: "Havelgrund Gartenbau GmbH",
-		domain: "havelgrund-gartenbau.example",
-		industry: "Horticulture",
-		city: "Potsdam",
-		country: "Germany",
-		countryCode: "DE",
-		people: [{ first: "Lukas", last: "Stendel", title: "Managing Director" }],
-	},
-	{
-		key: "ourthe",
-		name: "Ourthe Sport SRL",
-		domain: "ourthe-sport.example",
-		industry: "Sporting goods",
-		city: "Liege",
-		country: "Belgium",
-		countryCode: "BE",
-		people: [{ first: "Julien", last: "Lambotte", title: "Team Lead" }],
-	},
-];
+const ROSTER: Record<Roster, Company[]> = {
+	german: [
+		{
+			key: "lindenhof",
+			name: "Lindgruber KG",
+			domain: "lindgruber.example",
+			industry: "Furniture making",
+			city: "Bielefeld",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Jana", last: "Reimers", title: "Head of Purchasing" },
+				{ first: "Moritz", last: "Ahlers", title: "Office Manager" },
+				{ first: "Clara", last: "Wendt", title: "Managing Director" },
+			],
+		},
+		{
+			key: "brakelsveld",
+			name: "Röstwerk Hollerbusch GmbH",
+			domain: "roestwerk-hollerbusch.example",
+			industry: "Coffee roasting",
+			city: "Bremen",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Svenja", last: "Brakel", title: "Purchasing Manager" },
+				{ first: "Henrik", last: "Ostermann", title: "Owner" },
+				{ first: "Lotte", last: "Kampmann", title: "Project Manager" },
+			],
+		},
+		{
+			key: "warnow",
+			name: "Warnow Maschinenbau GmbH",
+			domain: "warnow-maschinenbau.example",
+			industry: "Mechanical engineering",
+			city: "Rostock",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Silke", last: "Brandes", title: "Operations Manager" },
+				{ first: "Jannik", last: "Petersen", title: "Team Lead" },
+				{ first: "Doreen", last: "Mahnke", title: "Finance Lead" },
+			],
+		},
+		{
+			key: "vautrin",
+			name: "Druckhaus Elbwinkel GmbH",
+			domain: "druckhaus-elbwinkel.example",
+			industry: "Printing",
+			city: "Magdeburg",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Claudia", last: "Dörfler", title: "Purchasing Director" },
+				{ first: "Hugo", last: "Rammensee", title: "Site Manager" },
+				{ first: "Lea", last: "Fuchsberger", title: "Project Coordinator" },
+			],
+		},
+		{
+			key: "pizolt",
+			name: "Systemhaus Wendmark GmbH",
+			domain: "systemhaus-wendmark.example",
+			industry: "IT services",
+			city: "Hannover",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Florian", last: "Kaduk", title: "Technical Manager" },
+				{ first: "Sabine", last: "Derichs", title: "Purchasing" },
+				{ first: "Andreas", last: "Vielhaber", title: "CEO" },
+			],
+		},
+		{
+			key: "verdalba",
+			name: "Lenz Hotels KG",
+			domain: "lenz-hotels.example",
+			industry: "Hospitality",
+			city: "Rosenheim",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{
+					first: "Christina",
+					last: "Brunnhuber",
+					title: "Purchasing Director",
+				},
+				{ first: "Matthias", last: "Scholl", title: "Customer Service Lead" },
+			],
+		},
+		{
+			key: "fjellbru",
+			name: "Holzbau Ehrenfried GmbH",
+			domain: "holzbau-ehrenfried.example",
+			industry: "Construction",
+			city: "Freiburg",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Ingrid", last: "Vollmer", title: "Procurement Lead" },
+				{ first: "Thorsten", last: "Mayr", title: "Operations" },
+			],
+		},
+		{
+			key: "kvarnby",
+			name: "Bürowelt Kranichfeld KG",
+			domain: "buerowelt-kranichfeld.example",
+			industry: "Office supplies",
+			city: "Kassel",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Elena", last: "Schaefer", title: "Category Buyer" },
+				{ first: "Viktor", last: "Hallmann", title: "Founder" },
+			],
+		},
+		{
+			key: "bramblecote",
+			name: "Agentur Feldmohn GmbH",
+			domain: "agentur-feldmohn.example",
+			industry: "Media agency",
+			city: "Köln",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Anika", last: "Rahn", title: "Operations Director" },
+				{ first: "Dennis", last: "Feuerbach", title: "Office Assistant" },
+			],
+		},
+		{
+			key: "almendra",
+			name: "Kosmetikmanufaktur Weidenhof GmbH",
+			domain: "weidenhof-kosmetik.example",
+			industry: "Cosmetics",
+			city: "Lüneburg",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Lucia", last: "Ortmann", title: "Purchasing Officer" },
+				{ first: "Jörg", last: "Kanne", title: "Plant Manager" },
+			],
+		},
+		{
+			key: "wierzbak",
+			name: "Elektro Sowinski GmbH",
+			domain: "elektro-sowinski.example",
+			industry: "Electrical wholesale",
+			city: "Görlitz",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Magdalena", last: "Sowinski", title: "Head of Operations" },
+			],
+		},
+		{
+			key: "tarcal",
+			name: "Dentallabor Feldkamp GmbH",
+			domain: "dentallabor-feldkamp.example",
+			industry: "Dental laboratory",
+			city: "Münster",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Gregor", last: "Hollmann", title: "Technical Manager" },
+			],
+		},
+		{
+			key: "alvorada",
+			name: "Eventtechnik Morgenrot GmbH",
+			domain: "eventtechnik-morgenrot.example",
+			industry: "Event management",
+			city: "Leipzig",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Tobias", last: "Seidel", title: "Technical Director" },
+			],
+		},
+		{
+			key: "norrebakke",
+			name: "Bäckerei Hollerkamp GmbH",
+			domain: "baeckerei-hollerkamp.example",
+			industry: "Bakery chain",
+			city: "Kiel",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [{ first: "Frederik", last: "Holm", title: "COO" }],
+		},
+		{
+			key: "tannhoff",
+			name: "Tannhoff Beratung GmbH",
+			domain: "tannhoff-beratung.example",
+			industry: "Consulting",
+			city: "Düsseldorf",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Annette", last: "Voskuhl", title: "Head of Purchasing" },
+			],
+		},
+		{
+			key: "kadakas",
+			name: "Steuerkanzlei Ahrens Wolter",
+			domain: "kanzlei-ahrens-wolter.example",
+			industry: "Tax advisory",
+			city: "Hamburg",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Martin", last: "Kuhlmann", title: "Commercial Manager" },
+			],
+		},
+		{
+			key: "solvik",
+			name: "Pixelhain Games GmbH",
+			domain: "pixelhain-games.example",
+			industry: "Game studio",
+			city: "Berlin",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [{ first: "Maja", last: "Engel", title: "IT Manager" }],
+		},
+		{
+			key: "havelgrund",
+			name: "Havelgrund Gartenbau GmbH",
+			domain: "havelgrund-gartenbau.example",
+			industry: "Horticulture",
+			city: "Potsdam",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [{ first: "Lukas", last: "Stendel", title: "Managing Director" }],
+		},
+		{
+			key: "oostermeer",
+			name: "Weinkontor Sonnfeld GmbH",
+			domain: "weinkontor-sonnfeld.example",
+			industry: "Wine merchant",
+			city: "Mainz",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [{ first: "Thomas", last: "Roderich", title: "Owner" }],
+		},
+		{
+			key: "traunblick",
+			name: "Traunblick Gastro GmbH",
+			domain: "traunblick-gastro.example",
+			industry: "Catering",
+			city: "Linz",
+			country: "Austria",
+			countryCode: "AT",
+			currency: "EUR",
+			people: [{ first: "Theresa", last: "Moosbrugger", title: "Purchasing" }],
+		},
+		{
+			key: "ballyfinch",
+			name: "Architekturbüro Halmsee GmbH",
+			domain: "architektur-halmsee.example",
+			industry: "Architecture",
+			city: "Augsburg",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Sabine", last: "Carstens", title: "Managing Director" },
+			],
+		},
+		{
+			key: "morsko",
+			name: "Weberei Kranzbach GmbH",
+			domain: "weberei-kranzbach.example",
+			industry: "Textile production",
+			city: "Chemnitz",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [{ first: "Rosa", last: "Petzold", title: "Senior Buyer" }],
+		},
+		{
+			key: "scaligera",
+			name: "Optik Zanderhaus GmbH",
+			domain: "optik-zanderhaus.example",
+			industry: "Optician chain",
+			city: "Wuppertal",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Friederike", last: "Zander", title: "Procurement Manager" },
+			],
+		},
+		{
+			key: "whitcliff",
+			name: "Wittkopp Buchhaltung GmbH",
+			domain: "wittkopp-buchhaltung.example",
+			industry: "Accounting",
+			city: "Dortmund",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [{ first: "Greta", last: "Adler", title: "Senior Consultant" }],
+		},
+		{
+			key: "ourthe",
+			name: "Sportfachhandel Ostheide GmbH",
+			domain: "sport-ostheide.example",
+			industry: "Sporting goods",
+			city: "Regensburg",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [{ first: "Julian", last: "Lamprecht", title: "Team Lead" }],
+		},
+	],
+	international: [
+		{
+			key: "lindenhof",
+			name: "Harrowfield Ltd",
+			domain: "harrowfield.example",
+			industry: "Furniture making",
+			city: "Leeds",
+			country: "United Kingdom",
+			countryCode: "GB",
+			currency: "GBP",
+			people: [
+				{ first: "Jane", last: "Reeves", title: "Head of Purchasing" },
+				{ first: "Martin", last: "Ashby", title: "Office Manager" },
+				{ first: "Clare", last: "Wendover", title: "Managing Director" },
+			],
+		},
+		{
+			key: "brakelsveld",
+			name: "Brakelsveld Groothandel B.V.",
+			domain: "brakelsveld.example",
+			industry: "Wholesale",
+			city: "Rotterdam",
+			country: "Netherlands",
+			countryCode: "NL",
+			currency: "EUR",
+			people: [
+				{ first: "Roos", last: "Verhagen", title: "Purchasing Manager" },
+				{ first: "Bram", last: "Oudejans", title: "Owner" },
+				{ first: "Lotte", last: "Kampen", title: "Project Manager" },
+			],
+		},
+		{
+			key: "warnow",
+			name: "Cobalt Ridge Roasters Inc.",
+			domain: "cobalt-ridge-roasters.example",
+			industry: "Coffee roasting",
+			city: "Portland",
+			country: "United States",
+			countryCode: "US",
+			currency: "USD",
+			people: [
+				{ first: "Sarah", last: "Brandt", title: "Operations Manager" },
+				{ first: "Jake", last: "Pettersen", title: "Team Lead" },
+				{ first: "Dana", last: "Mahoney", title: "Finance Lead" },
+			],
+		},
+		{
+			key: "vautrin",
+			name: "Kestrel Print Co. Ltd",
+			domain: "kestrel-print.example",
+			industry: "Printing",
+			city: "Bristol",
+			country: "United Kingdom",
+			countryCode: "GB",
+			currency: "GBP",
+			people: [
+				{ first: "Claire", last: "Dumont", title: "Purchasing Director" },
+				{ first: "Hugh", last: "Ravenscroft", title: "Site Manager" },
+				{ first: "Leah", last: "Fournier", title: "Project Coordinator" },
+			],
+		},
+		{
+			key: "pizolt",
+			name: "Pizolt Software AG",
+			domain: "pizolt-software.example",
+			industry: "Software house",
+			city: "Chur",
+			country: "Switzerland",
+			countryCode: "CH",
+			currency: "CHF",
+			people: [
+				{ first: "Flurin", last: "Caduff", title: "Technical Manager" },
+				{ first: "Seraina", last: "Derungs", title: "Purchasing" },
+				{ first: "Andri", last: "Vieli", title: "CEO" },
+			],
+		},
+		{
+			key: "verdalba",
+			name: "Verdalba Hotels",
+			domain: "verdalba-hotels.example",
+			industry: "Hospitality",
+			city: "Genoa",
+			country: "Italy",
+			countryCode: "IT",
+			currency: "EUR",
+			people: [
+				{ first: "Chiara", last: "Benvenuti", title: "Purchasing Director" },
+				{ first: "Matteo", last: "Scorza", title: "Customer Service Lead" },
+			],
+		},
+		{
+			key: "fjellbru",
+			name: "Fjellbru Bygg AS",
+			domain: "fjellbru-bygg.example",
+			industry: "Construction",
+			city: "Bergen",
+			country: "Norway",
+			countryCode: "NO",
+			currency: "EUR",
+			people: [
+				{ first: "Ingrid", last: "Vollan", title: "Procurement Lead" },
+				{ first: "Torstein", last: "Myre", title: "Operations" },
+			],
+		},
+		{
+			key: "kvarnby",
+			name: "Kvarnby Kontor AB",
+			domain: "kvarnby-kontor.example",
+			industry: "Office supplies",
+			city: "Gothenburg",
+			country: "Sweden",
+			countryCode: "SE",
+			currency: "EUR",
+			people: [
+				{ first: "Elin", last: "Sjoedal", title: "Category Buyer" },
+				{ first: "Viktor", last: "Hallberg", title: "Founder" },
+			],
+		},
+		{
+			key: "bramblecote",
+			name: "Bramblecote Media Ltd",
+			domain: "bramblecote-media.example",
+			industry: "Media agency",
+			city: "Southampton",
+			country: "United Kingdom",
+			countryCode: "GB",
+			currency: "GBP",
+			people: [
+				{ first: "Anika", last: "Rawal", title: "Operations Director" },
+				{ first: "Declan", last: "Fairweather", title: "Office Assistant" },
+			],
+		},
+		{
+			key: "almendra",
+			name: "Almendra Cosmetica SL",
+			domain: "almendra-cosmetica.example",
+			industry: "Cosmetics",
+			city: "Valencia",
+			country: "Spain",
+			countryCode: "ES",
+			currency: "EUR",
+			people: [
+				{ first: "Lucia", last: "Ortuno", title: "Purchasing Officer" },
+				{ first: "Jordi", last: "Canals", title: "Plant Manager" },
+			],
+		},
+		{
+			key: "wierzbak",
+			name: "Lakeshore Electric Supply LLC",
+			domain: "lakeshore-electric.example",
+			industry: "Electrical wholesale",
+			city: "Milwaukee",
+			country: "United States",
+			countryCode: "US",
+			currency: "USD",
+			people: [{ first: "Megan", last: "Sowell", title: "Head of Operations" }],
+		},
+		{
+			key: "tarcal",
+			name: "Ashgrove Dental Laboratory Ltd",
+			domain: "ashgrove-dental.example",
+			industry: "Dental laboratory",
+			city: "Edinburgh",
+			country: "United Kingdom",
+			countryCode: "GB",
+			currency: "GBP",
+			people: [{ first: "Graham", last: "Hollis", title: "Technical Manager" }],
+		},
+		{
+			key: "alvorada",
+			name: "Bluebonnet Event Productions LLC",
+			domain: "bluebonnet-events.example",
+			industry: "Event management",
+			city: "Austin",
+			country: "United States",
+			countryCode: "US",
+			currency: "USD",
+			people: [
+				{ first: "Tyler", last: "Serrano", title: "Technical Director" },
+			],
+		},
+		{
+			key: "norrebakke",
+			name: "Norrebakke Bageri ApS",
+			domain: "norrebakke-bageri.example",
+			industry: "Bakery chain",
+			city: "Aalborg",
+			country: "Denmark",
+			countryCode: "DK",
+			currency: "EUR",
+			people: [{ first: "Frederik", last: "Holmgaard", title: "COO" }],
+		},
+		{
+			key: "tannhoff",
+			name: "Tannhoff Beratung GmbH",
+			domain: "tannhoff-beratung.example",
+			industry: "Consulting",
+			city: "Duesseldorf",
+			country: "Germany",
+			countryCode: "DE",
+			currency: "EUR",
+			people: [
+				{ first: "Annette", last: "Voskuhl", title: "Head of Purchasing" },
+			],
+		},
+		{
+			key: "kadakas",
+			name: "Kadakas Digital OU",
+			domain: "kadakas-digital.example",
+			industry: "IT services",
+			city: "Tallinn",
+			country: "Estonia",
+			countryCode: "EE",
+			currency: "EUR",
+			people: [{ first: "Mart", last: "Kuusik", title: "Commercial Manager" }],
+		},
+		{
+			key: "solvik",
+			name: "Solvik Spelstudio AB",
+			domain: "solvik-spelstudio.example",
+			industry: "Game studio",
+			city: "Stockholm",
+			country: "Sweden",
+			countryCode: "SE",
+			currency: "EUR",
+			people: [{ first: "Maja", last: "Ekstrand", title: "IT Manager" }],
+		},
+		{
+			key: "havelgrund",
+			name: "Prairie Hollow Nurseries LLC",
+			domain: "prairie-hollow.example",
+			industry: "Horticulture",
+			city: "Des Moines",
+			country: "United States",
+			countryCode: "US",
+			currency: "USD",
+			people: [{ first: "Luke", last: "Stenson", title: "Managing Director" }],
+		},
+		{
+			key: "oostermeer",
+			name: "Oostermeer Interieur B.V.",
+			domain: "oostermeer-interieur.example",
+			industry: "Interior design",
+			city: "Utrecht",
+			country: "Netherlands",
+			countryCode: "NL",
+			currency: "EUR",
+			people: [{ first: "Thijs", last: "Roodveld", title: "Account Manager" }],
+		},
+		{
+			key: "traunblick",
+			name: "Ashcombe Cellars Ltd",
+			domain: "ashcombe-cellars.example",
+			industry: "Wine merchant",
+			city: "Bath",
+			country: "United Kingdom",
+			countryCode: "GB",
+			currency: "GBP",
+			people: [{ first: "Theresa", last: "Moss", title: "Purchasing" }],
+		},
+		{
+			key: "ballyfinch",
+			name: "Ballyfinch Architects Ltd",
+			domain: "ballyfinch-architects.example",
+			industry: "Architecture",
+			city: "Cork",
+			country: "Ireland",
+			countryCode: "IE",
+			currency: "EUR",
+			people: [
+				{ first: "Siobhan", last: "Carrig", title: "Managing Director" },
+			],
+		},
+		{
+			key: "morsko",
+			name: "Kuusiranta Textiles Oy",
+			domain: "kuusiranta-textiles.example",
+			industry: "Textile production",
+			city: "Tampere",
+			country: "Finland",
+			countryCode: "FI",
+			currency: "EUR",
+			people: [{ first: "Aino", last: "Petajisto", title: "Senior Buyer" }],
+		},
+		{
+			key: "scaligera",
+			name: "Scaligera Ottica Srl",
+			domain: "scaligera-ottica.example",
+			industry: "Optician chain",
+			city: "Verona",
+			country: "Italy",
+			countryCode: "IT",
+			currency: "EUR",
+			people: [
+				{ first: "Federica", last: "Zanotti", title: "Procurement Manager" },
+			],
+		},
+		{
+			key: "whitcliff",
+			name: "Whitcliff Accountants Ltd",
+			domain: "whitcliff-accountants.example",
+			industry: "Accounting",
+			city: "Dover",
+			country: "United Kingdom",
+			countryCode: "GB",
+			currency: "GBP",
+			people: [{ first: "Grace", last: "Adeyemi", title: "Senior Consultant" }],
+		},
+		{
+			key: "ourthe",
+			name: "Ourthe Sport SRL",
+			domain: "ourthe-sport.example",
+			industry: "Sporting goods",
+			city: "Liege",
+			country: "Belgium",
+			countryCode: "BE",
+			currency: "EUR",
+			people: [{ first: "Julien", last: "Lambotte", title: "Team Lead" }],
+		},
+	],
+};
 
 const CANDIDATES: Candidate[] = [
 	{
 		contact: "lindenhof-1",
 		threads: [
 			{
-				kind: "deal",
-				product: "Standard kits",
-				qty: 24,
-				ref: "PO 48117",
-				endDaysAgo: 2,
-				take: 3,
-			},
-			{
-				kind: "delivery",
-				product: "Standard kits",
-				qty: null,
-				ref: "ORD 21044",
-				endDaysAgo: 9,
-				take: 3,
-			},
-			{
-				kind: "claim",
-				product: "Spare parts",
-				qty: null,
-				ref: "ORD 20988",
-				endDaysAgo: 21,
-				take: 4,
+				kind: "inquiry",
+				product: "Premium kits",
+				qty: 40,
+				ref: "RFQ 1180",
+				endDaysAgo: 126,
+				take: 1,
 			},
 			{
 				kind: "invoice",
 				product: "Spare parts",
 				qty: null,
 				ref: "INV 2026-1187",
-				endDaysAgo: 38,
+				endDaysAgo: 131,
 				take: 4,
 			},
 			{
-				kind: "meeting",
+				kind: "claim",
 				product: "Standard kits",
 				qty: null,
-				ref: "Q4 review",
-				endDaysAgo: 52,
-				take: 2,
+				ref: "ORD 20988",
+				endDaysAgo: 139,
+				take: 4,
 			},
 			{
-				kind: "inquiry",
-				product: "Premium kits",
-				qty: 40,
-				ref: "RFQ 1180",
-				endDaysAgo: 74,
-				take: 4,
+				kind: "delivery",
+				product: "Standard kits",
+				qty: null,
+				ref: "ORD 21044",
+				endDaysAgo: 146,
+				take: 3,
+			},
+			{
+				kind: "deal",
+				product: "Standard kits",
+				qty: 24,
+				ref: "PO 48117",
+				endDaysAgo: 152,
+				take: 3,
 			},
 			{
 				kind: "deal",
 				product: "Spare parts",
 				qty: 8,
 				ref: "PO 47902",
-				endDaysAgo: 95,
+				endDaysAgo: 240,
 				take: 4,
 			},
 			{
@@ -447,18 +803,18 @@ const CANDIDATES: Candidate[] = [
 				product: "Accessories",
 				qty: 6,
 				ref: "PO 47655",
-				endDaysAgo: 118,
+				endDaysAgo: 330,
 				take: 3,
 			},
 		],
 		memory: {
 			summary:
-				"Three orders this year: standard kits, spare parts and accessories. One complaint about damaged goods, settled with a replacement. Asks for a fixed price list for next year and orders every quarter.",
+				"Ordered every quarter until spring: standard kits, spare parts and accessories. The last delivery arrived damaged and was replaced. A request for 40 premium kits after that never got an answer, and nothing has come from them since.",
 			didBusiness: 3,
 			openInquiries: 1,
 			maxPallets: 40,
 			products: ["Standard kits", "Spare parts", "Accessories"],
-			lastOutcome: "DEAL_DONE",
+			lastOutcome: "OPEN_INQUIRY_THEIRS",
 		},
 	},
 	{
@@ -469,13 +825,13 @@ const CANDIDATES: Candidate[] = [
 				product: "Standard kits",
 				qty: null,
 				ref: "ORD 20931",
-				endDaysAgo: 8,
+				endDaysAgo: 150,
 				take: 3,
 			},
 		],
 		memory: {
 			summary:
-				"Handles the order paperwork and the delivery dates for the Hamburg store.",
+				"Handled the order paperwork and the delivery dates for the {city} workshop.",
 			didBusiness: 0,
 			openInquiries: 0,
 			maxPallets: null,
@@ -491,13 +847,13 @@ const CANDIDATES: Candidate[] = [
 				product: "Standard kits",
 				qty: 24,
 				ref: "OFR 2207",
-				endDaysAgo: 19,
+				endDaysAgo: 160,
 				take: 2,
 			},
 		],
 		memory: {
 			summary:
-				"Signed off the annual contract. Wants a review meeting before the next year starts.",
+				"Signed the annual contract last year and wanted a review meeting before it renews.",
 			didBusiness: 0,
 			openInquiries: 1,
 			maxPallets: null,
@@ -527,7 +883,7 @@ const CANDIDATES: Candidate[] = [
 		],
 		memory: {
 			summary:
-				"Asked for 700 premium kits for the Rotterdam branch. Waiting for a decision on split delivery.",
+				"Asked for 700 premium kits for the {city} site. Waiting for a decision on split delivery.",
 			didBusiness: 0,
 			openInquiries: 1,
 			maxPallets: 700,
@@ -549,7 +905,7 @@ const CANDIDATES: Candidate[] = [
 		],
 		memory: {
 			summary:
-				"Owner. Approves anything above 500 units himself and wants the price fixed for six months.",
+				"Owner. Approves anything above 500 units and wants the price fixed for six months.",
 			didBusiness: 0,
 			openInquiries: 0,
 			maxPallets: 700,
@@ -565,7 +921,7 @@ const CANDIDATES: Candidate[] = [
 				product: "Accessories",
 				qty: null,
 				ref: "RFQ 1204",
-				endDaysAgo: 25,
+				endDaysAgo: 96,
 				take: 3,
 			},
 			{
@@ -573,13 +929,13 @@ const CANDIDATES: Candidate[] = [
 				product: "Starter kits",
 				qty: null,
 				ref: "RFQ 1187",
-				endDaysAgo: 58,
+				endDaysAgo: 131,
 				take: 3,
 			},
 		],
 		memory: {
 			summary:
-				"Two open requests, accessories and starter kits for the Rostock plant. Both quoted, no quantity confirmed yet.",
+				"Two requests for the {city} site, accessories and starter kits. Both quoted, then the thread went quiet before a quantity was confirmed.",
 			didBusiness: 0,
 			openInquiries: 2,
 			maxPallets: null,
@@ -595,21 +951,21 @@ const CANDIDATES: Candidate[] = [
 				product: "Starter kits",
 				qty: 18,
 				ref: "PO 47710",
-				endDaysAgo: 40,
-				take: 3,
+				endDaysAgo: 198,
+				take: 4,
 			},
 			{
 				kind: "inquiry",
 				product: "Custom builds",
 				qty: 12,
 				ref: "RFQ 1150",
-				endDaysAgo: 102,
+				endDaysAgo: 236,
 				take: 4,
 			},
 		],
 		memory: {
 			summary:
-				"One pilot order of starter kits for the Lyon studio. Interested in custom builds if the lead time drops.",
+				"One pilot order of starter kits for the {city} plant, delivered without problems. Wanted custom builds next, but only with a shorter lead time.",
 			didBusiness: 1,
 			openInquiries: 0,
 			maxPallets: 18,
@@ -625,12 +981,12 @@ const CANDIDATES: Candidate[] = [
 				product: "Starter kits",
 				qty: null,
 				ref: "ORD 20744",
-				endDaysAgo: 44,
+				endDaysAgo: 203,
 				take: 4,
 			},
 		],
 		memory: {
-			summary: "Handles the incoming goods at the Lyon studio.",
+			summary: "Handled the incoming goods at the {city} plant.",
 			didBusiness: 0,
 			openInquiries: 0,
 			maxPallets: null,
@@ -646,13 +1002,13 @@ const CANDIDATES: Candidate[] = [
 				product: "Spare parts",
 				qty: null,
 				ref: "OFR 2102",
-				endDaysAgo: 70,
+				endDaysAgo: 112,
 				take: 2,
 			},
 		],
 		memory: {
 			summary:
-				"Asked about spare parts for the office equipment. Their last message has no reply yet.",
+				"Asked about spare parts for their equipment. Their last message still has no reply from us.",
 			didBusiness: 0,
 			openInquiries: 0,
 			maxPallets: null,
@@ -664,30 +1020,31 @@ const CANDIDATES: Candidate[] = [
 		contact: "verdalba-1",
 		threads: [
 			{
-				kind: "inquiry",
+				kind: "winback",
 				product: "Refill packs",
 				qty: 1200,
-				ref: "RFQ 1228",
-				endDaysAgo: 18,
-				take: 4,
+				ref: "OFR 2260",
+				endDaysAgo: 1,
+				take: 3,
+				gapDays: 0,
 			},
 			{
 				kind: "deal",
 				product: "Refill packs",
 				qty: 600,
 				ref: "PO 47588",
-				endDaysAgo: 121,
+				endDaysAgo: 262,
 				take: 3,
 			},
 		],
 		memory: {
 			summary:
-				"Buys refill packs for the Genoa hotels from us. Now asks for 1,200 units per month for the winter season.",
-			didBusiness: 0,
-			openInquiries: 1,
+				"Bought refill packs for the {city} hotels last winter, then went quiet for eight months. Answered our follow-up the same day and ordered 1,200 units per month for the winter season.",
+			didBusiness: 2,
+			openInquiries: 0,
 			maxPallets: 1200,
 			products: ["Refill packs"],
-			lastOutcome: "QUOTED",
+			lastOutcome: "DEAL_DONE",
 		},
 	},
 	{
@@ -698,7 +1055,7 @@ const CANDIDATES: Candidate[] = [
 				product: "Custom builds",
 				qty: null,
 				ref: "RFQ 1211",
-				endDaysAgo: 55,
+				endDaysAgo: 88,
 				take: 3,
 			},
 			{
@@ -706,13 +1063,13 @@ const CANDIDATES: Candidate[] = [
 				product: "Spare parts",
 				qty: null,
 				ref: "OFR 2160",
-				endDaysAgo: 83,
+				endDaysAgo: 121,
 				take: 2,
 			},
 		],
 		memory: {
 			summary:
-				"One open inquiry for custom builds for the Bergen site. Asked for a split delivery.",
+				"Asked for custom builds for the {city} site and a split delivery. Quoted, no answer since.",
 			didBusiness: 0,
 			openInquiries: 1,
 			maxPallets: null,
@@ -728,12 +1085,13 @@ const CANDIDATES: Candidate[] = [
 				product: "Standard kits",
 				qty: null,
 				ref: "OFR 2088",
-				endDaysAgo: 95,
+				endDaysAgo: 101,
 				take: 3,
 			},
 		],
 		memory: {
-			summary: "Received an offer for standard kits. No reaction since.",
+			summary:
+				"Received an offer for standard kits. No reaction since, the deal was closed as lost.",
 			didBusiness: 0,
 			openInquiries: 0,
 			maxPallets: null,
@@ -755,7 +1113,7 @@ const CANDIDATES: Candidate[] = [
 		],
 		memory: {
 			summary:
-				"Asked for 350 premium kits delivered to Southampton. Quoted, waiting on their purchasing round.",
+				"Asked for 350 premium kits delivered to {city}. Quoted, waiting on their purchasing round.",
 			didBusiness: 0,
 			openInquiries: 0,
 			maxPallets: 350,
@@ -771,13 +1129,13 @@ const CANDIDATES: Candidate[] = [
 				product: "Accessories",
 				qty: null,
 				ref: "RFQ 1132",
-				endDaysAgo: 120,
+				endDaysAgo: 182,
 				take: 3,
 			},
 		],
 		memory: {
 			summary:
-				"Small inquiry for accessories. Still open, they never confirmed the quantity.",
+				"Small inquiry for accessories. They never confirmed the quantity.",
 			didBusiness: 0,
 			openInquiries: 1,
 			maxPallets: null,
@@ -793,7 +1151,7 @@ const CANDIDATES: Candidate[] = [
 				product: "Consumables",
 				qty: 260,
 				ref: "PO 48090",
-				endDaysAgo: 9,
+				endDaysAgo: 21,
 				take: 3,
 			},
 			{
@@ -807,7 +1165,7 @@ const CANDIDATES: Candidate[] = [
 		],
 		memory: {
 			summary:
-				"Regular buyer of consumables for the Poznan branch. A new request for starter kits is open.",
+				"Regular buyer of consumables for the {city} branch. A new request for starter kits is open.",
 			didBusiness: 1,
 			openInquiries: 1,
 			maxPallets: 260,
@@ -823,7 +1181,7 @@ const CANDIDATES: Candidate[] = [
 				product: "Custom builds",
 				qty: null,
 				ref: "OFR 2051",
-				endDaysAgo: 150,
+				endDaysAgo: 214,
 				take: 2,
 			},
 		],
@@ -847,8 +1205,8 @@ const DEALS: DealSpec[] = [
 		contact: "lindenhof-1",
 		stage: DealStage.CLOSED_WON,
 		amount: 48_500,
-		createdDaysAgo: 140,
-		closedDaysAgo: 12,
+		createdDaysAgo: 205,
+		closedDaysAgo: 150,
 		closesInDays: null,
 		closedReason: null,
 	},
@@ -859,20 +1217,20 @@ const DEALS: DealSpec[] = [
 		contact: "wierzbak-1",
 		stage: DealStage.CLOSED_WON,
 		amount: 21_900,
-		createdDaysAgo: 95,
-		closedDaysAgo: 35,
+		createdDaysAgo: 60,
+		closedDaysAgo: 20,
 		closesInDays: null,
 		closedReason: null,
 	},
 	{
 		key: "3",
-		name: "Refill packs for the Genoa hotels",
+		name: "Refill packs for the {city} hotels",
 		company: "verdalba",
 		contact: "verdalba-1",
 		stage: DealStage.CLOSED_WON,
-		amount: 63_200,
-		createdDaysAgo: 170,
-		closedDaysAgo: 80,
+		amount: 31_600,
+		createdDaysAgo: 300,
+		closedDaysAgo: 262,
 		closesInDays: null,
 		closedReason: null,
 	},
@@ -881,12 +1239,12 @@ const DEALS: DealSpec[] = [
 		name: "Starter kits pilot",
 		company: "vautrin",
 		contact: "vautrin-1",
-		stage: DealStage.CLOSED_LOST,
+		stage: DealStage.CLOSED_WON,
 		amount: 9_800,
-		createdDaysAgo: 75,
-		closedDaysAgo: 20,
+		createdDaysAgo: 230,
+		closedDaysAgo: 198,
 		closesInDays: null,
-		closedReason: "Chose a local supplier",
+		closedReason: null,
 	},
 	{
 		key: "5",
@@ -895,7 +1253,7 @@ const DEALS: DealSpec[] = [
 		contact: "wierzbak-1",
 		stage: DealStage.CONTRACT_SENT,
 		amount: 27_600,
-		createdDaysAgo: 30,
+		createdDaysAgo: 14,
 		closedDaysAgo: null,
 		closesInDays: 9,
 		closedReason: null,
@@ -907,7 +1265,7 @@ const DEALS: DealSpec[] = [
 		contact: "brakelsveld-1",
 		stage: DealStage.DECISION_MAKER_BOUGHT_IN,
 		amount: 38_400,
-		createdDaysAgo: 22,
+		createdDaysAgo: 12,
 		closedDaysAgo: null,
 		closesInDays: 12,
 		closedReason: null,
@@ -927,8 +1285,8 @@ const DEALS: DealSpec[] = [
 	{
 		key: "8",
 		name: "Accessories supply",
-		company: "warnow",
-		contact: "warnow-2",
+		company: "norrebakke",
+		contact: "norrebakke-1",
 		stage: DealStage.QUALIFIED_TO_BUY,
 		amount: 17_250,
 		createdDaysAgo: 18,
@@ -938,12 +1296,12 @@ const DEALS: DealSpec[] = [
 	},
 	{
 		key: "9",
-		name: "Premium kits Southampton",
+		name: "Premium kits for {city}",
 		company: "bramblecote",
 		contact: "bramblecote-1",
 		stage: DealStage.QUALIFIED_TO_BUY,
 		amount: 12_400,
-		createdDaysAgo: 12,
+		createdDaysAgo: 30,
 		closedDaysAgo: null,
 		closesInDays: 45,
 		closedReason: null,
@@ -962,7 +1320,7 @@ const DEALS: DealSpec[] = [
 	},
 	{
 		key: "11",
-		name: "Starter kits Stockholm office",
+		name: "Starter kits for the {city} office",
 		company: "solvik",
 		contact: "solvik-1",
 		stage: DealStage.DEMO_BOOKED,
@@ -982,6 +1340,42 @@ const DEALS: DealSpec[] = [
 		createdDaysAgo: 3,
 		closedDaysAgo: null,
 		closesInDays: 75,
+		closedReason: null,
+	},
+	{
+		key: "13",
+		name: "Refill packs for the winter season",
+		company: "verdalba",
+		contact: "verdalba-1",
+		stage: DealStage.CLOSED_WON,
+		amount: 36_000,
+		createdDaysAgo: 1,
+		closedDaysAgo: 1,
+		closesInDays: null,
+		closedReason: null,
+	},
+	{
+		key: "14",
+		name: "Standard kits offer",
+		company: "kvarnby",
+		contact: "kvarnby-1",
+		stage: DealStage.CLOSED_LOST,
+		amount: 11_200,
+		createdDaysAgo: 104,
+		closedDaysAgo: 45,
+		closesInDays: null,
+		closedReason: "No reply after the offer",
+	},
+	{
+		key: "15",
+		name: "Spare parts framework",
+		company: "tannhoff",
+		contact: "tannhoff-1",
+		stage: DealStage.CLOSED_WON,
+		amount: 14_700,
+		createdDaysAgo: 110,
+		closedDaysAgo: 75,
+		closesInDays: null,
 		closedReason: null,
 	},
 ];
@@ -1173,6 +1567,24 @@ const THREADS = {
 			},
 		],
 	},
+	winback: {
+		subject: "{product} for the coming season",
+		outcome: "DEAL_DONE",
+		lines: [
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: "Hi {contact}, it has been a while since your last order of {product}. The winter season starts soon, so I wanted to ask whether {company} needs stock again. I can hold last year's price for you.",
+			},
+			{
+				direction: EmailDirection.INBOUND,
+				text: "Hi {owner}, good timing, we were about to look for a supplier. We need {qty} per month from November, delivered to {city}. Can you confirm the price?",
+			},
+			{
+				direction: EmailDirection.OUTBOUND,
+				text: "Confirmed, {qty} per month at last year's price. The order is booked and the first delivery leaves next week.",
+			},
+		],
+	},
 } satisfies Record<ThreadKind, ThreadTemplate>;
 
 type Note = {
@@ -1189,31 +1601,68 @@ const SHOWCASE_NOTES: Note[] = [
 		key: "note",
 		type: ActivityType.NOTE,
 		subject: "Renewal notes",
-		body: "Jana prefers calls before 10:00. The annual contract renews in January and she wants the price list two weeks before that.",
-		daysAgo: 30,
+		body: "{contact} prefers calls before 10:00. The annual contract renews in January and she wants the price list two weeks before that.",
+		daysAgo: 170,
 		dueInDays: null,
 	},
 	{
 		key: "call",
 		type: ActivityType.CALL,
 		subject: "Call about the damaged goods complaint",
-		body: "Agreed on a replacement of the 12 units instead of a credit note. Jana is fine with the Monday delivery.",
-		daysAgo: 20,
+		body: "Agreed on a replacement of the 12 units instead of a credit note. {contact} is fine with the Monday delivery.",
+		daysAgo: 138,
 		dueInDays: null,
 	},
 	{
 		key: "task",
 		type: ActivityType.TASK,
-		subject: "Send the Q4 price list to Jana",
+		subject: "Send the Q4 price list to {contact}",
 		body: "Include the fixed price for standard kits and the new spare parts range.",
 		daysAgo: null,
-		dueInDays: DEMO.showcase.taskDueInDays,
+		dueInDays: 3,
+	},
+	{
+		key: "overdue",
+		type: ActivityType.TASK,
+		subject: "Call {contact} about the premium kits request",
+		body: "Her request from spring never got an answer. Call before the new offer goes out.",
+		daysAgo: null,
+		dueInDays: -2,
 	},
 ];
+
+type VerdictSpec = {
+	contact: string;
+	verdict: PotentialVerdict;
+	daysAgo: number;
+};
+
+const VERDICTS: VerdictSpec[] = [
+	{ contact: "lindenhof-1", verdict: POTENTIAL_VERDICT.good, daysAgo: 1 },
+	{ contact: "lindenhof-2", verdict: POTENTIAL_VERDICT.good, daysAgo: 1 },
+	{ contact: "lindenhof-3", verdict: POTENTIAL_VERDICT.good, daysAgo: 1 },
+	{ contact: "verdalba-1", verdict: POTENTIAL_VERDICT.good, daysAgo: 3 },
+	{ contact: "fjellbru-1", verdict: POTENTIAL_VERDICT.good, daysAgo: 9 },
+	{ contact: "vautrin-1", verdict: POTENTIAL_VERDICT.later, daysAgo: 21 },
+	{ contact: "vautrin-2", verdict: POTENTIAL_VERDICT.later, daysAgo: 21 },
+	{ contact: "almendra-1", verdict: POTENTIAL_VERDICT.bad, daysAgo: 30 },
+];
+
+const SHOWCASE_DRAFT = {
+	subject: "Premium kits for {company}",
+	body: "Hi {contact},\n\nIn spring you asked us about 40 premium kits, right after the replacement for order ORD 20988. That request slipped through on our side, and I am sorry about that.\n\nIf the quarterly orders are still a topic for {company}, I can send you an offer for the premium kits this week, together with the standard kits at last year's price.\n\nWould a short call on Tuesday suit you?\n\nBest regards\n{sender}",
+	role: "seller",
+} as const;
 
 let seedNow = Date.now();
 
 let copy: DemoCopy = demoCopy(DEFAULT_LOCALE);
+
+let companies: Company[] = ROSTER.international;
+
+function rosterOf(locale: Locale): Roster {
+	return locale === "de" ? "german" : "international";
+}
 
 function daysAgo(days: number, hour = 9): Date {
 	const date = new Date(seedNow - days * DAY_MS);
@@ -1234,7 +1683,10 @@ function bare(prefixed: string): string {
 }
 
 function emailOf(person: Person, domain: string): string {
-	return `${person.first}.${person.last}@${domain}`.toLowerCase();
+	return `${person.first}.${person.last}@${domain}`
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase();
 }
 
 function firstSentence(text: string): string {
@@ -1264,7 +1716,7 @@ const POTENTIAL_ORDER: ContactPotential[] = ["low", "medium", "high"];
 
 function contactsOf(): Map<string, ContactRef> {
 	const map = new Map<string, ContactRef>();
-	for (const company of COMPANIES) {
+	for (const company of companies) {
 		company.people.forEach((person, index) => {
 			const key = `${company.key}-${index + 1}`;
 			map.set(key, { id: id("ct", key), person, company });
@@ -1294,6 +1746,7 @@ async function verdictsOf(db: Db): Promise<Map<string, Verdict>> {
 		boxProducts: rules.business.boxProducts,
 	};
 	const byContact = new Map(CANDIDATES.map((c) => [c.contact, c]));
+	const decided = new Map(VERDICTS.map((v) => [v.contact, v.verdict]));
 	const verdicts = new Map<string, Verdict>();
 
 	for (const key of contactsOf().keys()) {
@@ -1303,7 +1756,7 @@ async function verdictsOf(db: Db): Promise<Map<string, Verdict>> {
 			standingOf(
 				{
 					hasDeal: DEALS.some((deal) => deal.contact === key),
-					verdict: null,
+					verdict: decided.get(key) ?? null,
 					insights: candidate?.threads.map(signalOf) ?? [],
 					unreadThreads: 0,
 					knownPallets: candidate?.memory.maxPallets ?? null,
@@ -1376,12 +1829,19 @@ export async function resolveDemoOwner(db: Db): Promise<Owner> {
 	return member.user;
 }
 
+function lastDealActivity(company: string): Date | null {
+	const days = DEALS.filter((deal) => deal.company === company).map(
+		(deal) => deal.closedDaysAgo ?? deal.createdDaysAgo,
+	);
+	return days.length > 0 ? daysAgo(Math.min(...days), 10) : null;
+}
+
 async function writeCompanies(
 	db: DemoDb,
 	owner: Owner,
 	verdicts: Map<string, Verdict>,
 ): Promise<void> {
-	for (const [index, company] of COMPANIES.entries()) {
+	for (const [index, company] of companies.entries()) {
 		const verdict = companyVerdict(company, verdicts);
 		const data = {
 			name: company.name,
@@ -1395,10 +1855,11 @@ async function writeCompanies(
 			standing: verdict.standing,
 			potentialBand: verdict.potential,
 			enrichmentStatus: EnrichmentStatus.COMPLETE,
-			enrichedAt: daysAgo(200 - index * 6),
+			enrichedAt: daysAgo(335 + index * 3),
 			source: RecordSource.MANUAL,
+			lastActivityAt: lastDealActivity(company.key),
 			archivedAt: null,
-			createdAt: daysAgo(210 - index * 6),
+			createdAt: daysAgo(340 + index * 3),
 		};
 		await db.company.upsert({
 			where: { id: id("co", company.key) },
@@ -1427,12 +1888,12 @@ async function writeContacts(
 			standing: verdict?.standing ?? null,
 			potentialBand: verdict?.potential ?? null,
 			enrichmentStatus: EnrichmentStatus.COMPLETE,
-			enrichedAt: daysAgo(190 - index * 4),
-			socialsCheckedAt: daysAgo(190 - index * 4),
-			cleanedAt: daysAgo(190 - index * 4),
+			enrichedAt: daysAgo(330 + index * 2),
+			socialsCheckedAt: daysAgo(330 + index * 2),
+			cleanedAt: daysAgo(330 + index * 2),
 			source: RecordSource.MANUAL,
 			archivedAt: null,
-			createdAt: daysAgo(200 - index * 4),
+			createdAt: daysAgo(338 + index * 2),
 		};
 		await db.contact.upsert({
 			where: { id: ref.id },
@@ -1453,20 +1914,22 @@ async function writeDeals(
 	for (const deal of DEALS) {
 		const contact = contacts.get(deal.contact);
 		if (!contact) throw new Error(`Unknown contact ${deal.contact}`);
+		const company = companies.find((item) => item.key === deal.company);
+		if (!company) throw new Error(`Unknown company ${deal.company}`);
 
 		const amount = new Prisma.Decimal(deal.amount);
-		const fx = await convertToBase(reader, amount, DEMO.currency, base);
+		const fx = await convertToBase(reader, amount, company.currency, base);
 		const createdAt = daysAgo(deal.createdDaysAgo, 10);
 		const closedAt =
 			deal.closedDaysAgo === null ? null : daysAgo(deal.closedDaysAgo, 16);
 		const data = {
-			name: copy.t(deal.name),
+			name: copy.t(deal.name, { city: company.city }),
 			companyId: id("co", deal.company),
 			ownerId: owner.id,
 			stage: deal.stage,
 			stageChangedAt: closedAt ?? createdAt,
 			amount,
-			currency: DEMO.currency,
+			currency: company.currency,
 			expectedCloseDate:
 				deal.closesInDays === null ? null : daysAhead(deal.closesInDays),
 			closedAt,
@@ -1516,9 +1979,10 @@ async function writeThread(
 	const contactEmail = emailOf(ref.person, ref.company.domain);
 	const contactName = `${ref.person.first} ${ref.person.last}`;
 	const rootMessageId = `<${id("msg", bare(threadId), 1)}@${ref.company.domain}>`;
+	const gapDays = spec.gapDays ?? DEMO.message.gapDays;
 	const sentAt = lines.map((_, index) =>
 		daysAgo(
-			spec.endDaysAgo + (lines.length - 1 - index) * DEMO.message.gapDays,
+			spec.endDaysAgo + (lines.length - 1 - index) * gapDays,
 			DEMO.message.firstHour + index * DEMO.message.hourStep,
 		),
 	);
@@ -1644,10 +2108,11 @@ async function writeShowcaseNotes(
 		const at =
 			note.daysAgo === null ? daysAgo(1, 8) : daysAgo(note.daysAgo, 11);
 		const activityId = id("act", note.key, DEMO.showcase.contact);
+		const vars = { contact: ref.person.first };
 		const data = {
 			type: note.type,
-			subject: copy.t(note.subject),
-			body: copy.t(note.body),
+			subject: copy.t(note.subject, vars),
+			body: copy.t(note.body, vars),
 			occurredAt: note.dueInDays === null ? at : null,
 			dueAt: note.dueInDays === null ? null : daysAhead(note.dueInDays),
 			completedAt: null,
@@ -1693,12 +2158,13 @@ async function writeConversations(
 
 		if (candidate.contact === DEMO.showcase.contact) {
 			await writeShowcaseNotes(db, owner, ref);
+			await writeShowcaseDraft(db, owner, ref, lastAt, threadIds.length);
 		}
 
 		const memoryId = id("mem", candidate.contact);
 		const memory = {
 			contactId: ref.id,
-			summary: copy.t(candidate.memory.summary),
+			summary: copy.t(candidate.memory.summary, { city: ref.company.city }),
 			didBusiness: candidate.memory.didBusiness,
 			openInquiries: candidate.memory.openInquiries,
 			maxPallets: candidate.memory.maxPallets,
@@ -1731,6 +2197,61 @@ async function writeConversations(
 	}
 }
 
+async function writeShowcaseDraft(
+	db: DemoDb,
+	owner: Owner,
+	ref: ContactRef,
+	basedOnUntil: Date,
+	basedOnCount: number,
+): Promise<void> {
+	const vars = {
+		contact: ref.person.first,
+		company: ref.company.name,
+		sender: owner.name,
+	};
+	const draftId = id("draft", DEMO.showcase.contact);
+	const data = {
+		contactId: ref.id,
+		subject: copy.t(SHOWCASE_DRAFT.subject, vars),
+		body: copy.t(SHOWCASE_DRAFT.body, vars),
+		language: copy.locale,
+		role: SHOWCASE_DRAFT.role,
+		modelId: null,
+		basedOnUntil,
+		basedOnCount,
+	};
+	await db.emailDraft.upsert({
+		where: { id: draftId },
+		create: { id: draftId, ...data },
+		update: data,
+	});
+}
+
+async function writeVerdicts(
+	db: DemoDb,
+	owner: Owner,
+	contacts: Map<string, ContactRef>,
+): Promise<void> {
+	for (const spec of VERDICTS) {
+		const ref = contacts.get(spec.contact);
+		if (!ref) throw new Error(`Unknown contact ${spec.contact}`);
+		const decidedAt = daysAgo(spec.daysAgo);
+		const feedbackId = id("fb", spec.contact);
+		const data = {
+			contactId: ref.id,
+			verdict: spec.verdict,
+			userId: owner.id,
+			createdAt: decidedAt,
+			updatedAt: decidedAt,
+		};
+		await db.potentialFeedback.upsert({
+			where: { id: feedbackId },
+			create: { id: feedbackId, ...data },
+			update: data,
+		});
+	}
+}
+
 export function demoTexts(): string[] {
 	const texts = new Set<string>([
 		"a first batch",
@@ -1738,7 +2259,7 @@ export function demoTexts(): string[] {
 		"{company} and {owner} about {product}, {qty}, reference {ref}.",
 		"Buyer",
 	]);
-	for (const company of COMPANIES) {
+	for (const company of Object.values(ROSTER).flat()) {
 		texts.add(company.industry);
 		texts.add(company.country);
 		for (const person of company.people) texts.add(person.title);
@@ -1763,6 +2284,8 @@ export function demoTexts(): string[] {
 		texts.add(note.subject);
 		texts.add(note.body);
 	}
+	texts.add(SHOWCASE_DRAFT.subject);
+	texts.add(SHOWCASE_DRAFT.body);
 	return [...texts];
 }
 
@@ -1789,6 +2312,8 @@ export async function demoCounts(db: DemoDb): Promise<Record<string, number>> {
 		insights: await db.threadInsight.count({ where: PREFIXED }),
 		activities: await db.activity.count({ where: PREFIXED }),
 		memories: await db.contactMemory.count({ where: PREFIXED }),
+		verdicts: await db.potentialFeedback.count({ where: PREFIXED }),
+		drafts: await db.emailDraft.count({ where: PREFIXED }),
 		agentTasks: await db.agentTask.count({ where: ABOUT_DEMO }),
 	};
 }
@@ -1808,6 +2333,9 @@ export async function removeDemoData(
 		messages: (await db.emailMessage.deleteMany({ where: PREFIXED })).count,
 		threads: (await db.emailThread.deleteMany({ where: PREFIXED })).count,
 		memories: (await db.contactMemory.deleteMany({ where: PREFIXED })).count,
+		verdicts: (await db.potentialFeedback.deleteMany({ where: PREFIXED }))
+			.count,
+		drafts: (await db.emailDraft.deleteMany({ where: PREFIXED })).count,
 		dealContacts: (
 			await db.dealContact.deleteMany({
 				where: { dealId: { startsWith: DEMO.prefix } },
@@ -1848,6 +2376,7 @@ export async function seedDemoData(
 ): Promise<Record<string, number>> {
 	seedNow = Date.now();
 	copy = demoCopy(locale);
+	companies = ROSTER[rosterOf(locale)];
 	const contacts = contactsOf();
 	const verdicts = await verdictsOf(reader);
 
@@ -1855,6 +2384,7 @@ export async function seedDemoData(
 	await writeContacts(db, owner, contacts, verdicts);
 	await writeDeals(reader, db, owner, contacts);
 	await writeConversations(db, owner, contacts);
+	await writeVerdicts(db, owner, contacts);
 
 	return demoCounts(db);
 }

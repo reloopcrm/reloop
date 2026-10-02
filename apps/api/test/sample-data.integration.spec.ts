@@ -232,7 +232,7 @@ describe("the sample data", () => {
 
 		expect(deal.name).toBe("Rahmenvertrag Startersets");
 		expect(contact.title).toBe("Leitung Einkauf");
-		expect(contact.company?.industry).toBe("Möbelhandel");
+		expect(contact.company?.industry).toBe("Möbelbau");
 		expect(task.subject).toBe("Q4-Preisliste an Jana schicken");
 		expect(english).toBe(0);
 

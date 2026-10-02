@@ -15,19 +15,23 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/demo.gif" width="900" alt="Reloop CRM: open the win back list, read the conversation behind a company">
+  <img src="docs/images/demo.gif" width="900" alt="Reloop CRM: open the win back list, open a former customer, read the follow-up the agent drafted">
 </p>
 
 <p align="center">
-  <img src="docs/images/win-back.png" width="900" alt="The win back list: companies ranked by what happened in your email">
+  <img src="docs/images/win-back.png" width="900" alt="The win back list: former customers ranked by what happened in your email, one opened to its people">
 </p>
 
 <p align="center">
-  <img src="docs/images/activity.png" width="900" alt="A contact timeline: who wrote last, what the thread was about, what is still open">
+  <img src="docs/images/draft.png" width="900" alt="A contact record with the follow-up the agent drafted from the mail history">
 </p>
 
 <p align="center">
-  <img src="docs/images/overview.png" width="900" alt="The overview: closed won, open pipeline, win rate and the deals in progress">
+  <img src="docs/images/overview.png" width="900" alt="The overview: closed won, open pipeline, win rate and what was won back this month">
+</p>
+
+<p align="center">
+  <img src="docs/images/deals.png" width="900" alt="The deals pipeline: open deals by stage, in each customer's currency">
 </p>
 
 ## What it does

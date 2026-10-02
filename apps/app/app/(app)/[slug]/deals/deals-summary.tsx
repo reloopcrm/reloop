@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@crm/ui/lib/format";
+import { formatMoneyWhole } from "@crm/ui/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -33,7 +33,7 @@ export function DealsSummary({ fallback }: { fallback: string }) {
 		openValueCents === null
 			? null
 			: t("{amount} in the pipeline", {
-					amount: formatMoney(openValueCents, reportingCurrency, locale),
+					amount: formatMoneyWhole(openValueCents, reportingCurrency, locale),
 				}),
 		t("{won} won and {lost} lost in the last 90 days", {
 			won: wonCount,

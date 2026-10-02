@@ -2,7 +2,7 @@
 
 Example data only. Every image shows the app's built-in sample data from `apps/api/src/demo/demo-data.ts`, loaded with `bun scripts/demo-data.ts --locale <en|de>`: invented companies and people on `.example` domains. The English set uses the international roster (UK, US, Netherlands, Ireland, the Nordics and more, deals in GBP, USD, CHF and EUR), the German set the German roster (deals in EUR). The signed-in user and the workspace were invented for the capture and are not in the seed: Emma Carter at Harbourline Supply for English, Lena Hoffmann at Nordlicht Handel for German. Reporting currency EUR in both.
 
-Captured on 2026-10-02 from a separate, disposable local database (`crm_preview`), never a real workspace. The sample data is dated relative to the day it is loaded, so "won this month" and "won back this month" hold only when the data is loaded and captured on the same day, after the first of the month. The sample data banner and the Next.js dev indicator are hidden.
+Captured on 2026-10-02 from a separate, disposable local database (`crm_preview`), never a real workspace. The sample data is dated relative to the day it is loaded, so "won this month" and "won back this month" hold only when the data is loaded and captured on the same day, after the first of the month. The sample data banner and the Next.js dev indicator are hidden. Every Win back shot uses the "quiet for 30 days" filter: every company in the seed is quiet for two months or more, except the one customer won back this month.
 
 The root folder holds the English set, `de/` the German set. `Shot` picks `de/` for a German reader and the root for every other language. Each file is a WebP (`cwebp -q 82`) of a 2x capture, scaled to the size in the table. A padded crop sits on the page background colour. `next/image` serves the 1x and 2x widths from it.
 
@@ -10,8 +10,8 @@ The root folder holds the English set, `de/` the German set. `Shot` picks `de/` 
 | --- | --- | --- | --- | --- | --- |
 | hero-overview-light.webp | Whole app: sidebar plus overview with KPIs, chart, pipeline by stage and won back this month | light | 1600x1000 | viewport 1440x893 at 2x | yes |
 | hero-overview-dark.webp | Whole app: sidebar plus overview with KPIs, chart, pipeline by stage and won back this month | dark | 1600x1000 | viewport 1440x893 at 2x | yes |
-| win-back-light.webp | Win back list with the first company opened to its three people | light | 1600x1000 | viewport 1440x900 at 2x | yes |
-| win-back-dark.webp | Win back list with the first company opened to its three people | dark | 1600x1000 | viewport 1440x900 at 2x | yes |
+| win-back-light.webp | Win back list, filter "quiet for 30 days", first company opened to its three people | light | 1600x1000 | viewport 1440x900 at 2x (de: 1600x1000) | yes |
+| win-back-dark.webp | Win back list, filter "quiet for 30 days", first company opened to its three people | dark | 1600x1000 | viewport 1440x900 at 2x (de: 1600x1000) | yes |
 | contact-activity-light.webp | Contact sheet of the won-back hotel buyer over Win back, Activity tab | light | 1600x1000 | viewport 1440x900 at 2x | yes |
 | contact-activity-dark.webp | Contact sheet of the won-back hotel buyer over Win back, Activity tab | dark | 1600x1000 | viewport 1440x900 at 2x | yes |
 | follow-up-draft-light.webp | Contact sheet over Win back, Agent tab with the stored follow-up draft | light | 1600x1000 | viewport 1600x1000 at 2x | yes |
@@ -30,16 +30,16 @@ The root folder holds the English set, `de/` the German set. `Shot` picks `de/` 
 | overview-chart-dark.webp | Overview closed won vs. new pipeline chart card | dark | 1376x608 | crop of the chart block, padded | yes |
 | overview-deals-light.webp | Overview deals in progress card | light | 1600x705 | crop of the deals block, padded | yes |
 | overview-deals-dark.webp | Overview deals in progress card | dark | 1600x705 | crop of the deals block, padded | yes |
-| win-back-table-light.webp | Win back table, header plus the first five companies | light | 1600x542 | crop of the table, padded | yes |
-| win-back-table-dark.webp | Win back table, header plus the first five companies | dark | 1600x542 | crop of the table, padded | yes |
+| win-back-table-light.webp | Win back table, header plus the first company opened to its people | light | 1600x542 | crop of the table, padded | yes |
+| win-back-table-dark.webp | Win back table, header plus the first company opened to its people | dark | 1600x542 | crop of the table, padded | yes |
 | deals-pipeline-light.webp | Deals pipeline, first three stage columns | light | 1600x890 | crop of three columns, padded | yes |
 | deals-pipeline-dark.webp | Deals pipeline, first three stage columns | dark | 1600x890 | crop of three columns, padded | yes |
-| win-back-compact-light.webp | Compact Win back view at tablet width | light | 1600x1138 | viewport 900x640 at 2x | yes |
-| win-back-compact-dark.webp | Compact Win back view at tablet width | dark | 1600x1138 | viewport 900x640 at 2x | yes |
+| win-back-compact-light.webp | Win back table at desktop width, first company opened | light | 1600x1138 | viewport 1256x893 at 2x (de: 1406x1000) | yes |
+| win-back-compact-dark.webp | Win back table at desktop width, first company opened | dark | 1600x1138 | viewport 1256x893 at 2x (de: 1406x1000) | yes |
 | de/hero-overview-light.webp | Whole app: sidebar plus overview with KPIs, chart, pipeline by stage and won back this month | light | 1600x1000 | viewport 1440x893 at 2x | yes |
 | de/hero-overview-dark.webp | Whole app: sidebar plus overview with KPIs, chart, pipeline by stage and won back this month | dark | 1600x1000 | viewport 1440x893 at 2x | yes |
-| de/win-back-light.webp | Win back list with the first company opened to its three people | light | 1600x1000 | viewport 1440x900 at 2x | yes |
-| de/win-back-dark.webp | Win back list with the first company opened to its three people | dark | 1600x1000 | viewport 1440x900 at 2x | yes |
+| de/win-back-light.webp | Win back list, filter "quiet for 30 days", first company opened to its three people | light | 1600x1000 | viewport 1440x900 at 2x (de: 1600x1000) | yes |
+| de/win-back-dark.webp | Win back list, filter "quiet for 30 days", first company opened to its three people | dark | 1600x1000 | viewport 1440x900 at 2x (de: 1600x1000) | yes |
 | de/contact-activity-light.webp | Contact sheet of the won-back hotel buyer over Win back, Activity tab | light | 1600x1000 | viewport 1440x900 at 2x | yes |
 | de/contact-activity-dark.webp | Contact sheet of the won-back hotel buyer over Win back, Activity tab | dark | 1600x1000 | viewport 1440x900 at 2x | yes |
 | de/follow-up-draft-light.webp | Contact sheet over Win back, Agent tab with the stored follow-up draft | light | 1600x1000 | viewport 1600x1000 at 2x | yes |
@@ -58,11 +58,11 @@ The root folder holds the English set, `de/` the German set. `Shot` picks `de/` 
 | de/overview-chart-dark.webp | Overview closed won vs. new pipeline chart card | dark | 1376x608 | crop of the chart block, padded | yes |
 | de/overview-deals-light.webp | Overview deals in progress card | light | 1600x705 | crop of the deals block, padded | yes |
 | de/overview-deals-dark.webp | Overview deals in progress card | dark | 1600x705 | crop of the deals block, padded | yes |
-| de/win-back-table-light.webp | Win back table, header plus the first five companies | light | 1600x542 | crop of the table, padded | yes |
-| de/win-back-table-dark.webp | Win back table, header plus the first five companies | dark | 1600x542 | crop of the table, padded | yes |
+| de/win-back-table-light.webp | Win back table, header plus the first company opened to its people | light | 1600x542 | crop of the table, padded | yes |
+| de/win-back-table-dark.webp | Win back table, header plus the first company opened to its people | dark | 1600x542 | crop of the table, padded | yes |
 | de/deals-pipeline-light.webp | Deals pipeline, first three stage columns | light | 1600x890 | crop of three columns, padded | yes |
 | de/deals-pipeline-dark.webp | Deals pipeline, first three stage columns | dark | 1600x890 | crop of three columns, padded | yes |
-| de/win-back-compact-light.webp | Compact Win back view at tablet width | light | 1600x1138 | viewport 900x640 at 2x | yes |
-| de/win-back-compact-dark.webp | Compact Win back view at tablet width | dark | 1600x1138 | viewport 900x640 at 2x | yes |
+| de/win-back-compact-light.webp | Win back table at desktop width, first company opened | light | 1600x1138 | viewport 1256x893 at 2x (de: 1406x1000) | yes |
+| de/win-back-compact-dark.webp | Win back table at desktop width, first company opened | dark | 1600x1138 | viewport 1256x893 at 2x (de: 1406x1000) | yes |
 
 A capture from a real workspace is never committed here. See `docs/design.md`, Public site.

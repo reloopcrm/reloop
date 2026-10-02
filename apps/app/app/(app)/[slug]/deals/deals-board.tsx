@@ -16,7 +16,7 @@ import {
 import { EntityLogo } from "@crm/ui/components/entity-logo";
 import { Loader } from "@crm/ui/components/loader";
 import { MonoLabel, Status } from "@crm/ui/components/mark";
-import { formatMoney } from "@crm/ui/lib/format";
+import { formatMoney, formatMoneyWhole } from "@crm/ui/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { CLOSING_OPTIONS } from "@/components/crm/closing-window";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
@@ -150,7 +150,7 @@ function StageColumn({
 			total={
 				column.sumCents === null
 					? null
-					: formatMoney(column.sumCents, currency, locale)
+					: formatMoneyWhole(column.sumCents, currency, locale)
 			}
 		>
 			{column.deals.map((deal) => (

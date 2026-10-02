@@ -218,8 +218,8 @@ const GERMAN = {
 		"Hat 350 Premiumsets mit Lieferung nach {city} angefragt. Angeboten, wartet auf die Einkaufsrunde.",
 	"Small inquiry for accessories. They never confirmed the quantity.":
 		"Kleine Anfrage für Zubehör. Die Menge wurde nie bestätigt.",
-	"Regular buyer of consumables for the {city} branch. A new request for starter kits is open.":
-		"Kauft regelmäßig Verbrauchsmaterial für die Niederlassung in {city}. Eine neue Anfrage für Startersets ist offen.",
+	"Bought consumables for the {city} branch every quarter. Asked about starter kits in summer, then nothing more.":
+		"Hat jedes Quartal Verbrauchsmaterial für die Niederlassung in {city} gekauft. Hat im Sommer nach Startersets gefragt, danach kam nichts mehr.",
 	"Refill packs for the {city} hotels":
 		"Nachfüllpacks für die Hotels in {city}",
 	"Premium kits for {city}": "Premiumsets für {city}",

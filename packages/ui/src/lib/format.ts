@@ -55,6 +55,14 @@ export function formatMoney(
 	}).format(cents / 100);
 }
 
+export function formatMoneyWhole(
+	cents: number,
+	currency = "usd",
+	locale?: FormatLocale,
+): string {
+	return formatMoney(Math.round(cents / 100) * 100, currency, locale);
+}
+
 export function formatMoneyCompact(
 	cents: number,
 	currency = "usd",

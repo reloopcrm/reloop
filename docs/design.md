@@ -264,7 +264,9 @@ database with the built-in sample data. Each file is listed in
 is never committed. A page shows one through `Shot` from
 `components/site/shot.tsx`, which takes a name from `SHOTS` in
 `components/site/site-config.ts` and renders the light and the dark file, so the
-image follows the theme button. Its alt text goes through `t()`.
+image follows the theme button. A German reader gets the German set from
+`public/site/shots/de/`, every other reader the English set. Its alt text goes
+through `t()`.
 
 The theme default is chosen per route group in `apps/app/lib/theme-config.ts`.
 The app and the public site both follow the device. Each stores the person's

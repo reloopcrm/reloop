@@ -1,10 +1,8 @@
 import { LOCALE, type Locale } from "@crm/db/locale";
 
 const GERMAN = {
-	"Furniture retail": "Möbelhandel",
 	Wholesale: "Großhandel",
 	"Mechanical engineering": "Maschinenbau",
-	"Design agency": "Designagentur",
 	"Software house": "Softwarehaus",
 	Hospitality: "Hotellerie",
 	Construction: "Bauwesen",
@@ -29,19 +27,14 @@ const GERMAN = {
 
 	Germany: "Deutschland",
 	Netherlands: "Niederlande",
-	France: "Frankreich",
 	Switzerland: "Schweiz",
 	Italy: "Italien",
 	Norway: "Norwegen",
 	Sweden: "Schweden",
 	"United Kingdom": "Vereinigtes Königreich",
 	Spain: "Spanien",
-	Poland: "Polen",
-	Hungary: "Ungarn",
 	Austria: "Österreich",
 	Ireland: "Irland",
-	Portugal: "Portugal",
-	Bulgaria: "Bulgarien",
 	Denmark: "Dänemark",
 	Estonia: "Estland",
 	Belgium: "Belgien",
@@ -71,7 +64,6 @@ const GERMAN = {
 	"Purchasing Officer": "Einkäuferin",
 	"Plant Manager": "Werksleiter",
 	"Head of Operations": "Leiterin Betrieb",
-	"Sales Manager": "Vertriebsleiter",
 	"Account Manager": "Kundenbetreuer",
 	"Technical Director": "Technischer Direktor",
 	"Senior Buyer": "Senior-Einkäuferin",
@@ -89,54 +81,19 @@ const GERMAN = {
 	"Custom builds": "Sonderanfertigungen",
 	"Refill packs": "Nachfüllpacks",
 	Consumables: "Verbrauchsmaterial",
-	"Q4 review": "Q4-Gespräch",
 
-	"Three orders this year: standard kits, spare parts and accessories. One complaint about damaged goods, settled with a replacement. Asks for a fixed price list for next year and orders every quarter.":
-		"Drei Bestellungen dieses Jahr: Standardsets, Ersatzteile und Zubehör. Eine Reklamation wegen beschädigter Ware, mit Ersatz erledigt. Fragt nach einer festen Preisliste für nächstes Jahr und bestellt jedes Quartal.",
-	"Handles the order paperwork and the delivery dates for the Hamburg store.":
-		"Kümmert sich um die Bestellunterlagen und die Liefertermine für die Filiale in Hamburg.",
-	"Signed off the annual contract. Wants a review meeting before the next year starts.":
-		"Hat den Jahresvertrag unterschrieben. Will vor dem nächsten Jahr ein Gespräch zur Durchsicht.",
-	"Asked for 700 premium kits for the Rotterdam branch. Waiting for a decision on split delivery.":
-		"Hat 700 Premiumsets für die Niederlassung in Rotterdam angefragt. Wartet auf eine Entscheidung zur Teillieferung.",
-	"Owner. Approves anything above 500 units himself and wants the price fixed for six months.":
-		"Inhaber. Gibt alles über 500 Stück selbst frei und will den Preis für sechs Monate festschreiben.",
-	"Two open requests, accessories and starter kits for the Rostock plant. Both quoted, no quantity confirmed yet.":
-		"Zwei offene Anfragen, Zubehör und Startersets für das Werk in Rostock. Beide angeboten, noch keine Menge bestätigt.",
-	"One pilot order of starter kits for the Lyon studio. Interested in custom builds if the lead time drops.":
-		"Eine Pilotbestellung Startersets für das Studio in Lyon. Interesse an Sonderanfertigungen, wenn die Lieferzeit sinkt.",
-	"Handles the incoming goods at the Lyon studio.":
-		"Kümmert sich um den Wareneingang im Studio in Lyon.",
-	"Asked about spare parts for the office equipment. Their last message has no reply yet.":
-		"Hat nach Ersatzteilen für die Büroausstattung gefragt. Die letzte Nachricht ist noch unbeantwortet.",
-	"Buys refill packs for the Genoa hotels from us. Now asks for 1,200 units per month for the winter season.":
-		"Kauft bei uns Nachfüllpacks für die Hotels in Genua. Fragt jetzt 1.200 Stück pro Monat für die Wintersaison an.",
-	"One open inquiry for custom builds for the Bergen site. Asked for a split delivery.":
-		"Eine offene Anfrage für Sonderanfertigungen für den Standort Bergen. Hat um eine Teillieferung gebeten.",
-	"Received an offer for standard kits. No reaction since.":
-		"Hat ein Angebot für Standardsets bekommen. Seitdem keine Reaktion.",
-	"Asked for 350 premium kits delivered to Southampton. Quoted, waiting on their purchasing round.":
-		"Hat 350 Premiumsets mit Lieferung nach Southampton angefragt. Angeboten, wartet auf die Einkaufsrunde.",
-	"Small inquiry for accessories. Still open, they never confirmed the quantity.":
-		"Kleine Anfrage für Zubehör. Noch offen, die Menge wurde nie bestätigt.",
-	"Regular buyer of consumables for the Poznan branch. A new request for starter kits is open.":
-		"Kauft regelmäßig Verbrauchsmaterial für die Niederlassung in Posen. Eine neue Anfrage für Startersets ist offen.",
 	"Asked for a custom build in a smaller size. Their reply is still unanswered.":
 		"Hat nach einer Sonderanfertigung in kleinerer Größe gefragt. Die Antwort steht noch aus.",
 
 	"Standard kits annual contract": "Jahresvertrag Standardsets",
 	"Consumables Q3 order": "Bestellung Verbrauchsmaterial Q3",
-	"Refill packs for the Genoa hotels": "Nachfüllpacks für die Hotels in Genua",
 	"Starter kits pilot": "Pilot Startersets",
 	"Starter kits frame contract": "Rahmenvertrag Startersets",
 	"Premium kits 700 units": "Premiumsets 700 Stück",
 	"Refill packs for three offices": "Nachfüllpacks für drei Büros",
 	"Accessories supply": "Zubehörversorgung",
-	"Premium kits Southampton": "Premiumsets Southampton",
 	"Custom builds season order": "Saisonbestellung Sonderanfertigungen",
-	"Starter kits Stockholm office": "Startersets Büro Stockholm",
 	"Spare parts supply": "Ersatzteilversorgung",
-	"Chose a local supplier": "Hat einen lokalen Lieferanten gewählt",
 	Buyer: "Einkäufer",
 
 	"Request for quotation: {product}": "Anfrage: {product}",
@@ -217,13 +174,8 @@ const GERMAN = {
 		"Dienstag 10:00 ist bestätigt. Ich bringe die Mengenübersicht und den Entwurf der Preisliste mit.",
 
 	"Renewal notes": "Notizen zur Verlängerung",
-	"Jana prefers calls before 10:00. The annual contract renews in January and she wants the price list two weeks before that.":
-		"Jana telefoniert am liebsten vor 10:00. Der Jahresvertrag verlängert sich im Januar, die Preisliste will sie zwei Wochen vorher.",
 	"Call about the damaged goods complaint":
 		"Telefonat zur Reklamation der beschädigten Ware",
-	"Agreed on a replacement of the 12 units instead of a credit note. Jana is fine with the Monday delivery.":
-		"Ersatz der 12 Stück statt Gutschrift vereinbart. Jana ist mit der Lieferung am Montag einverstanden.",
-	"Send the Q4 price list to Jana": "Q4-Preisliste an Jana schicken",
 	"Include the fixed price for standard kits and the new spare parts range.":
 		"Mit dem Festpreis für Standardsets und dem neuen Ersatzteilsortiment.",
 
@@ -231,6 +183,70 @@ const GERMAN = {
 	"{qty} units": "{qty} Stück",
 	"{company} and {owner} about {product}, {qty}, reference {ref}.":
 		"{company} und {owner} über {product}, {qty}, Referenz {ref}.",
+	"Furniture making": "Möbelbau",
+	"Coffee roasting": "Kaffeerösterei",
+	"Dental laboratory": "Dentallabor",
+	"Wine merchant": "Weinhandel",
+	"Tax advisory": "Steuerberatung",
+	"United States": "Vereinigte Staaten",
+	Finland: "Finnland",
+	"Ordered every quarter until spring: standard kits, spare parts and accessories. The last delivery arrived damaged and was replaced. A request for 40 premium kits after that never got an answer, and nothing has come from them since.":
+		"Hat bis zum Frühjahr jedes Quartal bestellt: Standardsets, Ersatzteile und Zubehör. Die letzte Lieferung kam beschädigt an und wurde ersetzt. Eine Anfrage über 40 Premiumsets danach blieb unbeantwortet, seitdem kam nichts mehr.",
+	"Handled the order paperwork and the delivery dates for the {city} workshop.":
+		"Hat sich um die Bestellunterlagen und die Liefertermine für die Werkstatt in {city} gekümmert.",
+	"Signed the annual contract last year and wanted a review meeting before it renews.":
+		"Hat letztes Jahr den Jahresvertrag unterschrieben und wollte vor der Verlängerung ein Gespräch zur Durchsicht.",
+	"Asked for 700 premium kits for the {city} site. Waiting for a decision on split delivery.":
+		"Hat 700 Premiumsets für den Standort {city} angefragt. Wartet auf eine Entscheidung zur Teillieferung.",
+	"Owner. Approves anything above 500 units and wants the price fixed for six months.":
+		"Inhaber. Gibt alles über 500 Stück selbst frei und will den Preis für sechs Monate festschreiben.",
+	"Two requests for the {city} site, accessories and starter kits. Both quoted, then the thread went quiet before a quantity was confirmed.":
+		"Zwei Anfragen für den Standort {city}, Zubehör und Startersets. Beide angeboten, dann wurde es still, bevor eine Menge bestätigt war.",
+	"One pilot order of starter kits for the {city} plant, delivered without problems. Wanted custom builds next, but only with a shorter lead time.":
+		"Eine Pilotbestellung Startersets für den Betrieb in {city}, ohne Probleme geliefert. Wollte danach Sonderanfertigungen, aber nur mit kürzerer Lieferzeit.",
+	"Handled the incoming goods at the {city} plant.":
+		"Hat sich um den Wareneingang im Betrieb in {city} gekümmert.",
+	"Asked about spare parts for their equipment. Their last message still has no reply from us.":
+		"Hat nach Ersatzteilen für die eigene Ausstattung gefragt. Die letzte Nachricht ist von uns noch unbeantwortet.",
+	"Bought refill packs for the {city} hotels last winter, then went quiet for eight months. Answered our follow-up the same day and ordered 1,200 units per month for the winter season.":
+		"Hat letzten Winter Nachfüllpacks für die Hotels in {city} gekauft, dann acht Monate nichts. Hat auf unsere Nachfrage am selben Tag geantwortet und 1.200 Stück pro Monat für die Wintersaison bestellt.",
+	"Asked for custom builds for the {city} site and a split delivery. Quoted, no answer since.":
+		"Hat Sonderanfertigungen für den Standort {city} und eine Teillieferung angefragt. Angeboten, seitdem keine Antwort.",
+	"Received an offer for standard kits. No reaction since, the deal was closed as lost.":
+		"Hat ein Angebot für Standardsets bekommen. Seitdem keine Reaktion, das Geschäft ist als verloren abgeschlossen.",
+	"Asked for 350 premium kits delivered to {city}. Quoted, waiting on their purchasing round.":
+		"Hat 350 Premiumsets mit Lieferung nach {city} angefragt. Angeboten, wartet auf die Einkaufsrunde.",
+	"Small inquiry for accessories. They never confirmed the quantity.":
+		"Kleine Anfrage für Zubehör. Die Menge wurde nie bestätigt.",
+	"Regular buyer of consumables for the {city} branch. A new request for starter kits is open.":
+		"Kauft regelmäßig Verbrauchsmaterial für die Niederlassung in {city}. Eine neue Anfrage für Startersets ist offen.",
+	"Refill packs for the {city} hotels":
+		"Nachfüllpacks für die Hotels in {city}",
+	"Premium kits for {city}": "Premiumsets für {city}",
+	"Starter kits for the {city} office": "Startersets für das Büro in {city}",
+	"Refill packs for the winter season": "Nachfüllpacks für die Wintersaison",
+	"Standard kits offer": "Angebot Standardsets",
+	"Spare parts framework": "Rahmenvertrag Ersatzteile",
+	"No reply after the offer": "Keine Antwort nach dem Angebot",
+	"{product} for the coming season": "{product} für die kommende Saison",
+	"Hi {contact}, it has been a while since your last order of {product}. The winter season starts soon, so I wanted to ask whether {company} needs stock again. I can hold last year's price for you.":
+		"Hallo {contact}, Ihre letzte Bestellung {product} ist schon eine Weile her. Die Wintersaison beginnt bald, deshalb wollte ich fragen, ob {company} wieder Ware braucht. Den Preis vom letzten Jahr kann ich Ihnen halten.",
+	"Hi {owner}, good timing, we were about to look for a supplier. We need {qty} per month from November, delivered to {city}. Can you confirm the price?":
+		"Hallo {owner}, das passt gut, wir wollten gerade einen Lieferanten suchen. Wir brauchen ab November {qty} pro Monat, geliefert nach {city}. Können Sie den Preis bestätigen?",
+	"Confirmed, {qty} per month at last year's price. The order is booked and the first delivery leaves next week.":
+		"Bestätigt, {qty} pro Monat zum Preis vom letzten Jahr. Die Bestellung ist gebucht, die erste Lieferung geht nächste Woche raus.",
+	"{contact} prefers calls before 10:00. The annual contract renews in January and she wants the price list two weeks before that.":
+		"{contact} telefoniert am liebsten vor 10:00. Der Jahresvertrag verlängert sich im Januar, die Preisliste will sie zwei Wochen vorher.",
+	"Agreed on a replacement of the 12 units instead of a credit note. {contact} is fine with the Monday delivery.":
+		"Ersatz der 12 Stück statt Gutschrift vereinbart. {contact} ist mit der Lieferung am Montag einverstanden.",
+	"Send the Q4 price list to {contact}": "Q4-Preisliste an {contact} schicken",
+	"Call {contact} about the premium kits request":
+		"{contact} wegen der Anfrage nach Premiumsets anrufen",
+	"Her request from spring never got an answer. Call before the new offer goes out.":
+		"Ihre Anfrage aus dem Frühjahr blieb unbeantwortet. Anrufen, bevor das neue Angebot rausgeht.",
+	"Premium kits for {company}": "Premiumsets für {company}",
+	"Hi {contact},\n\nIn spring you asked us about 40 premium kits, right after the replacement for order ORD 20988. That request slipped through on our side, and I am sorry about that.\n\nIf the quarterly orders are still a topic for {company}, I can send you an offer for the premium kits this week, together with the standard kits at last year's price.\n\nWould a short call on Tuesday suit you?\n\nBest regards\n{sender}":
+		"Hallo {contact},\n\nim Frühjahr haben Sie uns nach 40 Premiumsets gefragt, direkt nach dem Ersatz für die Bestellung ORD 20988. Diese Anfrage ist bei uns liegen geblieben, das tut mir leid.\n\nWenn die Quartalsbestellungen für {company} noch ein Thema sind, schicke ich Ihnen diese Woche ein Angebot für die Premiumsets, zusammen mit den Standardsets zum Preis vom letzten Jahr.\n\nPasst Ihnen ein kurzes Telefonat am Dienstag?\n\nViele Grüße\n{sender}",
 };
 
 function dictionaryOf(locale: Locale): Record<string, string> | null {

@@ -8,6 +8,7 @@ import GoogleCalendarLogo from "@crm/ui/components/brand-logos/google-calendar";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
 import type * as React from "react";
+import type { Locale } from "@/lib/i18n/locale";
 
 export type SiteMark = React.ComponentType<React.SVGProps<SVGSVGElement>>;
 
@@ -97,3 +98,10 @@ export const SHOTS = {
 } as const;
 
 export type ShotName = keyof typeof SHOTS.images;
+
+export type ShotTheme = (typeof SHOTS.themes)[number];
+
+export function shotSrc(name: ShotName, theme: ShotTheme, locale: Locale) {
+	const set = locale === "de" ? "/de" : "";
+	return `${SHOTS.path}${set}/${name}-${theme}.webp`;
+}

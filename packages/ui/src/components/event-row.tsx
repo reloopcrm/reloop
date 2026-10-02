@@ -119,7 +119,7 @@ function EventList({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="event-list"
 			className={cn(
-				"flex shrink-0 flex-col px-5 pt-2 pb-4 [--event-time:2.75rem]",
+				"flex shrink-0 flex-col px-5 pt-2 pb-4 [--event-time:3.75rem]",
 				className,
 			)}
 			{...props}

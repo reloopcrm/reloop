@@ -154,9 +154,11 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 						description={
 							performance.avgCycleDays === null
 								? t("No wins to measure")
-								: t("{days}-day average cycle", {
-										days: performance.avgCycleDays,
-									})
+								: performance.avgCycleDays === 1
+									? t("1-day average cycle")
+									: t("{days}-day average cycle", {
+											days: performance.avgCycleDays,
+										})
 						}
 					/>
 				</StatGroup>

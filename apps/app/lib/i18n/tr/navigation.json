@@ -45,6 +45,7 @@
 	"{wins} won · {losses} lost": "{wins} kazanıldı · {losses} kaybedildi",
 	"Average deal ({days}d)": "Ortalama anlaşma ({days} gün)",
 	"No wins to measure": "Ölçülecek kazanç yok",
+	"1-day average cycle": "1 günlük ortalama süre",
 	"{days}-day average cycle": "{days} günlük ortalama süre",
 	"{count} deal": "{count} anlaşma",
 	"{count} deals": "{count} anlaşma",

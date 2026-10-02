@@ -60,7 +60,7 @@ function DashboardRow({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="dashboard-row"
 			className={cn(
-				"grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6",
+				"grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-x-6 lg:gap-y-0 lg:*:row-span-2 lg:*:grid lg:*:grid-cols-1 lg:*:grid-rows-subgrid",
 				className,
 			)}
 			{...props}
@@ -86,7 +86,7 @@ function DashboardBlock({
 			className={cn("flex min-w-0 flex-col", className)}
 			{...props}
 		>
-			<div className="mb-3.5 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+			<div className="mb-3.5 flex flex-wrap content-start items-end justify-between gap-x-4 gap-y-2">
 				<div className="flex min-w-0 flex-[1_1_16rem] flex-col gap-1">
 					<h2 className="font-normal text-base leading-snug tracking-tight">
 						{title}

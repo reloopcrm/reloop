@@ -93,7 +93,7 @@ type DealSpec = {
 	closedReason: string | null;
 };
 
-const ROSTER: Record<Roster, Company[]> = {
+const ROSTER = {
 	german: [
 		{
 			key: "lindenhof",
@@ -744,7 +744,7 @@ const ROSTER: Record<Roster, Company[]> = {
 			people: [{ first: "Julien", last: "Lambotte", title: "Team Lead" }],
 		},
 	],
-};
+} satisfies Record<Roster, Company[]>;
 
 const CANDIDATES: Candidate[] = [
 	{

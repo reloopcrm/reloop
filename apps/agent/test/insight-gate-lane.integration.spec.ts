@@ -390,7 +390,7 @@ describe("the insight lane while a model works", () => {
 });
 
 describe("a conversation whose direction was repaired", () => {
-	it("is read again although no new mail arrived", async () => {
+	async function repairedThread(relevant: boolean) {
 		noul = 0.1;
 		await spendTheModelWindow();
 		await describeTheBusiness();
@@ -407,7 +407,7 @@ describe("a conversation whose direction was repaired", () => {
 		await db.threadInsight.create({
 			data: {
 				threadId,
-				relevant: true,
+				relevant,
 				topics: [],
 				products: [],
 				outcome: "OPEN",
@@ -423,14 +423,41 @@ describe("a conversation whose direction was repaired", () => {
 			data: { payload: { threadId, reread: true } },
 		});
 
-		expect(await runInsightLane()).toBe(1);
-		expect(gateCalls).toBe(1);
+		return { taskId: String(id), threadId };
+	}
+
+	it("skips the cheap pre-check and waits for the full read of a relevant thread", async () => {
+		const { taskId, threadId } = await repairedThread(true);
+
+		expect(await runInsightLane()).toBe(0);
+		expect(gateCalls).toBe(0);
 
 		const insight = await db.threadInsight.findUniqueOrThrow({
 			where: { threadId },
-			select: { modelId: true, unansweredByUs: true },
+			select: { relevant: true, modelId: true, summary: true },
 		});
-		expect(insight.modelId).toBe("jev-latest");
-		expect(insight.unansweredByUs).toBe(false);
+		expect(insight).toEqual({
+			relevant: true,
+			modelId: "stale-model",
+			summary: "Stale verdict",
+		});
+		const task = await db.agentTask.findUniqueOrThrow({
+			where: { id: taskId },
+			select: { finishedAt: true },
+		});
+		expect(task.finishedAt).toBeNull();
+	});
+
+	it("keeps an off topic thread as it is stored", async () => {
+		const { threadId } = await repairedThread(false);
+
+		expect(await runInsightLane()).toBe(1);
+		expect(gateCalls).toBe(0);
+
+		const insight = await db.threadInsight.findUniqueOrThrow({
+			where: { threadId },
+			select: { relevant: true, modelId: true },
+		});
+		expect(insight).toEqual({ relevant: false, modelId: "stale-model" });
 	});
 });

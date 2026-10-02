@@ -3,6 +3,7 @@ import type { Db } from "./client";
 import { cloud } from "./cloud/scope";
 import {
 	type AddOnQuantities,
+	budgetKinds,
 	canonicalPlanId,
 	DAY_MS,
 	DRAFT_KIND,
@@ -126,7 +127,9 @@ export async function readMonthlyUsage(
 ): Promise<MonthlyUsage> {
 	const { since } = await usageWindowOf(db, now);
 	const count = (kind: string) =>
-		db.agentTask.count({ where: { kind, createdAt: { gte: since } } });
+		db.agentTask.count({
+			where: { kind: { in: budgetKinds(kind) }, createdAt: { gte: since } },
+		});
 
 	const [insights, drafts, sessions, research, chat, builder] =
 		await Promise.all([

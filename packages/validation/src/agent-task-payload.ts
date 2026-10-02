@@ -41,3 +41,14 @@ export function readAgentTaskInstruction(value: unknown): string | null {
 	const parsed = agentTaskDraftPayload.safeParse(value);
 	return parsed.success ? parsed.data.instruction : null;
 }
+
+export const agentTaskStoryPayload = z.object({
+	reread: z.boolean().default(false),
+});
+
+export type AgentTaskStoryPayload = z.input<typeof agentTaskStoryPayload>;
+
+export function readAgentTaskStoryReread(value: unknown): boolean {
+	const parsed = agentTaskStoryPayload.safeParse(value);
+	return parsed.success ? parsed.data.reread : false;
+}

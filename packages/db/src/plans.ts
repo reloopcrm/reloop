@@ -203,6 +203,16 @@ export const INSIGHT_KIND = "thread-insight";
 
 export const DRAFT_KIND = "email-draft";
 
+export const STORY_KIND = "person-story";
+
+const SHARED_BUDGETS: readonly (readonly string[])[] = [
+	[INSIGHT_KIND, STORY_KIND],
+];
+
+export function budgetKinds(kind: string): string[] {
+	return [...(SHARED_BUDGETS.find((kinds) => kinds.includes(kind)) ?? [kind])];
+}
+
 export const RESEARCH_RUN_KIND = "company-profile";
 
 export const COMPANY_RESEARCH_KINDS = [
@@ -316,7 +326,9 @@ export function startOfMonth(now = new Date()): Date {
 }
 
 export function monthlyBudget(kind: string, limits: PlanLimits): number | null {
-	if (kind === INSIGHT_KIND) return limits.insightsPerMonth;
+	if (kind === INSIGHT_KIND || kind === STORY_KIND) {
+		return limits.insightsPerMonth;
+	}
 	if (kind === DRAFT_KIND) return limits.draftsPerMonth;
 	if (kind === RESEARCH_RUN_KIND) return limits.researchPerMonth;
 
@@ -327,9 +339,13 @@ export const PLAN_RESERVE = { insightForwardShare: 0.2 } as const;
 
 export function forwardReserve(kind: string, limits: PlanLimits): number {
 	const budget = monthlyBudget(kind, limits);
-	if (budget === null || kind !== INSIGHT_KIND) return 0;
+	if (budget === null || !budgetKinds(INSIGHT_KIND).includes(kind)) return 0;
 
 	return Math.ceil(budget * PLAN_RESERVE.insightForwardShare);
+}
+
+export function keepsReserve(kind: string, origin: string): boolean {
+	return kind === STORY_KIND || origin === "backfill";
 }
 
 export function nextMonthStart(now: Date = new Date()): Date {

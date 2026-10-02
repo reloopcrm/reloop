@@ -386,6 +386,7 @@ model Contact {
   memory        ContactMemory?
   potential     PotentialFeedback?
   emailDraft    EmailDraft?
+  story         ContactStory?
 
   companyId String?
   company   Company? @relation("CompanyContacts", fields: [companyId], references: [id], onDelete: SetNull)
@@ -1306,6 +1307,23 @@ model ContactMemory {
   @@map("contactMemory")
 }
 
+model ContactStory {
+  id        String  @id @default(cuid())
+  contactId String  @unique
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  story        Json
+  language     String?
+  modelId      String?
+  basedOnUntil DateTime?
+  basedOnCount Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contactStory")
+}
+
 model ProviderUsage {
   provider String @id
 
@@ -1357,6 +1375,10 @@ model EmailDraft {
   modelId      String?
   basedOnUntil DateTime?
   basedOnCount Int       @default(0)
+
+  oneOffSubject String?
+  oneOffBody    String?
+  oneOffAt      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

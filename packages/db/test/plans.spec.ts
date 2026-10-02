@@ -4,6 +4,7 @@ import { MODEL_PRICES } from "../src/model-prices";
 import { fixedAiFor, usageLines } from "../src/plan-usage";
 import {
 	allowsCompanyResearch,
+	budgetKinds,
 	COMPANY_RESEARCH_KINDS,
 	canonicalPlanId,
 	clampImportSince,
@@ -12,6 +13,7 @@ import {
 	forwardReserve,
 	INSIGHT_KIND,
 	isPlanId,
+	keepsReserve,
 	LEGACY_PLAN_IDS,
 	limitsOf,
 	monthlyBudget,
@@ -22,6 +24,7 @@ import {
 	type PlanId,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
+	STORY_KIND,
 	startOfMonth,
 	TRIAL_DAYS,
 } from "../src/plans";
@@ -360,5 +363,30 @@ describe("the reading reserve for new mail", () => {
 	it("holds nothing without a limit or for other kinds", () => {
 		expect(forwardReserve(INSIGHT_KIND, NO_PLAN)).toBe(0);
 		expect(forwardReserve(DRAFT_KIND, PLANS.trial)).toBe(0);
+	});
+});
+
+describe("a win back story", () => {
+	it("spends the conversation budget of the plan", () => {
+		expect(monthlyBudget(STORY_KIND, PLANS.trial)).toBe(
+			PLANS.trial.insightsPerMonth,
+		);
+		expect(monthlyBudget(STORY_KIND, NO_PLAN)).toBeNull();
+	});
+
+	it("is counted together with the conversations read", () => {
+		expect(budgetKinds(STORY_KIND)).toEqual([INSIGHT_KIND, STORY_KIND]);
+		expect(budgetKinds(INSIGHT_KIND)).toEqual([INSIGHT_KIND, STORY_KIND]);
+		expect(budgetKinds(DRAFT_KIND)).toEqual([DRAFT_KIND]);
+	});
+
+	it("leaves the reserve for new mail alone, like a backfill", () => {
+		expect(forwardReserve(STORY_KIND, PLANS.trial)).toBe(
+			forwardReserve(INSIGHT_KIND, PLANS.trial),
+		);
+		expect(keepsReserve(STORY_KIND, "forward")).toBe(true);
+		expect(keepsReserve(INSIGHT_KIND, "forward")).toBe(false);
+		expect(keepsReserve(INSIGHT_KIND, "backfill")).toBe(true);
+		expect(keepsReserve(DRAFT_KIND, "forward")).toBe(false);
 	});
 });

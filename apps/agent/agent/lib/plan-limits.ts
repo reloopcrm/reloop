@@ -6,6 +6,7 @@ import {
 	usageWindowOf,
 } from "@crm/db/plan-usage";
 import {
+	budgetKinds,
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	monthlyBudget,
@@ -37,9 +38,10 @@ export async function monthlyUsed(
 	exceptTaskId: string | null = null,
 ): Promise<number> {
 	const { since } = await usageWindowOf(db, now);
+	const kinds = { in: budgetKinds(kind) };
 	const where: Prisma.AgentTaskWhereInput = COUNTED_BY_FINISH.has(kind)
-		? { kind, finishedAt: { gte: since } }
-		: { kind, createdAt: { gte: since } };
+		? { kind: kinds, finishedAt: { gte: since } }
+		: { kind: kinds, createdAt: { gte: since } };
 	if (exceptTaskId) where.id = { not: exceptTaskId };
 
 	return db.agentTask.count({ where });

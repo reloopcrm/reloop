@@ -95,6 +95,13 @@ export const AGENT_FUNCTIONS = [
 		kinds: ["email-draft"],
 	},
 	{
+		id: "person-story",
+		group: "writing",
+		title: "Win back stories",
+		note: "Writes what happened with one quiet customer when you open them in Win back. One model call per person.",
+		kinds: ["person-story"],
+	},
+	{
 		id: "contact-clean",
 		group: "writing",
 		title: "Signature cleanup",

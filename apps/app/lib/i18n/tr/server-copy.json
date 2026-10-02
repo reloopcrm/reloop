@@ -41,5 +41,6 @@
 	"Has a company": "Şirketi var",
 	"Title matches \"{keyword}\"": "Unvan \"{keyword}\" ile eşleşiyor",
 	"Reloop cannot reach its API right now.": "Reloop şu anda API'sine ulaşamıyor.",
-	"Reload the page in a moment.": "Sayfayı birazdan yeniden yükle."
+	"Reload the page in a moment.": "Sayfayı birazdan yeniden yükle.",
+	"Writing what happened with them": "Onlarla neler olduğunu yazıyor"
 }

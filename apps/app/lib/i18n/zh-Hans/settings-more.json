@@ -478,5 +478,7 @@
 	"Remove from workspace": "移出工作区",
 	"Removed from the workspace.": "已移出工作区。",
 	"Remove {name} from the workspace?": "把 {name} 移出工作区？",
-	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "对方会立即退出登录，且无法再次登录。其联系人、交易和活动会保留。"
+	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "对方会立即退出登录，且无法再次登录。其联系人、交易和活动会保留。",
+	"Win back stories": "赢回故事",
+	"Writes what happened with one quiet customer when you open them in Win back. One model call per person.": "当你在赢回中打开一位沉默的客户时，写下与他之间发生的事。每人一次模型调用。"
 }

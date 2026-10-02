@@ -41,5 +41,6 @@
 	"Has a company": "A une entreprise",
 	"Title matches \"{keyword}\"": "Le titre correspond à \"{keyword}\"",
 	"Reloop cannot reach its API right now.": "Reloop ne joint pas son API pour le moment.",
-	"Reload the page in a moment.": "Recharge la page dans un instant."
+	"Reload the page in a moment.": "Recharge la page dans un instant.",
+	"Writing what happened with them": "Écrit ce qui s'est passé avec eux"
 }

@@ -145,6 +145,59 @@ describe("storyFromAnswer", () => {
 		]);
 	});
 
+	it("never takes a sentence of ours as their quote", () => {
+		const story = storyFromAnswer(
+			answer({
+				stopped: {
+					text: "Du hast ein Angebot geschickt.",
+					quote: { message: 2, text: "Anbei mein Angebot: 4.800 Euro." },
+					after: "",
+					messages: [2],
+				},
+			}),
+			numbered,
+		);
+		expect(story.stopped?.quote).toBeNull();
+	});
+
+	it("never takes a colleague's sentence as the person's quote", () => {
+		const withColleague = numberMessages(
+			[
+				{
+					...message(
+						"c1",
+						"INBOUND",
+						"03-03",
+						"Das Budget kommt erst im Juli.",
+					),
+					fromEmail: "chef@example.org",
+				},
+				message(
+					"m1",
+					"INBOUND",
+					"03-02",
+					"Wir möchten im Herbst wieder ein Führungstraining machen.",
+				),
+			],
+			"svenja@example.org",
+		);
+		const story = storyFromAnswer(
+			answer({
+				together: { text: "Ein Training.", messages: [1] },
+				stopped: {
+					text: "Das Budget fehlte.",
+					quote: { message: 2, text: "Das Budget kommt erst im Juli." },
+					after: "",
+					messages: [2],
+				},
+				bringBack: null,
+				passages: [],
+			}),
+			withColleague,
+		);
+		expect(story.stopped?.quote).toBeNull();
+	});
+
 	it("drops a part that names no existing message", () => {
 		const story = storyFromAnswer(
 			answer({ together: { text: "Viele Aufträge.", messages: [9] } }),
@@ -191,5 +244,6 @@ describe("storyPrompt", () => {
 		const previous = storyFromAnswer(answer(), numbered);
 		const { prompt } = storyPrompt({ ...input, previous }, numbered);
 		expect(prompt).toContain("the previous story is wrong");
+		expect(prompt).toContain("<untrusted-text>{");
 	});
 });

@@ -1333,7 +1333,8 @@ one quote of theirs, and what can bring them back with up to four points. The sh
   of the transcript, `storyFromAnswer` (`lib/story-prompt.ts`) turns them into message
   ids, and a part that names no existing message is stored as null. A quote or a
   passage is kept only when it is in that message, compared without case, spacing or
-  quote marks. Nothing the mail does not say reaches the page.
+  quote marks. The quote of the "stopped" part must come from a message the person
+  wrote themselves (`theirs`: inbound and from their address), never from ours. Nothing the mail does not say reaches the page.
 - **The mail is the relevant threads of the contact**, or the ones not read yet, at
   most `STORY.threads`, `STORY.messages` and `STORY.transcriptMaxChars`
   (`lib/story-config.ts`), quoted history cut, oldest first, wrapped in
@@ -1345,12 +1346,15 @@ one quote of theirs, and what can bring them back with up to four points. The sh
   mail that arrives during the call makes the story stale, not covered.
 - **It spends the conversation budget.** `monthlyBudget` gives `person-story` the
   plan's `insightsPerMonth`, and `budgetKinds` counts stories and thread readings
-  together, in the agent, in the API's gate and on the usage page. Past the budget the
-  task is postponed to the end of the window like a draft, and the API queues none.
+  together, in the agent, in the API's gate and on the usage page. A story keeps the
+  20 % reserve for new mail free, like a backfill (`keepsReserve`). Past that the task
+  is postponed to the end of the window like a draft, and the API queues none.
   One model call per opened person, and only again after new mail or a re-read.
 - **A rewrite from the person page is for one mail.** `oneOff: true` in the
   `email-draft` payload (`agentTaskDraftPayload`) tells the model the wish is never a
-  rule, and `revise` never calls `learn`, whatever the model answers
+  rule, and `revise` never calls `learn`, whatever the model answers. The result goes
+  into `EmailDraft.oneOffSubject` and `oneOffBody` beside the draft, never over it, so
+  the suggested version stays; a new full draft clears it
   (`test/run-email-draft.integration.spec.ts`).
 
 ## Tests

@@ -1,7 +1,7 @@
 import { EnrichmentStatus } from "@crm/db";
 import { PRIORITY, waitsForPerson } from "@crm/db/agent-tasks";
 import { cloud } from "@crm/db/cloud/scope";
-import { RESEARCH_RUN_KIND } from "@crm/db/plans";
+import { forwardReserve, RESEARCH_RUN_KIND, STORY_KIND } from "@crm/db/plans";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	readAgentTaskInstruction,
@@ -64,6 +64,7 @@ import {
 	limitResumesAt,
 	monthlyRoom,
 	planId,
+	planLimits,
 } from "./plan-limits";
 import { runPlaybookLearn } from "./playbook";
 import { collapsing, runLimited } from "./pool";
@@ -94,7 +95,6 @@ export const RESEARCH_LEASE_MS = DISPATCH.research.leaseMs;
 
 const INSIGHT_KIND = "thread-insight";
 const REFRESH_KIND = "thread-refresh";
-const STORY_KIND = "person-story";
 const MODEL_KINDS = new Set([
 	INSIGHT_KIND,
 	"thread-digest",
@@ -466,7 +466,8 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 
 	if (task.kind === STORY_KIND && task.contactId) {
 		const room = await monthlyRoom(task.kind, new Date(), task.id);
-		if (room !== null && room <= 0) {
+		const reserve = forwardReserve(task.kind, await planLimits());
+		if (room !== null && room - reserve <= 0) {
 			const until = await limitResumesAt();
 			await postponeTask(task.id, until);
 			console.error(`[agent] a story waits: ${limitOutcome(task.kind, until)}`);

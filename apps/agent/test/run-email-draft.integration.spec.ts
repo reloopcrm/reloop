@@ -177,7 +177,7 @@ describe("runEmailDraft before it reaches a model", () => {
 		expect(modelCalls).toBe(1);
 	});
 
-	it("learns no rule from a one-off rewrite, even when the model offers one", async () => {
+	it("keeps a one-off rewrite beside the draft and learns no rule from it", async () => {
 		const before = await readDraftStyle(db);
 		const id = await person("einmal", "Kuerzer");
 		await talked(id);
@@ -200,7 +200,8 @@ describe("runEmailDraft before it reaches a model", () => {
 		const stored = await db.emailDraft.findUniqueOrThrow({
 			where: { contactId: id },
 		});
-		expect(stored.body).toBe("Kurzer Text");
+		expect(stored.body).toBe("Alter langer Text");
+		expect(stored.oneOffBody).toBe("Kurzer Text");
 		expect(JSON.stringify(fake.model.doStreamCalls[0]?.prompt)).toContain(
 			"never a rule for other emails",
 		);

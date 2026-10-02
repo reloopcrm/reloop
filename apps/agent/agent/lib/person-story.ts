@@ -22,6 +22,7 @@ async function storyInput(contactId: string) {
 			id: true,
 			firstName: true,
 			lastName: true,
+			email: true,
 			title: true,
 			companyId: true,
 			company: { select: { name: true } },
@@ -84,7 +85,7 @@ export async function runPersonStory(
 
 	const { contact } = input;
 	const messages = contact.emailThreads.flatMap((thread) => thread.messages);
-	const numbered = numberMessages(messages);
+	const numbered = numberMessages(messages, contact.email);
 	if (numbered.length === 0) return say(COPY.stories.noConversation);
 
 	const newest = await db.emailThread.aggregate({

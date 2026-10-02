@@ -41,7 +41,7 @@ export type StoryPromptInput = {
 	previous: PersonStory | null;
 };
 
-export type NumberedMessage = { id: string; text: string };
+export type NumberedMessage = { id: string; text: string; theirs: boolean };
 
 const reference = z.number().int().min(1);
 
@@ -148,7 +148,11 @@ export function messageText(message: StoryMessage): string {
 	);
 }
 
-export function numberMessages(messages: StoryMessage[]): NumberedMessage[] {
+export function numberMessages(
+	messages: StoryMessage[],
+	personEmail: string | null = null,
+): NumberedMessage[] {
+	const person = personEmail?.trim().toLowerCase() ?? null;
 	const ordered = [...messages]
 		.sort((a, b) => a.sentAt.getTime() - b.sentAt.getTime())
 		.map((message) => ({ message, text: messageText(message) }))
@@ -163,7 +167,13 @@ export function numberMessages(messages: StoryMessage[]): NumberedMessage[] {
 		kept.unshift(entry);
 	}
 
-	return kept.map((entry) => ({ id: entry.message.id, text: entry.text }));
+	return kept.map((entry) => ({
+		id: entry.message.id,
+		text: entry.text,
+		theirs:
+			entry.message.direction === "INBOUND" &&
+			(person === null || entry.message.fromEmail.toLowerCase() === person),
+	}));
 }
 
 function day(date: Date): string {
@@ -216,7 +226,7 @@ function previousSection(previous: PersonStory | null): string {
 	return [
 		"The rep said the previous story is wrong. Read every message again.",
 		"Keep a claim from it only when a message clearly supports it.",
-		`Previous story:\n${JSON.stringify(previous)}`,
+		`Previous story:\n${untrusted(JSON.stringify(previous))}`,
 	].join("\n");
 }
 
@@ -234,7 +244,7 @@ export function storyPrompt(
 		"WE in the transcript is the rep's own company, you. THEY is the customer. The customer buys from you or sells to you; say it the right way round.",
 		"gist: at most two sentences and 30 words. What you did together and where it stopped. No greeting, no advice.",
 		"together: at most two sentences and 40 words. The orders or projects and what went well, with the numbers the mail names. Sum up, never list every order.",
-		"stopped: at most two sentences and 40 words on when it stopped and why, then the one sentence of theirs that shows it best as quote, then after: one sentence on what happened after it.",
+		"stopped: at most two sentences and 40 words on when it stopped and why, then the one sentence from a message THEY wrote that shows it best as quote, never a sentence of ours, then after: one sentence on what happened after it.",
 		"bringBack: at most two sentences and 40 words on what can bring them back now, then up to three points of at most 12 words, each one fact from the mail.",
 		"Never write about the evidence itself: no 'not documented', 'not shown', 'in the visible thread' or 'it is unclear'. When the mail does not say why, leave the why out.",
 		"A quote or a passage starts after the greeting and never contains a greeting such as Hello or Hallo and a name.",
@@ -272,8 +282,10 @@ function normal(value: string): string {
 function quoted(
 	numbered: NumberedMessage[],
 	entry: { message: number; text: string },
+	theirsOnly: boolean,
 ): { messageId: string; text: string } | null {
 	const message = numbered[entry.message - 1];
+	if (theirsOnly && !message?.theirs) return null;
 	const bare = entry.text
 		.trim()
 		.replace(/^[„“”"«»]+|[„“”"«»]+$/g, "")
@@ -311,7 +323,7 @@ export function storyFromAnswer(
 			}
 		: null;
 	const quote = answer.stopped?.quote
-		? quoted(numbered, answer.stopped.quote)
+		? quoted(numbered, answer.stopped.quote, true)
 		: null;
 	const stopped = answer.stopped
 		? {
@@ -337,7 +349,7 @@ export function storyFromAnswer(
 	const passages = [
 		...(quote ? [quote] : []),
 		...answer.passages.flatMap((entry) => {
-			const found = quoted(numbered, entry);
+			const found = quoted(numbered, entry, false);
 			return found ? [found] : [];
 		}),
 	]

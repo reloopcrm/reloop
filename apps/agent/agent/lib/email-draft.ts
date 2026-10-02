@@ -262,6 +262,9 @@ async function store(
 	modelId: string,
 ): Promise<void> {
 	const fields = {
+		oneOffSubject: null,
+		oneOffBody: null,
+		oneOffAt: null,
 		subject: object.subject.slice(0, DRAFT.subjectMaxChars),
 		body: object.body.slice(0, DRAFT.textMaxChars),
 		language: object.language,
@@ -362,8 +365,19 @@ async function revise(
 		},
 	);
 
-	await store(person.id, person, object, model.modelId);
-	if (!oneOff) await learn(object.styleRule);
+	if (oneOff) {
+		await db.emailDraft.update({
+			where: { contactId: person.id },
+			data: {
+				oneOffSubject: object.subject.slice(0, DRAFT.subjectMaxChars),
+				oneOffBody: object.body.slice(0, DRAFT.textMaxChars),
+				oneOffAt: new Date(),
+			},
+		});
+	} else {
+		await store(person.id, person, object, model.modelId);
+		await learn(object.styleRule);
+	}
 
 	return say(
 		COPY.drafts.rewritten(

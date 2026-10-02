@@ -65,6 +65,68 @@ function DraftCardBody({ className, ...props }: React.ComponentProps<"div">) {
 	);
 }
 
+function DraftCardTitle({ className, ...props }: React.ComponentProps<"h3">) {
+	return (
+		<h3
+			data-slot="draft-card-title"
+			className={cn(
+				"wrap-anywhere font-medium text-lg leading-snug tracking-tight",
+				className,
+			)}
+			{...props}
+		/>
+	);
+}
+
+function DraftCardDescription({ className, ...props }: React.ComponentProps<"p">) {
+	return (
+		<p
+			data-slot="draft-card-description"
+			className={cn("-mt-2.5 text-body-foreground text-sm", className)}
+			{...props}
+		/>
+	);
+}
+
+function DraftCardPreview({ className, ...props }: React.ComponentProps<"div">) {
+	return (
+		<div
+			data-slot="draft-card-preview"
+			className={cn(
+				"rounded-md border bg-background px-4 py-3.5 font-light font-serif text-base text-body-foreground leading-[1.45] [&_p]:line-clamp-3",
+				className,
+			)}
+			{...props}
+		/>
+	);
+}
+
+function DraftCardMail({ className, ...props }: React.ComponentProps<"div">) {
+	return (
+		<div
+			data-slot="draft-card-mail"
+			className={cn(
+				"flex min-w-0 flex-col gap-3.5 rounded-md border bg-background px-3.5 pt-4 pb-4.5 md:px-4.5",
+				className,
+			)}
+			{...props}
+		/>
+	);
+}
+
+function DraftCardMailHeader({ className, ...props }: React.ComponentProps<"div">) {
+	return (
+		<div
+			data-slot="draft-card-mail-header"
+			className={cn(
+				"flex flex-wrap items-start justify-between gap-2.5 border-b pb-3 [&>[data-slot=draft-card-meta]]:min-w-[min(100%,16rem)] [&>[data-slot=draft-card-meta]]:flex-1 [&>[data-slot=draft-card-meta]]:border-b-0 [&>[data-slot=draft-card-meta]]:pb-0",
+				className,
+			)}
+			{...props}
+		/>
+	);
+}
+
 function DraftCardActions({ className, ...props }: React.ComponentProps<"div">) {
 	return (
 		<div
@@ -75,4 +137,15 @@ function DraftCardActions({ className, ...props }: React.ComponentProps<"div">) 
 	);
 }
 
-export { DraftCard, DraftCardActions, DraftCardBody, DraftCardHeader, DraftCardMeta };
+export {
+	DraftCard,
+	DraftCardActions,
+	DraftCardBody,
+	DraftCardDescription,
+	DraftCardHeader,
+	DraftCardMail,
+	DraftCardMailHeader,
+	DraftCardMeta,
+	DraftCardPreview,
+	DraftCardTitle,
+};

@@ -9,6 +9,8 @@ export const DEMO = {
 		emailThread: "email-thread",
 		sheetTab: "sheet-tab",
 		sheetClose: "sheet-close",
+		personMails: "person-mails",
+		personMessage: "person-message",
 	},
 	navLink: (href: string) => `a[href="${href}"]`,
 	steps: [
@@ -16,23 +18,17 @@ export const DEMO = {
 		{
 			action: "openFirstRow",
 			target: '[data-demo="win-back-table"][data-demo-record] tbody tr',
-			settleMs: 1_200,
-		},
-		{
-			action: "tab",
-			value: "activity",
-			target: '[data-demo="sheet-tab"][data-value="activity"]',
-			settleMs: 900,
+			settleMs: 1_800,
 		},
 		{
 			action: "click",
-			target: '[data-demo="email-thread"]',
+			target: '[data-demo="person-mails"]',
 			settleMs: 1_500,
 		},
 		{
-			action: "closeSheet",
-			target: '[data-demo="sheet-close"]',
-			settleMs: 800,
+			action: "click",
+			target: '[data-demo="person-message"]',
+			settleMs: 2_000,
 		},
 		{ action: "navigate", path: "/", settleMs: 1_500 },
 	],

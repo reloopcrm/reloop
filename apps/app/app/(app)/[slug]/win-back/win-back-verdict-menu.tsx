@@ -77,21 +77,19 @@ export function WinBackVerdictMenu({
 
 	const feedback = useMutation(
 		trpc.reactivation.setFeedback.mutationOptions({
-			onSuccess: (result) => {
+			onSuccess: () => {
 				void cache.winBack();
 				void cache.contact();
 				void cache.company();
-				toast.success(
-					result.verdict === "bad"
-						? t("{name} stays out of the list.", { name })
-						: result.verdict === "good"
-							? t("{name} is marked as worth it.", { name })
-							: t("Verdict on {name} removed.", { name }),
-				);
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
+	const single = contactIds.length === 1;
+	const previous =
+		verdict === "good" || verdict === "bad" || verdict === "later"
+			? verdict
+			: null;
 
 	const days = WIN_BACK_UI.remindLater.afterDays;
 
@@ -125,7 +123,33 @@ export function WinBackVerdictMenu({
 
 	const save = (next: "good" | "bad" | null) => {
 		if (feedback.isPending) return;
-		feedback.mutate({ contactIds, verdict: next });
+		feedback.mutate(
+			{ contactIds, verdict: next },
+			{
+				onSuccess: (result) => {
+					if (result.verdict === "bad" && single) {
+						toast(t("{name} stays out of the list.", { name }), {
+							action: {
+								label: t("Undo"),
+								onClick: () =>
+									feedback.mutate(
+										{ contactIds, verdict: previous },
+										{ onSuccess: () => toast(t("Undone.")) },
+									),
+							},
+						});
+						return;
+					}
+					toast.success(
+						result.verdict === "bad"
+							? t("{name} stays out of the list.", { name })
+							: result.verdict === "good"
+								? t("{name} is marked as worth it.", { name })
+								: t("Verdict on {name} removed.", { name }),
+					);
+				},
+			},
+		);
 	};
 
 	return (
@@ -147,7 +171,9 @@ export function WinBackVerdictMenu({
 					>
 						{t("Worth it")}
 					</DropdownMenuItem>
-					<DropdownMenuItem onSelect={() => setAsking(true)}>
+					<DropdownMenuItem
+						onSelect={() => (single ? save("bad") : setAsking(true))}
+					>
 						{t("Not for us")}
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
@@ -178,14 +204,10 @@ export function WinBackVerdictMenu({
 							{t("Take {name} off the list?", { name })}
 						</AlertDialogTitle>
 						<AlertDialogDescription>
-							{contactIds.length === 1
-								? t(
-										"This person leaves Win back at once. The agent archives them on its next pass, and their company when nobody else stays there.",
-									)
-								: t(
-										"All {count} people at this company leave Win back at once. The agent archives them on its next pass, and the company with them.",
-										{ count: contactIds.length },
-									)}
+							{t(
+								"All {count} people at this company leave Win back at once. The agent archives them on its next pass, and the company with them.",
+								{ count: contactIds.length },
+							)}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

@@ -3,12 +3,13 @@
 import { Button } from "@crm/ui/components/button";
 import { MailIcon } from "@crm/ui/components/line-icons";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryStates } from "nuqs";
-import { useRecordStack } from "@/components/crm/record-sheet/record-stack";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
-import { WIN_BACK_UI } from "./win-back-config";
+import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+import { withListState } from "./[contactId]/person-view";
 import { WinBackRulesSheet } from "./win-back-rules-sheet";
 import {
 	winBackInput,
@@ -19,7 +20,9 @@ import {
 export function WinBackActions() {
 	const t = useT();
 	const trpc = useTRPC();
-	const { openAt } = useRecordStack();
+	const router = useRouter();
+	const workspaceUrl = useWorkspaceUrl();
+	const search = useSearchParams().toString();
 	const table = useTableQuery(winBackTable);
 	const [scope] = useQueryStates(winBackScopeParsers);
 	const rules = useQuery(trpc.reactivation.rules.queryOptions());
@@ -38,7 +41,9 @@ export function WinBackActions() {
 			{next ? (
 				<Button
 					onClick={() =>
-						openAt({ kind: "contact", id: next.id }, WIN_BACK_UI.agentTab)
+						router.push(
+							withListState(workspaceUrl(`/win-back/${next.id}`), search),
+						)
 					}
 				>
 					<MailIcon data-icon="inline-start" />

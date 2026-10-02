@@ -148,6 +148,22 @@ the facts the mail gave. Below, a 300px rail lists the fields in groups under mo
 headings, each field a muted label with a small icon and a one-line value; the
 main side has line tabs.
 
+## The Win back person
+
+A person in Win back opens a page, not a sheet: `/<slug>/win-back/<contactId>`, so
+the back button returns to the list and a link names one person. The page is
+"understand first": the gist in Newsreader, the progress steps, the timeline "Your
+time together", three numbered chapters with one quote, and a second tab with the
+person's mail where the passages the story builds on are marked. Every part links to
+its mail.
+
+The next step is one `DraftCard` with corner marks. From 1180px (`split:`) it is a
+sticky right column, `container-aside` wide (360px, 400px from 1400px), beside a
+story column of `container-story` (720px). Below 1180px it follows the story in one
+column and an `ActionBar` fixed to the bottom repeats the one action; toasts rise
+above it through `--toast-lift`. The parts live in
+`packages/ui/src/components/story.tsx`.
+
 ## Shell
 
 The app shell is a labelled sidebar, `container-sidebar` (224px) on `--off` with a

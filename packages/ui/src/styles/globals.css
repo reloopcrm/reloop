@@ -8,6 +8,7 @@
 @custom-variant site (&:is(.site *, [data-site-shell] *));
 
 :root {
+	--aside-width: 360px;
 	color-scheme: light;
 	--ink: #111111;
 	--ink-40: rgb(17 17 17 / 0.4);
@@ -143,6 +144,9 @@
 	--container-sheet: 640px;
 	--container-sidebar: 224px;
 	--container-rail: 56px;
+	--container-story: 720px;
+	--container-aside: var(--aside-width);
+	--breakpoint-split: 73.75rem;
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
 	--color-card: var(--card);
@@ -997,5 +1001,17 @@
 				opacity 150ms linear,
 				visibility 150ms linear !important;
 		}
+	}
+}
+
+@media (min-width: 87.5rem) {
+	:root {
+		--aside-width: 400px;
+	}
+}
+
+@media (width < 73.75rem) {
+	:root:has([data-slot="action-bar"]) {
+		--toast-lift: 4.5rem;
 	}
 }

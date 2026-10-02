@@ -290,6 +290,7 @@ export function useCrmCache(): CrmCache {
 					trpc.reactivation.list.queryKey(),
 					trpc.reactivation.progress.queryKey(),
 					trpc.reactivation.rulesState.queryKey(),
+					trpc.reactivation.person.queryKey(),
 				],
 				[],
 				options,

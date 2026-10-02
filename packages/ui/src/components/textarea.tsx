@@ -10,6 +10,8 @@ const textareaVariants = cva(
 				default: "",
 				composer:
 					"resize-none rounded-none border-transparent bg-transparent px-1 py-0 text-base leading-6 shadow-none ring-0 hover:border-transparent focus-visible:border-transparent focus-visible:ring-0 disabled:bg-transparent sm:text-md",
+				draft:
+					"resize-none rounded-xs border-transparent bg-transparent p-0 font-light font-serif text-base text-foreground leading-[1.5] shadow-none outline-1 outline-border-strong outline-offset-6 outline-dashed hover:border-transparent focus-visible:border-transparent focus-visible:ring-0 md:text-[17px]",
 			},
 			size: {
 				default: "min-h-20",

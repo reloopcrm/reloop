@@ -16,6 +16,7 @@ import { RowOpenButton } from "@crm/ui/components/row-controls";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useQueryStates } from "nuqs";
 import { useMemo } from "react";
 import { contactName } from "@/components/crm/contact-name";
@@ -34,6 +35,7 @@ import { numberFormat } from "@/lib/i18n/format";
 import { POTENTIAL_FACET_OPTIONS } from "@/lib/record-standing";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { WinBackBulkVerdict } from "./win-back-bulk-verdict";
 import { WIN_BACK_UI } from "./win-back-config";
 import {
@@ -276,7 +278,8 @@ export function WinBackTable() {
 	const t = useT();
 	const locale = useLocale();
 	const trpc = useTRPC();
-	const openRecord = useOpenRecord();
+	const router = useRouter();
+	const workspaceUrl = useWorkspaceUrl();
 	const table = useTableQuery(winBackTable);
 	const [scope, setScope] = useQueryStates(winBackScopeParsers);
 
@@ -407,7 +410,7 @@ export function WinBackTable() {
 					getSubRowId: (person) => person.id,
 					renderSubCell: (person, columnId) => subCell(person, columnId),
 					onSubRowClick: (person) =>
-						openRecord({ kind: "contact", id: person.id }),
+						router.push(workspaceUrl(`/win-back/${person.id}`)),
 					label: (row) => t("Show the people at {name}", { name: row.name }),
 				}}
 				empty={t("Nobody has gone quiet.")}

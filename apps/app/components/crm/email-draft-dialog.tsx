@@ -35,6 +35,12 @@ import { translateError } from "@/lib/i18n/errors";
 import { useTRPC } from "@/lib/trpc/client";
 
 import { EMAIL_DRAFT } from "./email-draft-config";
+import {
+	copyText,
+	mailtoFits,
+	mailtoHref,
+	useEmailDraft,
+} from "./use-email-draft";
 
 const LONG_DAY = { dateStyle: "long" } as const;
 
@@ -60,35 +66,27 @@ export function EmailDraftDialog({
 	const [body, setBody] = useState<string | null>(null);
 	const [instruction, setInstruction] = useState("");
 
-	const state = useQuery({
-		...trpc.contacts.draft.queryOptions({ id: contactId }),
-		enabled: open,
-		refetchInterval: (query) =>
-			query.state.data?.queued ? EMAIL_DRAFT.pollMs : false,
-	});
-
-	const learning = state.data?.queued === true;
+	const reset = () => {
+		setSubject(null);
+		setBody(null);
+		setInstruction("");
+	};
+	const {
+		draft,
+		failed,
+		held,
+		planLimit,
+		waiting,
+		blocked,
+		write,
+		ensure,
+	} = useEmailDraft(contactId, open, reset);
 
 	const style = useQuery({
 		...trpc.settings.draftStyle.queryOptions(),
 		enabled: open,
 		refetchInterval: open ? EMAIL_DRAFT.pollMs : false,
 	});
-
-	const write = useMutation(
-		trpc.contacts.writeDraft.mutationOptions({
-			onSuccess: (result) => {
-				setSubject(null);
-				setBody(null);
-				setInstruction("");
-				queries.setQueryData(
-					trpc.contacts.draft.queryKey({ id: contactId }),
-					result,
-				);
-			},
-			onError: (error) => toast.error(translateError(t, locale, error.message)),
-		}),
-	);
 
 	const forget = useMutation(
 		trpc.settings.forgetDraftStyleRule.mutationOptions({
@@ -99,68 +97,28 @@ export function EmailDraftDialog({
 		}),
 	);
 
-	const draft = state.data?.draft ?? null;
-	const failed = state.data?.failed === true;
-	const held = state.data?.waitingUntil ?? null;
-	const planLimit = state.data?.limit === "plan";
-	const waiting = learning || write.isPending;
-	const blocked = waiting || held !== null;
 	const rules = style.data?.rules ?? [];
 
 	const changeOpen = async (next: boolean) => {
 		setOpen(next);
-		setInstruction("");
-		setSubject(null);
-		setBody(null);
-		if (!next) return;
-		try {
-			const current = await queries.fetchQuery(
-				trpc.contacts.draft.queryOptions({ id: contactId }),
-			);
-			if (
-				!current.draft &&
-				!current.queued &&
-				!current.waitingUntil &&
-				current.limit === null
-			)
-				write.mutate({ id: contactId });
-		} catch (error) {
-			toast.error(
-				translateError(t, locale, error instanceof Error ? error.message : ""),
-			);
-		}
+		reset();
+		if (next) await ensure();
 	};
 
 	const currentSubject = subject ?? draft?.subject ?? "";
 	const currentBody = body ?? draft?.body ?? "";
 
-	const copy = async () => {
-		const clipboard = navigator.clipboard;
-		if (!clipboard) {
-			toast.error(t("This browser does not allow copying."));
-			return;
-		}
-
-		try {
-			await clipboard.writeText(`${currentSubject}\n\n${currentBody}`);
-			toast.success(t("Email copied."));
-			return true;
-		} catch {
-			toast.error(t("This browser does not allow copying."));
-			return false;
-		}
-	};
+	const copy = () => copyText(`${currentSubject}\n\n${currentBody}`, t);
 
 	const revise = () => {
 		const wish = instruction.trim();
 		if (!wish) return;
 
-		write.mutate({ id: contactId, instruction: wish });
+		write(wish);
 	};
 
-	const mailto = `mailto:${email}?subject=${encodeURIComponent(currentSubject)}&body=${encodeURIComponent(currentBody)}`;
-
-	const mailtoFits = mailto.length <= EMAIL_DRAFT.mailtoMaxChars;
+	const mailto = mailtoHref(email, currentSubject, currentBody);
+	const fits = mailtoFits(mailto);
 
 	return (
 		<Dialog open={open} onOpenChange={(next) => void changeOpen(next)}>
@@ -324,7 +282,7 @@ export function EmailDraftDialog({
 						variant="outline"
 						size="sm"
 						disabled={blocked}
-						onClick={() => write.mutate({ id: contactId })}
+						onClick={() => write()}
 					>
 						{waiting ? (
 							<Spinner />
@@ -344,9 +302,9 @@ export function EmailDraftDialog({
 					</Button>
 					<Button asChild size="sm" disabled={!draft}>
 						<a
-							href={mailtoFits ? mailto : undefined}
+							href={fits ? mailto : undefined}
 							onClick={
-								mailtoFits
+								fits
 									? undefined
 									: (event) => {
 											event.preventDefault();

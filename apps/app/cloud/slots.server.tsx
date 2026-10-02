@@ -10,3 +10,7 @@ export function PausedPaymentSection(_props: PausedPaymentSectionProps) {
 export function DangerZone(_props: DangerZoneProps) {
 	return null;
 }
+
+export function AgreementGate() {
+	return null;
+}

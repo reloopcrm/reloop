@@ -607,6 +607,12 @@ and 89 messages, every row carrying the `demo-` prefix from `DEMO.prefix`
 (`apps/api/src/demo/demo-data.ts`). `apps/api/scripts/demo-data.ts` is the same two
 functions behind a CLI, so the script and the button cannot drift.
 
+- **Every win back person gets a story** (`demo/demo-story.ts`), built from the
+  seeded threads only: the gist from the memory, the orders, the last thread, one
+  quote that is a real sentence of a seeded mail. `basedOnUntil` is the newest seeded
+  mail and `language` is what the person view asks for, so the page never queues a
+  `person-story` task for sample data, which `AgentTriggerService` would refuse
+  anyway.
 - **This is not `RELOOP_DEMO`.** That variable drives the operator's scripted tour
   and is untouched by any of this.
 - **Owner only**, through `canLoadSampleData` (`@crm/auth/roles`), in the service

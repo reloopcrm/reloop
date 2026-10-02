@@ -231,15 +231,15 @@
 	"Reloop overview: sidebar, KPIs, closed won chart and deals in progress": "Resumen de Reloop: barra lateral, indicadores, gráfico de negocios ganados y negocios en curso",
 	"Reloop Win back list: companies ranked by what happened in mail": "Lista Recuperar de Reloop: empresas ordenadas por lo que pasó en el correo",
 	"Reloop contact sheet with the conversation summary and mail timeline": "Ficha de contacto de Reloop con el resumen de la conversación y la cronología de correos",
-	"Reloop follow-up draft dialog over the Win back list": "Diálogo de Reloop con el borrador de seguimiento sobre la lista Recuperar",
 	"Reloop Contacts list": "Lista de contactos de Reloop",
 	"Reloop Companies list": "Lista de empresas de Reloop",
-	"Reloop follow-up draft dialog with the change field": "Diálogo de Reloop con el borrador de seguimiento y el campo de cambios",
 	"Reloop contact record with the summary and the mail timeline": "Registro de contacto de Reloop con el resumen y la cronología de correos",
 	"Reloop overview KPI cards": "Tarjetas de indicadores del resumen de Reloop",
 	"Reloop overview: closed won versus new pipeline chart": "Resumen de Reloop: gráfico de negocios ganados frente a nuevo pipeline",
 	"Reloop deals in progress": "Negocios en curso de Reloop",
 	"Reloop Win back table: companies ranked by potential": "Tabla Recuperar de Reloop: empresas ordenadas por potencial",
 	"Reloop deals pipeline with three stages": "Pipeline de negocios de Reloop con tres etapas",
-	"Reloop Win back list, compact view": "Lista Recuperar de Reloop, vista compacta"
+	"Reloop Win back list, compact view": "Lista Recuperar de Reloop, vista compacta",
+	"Reloop Win back person: the story from the mail and the ready follow-up": "Reloop Recuperar, una persona: la historia a partir de los correos y el seguimiento listo",
+	"Reloop follow-up card with the ready message": "Tarjeta de seguimiento de Reloop con el mensaje listo"
 }

@@ -244,6 +244,39 @@ const GERMAN = {
 		"{contact} wegen der Anfrage nach Premiumsets anrufen",
 	"Her request from spring never got an answer. Call before the new offer goes out.":
 		"Ihre Anfrage aus dem Frühjahr blieb unbeantwortet. Anrufen, bevor das neue Angebot rausgeht.",
+	"{name} ordered once from you, in {month}: {products}.":
+		"{name} hat einmal bei euch bestellt, im {month}: {products}.",
+	"{name} ordered {count} times from you, last in {month}: {products}.":
+		"{name} hat {count} Mal bei euch bestellt, zuletzt im {month}: {products}.",
+	"You wrote with {name} about {products}. No order has come of it yet.":
+		"Ihr habt mit {name} über {products} geschrieben. Ein Auftrag ist daraus noch nicht geworden.",
+	"On {date} {name} sent a request for {product}, {qty}.":
+		"Am {date} schickte {name} eine Anfrage für {product}, {qty}.",
+	"On {date} you sent offer {ref} for {product}.":
+		"Am {date} hast du das Angebot {ref} für {product} geschickt.",
+	"The last order, {ref}, came on {date}.":
+		"Die letzte Bestellung, {ref}, kam am {date}.",
+	"The last conversation was on {date}: {subject}.":
+		"Der letzte Austausch war am {date}: {subject}.",
+	"Nobody answered that mail. {name} has not written since.":
+		"Auf diese Mail hat niemand geantwortet. Seitdem hat {name} nicht mehr geschrieben.",
+	"Your answer was the last mail. Since then {days} days have passed without a word.":
+		"Deine Antwort war die letzte Mail. Seitdem sind {days} Tage ohne ein Wort vergangen.",
+	"{name} asked first and is still waiting. A late but honest answer with a price can restart it.":
+		"{name} hat selbst gefragt und wartet noch. Eine späte, aber ehrliche Antwort mit Preis kann es wieder anstoßen.",
+	"Your offer is on the table. A short question whether it still fits brings the decision back.":
+		"Dein Angebot liegt auf dem Tisch. Eine kurze Frage, ob es noch passt, holt die Entscheidung zurück.",
+	"The orders went well. A note before the next season keeps you first in line.":
+		"Die Bestellungen liefen gut. Eine Nachricht vor der nächsten Saison hält dich vorn.",
+	"The last contact was friendly and practical. A short question about the next need is enough.":
+		"Der letzte Kontakt war freundlich und sachlich. Eine kurze Frage nach dem nächsten Bedarf reicht.",
+	"{count} orders went through.": "{count} Bestellungen sind gelaufen.",
+	"One order went through.": "Eine Bestellung ist gelaufen.",
+	"The request for {qty} of {product} is still open.":
+		"Die Anfrage über {qty} {product} ist noch offen.",
+	"A damaged delivery was replaced at no charge.":
+		"Eine beschädigte Lieferung wurde kostenlos ersetzt.",
+	"The last mail was {days} days ago.": "Die letzte Mail ist {days} Tage her.",
 	"Premium kits for {company}": "Premiumsets für {company}",
 	"Hi {contact},\n\nIn spring you asked us about 40 premium kits, right after the replacement for order ORD 20988. That request slipped through on our side, and I am sorry about that.\n\nIf the quarterly orders are still a topic for {company}, I can send you an offer for the premium kits this week, together with the standard kits at last year's price.\n\nWould a short call on Tuesday suit you?\n\nBest regards\n{sender}":
 		"Hallo {contact},\n\nim Frühjahr haben Sie uns nach 40 Premiumsets gefragt, direkt nach dem Ersatz für die Bestellung ORD 20988. Diese Anfrage ist bei uns liegen geblieben, das tut mir leid.\n\nWenn die Quartalsbestellungen für {company} noch ein Thema sind, schicke ich Ihnen diese Woche ein Angebot für die Premiumsets, zusammen mit den Standardsets zum Preis vom letzten Jahr.\n\nPasst Ihnen ein kurzes Telefonat am Dienstag?\n\nViele Grüße\n{sender}",

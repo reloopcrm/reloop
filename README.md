@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/draft.png" width="900" alt="A contact record with the follow-up the agent drafted from the mail history">
+  <img src="docs/images/draft.png" width="900" alt="A Win back person: the story Reloop read from the mail history and the follow-up the agent drafted">
 </p>
 
 <p align="center">

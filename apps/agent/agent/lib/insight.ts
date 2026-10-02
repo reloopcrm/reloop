@@ -6,6 +6,8 @@ import {
 	THREAD_CLASSIFICATION,
 } from "@crm/db/insights";
 import { TYPESAFE } from "@crm/db/typesafe";
+import type { SummaryLanguage } from "@crm/validation/agent-language";
+import { summaryIsStale } from "@crm/validation/agent-language";
 import { clampAtWord } from "@crm/validation/summary-text";
 import {
 	readWinBackRules,
@@ -511,6 +513,58 @@ async function refreshMemory(
 	});
 }
 
+export type ReadPlan = "stored" | "classify" | "keepRelevant";
+
+export function readPlan(
+	reread: boolean,
+	insight: { relevant: boolean; lastMessageAt: Date } | null,
+	lastMessageAt: Date,
+): ReadPlan {
+	if (!insight) return "classify";
+	if (reread) return insight.relevant ? "keepRelevant" : "stored";
+	return insight.lastMessageAt.getTime() === lastMessageAt.getTime()
+		? "stored"
+		: "classify";
+}
+
+export async function rereadRelevant(
+	thread: ThreadRecord,
+	rules: WinBackRules,
+	expensive: (
+		thread: ThreadRecord,
+		rules: WinBackRules,
+	) => Promise<ThreadClassification> = classifyWithModel,
+): Promise<ThreadClassification> {
+	const result = await expensive(thread, rules);
+	return { ...result, verdict: { ...result.verdict, relevant: true } };
+}
+
+function storedVerdict(stored: {
+	relevant: boolean;
+	topics: string[];
+	side: string | null;
+	products: string[];
+	quantityPallets: number | null;
+	loads: number | null;
+	outcome: string;
+	unansweredByUs: boolean;
+	summary: string;
+}): ThreadVerdict {
+	return {
+		relevant: stored.relevant,
+		topics: stored.topics,
+		side: (stored.side ?? "UNCLEAR") as ThreadInsightVerdict["side"],
+		products: stored.products,
+		quantityPallets: stored.quantityPallets,
+		loads: stored.loads,
+		outcome: stored.outcome as ThreadInsightVerdict["outcome"],
+		unansweredByUs: stored.unansweredByUs,
+		summary: stored.summary,
+		evidence: [],
+		messageSummaries: [],
+	};
+}
+
 export async function runThreadInsight(
 	threadId: string,
 	gateOnly = false,
@@ -524,7 +578,7 @@ export async function runThreadInsight(
 			contactId: true,
 			lastMessageAt: true,
 			classification: true,
-			insight: { select: { lastMessageAt: true } },
+			insight: { select: { lastMessageAt: true, relevant: true } },
 			messages: {
 				orderBy: { sentAt: "asc" },
 				select: {
@@ -544,34 +598,22 @@ export async function runThreadInsight(
 	if (thread.messages.length === 0) return say(COPY.threads.empty);
 
 	const rules = await readWinBackRules(db);
-	const unchanged =
-		!reread &&
-		thread.insight !== null &&
-		thread.insight.lastMessageAt.getTime() === thread.lastMessageAt.getTime();
+	const plan = readPlan(reread, thread.insight, thread.lastMessageAt);
+	if (plan === "keepRelevant" && gateOnly) throw NEEDS_FULL_READ;
 
 	let verdict: ThreadVerdict;
 
-	if (unchanged) {
-		const stored = await db.threadInsight.findUniqueOrThrow({
-			where: { threadId },
-		});
-		verdict = {
-			relevant: stored.relevant,
-			topics: stored.topics,
-			side: (stored.side ?? "UNCLEAR") as ThreadInsightVerdict["side"],
-			products: stored.products,
-			quantityPallets: stored.quantityPallets,
-			loads: stored.loads,
-			outcome: stored.outcome as ThreadInsightVerdict["outcome"],
-			unansweredByUs: stored.unansweredByUs,
-			summary: stored.summary,
-			evidence: [],
-			messageSummaries: [],
-		};
+	if (plan === "stored") {
+		verdict = storedVerdict(
+			await db.threadInsight.findUniqueOrThrow({ where: { threadId } }),
+		);
 	} else {
-		const result = gateOnly
-			? gateOnlyVerdict(await askGate(thread, rules, askJev))
-			: await classifyThread(thread, rules);
+		const result =
+			plan === "keepRelevant"
+				? await rereadRelevant(thread, rules)
+				: gateOnly
+					? gateOnlyVerdict(await askGate(thread, rules, askJev))
+					: await classifyThread(thread, rules);
 		verdict = result.verdict;
 
 		await storeMessageSummaries(thread, verdict.messageSummaries);
@@ -623,6 +665,69 @@ export async function runThreadInsight(
 		? `, ${say(COPY.threads.units(verdict.quantityPallets))}`
 		: "";
 	return `${verdict.outcome}${units}: ${verdict.summary.slice(0, 160)}`;
+}
+
+export function refreshedSummary(
+	stored: string,
+	written: string,
+	wanted: SummaryLanguage,
+) {
+	return { summary: written.trim() || stored, language: wanted };
+}
+
+export async function runSummaryRefresh(threadId: string): Promise<string> {
+	const thread = await db.emailThread.findUnique({
+		where: { id: threadId },
+		select: {
+			id: true,
+			subject: true,
+			contactId: true,
+			lastMessageAt: true,
+			insight: true,
+			messages: {
+				orderBy: { sentAt: "asc" },
+				select: {
+					id: true,
+					direction: true,
+					fromEmail: true,
+					fromName: true,
+					sentAt: true,
+					body: true,
+					snippet: true,
+				},
+			},
+		},
+	});
+
+	if (!thread) return say(COPY.threads.gone);
+	if (thread.messages.length === 0) return say(COPY.threads.empty);
+
+	const insight = thread.insight;
+	if (!insight?.relevant || !insight.summary.trim()) {
+		return say(COPY.threads.notRefreshed);
+	}
+
+	const rules = await readWinBackRules(db);
+	const wanted = summaryLanguage();
+	let summary = insight.summary;
+
+	if (summaryIsStale(insight.language, wanted)) {
+		const { verdict } = await classifyWithModel(thread, rules);
+		await storeMessageSummaries(thread, verdict.messageSummaries);
+
+		const data = refreshedSummary(insight.summary, verdict.summary, wanted);
+		await db.threadInsight.update({ where: { threadId }, data });
+		summary = data.summary;
+	}
+
+	if (thread.contactId) {
+		await refreshMemory(thread.contactId, rules, {
+			threadId,
+			verdict: storedVerdict({ ...insight, summary }),
+		});
+	}
+
+	return say(COPY.threads.refreshed);
 }
 
 export function quotedMessages(

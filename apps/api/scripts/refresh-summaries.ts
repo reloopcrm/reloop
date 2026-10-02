@@ -1,10 +1,10 @@
+import { cloud } from "@crm/db/cloud/scope";
 import { SAMPLE_DATA } from "@crm/db/sample-data";
 import {
 	readAgentLanguage,
 	summaryLanguage,
 } from "@crm/validation/agent-language";
-
-const REASON = "A summary was written in another language than the workspace's";
+import { AGENT_DISPATCH } from "../src/agent/agent-dispatch.config";
 
 async function main(): Promise<void> {
 	const { db } = await import("@crm/db");
@@ -12,50 +12,64 @@ async function main(): Promise<void> {
 		"../src/agent/agent-trigger.service"
 	);
 	const apply = process.argv.includes("--apply");
-	const wanted = summaryLanguage(
-		await readAgentLanguage(db),
-		process.env.RELOOP_GERMAN,
-	);
-	const stale = { OR: [{ language: null }, { language: { not: wanted } }] };
+	const agent = new AgentTriggerService(db);
 
-	const insights = await db.threadInsight.findMany({
-		where: {
-			...stale,
-			summary: { not: "" },
-			NOT: { threadId: { startsWith: SAMPLE_DATA.prefix } },
-		},
-		select: { threadId: true },
-	});
-	const memories = await db.contactMemory.findMany({
-		where: {
-			...stale,
-			summary: { not: "" },
-			NOT: { contactId: { startsWith: SAMPLE_DATA.prefix } },
-		},
-		select: { contactId: true },
-	});
+	const refreshHere = async () => {
+		const workspace = cloud.scopeId() ?? "this install";
+		const wanted = summaryLanguage(
+			await readAgentLanguage(db),
+			process.env.RELOOP_GERMAN,
+		);
+		const stale = { OR: [{ language: null }, { language: { not: wanted } }] };
 
-	const threadIds = new Set(insights.map((insight) => insight.threadId));
-	for (const memory of memories) {
-		const thread = await db.emailThread.findFirst({
-			where: { contactId: memory.contactId, insight: { isNot: null } },
-			orderBy: { lastMessageAt: "desc" },
-			select: { id: true },
+		const insights = await db.threadInsight.findMany({
+			where: {
+				...stale,
+				relevant: true,
+				summary: { not: "" },
+				NOT: { threadId: { startsWith: SAMPLE_DATA.prefix } },
+			},
+			select: { threadId: true },
 		});
-		if (thread) threadIds.add(thread.id);
-	}
+		const memories = await db.contactMemory.findMany({
+			where: {
+				...stale,
+				summary: { not: "" },
+				NOT: { contactId: { startsWith: SAMPLE_DATA.prefix } },
+			},
+			select: { contactId: true },
+		});
 
-	console.log(
-		`Wanted language: ${wanted}. ${insights.length} thread summaries and ${memories.length} contact memories are in another language. ${threadIds.size} threads would be read again.`,
-	);
-
-	if (apply) {
-		const agent = new AgentTriggerService(db);
-		for (const threadId of threadIds) {
-			await agent.threadStored(threadId, REASON, "backfill", { reread: true });
+		const threadIds = new Set(insights.map((insight) => insight.threadId));
+		for (const memory of memories) {
+			const thread = await db.emailThread.findFirst({
+				where: { contactId: memory.contactId, insight: { relevant: true } },
+				orderBy: { lastMessageAt: "desc" },
+				select: { id: true },
+			});
+			if (thread) threadIds.add(thread.id);
 		}
-		console.log(`Queued ${threadIds.size} rereads at the backfill priority.`);
-	} else {
+
+		console.log(
+			`${workspace}: wanted language ${wanted}. ${insights.length} thread summaries and ${memories.length} contact memories are in another language. ${threadIds.size} threads would be refreshed.`,
+		);
+		if (!apply) return threadIds.size;
+
+		for (const threadId of threadIds) {
+			await agent.summaryRefreshRequested(threadId, "backfill");
+		}
+		console.log(
+			`${workspace}: queued ${threadIds.size} refreshes at the backfill priority.`,
+		);
+		return threadIds.size;
+	};
+
+	await cloud.forEachScope(refreshHere, {
+		concurrency: 1,
+		budgetMs: AGENT_DISPATCH.summaryRefresh.scriptBudgetMs,
+	});
+
+	if (!apply) {
 		console.log("Nothing was queued. Run again with --apply to queue them.");
 	}
 

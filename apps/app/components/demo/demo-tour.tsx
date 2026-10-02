@@ -3,11 +3,8 @@
 import { Button } from "@crm/ui/components/button";
 import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import { cn } from "@crm/ui/lib/utils";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import {
-	useRecordSheetView,
-	useRecordStack,
-} from "@/components/crm/record-sheet/record-stack";
 import { useT } from "@/lib/i18n/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { DEMO, type DemoStep } from "./demo-tour-config";
@@ -63,8 +60,7 @@ async function waitForTarget(
 export function DemoTour() {
 	const t = useT();
 	const workspaceUrl = useWorkspaceUrl();
-	const { open, closeAll } = useRecordStack();
-	const { setTab } = useRecordSheetView("overview");
+	const router = useRouter();
 
 	const [phase, setPhase] = useState<Phase>("idle");
 	const [remaining, setRemaining] = useState(DEMO.countdown.seconds);
@@ -72,8 +68,8 @@ export function DemoTour() {
 	const [pulse, setPulse] = useState(false);
 
 	const controller = useRef<AbortController | null>(null);
-	const actions = useRef({ open, closeAll, setTab, workspaceUrl });
-	actions.current = { open, closeAll, setTab, workspaceUrl };
+	const actions = useRef({ router, workspaceUrl });
+	actions.current = { router, workspaceUrl };
 
 	useMountEffect(() => () => controller.current?.abort());
 
@@ -88,15 +84,9 @@ export function DemoTour() {
 				const id = element.closest<HTMLElement>(
 					`[data-demo="${DEMO.mark.winBackTable}"]`,
 				)?.dataset.demoRecord;
-				if (id) current.open({ kind: "contact", id });
+				if (id) current.router.push(current.workspaceUrl(`/win-back/${id}`));
 				return;
 			}
-			case "tab":
-				current.setTab(step.value);
-				return;
-			case "closeSheet":
-				current.closeAll();
-				return;
 		}
 	};
 

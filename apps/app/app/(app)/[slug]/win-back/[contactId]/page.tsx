@@ -5,6 +5,11 @@ import { getT } from "@/lib/i18n/server";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import {
+	winBackInput,
+	winBackSearchParams,
+	winBackTable,
+} from "../win-back-search-params";
 import { WinBackPerson } from "./win-back-person";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,11 +19,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function WinBackPersonPage({
 	params,
+	searchParams,
 }: PageProps<"/[slug]/win-back/[contactId]">) {
 	return (
 		<PageShell>
 			<Suspense fallback={<PageShellLoading />}>
-				<Person params={params} />
+				<Person params={params} searchParams={searchParams} />
 			</Suspense>
 		</PageShell>
 	);
@@ -26,8 +32,13 @@ export default function WinBackPersonPage({
 
 async function Person({
 	params,
-}: Pick<PageProps<"/[slug]/win-back/[contactId]">, "params">) {
-	const [, { contactId }] = await Promise.all([requireSession(), params]);
+	searchParams,
+}: Pick<PageProps<"/[slug]/win-back/[contactId]">, "params" | "searchParams">) {
+	const [, { contactId }, values] = await Promise.all([
+		requireSession(),
+		params,
+		winBackSearchParams(searchParams),
+	]);
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
 
@@ -37,6 +48,12 @@ async function Person({
 		),
 		queryClient.prefetchQuery(
 			trpc.contacts.draft.queryOptions({ id: contactId }),
+		),
+		queryClient.prefetchQuery(
+			trpc.reactivation.nextPerson.queryOptions({
+				contactId,
+				...winBackInput(winBackTable.toInput(values), values),
+			}),
 		),
 	]);
 

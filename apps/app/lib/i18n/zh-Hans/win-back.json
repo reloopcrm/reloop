@@ -397,5 +397,6 @@
 	"Straight to the message": "直接查看消息",
 	"Is something wrong in the story?": "故事里有不对的地方吗？",
 	"Tell Reloop": "告诉 Reloop",
-	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop 无法重新阅读与 {name} 的邮件。故事功能已关闭，或这些是示例数据。"
+	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop 无法重新阅读与 {name} 的邮件。故事功能已关闭，或这些是示例数据。",
+	"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.": "你的方案本月的阅读额度已用完。Reloop 将从 {date} 起写 {name} 的故事。"
 }

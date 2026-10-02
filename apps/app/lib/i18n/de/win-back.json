@@ -397,5 +397,6 @@
 	"Straight to the message": "Gleich zur Nachricht",
 	"Is something wrong in the story?": "Stimmt etwas an der Geschichte nicht?",
 	"Tell Reloop": "Sag es Reloop",
-	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop kann die Mails mit {name} gerade nicht noch einmal lesen. Die Geschichten sind ausgeschaltet, oder es sind Beispieldaten."
+	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop kann die Mails mit {name} gerade nicht noch einmal lesen. Die Geschichten sind ausgeschaltet, oder es sind Beispieldaten.",
+	"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.": "Das Lesebudget deines Tarifs ist für diesen Monat aufgebraucht. Reloop schreibt die Geschichte von {name} ab dem {date}."
 }

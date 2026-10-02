@@ -94,9 +94,11 @@ export function useEmailDraft(
 		planLimit: state.data?.limit === "plan",
 		waiting,
 		blocked: waiting || held !== null,
-		write: (instruction?: string) =>
+		write: (instruction?: string, oneOff = false) =>
 			write.mutate(
-				instruction ? { id: contactId, instruction } : { id: contactId },
+				instruction
+					? { id: contactId, instruction, oneOff }
+					: { id: contactId },
 			),
 		ensure,
 	};

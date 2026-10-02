@@ -153,7 +153,9 @@ main side has line tabs.
 ## The Win back person
 
 A person in Win back opens a page, not a sheet: `/<slug>/win-back/<contactId>`, so
-the back button returns to the list and a link names one person. The page is
+the back button returns to the list and a link names one person. The list's search,
+filters and sort travel in the person's URL, so the breadcrumb returns to the same
+list and "Continue with" follows its order. The page is
 "understand first": the gist in Newsreader, the progress steps, the timeline "Your
 time together", three numbered chapters with one quote, and a second tab with the
 person's mail where the passages the story builds on are marked. Every part links to

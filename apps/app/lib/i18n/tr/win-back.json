@@ -397,5 +397,6 @@
 	"Straight to the message": "Doğrudan mesaja",
 	"Is something wrong in the story?": "Hikâyede yanlış bir şey mi var?",
 	"Tell Reloop": "Reloop'a söyle",
-	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop {name} ile e-postaları yeniden okuyamıyor. Hikâyeler kapalı ya da bunlar örnek veriler."
+	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop {name} ile e-postaları yeniden okuyamıyor. Hikâyeler kapalı ya da bunlar örnek veriler.",
+	"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.": "Planının bu ayki okuma bütçesi doldu. Reloop {name} kişisinin hikâyesini {date} tarihinden itibaren yazar."
 }

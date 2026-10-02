@@ -8,6 +8,12 @@ export type PersonMail = PersonView["mails"][number];
 
 export type CardStep = "read" | "open" | "sent" | "later" | "skip";
 
+export type NextPerson = RouterOutputs["reactivation"]["nextPerson"];
+
+export function withListState(path: string, search: string): string {
+	return search ? `${path}?${search}` : path;
+}
+
 export function personName(contact: PersonView["contact"]): string {
 	return [contact.firstName, contact.lastName].filter(Boolean).join(" ");
 }

@@ -34,7 +34,7 @@ import { Textarea } from "@crm/ui/components/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -43,13 +43,19 @@ import {
 	mailtoHref,
 	useEmailDraft,
 } from "@/components/crm/use-email-draft";
+import { DEMO } from "@/components/demo/demo-tour-config";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
 import { dateFormat } from "@/lib/i18n/format";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { WIN_BACK_UI } from "../win-back-config";
-import type { CardStep, PersonView } from "./person-view";
+import {
+	type CardStep,
+	type NextPerson,
+	type PersonView,
+	withListState,
+} from "./person-view";
 
 const LONG_DAY = { day: "numeric", month: "long" } as const;
 
@@ -73,7 +79,7 @@ function paragraphs(text: string): string[] {
 		.filter(Boolean);
 }
 
-export function useNextStep(view: PersonView) {
+export function useNextStep(view: PersonView, next: NextPerson) {
 	const t = useT();
 	const locale = useLocale();
 	const errorMessage = useErrorMessage();
@@ -81,6 +87,7 @@ export function useNextStep(view: PersonView) {
 	const cache = useCrmCache();
 	const router = useRouter();
 	const workspaceUrl = useWorkspaceUrl();
+	const search = useSearchParams().toString();
 	const contactId = view.contact.id;
 	const first = view.contact.firstName;
 	const days = WIN_BACK_UI.remindLater.afterDays;
@@ -123,9 +130,10 @@ export function useNextStep(view: PersonView) {
 
 	const goNext = () => {
 		router.push(
-			view.next
-				? workspaceUrl(`/win-back/${view.next.id}`)
-				: workspaceUrl("/win-back"),
+			withListState(
+				workspaceUrl(next ? `/win-back/${next.id}` : "/win-back"),
+				search,
+			),
 		);
 	};
 
@@ -246,7 +254,7 @@ export function useNextStep(view: PersonView) {
 			setSuggested(draft.draft?.body ?? null);
 			setBody(null);
 			setVariant("short");
-			draft.write(WIN_BACK_UI.person.shorter);
+			draft.write(WIN_BACK_UI.person.shorter, true);
 			return;
 		}
 		setVariant("full");
@@ -261,6 +269,7 @@ export function useNextStep(view: PersonView) {
 
 	return {
 		view,
+		next,
 		step,
 		first,
 		days,
@@ -292,7 +301,7 @@ type NextStep = ReturnType<typeof useNextStep>;
 
 function NextButton({ step }: { step: NextStep }) {
 	const t = useT();
-	const next = step.view.next;
+	const next = step.next;
 
 	return (
 		<Button onClick={step.goNext}>
@@ -422,7 +431,7 @@ function CardBody({ step }: { step: NextStep }) {
 				) : null}
 				<DraftCardActions>
 					{step.email ? (
-						<Button onClick={step.open}>
+						<Button onClick={step.open} data-demo={DEMO.mark.personMessage}>
 							<MailIcon data-icon="inline-start" />
 							{t("View message")}
 						</Button>
@@ -648,8 +657,8 @@ export function NextStepBar({
 	return (
 		<ActionBar>
 			<Button size="lg" onClick={step.goNext}>
-				{step.view.next
-					? t("Continue with {name}", { name: step.view.next.name })
+				{step.next
+					? t("Continue with {name}", { name: step.next.name })
 					: t("Back to the list")}
 			</Button>
 			<Button variant="link" size="text" onClick={step.undo}>

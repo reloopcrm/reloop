@@ -20,12 +20,16 @@ import {
 } from "@crm/ui/components/tabs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useQueryStates } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
 	RecordChip,
 	RecordStatusChip,
 } from "@/components/crm/record-sheet/record-parts";
+import { useTableQuery } from "@/components/data-table/use-table-query";
+import { DEMO } from "@/components/demo/demo-tour-config";
 import { LocalComputed } from "@/components/local-date-time";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
 import { dateFormat, numberFormat } from "@/lib/i18n/format";
@@ -33,10 +37,20 @@ import { potentialPresentation } from "@/lib/record-standing";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { WIN_BACK_UI } from "../win-back-config";
+import {
+	winBackInput,
+	winBackScopeParsers,
+	winBackTable,
+} from "../win-back-search-params";
 import { NextStepBar, NextStepCard, useNextStep } from "./next-step";
 import { mailElementId, PersonMails } from "./person-mails";
 import { PersonStory, PersonTrack } from "./person-story";
-import { type PersonView, personName } from "./person-view";
+import {
+	type NextPerson,
+	type PersonView,
+	personName,
+	withListState,
+} from "./person-view";
 
 const CARD_ID = "win-back-next-step";
 const LONG_DAY = { day: "numeric", month: "long", year: "numeric" } as const;
@@ -46,22 +60,29 @@ type Tab = "story" | "mails";
 function Crumbs({ view }: { view: PersonView }) {
 	const t = useT();
 	const workspaceUrl = useWorkspaceUrl();
+	const params = useSearchParams();
 	const company = view.contact.company;
+	const companyParams = new URLSearchParams(params);
+	if (company) companyParams.set("q", company.name);
 
 	return (
 		<nav
 			aria-label={t("Path")}
 			className="flex flex-wrap items-center gap-2 text-2sm text-muted-foreground"
 		>
-			<Link href={workspaceUrl("/win-back")} className="hover:text-foreground">
+			<Link
+				href={withListState(workspaceUrl("/win-back"), params.toString())}
+				className="hover:text-foreground"
+			>
 				{t("Win back")}
 			</Link>
 			{company ? (
 				<>
 					<span aria-hidden="true">›</span>
 					<Link
-						href={workspaceUrl(
-							`/win-back?q=${encodeURIComponent(company.name)}`,
+						href={withListState(
+							workspaceUrl("/win-back"),
+							companyParams.toString(),
 						)}
 						className="hover:text-foreground"
 					>
@@ -139,12 +160,23 @@ function Gist({ view }: { view: PersonView }) {
 	const first = view.contact.firstName;
 	const gist = view.story?.gist ?? view.brief;
 	const reading = view.storyState.queued && !view.story;
+	const held = view.storyState.limitUntil;
 
 	return (
 		<div className="flex flex-col gap-2.5">
 			{gist ? <StoryGist>{gist}</StoryGist> : null}
 			<p className="text-2sm text-muted-foreground">
-				{reading ? (
+				{held && !view.story ? (
+					<LocalComputed
+						text={t(
+							"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.",
+							{
+								name: first,
+								date: dateFormat(locale, LONG_DAY).format(new Date(held)),
+							},
+						)}
+					/>
+				) : reading ? (
 					t(
 						"Reloop is reading the emails with {name}. The story appears here in a moment.",
 						{
@@ -178,6 +210,16 @@ export function WinBackPerson({ contactId }: { contactId: string }) {
 		new Set(),
 	);
 
+	const table = useTableQuery(winBackTable);
+	const [scope] = useQueryStates(winBackScopeParsers);
+	const next = useQuery({
+		...trpc.reactivation.nextPerson.queryOptions({
+			contactId,
+			...winBackInput(table.input, scope),
+		}),
+		staleTime: Number.POSITIVE_INFINITY,
+	});
+
 	const query = useQuery({
 		...trpc.reactivation.person.queryOptions({ contactId }),
 		refetchInterval: (state) =>
@@ -206,6 +248,7 @@ export function WinBackPerson({ contactId }: { contactId: string }) {
 		<PersonPage
 			key={view.contact.id}
 			view={view}
+			next={next.data ?? null}
 			tab={tab}
 			setTab={setTab}
 			highlighted={highlighted}
@@ -250,6 +293,7 @@ export function WinBackPerson({ contactId }: { contactId: string }) {
 
 function PersonPage({
 	view,
+	next,
 	tab,
 	setTab,
 	highlighted,
@@ -258,6 +302,7 @@ function PersonPage({
 	onReread,
 }: {
 	view: PersonView;
+	next: NextPerson;
 	tab: Tab;
 	setTab: (tab: Tab) => void;
 	highlighted: ReadonlySet<string>;
@@ -266,7 +311,7 @@ function PersonPage({
 	onReread: () => void;
 }) {
 	const t = useT();
-	const step = useNextStep(view);
+	const step = useNextStep(view, next);
 	const stage = step.step === "read" ? 0 : step.step === "open" ? 1 : 2;
 
 	return (
@@ -295,7 +340,7 @@ function PersonPage({
 						<div className="flex flex-wrap items-center justify-between gap-3">
 							<TabsList>
 								<TabsTrigger value="story">{t("The story")}</TabsTrigger>
-								<TabsTrigger value="mails">
+								<TabsTrigger value="mails" data-demo={DEMO.mark.personMails}>
 									{t("The emails")}
 									<span className="font-mono text-2xs text-muted-foreground">
 										{view.mailCount}

@@ -11,8 +11,8 @@ import { ChartLegend, PairBarChart } from "@crm/ui/components/dashboard-chart";
 import { Dot } from "@crm/ui/components/mark";
 import { StatCard, type StatDelta } from "@crm/ui/components/stat-card";
 import {
-	formatMoney,
 	formatMoneyCompact,
+	formatMoneyWhole,
 	formatPercent,
 } from "@crm/ui/lib/format";
 import Link from "next/link";
@@ -60,7 +60,7 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 	const money = (cents: number) =>
 		formatMoneyCompact(cents, reportingCurrency, locale);
 	const exact = (cents: number) =>
-		formatMoney(cents, reportingCurrency, locale);
+		formatMoneyWhole(cents, reportingCurrency, locale);
 	const deals = (count: number) =>
 		count === 1 ? t("{count} deal", { count }) : t("{count} deals", { count });
 	const tally = (value: number) => numberFormat(locale).format(value);

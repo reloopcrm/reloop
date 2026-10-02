@@ -71,16 +71,8 @@ export function EmailDraftDialog({
 		setBody(null);
 		setInstruction("");
 	};
-	const {
-		draft,
-		failed,
-		held,
-		planLimit,
-		waiting,
-		blocked,
-		write,
-		ensure,
-	} = useEmailDraft(contactId, open, reset);
+	const { draft, failed, held, planLimit, waiting, blocked, write, ensure } =
+		useEmailDraft(contactId, open, reset);
 
 	const style = useQuery({
 		...trpc.settings.draftStyle.queryOptions(),

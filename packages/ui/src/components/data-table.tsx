@@ -1073,7 +1073,13 @@ export function DataTable<TRow, TSub = unknown>({
 				totalPages={totalPages}
 				pageSize={query.pageSize}
 				total={total}
-				onPageChange={(page) => query.setPage(page)}
+				onPageChange={(page) => {
+					query.setPage(page);
+					const table = container.current;
+					if (table && table.getBoundingClientRect().top < 0) {
+						table.scrollIntoView({ block: "start" });
+					}
+				}}
 				onPageSizeChange={query.setPageSize}
 				loading={loading}
 				meta={meta}

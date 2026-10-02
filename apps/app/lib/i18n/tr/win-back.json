@@ -331,5 +331,6 @@
 	"{count} companies": "{count} şirket",
 	"Quiet for {count} days": "{count} gündür sessiz",
 	"Show the people at {name}": "{name} kişilerini göster",
-	"{read} conversations read, {relevant} about your business. The list updates when new mail arrives.": "{read} yazışma okundu, {relevant} tanesi işinle ilgili. Yeni posta geldiğinde liste güncellenir."
+	"{read} conversations read, {relevant} about your business. The list updates when new mail arrives.": "{read} yazışma okundu, {relevant} tanesi işinle ilgili. Yeni posta geldiğinde liste güncellenir.",
+	"Continued": "Devamı"
 }

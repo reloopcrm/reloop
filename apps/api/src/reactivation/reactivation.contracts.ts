@@ -66,10 +66,21 @@ export const winBackGroupOutput = z.object({
 	memory: winBackFactsOutput,
 });
 
+const winBackBandTotal = z.object({
+	companies: z.number(),
+	people: z.number(),
+});
+
 export const reactivationListOutput = z.object({
 	rows: z.array(winBackGroupOutput),
 	total: z.number(),
 	people: z.number(),
+	bands: z.object({
+		high: winBackBandTotal,
+		medium: winBackBandTotal,
+		low: winBackBandTotal,
+	}),
+	continued: winBackBand.nullable(),
 	facetCounts: z.record(z.string(), z.record(z.string(), z.number())),
 	truncated: z.boolean(),
 	quietForDays: z.number(),

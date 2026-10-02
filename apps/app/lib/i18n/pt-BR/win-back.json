@@ -331,5 +331,6 @@
 	"{count} companies": "{count} empresas",
 	"Quiet for {count} days": "Em silêncio há {count} dias",
 	"Show the people at {name}": "Mostrar as pessoas de {name}",
-	"{read} conversations read, {relevant} about your business. The list updates when new mail arrives.": "{read} conversas lidas, {relevant} sobre o seu negócio. A lista se atualiza quando chega e-mail novo."
+	"{read} conversations read, {relevant} about your business. The list updates when new mail arrives.": "{read} conversas lidas, {relevant} sobre o seu negócio. A lista se atualiza quando chega e-mail novo.",
+	"Continued": "Continuação"
 }

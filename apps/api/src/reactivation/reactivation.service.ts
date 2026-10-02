@@ -29,6 +29,8 @@ import type {
 	WinBackRulesState,
 } from "./reactivation.contracts";
 import {
+	bandTotals,
+	continuedBand,
 	countBands,
 	countPeople,
 	filterBands,
@@ -87,6 +89,8 @@ export class ReactivationService {
 			rows: pageOf(sorted, input.page, input.pageSize).map(groupShape),
 			total: matched.length,
 			people: countPeople(matched),
+			bands: bandTotals(matched),
+			continued: continuedBand(sorted, input.page, input.pageSize),
 			facetCounts: { potential: countBands(found) },
 			truncated: report.truncated,
 			quietForDays: report.quietForDays,

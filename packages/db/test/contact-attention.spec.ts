@@ -83,6 +83,7 @@ function insight(over: Partial<AttentionInsight> = {}): AttentionInsight {
 function facts(over: Partial<AttentionFacts> = {}): AttentionFacts {
 	return {
 		candidate: candidate(),
+		brief: null,
 		insight: insight(),
 		unanswered: insight({
 			threadId: "t-ask",
@@ -122,6 +123,24 @@ describe("the story carries the memory the agent wrote, never a new one", () => 
 		);
 
 		expect(read.summary).toBe("Kauft Europaletten, 620 Stück angefragt.");
+	});
+
+	it("shows the short brief instead of the long memory when one is stored", () => {
+		const read = attentionOf(
+			facts({
+				brief: "Sie warten auf unser Angebot für 620 Europaletten.",
+				candidate: candidate({
+					memory: {
+						...candidate().memory,
+						summary: "Kauft Europaletten, 620 Stück angefragt.",
+					},
+				}),
+			}),
+		);
+
+		expect(read.summary).toBe(
+			"Sie warten auf unser Angebot für 620 Europaletten.",
+		);
 	});
 
 	it("says nothing when no memory is stored", () => {

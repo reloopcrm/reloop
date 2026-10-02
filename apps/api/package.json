@@ -14,6 +14,7 @@
 		"dev:trpc": "nestjs-trpc watch -e src/app.module.ts -r \"**/*.router.ts\" -o src/generated",
 		"dev:session": "bun scripts/dev-session.ts",
 		"set-password": "bun scripts/set-password.ts",
+		"refresh-summaries": "bun scripts/refresh-summaries.ts",
 		"lint": "biome check .",
 		"postinstall": "node scripts/chmod-trpc-binary.mjs",
 		"start": "bun run build && bun run start:prod",

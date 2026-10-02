@@ -1268,6 +1268,7 @@ model ThreadInsight {
   outcome            String
   unansweredByUs     Boolean  @default(false)
   summary            String
+  language           String?
   evidence           String[]
   evidenceMessageIds String[] @default([])
   modelId            String
@@ -1289,6 +1290,8 @@ model ContactMemory {
   contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   summary          String
+  brief            String?
+  language         String?
   didBusiness      Int      @default(0)
   openInquiries    Int      @default(0)
   maxPallets       Int?

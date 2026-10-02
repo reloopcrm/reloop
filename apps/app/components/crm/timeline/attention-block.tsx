@@ -24,9 +24,10 @@ import {
 } from "@crm/ui/components/status-indicator";
 import { TableCell } from "@crm/ui/components/table";
 import { cleanSubject } from "@crm/ui/lib/email-text";
+import { clampAtWord } from "@crm/validation/summary-text";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { unitLabel } from "@/app/(app)/[slug]/win-back/win-back-verdict";
 import { EmailDraftDialog } from "@/components/crm/email-draft-dialog";
@@ -328,9 +329,7 @@ function Verdict({ attention }: { attention: Attention }) {
 					{t(CLAIM[attention.kind], { days: attention.quietDays, name })}
 				</p>
 
-				{attention.summary ? (
-					<p className="text-body-foreground">{attention.summary}</p>
-				) : null}
+				{attention.summary ? <Summary text={attention.summary} /> : null}
 
 				{bare ? <FirstContact attention={attention} /> : null}
 
@@ -359,6 +358,24 @@ function Verdict({ attention }: { attention: Attention }) {
 					</>
 				)}
 			</div>
+		</div>
+	);
+}
+
+function Summary({ text }: { text: string }) {
+	const t = useT();
+	const [open, setOpen] = useState(false);
+	const short = clampAtWord(text, ATTENTION_UI.summary.shownChars);
+	const clipped = !open && short !== text.trim();
+
+	return (
+		<div className="flex flex-col items-start gap-1">
+			<p className="text-body-foreground">{clipped ? short : text}</p>
+			{clipped ? (
+				<Button variant="link" size="sm" onClick={() => setOpen(true)}>
+					{t("Show more")}
+				</Button>
+			) : null}
 		</div>
 	);
 }

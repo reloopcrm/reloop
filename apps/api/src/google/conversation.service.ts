@@ -33,7 +33,14 @@ export class ConversationService {
 				lastMessageAt: true,
 				company: { select: { id: true, name: true } },
 				contact: { select: { id: true, firstName: true, lastName: true } },
-				insight: { select: { summary: true, outcome: true, relevant: true } },
+				insight: {
+					select: {
+						summary: true,
+						outcome: true,
+						relevant: true,
+						language: true,
+					},
+				},
 				messages: {
 					orderBy: { sentAt: "asc" },
 					select: {
@@ -61,6 +68,10 @@ export class ConversationService {
 		const faces = await this.facesFor(
 			thread.messages.map((message) => message.fromEmail),
 		);
+
+		if (thread.insight?.summary.trim()) {
+			await this.agent.summaryRefreshNeeded(thread.id, thread.insight.language);
+		}
 
 		const recent = thread.messages.slice(-MEMORY.messagesPerThread);
 		if (recent.some((message) => message.summary === null)) {

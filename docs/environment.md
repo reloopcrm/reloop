@@ -271,7 +271,9 @@ language of each workspace, `AppSetting.agentLanguage`, which an admin picks und
 **Agent language** in Settings > General and a hosted sign-up fills with the language the
 person signed up in. A workspace with no value, or with a value that is not one of the
 seven locales, falls back to this variable: the literal `"true"` means German, anything
-else English (`defaultAgentLanguage` in `@crm/validation/agent-language`). A
+else English (`defaultAgentLanguage` in `@crm/validation/agent-language`). Thread
+summaries and the contact memory are the exception: without a value and without
+`"true"` they are written in the language of the conversation, not in English. A
 self-hosted install that set it before keeps writing German until an admin picks
 another language. The API reads the same variable only to show that default on the
 settings card in hosted mode, and the hosted Cloud stores it for a new workspace

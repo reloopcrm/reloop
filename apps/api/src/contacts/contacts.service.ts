@@ -349,8 +349,31 @@ export class ContactsService {
 
 	async attention(id: string): Promise<ContactAttention> {
 		const rules = await readWinBackRules(this.db);
+		const attention = await readContactAttention(this.db, {
+			contactId: id,
+			rules,
+		});
 
-		return readContactAttention(this.db, { contactId: id, rules });
+		if (attention.summary) await this.refreshMemoryLanguage(id);
+
+		return attention;
+	}
+
+	private async refreshMemoryLanguage(contactId: string): Promise<void> {
+		const [memory, thread] = await Promise.all([
+			this.db.contactMemory.findUnique({
+				where: { contactId },
+				select: { language: true },
+			}),
+			this.db.emailThread.findFirst({
+				where: { contactId, insight: { isNot: null } },
+				orderBy: { lastMessageAt: "desc" },
+				select: { id: true },
+			}),
+		]);
+		if (!memory || !thread) return;
+
+		await this.agent.summaryRefreshNeeded(thread.id, memory.language);
 	}
 
 	async create(input: ContactCreateInput) {

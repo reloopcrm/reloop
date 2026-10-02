@@ -4,16 +4,22 @@ import { cloud } from "@crm/db/cloud/scope";
 import { LOCALE, type Locale } from "@crm/db/locale";
 import {
 	type AgentLanguage,
+	CONVERSATION_LANGUAGE,
 	defaultAgentLanguage,
 	readAgentLanguage,
+	type SummaryLanguage,
+	summaryLanguage as summaryLanguageOf,
 } from "@crm/validation/agent-language";
 import { DISPATCH } from "./dispatch-config";
 
 export type Lines = Record<Locale, string>;
 
-const scope = new AsyncLocalStorage<Locale>();
+const scope = new AsyncLocalStorage<AgentLanguage | null>();
 
-const cache = new Map<string, { language: Locale; until: number }>();
+const cache = new Map<
+	string,
+	{ language: AgentLanguage | null; until: number }
+>();
 
 export function defaultLanguage(env: NodeJS.ProcessEnv = process.env): Locale {
 	return defaultAgentLanguage(env.RELOOP_GERMAN);
@@ -26,7 +32,7 @@ export function resolveLanguage(
 	return stored ?? defaultLanguage(env);
 }
 
-async function workspaceLanguage(): Promise<Locale> {
+async function workspaceLanguage(): Promise<AgentLanguage | null> {
 	const key = cloud.scopeId() ?? "";
 	const hit = cache.get(key);
 	if (hit && hit.until > Date.now()) return hit.language;
@@ -40,12 +46,11 @@ async function workspaceLanguage(): Promise<Locale> {
 		);
 	}
 
-	const resolved = resolveLanguage(stored);
 	cache.set(key, {
-		language: resolved,
+		language: stored,
 		until: Date.now() + DISPATCH.language.cacheMs,
 	});
-	return resolved;
+	return stored;
 }
 
 export function forgetWorkspaceLanguages(): void {
@@ -59,7 +64,21 @@ export async function inWorkspaceLanguage<T>(
 }
 
 export function currentLanguage(env: NodeJS.ProcessEnv = process.env): Locale {
-	return scope.getStore() ?? defaultLanguage(env);
+	return resolveLanguage(scope.getStore() ?? null, env);
+}
+
+export function summaryLanguage(
+	env: NodeJS.ProcessEnv = process.env,
+): SummaryLanguage {
+	return summaryLanguageOf(scope.getStore() ?? null, env.RELOOP_GERMAN);
+}
+
+export function summaryWrittenIn(
+	wanted: SummaryLanguage = summaryLanguage(),
+): string {
+	return wanted === CONVERSATION_LANGUAGE
+		? "the language the conversation is written in"
+		: language(wanted);
 }
 
 export function language(locale: Locale = currentLanguage()): string {

@@ -43,6 +43,7 @@ export type PotentialVerdict =
 
 export const MEMORY = {
 	summaryMaxChars: 1_200,
+	briefMaxChars: 280,
 	threadSummaryMaxChars: 400,
 	messageSummaryMaxChars: 200,
 	evidenceQuoteMaxChars: 200,

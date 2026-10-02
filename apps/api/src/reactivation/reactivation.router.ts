@@ -16,13 +16,19 @@ import {
 	reactivationListInput,
 	reactivationListOutput,
 	readingProgressOutput,
+	rereadStoryOutput,
 	setPotentialFeedbackInput,
 	setWinBackRulesInput,
 	setWinBackRulesModeInput,
+	winBackNextInput,
+	winBackNextOutput,
+	winBackPersonViewInput,
+	winBackPersonViewOutput,
 	winBackRulesOutput,
 	winBackRulesStateOutput,
 } from "./reactivation.contracts";
 import { ReactivationService } from "./reactivation.service";
+import { WinBackPersonService } from "./win-back-person.service";
 
 @Router({ alias: "reactivation" })
 @UseMiddlewares(AuthMiddleware)
@@ -30,7 +36,41 @@ export class ReactivationRouter {
 	constructor(
 		@Inject(ReactivationService)
 		private readonly reactivation: ReactivationService,
+		@Inject(WinBackPersonService)
+		private readonly people: WinBackPersonService,
 	) {}
+
+	@Query({
+		input: winBackPersonViewInput,
+		output: winBackPersonViewOutput,
+		meta: restMeta("GET", "/reactivation/people/{contactId}", ["Reactivation"]),
+	})
+	async person(@Input("contactId") contactId: string) {
+		return this.people.person(contactId);
+	}
+
+	@Query({
+		input: winBackNextInput,
+		output: winBackNextOutput,
+		meta: restMeta("POST", "/reactivation/people/next", ["Reactivation"]),
+	})
+	async nextPerson(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof winBackNextInput>,
+	) {
+		return this.people.next(ctx.user.id, input);
+	}
+
+	@Mutation({
+		input: winBackPersonViewInput,
+		output: rereadStoryOutput,
+		meta: restMeta("POST", "/reactivation/people/{contactId}/reread", [
+			"Reactivation",
+		]),
+	})
+	async rereadStory(@Input("contactId") contactId: string) {
+		return this.people.rereadStory(contactId);
+	}
 
 	@Query({
 		input: reactivationListInput,

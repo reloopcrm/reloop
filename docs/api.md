@@ -665,6 +665,50 @@ such thread that still has no deal. **It classifies nothing and queues no
   from a `demo-` thread carries a real id, so every `demo-` guard in
   `AgentTriggerService` stops seeing it.
 
+## The Win back person view is one call
+
+`reactivation.person({ contactId })` (`reactivation/win-back-person.service.ts`)
+returns everything the person page shows: the header facts from
+`readReactivationCandidate`, the stored story, the brief as the gist until a story
+exists, a timeline of won deals and mail, the person's mail newest first with the
+marked passages and the follow-up delay. It writes nothing but an
+`AgentTask`.
+
+- **The story is the agent's.** The API queues `person-story` through
+  `AgentTriggerService.personStoryRequested` when the row is missing, written in
+  another language than `summaryLanguage()`, older than the contact's newest mail,
+  or does not parse. A missing row is not asked for again within
+  `PERSON_VIEW.retryAfterMs` of a finished try, so a person with no business mail
+  does not queue a task on every open. A row that does not parse is logged and
+  shown as no story. `reactivation.rereadStory` queues it with `reread: true`, but not
+  within `PERSON_VIEW.rereadPauseMs` of the last finished story; then it answers with
+  `retryAt` and queues nothing.
+- **A reference to a message that no longer exists is dropped on read**
+  (`keepKnownMessages`). A message the story names but older than the newest
+  `PERSON_VIEW.mails` is added to the list, so "where Reloop knows this from" always
+  finds its mail.
+- **A mark is a passage of the story or a quote of a `ThreadInsight`**, on the
+  message it came from. `key` is the message of the story's quote. `unanswered` is
+  the newest message of a thread the agent marked `unansweredByUs`, when it is theirs.
+- **The next person is its own call**, `reactivation.nextPerson`, with the list's
+  own input (search, potential, scope, quiet, not for us, sort and direction), so
+  "Continue with" follows the order the rep came from. It skips anyone without an
+  address and is read once per person, not on every poll while a story is written.
+- **A story past the plan's budget is held back, not an error.** `storyState.limitUntil`
+  names the end of the usage window when the conversation budget, which stories share
+  (`budgetKinds`) and of which they leave the new-mail reserve alone, is spent. A story
+  task the agent postponed is not "queued" either: its `dueAt` is `limitUntil`, so the
+  page stops polling and shows the date.
+- **A verdict keeps its note** unless the call sends a new one, and a "bad" verdict
+  that turns into "good" or "later" brings the archived person and company back, the
+  same as taking it off.
+- **`contacts.draft` carries a one-off version beside the draft** (`oneOff`), written
+  by `writeDraft` with `oneOff: true`; the stored draft stays as suggested.
+- **`followUpDays` is null when the win back follow-up function is off**, so the page
+  never promises a reminder the sweep will not write.
+- The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared
+  with `google.thread`.
+
 ## The billing seam
 
 The open source build has no billing. Core code injects `BILLING_PORT` from

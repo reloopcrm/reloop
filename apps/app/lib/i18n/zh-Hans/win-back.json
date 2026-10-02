@@ -332,5 +332,6 @@
 	"Quiet for {count} days": "已沉默 {count} 天",
 	"Show the people at {name}": "显示 {name} 的人员",
 	"{read} conversations read, {relevant} about your business. The list updates when new mail arrives.": "已读 {read} 段往来，其中 {relevant} 段与你的业务有关。有新邮件时列表会更新。",
-	"Continued": "续"
+	"Continued": "续",
+	"This person has no mail to win back from.": "与此人没有可以据此赢回的邮件。"
 }

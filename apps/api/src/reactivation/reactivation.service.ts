@@ -223,18 +223,41 @@ export class ReactivationService {
 		}
 
 		const verdict = input.verdict;
-		const note = input.note ?? null;
+		const note = input.note;
 
-		await this.db.$transaction(
-			contactIds.map((contactId) =>
-				this.db.potentialFeedback.upsert({
+		const revived = await this.db.$transaction(async (tx) => {
+			const leaving =
+				verdict === "bad"
+					? []
+					: await tx.potentialFeedback.findMany({
+							where: { contactId: { in: contactIds }, verdict: "bad" },
+							select: { contactId: true },
+						});
+
+			for (const contactId of contactIds) {
+				await tx.potentialFeedback.upsert({
 					where: { contactId },
-					create: { contactId, verdict, note, userId },
-					update: { verdict, note, userId },
+					create: { contactId, verdict, note: note ?? null, userId },
+					update: { verdict, userId, note },
 					select: { contactId: true },
-				}),
-			),
-		);
+				});
+			}
+
+			const contacts = await this.reviveContacts(
+				tx,
+				leaving.map((row) => row.contactId),
+			);
+			return this.reviveCompanies(tx, contacts.companyIds).then(
+				(companies) => ({ contacts: contacts.contactIds, companies }),
+			);
+		});
+
+		for (const contactId of revived.contacts) {
+			this.logger.log({
+				message: "Contact restored because the bad verdict came off",
+				contactId,
+			});
+		}
 
 		const state = await readWinBackRulesState(this.db);
 		if (state.mode === "auto") {

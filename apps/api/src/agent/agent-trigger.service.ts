@@ -26,6 +26,7 @@ import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskDraftPayload,
 	type AgentTaskOrigin,
+	type AgentTaskStoryPayload,
 	type AgentTaskThreadPayload,
 	agentTaskThreadPayload,
 } from "@crm/validation/agent-task-payload";
@@ -275,6 +276,7 @@ export class AgentTriggerService {
 	async emailDraftRequested(
 		contactId: string,
 		instruction?: string | null,
+		oneOff = false,
 	): Promise<boolean> {
 		return this.enqueue({
 			contactId,
@@ -285,8 +287,24 @@ export class AgentTriggerService {
 			priority: PRIORITY.emailDraft,
 			budget: 1,
 			payload: instruction
-				? ({ instruction } satisfies AgentTaskDraftPayload)
+				? ({ instruction, oneOff } satisfies AgentTaskDraftPayload)
 				: undefined,
+		});
+	}
+
+	async personStoryRequested(
+		contactId: string,
+		reread: boolean,
+	): Promise<boolean> {
+		return this.enqueue({
+			contactId,
+			kind: "person-story",
+			reason: reread
+				? "A rep said the win back story is wrong"
+				: "A rep opened this person in Win back",
+			priority: PRIORITY.personStory,
+			budget: 1,
+			payload: { reread } satisfies AgentTaskStoryPayload,
 		});
 	}
 

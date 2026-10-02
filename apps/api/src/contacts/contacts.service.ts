@@ -867,6 +867,16 @@ export class ContactsService {
 				stale:
 					since !== null &&
 					(stored.basedOnUntil === null || since > stored.basedOnUntil),
+				oneOff:
+					stored.oneOffSubject !== null &&
+					stored.oneOffBody !== null &&
+					stored.oneOffAt !== null
+						? {
+								subject: stored.oneOffSubject,
+								body: stored.oneOffBody,
+								writtenAt: stored.oneOffAt.toISOString(),
+							}
+						: null,
 			},
 		};
 	}
@@ -874,6 +884,7 @@ export class ContactsService {
 	async writeDraft(
 		id: string,
 		instruction?: string,
+		oneOff = false,
 	): Promise<ContactDraftState> {
 		const contact = await this.db.contact.findUnique({
 			where: { id },
@@ -885,7 +896,11 @@ export class ContactsService {
 		}
 
 		if (!(await this.draftLimitResumesAt(new Date()))) {
-			await this.agent.emailDraftRequested(id, instruction?.trim() || null);
+			await this.agent.emailDraftRequested(
+				id,
+				instruction?.trim() || null,
+				oneOff,
+			);
 		}
 		return this.draft(id);
 	}

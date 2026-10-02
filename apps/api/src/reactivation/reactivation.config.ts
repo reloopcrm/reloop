@@ -6,6 +6,14 @@ export const READING = {
 	assumedSecondsPerThread: 12,
 } as const;
 
+export const PERSON_VIEW = {
+	mails: 100,
+	bodyMaxChars: 8_000,
+	timelineMails: 400,
+	retryAfterMs: 6 * HOUR_MS,
+	rereadPauseMs: 15 * MINUTE_MS,
+} as const;
+
 export const WIN_BACK = {
 	followUp: {
 		afterDays: 14,

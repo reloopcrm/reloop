@@ -282,6 +282,9 @@ export const contactDraftOutput = z.object({
 	modelId: z.string().nullable(),
 	writtenAt: z.string(),
 	stale: z.boolean(),
+	oneOff: z
+		.object({ subject: z.string(), body: z.string(), writtenAt: z.string() })
+		.nullable(),
 });
 
 export const contactDraftStateOutput = z.object({
@@ -302,6 +305,7 @@ export const writeContactDraftInput = z.object({
 		.trim()
 		.max(DRAFT_STYLE.instructionMaxChars)
 		.optional(),
+	oneOff: z.boolean().default(false),
 });
 
 export const contactBasicOutput = z.object({

@@ -194,6 +194,7 @@ export const winBackPersonViewOutput = z.object({
 		queued: z.boolean(),
 		stale: z.boolean(),
 		writtenAt: z.string().nullable(),
+		limitUntil: z.string().nullable(),
 	}),
 	brief: z.string().nullable(),
 	timeline: z.array(
@@ -205,10 +206,19 @@ export const winBackPersonViewOutput = z.object({
 	),
 	mails: z.array(personMail),
 	mailCount: z.number(),
-	next: z.object({ id: z.string(), name: z.string() }).nullable(),
 	followUpDays: z.number().nullable(),
 });
 
 export type WinBackPersonViewOutput = z.infer<typeof winBackPersonViewOutput>;
 
 export const rereadStoryOutput = z.object({ queued: z.boolean() });
+
+export const winBackNextInput = reactivationListInput.extend({
+	contactId: z.string().min(1),
+});
+
+export type WinBackNextInput = z.infer<typeof winBackNextInput>;
+
+export const winBackNextOutput = z
+	.object({ id: z.string(), name: z.string() })
+	.nullable();

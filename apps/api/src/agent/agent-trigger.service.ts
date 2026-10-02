@@ -276,6 +276,7 @@ export class AgentTriggerService {
 	async emailDraftRequested(
 		contactId: string,
 		instruction?: string | null,
+		oneOff = false,
 	): Promise<boolean> {
 		return this.enqueue({
 			contactId,
@@ -286,7 +287,7 @@ export class AgentTriggerService {
 			priority: PRIORITY.emailDraft,
 			budget: 1,
 			payload: instruction
-				? ({ instruction } satisfies AgentTaskDraftPayload)
+				? ({ instruction, oneOff } satisfies AgentTaskDraftPayload)
 				: undefined,
 		});
 	}

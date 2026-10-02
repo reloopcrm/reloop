@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { DealStage, db, RecordSource } from "@crm/db";
+import { usageWindowOf } from "@crm/db/plan-usage";
+import { INSIGHT_KIND, PLANS } from "@crm/db/plans";
+import { readPlan, writePlan } from "@crm/db/settings";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { WinBackPersonService } from "../src/reactivation/win-back-person.service";
 
@@ -203,6 +206,7 @@ describe("WinBackPersonService.person", () => {
 			queued: false,
 			stale: false,
 			writtenAt: expect.any(String),
+			limitUntil: null,
 		});
 		expect(asked).toEqual([]);
 
@@ -268,6 +272,112 @@ describe("WinBackPersonService.person", () => {
 		await expect(service.person("no-such-contact")).rejects.toThrow(
 			"No contact with id no-such-contact.",
 		);
+	});
+});
+
+describe("the story budget", () => {
+	it("says until when the month's budget holds the story back", async () => {
+		const planBefore = await readPlan(db);
+		const seeded = await setUp();
+		try {
+			await writePlan(db, "trial");
+			const { since } = await usageWindowOf(db);
+			const used = await db.agentTask.count({
+				where: {
+					kind: { in: [INSIGHT_KIND, "person-story"] },
+					createdAt: { gte: since },
+				},
+			});
+			await db.agentTask.createMany({
+				data: Array.from(
+					{ length: Math.max(0, PLANS.trial.insightsPerMonth - used) },
+					() => ({
+						contactId: seeded.contactId,
+						kind: INSIGHT_KIND,
+						reason: "spent",
+						priority: 0,
+						budget: 1,
+						dueAt: new Date(),
+						finishedAt: new Date(),
+					}),
+				),
+			});
+			const noQueue = {
+				personStoryRequested: async () => false,
+			} as unknown as AgentTriggerService;
+
+			const view = await new WinBackPersonService(db, noQueue).person(
+				seeded.contactId,
+			);
+
+			expect(view.story).toBeNull();
+			expect(view.storyState.queued).toBe(false);
+			expect(view.storyState.limitUntil).toEqual(expect.any(String));
+		} finally {
+			await writePlan(db, planBefore);
+		}
+	});
+});
+
+describe("WinBackPersonService.next", () => {
+	it("follows the list's search and skips the person it starts from", async () => {
+		const seeded = await setUp();
+		const other = await db.contact.create({
+			data: {
+				firstName: "Moritz",
+				lastName: "Ahlers",
+				email: `moritz@${domain}`,
+				companyId: seeded.companyId,
+				source: RecordSource.EMAIL,
+			},
+			select: { id: true },
+		});
+		const thread = await db.emailThread.create({
+			data: {
+				rootMessageId: `root-${crypto.randomUUID()}@${domain}`,
+				subject: "Workshop",
+				contactId: other.id,
+				companyId: seeded.companyId,
+				firstMessageAt: MARCH,
+				lastMessageAt: MARCH,
+				messageCount: 1,
+			},
+			select: { id: true },
+		});
+		await db.emailMessage.create({
+			data: {
+				threadId: thread.id,
+				rfcMessageId: `msg-${crypto.randomUUID()}@${domain}`,
+				direction: "INBOUND",
+				sentAt: MARCH,
+				body: "Wann hätten Sie Zeit?",
+				fromEmail: `moritz@${domain}`,
+				recipients: [],
+			},
+		});
+		await db.contactMemory.create({
+			data: {
+				contactId: other.id,
+				summary: "Fragt nach einem Workshop.",
+				openInquiries: 1,
+				coveredThreadIds: [thread.id],
+			},
+		});
+
+		const next = await service.next(ownerId, {
+			contactId: seeded.contactId,
+			rejected: false,
+			quietForDays: 0,
+			scope: "everyone",
+			q: "Kranich Dental",
+			sort: "potential",
+			dir: "desc",
+			page: 1,
+			pageSize: 25,
+			potential: [],
+		});
+
+		expect(next).toEqual({ id: other.id, name: "Moritz Ahlers" });
 	});
 });
 

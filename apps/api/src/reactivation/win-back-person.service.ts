@@ -1,5 +1,7 @@
 import { type Db, DealStage } from "@crm/db";
 import type { InsightOutcome } from "@crm/db/insights";
+import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
+import { budgetKinds, monthlyBudget, STORY_KIND } from "@crm/db/plans";
 import {
 	listReactivationCandidates,
 	REACTIVATION,
@@ -27,10 +29,11 @@ import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
 import { mailboxLinkOf } from "../mailbox/mailbox-link";
 import { PERSON_VIEW, WIN_BACK } from "./reactivation.config";
-import type { WinBackPersonViewOutput } from "./reactivation.contracts";
-import { sortGroups } from "./win-back-groups";
-
-const STORY_KIND = "person-story";
+import type {
+	WinBackNextInput,
+	WinBackPersonViewOutput,
+} from "./reactivation.contracts";
+import { filterBands, searchGroups, sortGroups } from "./win-back-groups";
 
 const DEAL_DONE = "DEAL_DONE" satisfies InsightOutcome;
 
@@ -258,7 +261,15 @@ export class WinBackPersonService {
 				unit: rules.business.unit,
 			},
 			story,
-			storyState: { queued, stale, writtenAt: stored.writtenAt },
+			storyState: {
+				queued,
+				stale,
+				writtenAt: stored.writtenAt,
+				limitUntil:
+					!queued && (contact.story === null || stale)
+						? await this.storyLimitUntil()
+						: null,
+			},
 			brief: contact.memory?.brief ?? null,
 			timeline: [
 				...orderEvents,
@@ -287,7 +298,6 @@ export class WinBackPersonService {
 					newestOfThread.get(mail.threadId) === mail.id,
 			})),
 			mailCount,
-			next: await this.next(contactId, rules),
 			followUpDays: isAgentFunctionEnabled(
 				await readAgentFunctions(this.db),
 				WIN_BACK_FOLLOW_UP_FUNCTION,
@@ -331,6 +341,20 @@ export class WinBackPersonService {
 			stale: false,
 			writtenAt: row.updatedAt.toISOString(),
 		};
+	}
+
+	private async storyLimitUntil(): Promise<string | null> {
+		const budget = monthlyBudget(STORY_KIND, await planLimitsOf(this.db));
+		if (budget === null) return null;
+
+		const { since, until } = await usageWindowOf(this.db);
+		const used = await this.db.agentTask.count({
+			where: {
+				kind: { in: budgetKinds(STORY_KIND) },
+				createdAt: { gte: since },
+			},
+		});
+		return used >= budget ? until.toISOString() : null;
 	}
 
 	private async storyQueued(contactId: string): Promise<boolean> {
@@ -382,25 +406,31 @@ export class WinBackPersonService {
 		return [...known, ...found.map((row) => row.id)];
 	}
 
-	private async next(
-		contactId: string,
-		rules: Awaited<ReturnType<typeof readWinBackRules>>,
+	async next(
+		userId: string,
+		input: WinBackNextInput,
 	): Promise<{ id: string; name: string } | null> {
+		const rules = await readWinBackRules(this.db);
 		const report = await listReactivationCandidates(this.db, {
-			rejected: false,
-			quietForDays: 0,
+			rejected: input.rejected,
+			quietForDays: input.quietForDays,
 			limit: REACTIVATION.limit.max,
-			ownerId: null,
+			ownerId: input.scope === "me" ? userId : null,
 			rules,
 		});
-		const order = sortGroups(report.groups, "potential", "desc").flatMap(
-			(group) => group.people,
+		const groups = sortGroups(
+			filterBands(searchGroups(report.groups, input.q), input.potential),
+			input.sort,
+			input.dir,
 		);
-		const index = order.findIndex((person) => person.contact.id === contactId);
+		const order = groups.flatMap((group) => group.people);
+		const index = order.findIndex(
+			(person) => person.contact.id === input.contactId,
+		);
 		const after = [...order.slice(index + 1), ...order.slice(0, index)];
 		const next = after.find(
 			(person) =>
-				person.contact.email !== null && person.contact.id !== contactId,
+				person.contact.email !== null && person.contact.id !== input.contactId,
 		);
 
 		return next ? { id: next.contact.id, name: nameOf(next.contact) } : null;

@@ -30,7 +30,7 @@ import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOut
 import { imapStatusOutput, addImapAccountInput, imapAccountIdInput, imapRemoveOutput, imapPurgeOutput, setImapCreateFromInput } from "../imap/imap.contracts";
 import { oauthAppInput, oauthAppStatusOutput, saveOAuthAppInput, oauthAppRestartOutput } from "../oauth-apps/oauth-apps.contracts";
 import { quoteListOutput, quoteThreadInput, quoteCreatedOutput, quoteDismissedOutput } from "../quotes/quotes.contracts";
-import { winBackPersonViewInput, winBackPersonViewOutput, rereadStoryOutput, reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
+import { winBackPersonViewInput, winBackPersonViewOutput, winBackNextInput, winBackNextOutput, rereadStoryOutput, reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
 import { businessProposalOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, aiUsageOutput, passwordSignInOutput, setPasswordInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentLanguageOutput, setAgentLanguageInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput, dealStagesOutput, setDealStageNameInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
@@ -693,6 +693,10 @@ const appRouter = t.router({
     person: publicProcedure
       .input(winBackPersonViewInput)
       .output(winBackPersonViewOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    nextPerson: publicProcedure
+      .input(winBackNextInput)
+      .output(winBackNextOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     rereadStory: publicProcedure
       .input(winBackPersonViewInput)

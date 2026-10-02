@@ -20,6 +20,8 @@ import {
 	setPotentialFeedbackInput,
 	setWinBackRulesInput,
 	setWinBackRulesModeInput,
+	winBackNextInput,
+	winBackNextOutput,
 	winBackPersonViewInput,
 	winBackPersonViewOutput,
 	winBackRulesOutput,
@@ -45,6 +47,18 @@ export class ReactivationRouter {
 	})
 	async person(@Input("contactId") contactId: string) {
 		return this.people.person(contactId);
+	}
+
+	@Query({
+		input: winBackNextInput,
+		output: winBackNextOutput,
+		meta: restMeta("POST", "/reactivation/people/next", ["Reactivation"]),
+	})
+	async nextPerson(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof winBackNextInput>,
+	) {
+		return this.people.next(ctx.user.id, input);
 	}
 
 	@Mutation({

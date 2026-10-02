@@ -671,7 +671,7 @@ such thread that still has no deal. **It classifies nothing and queues no
 returns everything the person page shows: the header facts from
 `readReactivationCandidate`, the stored story, the brief as the gist until a story
 exists, a timeline of won deals and mail, the person's mail newest first with the
-marked passages, the next person and the follow-up delay. It writes nothing but an
+marked passages and the follow-up delay. It writes nothing but an
 `AgentTask`.
 
 - **The story is the agent's.** The API queues `person-story` through
@@ -688,9 +688,13 @@ marked passages, the next person and the follow-up delay. It writes nothing but 
 - **A mark is a passage of the story or a quote of a `ThreadInsight`**, on the
   message it came from. `key` is the message of the story's quote. `unanswered` is
   the newest message of a thread the agent marked `unansweredByUs`, when it is theirs.
-- **The next person follows the list's default order**, potential first, with no
-  filter and no search, skipping anyone without an address. "Not for us" people are
-  not in that list. The list's own filters are not carried into the person page.
+- **The next person is its own call**, `reactivation.nextPerson`, with the list's
+  own input (search, potential, scope, quiet, not for us, sort and direction), so
+  "Continue with" follows the order the rep came from. It skips anyone without an
+  address and is read once per person, not on every poll while a story is written.
+- **A story past the plan's budget is held back, not an error.** `storyState.limitUntil`
+  names the end of the usage window when the conversation budget, which stories share
+  (`budgetKinds`), is spent; the page shows the person without a story and says so.
 - **`followUpDays` is null when the win back follow-up function is off**, so the page
   never promises a reminder the sweep will not write.
 - The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared

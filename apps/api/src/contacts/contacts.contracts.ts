@@ -302,6 +302,7 @@ export const writeContactDraftInput = z.object({
 		.trim()
 		.max(DRAFT_STYLE.instructionMaxChars)
 		.optional(),
+	oneOff: z.boolean().default(false),
 });
 
 export const contactBasicOutput = z.object({

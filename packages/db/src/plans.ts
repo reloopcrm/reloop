@@ -203,6 +203,16 @@ export const INSIGHT_KIND = "thread-insight";
 
 export const DRAFT_KIND = "email-draft";
 
+export const STORY_KIND = "person-story";
+
+const SHARED_BUDGETS: readonly (readonly string[])[] = [
+	[INSIGHT_KIND, STORY_KIND],
+];
+
+export function budgetKinds(kind: string): string[] {
+	return [...(SHARED_BUDGETS.find((kinds) => kinds.includes(kind)) ?? [kind])];
+}
+
 export const RESEARCH_RUN_KIND = "company-profile";
 
 export const COMPANY_RESEARCH_KINDS = [
@@ -316,7 +326,9 @@ export function startOfMonth(now = new Date()): Date {
 }
 
 export function monthlyBudget(kind: string, limits: PlanLimits): number | null {
-	if (kind === INSIGHT_KIND) return limits.insightsPerMonth;
+	if (kind === INSIGHT_KIND || kind === STORY_KIND) {
+		return limits.insightsPerMonth;
+	}
 	if (kind === DRAFT_KIND) return limits.draftsPerMonth;
 	if (kind === RESEARCH_RUN_KIND) return limits.researchPerMonth;
 

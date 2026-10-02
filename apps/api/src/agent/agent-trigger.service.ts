@@ -7,6 +7,7 @@ import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
 import {
 	allowsCompanyResearch,
+	budgetKinds,
 	forwardReserve,
 	monthlyBudget,
 } from "@crm/db/plans";
@@ -707,7 +708,7 @@ export class AgentTriggerService {
 
 		const { since } = await usageWindowOf(this.db);
 		const used = await this.db.agentTask.count({
-			where: { kind, createdAt: { gte: since } },
+			where: { kind: { in: budgetKinds(kind) }, createdAt: { gte: since } },
 		});
 
 		if (used < ceiling) return true;

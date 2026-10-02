@@ -165,7 +165,7 @@ describe("runPersonStory", () => {
 		if (!parsed.ok) throw new Error(parsed.reason);
 		expect(parsed.story.stopped?.quote?.messageId).toBe(mail.id);
 		expect(parsed.story.passages).toEqual([
-			{ messageId: mail.id, text: "unser Budget erst ab Juli frei" },
+			{ messageId: mail.id, text: "Unser Budget erst ab Juli frei" },
 		]);
 	});
 

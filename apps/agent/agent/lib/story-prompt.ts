@@ -231,14 +231,17 @@ export function storyPrompt(
 		`Write gist, every text, every point and after in ${input.writtenIn}. Address the rep as you, in the informal form. Call the customer by their first name.`,
 		"A quote and a passage are copied word for word from the numbered message, in its own language. Never translate or shorten a quote inside the words.",
 		"Use only what the messages and the deals say. Never invent a fact, a date, a price or a feeling. When the mail does not show a part, set that part to null.",
-		"gist: at most two short sentences. What you did together and why they went quiet. No greeting, no advice.",
-		"together: what you did together, the orders, projects and what went well. Name numbers the mail names.",
-		"stopped: when and why the conversation stopped, then the one sentence of theirs that shows it best as quote, then after: one or two sentences on what happened after it.",
-		"bringBack: what can bring them back now, then up to four short points, each one fact from the mail.",
+		"WE in the transcript is the rep's own company, you. THEY is the customer. The customer buys from you or sells to you; say it the right way round.",
+		"gist: at most two sentences and 30 words. What you did together and where it stopped. No greeting, no advice.",
+		"together: at most two sentences and 40 words. The orders or projects and what went well, with the numbers the mail names. Sum up, never list every order.",
+		"stopped: at most two sentences and 40 words on when it stopped and why, then the one sentence of theirs that shows it best as quote, then after: one sentence on what happened after it.",
+		"bringBack: at most two sentences and 40 words on what can bring them back now, then up to three points of at most 12 words, each one fact from the mail.",
+		"Never write about the evidence itself: no 'not documented', 'not shown', 'in the visible thread' or 'it is unclear'. When the mail does not say why, leave the why out.",
+		"A quote or a passage starts after the greeting and never contains a greeting such as Hello or Hallo and a name.",
 		"messages: the numbers of the messages each part is built on. A part with no message is null.",
-		"passages: up to eight sentences, copied word for word, that the story builds on. The quote is one of them.",
+		"passages: two to four sentences, copied word for word, that the story builds on most. The quote is one of them.",
 		"Write dates with the month as a word. Write no dash between words or numbers; use a comma, a full stop or the word for to.",
-		"Plain words, short sentences, present or past tense. No marketing words.",
+		"Plain words, short sentences, present or past tense. No semicolons, no marketing words.",
 	].join("\n");
 
 	const prompt = [
@@ -271,7 +274,14 @@ function quoted(
 	entry: { message: number; text: string },
 ): { messageId: string; text: string } | null {
 	const message = numbered[entry.message - 1];
-	const text = entry.text.trim().replace(/^[„“”"«»]+|[„“”"«»]+$/g, "");
+	const bare = entry.text
+		.trim()
+		.replace(/^[„“”"«»]+|[„“”"«»]+$/g, "")
+		.replace(
+			/^(hello|hi|hallo|liebe|lieber|dear|guten tag)\s+[^,]{1,40},\s*/i,
+			"",
+		);
+	const text = bare.charAt(0).toUpperCase() + bare.slice(1);
 	if (!message || text.length === 0) return null;
 	if (text.length > PERSON_STORY.quoteMaxChars) return null;
 	if (!normal(message.text).includes(normal(text))) return null;

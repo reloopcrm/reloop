@@ -96,6 +96,37 @@ describe("storyFromAnswer", () => {
 		});
 	});
 
+	it("cuts the greeting off a quote and starts it with a capital", () => {
+		const greeted = numberMessages([
+			message(
+				"m1",
+				"INBOUND",
+				"03-02",
+				"Hallo Lena, wir möchten im Herbst wieder ein Führungstraining machen.",
+			),
+		]);
+		const story = storyFromAnswer(
+			answer({
+				together: { text: "Ein Training.", messages: [1] },
+				stopped: null,
+				bringBack: null,
+				passages: [
+					{
+						message: 1,
+						text: "Hallo Lena, wir möchten im Herbst wieder ein Führungstraining machen.",
+					},
+				],
+			}),
+			greeted,
+		);
+		expect(story.passages).toEqual([
+			{
+				messageId: "m1",
+				text: "Wir möchten im Herbst wieder ein Führungstraining machen.",
+			},
+		]);
+	});
+
 	it("drops a quote and a passage the message does not hold", () => {
 		const story = storyFromAnswer(
 			answer({
@@ -110,7 +141,7 @@ describe("storyFromAnswer", () => {
 		);
 		expect(story.stopped?.quote).toBeNull();
 		expect(story.passages).toEqual([
-			{ messageId: "m1", text: "wieder ein Führungstraining" },
+			{ messageId: "m1", text: "Wieder ein Führungstraining" },
 		]);
 	});
 

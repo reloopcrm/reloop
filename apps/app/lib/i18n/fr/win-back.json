@@ -396,5 +396,6 @@
 	"The emails": "Les e-mails",
 	"Straight to the message": "Aller au message",
 	"Is something wrong in the story?": "Quelque chose cloche dans l'histoire ?",
-	"Tell Reloop": "Dis-le à Reloop"
+	"Tell Reloop": "Dis-le à Reloop",
+	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop ne peut pas relire les e-mails avec {name}. Les histoires sont désactivées, ou ce sont des données d'exemple."
 }

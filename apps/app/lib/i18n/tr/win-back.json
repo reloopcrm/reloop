@@ -396,5 +396,6 @@
 	"The emails": "E-postalar",
 	"Straight to the message": "Doğrudan mesaja",
 	"Is something wrong in the story?": "Hikâyede yanlış bir şey mi var?",
-	"Tell Reloop": "Reloop'a söyle"
+	"Tell Reloop": "Reloop'a söyle",
+	"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.": "Reloop {name} ile e-postaları yeniden okuyamıyor. Hikâyeler kapalı ya da bunlar örnek veriler."
 }

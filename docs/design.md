@@ -89,6 +89,7 @@ per view, blue for the KPI strip and an email draft. Use them once per view.
 | Button `outline` | | `--line-strong` hairline on paper, hover `--active` |
 | Button `ghost` | | No edge until hover |
 | Button `link` | | Underlined, 3px offset, ink 80% to ink on hover |
+| Button `text` size | No height, no padding, 13px | A `link` that sits inside a sentence or a card footer |
 | Button `dashed` | | Dashed `--line-strong`, muted text; quick filters and "Add a deal" |
 | Icon button | 32px (`icon`), 28px (`icon-sm`) | |
 | Input, select trigger | 32px, 10px inline padding | `--line` edge on paper, the focus ring is blue |
@@ -96,6 +97,7 @@ per view, blue for the KPI strip and an email draft. Use them once per view.
 | Segmented control | 2px padding, 24px segments, 13px | Active segment `--tile`, never a fill colour |
 | Line tabs | 40px, 14px | 1px ink line under the active tab |
 | Checkbox | 14px, 2px corners | Ink when checked |
+| Textarea `draft` | No edge, Newsreader 300, 17px | A dashed hairline while a mail draft is edited in place |
 
 A header, a card footer and a dialog pair one primary button with one underlined
 text link. A second filled button on a screen removes the meaning of the first.

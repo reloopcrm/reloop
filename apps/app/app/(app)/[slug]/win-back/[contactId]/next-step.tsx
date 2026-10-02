@@ -55,6 +55,17 @@ const LONG_DAY = { day: "numeric", month: "long" } as const;
 
 type Variant = "full" | "short";
 
+type Verdict = "good" | "later" | null;
+
+type Done =
+	| { kind: "later"; reminderId: string }
+	| { kind: "skip"; previous: Verdict }
+	| { kind: "sent"; previous: Verdict; marked: boolean };
+
+function verdictOf(value: string | null): Verdict {
+	return value === "good" || value === "later" ? value : null;
+}
+
 function paragraphs(text: string): string[] {
 	return text
 		.split(/\n{2,}/)
@@ -82,8 +93,7 @@ export function useNextStep(view: PersonView) {
 	const [variant, setVariant] = useState<Variant>("full");
 	const [suggested, setSuggested] = useState<string | null>(null);
 	const [asking, setAsking] = useState<Variant | null>(null);
-	const [reminderId, setReminderId] = useState<string | null>(null);
-	const [marked, setMarked] = useState(false);
+	const [done, setDone] = useState<Done | null>(null);
 
 	const draft = useEmailDraft(contactId, true);
 	const email = view.contact.email;
@@ -119,21 +129,29 @@ export function useNextStep(view: PersonView) {
 		);
 	};
 
-	const undo = () => {
-		if (step === "later" && reminderId) {
-			unremind.mutate({ id: reminderId });
-			setReminderId(null);
+	const revert = (entry: Done | null) => {
+		if (entry?.kind === "later") unremind.mutate({ id: entry.reminderId });
+		if (entry?.kind === "skip" || (entry?.kind === "sent" && entry.marked)) {
+			feedback.mutate({ contactIds: [contactId], verdict: entry.previous });
 		}
-		if (step === "skip" || (step === "sent" && marked)) {
+		if (entry === null && step === "skip") {
 			feedback.mutate({ contactIds: [contactId], verdict: null });
-			setMarked(false);
 		}
+		setDone(null);
 		setStep("read");
 		toast(t("Undone."));
 	};
 
-	const withUndo = (message: string) =>
-		toast(message, { action: { label: t("Undo"), onClick: undo } });
+	const undo = () => revert(done);
+
+	const finish = (next: CardStep, entry: Done, message: string) => {
+		setDone(entry);
+		setEditing(false);
+		setStep(next);
+		toast(message, {
+			action: { label: t("Undo"), onClick: () => revert(entry) },
+		});
+	};
 
 	const open = () => {
 		setStep("open");
@@ -152,17 +170,15 @@ export function useNextStep(view: PersonView) {
 				contactId,
 			},
 			{
-				onSuccess: (entry) => {
-					setReminderId(entry.id);
-					setEditing(false);
-					setStep("later");
-					withUndo(
+				onSuccess: (entry) =>
+					finish(
+						"later",
+						{ kind: "later", reminderId: entry.id },
 						t("Reloop reminds you of {name} on {date}.", {
 							name: first,
 							date: remindText,
 						}),
-					);
-				},
+					),
 			},
 		);
 	};
@@ -171,10 +187,12 @@ export function useNextStep(view: PersonView) {
 		feedback.mutate(
 			{ contactIds: [contactId], verdict: "bad" },
 			{
-				onSuccess: () => {
-					setStep("skip");
-					withUndo(t("{name} stays out of the list.", { name: first }));
-				},
+				onSuccess: () =>
+					finish(
+						"skip",
+						{ kind: "skip", previous: verdictOf(view.feedback) },
+						t("{name} stays out of the list.", { name: first }),
+					),
 			},
 		);
 	};
@@ -197,13 +215,15 @@ export function useNextStep(view: PersonView) {
 					),
 			);
 		}
-		setEditing(false);
-		if (view.feedback === null) {
+		const marked = view.feedback === null;
+		if (marked) {
 			feedback.mutate({ contactIds: [contactId], verdict: "good" });
-			setMarked(true);
 		}
-		setStep("sent");
-		withUndo(t("Your mail program opens with this text."));
+		finish(
+			"sent",
+			{ kind: "sent", previous: verdictOf(view.feedback), marked },
+			t("Your mail program opens with this text."),
+		);
 	};
 
 	const changeVariant = (next: Variant) => {

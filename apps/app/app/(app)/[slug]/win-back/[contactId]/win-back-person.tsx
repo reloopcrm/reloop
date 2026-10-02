@@ -226,11 +226,22 @@ export function WinBackPerson({ contactId }: { contactId: string }) {
 			}}
 			rereading={reread.isPending || view.storyState.queued}
 			onReread={() => {
-				reread.mutate({ contactId });
-				toast(
-					t("Thanks. Reloop reads the emails with {name} again.", {
-						name: view.contact.firstName,
-					}),
+				const name = view.contact.firstName;
+				reread.mutate(
+					{ contactId },
+					{
+						onSuccess: (result) =>
+							toast(
+								result.queued
+									? t("Thanks. Reloop reads the emails with {name} again.", {
+											name,
+										})
+									: t(
+											"Reloop cannot read the emails with {name} again. Story writing is off, or this is sample data.",
+											{ name },
+										),
+							),
+					},
 				);
 			}}
 		/>

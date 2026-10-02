@@ -478,5 +478,7 @@
 	"Remove from workspace": "Quitar del espacio de trabajo",
 	"Removed from the workspace.": "Quitado del espacio de trabajo.",
 	"Remove {name} from the workspace?": "¿Quitar a {name} del espacio de trabajo?",
-	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "Se cierra su sesión ahora y no puede volver a entrar. Sus contactos, deals y actividades se quedan."
+	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "Se cierra su sesión ahora y no puede volver a entrar. Sus contactos, deals y actividades se quedan.",
+	"Win back stories": "Historias para recuperar",
+	"Writes what happened with one quiet customer when you open them in Win back. One model call per person.": "Escribe lo que pasó con un cliente que dejó de escribir cuando lo abres en Recuperar. Una llamada al modelo por persona."
 }

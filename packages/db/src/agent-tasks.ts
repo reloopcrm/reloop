@@ -23,6 +23,7 @@ export const TASK_KINDS = [
 	"email-draft",
 	"field-proposal",
 	"deal-stall",
+	"person-story",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];
@@ -55,6 +56,7 @@ export const DIRECT_KINDS = [
 	"email-draft",
 	"field-proposal",
 	"deal-stall",
+	"person-story",
 ] as const;
 
 export type DirectKind = (typeof DIRECT_KINDS)[number];
@@ -111,6 +113,7 @@ export const PRIORITY = {
 	businessSetup: 985,
 	contactClean: 720,
 	emailDraft: 970,
+	personStory: 960,
 	playbookLearn: 600,
 	event: 700,
 	dealStall: 30,

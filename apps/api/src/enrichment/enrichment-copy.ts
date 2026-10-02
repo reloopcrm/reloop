@@ -27,6 +27,7 @@ const STEPS = {
 	"playbook-learn": "Learning from your replies",
 	"field-proposal": "Waiting for you to accept a field",
 	"deal-stall": "Writing the next step on a quiet deal",
+	"person-story": "Writing what happened with them",
 } satisfies Record<TaskKind, string>;
 
 const STEP_BY_KIND = new Map<string, string>(Object.entries(STEPS));

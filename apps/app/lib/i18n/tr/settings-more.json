@@ -478,5 +478,7 @@
 	"Remove from workspace": "Çalışma alanından kaldır",
 	"Removed from the workspace.": "Çalışma alanından kaldırıldı.",
 	"Remove {name} from the workspace?": "{name} çalışma alanından kaldırılsın mı?",
-	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "Oturumu hemen kapanır ve tekrar giriş yapamaz. Kişileri, fırsatları ve etkinlikleri kalır."
+	"They are signed out now and cannot sign in again. Their contacts, deals and activities stay.": "Oturumu hemen kapanır ve tekrar giriş yapamaz. Kişileri, fırsatları ve etkinlikleri kalır.",
+	"Win back stories": "Geri kazanma hikâyeleri",
+	"Writes what happened with one quiet customer when you open them in Win back. One model call per person.": "Geri kazan bölümünde açtığın sessiz bir müşteriyle neler olduğunu yazar. Kişi başına bir model çağrısı."
 }

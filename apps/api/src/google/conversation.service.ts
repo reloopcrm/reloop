@@ -69,7 +69,7 @@ export class ConversationService {
 			thread.messages.map((message) => message.fromEmail),
 		);
 
-		if (thread.insight?.summary.trim()) {
+		if (thread.insight?.relevant && thread.insight.summary.trim()) {
 			await this.agent.summaryRefreshNeeded(thread.id, thread.insight.language);
 		}
 

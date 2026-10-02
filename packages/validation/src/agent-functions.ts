@@ -29,7 +29,7 @@ export const AGENT_FUNCTIONS = [
 		group: "reading",
 		title: "Conversation summaries",
 		note: "Summarises every new email conversation and records who owes a reply. The biggest model cost.",
-		kinds: ["thread-insight"],
+		kinds: ["thread-insight", "thread-refresh"],
 	},
 	{
 		id: "thread-digest",

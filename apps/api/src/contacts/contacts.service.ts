@@ -366,7 +366,7 @@ export class ContactsService {
 				select: { language: true },
 			}),
 			this.db.emailThread.findFirst({
-				where: { contactId, insight: { isNot: null } },
+				where: { contactId, insight: { relevant: true } },
 				orderBy: { lastMessageAt: "desc" },
 				select: { id: true },
 			}),

@@ -69,6 +69,10 @@ async function runWithConcurrency<T>(
 
 const TENANT_HEADER = "x-reloop-tenant";
 
+const REFRESH_KIND = "thread-refresh";
+const REFRESH_REASON =
+	"A summary was written in another language than the workspace's";
+
 function tenantOfThisRequest(): string | null {
 	try {
 		return cloud.scopeId();
@@ -197,13 +201,40 @@ export class AgentTriggerService {
 		const wanted = summaryLanguage(await readAgentLanguage(this.db), german);
 		if (!summaryIsStale(written, wanted)) return false;
 
-		await this.threadStored(
-			threadId,
-			"A summary was written in another language than the workspace's",
-			"backfill",
-			{ reread: true },
-		);
+		await this.summaryRefreshRequested(threadId, "forward");
 		return true;
+	}
+
+	async summaryRefreshRequested(
+		threadId: string,
+		origin: AgentTaskOrigin,
+	): Promise<void> {
+		if (isSampleRecordId(threadId)) return;
+
+		const priority =
+			origin === "backfill"
+				? PRIORITY.threadInsightBackfill
+				: PRIORITY.threadRefresh;
+		const created = await this.enqueue({
+			kind: REFRESH_KIND,
+			reason: REFRESH_REASON,
+			priority,
+			budget: 1,
+			payload: { threadId, origin } satisfies AgentTaskThreadPayload,
+			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
+			origin,
+		});
+		if (created || origin === "backfill") return;
+
+		await this.db.agentTask.updateMany({
+			where: {
+				kind: REFRESH_KIND,
+				finishedAt: null,
+				priority: { lt: priority },
+				payload: { path: [AGENT_TASK_THREAD_ID_KEY], equals: threadId },
+			},
+			data: { priority },
+		});
 	}
 
 	private async markReread(threadId: string): Promise<void> {

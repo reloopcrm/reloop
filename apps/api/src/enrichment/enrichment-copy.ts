@@ -18,6 +18,7 @@ const STEPS = {
 	"webhook-delivery": "Sending a change to a webhook",
 	"thread-insight": "Reading the conversation",
 	"thread-digest": "Summarising every message",
+	"thread-refresh": "Rewriting a summary in your language",
 	"email-draft": "Writing an email draft",
 	"business-setup": "Working out what you trade",
 	"rules-tune": "Tuning the win-back rules",

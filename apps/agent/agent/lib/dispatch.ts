@@ -39,6 +39,7 @@ import { skippedByPrecheck } from "./identify-precheck";
 import {
 	GATE_UNAVAILABLE,
 	NEEDS_FULL_READ,
+	runSummaryRefresh,
 	runThreadDigest,
 	runThreadInsight,
 } from "./insight";
@@ -89,9 +90,11 @@ export const RESEARCH_BATCH = DISPATCH.research.batch;
 export const RESEARCH_LEASE_MS = DISPATCH.research.leaseMs;
 
 const INSIGHT_KIND = "thread-insight";
+const REFRESH_KIND = "thread-refresh";
 const MODEL_KINDS = new Set([
 	INSIGHT_KIND,
 	"thread-digest",
+	REFRESH_KIND,
 	"contact-clean",
 	"playbook-learn",
 	"email-draft",
@@ -282,7 +285,7 @@ export async function runInsightLane(
 			lane = "slow";
 			tasks = await claimDue(
 				allowed,
-				{ only: [INSIGHT_KIND] },
+				{ only: [INSIGHT_KIND, REFRESH_KIND] },
 				DISPATCH.insight.leaseMs,
 				{ atMost: BACKFILL_PRIORITY },
 			);
@@ -335,6 +338,30 @@ async function reconcileDirect(
 
 	console.error(`[agent] ⨯ ${task.kind} ${task.id}: ${outcome.reason}`);
 	await settle(task, EnrichmentStatus.FAILED, outcome.reason).catch(() => {});
+}
+
+async function runThreadTask(
+	task: LeasedTask,
+	run: (threadId: string) => Promise<string>,
+	what: string,
+): Promise<void> {
+	const threadId = readAgentTaskThreadId(task.payload);
+	if (!threadId) {
+		await completeTask(task.id, say(COPY.tasks.noThreadId));
+		return;
+	}
+
+	try {
+		await completeTask(task.id, await run(threadId));
+	} catch (error) {
+		const until = await resumeAt();
+		if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+		await postponeTask(task.id, until);
+		console.error(
+			`[agent] ${what} waits until ${until.toISOString()}: the usage limit is reached`,
+		);
+	}
 }
 
 async function handleDirect(task: LeasedTask): Promise<void> {
@@ -391,24 +418,13 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 		return;
 	}
 
+	if (task.kind === REFRESH_KIND) {
+		await runThreadTask(task, runSummaryRefresh, "a summary refresh");
+		return;
+	}
+
 	if (task.kind === "thread-digest") {
-		const threadId = readAgentTaskThreadId(task.payload);
-		if (!threadId) {
-			await completeTask(task.id, say(COPY.tasks.noThreadId));
-			return;
-		}
-
-		try {
-			await completeTask(task.id, await runThreadDigest(threadId));
-		} catch (error) {
-			const until = await resumeAt();
-			if (!until || !isExhaustion(readProviderFailure(error))) throw error;
-
-			await postponeTask(task.id, until);
-			console.error(
-				`[agent] a digest waits until ${until.toISOString()}: the usage limit is reached`,
-			);
-		}
+		await runThreadTask(task, runThreadDigest, "a digest");
 		return;
 	}
 

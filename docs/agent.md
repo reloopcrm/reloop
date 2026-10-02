@@ -184,12 +184,21 @@ signed up in. The API stores and serves the value and does nothing else with it.
   the language the conversation uses. English is never a silent default for them.
 - **A summary records its language.** `ThreadInsight.language` and
   `ContactMemory.language` hold the `summaryLanguage()` it was written for; null means
-  it was written before this was tracked. When a rep opens a thread, or a contact whose
-  memory is stale, the API compares that value with the wanted one and queues one
-  `thread-insight` reread at the backfill priority (`summaryRefreshNeeded` in
-  `agent-trigger.service.ts`). The sample data is never reread. A reread also rewrites
-  the contact memory in the wanted language. `bun run refresh-summaries` in `apps/api`
-  counts every stale summary of one install and queues them with `--apply`. Every
+  it was written before this was tracked. When a rep opens a relevant thread, or a
+  contact whose memory is stale, the API compares that value with the wanted one and
+  queues one `thread-refresh` task at `PRIORITY.threadRefresh` (`summaryRefreshNeeded`
+  in `agent-trigger.service.ts`). The sample data is never refreshed.
+- **A refresh rewrites words, not facts.** `runSummaryRefresh` reads the thread with
+  the model, never with the cheap pre-check, and stores only `summary` and `language`,
+  plus the message lines and the contact memory in the wanted language. It touches a
+  relevant thread only. `thread-refresh` is its own task kind, so it never counts toward
+  the monthly conversation limit. `bun run refresh-summaries` in `apps/api` runs inside
+  `cloud.forEachScope`, once per workspace, and only counts; `--apply` queues the
+  refreshes at the backfill priority.
+- **A reread never changes relevance.** `reread: true` on a `thread-insight` task (the
+  direction repair) skips the pre-check for a thread that already has an insight
+  (`readPlan`): a relevant thread is read by the model and stays relevant, an off
+  topic one keeps its stored verdict. Every
   other stored text keeps the language it was written in. The business unit and
   description are edited by hand in Win back, Rules, because business setup keeps a
   value that is already set.
@@ -266,7 +275,7 @@ make one direct model call to read the homepage it fetched, which is not a sessi
 not a conversation; with no provider it falls back to the page's own metadata rather
 than failing.
 
-**Priority**: `brand` 900 · `portrait` 800 · `threadInsight` 700 · `workspace` 500 ·
+**Priority**: `brand` 900 · `portrait` 800 · `threadRefresh` 750 · `threadInsight` 700 · `workspace` 500 ·
 `requested` 300 · `meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 ·
 `threadInsightBackfill` 10 · `recheck` 0. The top two are what a rep reads *before*
 deciding what to open.

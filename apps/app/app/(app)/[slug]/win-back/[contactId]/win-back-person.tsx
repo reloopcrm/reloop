@@ -334,7 +334,7 @@ function PersonPage({
 				</SplitFoot>
 			</SplitLayout>
 			<ActionBarSpacer />
-			<NextStepBar step={step} />
+			<NextStepBar step={step} cardId={CARD_ID} />
 		</>
 	);
 }

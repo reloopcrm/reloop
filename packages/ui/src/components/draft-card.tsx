@@ -119,7 +119,7 @@ function DraftCardMailHeader({ className, ...props }: React.ComponentProps<"div"
 		<div
 			data-slot="draft-card-mail-header"
 			className={cn(
-				"flex flex-wrap items-start justify-between gap-2.5 border-b pb-3 [&>[data-slot=draft-card-meta]]:min-w-0 [&>[data-slot=draft-card-meta]]:flex-1 [&>[data-slot=draft-card-meta]]:border-b-0 [&>[data-slot=draft-card-meta]]:pb-0",
+				"flex flex-wrap items-start justify-between gap-2.5 border-b pb-3 [&>[data-slot=draft-card-meta]]:min-w-[min(100%,16rem)] [&>[data-slot=draft-card-meta]]:flex-1 [&>[data-slot=draft-card-meta]]:border-b-0 [&>[data-slot=draft-card-meta]]:pb-0",
 				className,
 			)}
 			{...props}

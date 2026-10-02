@@ -567,15 +567,27 @@ export function NextStepCard({ step, id }: { step: NextStep; id: string }) {
 	);
 }
 
-export function NextStepBar({ step }: { step: NextStep }) {
+export function NextStepBar({
+	step,
+	cardId,
+}: {
+	step: NextStep;
+	cardId: string;
+}) {
 	const t = useT();
 	const { draft } = step;
+	const open = () => {
+		step.open();
+		document
+			.getElementById(cardId)
+			?.scrollIntoView({ behavior: "smooth", block: "start" });
+	};
 
 	if (step.step === "read") {
 		return (
 			<ActionBar>
 				{step.email ? (
-					<Button size="lg" onClick={step.open}>
+					<Button size="lg" onClick={open}>
 						{t("View message")}
 					</Button>
 				) : null}

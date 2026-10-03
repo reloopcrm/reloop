@@ -93,6 +93,26 @@ export const SHOTS = {
 			height: 1138,
 			alt: "Reloop Win back list, compact view",
 		},
+		"win-back-person": {
+			width: 1600,
+			height: 1000,
+			alt: "Reloop Win back person: the story of one quiet customer, from the first order to the unanswered request",
+		},
+		"win-back-story": {
+			width: 1086,
+			height: 1200,
+			alt: "Reloop Win back story: the gist, your time together and the quote where it stopped",
+		},
+		"win-back-mails": {
+			width: 1600,
+			height: 1000,
+			alt: "Reloop Win back person, the emails: the unanswered request with the passage the story builds on marked",
+		},
+		"follow-up-sent": {
+			width: 1600,
+			height: 1000,
+			alt: "Reloop Win back person after Send: the message is in your own mail program",
+		},
 	},
 	themes: ["light", "dark"],
 } as const;

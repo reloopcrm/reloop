@@ -21,7 +21,10 @@ const context: MatchContext = {
 
 const policy = { context, creatingOwners: new Set(["user-1"]) };
 
-function inbound(fromEmail: string, overrides: Partial<ThreadMessage> = {}) {
+function inbound(
+	fromEmail: string,
+	overrides: Partial<ThreadMessage> = {},
+): ThreadMessage {
 	return {
 		direction: "INBOUND",
 		fromEmail,
@@ -30,6 +33,8 @@ function inbound(fromEmail: string, overrides: Partial<ThreadMessage> = {}) {
 		body: "Wir brauchen zwei Paletten.",
 		snippet: null,
 		syncedByUserId: "user-1",
+		sentAt: new Date("2026-09-17T10:00:00Z"),
+		recipients: [],
 		...overrides,
 	} satisfies ThreadMessage;
 }
@@ -149,6 +154,7 @@ describe("planThread", () => {
 				domain: "kunde.example",
 				verdict: "create",
 				ownerId: "user-1",
+				lastMailAt: new Date("2026-09-17T10:00:00Z"),
 			},
 			{
 				email: "other@andere.example",
@@ -156,8 +162,41 @@ describe("planThread", () => {
 				domain: "andere.example",
 				verdict: "other-domain",
 				ownerId: null,
+				lastMailAt: new Date("2026-09-17T10:00:00Z"),
 			},
 		]);
+	});
+
+	it("dates a sender by the newest mail from or to them", () => {
+		const plan = planThread(
+			{
+				subject: null,
+				company,
+				messages: [
+					inbound("preview@kunde.example", {
+						sentAt: new Date("2026-09-17T10:00:00Z"),
+					}),
+					inbound("preview@kunde.example", {
+						sentAt: new Date("2026-09-19T10:00:00Z"),
+					}),
+					inbound("rep@own.example", {
+						direction: "OUTBOUND",
+						recipients: ["PREVIEW@kunde.example"],
+						sentAt: new Date("2026-09-21T10:00:00Z"),
+					}),
+					inbound("rep@own.example", {
+						direction: "OUTBOUND",
+						recipients: ["other@kunde.example"],
+						sentAt: new Date("2026-09-25T10:00:00Z"),
+					}),
+				],
+			},
+			policy,
+		);
+		expect(plan.senders).toHaveLength(1);
+		expect(plan.senders[0]?.lastMailAt).toEqual(
+			new Date("2026-09-21T10:00:00Z"),
+		);
 	});
 
 	it("marks a sender of a mailbox that creates nobody", () => {

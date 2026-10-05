@@ -34,6 +34,8 @@ export type ThreadMessage = {
 	body: string | null;
 	snippet: string | null;
 	syncedByUserId: string | null;
+	sentAt: Date;
+	recipients: readonly string[];
 };
 
 export type ThreadCompany = {
@@ -54,6 +56,7 @@ export type SenderOutcome = {
 	domain: string | null;
 	verdict: Exclude<SenderVerdict, "known">;
 	ownerId: string | null;
+	lastMailAt: Date;
 };
 
 export type ThreadPlan =
@@ -115,11 +118,23 @@ export function planThread(
 	}
 
 	const senders = new Map<string, SenderOutcome>();
+	const lastMail = new Map<string, Date>();
+	const mailed = (email: string, at: Date) => {
+		const seen = lastMail.get(email);
+		if (!seen || seen < at) lastMail.set(email, at);
+	};
 
 	for (const message of thread.messages) {
+		if (message.direction === "OUTBOUND") {
+			for (const recipient of message.recipients) {
+				mailed(recipient.trim().toLowerCase(), message.sentAt);
+			}
+			continue;
+		}
 		if (message.direction !== "INBOUND") continue;
 
 		const email = message.fromEmail.trim().toLowerCase();
+		mailed(email, message.sentAt);
 		let verdict: SenderOutcome["verdict"] = senderVerdict(
 			message,
 			thread.subject,
@@ -143,10 +158,18 @@ export function planThread(
 			domain: workDomain(email),
 			verdict,
 			ownerId: verdict === "create" ? ownerId : null,
+			lastMailAt: message.sentAt,
 		});
 	}
 
-	return { skip: null, companyId: company.id, senders: [...senders.values()] };
+	return {
+		skip: null,
+		companyId: company.id,
+		senders: [...senders.values()].map((sender) => ({
+			...sender,
+			lastMailAt: lastMail.get(sender.email) ?? sender.lastMailAt,
+		})),
+	};
 }
 
 function rank(verdict: SenderOutcome["verdict"]): number {

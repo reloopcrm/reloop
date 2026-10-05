@@ -472,7 +472,13 @@ the largest attachment upload the conversation contracts accept.
   whose mailbox synced the message. The thread's `contactId` never moves; when it is
   empty (a `createFrom: "relevant"` thread filed under a known company) the first new
   contact fills it, and the thread's `EMAIL` activity follows. The activity of an
-  occupied thread stays on its contact. **Only a creating mailbox adds anyone**: the
+  occupied thread stays on its contact. A new contact gets `lastActivityAt` like any
+  sync contact: the "Contact added from your inbox" log row stamps it with the time it
+  was created. On every later pass the sender's newest mail in the thread, inbound
+  from them or outbound to them, moves it forward through `ActivityStampService.touch`,
+  never back, because `store` stamps only the thread's own contact. Win back and the
+  `identify` pre-check count mail by `emailThread.contactId`, so they do not count
+  the thread for the extra contact. **Only a creating mailbox adds anyone**: the
   message's `syncedByUserId` must own a non-calendar `MailboxSync` with `autoCreate`
   or `createFrom: "relevant"`, and the user must not be removed. A thread that is
   already relevant and already filed stands in for the reply rule of `replied`.
@@ -483,14 +489,20 @@ the largest attachment upload the conversation contracts accept.
   holds `{ v, at, id }` (`mailbox/thread-contacts-cursor.ts`), where `at` is the
   later of the thread's and the insight's `updatedAt`. Each tick reads
   `THREAD_CONTACTS.batch` threads after it in `(at, id)` order and leaves out rows
-  younger than `THREAD_CONTACTS.settleMs`, so a transaction stamped earlier but
-  committed later is not passed. A null cursor starts at the oldest thread, which is
+  younger than `THREAD_CONTACTS.settleMs` against the database's `now()`, never the
+  API clock, so a transaction stamped earlier but committed later is not passed. The
+  messages of a batch are read with `left(body, AUTO_REPLY_BODY_CHARS)`, the window
+  `isAutoReply` reads, so a long mail never loads in full. A null cursor starts at the oldest thread, which is
   how existing history is caught up after a deploy. New mail moves the thread's
   `updatedAt`, `adopt` moves it, and a new verdict moves the insight's, so the pass
   sees each of them again: new mail in a relevant thread is filed one to two ticks
   after it is stored. `store` has no branch of its own. An unreadable cursor is
   logged and starts again from the oldest thread; a second pass is harmless, since a
-  known address is never created twice.
+  known address is never created twice. **The cursor query has a cost**: no index
+  serves `GREATEST` of two columns, so every tick hash-joins all relevant threads with
+  a company or contact and sorts the ones after the cursor. That is fine at thousands
+  of threads; the batch stays at 100. A tenant far larger needs a stored cursor column
+  with its own index.
 - **The dry run counts, it never writes.** `bun run thread-contacts --dry-run` in
   `apps/api` runs `ThreadContactsService.preview` inside `cloud.forEachScope`. It
   walks every relevant thread from the start, ignores the cursor, and prints per

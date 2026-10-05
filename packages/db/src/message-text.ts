@@ -61,6 +61,8 @@ const AUTO_BODY = [
 	/\bi\s+will\s+(be\s+)?(back|return)\s+(on|in\s+the\s+office)/i,
 ];
 
+export const AUTO_REPLY_BODY_CHARS = 800;
+
 export function isAutoReply(
 	subject: string | null,
 	body: string | null,
@@ -70,7 +72,7 @@ export function isAutoReply(
 		return true;
 	}
 
-	const text = (body ?? "").slice(0, 800);
+	const text = (body ?? "").slice(0, AUTO_REPLY_BODY_CHARS);
 	return text.length > 0 && AUTO_BODY.some((marker) => marker.test(text));
 }
 

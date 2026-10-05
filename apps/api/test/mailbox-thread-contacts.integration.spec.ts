@@ -105,7 +105,13 @@ async function contactA(name: string) {
 
 async function relevantThread(options: {
 	contactId: string | null;
-	messages: { from: string; subject?: string; syncedBy?: string }[];
+	messages: {
+		from: string;
+		subject?: string;
+		syncedBy?: string;
+		to?: string;
+		sentAt?: Date;
+	}[];
 	relevant?: boolean;
 }) {
 	counter += 1;
@@ -124,13 +130,13 @@ async function relevantThread(options: {
 				create: options.messages.map((message, index) => ({
 					rfcMessageId: `<m-${counter}-${index}-${suffix}@mail.example>`,
 					syncedByUserId: message.syncedBy ?? userId,
-					direction: "INBOUND",
+					direction: message.to ? "OUTBOUND" : "INBOUND",
 					fromEmail: message.from,
 					fromName: "Preview Person",
-					recipients: [{ email: mailbox, name: "Rep" }],
+					recipients: [{ email: message.to ?? mailbox, name: "Rep" }],
 					subject: message.subject ?? "Re: Angebot Paletten",
 					body: "Wir brauchen zwei Paletten.",
-					sentAt,
+					sentAt: message.sentAt ?? sentAt,
 				})),
 			},
 		},
@@ -159,7 +165,7 @@ async function markRelevant(threadId: string) {
 async function contactOf(email: string) {
 	return db.contact.findFirst({
 		where: { email },
-		select: { id: true, companyId: true, ownerId: true },
+		select: { id: true, companyId: true, ownerId: true, lastActivityAt: true },
 	});
 }
 
@@ -244,6 +250,75 @@ describe("senders of a relevant thread", () => {
 			select: { contactId: true },
 		});
 		expect(thread?.contactId).toBe(a.id);
+	});
+
+	it("stamps a new contact like a sync contact and moves it on later mail", async () => {
+		const a = await contactA("theo");
+		const threadId = await relevantThread({
+			contactId: a.id,
+			messages: [
+				{ from: `uwe@${domain}`, sentAt: new Date("2026-09-17T10:00:00Z") },
+				{
+					from: mailbox,
+					to: `uwe@${domain}`,
+					sentAt: new Date("2026-09-20T10:00:00Z"),
+				},
+			],
+		});
+		const startedAt = new Date();
+
+		expect(await pass.addFromRelevantThreads()).toBe(1);
+		const created = await contactOf(`uwe@${domain}`);
+		expect(created?.lastActivityAt?.getTime() ?? 0).toBeGreaterThanOrEqual(
+			startedAt.getTime() - 1_000,
+		);
+		const log = await db.activity.findFirst({
+			where: { contactId: created?.id ?? "missing", type: "ENRICHMENT" },
+			select: { subject: true },
+		});
+		expect(log?.subject).toBe("Contact added from your inbox");
+
+		const later = new Date(Date.now() + 24 * 60 * 60 * 1_000);
+		const root = await db.emailThread.findUniqueOrThrow({
+			where: { id: threadId },
+			select: { rootMessageId: true },
+		});
+		await threads.store(
+			relevantBox,
+			{ origin: "imap", lane: "forward" },
+			inbound(`uwe@${domain}`, root.rootMessageId, {
+				rfcMessageId: rfc("later"),
+				sentAt: later,
+			}),
+			await threads.context(),
+		);
+
+		expect(await pass.addFromRelevantThreads()).toBe(0);
+		expect((await contactOf(`uwe@${domain}`))?.lastActivityAt).toEqual(later);
+
+		const thread = await db.emailThread.findUnique({
+			where: { id: threadId },
+			select: { contactId: true },
+		});
+		expect(thread?.contactId).toBe(a.id);
+	});
+
+	it("holds back a thread younger than the settle window", async () => {
+		const slow = new ThreadContactsService(db, match, threads, stamp).tune({
+			settleMs: 60 * 60 * 1_000,
+			batch: 1_000,
+		});
+		const a = await contactA("vera");
+		await relevantThread({
+			contactId: a.id,
+			messages: [{ from: `walter@${domain}` }],
+		});
+
+		expect(await slow.addFromRelevantThreads()).toBe(0);
+		expect(await contactOf(`walter@${domain}`)).toBeNull();
+
+		expect(await pass.addFromRelevantThreads()).toBe(1);
+		expect(await contactOf(`walter@${domain}`)).not.toBeNull();
 	});
 
 	it("leaves out another domain, an auto reply, own and role addresses", async () => {

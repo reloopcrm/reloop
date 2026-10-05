@@ -1,8 +1,10 @@
 import { type Db, Prisma, RecordSource } from "@crm/db";
+import { AUTO_REPLY_BODY_CHARS } from "@crm/db/message-text";
 import { limitsOf } from "@crm/db/plans";
 import { SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
 import { readPlan, SETTINGS_ID } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
+import { z } from "zod";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import { THREAD_CONTACTS } from "./mailbox.config";
@@ -12,6 +14,7 @@ import {
 	planThread,
 	type SenderOutcome,
 	type SenderVerdict,
+	type ThreadMessage,
 	type ThreadPlan,
 	type ThreadSkip,
 } from "./thread-contacts";
@@ -20,9 +23,28 @@ import {
 	serialiseThreadContactsCursor,
 	type ThreadContactsCursor,
 } from "./thread-contacts-cursor";
-import { ThreadWriterService } from "./thread-writer.service";
+import { recipientsOf, ThreadWriterService } from "./thread-writer.service";
 
 type ChangedThread = { id: string; changedAt: string };
+
+type KnownContact = { id: string; archivedAt: Date | null };
+
+const isoInstant = z.iso.datetime().transform((value) => new Date(value));
+
+const scannedMessage = z.object({
+	threadId: z.string(),
+	direction: z.enum(["INBOUND", "OUTBOUND"]),
+	fromEmail: z.string(),
+	fromName: z.string().nullable(),
+	subject: z.string().nullable(),
+	body: z.string().nullable(),
+	snippet: z.string().nullable(),
+	syncedByUserId: z.string().nullable(),
+	sentAt: isoInstant,
+	recipients: z.json(),
+});
+
+const scannedMessages = z.array(scannedMessage);
 
 type ScannedThread = {
 	row: ChangedThread;
@@ -68,8 +90,11 @@ export class ThreadContactsService {
 		if (creatingOwners.size === 0) return 0;
 
 		const after = await this.readCursor();
-		const until = new Date(Date.now() - this.options.settleMs);
-		const rows = await this.changedThreads(after, until, this.options.batch);
+		const rows = await this.changedThreads(
+			after,
+			this.options.settleMs,
+			this.options.batch,
+		);
 		if (rows.length === 0) return 0;
 
 		const policy: CreatePolicy = {
@@ -96,6 +121,7 @@ export class ThreadContactsService {
 			}
 
 			try {
+				await this.stampKnownSenders(thread, known);
 				const outcome = await this.addSenders(thread, wanted, known);
 				created += outcome.created;
 				for (const domain of outcome.domains) domains.add(domain);
@@ -134,7 +160,7 @@ export class ThreadContactsService {
 	private async addSenders(
 		thread: ScannedThread,
 		wanted: readonly SenderOutcome[],
-		known: Set<string>,
+		known: Map<string, KnownContact>,
 	): Promise<{ created: number; domains: string[]; limited: boolean }> {
 		const outcome = { created: 0, domains: [] as string[], limited: false };
 		const companyId = thread.plan.companyId;
@@ -152,8 +178,8 @@ export class ThreadContactsService {
 			);
 			if (added.limited) return { ...outcome, limited: true };
 
-			known.add(sender.email);
 			if (!added.contactId) continue;
+			known.set(sender.email, { id: added.contactId, archivedAt: null });
 
 			if (added.created) {
 				outcome.created += 1;
@@ -168,13 +194,25 @@ export class ThreadContactsService {
 		return outcome;
 	}
 
+	private async stampKnownSenders(
+		thread: ScannedThread,
+		known: ReadonlyMap<string, KnownContact>,
+	): Promise<void> {
+		for (const sender of thread.plan.senders) {
+			if (sender.verdict !== "create") continue;
+			const contact = known.get(sender.email);
+			if (!contact || contact.archivedAt) continue;
+			if (contact.id === thread.threadContactId) continue;
+			await this.stamp.touch({ contactId: contact.id }, sender.lastMailAt);
+		}
+	}
+
 	async preview(): Promise<ThreadContactsPreview> {
 		const creatingOwners = await this.creatingOwners();
 		const policy: CreatePolicy = {
 			context: await this.threads.context(),
 			creatingOwners,
 		};
-		const until = new Date();
 
 		const preview: ThreadContactsPreview = {
 			threads: 0,
@@ -203,7 +241,7 @@ export class ThreadContactsService {
 		for (;;) {
 			const rows = await this.changedThreads(
 				after,
-				until,
+				0,
 				THREAD_CONTACTS.previewPage,
 			);
 			if (rows.length === 0) break;
@@ -293,7 +331,7 @@ export class ThreadContactsService {
 
 	private changedThreads(
 		after: ThreadContactsCursor | null,
-		until: Date,
+		settleMs: number,
 		take: number,
 	): Promise<ChangedThread[]> {
 		const position = after
@@ -308,7 +346,7 @@ export class ThreadContactsService {
 			WHERE i.relevant = true
 				AND (t."companyId" IS NOT NULL OR t."contactId" IS NOT NULL)
 				AND t.id NOT LIKE ${SAMPLE_ID_PATTERN}
-				AND ${CHANGED_AT} <= (${until.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+				AND ${CHANGED_AT} <= (now() AT TIME ZONE 'UTC') - (${settleMs} * interval '1 millisecond')
 				${position}
 			ORDER BY ${CHANGED_AT}, t.id
 			LIMIT ${take}
@@ -319,34 +357,33 @@ export class ThreadContactsService {
 		rows: readonly ChangedThread[],
 		policy: CreatePolicy,
 	): Promise<ScannedThread[]> {
-		const details = await this.db.emailThread.findMany({
-			where: { id: { in: rows.map((row) => row.id) } },
-			select: {
-				id: true,
-				subject: true,
-				contactId: true,
-				company: { select: { id: true, domain: true, archivedAt: true } },
-				contact: {
-					select: {
-						company: { select: { id: true, domain: true, archivedAt: true } },
+		const ids = rows.map((row) => row.id);
+		const [details, messages] = await Promise.all([
+			this.db.emailThread.findMany({
+				where: { id: { in: ids } },
+				select: {
+					id: true,
+					subject: true,
+					contactId: true,
+					company: { select: { id: true, domain: true, archivedAt: true } },
+					contact: {
+						select: {
+							company: {
+								select: { id: true, domain: true, archivedAt: true },
+							},
+						},
 					},
 				},
-				messages: {
-					where: { direction: "INBOUND" },
-					orderBy: { sentAt: "asc" },
-					select: {
-						direction: true,
-						fromEmail: true,
-						fromName: true,
-						subject: true,
-						body: true,
-						snippet: true,
-						syncedByUserId: true,
-					},
-				},
-			},
-		});
+			}),
+			this.messagesOf(ids),
+		]);
 		const byId = new Map(details.map((thread) => [thread.id, thread]));
+		const mail = new Map<string, ThreadMessage[]>();
+		for (const message of messages) {
+			const list = mail.get(message.threadId) ?? [];
+			list.push(message);
+			mail.set(message.threadId, list);
+		}
 
 		return rows.flatMap((row) => {
 			const thread = byId.get(row.id);
@@ -360,7 +397,7 @@ export class ThreadContactsService {
 						{
 							subject: thread.subject,
 							company: thread.company ?? thread.contact?.company ?? null,
-							messages: thread.messages,
+							messages: mail.get(row.id) ?? [],
 						},
 						policy,
 					),
@@ -369,9 +406,38 @@ export class ThreadContactsService {
 		});
 	}
 
+	private async messagesOf(
+		threadIds: readonly string[],
+	): Promise<(ThreadMessage & { threadId: string })[]> {
+		if (threadIds.length === 0) return [];
+
+		const raw = await this.db.$queryRaw<unknown[]>`
+			SELECT m."threadId",
+				m.direction::text AS direction,
+				m."fromEmail",
+				m."fromName",
+				m.subject,
+				left(m.body, ${AUTO_REPLY_BODY_CHARS}) AS body,
+				m.snippet,
+				m."syncedByUserId",
+				to_char(m."sentAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "sentAt",
+				CASE WHEN m.direction = 'OUTBOUND' THEN m.recipients ELSE '[]'::jsonb END AS recipients
+			FROM "emailMessage" m
+			WHERE m."threadId" IN (${Prisma.join(threadIds)})
+			ORDER BY m."threadId", m."sentAt"
+		`;
+
+		return scannedMessages.parse(raw).map((message) => ({
+			...message,
+			recipients: recipientsOf(message.recipients as Prisma.JsonValue).map(
+				(person) => person.email,
+			),
+		}));
+	}
+
 	private async knownAddresses(
 		scanned: readonly ScannedThread[],
-	): Promise<Set<string>> {
+	): Promise<Map<string, KnownContact>> {
 		const emails = scanned.flatMap((thread) =>
 			thread.plan.senders
 				.filter((sender) => sender.verdict === "create")
@@ -380,17 +446,25 @@ export class ThreadContactsService {
 		return this.existingContacts(emails);
 	}
 
-	private async existingContacts(emails: string[]): Promise<Set<string>> {
-		if (emails.length === 0) return new Set();
+	private async existingContacts(
+		emails: string[],
+	): Promise<Map<string, KnownContact>> {
+		const known = new Map<string, KnownContact>();
+		if (emails.length === 0) return known;
 
 		const rows = await this.db.contact.findMany({
 			where: { email: { in: [...new Set(emails)] } },
-			select: { email: true },
+			orderBy: { archivedAt: { sort: "asc", nulls: "first" } },
+			select: { id: true, email: true, archivedAt: true },
 		});
+		for (const row of rows) {
+			const email = row.email?.toLowerCase();
+			if (email && !known.has(email)) {
+				known.set(email, { id: row.id, archivedAt: row.archivedAt });
+			}
+		}
 
-		return new Set(
-			rows.flatMap((row) => (row.email ? [row.email.toLowerCase()] : [])),
-		);
+		return known;
 	}
 
 	private async fillEmptySlot(
@@ -419,7 +493,7 @@ export class ThreadContactsService {
 
 function wantedSenders(
 	thread: ScannedThread,
-	known: ReadonlySet<string>,
+	known: ReadonlyMap<string, KnownContact>,
 ): SenderOutcome[] {
 	return thread.plan.senders.filter(
 		(sender) => sender.verdict === "create" && !known.has(sender.email),

@@ -2,11 +2,28 @@ import { z } from "zod";
 
 export const threadContactsCursor = z.object({
 	v: z.literal(1),
-	at: z.iso.datetime(),
-	id: z.string().min(1),
+	at: z.iso.datetime().nullable(),
+	id: z.string().min(1).nullable(),
+	failed: z
+		.object({
+			id: z.string().min(1),
+			count: z.number().int().min(1),
+		})
+		.optional(),
 });
 
 export type ThreadContactsCursor = z.infer<typeof threadContactsCursor>;
+
+export type CursorPosition = { at: string; id: string };
+
+export type ThreadFailure = NonNullable<ThreadContactsCursor["failed"]>;
+
+export function positionOf(
+	cursor: ThreadContactsCursor | null,
+): CursorPosition | null {
+	if (!cursor?.at || !cursor.id) return null;
+	return { at: cursor.at, id: cursor.id };
+}
 
 export type ThreadContactsCursorRead =
 	| { outcome: "none" }

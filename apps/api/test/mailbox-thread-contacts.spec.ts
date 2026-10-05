@@ -272,6 +272,15 @@ describe("the thread contacts cursor", () => {
 		).toEqual({ outcome: "ok", cursor });
 	});
 
+	it("reads a cursor written before the failure count existed", () => {
+		const read = readThreadContactsCursor(
+			'{"v":1,"at":"2026-09-17T10:00:00.000Z","id":"thread-1"}',
+		);
+		expect(read.outcome === "ok" ? read.cursor.failed : "missing").toBe(
+			undefined,
+		);
+	});
+
 	it("reports an unreadable value and an empty one", () => {
 		expect(readThreadContactsCursor(null)).toEqual({ outcome: "none" });
 		expect(readThreadContactsCursor("{").outcome).toBe("unreadable");

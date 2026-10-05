@@ -499,9 +499,12 @@ the largest attachment upload the conversation contracts accept.
   **The contact limit stops the pass, never the tick**: a limit reached before or
   during an insert leaves the cursor before that thread, so the senders are added
   once the plan grows. **A failed thread stops the pass too**: an error in a thread
-  is logged and the cursor stays before it, so the next tick tries it again.
+  is logged, the cursor stays before it and counts the attempt in its `failed`
+  field, so the next tick tries it again. After `THREAD_CONTACTS.maxThreadAttempts`
+  failures in a row the pass logs one warning with the thread id and the reason and
+  moves past it; a thread that succeeds clears the count.
 - **The pass walks a cursor, not the newest threads.** `AppSetting.threadContactsCursor`
-  holds `{ v, at, id }` (`mailbox/thread-contacts-cursor.ts`), where `at` is the
+  holds `{ v, at, id, failed? }` (`mailbox/thread-contacts-cursor.ts`), where `at` is the
   later of the thread's and the insight's `updatedAt`. Each tick reads
   `THREAD_CONTACTS.batch` threads after it in `(at, id)` order and leaves out rows
   younger than `THREAD_CONTACTS.settleMs` against the database's `now()`, never the

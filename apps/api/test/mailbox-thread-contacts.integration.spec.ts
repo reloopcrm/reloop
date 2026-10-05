@@ -575,10 +575,10 @@ describe("senders of a relevant thread", () => {
 		expect(read.outcome === "ok" ? read.cursor.id : null).toBe(threadId);
 	});
 
-	it("stays before a thread whose contact could not be added", async () => {
+	it("stays before a failed thread and forgets the failure on success", async () => {
 		await pass.addFromRelevantThreads();
 		const a = await contactA("gerda");
-		await relevantThread({
+		const threadId = await relevantThread({
 			contactId: a.id,
 			messages: [{ from: `hugo@${domain}` }],
 		});
@@ -590,13 +590,69 @@ describe("senders of a relevant thread", () => {
 			settleMs: 0,
 			batch: 1_000,
 		});
-		const before = await cursor();
+		const before = readThreadContactsCursor(await cursor());
 
 		expect(await failing.addFromRelevantThreads()).toBe(0);
-		expect(await cursor()).toBe(before);
+		const held = readThreadContactsCursor(await cursor());
+		expect(held.outcome === "ok" ? held.cursor.id : null).toBe(
+			before.outcome === "ok" ? before.cursor.id : "missing",
+		);
+		expect(held.outcome === "ok" ? held.cursor.failed : null).toEqual({
+			id: threadId,
+			count: 1,
+		});
 		expect(await contactOf(`hugo@${domain}`)).toBeNull();
 
 		expect(await pass.addFromRelevantThreads()).toBe(1);
+		const cleared = readThreadContactsCursor(await cursor());
+		expect(cleared.outcome === "ok" ? cleared.cursor.failed : "missing").toBe(
+			undefined,
+		);
+	});
+
+	it("moves past a thread that fails on every attempt", async () => {
+		await pass.addFromRelevantThreads();
+		const a = await contactA("hilde");
+		const stuck = await relevantThread({
+			contactId: a.id,
+			messages: [{ from: `ivo@${domain}` }],
+		});
+		const next = await relevantThread({
+			contactId: a.id,
+			messages: [{ from: `jana@${domain}` }],
+		});
+		const broken = Object.create(match) as MailboxMatchService;
+		let attempts = 0;
+		broken.addCompanyContact = async (person, ...rest) => {
+			if (person.email === `ivo@${domain}`) {
+				attempts += 1;
+				throw new Error("constraint the pass cannot fix");
+			}
+			return match.addCompanyContact(person, ...rest);
+		};
+		const failing = new ThreadContactsService(db, broken, threads, stamp).tune({
+			settleMs: 0,
+			batch: 1_000,
+		});
+
+		expect(await failing.addFromRelevantThreads()).toBe(0);
+		expect(await failing.addFromRelevantThreads()).toBe(0);
+		expect(await contactOf(`jana@${domain}`)).toBeNull();
+		const second = readThreadContactsCursor(await cursor());
+		expect(second.outcome === "ok" ? second.cursor.failed : null).toEqual({
+			id: stuck,
+			count: 2,
+		});
+
+		expect(await failing.addFromRelevantThreads()).toBe(1);
+		expect(attempts).toBe(3);
+		expect(await contactOf(`ivo@${domain}`)).toBeNull();
+		expect(await contactOf(`jana@${domain}`)).not.toBeNull();
+		const after = readThreadContactsCursor(await cursor());
+		expect(after.outcome === "ok" ? after.cursor.id : null).toBe(next);
+		expect(after.outcome === "ok" ? after.cursor.failed : "missing").toBe(
+			undefined,
+		);
 	});
 
 	it("starts over when a mailbox turns creation on", async () => {

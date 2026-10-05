@@ -19,9 +19,12 @@ import {
 	type ThreadSkip,
 } from "./thread-contacts";
 import {
+	type CursorPosition,
+	positionOf,
 	readThreadContactsCursor,
 	serialiseThreadContactsCursor,
 	type ThreadContactsCursor,
+	type ThreadFailure,
 } from "./thread-contacts-cursor";
 import { recipientsOf, ThreadWriterService } from "./thread-writer.service";
 
@@ -65,6 +68,7 @@ export type ThreadContactsOptions = {
 	batch: number;
 	settleMs: number;
 	maxCreates: number;
+	maxThreadAttempts: number;
 };
 
 type PassStop = "deadline" | "creates" | "limit" | "error";
@@ -78,6 +82,7 @@ export class ThreadContactsService {
 		batch: THREAD_CONTACTS.batch,
 		settleMs: THREAD_CONTACTS.settleMs,
 		maxCreates: THREAD_CONTACTS.maxCreatesPerTick,
+		maxThreadAttempts: THREAD_CONTACTS.maxThreadAttempts,
 	};
 
 	constructor(
@@ -95,7 +100,8 @@ export class ThreadContactsService {
 	async addFromRelevantThreads(
 		deadlineAt: number = NO_DEADLINE,
 	): Promise<number> {
-		const after = await this.readCursor();
+		const cursor = await this.readCursor();
+		const after = positionOf(cursor);
 		const rows = await this.changedThreads(
 			after,
 			this.options.settleMs,
@@ -115,6 +121,8 @@ export class ThreadContactsService {
 		let reached: ChangedThread | null = null;
 		let limitChecked = false;
 		let stopped: PassStop | null = null;
+		const failedBefore = cursor?.failed ?? null;
+		let failed: ThreadFailure | null = failedBefore;
 
 		for (const thread of scanned) {
 			if (pastDeadline(deadlineAt)) {
@@ -152,22 +160,41 @@ export class ThreadContactsService {
 					break;
 				}
 			} catch (error) {
-				this.logger.error(
-					{
-						message:
-							"Senders of a relevant thread could not be added. The pass stops before this thread and tries it again on the next tick",
-						threadId: thread.row.id,
-					},
-					error instanceof Error ? error.stack : String(error),
-				);
-				stopped = "error";
-				break;
+				const count = failed?.id === thread.row.id ? failed.count + 1 : 1;
+				const reason = error instanceof Error ? error.message : String(error);
+				if (count < this.options.maxThreadAttempts) {
+					this.logger.error(
+						{
+							message:
+								"Senders of a relevant thread could not be added. The pass stops before this thread and tries it again on the next tick",
+							threadId: thread.row.id,
+							attempt: count,
+						},
+						error instanceof Error ? error.stack : reason,
+					);
+					failed = { id: thread.row.id, count };
+					stopped = "error";
+					break;
+				}
+				this.logger.warn({
+					message:
+						"Senders of a relevant thread failed on every attempt. The pass moves past this thread",
+					threadId: thread.row.id,
+					attempts: count,
+					reason,
+				});
 			}
 
+			if (failed?.id === thread.row.id) failed = null;
 			reached = thread.row;
 		}
 
-		if (reached) await this.writeCursor(reached);
+		if (reached || failed !== failedBefore) {
+			await this.writeCursor(
+				reached ? { at: reached.changedAt, id: reached.id } : after,
+				failed,
+			);
+		}
 
 		if (created > 0) {
 			this.logger.log({
@@ -273,7 +300,7 @@ export class ThreadContactsService {
 		};
 
 		const verdicts = new Map<string, SenderOutcome>();
-		let after: ThreadContactsCursor | null = null;
+		let after: CursorPosition | null = null;
 
 		for (;;) {
 			const rows = await this.changedThreads(
@@ -303,7 +330,7 @@ export class ThreadContactsService {
 
 			const last = rows.at(-1);
 			if (!last) break;
-			after = { v: 1, at: last.changedAt, id: last.id };
+			after = { at: last.changedAt, id: last.id };
 		}
 
 		const known = await this.existingContacts([...verdicts.keys()]);
@@ -353,11 +380,15 @@ export class ThreadContactsService {
 		return null;
 	}
 
-	private async writeCursor(row: ChangedThread): Promise<void> {
+	private async writeCursor(
+		position: CursorPosition | null,
+		failed: ThreadFailure | null,
+	): Promise<void> {
 		const value = serialiseThreadContactsCursor({
 			v: 1,
-			at: row.changedAt,
-			id: row.id,
+			at: position?.at ?? null,
+			id: position?.id ?? null,
+			failed: failed ?? undefined,
 		});
 		await this.db.appSetting.upsert({
 			where: { id: SETTINGS_ID },
@@ -367,7 +398,7 @@ export class ThreadContactsService {
 	}
 
 	private changedThreads(
-		after: ThreadContactsCursor | null,
+		after: CursorPosition | null,
 		settleMs: number,
 		take: number,
 	): Promise<ChangedThread[]> {

@@ -6,6 +6,7 @@ import { ReactivationService } from "./reactivation.service";
 import { WinBackFollowUpController } from "./win-back-follow-up.controller";
 import { WinBackFollowUpService } from "./win-back-follow-up.service";
 import { WinBackPersonService } from "./win-back-person.service";
+import { WinBackStoryPrefetchService } from "./win-back-story-prefetch.service";
 
 @Module({
 	imports: [TrpcModule, AgentModule],
@@ -15,6 +16,7 @@ import { WinBackPersonService } from "./win-back-person.service";
 		ReactivationRouter,
 		WinBackFollowUpService,
 		WinBackPersonService,
+		WinBackStoryPrefetchService,
 	],
 	exports: [WinBackFollowUpService],
 })

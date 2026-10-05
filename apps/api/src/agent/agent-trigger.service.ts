@@ -11,6 +11,7 @@ import {
 	forwardReserve,
 	keepsReserve,
 	monthlyBudget,
+	STORY_KIND,
 } from "@crm/db/plans";
 import { isSampleRecordId } from "@crm/db/sample-data";
 import {
@@ -75,6 +76,8 @@ const TENANT_HEADER = "x-reloop-tenant";
 const REFRESH_KIND = "thread-refresh";
 const REFRESH_REASON =
 	"A summary was written in another language than the workspace's";
+
+const STORY_OPENED_REASON = "A rep opened this person in Win back";
 
 function tenantOfThisRequest(): string | null {
 	try {
@@ -301,11 +304,124 @@ export class AgentTriggerService {
 			kind: "person-story",
 			reason: reread
 				? "A rep said the win back story is wrong"
-				: "A rep opened this person in Win back",
+				: STORY_OPENED_REASON,
 			priority: PRIORITY.personStory,
 			budget: 1,
 			payload: { reread } satisfies AgentTaskStoryPayload,
 		});
+	}
+
+	async personStoriesPrefetched(
+		contactIds: readonly string[],
+		reason: string,
+		openShare: number,
+	): Promise<number> {
+		const ids = [...new Set(contactIds)].filter((id) => !isSampleRecordId(id));
+		if (ids.length === 0) return 0;
+		if (!(await this.allows(STORY_KIND))) return 0;
+
+		try {
+			const room = await this.prefetchRoom(openShare);
+			if (room <= 0) {
+				this.logger.log({
+					message: "Story prefetch skipped: the budget keeps its rest",
+					room,
+				});
+				return 0;
+			}
+
+			const created = await this.db.$transaction(async (tx) => {
+				for (const id of [...ids].sort()) {
+					await lockIdempotencyKey(tx, `agent-task:${STORY_KIND}:${id}::`);
+				}
+				const pending = await tx.agentTask.findMany({
+					where: { kind: STORY_KIND, finishedAt: null, contactId: { in: ids } },
+					select: { contactId: true },
+				});
+				const taken = new Set(pending.map((row) => row.contactId));
+				const fresh = ids.filter((id) => !taken.has(id)).slice(0, room);
+				if (fresh.length === 0) return 0;
+
+				const now = new Date();
+				await tx.agentTask.createMany({
+					data: fresh.map((contactId) => ({
+						contactId,
+						kind: STORY_KIND,
+						reason,
+						priority: PRIORITY.storyPrefetch,
+						budget: 1,
+						dueAt: now,
+						payload: { reread: false } satisfies AgentTaskStoryPayload,
+					})),
+				});
+				return fresh.length;
+			});
+
+			this.logger.log({
+				message: "Story prefetch queued",
+				queued: created,
+				asked: ids.length,
+			});
+			if (created > 0) this.poke();
+
+			return created;
+		} catch (error) {
+			this.logger.error(
+				{ message: "Could not queue the story prefetch" },
+				error instanceof Error ? error.stack : String(error),
+			);
+			return 0;
+		}
+	}
+
+	async personStoryOpened(contactId: string): Promise<boolean> {
+		try {
+			const { count } = await this.db.agentTask.updateMany({
+				where: {
+					contactId,
+					kind: STORY_KIND,
+					finishedAt: null,
+					priority: { lt: PRIORITY.personStory },
+					dueAt: { lte: new Date() },
+				},
+				data: { priority: PRIORITY.personStory, reason: STORY_OPENED_REASON },
+			});
+			if (count === 0) return false;
+
+			this.logger.log({
+				message: "A prefetched story moved to the front",
+				contactId,
+			});
+			this.poke();
+
+			return true;
+		} catch (error) {
+			this.logger.error(
+				{ message: "Could not move the story to the front", contactId },
+				error instanceof Error ? error.stack : String(error),
+			);
+			return false;
+		}
+	}
+
+	private async prefetchRoom(openShare: number): Promise<number> {
+		const limits = await planLimitsOf(this.db);
+		const budget = monthlyBudget(STORY_KIND, limits);
+		if (budget === null) return Number.POSITIVE_INFINITY;
+
+		const ceiling =
+			budget -
+			forwardReserve(STORY_KIND, limits) -
+			Math.ceil(budget * openShare);
+		const { since } = await usageWindowOf(this.db);
+		const used = await this.db.agentTask.count({
+			where: {
+				kind: { in: budgetKinds(STORY_KIND) },
+				createdAt: { gte: since },
+			},
+		});
+
+		return ceiling - used;
 	}
 
 	async usageProbeRequested(): Promise<boolean> {

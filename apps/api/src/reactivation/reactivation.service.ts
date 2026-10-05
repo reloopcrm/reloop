@@ -39,6 +39,10 @@ import {
 	searchGroups,
 	sortGroups,
 } from "./win-back-groups";
+import {
+	readsDefaultList,
+	WinBackStoryPrefetchService,
+} from "./win-back-story-prefetch.service";
 
 const playbookShape = z.object({
 	summary: z.string(),
@@ -58,6 +62,7 @@ export class ReactivationService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
+		private readonly prefetch: WinBackStoryPrefetchService,
 	) {}
 
 	private async assertManager(userId: string): Promise<void> {
@@ -80,6 +85,7 @@ export class ReactivationService {
 			ownerId: input.scope === "me" ? userId : null,
 			rules,
 		});
+		this.prefetch.listRead(readsDefaultList(input) ? report.groups : null);
 
 		const found = searchGroups(report.groups, input.q);
 		const matched = filterBands(found, input.potential);

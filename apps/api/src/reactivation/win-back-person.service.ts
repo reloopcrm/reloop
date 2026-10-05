@@ -1,4 +1,5 @@
 import { type Db, DealStage } from "@crm/db";
+import { PRIORITY } from "@crm/db/agent-tasks";
 import type { InsightOutcome } from "@crm/db/insights";
 import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
 import {
@@ -39,6 +40,7 @@ import type {
 	WinBackPersonViewOutput,
 } from "./reactivation.contracts";
 import { filterBands, searchGroups, sortGroups } from "./win-back-groups";
+import { WinBackStoryPrefetchService } from "./win-back-story-prefetch.service";
 
 const DEAL_DONE = "DEAL_DONE" satisfies InsightOutcome;
 
@@ -75,6 +77,7 @@ export class WinBackPersonService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
+		private readonly prefetch: WinBackStoryPrefetchService,
 	) {}
 
 	async person(contactId: string): Promise<WinBackPersonViewOutput> {
@@ -171,6 +174,13 @@ export class WinBackPersonService {
 		const open = await this.openStory(contactId);
 		const heldUntil =
 			open !== null && open.dueAt.getTime() > Date.now() ? open.dueAt : null;
+		if (
+			open !== null &&
+			heldUntil === null &&
+			open.priority < PRIORITY.personStory
+		) {
+			await this.agent.personStoryOpened(contactId);
+		}
 		const queued =
 			open !== null
 				? heldUntil === null
@@ -391,11 +401,13 @@ export class WinBackPersonService {
 			: null;
 	}
 
-	private openStory(contactId: string): Promise<{ dueAt: Date } | null> {
+	private openStory(
+		contactId: string,
+	): Promise<{ dueAt: Date; priority: number } | null> {
 		return this.db.agentTask.findFirst({
 			where: { contactId, kind: STORY_KIND, finishedAt: null },
 			orderBy: { dueAt: "asc" },
-			select: { dueAt: true },
+			select: { dueAt: true, priority: true },
 		});
 	}
 
@@ -466,7 +478,10 @@ export class WinBackPersonService {
 				person.contact.email !== null && person.contact.id !== input.contactId,
 		);
 
-		return next ? { id: next.contact.id, name: nameOf(next.contact) } : null;
+		if (!next) return null;
+
+		this.prefetch.nextShown(next.contact.id);
+		return { id: next.contact.id, name: nameOf(next.contact) };
 	}
 }
 

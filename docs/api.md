@@ -689,6 +689,36 @@ marked passages and the follow-up delay. It writes nothing but an
   shown as no story. `reactivation.rereadStory` queues it with `reread: true`, but not
   within `PERSON_VIEW.rereadPauseMs` of the last finished story; then it answers with
   `retryAt` and queues nothing.
+- **The top of the list has its story before anyone opens it.** Reading
+  `reactivation.list` hands the list to `WinBackStoryPrefetchService`
+  (`reactivation/win-back-story-prefetch.service.ts`), at most once per
+  `PERSON_VIEW.prefetch.everyMs` per workspace (`cloud.scopedKey` in the cache), in a
+  detached `cloud.hold`. It takes the first `PERSON_VIEW.prefetch.top` people in the
+  list's default order (potential, highest first; the sidebar's read counts) and
+  queues `person-story` for each one the same rules as the person view call stale:
+  missing, another language, older than the newest mail, or not parsing. The
+  `retryAfterMs` pause holds here too, so a person with no business mail is never
+  queued again and again. A call with another scope, `rejected` or quiet days reads
+  the default list itself instead of reusing the rows.
+- **"Continue with" is prefetched as well.** `reactivation.nextPerson` hands the
+  person it found to the same check, so the story of the next person is usually
+  written while the rep reads the current one.
+- **The API decides only who is stale, never what the story says.** It is the same
+  deterministic check the person view already makes; no model and no vendor runs
+  here. The writes go through `AgentTriggerService.personStoriesPrefetched`, which
+  locks each contact with the same idempotency key as `enqueue` and skips anyone with
+  an open story task, so a person is never queued twice.
+- **A prefetch never spends what a rep needs.** It is refused for sample data and when
+  story writing is off, and it stops at the budget minus the new-mail reserve minus
+  `PERSON_VIEW.prefetch.openShare` of the budget, which stays for stories a rep opens.
+  Past that line it queues nothing, so it never leaves a postponed task. A self-hosted
+  install without a plan has no line. Each prefetched task counts the moment it is
+  written, like every task in `budgetKinds`.
+- **An opened person goes first.** A prefetched task carries `PRIORITY.storyPrefetch`,
+  below every reading of new mail and above the mail backfill, so the agent's fast lane
+  claims it only after the stories reps asked for. When a rep opens a person whose
+  prefetched task still waits, `person` lifts it to `PRIORITY.personStory` through
+  `personStoryOpened`. A task the budget postponed keeps its date.
 - **A reference to a message that no longer exists is dropped on read**
   (`keepKnownMessages`). A message the story names but older than the newest
   `PERSON_VIEW.mails` is added to the list, so "where Reloop knows this from" always

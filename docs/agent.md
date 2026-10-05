@@ -277,8 +277,10 @@ than failing.
 
 **Priority**: `personStory` 960 · `brand` 900 · `portrait` 800 · `threadRefresh` 750 · `threadInsight` 700 · `workspace` 500 ·
 `requested` 300 · `meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 ·
-`threadInsightBackfill` 10 · `recheck` 0. `brand` and `portrait` are what a rep reads
+`storyPrefetch` 35 · `threadInsightBackfill` 10 · `recheck` 0. `brand` and `portrait` are what a rep reads
 *before* deciding what to open; `personStory` is what a rep waits for after opening.
+`storyPrefetch` is a story nobody waits for yet: above the backfill, so the fast lane
+claims it, and below every story a rep opened.
 
 **`company-profile` runs only when a rep asks.** Nothing queues it on its own: a new
 company, an email-domain company, a changed domain and the sign-in backfill queue
@@ -1318,17 +1320,22 @@ in 24 hours. The numbers are `MAILBOX_PROFILE` in `agent/lib/mailbox-config.ts`.
   the parsed profile or `null`. `senderKind(email)` is the one freemail, role or work
   classifier on the agent side.
 
-## A win back story is written when a rep opens the person
+## A win back story is written before or when a rep opens the person
 
 `person-story` (`lib/person-story.ts`) writes what happened with one quiet customer:
 a gist of at most two sentences, what you did together, when and why it stopped with
 one quote of theirs, and what can bring them back with up to four points. The shape is
 `@crm/validation/person-story`, stored in `ContactStory.story`, one row per contact.
 
-- **Only the API's person view queues it**, when a rep opens the person in Win back
-  and the row is missing, written in another language, or older than the newest mail.
-  "Sag es Reloop" queues it with `reread: true`; the prompt then carries the old story
-  and says the rep rejected it. Nothing sweeps every win back candidate.
+- **Only the API queues it**, by the same rule everywhere: the row is missing, written
+  in another language, older than the newest mail, or does not parse. The person view
+  queues it when a rep opens the person, at `PRIORITY.personStory`. Reading the Win back
+  list queues it for the first `PERSON_VIEW.prefetch.top` people, and the next person
+  of "Continue with" is queued too, both at `PRIORITY.storyPrefetch`, which the API
+  lifts to `personStory` when a rep opens that person. "Sag es Reloop" queues it with
+  `reread: true`; the prompt then carries the old story and says the rep rejected it.
+  Nothing in the agent sweeps the win back candidates; the rows are the whole trigger,
+  and the agent runs a prefetched story exactly like an opened one.
 - **Every part names the messages it is built on.** The model answers with the numbers
   of the transcript, `storyFromAnswer` (`lib/story-prompt.ts`) turns them into message
   ids, and a part that names no existing message is stored as null. A quote or a
@@ -1336,7 +1343,8 @@ one quote of theirs, and what can bring them back with up to four points. The sh
   quote marks. The quote of the "stopped" part must come from a message the person
   wrote themselves (`theirs`: inbound and from their address), never from ours. Nothing the mail does not say reaches the page.
 - **The mail is the relevant threads of the contact**, or the ones not read yet, at
-  most `STORY.threads`, `STORY.messages` and `STORY.transcriptMaxChars`
+  most `STORY.threads`, `STORY.messages` (`PERSON_STORY.messagesRead`, which the
+  person page also reads to say how many mails Reloop reads) and `STORY.transcriptMaxChars`
   (`lib/story-config.ts`), quoted history cut, oldest first, wrapped in
   `untrusted()`. Deals of the contact and of its company and the contact memory go in
   beside it.
@@ -1349,7 +1357,10 @@ one quote of theirs, and what can bring them back with up to four points. The sh
   together, in the agent, in the API's gate and on the usage page. A story keeps the
   20 % reserve for new mail free, like a backfill (`keepsReserve`). Past that the task
   is postponed to the end of the window like a draft, and the API queues none.
-  One model call per opened person, and only again after new mail or a re-read.
+  The API stops prefetching earlier still, at `PERSON_VIEW.prefetch.openShare` of the
+  budget before that line, so the stories a rep opens keep their room. One model
+  call per person near the top of the list or opened, and only again after new mail
+  or a re-read.
 - **A rewrite from the person page is for one mail.** `oneOff: true` in the
   `email-draft` payload (`agentTaskDraftPayload`) tells the model the wish is never a
   rule, and `revise` never calls `learn`, whatever the model answers. The result goes

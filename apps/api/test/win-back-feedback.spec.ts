@@ -3,6 +3,7 @@ import { db, RecordSource } from "@crm/db";
 import { writeWinBackRulesState } from "@crm/validation/win-back-rules";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ReactivationService } from "../src/reactivation/reactivation.service";
+import type { WinBackStoryPrefetchService } from "../src/reactivation/win-back-story-prefetch.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "win-back-feedback-spec";
 const domain = `verdict-${suffix}.test`;
@@ -17,7 +18,11 @@ const agent = {
 	},
 } as unknown as AgentTriggerService;
 
-const service = new ReactivationService(db, agent);
+const prefetch = {
+	listRead: () => {},
+} as unknown as WinBackStoryPrefetchService;
+
+const service = new ReactivationService(db, agent, prefetch);
 
 async function people(count: number): Promise<string[]> {
 	const ids: string[] = [];

@@ -11,6 +11,8 @@ import {
 	StoryGist,
 	StoryName,
 	StoryProgress,
+	StorySkeleton,
+	StoryStatus,
 } from "@crm/ui/components/story";
 import {
 	Tabs,
@@ -18,6 +20,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@crm/ui/components/tabs";
+import { PERSON_STORY } from "@crm/validation/person-story";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -155,49 +158,78 @@ function Head({ view }: { view: PersonView }) {
 	);
 }
 
+function isWriting(view: PersonView): boolean {
+	return view.storyState.queued && !view.story;
+}
+
+function WritingHint({ view }: { view: PersonView }) {
+	const t = useT();
+	const locale = useLocale();
+	const name = view.contact.firstName;
+	const seconds = WIN_BACK_UI.person.storySeconds;
+	const count = Math.min(view.mailCount, PERSON_STORY.messagesRead);
+
+	return (
+		<StoryStatus>
+			{count === 0
+				? t(
+						"Reloop is reading the emails with {name} and writing the story. This takes about {seconds} seconds.",
+						{ name, seconds },
+					)
+				: count === 1
+					? t(
+							"Reloop is reading 1 email with {name} and writing the story. This takes about {seconds} seconds.",
+							{ name, seconds },
+						)
+					: t(
+							"Reloop is reading {count} emails with {name} and writing the story. This takes about {seconds} seconds.",
+							{ count: numberFormat(locale).format(count), name, seconds },
+						)}
+		</StoryStatus>
+	);
+}
+
 function Gist({ view }: { view: PersonView }) {
 	const t = useT();
 	const locale = useLocale();
 	const first = view.contact.firstName;
 	const gist = view.story?.gist ?? view.brief;
-	const reading = view.storyState.queued && !view.story;
 	const held = view.storyState.limitUntil;
 
 	return (
 		<div className="flex flex-col gap-2.5">
 			{gist ? <StoryGist>{gist}</StoryGist> : null}
-			<p className="text-2sm text-muted-foreground">
-				{held && !view.story ? (
-					<LocalComputed
-						text={t(
-							"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.",
-							{
+			{isWriting(view) ? (
+				<WritingHint view={view} />
+			) : (
+				<p className="text-2sm text-muted-foreground">
+					{held && !view.story ? (
+						<LocalComputed
+							text={t(
+								"Your plan's reading budget for this month is used up. Reloop writes the story of {name} from {date}.",
+								{
+									name: first,
+									date: dateFormat(locale, LONG_DAY).format(new Date(held)),
+								},
+							)}
+						/>
+					) : !view.story ? (
+						t("Reloop has not written the story of {name} yet.", {
+							name: first,
+						})
+					) : (
+						<LocalComputed
+							text={t("From {count} emails with {name}, last on {date}.", {
+								count: numberFormat(locale).format(view.mailCount),
 								name: first,
-								date: dateFormat(locale, LONG_DAY).format(new Date(held)),
-							},
-						)}
-					/>
-				) : reading ? (
-					t(
-						"Reloop is reading the emails with {name}. The story appears here in a moment.",
-						{
-							name: first,
-						},
-					)
-				) : !view.story ? (
-					t("Reloop has not written the story of {name} yet.", { name: first })
-				) : (
-					<LocalComputed
-						text={t("From {count} emails with {name}, last on {date}.", {
-							count: numberFormat(locale).format(view.mailCount),
-							name: first,
-							date: dateFormat(locale, LONG_DAY).format(
-								new Date(view.lastContactAt),
-							),
-						})}
-					/>
-				)}
-			</p>
+								date: dateFormat(locale, LONG_DAY).format(
+									new Date(view.lastContactAt),
+								),
+							})}
+						/>
+					)}
+				</p>
+			)}
 		</div>
 	);
 }
@@ -377,7 +409,11 @@ function PersonPage({
 						</div>
 						<TabsContent value="story" className="mt-2 flex flex-col gap-1">
 							<PersonTrack view={view} />
-							<PersonStory view={view} onShow={onShow} />
+							{isWriting(view) ? (
+								<StorySkeleton />
+							) : (
+								<PersonStory view={view} onShow={onShow} />
+							)}
 						</TabsContent>
 						<TabsContent value="mails" className="mt-2">
 							<PersonMails view={view} highlighted={highlighted} />

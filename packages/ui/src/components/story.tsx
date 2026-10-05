@@ -1,4 +1,6 @@
 import { MonoLabel, Square } from "@crm/ui/components/mark";
+import { Skeleton } from "@crm/ui/components/skeleton";
+import { Spinner } from "@crm/ui/components/spinner";
 import { cn } from "@crm/ui/lib/utils";
 import { Check } from "lucide-react";
 import type * as React from "react";
@@ -266,6 +268,54 @@ function StoryChapter({
 	);
 }
 
+const SKELETON_TITLES = ["w-2/5", "w-1/2", "w-1/3"] as const;
+
+function StorySkeleton({ className, ...props }: React.ComponentProps<"ol">) {
+	return (
+		<ol
+			data-slot="story-skeleton"
+			aria-hidden="true"
+			className={cn("flex flex-col", className)}
+			{...props}
+		>
+			{SKELETON_TITLES.map((title) => (
+				<li
+					key={title}
+					className="grid grid-cols-[minmax(0,1fr)] gap-1.5 border-b py-5.5 md:grid-cols-[32px_minmax(0,1fr)] md:gap-x-3 md:gap-y-0"
+				>
+					<Skeleton className="mt-1 h-3 w-4" />
+					<div className="flex min-w-0 flex-col gap-2">
+						<Skeleton className={cn("h-5", title)} />
+						<Skeleton className="h-4 w-full max-w-155" />
+						<Skeleton className="h-4 w-4/5 max-w-155" />
+					</div>
+				</li>
+			))}
+		</ol>
+	);
+}
+
+function StoryStatus({
+	className,
+	children,
+	...props
+}: React.ComponentProps<"p">) {
+	return (
+		<p
+			data-slot="story-status"
+			role="status"
+			className={cn(
+				"flex items-start gap-2 text-2sm text-muted-foreground",
+				className,
+			)}
+			{...props}
+		>
+			<Spinner aria-hidden="true" className="mt-px" />
+			<span className="min-w-0">{children}</span>
+		</p>
+	);
+}
+
 function StoryText({ className, ...props }: React.ComponentProps<"p">) {
 	return (
 		<p
@@ -508,6 +558,8 @@ export {
 	StoryName,
 	StoryProgress,
 	StoryQuote,
+	StorySkeleton,
+	StoryStatus,
 	StoryText,
 	StoryTrack,
 	StoryTrackKey,

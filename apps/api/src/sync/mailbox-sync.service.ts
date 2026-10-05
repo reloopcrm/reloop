@@ -15,6 +15,7 @@ import {
 } from "../mailbox/mailbox.constants";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { ThreadAdoptionService } from "../mailbox/thread-adoption.service";
+import { ThreadContactsService } from "../mailbox/thread-contacts.service";
 import { MicrosoftConnectionService } from "../microsoft/microsoft-connection.service";
 import { MicrosoftSyncService } from "../microsoft/microsoft-sync.service";
 
@@ -54,6 +55,7 @@ export class MailboxSyncService {
 		private readonly adoption: ThreadAdoptionService,
 		private readonly agent: AgentTriggerService,
 		private readonly direction: DirectionRepairService,
+		private readonly threadContacts: ThreadContactsService,
 	) {}
 
 	async runDue(signal?: AbortSignal): Promise<TickSummary> {
@@ -84,6 +86,14 @@ export class MailboxSyncService {
 		} catch (error) {
 			this.logger.error(
 				{ message: "Thread adoption failed" },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
+		try {
+			await this.threadContacts.addFromRelevantThreads();
+		} catch (error) {
+			this.logger.error(
+				{ message: "Adding senders of relevant threads failed" },
 				error instanceof Error ? error.stack : String(error),
 			);
 		}

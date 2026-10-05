@@ -1,9 +1,17 @@
 import { z } from "zod";
 
 const SECOND_MS = 1_000;
+const MINUTE_MS = 60 * SECOND_MS;
 
 export const ADOPTION = {
 	batch: 50,
+} as const;
+
+export const THREAD_CONTACTS = {
+	batch: 100,
+	settleMs: MINUTE_MS,
+	previewPage: 500,
+	previewBudgetMs: 30 * MINUTE_MS,
 } as const;
 
 export const DIRECTION = {
@@ -11,11 +19,11 @@ export const DIRECTION = {
 } as const;
 
 export const LIMIT_WARNING = {
-	intervalMs: 60 * SECOND_MS,
+	intervalMs: MINUTE_MS,
 } as const;
 
 export const SYNC_TICK = {
-	selfHostBudgetMs: 60 * SECOND_MS,
+	selfHostBudgetMs: MINUTE_MS,
 	settleReserveMs: 2 * SECOND_MS,
 } as const;
 

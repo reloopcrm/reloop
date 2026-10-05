@@ -1551,6 +1551,7 @@ model AppSetting {
   draftStyle            Json?
   agentFunctions        Json?
   mailboxProfile        Json?
+  threadContactsCursor  String?
 
   trackingSiteId           String? @unique
   trackingCrossDomain      Boolean @default(true)

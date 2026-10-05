@@ -15,6 +15,7 @@ import {
 	type SyncStateService,
 } from "../src/mailbox/sync-state.service";
 import type { ThreadAdoptionService } from "../src/mailbox/thread-adoption.service";
+import type { ThreadContactsService } from "../src/mailbox/thread-contacts.service";
 import type { MicrosoftConnectionService } from "../src/microsoft/microsoft-connection.service";
 import type { MicrosoftSyncService } from "../src/microsoft/microsoft-sync.service";
 import {
@@ -146,6 +147,9 @@ function build(
 			},
 		} as unknown as AgentTriggerService,
 		{ repair: async () => 0 } as unknown as DirectionRepairService,
+		{
+			addFromRelevantThreads: async () => 0,
+		} as unknown as ThreadContactsService,
 	);
 }
 

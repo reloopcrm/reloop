@@ -455,6 +455,49 @@ the largest attachment upload the conversation contracts accept.
   applies the same rule with the thread's `lastMessageAt`: when the contact it lands on
   is archived and the rule says no, the thread stays `PENDING`. At the contact limit a
   revive leaves the contact archived and stores the mail.
+- **Every sender of a relevant thread from the company's domain becomes a contact.**
+  A thread keeps the one contact it was filed under, so `store` and `adopt` alone
+  never file a second person who writes into it. `ThreadContactsService` runs once
+  per sync tick, after `adoptRelevant`. It reads threads that have a company or a
+  contact and a `ThreadInsight` with `relevant: true`, never the sample data. The
+  company is the thread's company, or else the company of the thread's contact; a
+  company without a domain or an archived company is skipped. For each INBOUND
+  message, `senderVerdict` (`mailbox/thread-contacts.ts`) refuses an own address or
+  own domain, a suppressed address or domain, a machine or role address, a free-mail
+  address, an `isAutoReply` message and a domain other than the company's, and
+  `externalParticipants` is still the one gate. A sender with any contact row,
+  archived ones included, is left alone, because `reviveContact` owns revival. A new
+  contact goes through `MailboxMatchService.addCompanyContact`, the same insert,
+  enrichment-log line and `contactCreated` as `createContact`, owned by the user
+  whose mailbox synced the message. The thread's `contactId` never moves; when it is
+  empty (a `createFrom: "relevant"` thread filed under a known company) the first new
+  contact fills it, and the thread's `EMAIL` activity follows. The activity of an
+  occupied thread stays on its contact. **Only a creating mailbox adds anyone**: the
+  message's `syncedByUserId` must own a non-calendar `MailboxSync` with `autoCreate`
+  or `createFrom: "relevant"`, and the user must not be removed. A thread that is
+  already relevant and already filed stands in for the reply rule of `replied`.
+  **The contact limit stops the pass, never the tick**: a limit reached before or
+  during an insert leaves the cursor before that thread, so the senders are added
+  once the plan grows.
+- **The pass walks a cursor, not the newest threads.** `AppSetting.threadContactsCursor`
+  holds `{ v, at, id }` (`mailbox/thread-contacts-cursor.ts`), where `at` is the
+  later of the thread's and the insight's `updatedAt`. Each tick reads
+  `THREAD_CONTACTS.batch` threads after it in `(at, id)` order and leaves out rows
+  younger than `THREAD_CONTACTS.settleMs`, so a transaction stamped earlier but
+  committed later is not passed. A null cursor starts at the oldest thread, which is
+  how existing history is caught up after a deploy. New mail moves the thread's
+  `updatedAt`, `adopt` moves it, and a new verdict moves the insight's, so the pass
+  sees each of them again: new mail in a relevant thread is filed one to two ticks
+  after it is stored. `store` has no branch of its own. An unreadable cursor is
+  logged and starts again from the oldest thread; a second pass is harmless, since a
+  known address is never created twice.
+- **The dry run counts, it never writes.** `bun run thread-contacts --dry-run` in
+  `apps/api` runs `ThreadContactsService.preview` inside `cloud.forEachScope`. It
+  walks every relevant thread from the start, ignores the cursor, and prints per
+  workspace the skipped threads, one verdict per distinct sender, the number of
+  contacts it would create per domain, and the active contacts against the plan's
+  limit. It prints no address. Without `--dry-run` the script refuses to run; the
+  sync tick is the only writer.
 - **Turning creation on re-reads history.** `SyncStateService.setAutoCreate(true)` and
   `setCreatePolicy` with any creating policy (`autoCreate` or `createFrom: "relevant"`)
   set `backfill: null`, exactly like `setImportSince`.

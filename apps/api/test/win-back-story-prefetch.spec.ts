@@ -185,10 +185,10 @@ describe("readsDefaultList", () => {
 });
 
 const trigger = new AgentTriggerService(db);
-const memory = new Map<string, unknown>();
+const memory = new Map<string, boolean>();
 const cache = {
 	get: async (key: string) => memory.get(key),
-	set: async (key: string, value: unknown) => {
+	set: async (key: string, value: boolean) => {
 		memory.set(key, value);
 	},
 } as unknown as Cache;

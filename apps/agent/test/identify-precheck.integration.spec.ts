@@ -245,6 +245,28 @@ describe("identify pre-check", () => {
 				},
 			},
 		});
+		await db.emailThread.create({
+			data: {
+				rootMessageId: `<offer-${suffix}@mail.example>`,
+				subject: "Offer",
+				firstMessageAt: sentAt,
+				lastMessageAt: sentAt,
+				messageCount: 1,
+				messages: {
+					create: [
+						{
+							rfcMessageId: `<four-${suffix}@mail.example>`,
+							direction: "OUTBOUND",
+							fromEmail: "rep@own.example",
+							recipients: [
+								{ email: `ines@${domain}`, name: "Ines", kind: "to" },
+							],
+							sentAt,
+						},
+					],
+				},
+			},
+		});
 		const jev = answering(0.9);
 
 		expect(await identifyPrecheck(await claimed(extra.id), deps(jev.ask))).toBe(
@@ -256,7 +278,7 @@ describe("identify pre-check", () => {
 
 		expect(jev.calls[0]).toMatchObject({
 			relationship: expect.stringContaining(
-				"1 email conversations, 1 messages from them, 1 messages to them",
+				"2 email conversations, 1 messages from them, 2 messages to them",
 			),
 		});
 		expect(jev.calls[1]).toMatchObject({

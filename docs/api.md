@@ -458,7 +458,11 @@ the largest attachment upload the conversation contracts accept.
 - **Every sender of a relevant thread from the company's domain becomes a contact.**
   A thread keeps the one contact it was filed under, so `store` and `adopt` alone
   never file a second person who writes into it. `ThreadContactsService` runs once
-  per sync tick, after `adoptRelevant`. It reads threads that have a company or a
+  per sync tick, **after every due mailbox has synced**, with the deadline
+  `tickEndsAt − SYNC_TICK.settleReserveMs`. It stops between two threads at that
+  deadline and after `THREAD_CONTACTS.maxCreatesPerTick` new contacts, and it does
+  not start when the mailboxes used the whole budget, so it never takes time from
+  the forward read or the backfill. It reads threads that have a company or a
   contact and a `ThreadInsight` with `relevant: true`, never the sample data. The
   company is the thread's company, or else the company of the thread's contact; a
   company without a domain or an archived company is skipped. For each INBOUND
@@ -478,9 +482,14 @@ the largest attachment upload the conversation contracts accept.
   from them or outbound to them, never later than now (`EnrichmentEvent.at`). So
   `lastActivityAt` and `recompute` agree, and a contact caught up from a thread of
   May reads as quiet since May. The timeline shows that log row at the mail's date.
-  On every later pass the newest mail moves `lastActivityAt` forward through
-  `ActivityStampService.touch`, never back, because `store` stamps only the thread's
-  own contact. A contact that fills an empty slot also carries the thread's `EMAIL`
+  **Every pass stamps known contacts of the thread, whatever the creation policy**:
+  each existing, active contact that is not the thread's own gets
+  `ActivityStampService.stampThreadMail` with its newest real mail there, inbound
+  from them or outbound to them. Automatic replies (`isAutoReply`) never date anyone.
+  The stamp moves `contact.threadMailAt` and `lastActivityAt` forward, never back,
+  and `recompute`, `recomputeMany` and `recomputeAll` take
+  `GREATEST(newest activity, threadMailAt)`, so deleting an activity or reconnecting
+  a mailbox keeps the date. `store` stamps only the thread's own contact. A contact that fills an empty slot also carries the thread's `EMAIL`
   activity, like any thread contact. Win back counts mail by `emailThread.contactId`
   and does not count the thread for an extra contact; the `identify` pre-check counts
   it by address. **Only a creating mailbox adds anyone**: the
@@ -489,7 +498,8 @@ the largest attachment upload the conversation contracts accept.
   already relevant and already filed stands in for the reply rule of `replied`.
   **The contact limit stops the pass, never the tick**: a limit reached before or
   during an insert leaves the cursor before that thread, so the senders are added
-  once the plan grows.
+  once the plan grows. **A failed thread stops the pass too**: an error in a thread
+  is logged and the cursor stays before it, so the next tick tries it again.
 - **The pass walks a cursor, not the newest threads.** `AppSetting.threadContactsCursor`
   holds `{ v, at, id }` (`mailbox/thread-contacts-cursor.ts`), where `at` is the
   later of the thread's and the insight's `updatedAt`. Each tick reads
@@ -517,7 +527,9 @@ the largest attachment upload the conversation contracts accept.
   sync tick is the only writer.
 - **Turning creation on re-reads history.** `SyncStateService.setAutoCreate(true)` and
   `setCreatePolicy` with any creating policy (`autoCreate` or `createFrom: "relevant"`)
-  set `backfill: null`, exactly like `setImportSince`.
+  set `backfill: null`, exactly like `setImportSince`. They also clear
+  `AppSetting.threadContactsCursor`, so the thread contacts pass reads every relevant
+  thread again and senders it left as `policy-off` are added.
 - **Microsoft has no token-revocation endpoint.** `revoke` clears the columns and the
   UI says the consent itself is removed in the user's Microsoft account. Google's still
   posts to `oauth2.googleapis.com/revoke` and refuses to clear if that fails.

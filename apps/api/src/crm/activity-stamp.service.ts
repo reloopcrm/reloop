@@ -14,6 +14,14 @@ export type StampTargets = {
 	dealIds: string[];
 };
 
+function latest(...dates: (Date | null | undefined)[]): Date | null {
+	let found: Date | null = null;
+	for (const date of dates) {
+		if (date && (!found || date > found)) found = date;
+	}
+	return found;
+}
+
 function present(ids: (string | null)[]): string[] {
 	return ids.filter((id): id is string => id !== null);
 }
@@ -64,13 +72,19 @@ export class ActivityStampService {
 		}
 
 		if (target.contactId) {
-			const { _max } = await this.db.activity.aggregate({
-				where: { contactId: target.contactId },
-				_max: { createdAt: true },
-			});
+			const [{ _max }, contact] = await Promise.all([
+				this.db.activity.aggregate({
+					where: { contactId: target.contactId },
+					_max: { createdAt: true },
+				}),
+				this.db.contact.findUnique({
+					where: { id: target.contactId },
+					select: { threadMailAt: true },
+				}),
+			]);
 			await this.db.contact.update({
 				where: { id: target.contactId },
-				data: { lastActivityAt: _max.createdAt },
+				data: { lastActivityAt: latest(_max.createdAt, contact?.threadMailAt) },
 			});
 		}
 
@@ -84,6 +98,17 @@ export class ActivityStampService {
 				data: { lastActivityAt: _max.createdAt },
 			});
 		}
+	}
+
+	async stampThreadMail(contactId: string, at: Date): Promise<void> {
+		await this.db.contact.updateMany({
+			where: {
+				id: contactId,
+				OR: [{ threadMailAt: null }, { threadMailAt: { lt: at } }],
+			},
+			data: { threadMailAt: at },
+		});
+		await this.touch({ contactId }, at);
 	}
 
 	async targetsOf(
@@ -139,11 +164,16 @@ export class ActivityStampService {
 		const record = PrismaNamespace.raw(`"${table}"`);
 		const key = PrismaNamespace.raw(`"${column}"`);
 
+		const threadMail =
+			table === "contact"
+				? PrismaNamespace.sql`, r."threadMailAt"`
+				: PrismaNamespace.empty;
+
 		return this.db.$executeRaw`
 			UPDATE ${record} r
-			SET "lastActivityAt" = (
+			SET "lastActivityAt" = GREATEST((
 				SELECT MAX(a."createdAt") FROM "activity" a WHERE a.${key} = r.id
-			)
+			)${threadMail})
 			WHERE r.id IN (${PrismaNamespace.join(ids)})`;
 	}
 
@@ -163,15 +193,16 @@ export class ActivityStampService {
 				AND id NOT IN (SELECT "companyId" FROM "activity" WHERE "companyId" IS NOT NULL)`,
 			this.db.$executeRaw`
 				UPDATE "contact" c
-				SET "lastActivityAt" = a.max
+				SET "lastActivityAt" = GREATEST(a.max, c."threadMailAt")
 				FROM (
 					SELECT "contactId" AS id, MAX("createdAt") AS max
 					FROM "activity" WHERE "contactId" IS NOT NULL GROUP BY "contactId"
 				) a
-				WHERE c.id = a.id AND c."lastActivityAt" IS DISTINCT FROM a.max`,
+				WHERE c.id = a.id
+				AND c."lastActivityAt" IS DISTINCT FROM GREATEST(a.max, c."threadMailAt")`,
 			this.db.$executeRaw`
-				UPDATE "contact" SET "lastActivityAt" = NULL
-				WHERE "lastActivityAt" IS NOT NULL
+				UPDATE "contact" SET "lastActivityAt" = "threadMailAt"
+				WHERE "lastActivityAt" IS DISTINCT FROM "threadMailAt"
 				AND id NOT IN (SELECT "contactId" FROM "activity" WHERE "contactId" IS NOT NULL)`,
 			this.db.$executeRaw`
 				UPDATE "deal" d

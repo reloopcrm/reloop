@@ -400,6 +400,7 @@ model Contact {
   source RecordSource @default(MANUAL)
 
   lastActivityAt DateTime?
+  threadMailAt   DateTime?
   archivedAt     DateTime?
   archivedBy     ArchiveActor?
   cleanedAt      DateTime?

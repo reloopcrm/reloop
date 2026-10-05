@@ -1,4 +1,4 @@
-import { db, EmailDirection, EnrichmentStatus } from "@crm/db";
+import { db, EmailDirection, EnrichmentStatus, type Prisma } from "@crm/db";
 import { REP_ASKED_REASON } from "@crm/db/agent-tasks";
 import { TYPESAFE } from "@crm/db/typesafe";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
@@ -80,28 +80,23 @@ async function relationship(
 	contact: PrecheckContact,
 ): Promise<string> {
 	const email = contact.email?.trim().toLowerCase() || null;
-	const theirs = email
+	const byAddress: Prisma.EmailMessageWhereInput[] = email
 		? [
-				{ thread: { contactId } },
 				{ direction: EmailDirection.INBOUND, fromEmail: email },
 				{
 					direction: EmailDirection.OUTBOUND,
 					recipients: { array_contains: [{ email }] },
 				},
 			]
-		: [{ thread: { contactId } }];
+		: [];
+	const threadWhere: Prisma.EmailThreadWhereInput[] = [{ contactId }];
+	if (email) threadWhere.push({ messages: { some: { OR: byAddress } } });
 
 	const [conversations, counts] = await Promise.all([
-		db.emailThread.count({
-			where: email
-				? {
-						OR: [{ contactId }, { messages: { some: { fromEmail: email } } }],
-					}
-				: { contactId },
-		}),
+		db.emailThread.count({ where: { OR: threadWhere } }),
 		db.emailMessage.groupBy({
 			by: ["direction"],
-			where: { OR: theirs },
+			where: { OR: [{ thread: { contactId } }, ...byAddress] },
 			_count: true,
 		}),
 	]);

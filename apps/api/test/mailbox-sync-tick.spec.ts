@@ -128,6 +128,8 @@ function build(
 		source: string,
 		deadlineAt: number,
 	) => Promise<Outcome | null>,
+	addFromRelevantThreads: (deadlineAt: number) => Promise<number> = async () =>
+		0,
 ): MailboxSyncService {
 	const provider = { runOne } as unknown as GoogleSyncService;
 
@@ -147,9 +149,7 @@ function build(
 			},
 		} as unknown as AgentTriggerService,
 		{ repair: async () => 0 } as unknown as DirectionRepairService,
-		{
-			addFromRelevantThreads: async () => 0,
-		} as unknown as ThreadContactsService,
+		{ addFromRelevantThreads } as unknown as ThreadContactsService,
 	);
 }
 
@@ -159,6 +159,62 @@ let state: FakeState;
 
 beforeEach(() => {
 	state = new FakeState();
+});
+
+describe("the thread contacts pass", () => {
+	it("runs after the mailboxes, inside the tick budget", async () => {
+		state.add("a", "gmail");
+		const calls: string[] = [];
+		const deadlines: number[] = [];
+		const startedAt = Date.now();
+
+		const service = build(
+			state,
+			async (userId, source) => {
+				calls.push("sync");
+				return { source, userId, status: "synced" };
+			},
+			async (deadlineAt) => {
+				calls.push("pass");
+				deadlines.push(deadlineAt);
+				return 0;
+			},
+		);
+
+		await service.runDue();
+
+		expect(calls).toEqual(["sync", "pass"]);
+		expect(deadlines[0]).toBeLessThanOrEqual(
+			Date.now() + SYNC_TICK.selfHostBudgetMs - SYNC_TICK.settleReserveMs,
+		);
+		expect(deadlines[0]).toBeGreaterThan(startedAt);
+	});
+
+	it("does not run when the mailboxes used the whole budget", async () => {
+		state.add("a", "gmail");
+		const calls: string[] = [];
+		const realNow = Date.now;
+		const service = build(
+			state,
+			async (userId, source) => {
+				const late = realNow() + SYNC_TICK.selfHostBudgetMs;
+				Date.now = () => late;
+				return { source, userId, status: "synced" };
+			},
+			async () => {
+				calls.push("pass");
+				return 0;
+			},
+		);
+
+		try {
+			await service.runDue();
+		} finally {
+			Date.now = realNow;
+		}
+
+		expect(calls).toEqual([]);
+	});
 });
 
 describe("runDue claims a mailbox before it syncs", () => {

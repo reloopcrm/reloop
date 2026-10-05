@@ -199,6 +199,52 @@ describe("planThread", () => {
 		);
 	});
 
+	it("leaves automatic replies out of the last mail date", () => {
+		const plan = planThread(
+			{
+				subject: "Angebot",
+				company,
+				messages: [
+					inbound("preview@kunde.example", {
+						sentAt: new Date("2026-09-17T10:00:00Z"),
+					}),
+					inbound("preview@kunde.example", {
+						subject: "Automatische Antwort: Angebot",
+						sentAt: new Date("2026-09-30T10:00:00Z"),
+					}),
+					inbound("rep@own.example", {
+						direction: "OUTBOUND",
+						subject: "Out of office: Angebot",
+						recipients: ["preview@kunde.example"],
+						sentAt: new Date("2026-10-01T10:00:00Z"),
+					}),
+				],
+			},
+			policy,
+		);
+		expect(plan.senders[0]?.lastMailAt).toEqual(
+			new Date("2026-09-17T10:00:00Z"),
+		);
+		expect(plan.mail).toEqual([
+			{ email: "preview@kunde.example", at: new Date("2026-09-17T10:00:00Z") },
+		]);
+	});
+
+	it("dates mail on a thread it skips for creation", () => {
+		const plan = planThread(
+			{
+				subject: null,
+				company: null,
+				messages: [inbound("preview@kunde.example")],
+			},
+			policy,
+		);
+		expect(plan.skip).toBe("no-company-domain");
+		expect(plan.mail).toEqual([
+			{ email: "preview@kunde.example", at: new Date("2026-09-17T10:00:00Z") },
+		]);
+	});
+
 	it("marks a sender of a mailbox that creates nobody", () => {
 		const plan = planThread(
 			{

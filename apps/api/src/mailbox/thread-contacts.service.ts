@@ -7,7 +7,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
-import { THREAD_CONTACTS } from "./mailbox.config";
+import { NO_DEADLINE, pastDeadline, THREAD_CONTACTS } from "./mailbox.config";
 import { MailboxMatchService } from "./mailbox-match.service";
 import {
 	type CreatePolicy,
@@ -61,7 +61,13 @@ export type ThreadContactsPreview = {
 	contactLimit: number | null;
 };
 
-export type ThreadContactsOptions = { batch: number; settleMs: number };
+export type ThreadContactsOptions = {
+	batch: number;
+	settleMs: number;
+	maxCreates: number;
+};
+
+type PassStop = "deadline" | "creates" | "limit" | "error";
 
 const CHANGED_AT = Prisma.sql`GREATEST(t."updatedAt", i."updatedAt")`;
 
@@ -71,6 +77,7 @@ export class ThreadContactsService {
 	private options: ThreadContactsOptions = {
 		batch: THREAD_CONTACTS.batch,
 		settleMs: THREAD_CONTACTS.settleMs,
+		maxCreates: THREAD_CONTACTS.maxCreatesPerTick,
 	};
 
 	constructor(
@@ -85,10 +92,9 @@ export class ThreadContactsService {
 		return this;
 	}
 
-	async addFromRelevantThreads(): Promise<number> {
-		const creatingOwners = await this.creatingOwners();
-		if (creatingOwners.size === 0) return 0;
-
+	async addFromRelevantThreads(
+		deadlineAt: number = NO_DEADLINE,
+	): Promise<number> {
 		const after = await this.readCursor();
 		const rows = await this.changedThreads(
 			after,
@@ -99,7 +105,7 @@ export class ThreadContactsService {
 
 		const policy: CreatePolicy = {
 			context: await this.threads.context(),
-			creatingOwners,
+			creatingOwners: await this.creatingOwners(),
 		};
 		const scanned = await this.scan(rows, policy);
 		const known = await this.knownAddresses(scanned);
@@ -108,35 +114,54 @@ export class ThreadContactsService {
 		const domains = new Set<string>();
 		let reached: ChangedThread | null = null;
 		let limitChecked = false;
-		let limited = false;
+		let stopped: PassStop | null = null;
 
 		for (const thread of scanned) {
+			if (pastDeadline(deadlineAt)) {
+				stopped = "deadline";
+				break;
+			}
+
 			const wanted = wantedSenders(thread, known);
-			if (wanted.length > 0 && !limitChecked) {
-				limitChecked = true;
-				if (await this.match.contactLimitReached()) {
-					limited = true;
+			if (wanted.length > 0) {
+				if (created >= this.options.maxCreates) {
+					stopped = "creates";
 					break;
+				}
+				if (!limitChecked) {
+					limitChecked = true;
+					if (await this.match.contactLimitReached()) {
+						stopped = "limit";
+						break;
+					}
 				}
 			}
 
 			try {
-				await this.stampKnownSenders(thread, known);
-				const outcome = await this.addSenders(thread, wanted, known);
+				await this.stampKnownMail(thread, known);
+				const outcome = await this.addSenders(
+					thread,
+					wanted,
+					known,
+					this.options.maxCreates - created,
+				);
 				created += outcome.created;
 				for (const domain of outcome.domains) domains.add(domain);
-				if (outcome.limited) {
-					limited = true;
+				if (outcome.stopped) {
+					stopped = outcome.stopped;
 					break;
 				}
 			} catch (error) {
 				this.logger.error(
 					{
-						message: "Senders of a relevant thread could not be added",
+						message:
+							"Senders of a relevant thread could not be added. The pass stops before this thread and tries it again on the next tick",
 						threadId: thread.row.id,
 					},
 					error instanceof Error ? error.stack : String(error),
 				);
+				stopped = "error";
+				break;
 			}
 
 			reached = thread.row;
@@ -150,7 +175,7 @@ export class ThreadContactsService {
 				created,
 				senderDomains: domains.size,
 				threads: scanned.length,
-				stoppedAtLimit: limited,
+				stoppedBy: stopped,
 			});
 		}
 
@@ -161,8 +186,17 @@ export class ThreadContactsService {
 		thread: ScannedThread,
 		wanted: readonly SenderOutcome[],
 		known: Map<string, KnownContact>,
-	): Promise<{ created: number; domains: string[]; limited: boolean }> {
-		const outcome = { created: 0, domains: [] as string[], limited: false };
+		room: number,
+	): Promise<{
+		created: number;
+		domains: string[];
+		stopped: Extract<PassStop, "limit" | "creates"> | null;
+	}> {
+		const outcome = {
+			created: 0,
+			domains: [] as string[],
+			stopped: null as Extract<PassStop, "limit" | "creates"> | null,
+		};
 		const companyId = thread.plan.companyId;
 		if (!companyId) return outcome;
 
@@ -170,17 +204,20 @@ export class ThreadContactsService {
 
 		for (const sender of wanted) {
 			if (!sender.ownerId) continue;
+			if (outcome.created >= room) return { ...outcome, stopped: "creates" };
 
+			const at = notInFuture(sender.lastMailAt);
 			const added = await this.match.addCompanyContact(
 				{ email: sender.email, name: sender.name },
 				companyId,
 				{ source: RecordSource.EMAIL, ownerId: sender.ownerId },
-				notInFuture(sender.lastMailAt),
+				at,
 			);
-			if (added.limited) return { ...outcome, limited: true };
+			if (added.limited) return { ...outcome, stopped: "limit" };
 
 			if (!added.contactId) continue;
 			known.set(sender.email, { id: added.contactId, archivedAt: null });
+			await this.stamp.stampThreadMail(added.contactId, at);
 
 			if (added.created) {
 				outcome.created += 1;
@@ -195,19 +232,15 @@ export class ThreadContactsService {
 		return outcome;
 	}
 
-	private async stampKnownSenders(
+	private async stampKnownMail(
 		thread: ScannedThread,
 		known: ReadonlyMap<string, KnownContact>,
 	): Promise<void> {
-		for (const sender of thread.plan.senders) {
-			if (sender.verdict !== "create") continue;
-			const contact = known.get(sender.email);
+		for (const mail of thread.plan.mail) {
+			const contact = known.get(mail.email);
 			if (!contact || contact.archivedAt) continue;
 			if (contact.id === thread.threadContactId) continue;
-			await this.stamp.touch(
-				{ contactId: contact.id },
-				notInFuture(sender.lastMailAt),
-			);
+			await this.stamp.stampThreadMail(contact.id, notInFuture(mail.at));
 		}
 	}
 
@@ -442,11 +475,12 @@ export class ThreadContactsService {
 	private async knownAddresses(
 		scanned: readonly ScannedThread[],
 	): Promise<Map<string, KnownContact>> {
-		const emails = scanned.flatMap((thread) =>
-			thread.plan.senders
+		const emails = scanned.flatMap((thread) => [
+			...thread.plan.mail.map((mail) => mail.email),
+			...thread.plan.senders
 				.filter((sender) => sender.verdict === "create")
 				.map((sender) => sender.email),
-		);
+		]);
 		return this.existingContacts(emails);
 	}
 

@@ -7,6 +7,7 @@ import { CompanyDirectoryService } from "../src/companies/company-directory.serv
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { SyncStateService } from "../src/mailbox/sync-state.service";
 import { ThreadContactsService } from "../src/mailbox/thread-contacts.service";
 import { readThreadContactsCursor } from "../src/mailbox/thread-contacts-cursor";
 import {
@@ -302,6 +303,19 @@ describe("senders of a relevant thread", () => {
 			new Date("2026-09-25T10:00:00Z"),
 		);
 
+		const uweId = created?.id ?? "missing";
+		const later = new Date("2026-09-25T10:00:00Z");
+		await stamp.recompute({ contactId: uweId });
+		expect((await contactOf(`uwe@${domain}`))?.lastActivityAt).toEqual(later);
+		await stamp.recomputeMany({
+			companyIds: [],
+			contactIds: [uweId],
+			dealIds: [],
+		});
+		expect((await contactOf(`uwe@${domain}`))?.lastActivityAt).toEqual(later);
+		await stamp.recomputeAll();
+		expect((await contactOf(`uwe@${domain}`))?.lastActivityAt).toEqual(later);
+
 		const thread = await db.emailThread.findUnique({
 			where: { id: threadId },
 			select: { contactId: true },
@@ -491,6 +505,121 @@ describe("senders of a relevant thread", () => {
 
 		expect(await pass.addFromRelevantThreads()).toBe(1);
 		expect(await contactOf(`paul@${domain}`)).not.toBeNull();
+	});
+
+	it("stamps a known extra contact even when its mailbox creates nobody", async () => {
+		await pass.addFromRelevantThreads();
+		const a = await contactA("anton");
+		const known = await db.contact.create({
+			data: { firstName: "Zora", email: `zora@${domain}`, companyId },
+			select: { id: true },
+		});
+		await relevantThread({
+			contactId: a.id,
+			messages: [
+				{
+					from: `zora@${domain}`,
+					syncedBy: quietUserId,
+					sentAt: new Date("2026-08-01T10:00:00Z"),
+				},
+			],
+		});
+
+		expect(await pass.addFromRelevantThreads()).toBe(0);
+
+		const row = await db.contact.findUniqueOrThrow({
+			where: { id: known.id },
+			select: { lastActivityAt: true, threadMailAt: true },
+		});
+		expect(row.lastActivityAt).toEqual(new Date("2026-08-01T10:00:00Z"));
+		expect(row.threadMailAt).toEqual(new Date("2026-08-01T10:00:00Z"));
+	});
+
+	it("stops at the deadline and keeps the cursor", async () => {
+		await pass.addFromRelevantThreads();
+		const a = await contactA("berta");
+		await relevantThread({
+			contactId: a.id,
+			messages: [{ from: `cora@${domain}` }],
+		});
+		const before = await cursor();
+
+		expect(await pass.addFromRelevantThreads(Date.now() - 1)).toBe(0);
+		expect(await contactOf(`cora@${domain}`)).toBeNull();
+		expect(await cursor()).toBe(before);
+
+		expect(await pass.addFromRelevantThreads()).toBe(1);
+	});
+
+	it("creates at most the configured contacts per tick", async () => {
+		await pass.addFromRelevantThreads();
+		const a = await contactA("detlef");
+		const threadId = await relevantThread({
+			contactId: a.id,
+			messages: [{ from: `edda@${domain}` }, { from: `fiete@${domain}` }],
+		});
+		const one = new ThreadContactsService(db, match, threads, stamp).tune({
+			settleMs: 0,
+			batch: 1_000,
+			maxCreates: 1,
+		});
+		const before = await cursor();
+
+		expect(await one.addFromRelevantThreads()).toBe(1);
+		expect(await cursor()).toBe(before);
+
+		expect(await one.addFromRelevantThreads()).toBe(1);
+		expect(await contactOf(`edda@${domain}`)).not.toBeNull();
+		expect(await contactOf(`fiete@${domain}`)).not.toBeNull();
+		const read = readThreadContactsCursor(await cursor());
+		expect(read.outcome === "ok" ? read.cursor.id : null).toBe(threadId);
+	});
+
+	it("stays before a thread whose contact could not be added", async () => {
+		await pass.addFromRelevantThreads();
+		const a = await contactA("gerda");
+		await relevantThread({
+			contactId: a.id,
+			messages: [{ from: `hugo@${domain}` }],
+		});
+		const broken = Object.create(match) as MailboxMatchService;
+		broken.addCompanyContact = async () => {
+			throw new Error("database went away");
+		};
+		const failing = new ThreadContactsService(db, broken, threads, stamp).tune({
+			settleMs: 0,
+			batch: 1_000,
+		});
+		const before = await cursor();
+
+		expect(await failing.addFromRelevantThreads()).toBe(0);
+		expect(await cursor()).toBe(before);
+		expect(await contactOf(`hugo@${domain}`)).toBeNull();
+
+		expect(await pass.addFromRelevantThreads()).toBe(1);
+	});
+
+	it("starts over when a mailbox turns creation on", async () => {
+		await pass.addFromRelevantThreads();
+		expect(await cursor()).not.toBeNull();
+
+		await new SyncStateService(db).setCreatePolicy(userId, "imap:relevant", {
+			autoCreate: false,
+			createWithoutReply: false,
+			createFrom: "relevant",
+		});
+		expect(await cursor()).toBeNull();
+
+		await pass.addFromRelevantThreads();
+		expect(await cursor()).not.toBeNull();
+		await new SyncStateService(db).setAutoCreate(userId, "imap:relevant", true);
+		expect(await cursor()).toBeNull();
+		await new SyncStateService(db).setCreatePolicy(userId, "imap:relevant", {
+			autoCreate: false,
+			createWithoutReply: false,
+			createFrom: "relevant",
+		});
+		await pass.addFromRelevantThreads();
 	});
 
 	it("counts in a dry run and writes nothing", async () => {

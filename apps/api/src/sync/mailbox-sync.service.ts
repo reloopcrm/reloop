@@ -90,14 +90,6 @@ export class MailboxSyncService {
 			);
 		}
 		try {
-			await this.threadContacts.addFromRelevantThreads();
-		} catch (error) {
-			this.logger.error(
-				{ message: "Adding senders of relevant threads failed" },
-				error instanceof Error ? error.stack : String(error),
-			);
-		}
-		try {
 			await this.direction.repair();
 		} catch (error) {
 			this.logger.error(
@@ -158,6 +150,18 @@ export class MailboxSyncService {
 				);
 
 				syncError({ error, source: row.source });
+			}
+		}
+
+		const passDeadline = tickEndsAt - SYNC_TICK.settleReserveMs;
+		if (!signal?.aborted && Date.now() < passDeadline) {
+			try {
+				await this.threadContacts.addFromRelevantThreads(passDeadline);
+			} catch (error) {
+				this.logger.error(
+					{ message: "Adding senders of relevant threads failed" },
+					error instanceof Error ? error.stack : String(error),
+				);
 			}
 		}
 

@@ -9,6 +9,7 @@ export const ADOPTION = {
 
 export const THREAD_CONTACTS = {
 	batch: 100,
+	maxCreatesPerTick: 25,
 	settleMs: MINUTE_MS,
 	previewPage: 500,
 	previewBudgetMs: 30 * MINUTE_MS,

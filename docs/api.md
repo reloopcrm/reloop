@@ -689,6 +689,13 @@ marked passages and the follow-up delay. It writes nothing but an
   shown as no story. `reactivation.rereadStory` queues it with `reread: true`, but not
   within `PERSON_VIEW.rereadPauseMs` of the last finished story; then it answers with
   `retryAt` and queues nothing.
+- **A re-read is never lost behind a waiting task.** When a story task already waits,
+  automatic, prefetched or opened, `AgentTriggerService.rereadPendingStory` writes
+  `reread: true` into its payload and lifts it to `PRIORITY.personStory`, under the
+  same idempotency lock as `enqueue`, so there is still one row. A task the agent has
+  already leased is not changed: the agent read its payload at the claim. The call
+  then answers with `retryAt`, now plus `rereadPauseMs`, and the rep asks again after
+  the story is written.
 - **The top of the list has its story before anyone opens it.** Reading
   `reactivation.list` hands the list to `WinBackStoryPrefetchService`
   (`reactivation/win-back-story-prefetch.service.ts`), at most once per

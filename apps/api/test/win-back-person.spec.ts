@@ -4,7 +4,7 @@ import { PRIORITY } from "@crm/db/agent-tasks";
 import { usageWindowOf } from "@crm/db/plan-usage";
 import { INSIGHT_KIND, PLANS } from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
-import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { WinBackPersonService } from "../src/reactivation/win-back-person.service";
 import type { WinBackStoryPrefetchService } from "../src/reactivation/win-back-story-prefetch.service";
 
@@ -21,6 +21,7 @@ const agent = {
 		asked.push({ contactId, reread });
 		return true;
 	},
+	rereadPendingStory: async () => "none",
 	personStoryOpened: async (contactId: string) => {
 		opened.push(contactId);
 		return true;
@@ -481,6 +482,78 @@ describe("WinBackPersonService.rereadStory", () => {
 			new Date("2026-10-02T10:20:00.000Z"),
 		);
 		expect(later).toEqual({ queued: true, retryAt: null });
+	});
+
+	it("turns a waiting prefetched story into a re-read the rep asked for", async () => {
+		const seeded = await setUp();
+		await story(seeded.contactId, idsOf(seeded), BUDGET);
+		const task = await db.agentTask.create({
+			data: {
+				contactId: seeded.contactId,
+				kind: "person-story",
+				reason: "Prefetched: near the top of the Win back list",
+				priority: PRIORITY.storyPrefetch,
+				dueAt: new Date(Date.now() - 1_000),
+				payload: { reread: false },
+			},
+			select: { id: true },
+		});
+		const real = new WinBackPersonService(
+			db,
+			new AgentTriggerService(db),
+			prefetch,
+		);
+
+		expect(await real.rereadStory(seeded.contactId)).toEqual({
+			queued: true,
+			retryAt: null,
+		});
+
+		const row = await db.agentTask.findUniqueOrThrow({
+			where: { id: task.id },
+		});
+		expect(row.payload).toEqual({ reread: true });
+		expect(row.priority).toBe(PRIORITY.personStory);
+		expect(row.finishedAt).toBeNull();
+		expect(
+			await db.agentTask.count({
+				where: { contactId: seeded.contactId, kind: "person-story" },
+			}),
+		).toBe(1);
+	});
+
+	it("asks the rep to wait while a story is being written", async () => {
+		const seeded = await setUp();
+		const now = new Date();
+		const task = await db.agentTask.create({
+			data: {
+				contactId: seeded.contactId,
+				kind: "person-story",
+				reason: "A rep opened this person in Win back",
+				priority: PRIORITY.personStory,
+				dueAt: new Date(now.getTime() - 5_000),
+				leasedUntil: new Date(now.getTime() + 60_000),
+				startedAt: now,
+				payload: { reread: false },
+			},
+			select: { id: true },
+		});
+		const real = new WinBackPersonService(
+			db,
+			new AgentTriggerService(db),
+			prefetch,
+		);
+
+		const answer = await real.rereadStory(seeded.contactId, now);
+
+		expect(answer.queued).toBe(false);
+		expect(answer.retryAt).toBe(
+			new Date(now.getTime() + 15 * 60_000).toISOString(),
+		);
+		const row = await db.agentTask.findUniqueOrThrow({
+			where: { id: task.id },
+		});
+		expect(row.payload).toEqual({ reread: false });
 	});
 
 	it("queues a re-read", async () => {

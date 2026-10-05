@@ -283,11 +283,11 @@ function StorySkeleton({ className, ...props }: React.ComponentProps<"ol">) {
 					key={title}
 					className="grid grid-cols-[minmax(0,1fr)] gap-1.5 border-b py-5.5 md:grid-cols-[32px_minmax(0,1fr)] md:gap-x-3 md:gap-y-0"
 				>
-					<Skeleton className="mt-1 h-3 w-4" />
+					<Skeleton tone="accent" className="mt-1 h-3 w-4" />
 					<div className="flex min-w-0 flex-col gap-2">
-						<Skeleton className={cn("h-5", title)} />
-						<Skeleton className="h-4 w-full max-w-155" />
-						<Skeleton className="h-4 w-4/5 max-w-155" />
+						<Skeleton tone="accent" className={cn("h-5", title)} />
+						<Skeleton tone="accent" className="h-4 w-full max-w-155" />
+						<Skeleton tone="accent" className="h-4 w-4/5 max-w-155" />
 					</div>
 				</li>
 			))}

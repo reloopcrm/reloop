@@ -1333,7 +1333,8 @@ one quote of theirs, and what can bring them back with up to four points. The sh
   list queues it for the first `PERSON_VIEW.prefetch.top` people, and the next person
   of "Continue with" is queued too, both at `PRIORITY.storyPrefetch`, which the API
   lifts to `personStory` when a rep opens that person. "Sag es Reloop" queues it with
-  `reread: true`; the prompt then carries the old story and says the rep rejected it.
+  `reread: true`, or writes `reread: true` into a story task that still waits; the
+  prompt then carries the old story and says the rep rejected it.
   Nothing in the agent sweeps the win back candidates; the rows are the whole trigger,
   and the agent runs a prefetched story exactly like an opened one.
 - **Every part names the messages it is built on.** The model answers with the numbers

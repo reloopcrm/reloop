@@ -30,6 +30,7 @@ import {
 	type AgentTaskStoryPayload,
 	type AgentTaskThreadPayload,
 	agentTaskThreadPayload,
+	readAgentTaskStoryReread,
 } from "@crm/validation/agent-task-payload";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { Injectable, Logger } from "@nestjs/common";
@@ -78,6 +79,9 @@ const REFRESH_REASON =
 	"A summary was written in another language than the workspace's";
 
 const STORY_OPENED_REASON = "A rep opened this person in Win back";
+const STORY_REREAD_REASON = "A rep said the win back story is wrong";
+
+export type PendingStoryReread = "none" | "reread" | "running";
 
 function tenantOfThisRequest(): string | null {
 	try {
@@ -302,9 +306,7 @@ export class AgentTriggerService {
 		return this.enqueue({
 			contactId,
 			kind: "person-story",
-			reason: reread
-				? "A rep said the win back story is wrong"
-				: STORY_OPENED_REASON,
+			reason: reread ? STORY_REREAD_REASON : STORY_OPENED_REASON,
 			priority: PRIORITY.personStory,
 			budget: 1,
 			payload: { reread } satisfies AgentTaskStoryPayload,
@@ -372,6 +374,45 @@ export class AgentTriggerService {
 			);
 			return 0;
 		}
+	}
+
+	async rereadPendingStory(
+		contactId: string,
+		now: Date = new Date(),
+	): Promise<PendingStoryReread> {
+		const outcome = await this.db.$transaction(async (tx) => {
+			await lockIdempotencyKey(tx, `agent-task:${STORY_KIND}:${contactId}::`);
+			const open = await tx.agentTask.findFirst({
+				where: { contactId, kind: STORY_KIND, finishedAt: null },
+				orderBy: { dueAt: "asc" },
+				select: { id: true, payload: true, priority: true },
+			});
+			if (!open) return "none";
+			if (readAgentTaskStoryReread(open.payload)) return "reread";
+
+			const { count } = await tx.agentTask.updateMany({
+				where: {
+					id: open.id,
+					finishedAt: null,
+					OR: [{ leasedUntil: null }, { leasedUntil: { lt: now } }],
+				},
+				data: {
+					payload: { reread: true } satisfies AgentTaskStoryPayload,
+					priority: Math.max(open.priority, PRIORITY.personStory),
+					reason: STORY_REREAD_REASON,
+				},
+			});
+			return count === 0 ? "running" : "reread";
+		});
+
+		if (outcome === "reread") this.poke();
+		this.logger.log({
+			message: "A rep asked to read a waiting story again",
+			contactId,
+			outcome,
+		});
+
+		return outcome;
 	}
 
 	async personStoryOpened(contactId: string): Promise<boolean> {

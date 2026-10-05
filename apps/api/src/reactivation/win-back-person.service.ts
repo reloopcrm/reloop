@@ -341,7 +341,16 @@ export class WinBackPersonService {
 			throw new NotFoundException(`No contact with id ${contactId}.`);
 		}
 
-		if (await this.openStory(contactId)) return { queued: true, retryAt: null };
+		const pending = await this.agent.rereadPendingStory(contactId, now);
+		if (pending === "reread") return { queued: true, retryAt: null };
+		if (pending === "running") {
+			return {
+				queued: false,
+				retryAt: new Date(
+					now.getTime() + PERSON_VIEW.rereadPauseMs,
+				).toISOString(),
+			};
+		}
 
 		const last = await this.db.agentTask.findFirst({
 			where: { contactId, kind: STORY_KIND, finishedAt: { not: null } },

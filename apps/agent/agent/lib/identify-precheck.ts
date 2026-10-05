@@ -1,4 +1,4 @@
-import { db, EnrichmentStatus } from "@crm/db";
+import { db, EmailDirection, EnrichmentStatus } from "@crm/db";
 import { REP_ASKED_REASON } from "@crm/db/agent-tasks";
 import { TYPESAFE } from "@crm/db/typesafe";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
@@ -48,7 +48,7 @@ function readContact(contactId: string) {
 			linkedinUrl: true,
 			lastActivityAt: true,
 			company: { select: { name: true } },
-			_count: { select: { deals: true, emailThreads: true } },
+			_count: { select: { deals: true } },
 		},
 	});
 }
@@ -79,18 +79,39 @@ async function relationship(
 	contactId: string,
 	contact: PrecheckContact,
 ): Promise<string> {
-	const counts = await db.emailMessage.groupBy({
-		by: ["direction"],
-		where: { thread: { contactId } },
-		_count: true,
-	});
+	const email = contact.email?.trim().toLowerCase() || null;
+	const theirs = email
+		? [
+				{ thread: { contactId } },
+				{ direction: EmailDirection.INBOUND, fromEmail: email },
+				{
+					direction: EmailDirection.OUTBOUND,
+					recipients: { array_contains: [{ email }] },
+				},
+			]
+		: [{ thread: { contactId } }];
+
+	const [conversations, counts] = await Promise.all([
+		db.emailThread.count({
+			where: email
+				? {
+						OR: [{ contactId }, { messages: { some: { fromEmail: email } } }],
+					}
+				: { contactId },
+		}),
+		db.emailMessage.groupBy({
+			by: ["direction"],
+			where: { OR: theirs },
+			_count: true,
+		}),
+	]);
 	const sent = (direction: string) =>
 		counts.find((row) => row.direction === direction)?._count ?? 0;
 	const last = contact.lastActivityAt
 		? contact.lastActivityAt.toISOString().slice(0, 10)
 		: "never";
 
-	return `${contact._count.emailThreads} email conversations, ${sent("INBOUND")} messages from them, ${sent("OUTBOUND")} messages to them, ${contact._count.deals} deals. Last contact: ${last}.`;
+	return `${conversations} email conversations, ${sent("INBOUND")} messages from them, ${sent("OUTBOUND")} messages to them, ${contact._count.deals} deals. Last contact: ${last}.`;
 }
 
 async function precheckState(

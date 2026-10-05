@@ -175,6 +175,7 @@ export class ThreadContactsService {
 				{ email: sender.email, name: sender.name },
 				companyId,
 				{ source: RecordSource.EMAIL, ownerId: sender.ownerId },
+				notInFuture(sender.lastMailAt),
 			);
 			if (added.limited) return { ...outcome, limited: true };
 
@@ -203,7 +204,10 @@ export class ThreadContactsService {
 			const contact = known.get(sender.email);
 			if (!contact || contact.archivedAt) continue;
 			if (contact.id === thread.threadContactId) continue;
-			await this.stamp.touch({ contactId: contact.id }, sender.lastMailAt);
+			await this.stamp.touch(
+				{ contactId: contact.id },
+				notInFuture(sender.lastMailAt),
+			);
 		}
 	}
 
@@ -489,6 +493,10 @@ export class ThreadContactsService {
 		});
 		if (activity) await this.stamp.touch({ contactId }, activity.createdAt);
 	}
+}
+
+function notInFuture(at: Date): Date {
+	return new Date(Math.min(at.getTime(), Date.now()));
 }
 
 function wantedSenders(

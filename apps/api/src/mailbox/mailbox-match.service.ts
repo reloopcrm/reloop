@@ -397,6 +397,7 @@ export class MailboxMatchService {
 		person: Participant,
 		companyId: string,
 		request: ContactRequest,
+		lastMailAt?: Date,
 	): Promise<AddedContact> {
 		const { firstName, lastName } = splitName(person.name, person.email);
 
@@ -425,6 +426,7 @@ export class MailboxMatchService {
 						? "{email} appeared in a meeting."
 						: "{email} appeared in a thread.",
 				meta: { source: request.source, email: person.email },
+				at: lastMailAt,
 			});
 		}
 

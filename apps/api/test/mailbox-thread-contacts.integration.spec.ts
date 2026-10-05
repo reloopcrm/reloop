@@ -252,33 +252,37 @@ describe("senders of a relevant thread", () => {
 		expect(thread?.contactId).toBe(a.id);
 	});
 
-	it("stamps a new contact like a sync contact and moves it on later mail", async () => {
+	it("dates a new contact at the newest mail from or to them", async () => {
 		const a = await contactA("theo");
 		const threadId = await relevantThread({
 			contactId: a.id,
 			messages: [
-				{ from: `uwe@${domain}`, sentAt: new Date("2026-09-17T10:00:00Z") },
+				{ from: `uwe@${domain}`, sentAt: new Date("2026-04-02T10:00:00Z") },
 				{
 					from: mailbox,
 					to: `uwe@${domain}`,
-					sentAt: new Date("2026-09-20T10:00:00Z"),
+					sentAt: new Date("2026-05-11T10:00:00Z"),
 				},
+				{ from: `theo@${domain}`, sentAt: new Date("2026-06-20T10:00:00Z") },
 			],
 		});
-		const startedAt = new Date();
 
 		expect(await pass.addFromRelevantThreads()).toBe(1);
 		const created = await contactOf(`uwe@${domain}`);
-		expect(created?.lastActivityAt?.getTime() ?? 0).toBeGreaterThanOrEqual(
-			startedAt.getTime() - 1_000,
-		);
+		expect(created?.lastActivityAt).toEqual(new Date("2026-05-11T10:00:00Z"));
 		const log = await db.activity.findFirst({
 			where: { contactId: created?.id ?? "missing", type: "ENRICHMENT" },
-			select: { subject: true },
+			select: { subject: true, createdAt: true, occurredAt: true },
 		});
 		expect(log?.subject).toBe("Contact added from your inbox");
+		expect(log?.createdAt).toEqual(new Date("2026-05-11T10:00:00Z"));
+		expect(log?.occurredAt).toEqual(new Date("2026-05-11T10:00:00Z"));
 
-		const later = new Date(Date.now() + 24 * 60 * 60 * 1_000);
+		await stamp.recompute({ contactId: created?.id ?? "missing" });
+		expect((await contactOf(`uwe@${domain}`))?.lastActivityAt).toEqual(
+			new Date("2026-05-11T10:00:00Z"),
+		);
+
 		const root = await db.emailThread.findUniqueOrThrow({
 			where: { id: threadId },
 			select: { rootMessageId: true },
@@ -288,19 +292,42 @@ describe("senders of a relevant thread", () => {
 			{ origin: "imap", lane: "forward" },
 			inbound(`uwe@${domain}`, root.rootMessageId, {
 				rfcMessageId: rfc("later"),
-				sentAt: later,
+				sentAt: new Date("2026-09-25T10:00:00Z"),
 			}),
 			await threads.context(),
 		);
 
 		expect(await pass.addFromRelevantThreads()).toBe(0);
-		expect((await contactOf(`uwe@${domain}`))?.lastActivityAt).toEqual(later);
+		expect((await contactOf(`uwe@${domain}`))?.lastActivityAt).toEqual(
+			new Date("2026-09-25T10:00:00Z"),
+		);
 
 		const thread = await db.emailThread.findUnique({
 			where: { id: threadId },
 			select: { contactId: true },
 		});
 		expect(thread?.contactId).toBe(a.id);
+	});
+
+	it("never dates a contact in the future", async () => {
+		const a = await contactA("ulla");
+		const before = Date.now();
+		await relevantThread({
+			contactId: a.id,
+			messages: [
+				{
+					from: `xaver@${domain}`,
+					sentAt: new Date(Date.now() + 24 * 60 * 60 * 1_000),
+				},
+			],
+		});
+
+		expect(await pass.addFromRelevantThreads()).toBe(1);
+		const stamped = (await contactOf(`xaver@${domain}`))?.lastActivityAt;
+		expect(stamped?.getTime() ?? 0).toBeGreaterThanOrEqual(before);
+		expect(stamped?.getTime() ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(
+			Date.now(),
+		);
 	});
 
 	it("holds back a thread younger than the settle window", async () => {

@@ -472,13 +472,18 @@ the largest attachment upload the conversation contracts accept.
   whose mailbox synced the message. The thread's `contactId` never moves; when it is
   empty (a `createFrom: "relevant"` thread filed under a known company) the first new
   contact fills it, and the thread's `EMAIL` activity follows. The activity of an
-  occupied thread stays on its contact. A new contact gets `lastActivityAt` like any
-  sync contact: the "Contact added from your inbox" log row stamps it with the time it
-  was created. On every later pass the sender's newest mail in the thread, inbound
-  from them or outbound to them, moves it forward through `ActivityStampService.touch`,
-  never back, because `store` stamps only the thread's own contact. Win back and the
-  `identify` pre-check count mail by `emailThread.contactId`, so they do not count
-  the thread for the extra contact. **Only a creating mailbox adds anyone**: the
+  occupied thread stays on its contact. **A new contact is dated at its last real
+  mail, not at the pass**: the "Contact added from your inbox" log row gets
+  `createdAt` and `occurredAt` from the sender's newest mail in the thread, inbound
+  from them or outbound to them, never later than now (`EnrichmentEvent.at`). So
+  `lastActivityAt` and `recompute` agree, and a contact caught up from a thread of
+  May reads as quiet since May. The timeline shows that log row at the mail's date.
+  On every later pass the newest mail moves `lastActivityAt` forward through
+  `ActivityStampService.touch`, never back, because `store` stamps only the thread's
+  own contact. A contact that fills an empty slot also carries the thread's `EMAIL`
+  activity, like any thread contact. Win back counts mail by `emailThread.contactId`
+  and does not count the thread for an extra contact; the `identify` pre-check counts
+  it by address. **Only a creating mailbox adds anyone**: the
   message's `syncedByUserId` must own a non-calendar `MailboxSync` with `autoCreate`
   or `createFrom: "relevant"`, and the user must not be removed. A thread that is
   already relevant and already filed stands in for the reply rule of `replied`.

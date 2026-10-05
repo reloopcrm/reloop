@@ -99,6 +99,9 @@ async function clean() {
 		select: { id: true },
 	});
 	const ids = contacts.map((row) => row.id);
+	await db.emailThread.deleteMany({
+		where: { rootMessageId: { endsWith: `-${suffix}@mail.example>` } },
+	});
 	await db.agentTask.deleteMany({ where: { contactId: { in: ids } } });
 	await db.contact.deleteMany({ where: { id: { in: ids } } });
 	await db.company.deleteMany({ where: { domain } });
@@ -198,6 +201,68 @@ describe("identify pre-check", () => {
 		expect(jev.calls[0]).toMatchObject({
 			emailDomain: domain,
 			name: "Anna Example",
+		});
+	});
+
+	it("counts the mail of a contact who wrote into another contact's thread", async () => {
+		const owner = await contact({ local: "olaf" });
+		const extra = await contact({ local: "ines" });
+		const sentAt = new Date("2026-05-11T10:00:00Z");
+		await db.emailThread.create({
+			data: {
+				rootMessageId: `<shared-${suffix}@mail.example>`,
+				subject: "Pallets",
+				contactId: owner.id,
+				firstMessageAt: sentAt,
+				lastMessageAt: sentAt,
+				messageCount: 3,
+				messages: {
+					create: [
+						{
+							rfcMessageId: `<one-${suffix}@mail.example>`,
+							direction: "INBOUND",
+							fromEmail: `olaf@${domain}`,
+							recipients: [{ email: "rep@own.example", name: null }],
+							sentAt,
+						},
+						{
+							rfcMessageId: `<two-${suffix}@mail.example>`,
+							direction: "INBOUND",
+							fromEmail: `ines@${domain}`,
+							recipients: [{ email: "rep@own.example", name: null }],
+							sentAt,
+						},
+						{
+							rfcMessageId: `<three-${suffix}@mail.example>`,
+							direction: "OUTBOUND",
+							fromEmail: "rep@own.example",
+							recipients: [
+								{ email: `ines@${domain}`, name: "Ines", kind: "to" },
+							],
+							sentAt,
+						},
+					],
+				},
+			},
+		});
+		const jev = answering(0.9);
+
+		expect(await identifyPrecheck(await claimed(extra.id), deps(jev.ask))).toBe(
+			"run",
+		);
+		expect(await identifyPrecheck(await claimed(owner.id), deps(jev.ask))).toBe(
+			"run",
+		);
+
+		expect(jev.calls[0]).toMatchObject({
+			relationship: expect.stringContaining(
+				"1 email conversations, 1 messages from them, 1 messages to them",
+			),
+		});
+		expect(jev.calls[1]).toMatchObject({
+			relationship: expect.stringContaining(
+				"1 email conversations, 2 messages from them, 1 messages to them",
+			),
 		});
 	});
 

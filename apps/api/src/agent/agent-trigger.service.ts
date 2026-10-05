@@ -83,6 +83,8 @@ const STORY_REREAD_REASON = "A rep said the win back story is wrong";
 
 export type PendingStoryReread = "none" | "reread" | "running";
 
+const STORY_PREFETCH_BUDGET_KEY = `agent-task:${STORY_KIND}:prefetch-budget`;
+
 function tenantOfThisRequest(): string | null {
 	try {
 		return cloud.scopeId();
@@ -323,26 +325,25 @@ export class AgentTriggerService {
 		if (!(await this.allows(STORY_KIND))) return 0;
 
 		try {
-			const room = await this.prefetchRoom(openShare);
-			if (room <= 0) {
-				this.logger.log({
-					message: "Story prefetch skipped: the budget keeps its rest",
-					room,
-				});
-				return 0;
-			}
-
-			const created = await this.db.$transaction(async (tx) => {
+			const ceiling = await this.prefetchCeiling(openShare);
+			const outcome = await this.db.$transaction(async (tx) => {
+				await lockIdempotencyKey(tx, STORY_PREFETCH_BUDGET_KEY);
 				for (const id of [...ids].sort()) {
 					await lockIdempotencyKey(tx, `agent-task:${STORY_KIND}:${id}::`);
 				}
+				const room =
+					ceiling === null
+						? Number.POSITIVE_INFINITY
+						: ceiling - (await this.storyBudgetUsed(tx));
+				if (room <= 0) return { created: 0, room };
+
 				const pending = await tx.agentTask.findMany({
 					where: { kind: STORY_KIND, finishedAt: null, contactId: { in: ids } },
 					select: { contactId: true },
 				});
 				const taken = new Set(pending.map((row) => row.contactId));
 				const fresh = ids.filter((id) => !taken.has(id)).slice(0, room);
-				if (fresh.length === 0) return 0;
+				if (fresh.length === 0) return { created: 0, room };
 
 				const now = new Date();
 				await tx.agentTask.createMany({
@@ -356,8 +357,17 @@ export class AgentTriggerService {
 						payload: { reread: false } satisfies AgentTaskStoryPayload,
 					})),
 				});
-				return fresh.length;
+				return { created: fresh.length, room };
 			});
+
+			if (outcome.room <= 0) {
+				this.logger.log({
+					message: "Story prefetch skipped: the budget keeps its rest",
+					room: outcome.room,
+				});
+				return 0;
+			}
+			const created = outcome.created;
 
 			this.logger.log({
 				message: "Story prefetch queued",
@@ -445,24 +455,26 @@ export class AgentTriggerService {
 		}
 	}
 
-	private async prefetchRoom(openShare: number): Promise<number> {
+	private async prefetchCeiling(openShare: number): Promise<number | null> {
 		const limits = await planLimitsOf(this.db);
 		const budget = monthlyBudget(STORY_KIND, limits);
-		if (budget === null) return Number.POSITIVE_INFINITY;
+		if (budget === null) return null;
 
-		const ceiling =
+		return (
 			budget -
 			forwardReserve(STORY_KIND, limits) -
-			Math.ceil(budget * openShare);
+			Math.ceil(budget * openShare)
+		);
+	}
+
+	private async storyBudgetUsed(tx: Prisma.TransactionClient): Promise<number> {
 		const { since } = await usageWindowOf(this.db);
-		const used = await this.db.agentTask.count({
+		return tx.agentTask.count({
 			where: {
 				kind: { in: budgetKinds(STORY_KIND) },
 				createdAt: { gte: since },
 			},
 		});
-
-		return ceiling - used;
 	}
 
 	async usageProbeRequested(): Promise<boolean> {

@@ -338,6 +338,36 @@ describe("WinBackStoryPrefetchService.queue", () => {
 		);
 	});
 
+	it("gives the last prefetch slot to exactly one of several calls that arrive together", async () => {
+		await writePlan(db, "trial");
+		const limits = PLANS.trial;
+		const budget = limits.insightsPerMonth;
+		const ceiling =
+			budget -
+			forwardReserve(STORY_KIND, limits) -
+			Math.ceil(budget * PERSON_VIEW.prefetch.openShare);
+		await fill(ceiling - 1 - (await used()));
+		const ids = await Promise.all(
+			["Greta", "Hanno", "Ilse", "Jonas", "Karla", "Lutz", "Mira", "Nils"].map(
+				person,
+			),
+		);
+
+		const results = await Promise.all(
+			ids.map((id) =>
+				trigger.personStoriesPrefetched(
+					[id],
+					REASON,
+					PERSON_VIEW.prefetch.openShare,
+				),
+			),
+		);
+
+		expect(results.reduce((sum, count) => sum + count, 0)).toBe(1);
+		expect(await storyTasks(ids)).toHaveLength(1);
+		expect(await used()).toBe(ceiling);
+	});
+
 	it("moves a prefetched story to the front when the rep opens the person", async () => {
 		await writePlan(db, null);
 		const id = await person("Fritz");

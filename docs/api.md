@@ -714,7 +714,10 @@ marked passages and the follow-up delay. It writes nothing but an
   deterministic check the person view already makes; no model and no vendor runs
   here. The writes go through `AgentTriggerService.personStoriesPrefetched`, which
   locks each contact with the same idempotency key as `enqueue` and skips anyone with
-  an open story task, so a person is never queued twice.
+  an open story task, so a person is never queued twice. Before those it takes one
+  transaction lock for the whole prefetch budget and counts the budget inside it, so
+  two prefetches that arrive together never both take the last free place. A story a
+  rep opens never takes that lock and never waits for it.
 - **A prefetch never spends what a rep needs.** It is refused for sample data and when
   story writing is off, and it stops at the budget minus the new-mail reserve minus
   `PERSON_VIEW.prefetch.openShare` of the budget, which stays for stories a rep opens.

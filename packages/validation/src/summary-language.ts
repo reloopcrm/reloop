@@ -1,12 +1,12 @@
 import type { Locale } from "@crm/db/locale";
 
 export const SUMMARY_LANGUAGE_DETECTION = {
-	minWords: 4,
-	minHits: 2,
-	leadFactor: 2,
+	sentence: { minWords: 4, minHits: 2, leadFactor: 2, minHanChars: 4 },
+	lean: { minWords: 1, minHits: 1, leadFactor: 1, minHanChars: 2 },
 	hanShare: 0.5,
-	minHanChars: 4,
 } as const;
+
+type Strictness = (typeof SUMMARY_LANGUAGE_DETECTION)["sentence" | "lean"];
 
 type LatinLocale = Exclude<Locale, "zh-Hans">;
 
@@ -263,47 +263,54 @@ function countOf(text: string, pattern: RegExp): number {
 	return text.match(pattern)?.length ?? 0;
 }
 
-function judge(text: string, minWords: number): Locale | null {
+function judge(text: string, strictness: Strictness): Locale | null {
 	const han = countOf(text, HAN);
 	const letters = countOf(text, LETTER);
 	if (
-		han >= SUMMARY_LANGUAGE_DETECTION.minHanChars &&
+		han >= strictness.minHanChars &&
 		han / Math.max(letters, 1) >= SUMMARY_LANGUAGE_DETECTION.hanShare
 	) {
 		return "zh-Hans";
 	}
 
 	const words = text.toLowerCase().match(WORD) ?? [];
-	if (words.length < minWords) return null;
+	if (words.length < strictness.minWords) return null;
 
 	const ranked = LATIN_LOCALES.map((locale) => ({
 		locale,
 		hits: words.filter((word) => STOPWORDS[locale].has(word)).length,
 	})).sort((a, b) => b.hits - a.hits);
 	const [first, second] = ranked;
-	if (!first || first.hits < SUMMARY_LANGUAGE_DETECTION.minHits) return null;
-	if (
-		first.hits <
-		(second?.hits ?? 0) * SUMMARY_LANGUAGE_DETECTION.leadFactor
-	) {
-		return null;
-	}
+	const runnerUp = second?.hits ?? 0;
+	if (!first || first.hits < strictness.minHits) return null;
+	if (first.hits <= runnerUp) return null;
+	if (first.hits < runnerUp * strictness.leadFactor) return null;
 
 	return first.locale;
 }
 
 export function detectSummaryLanguage(text: string): DetectedSummaryLanguage {
 	const found = new Set<Locale>();
+	const leaning = new Set<Locale>();
 	for (const sentence of text.split(SENTENCE_END)) {
-		const language = judge(sentence, SUMMARY_LANGUAGE_DETECTION.minWords);
-		if (language) found.add(language);
+		const language = judge(sentence, SUMMARY_LANGUAGE_DETECTION.sentence);
+		if (language) {
+			found.add(language);
+			continue;
+		}
+		const lean = judge(sentence, SUMMARY_LANGUAGE_DETECTION.lean);
+		if (lean) leaning.add(lean);
 	}
 
-	if (found.size > 1) return { kind: "mixed", languages: [...found].sort() };
+	if (found.size === 0) {
+		const whole = judge(text, SUMMARY_LANGUAGE_DETECTION.sentence);
+		if (!whole) return { kind: "unknown" };
+		found.add(whole);
+	}
 
-	const [only] = found;
-	if (only) return { kind: "single", language: only };
+	const all = new Set([...found, ...leaning]);
+	if (all.size > 1) return { kind: "mixed", languages: [...all].sort() };
 
-	const whole = judge(text, SUMMARY_LANGUAGE_DETECTION.minWords);
-	return whole ? { kind: "single", language: whole } : { kind: "unknown" };
+	const [only] = all;
+	return only ? { kind: "single", language: only } : { kind: "unknown" };
 }

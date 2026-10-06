@@ -26,6 +26,22 @@ describe("detectSummaryLanguage", () => {
 		).toEqual({ kind: "mixed", languages: ["de", "en"] });
 	});
 
+	it("reports a German summary with a short English sentence as mixed", () => {
+		expect(
+			detectSummaryLanguage(
+				"Der Kunde hat nach einem neuen Angebot für die Paletten gefragt. They are waiting.",
+			),
+		).toEqual({ kind: "mixed", languages: ["de", "en"] });
+	});
+
+	it("keeps a German summary with short German sentences German", () => {
+		expect(
+			detectSummaryLanguage(
+				"Der Kunde hat nach einem neuen Angebot für die Paletten gefragt. Er wartet. Preis offen.",
+			),
+		).toEqual({ kind: "single", language: "de" });
+	});
+
 	it("leaves a summary too short to judge undecided", () => {
 		expect(detectSummaryLanguage("Paletten, Angebot.")).toEqual({
 			kind: "unknown",

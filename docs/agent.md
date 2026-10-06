@@ -200,7 +200,9 @@ signed up in. The API stores and serves the value and does nothing else with it.
   (`src/agent/summary-catch-up.ts`) sorts each relevant `ThreadInsight` and each
   `ContactMemory` that is not tagged with the wanted language. A tag for another
   language is `stale`. A null tag goes through `detectSummaryLanguage`
-  (`@crm/validation/summary-language`): a stopword count per sentence, no model. The
+  (`@crm/validation/summary-language`): a stopword count per sentence, no model. A
+  sentence below four words still counts when its stopwords lean to one language,
+  so a short sentence in another language makes the text `mixed`. The
   wanted language is `correct`; `--apply` sets the tag and queues nothing, so opening
   it later does not rewrite it. Another language is `foreign`, two languages are
   `mixed`, and both queue `thread-refresh` at the backfill priority, a memory through

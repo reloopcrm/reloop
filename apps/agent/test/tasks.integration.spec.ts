@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
 import { DIRECT_KINDS } from "@crm/db/agent-tasks";
+import { readMonthlyUsage } from "@crm/db/plan-usage";
 import {
 	claimDue,
 	completeTask,
 	MAX_ATTEMPTS,
+	postponeTask,
 	retireExhausted,
 	scheduleTask,
 } from "../agent/lib/tasks";
@@ -237,5 +239,28 @@ describe("scheduleTask", () => {
 
 		expect(second.id).toBe(first.id);
 		expect(await db.agentTask.count({ where: { kind } })).toBe(1);
+	});
+});
+
+describe("the monthly session count", () => {
+	it("does not count a claimed task that was postponed before it ran", async () => {
+		const before = await readMonthlyUsage(db);
+		const task = await queue();
+
+		await claimDue(10, RESEARCH);
+		await postponeTask(task.id, new Date(Date.now() + 60_000));
+
+		const after = await readMonthlyUsage(db);
+		expect(after.sessions).toBe(before.sessions);
+	});
+
+	it("counts a claimed task that is running", async () => {
+		const before = await readMonthlyUsage(db);
+		await queue();
+
+		await claimDue(10, RESEARCH);
+
+		const after = await readMonthlyUsage(db);
+		expect(after.sessions).toBe(before.sessions + 1);
 	});
 });

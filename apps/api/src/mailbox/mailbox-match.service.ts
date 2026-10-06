@@ -27,14 +27,21 @@ export type SyncRecordSource =
 	| typeof RecordSource.EMAIL
 	| typeof RecordSource.CALENDAR;
 
+export type ContactResearch = { contactId: string; reason: string };
+
 export type MatchResult = {
 	companyId: string | null;
 	contactId: string | null;
 	external: Participant[];
 	limited?: true;
+	research?: ContactResearch[];
 };
 
-type CreatedContact = { contactId: string | null; limited: boolean };
+type CreatedContact = {
+	contactId: string | null;
+	limited: boolean;
+	research: ContactResearch[];
+};
 
 export type AddedContact = {
 	contactId: string | null;
@@ -58,6 +65,7 @@ export type MatchRequest = {
 	allowCreate: boolean;
 	source: SyncRecordSource;
 	ownerId: string;
+	deferResearch?: boolean;
 };
 
 export type ContactRequest = Pick<MatchRequest, "source" | "ownerId">;
@@ -200,7 +208,7 @@ export class MailboxMatchService {
 		if (existing) {
 			const created = request.allowCreate
 				? await this.createContact(external, domain, existing.id, request)
-				: { contactId: null, limited: false };
+				: { contactId: null, limited: false, research: [] };
 
 			if (created.limited) {
 				return { companyId: null, contactId: null, external, limited: true };
@@ -210,7 +218,12 @@ export class MailboxMatchService {
 				await this.revive(existing.id, domain);
 			}
 
-			return { companyId: existing.id, contactId: created.contactId, external };
+			return {
+				companyId: existing.id,
+				contactId: created.contactId,
+				external,
+				research: created.research,
+			};
 		}
 
 		if (!request.allowCreate) {
@@ -299,7 +312,12 @@ export class MailboxMatchService {
 			return { companyId: null, contactId: null, external, limited: true };
 		}
 
-		return { companyId, contactId: created.contactId, external };
+		return {
+			companyId,
+			contactId: created.contactId,
+			external,
+			research: created.research,
+		};
 	}
 
 	async reviveContact(
@@ -386,11 +404,27 @@ export class MailboxMatchService {
 		const person = external.find(
 			(candidate) => workDomain(candidate.email) === domain,
 		);
-		if (!person) return { contactId: null, limited: false };
+		if (!person) return { contactId: null, limited: false, research: [] };
 
-		const added = await this.addCompanyContact(person, companyId, request);
+		const { added, research } = await this.insertCompanyContact(
+			person,
+			companyId,
+			request,
+		);
+		const wanted = research ? [research] : [];
+		if (!request.deferResearch) await this.queueResearch(wanted);
 
-		return { contactId: added.contactId, limited: added.limited };
+		return {
+			contactId: added.contactId,
+			limited: added.limited,
+			research: request.deferResearch ? wanted : [],
+		};
+	}
+
+	async queueResearch(research: readonly ContactResearch[]): Promise<void> {
+		for (const { contactId, reason } of research) {
+			await this.agent.contactCreated(contactId, reason);
+		}
 	}
 
 	async addCompanyContact(
@@ -399,6 +433,23 @@ export class MailboxMatchService {
 		request: ContactRequest,
 		lastMailAt?: Date,
 	): Promise<AddedContact> {
+		const { added, research } = await this.insertCompanyContact(
+			person,
+			companyId,
+			request,
+			lastMailAt,
+		);
+		if (research) await this.queueResearch([research]);
+
+		return added;
+	}
+
+	private async insertCompanyContact(
+		person: Participant,
+		companyId: string,
+		request: ContactRequest,
+		lastMailAt?: Date,
+	): Promise<{ added: AddedContact; research: ContactResearch | null }> {
 		const { firstName, lastName } = splitName(person.name, person.email);
 
 		let outcome: Awaited<ReturnType<MailboxMatchService["insertContact"]>>;
@@ -412,7 +463,10 @@ export class MailboxMatchService {
 		} catch (error) {
 			if (!contactLimitError.safeParse(error).success) throw error;
 			this.warnLimit();
-			return { contactId: null, created: false, limited: true };
+			return {
+				added: { contactId: null, created: false, limited: true },
+				research: null,
+			};
 		}
 		const { contact } = outcome;
 
@@ -430,17 +484,27 @@ export class MailboxMatchService {
 			});
 		}
 
-		if (
+		const nameless =
 			!person.name?.trim() &&
-			isDerivedName(person.email, contact.firstName, contact.lastName)
-		) {
-			await this.agent.contactCreated(
-				contact.id,
-				"Created by the sync from an address, with no name on it",
-			);
-		}
+			isDerivedName(person.email, contact.firstName, contact.lastName);
+		const research =
+			outcome.created || nameless
+				? {
+						contactId: contact.id,
+						reason: nameless
+							? "Created by the sync from an address, with no name on it"
+							: "Emailed about your business",
+					}
+				: null;
 
-		return { contactId: contact.id, created: outcome.created, limited: false };
+		return {
+			added: {
+				contactId: contact.id,
+				created: outcome.created,
+				limited: false,
+			},
+			research,
+		};
 	}
 
 	async contactLimitReached(): Promise<boolean> {

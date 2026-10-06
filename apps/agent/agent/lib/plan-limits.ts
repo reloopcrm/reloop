@@ -1,17 +1,16 @@
 import { db, type Prisma } from "@crm/db";
 import {
+	budgetTasksWhere,
 	fixedAiFor,
 	planIdOf,
 	planLimitsOf,
 	usageWindowOf,
 } from "@crm/db/plan-usage";
 import {
-	budgetKinds,
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	monthlyBudget,
 	type PlanLimits,
-	RESEARCH_RUN_KIND,
 	STORY_KIND,
 } from "@crm/db/plans";
 
@@ -31,18 +30,13 @@ export async function fixedAi(): Promise<boolean> {
 	}
 }
 
-const COUNTED_BY_FINISH = new Set([RESEARCH_RUN_KIND]);
-
 export async function monthlyUsed(
 	kind: string,
 	now: Date = new Date(),
 	exceptTaskId: string | null = null,
 ): Promise<number> {
 	const { since } = await usageWindowOf(db, now);
-	const kinds = { in: budgetKinds(kind) };
-	const where: Prisma.AgentTaskWhereInput = COUNTED_BY_FINISH.has(kind)
-		? { kind: kinds, finishedAt: { gte: since } }
-		: { kind: kinds, createdAt: { gte: since } };
+	const where: Prisma.AgentTaskWhereInput = budgetTasksWhere(kind, since);
 	if (exceptTaskId) where.id = { not: exceptTaskId };
 
 	return db.agentTask.count({ where });

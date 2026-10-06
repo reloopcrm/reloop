@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { DealStage, db, RecordSource } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
-import { usageWindowOf } from "@crm/db/plan-usage";
+import { budgetTasksWhere, usageWindowOf } from "@crm/db/plan-usage";
 import { INSIGHT_KIND, PLANS } from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
@@ -321,10 +321,7 @@ describe("the story budget", () => {
 			await writePlan(db, "trial");
 			const { since } = await usageWindowOf(db);
 			const used = await db.agentTask.count({
-				where: {
-					kind: { in: [INSIGHT_KIND, "person-story"] },
-					createdAt: { gte: since },
-				},
+				where: budgetTasksWhere(INSIGHT_KIND, since),
 			});
 			await db.agentTask.createMany({
 				data: Array.from(
@@ -336,6 +333,7 @@ describe("the story budget", () => {
 						priority: 0,
 						budget: 1,
 						dueAt: new Date(),
+						startedAt: new Date(),
 						finishedAt: new Date(),
 					}),
 				),

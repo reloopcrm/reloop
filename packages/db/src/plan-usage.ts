@@ -1,6 +1,7 @@
 import { DIRECT_KINDS } from "./agent-tasks";
 import type { Db } from "./client";
 import { cloud } from "./cloud/scope";
+import type { Prisma } from "./generated/prisma/client";
 import {
 	type AddOnQuantities,
 	budgetKinds,
@@ -74,6 +75,23 @@ export async function usageWindowOf(
 	return usageWindowFor(await planIdOf(db), now);
 }
 
+const COUNTED_BY_FINISH: readonly string[] = [RESEARCH_RUN_KIND];
+
+export function budgetTasksWhere(
+	kind: string,
+	since: Date,
+): Prisma.AgentTaskWhereInput {
+	const window = COUNTED_BY_FINISH.includes(kind)
+		? { finishedAt: { gte: since } }
+		: { createdAt: { gte: since } };
+
+	return {
+		kind: { in: budgetKinds(kind) },
+		...window,
+		NOT: { finishedAt: { not: null }, startedAt: null },
+	};
+}
+
 export const USAGE_COUNTERS = [
 	"insights",
 	"drafts",
@@ -127,9 +145,7 @@ export async function readMonthlyUsage(
 ): Promise<MonthlyUsage> {
 	const { since } = await usageWindowOf(db, now);
 	const count = (kind: string) =>
-		db.agentTask.count({
-			where: { kind: { in: budgetKinds(kind) }, createdAt: { gte: since } },
-		});
+		db.agentTask.count({ where: budgetTasksWhere(kind, since) });
 
 	const [insights, drafts, sessions, research, chat, builder] =
 		await Promise.all([
@@ -141,9 +157,7 @@ export async function readMonthlyUsage(
 					startedAt: { gte: since },
 				},
 			}),
-			db.agentTask.count({
-				where: { kind: RESEARCH_RUN_KIND, finishedAt: { gte: since } },
-			}),
+			count(RESEARCH_RUN_KIND),
 			conversationMessages(db, "RECORD", since),
 			conversationMessages(db, "BUILDER", since),
 		]);

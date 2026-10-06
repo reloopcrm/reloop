@@ -16,6 +16,7 @@ import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import type { SyncOrigin } from "./mailbox.constants";
 import {
+	type ContactResearch,
 	contactLimitError,
 	MailboxMatchService,
 	type MatchContext,
@@ -106,6 +107,7 @@ export class ThreadWriterService {
 		let contactId = thread?.contactId ?? null;
 		const relevantOnly = row.createFrom === "relevant";
 		let pending = Boolean(thread) && !companyId && !contactId;
+		let research: ContactResearch[] = [];
 
 		if (!thread) {
 			const repliedTo =
@@ -120,12 +122,14 @@ export class ThreadWriterService {
 						row.autoCreate && (repliedTo || (row.createWithoutReply && !auto)),
 					source: RecordSource.EMAIL,
 					ownerId: row.userId,
+					deferResearch: true,
 				},
 				context,
 			);
 
 			companyId = match.companyId;
 			contactId = match.contactId;
+			research = match.research ?? [];
 
 			if (!companyId && !contactId) {
 				const held = match.limited === true;
@@ -232,6 +236,8 @@ export class ThreadWriterService {
 			if (await this.storedElsewhere(error, parsed.rfcMessageId)) return false;
 			throw error;
 		}
+
+		await this.match.queueResearch(research);
 
 		if (!pending) {
 			await this.touch(

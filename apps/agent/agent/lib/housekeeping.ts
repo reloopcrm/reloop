@@ -24,7 +24,7 @@ import {
 	planLimits,
 } from "./plan-limits";
 import { playbookDue } from "./playbook";
-import { scheduleTask } from "./tasks";
+import { closeUncounted, type LeasedTask, scheduleTask } from "./tasks";
 
 const HOUSEKEEPING = {
 	cleanBatch: 20,
@@ -65,6 +65,44 @@ export async function cancelArchivedWork(): Promise<number> {
 	});
 
 	return gone.count;
+}
+
+export async function releaseArchivedClaims(
+	tasks: readonly LeasedTask[],
+): Promise<LeasedTask[]> {
+	const idsOf = (pick: (task: LeasedTask) => string | null) => [
+		...new Set(tasks.map(pick).filter((id): id is string => id !== null)),
+	];
+	const archived = { archivedAt: { not: null } };
+	const [contacts, companies, deals] = await Promise.all([
+		db.contact.findMany({
+			where: { id: { in: idsOf((task) => task.contactId) }, ...archived },
+			select: { id: true },
+		}),
+		db.company.findMany({
+			where: { id: { in: idsOf((task) => task.companyId) }, ...archived },
+			select: { id: true },
+		}),
+		db.deal.findMany({
+			where: { id: { in: idsOf((task) => task.dealId) }, ...archived },
+			select: { id: true },
+		}),
+	]);
+	const gone = new Set(
+		[...contacts, ...companies, ...deals].map((row) => row.id),
+	);
+	if (gone.size === 0) return [...tasks];
+
+	const live: LeasedTask[] = [];
+	for (const task of tasks) {
+		const subjects = [task.contactId, task.companyId, task.dealId];
+		if (subjects.some((id) => id !== null && gone.has(id))) {
+			await closeUncounted(task, say(COPY.tasks.droppedArchived));
+		} else {
+			live.push(task);
+		}
+	}
+	return live;
 }
 
 export async function cancelSampleWork(): Promise<number> {

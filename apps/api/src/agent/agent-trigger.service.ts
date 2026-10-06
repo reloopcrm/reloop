@@ -4,10 +4,13 @@ import { cloud } from "@crm/db/cloud/scope";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
+import {
+	budgetTasksWhere,
+	planLimitsOf,
+	usageWindowOf,
+} from "@crm/db/plan-usage";
 import {
 	allowsCompanyResearch,
-	budgetKinds,
 	forwardReserve,
 	keepsReserve,
 	monthlyBudget,
@@ -222,8 +225,8 @@ export class AgentTriggerService {
 	async summaryRefreshRequested(
 		threadId: string,
 		origin: AgentTaskOrigin,
-	): Promise<void> {
-		if (isSampleRecordId(threadId)) return;
+	): Promise<boolean> {
+		if (isSampleRecordId(threadId)) return false;
 
 		const priority =
 			origin === "backfill"
@@ -238,10 +241,10 @@ export class AgentTriggerService {
 			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
 			origin,
 		});
-		if (created) return;
+		if (created) return true;
 
 		await this.upgradeMemoryOnly(threadId);
-		if (origin === "backfill") return;
+		if (origin === "backfill") return false;
 
 		await this.db.agentTask.updateMany({
 			where: {
@@ -252,6 +255,7 @@ export class AgentTriggerService {
 			},
 			data: { priority },
 		});
+		return false;
 	}
 
 	private async upgradeMemoryOnly(threadId: string): Promise<void> {
@@ -515,12 +519,7 @@ export class AgentTriggerService {
 
 	private async storyBudgetUsed(tx: Prisma.TransactionClient): Promise<number> {
 		const { since } = await usageWindowOf(this.db);
-		return tx.agentTask.count({
-			where: {
-				kind: { in: budgetKinds(STORY_KIND) },
-				createdAt: { gte: since },
-			},
-		});
+		return tx.agentTask.count({ where: budgetTasksWhere(STORY_KIND, since) });
 	}
 
 	async usageProbeRequested(): Promise<boolean> {
@@ -943,7 +942,7 @@ export class AgentTriggerService {
 
 		const { since } = await usageWindowOf(this.db);
 		const used = await this.db.agentTask.count({
-			where: { kind: { in: budgetKinds(kind) }, createdAt: { gte: since } },
+			where: budgetTasksWhere(kind, since),
 		});
 
 		if (used < ceiling) return true;

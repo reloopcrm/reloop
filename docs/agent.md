@@ -192,9 +192,24 @@ signed up in. The API stores and serves the value and does nothing else with it.
   the model, never with the cheap pre-check, and stores only `summary` and `language`,
   plus the message lines and the contact memory in the wanted language. It touches a
   relevant thread only. `thread-refresh` is its own task kind, so it never counts toward
-  the monthly conversation limit. `bun run refresh-summaries` in `apps/api` runs inside
-  `cloud.forEachScope`, once per workspace, and only counts; `--apply` queues the
-  refreshes at the backfill priority. A task whose payload says `memoryOnly: true`
+  the monthly conversation limit.
+- **The language catch-up rewrites only what is in another language.**
+  `bun run refresh-summaries` in `apps/api` runs inside `cloud.forEachScope`, once
+  per workspace. `--dry-run` is the default and writes nothing; `--apply` writes. It
+  prints counts only, never a summary or an address. `planSummaryCatchUp`
+  (`src/agent/summary-catch-up.ts`) sorts each relevant `ThreadInsight` and each
+  `ContactMemory` that is not tagged with the wanted language. A tag for another
+  language is `stale`. A null tag goes through `detectSummaryLanguage`
+  (`@crm/validation/summary-language`): a stopword count per sentence, no model. A
+  sentence below four words still counts when its stopwords lean to one language,
+  so a short sentence in another language makes the text `mixed`. The
+  wanted language is `correct`; `--apply` sets the tag and queues nothing, so opening
+  it later does not rewrite it. Another language is `foreign`, two languages are
+  `mixed`, and both queue `thread-refresh` at the backfill priority, a memory through
+  the contact's newest relevant thread. A text too short to judge is `undetermined`
+  and keeps its null tag. With `conversation` as the wanted language every null tag
+  is `undetermined`, because the language of the conversation is not known here.
+  A task whose payload says `memoryOnly: true`
   (`readAgentTaskMemoryOnly`, written by `bun run thread-participants --apply` for a
   linked contact without a memory) skips the model read of the thread, whatever the
   stored language, and only refreshes the memories.
@@ -261,6 +276,12 @@ the trial or the first of the next month, and the settings page names that day.
 `readMonthlyUsage` (`@crm/db/plan-usage`) is the one counter for both apps. Chat and
 builder count `message.received` events by conversation kind.
 
+`budgetTasksWhere` (`@crm/db/plan-usage`) is the one filter of every budget count,
+here and in the API: the window by `createdAt`, by `finishedAt` for
+`company-profile`, and never a task with `finishedAt` set and `startedAt` null. That
+task closed before a session or a model run: dropped as archived, dropped as sample
+data, or skipped by the `identify` pre-check.
+
 Backfill reading never uses the last 20 % of `insightsPerMonth` (`PLAN_RESERVE.insightForwardShare` in
 `@crm/db/plans`). That share stays for new mail. It applies only with plan limits: an install without them reserves nothing.
 
@@ -316,7 +337,15 @@ answer or an error all run the research as before. A reason that starts with
 who asked, so the reason prefix is the signal.
 
 A skipped row finishes with `startedAt` cleared and its attempt returned, so
-`researchSessionsBetween` never counts it. `queueIdentifyAgain` in the sweep queues
+`researchSessionsBetween` never counts it. `closeUncounted` (`lib/tasks.ts`) is that
+write; it clears `startedAt` on a first attempt only, so an earlier run still counts.
+
+**An archived record never reaches the pre-check.** `runResearchLane` hands each
+claimed batch to `releaseArchivedClaims` (`lib/housekeeping.ts`) first. A task whose
+contact, company or deal is archived closes through `closeUncounted` with
+`COPY.tasks.droppedArchived`. `cancelArchivedWork` runs in the same tick as the prune
+that archives, so without this a contact archived in this tick got a Jev call and a
+session. `queueIdentifyAgain` in the sweep queues
 `identify` again for a `SKIPPED` contact whose last `identify` never started and
 whose `lastActivityAt` is newer than that row. The gate meter counts both checks as
 `identify-filled` and `identify-precheck` in the per-pass `cheap gates` log line
@@ -491,8 +520,9 @@ that fails logs and the turn runs without them.
 
 ### Backfills
 
-Sign-in sweep covers records never looked up with a `brand` row only (one homepage
-fetch and one small model call per company, no vendor credits, no research session);
+Sign-in sweep queues `brand` for companies never looked up (one homepage fetch and
+one small model call per company, no vendor credits, no research session), and
+`identify` and `portrait` for contacts;
 `ImageMirrorService` in the same sweep re-hosts off-site pictures (free);
 `backfill:images` fixes enriched records missing only pictures (free);
 `backfill:facts` is the blank-field sweep above run by hand, with `--dry` to read it
@@ -515,6 +545,10 @@ first — the cron covers it, so this is for a machine pointed at another databa
   returns before work starts.
 - **The 500-row cap is on the pass, not each query in it.** Deduplicate the union, cut
   to 500, count `remaining` against the union.
+- **An archived record is never swept.** Every backfill query, `identify`, `portrait`
+  and `brand`, has `archivedAt: null`, so the 500 places go to active contacts and
+  companies. Before, the oldest `PENDING` contacts were mostly archived ones, and the
+  agent dropped nearly every row it got.
 
 ## Evidence, not confidence
 

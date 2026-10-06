@@ -400,6 +400,7 @@ model Contact {
   source RecordSource @default(MANUAL)
 
   lastActivityAt DateTime?
+  threadMailAt   DateTime?
   archivedAt     DateTime?
   archivedBy     ArchiveActor?
   cleanedAt      DateTime?
@@ -1551,6 +1552,7 @@ model AppSetting {
   draftStyle            Json?
   agentFunctions        Json?
   mailboxProfile        Json?
+  threadContactsCursor  String?
 
   trackingSiteId           String? @unique
   trackingCrossDomain      Boolean @default(true)

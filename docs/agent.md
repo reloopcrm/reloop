@@ -292,7 +292,9 @@ from `beginResearch` before `markRunning`). A record that already has a real nam
 title, a company and a LinkedIn URL finishes with `COPY.precheck.filled` and settles
 `COMPLETE`. Otherwise Jev answers `DISPATCH.research.precheck.question` from the
 workspace business, the name, the email domain, the company and the mail and deal
-counts, never a mail body. Only an answer below `precheck.threshold` (0.2) skips:
+counts, never a mail body. The mail counts take the contact's own threads plus
+mail from or to its address in any thread, so a person who wrote into a colleague's
+thread does not read as 0 conversations. Only an answer below `precheck.threshold` (0.2) skips:
 the row finishes with `COPY.precheck.unlikely` and the contact settles `SKIPPED`, so
 the sign-in backfill does not queue it again. No key, no business description, no
 answer or an error all run the research as before. A reason that starts with

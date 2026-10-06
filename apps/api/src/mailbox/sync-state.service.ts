@@ -6,6 +6,7 @@ import {
 } from "@crm/db";
 import { planLimitsOf } from "@crm/db/plan-usage";
 import type { CapacityUsage, PlanLimits } from "@crm/db/plans";
+import { SETTINGS_ID } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { serialiseBackfill, stoppedBackfill } from "./backfill-cursor";
@@ -298,6 +299,14 @@ export class SyncStateService {
 				? { autoCreate: true, backfill: null }
 				: { autoCreate: false },
 		});
+		if (enabled) await this.restartThreadContacts();
+	}
+
+	private async restartThreadContacts(): Promise<void> {
+		await this.db.appSetting.updateMany({
+			where: { id: SETTINGS_ID },
+			data: { threadContactsCursor: null },
+		});
 	}
 
 	async setCreatePolicy(
@@ -314,6 +323,7 @@ export class SyncStateService {
 			where: { userId, source },
 			data: creates ? { ...policy, backfill: null } : policy,
 		});
+		if (creates) await this.restartThreadContacts();
 	}
 
 	async remove(userId: string, source?: MailboxSource): Promise<void> {

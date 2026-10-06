@@ -36,6 +36,12 @@ export type MatchResult = {
 
 type CreatedContact = { contactId: string | null; limited: boolean };
 
+export type AddedContact = {
+	contactId: string | null;
+	created: boolean;
+	limited: boolean;
+};
+
 export const contactLimitError = z
 	.instanceof(Error)
 	.refine((error) => error.message.includes(CONTACT_LIMIT_MESSAGE));
@@ -53,6 +59,8 @@ export type MatchRequest = {
 	source: SyncRecordSource;
 	ownerId: string;
 };
+
+export type ContactRequest = Pick<MatchRequest, "source" | "ownerId">;
 
 @Injectable()
 export class MailboxMatchService {
@@ -380,6 +388,17 @@ export class MailboxMatchService {
 		);
 		if (!person) return { contactId: null, limited: false };
 
+		const added = await this.addCompanyContact(person, companyId, request);
+
+		return { contactId: added.contactId, limited: added.limited };
+	}
+
+	async addCompanyContact(
+		person: Participant,
+		companyId: string,
+		request: ContactRequest,
+		lastMailAt?: Date,
+	): Promise<AddedContact> {
 		const { firstName, lastName } = splitName(person.name, person.email);
 
 		let outcome: Awaited<ReturnType<MailboxMatchService["insertContact"]>>;
@@ -393,7 +412,7 @@ export class MailboxMatchService {
 		} catch (error) {
 			if (!contactLimitError.safeParse(error).success) throw error;
 			this.warnLimit();
-			return { contactId: null, limited: true };
+			return { contactId: null, created: false, limited: true };
 		}
 		const { contact } = outcome;
 
@@ -407,6 +426,7 @@ export class MailboxMatchService {
 						? "{email} appeared in a meeting."
 						: "{email} appeared in a thread.",
 				meta: { source: request.source, email: person.email },
+				at: lastMailAt,
 			});
 		}
 
@@ -420,14 +440,20 @@ export class MailboxMatchService {
 			);
 		}
 
-		return { contactId: contact.id, limited: false };
+		return { contactId: contact.id, created: outcome.created, limited: false };
+	}
+
+	async contactLimitReached(): Promise<boolean> {
+		if (!(await this.atContactLimit())) return false;
+		this.warnLimit();
+		return true;
 	}
 
 	private async insertContact(
 		person: Participant,
 		name: { firstName: string; lastName: string | null },
 		companyId: string,
-		request: MatchRequest,
+		request: ContactRequest,
 	) {
 		const { firstName, lastName } = name;
 		return this.agent.withCrmEvents(async (tx, emit) => {

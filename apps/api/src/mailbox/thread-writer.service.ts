@@ -521,7 +521,7 @@ export class ThreadWriterService {
 	}
 }
 
-function recipientsOf(value: Prisma.JsonValue): Participant[] {
+export function recipientsOf(value: Prisma.JsonValue): Participant[] {
 	return storedRecipients.parse(value).flatMap((entry) => {
 		const parsed = storedRecipient.safeParse(entry);
 		if (!parsed.success) return [];

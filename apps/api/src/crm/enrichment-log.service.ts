@@ -10,6 +10,7 @@ export type EnrichmentEvent = {
 	subject: string;
 	body?: string | null;
 	meta?: ActivityMetaFields;
+	at?: Date;
 };
 
 @Injectable()
@@ -28,7 +29,8 @@ export class EnrichmentLogService {
 				type: ActivityType.ENRICHMENT,
 				subject: event.subject,
 				body: event.body ?? null,
-				occurredAt: new Date(),
+				occurredAt: event.at ?? new Date(),
+				createdAt: event.at,
 				companyId: event.companyId ?? null,
 				contactId: event.contactId ?? null,
 				createdById: author,

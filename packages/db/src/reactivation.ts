@@ -157,10 +157,26 @@ type Row = {
 	feedback: string | null;
 };
 
+const OWNED_THREADS = Prisma.sql`
+	SELECT t.id, t.subject, t."lastMessageAt", t."contactId" AS contact_id
+	FROM "emailThread" t
+	WHERE t."contactId" IS NOT NULL`;
+
+function threadsOf(contactId: string): Prisma.Sql {
+	return Prisma.sql`
+		SELECT t.id, t.subject, t."lastMessageAt", ${contactId}::text AS contact_id
+		FROM "emailThread" t
+		WHERE t."contactId" = ${contactId}
+			OR EXISTS (
+				SELECT 1 FROM "emailThreadContact" l
+				WHERE l."threadId" = t.id AND l."contactId" = ${contactId}
+			)`;
+}
+
 function rowQuery(
 	where: Prisma.Sql,
 	limit: number,
-	mailFilter: Prisma.Sql = Prisma.empty,
+	threads: Prisma.Sql = OWNED_THREADS,
 ): Prisma.Sql {
 	const openStages = Prisma.join(
 		OPEN_DEAL_STAGES.map((stage) => Prisma.sql`${stage}::"DealStage"`),
@@ -169,7 +185,7 @@ function rowQuery(
 	return Prisma.sql`
 		WITH mail AS (
 			SELECT
-				t."contactId" AS contact_id,
+				t.contact_id,
 				COUNT(DISTINCT t.id) AS threads,
 				COUNT(*) FILTER (WHERE m.direction = 'INBOUND') AS from_them,
 				COUNT(*) FILTER (WHERE m.direction = 'OUTBOUND') AS from_us,
@@ -177,13 +193,12 @@ function rowQuery(
 				MAX(m."sentAt") FILTER (WHERE m.direction = 'OUTBOUND') AS last_outbound,
 				(array_agg(t.id ORDER BY m."sentAt" DESC) FILTER (WHERE m.direction = 'INBOUND'))[1] AS last_inbound_thread,
 				(array_agg(t.id ORDER BY m."sentAt" DESC) FILTER (WHERE m.direction = 'OUTBOUND'))[1] AS last_outbound_thread,
+				(array_agg(t.subject ORDER BY t."lastMessageAt" DESC, t.id))[1] AS last_subject,
 				MAX(m."sentAt") AS last_contact,
 				MIN(m."sentAt") AS first_contact
-			FROM "emailThread" t
+			FROM (${threads}) t
 			JOIN "emailMessage" m ON m."threadId" = t.id
-			WHERE t."contactId" IS NOT NULL
-				${mailFilter}
-			GROUP BY t."contactId"
+			GROUP BY t.contact_id
 		)
 		SELECT
 			c.id,
@@ -224,12 +239,7 @@ function rowQuery(
 					AND d."archivedAt" IS NULL
 					AND d.stage = ${DealStage.CLOSED_WON}::"DealStage"
 			) AS "wonDeals",
-			(
-				SELECT t.subject FROM "emailThread" t
-				WHERE t."contactId" = c.id
-				ORDER BY t."lastMessageAt" DESC
-				LIMIT 1
-			) AS "lastSubject",
+			mail.last_subject AS "lastSubject",
 			mem.summary AS "memorySummary",
 			mem."didBusiness" AS "didBusiness",
 			mem."openInquiries" AS "openInquiries",
@@ -258,7 +268,7 @@ export async function readReactivationCandidate(
 		rowQuery(
 			Prisma.sql`c.id = ${options.contactId}`,
 			1,
-			Prisma.sql`AND t."contactId" = ${options.contactId}`,
+			threadsOf(options.contactId),
 		),
 	);
 	const row = rows[0];

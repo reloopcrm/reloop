@@ -489,10 +489,10 @@ the largest attachment upload the conversation contracts accept.
   The stamp moves `contact.threadMailAt` and `lastActivityAt` forward, never back,
   and `recompute`, `recomputeMany` and `recomputeAll` take
   `GREATEST(newest activity, threadMailAt)`, so deleting an activity or reconnecting
-  a mailbox keeps the date. `store` stamps only the thread's own contact. A contact that fills an empty slot also carries the thread's `EMAIL`
-  activity, like any thread contact. Win back counts mail by `emailThread.contactId`
-  and does not count the thread for an extra contact; the `identify` pre-check counts
-  it by address. **Only a creating mailbox adds anyone**: the
+  a mailbox keeps the date. A contact that fills an empty slot also carries the thread's `EMAIL`
+  activity, like any thread contact. The win back list counts mail by
+  `emailThread.contactId` and does not count the thread for an extra contact; the
+  `identify` pre-check counts it by address. **Only a creating mailbox adds anyone**: the
   message's `syncedByUserId` must own a non-calendar `MailboxSync` with `autoCreate`
   or `createFrom: "relevant"`, and the user must not be removed. A thread that is
   already relevant and already filed stands in for the reply rule of `replied`.
@@ -521,6 +521,54 @@ the largest attachment upload the conversation contracts accept.
   a company or contact and sorts the ones after the cursor. That is fine at thousands
   of threads; the batch stays at 100. A tenant far larger needs a stored cursor column
   with its own index.
+- **Every person in a conversation is linked to it.** `emailThreadContact` holds one
+  row per thread and contact: `role` (`SENDER` when they wrote into the thread, else
+  `RECIPIENT`), `firstAt` and `lastAt` of their real mail there. `emailThread.contactId`
+  stays the one contact the thread was filed under; the table is the attribution. The
+  rule is `planParticipants` in `mailbox/thread-participants.ts`: the sender of every
+  `INBOUND` message and every recipient of every `OUTBOUND` message, skipping an
+  `isAutoReply` message, through `isLinkable`, which refuses an own address or domain, a
+  suppressed address or domain, a machine address and a role address. A free-mail
+  address passes, because a contact row with it exists only because a rep or the sync
+  made one. An address links to **every** contact row that carries it, archived ones
+  included; readers that must not show an archived person filter themselves.
+  `ThreadParticipantsService` is the only writer. `linkThread` recomputes one thread
+  from its messages inside the storing transaction: `store` and `adopt` call it, so do
+  the thread contacts pass for every thread it scans, the direction repair for every
+  thread it flips and the three `purgeSyncedData` after `rebuildThreads`. A thread or
+  contact that is deleted takes its rows with it (`onDelete: Cascade`). `linkContact`
+  is the other direction: a contact made later for an address gets the links of every
+  thread where that address wrote or received, found through the `fromEmail` index
+  and the GIN index on `recipients`. `createContact`'s callers, `contactWithoutCompany`,
+  the thread contacts pass and `contacts.create` call it; `contacts.update` with a new
+  address calls `relinkContact`, which drops the old rows first. **A known participant
+  fills an empty slot**: a thread with an `EMAIL` activity and no `contactId` takes
+  the first active linked contact of its company (senders first, then by `firstAt`),
+  and the activity follows, exactly like a contact the pass creates. Every linked
+  active contact that is not the thread's own is stamped with
+  `stampThreadMail(lastAt)` after the transaction commits (`settle`), so a person who
+  wrote into a colleague's thread reads as active on that day. Readers take
+  `threadsOfContact(contactId)` from `@crm/db/thread-participants`, which is
+  `contactId = X OR a link to X`: the Anfrage panel (`newestReadThread` and the
+  signals in `contact-attention.ts`), `readReactivationCandidate`, the contact's
+  Activity tab and its counts (`ActivitiesService.anchor`, one `EMAIL` activity per
+  thread so no row repeats), the relationship line on the contact sheet, the draft's
+  newest mail, the win back person view and the agent's memory. **The win back list
+  keeps one person per conversation**: `listReactivationCandidates` still groups by
+  `emailThread.contactId`, so a thread never lifts a second person onto the list.
+- **The links of existing mail are written by a script, once.** `bun run
+  thread-participants` in `apps/api` walks every thread by id in batches of
+  `THREAD_PARTICIPANTS.backfillBatch` inside `cloud.forEachScope` and prints per
+  workspace the threads scanned, the links to write or remove and the empty slots to
+  fill, the contacts that take part in a thread and how many of them own none. It
+  never prints an address. Without `--apply` it writes nothing. With `--apply` it
+  links in one transaction per batch; a second run writes nothing, and `--from
+  <threadId>` continues after a run that stopped. After the links it counts the active
+  contacts that take part in a relevant thread and have no `ContactMemory`, and with
+  `--apply` queues one `thread-refresh` task with `memoryOnly: true` for the newest
+  such thread of each (`AgentTriggerService.contactMemoryRequested`), at the backfill
+  priority and through the same plan gate as every task. The agent then writes the
+  memory of every linked contact without reading the thread again.
 - **The dry run counts, it never writes.** `bun run thread-contacts --dry-run` in
   `apps/api` runs `ThreadContactsService.preview` inside `cloud.forEachScope`. It
   walks every relevant thread from the start, ignores the cursor, and prints per

@@ -9,6 +9,8 @@ import { ContactsService } from "../src/contacts/contacts.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import type { ConversionService } from "../src/currency/conversion.service";
 import type { FieldsService } from "../src/fields/fields.service";
+import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "archive-purge-spec";
 const domain = `purge-${suffix}.test`;
@@ -17,6 +19,11 @@ const before = new Date("2001-01-02T00:00:00Z");
 
 const stamp = new ActivityStampService(db);
 
+const participants = new ThreadParticipantsService(
+	db,
+	new MailboxMatchService(db, {} as never, {} as never, {} as never),
+	stamp,
+);
 const contacts = new ContactsService(
 	db,
 	{} as unknown as CompanyDirectoryService,
@@ -24,6 +31,7 @@ const contacts = new ContactsService(
 	{} as unknown as AgentQueueService,
 	stamp,
 	{} as unknown as FieldsService,
+	participants,
 );
 
 const companies = new CompaniesService(

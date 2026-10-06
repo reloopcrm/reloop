@@ -126,6 +126,7 @@ it("rejects member changes to the global domain exclusion list", async () => {
 		unused,
 		unused,
 		unused,
+		unused,
 	);
 	await expect(
 		service.suppressDomain("member", "example.org", { purge: true }),

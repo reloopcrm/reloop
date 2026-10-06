@@ -410,13 +410,14 @@ model Contact {
   deals           DealContact[]
   activities      Activity[]
   emailThreads    EmailThread[]
+  threadLinks     EmailThreadContact[]
   calendarEvents  CalendarEvent[]
   eventAttendance CalendarAttendee[]
   fieldValues     FieldValue[]
-  visitors        TrackedVisitor[]   @relation("VisitorContact")
-  submissions     FormSubmission[]   @relation("SubmissionContact")
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  visitors        TrackedVisitor[]     @relation("VisitorContact")
+  submissions     FormSubmission[]     @relation("SubmissionContact")
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   @@unique([email], map: "contact_email_active_key", where: { archivedAt: null })
   @@index([companyId])
@@ -1243,8 +1244,9 @@ model EmailThread {
 
   quoteHandledAt DateTime?
 
-  messages EmailMessage[]
-  activity Activity?
+  messages     EmailMessage[]
+  activity     Activity?
+  participants EmailThreadContact[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1254,6 +1256,24 @@ model EmailThread {
   @@index([classification])
   @@index([quoteHandledAt])
   @@map("emailThread")
+}
+
+model EmailThreadContact {
+  threadId  String
+  thread    EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  role    String
+  firstAt DateTime
+  lastAt  DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([threadId, contactId])
+  @@index([contactId, lastAt])
+  @@map("emailThreadContact")
 }
 
 model ThreadInsight {
@@ -1429,6 +1449,8 @@ model EmailMessage {
 
   @@index([threadId, sentAt])
   @@index([imapAccountId])
+  @@index([fromEmail])
+  @@index([recipients(ops: JsonbPathOps)], type: Gin)
   @@map("emailMessage")
 }
 

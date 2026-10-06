@@ -11,7 +11,6 @@ import { THREAD_CLASSIFICATION } from "@crm/db/insights";
 import { isAutoReply, isReplySubject } from "@crm/db/message-text";
 import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
-import { z } from "zod";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
@@ -23,13 +22,11 @@ import {
 } from "./mailbox-match.service";
 import { snippetOf } from "./message-text";
 import { isOwnAddress, type Participant, splitName } from "./participants";
-
-const storedRecipient = z.object({
-	email: z.string().trim().min(1),
-	name: z.string().nullable().catch(null),
-});
-
-const storedRecipients = z.array(z.json()).catch([]);
+import { recipientsOf } from "./thread-messages";
+import {
+	type LinkOutcome,
+	ThreadParticipantsService,
+} from "./thread-participants.service";
 
 export type IncomingMessage = {
 	rfcMessageId: string;
@@ -54,23 +51,11 @@ export class ThreadWriterService {
 		private readonly match: MailboxMatchService,
 		private readonly stamp: ActivityStampService,
 		private readonly agent: AgentTriggerService,
+		private readonly participants: ThreadParticipantsService,
 	) {}
 
-	async context(mailbox?: string): Promise<MatchContext> {
-		const [internal, suppressedDomains, suppressedEmails] = await Promise.all([
-			this.match.internalIdentity(),
-			this.match.suppressedDomains(),
-			this.match.suppressedEmails(),
-		]);
-
-		if (mailbox) internal.addresses.add(mailbox.toLowerCase());
-
-		return {
-			ourAddresses: internal.addresses,
-			ourDomains: internal.domains,
-			suppressedDomains,
-			suppressedEmails,
-		};
+	context(mailbox?: string): Promise<MatchContext> {
+		return this.participants.context(mailbox);
 	}
 
 	async store(
@@ -150,7 +135,7 @@ export class ThreadWriterService {
 			}
 		}
 
-		let occurredAt: { id: string; at: Date };
+		let occurredAt: { id: string; at: Date; links: LinkOutcome };
 
 		try {
 			occurredAt = await this.db.$transaction(async (tx) => {
@@ -218,9 +203,16 @@ export class ThreadWriterService {
 
 				await tx.emailThread.update({ where: { id: record.id }, data });
 
-				if (pending) return { id: record.id, at: lastMessageAt };
+				if (pending) {
+					const links = await this.participants.linkThread(
+						record.id,
+						context,
+						tx,
+					);
+					return { id: record.id, at: lastMessageAt, links };
+				}
 
-				return this.project(tx, record.id, row.userId, {
+				const projected = await this.project(tx, record.id, row.userId, {
 					subject: parsed.subject ?? "(no subject)",
 					snippet: snippetOf(parsed.body),
 					lastMessageAt,
@@ -228,6 +220,12 @@ export class ThreadWriterService {
 					contactId,
 					origin: options.origin,
 				});
+				const links = await this.participants.linkThread(
+					record.id,
+					context,
+					tx,
+				);
+				return { ...projected, links };
 			});
 		} catch (error) {
 			if (await this.storedElsewhere(error, parsed.rfcMessageId)) return false;
@@ -241,6 +239,7 @@ export class ThreadWriterService {
 				parsed.rfcMessageId,
 			);
 		}
+		await this.participants.settle(occurredAt.links);
 
 		await this.agent.threadStored(
 			occurredAt.id,
@@ -331,7 +330,11 @@ export class ThreadWriterService {
 				return false;
 			}
 
-			const contactId = await this.contactWithoutCompany(person, ownerId);
+			const contactId = await this.contactWithoutCompany(
+				person,
+				ownerId,
+				known,
+			);
 			if (!contactId) return false;
 
 			placed = { companyId: null, contactId };
@@ -353,7 +356,7 @@ export class ThreadWriterService {
 				data: { companyId: match2.companyId, contactId: match2.contactId },
 			});
 
-			return this.project(tx, threadId, ownerId, {
+			const projected = await this.project(tx, threadId, ownerId, {
 				subject: thread.subject ?? "(no subject)",
 				snippet: last?.snippet ?? null,
 				lastMessageAt: thread.lastMessageAt,
@@ -361,6 +364,8 @@ export class ThreadWriterService {
 				contactId: match2.contactId,
 				origin: "imap",
 			});
+			const links = await this.participants.linkThread(threadId, known, tx);
+			return { ...projected, links };
 		});
 
 		await this.touch(
@@ -368,6 +373,7 @@ export class ThreadWriterService {
 			occurredAt.at,
 			threadId,
 		);
+		await this.participants.settle(occurredAt.links);
 
 		await this.agent.threadStored(threadId, "Thread adopted into the CRM");
 
@@ -396,6 +402,7 @@ export class ThreadWriterService {
 	private async contactWithoutCompany(
 		person: Participant,
 		ownerId: string,
+		context: MatchContext,
 	): Promise<string | null> {
 		const email = person.email.toLowerCase();
 		const existing = await this.db.contact.findUnique({
@@ -426,6 +433,7 @@ export class ThreadWriterService {
 		}
 
 		await this.agent.contactCreated(created.id, "Emailed about your business");
+		await this.participants.linkContact(created.id, email, context);
 
 		return created.id;
 	}
@@ -519,15 +527,6 @@ export class ThreadWriterService {
 
 		return { id: emailThreadId, at: activity.createdAt };
 	}
-}
-
-export function recipientsOf(value: Prisma.JsonValue): Participant[] {
-	return storedRecipients.parse(value).flatMap((entry) => {
-		const parsed = storedRecipient.safeParse(entry);
-		if (!parsed.success) return [];
-
-		return [{ email: parsed.data.email.toLowerCase(), name: parsed.data.name }];
-	});
 }
 
 function hasRealExchange(

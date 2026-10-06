@@ -14,6 +14,7 @@ import {
 	mailboxLimitMessage,
 	SyncStateService,
 } from "../mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
 import { rebuildThreads } from "../mailbox/thread-rebuild";
 import { ImapClientFactory } from "./imap.client";
 import { IMAP } from "./imap.config";
@@ -44,6 +45,7 @@ export class ImapConnectionService {
 		private readonly credentials: ImapCredentialService,
 		private readonly state: SyncStateService,
 		private readonly stamp: ActivityStampService,
+		private readonly participants: ThreadParticipantsService,
 	) {}
 
 	async status(userId: string): Promise<ImapStatus> {
@@ -213,6 +215,7 @@ export class ImapConnectionService {
 			imapAccountId: id,
 		};
 
+		const context = await this.participants.context();
 		const purged = await this.db.$transaction(
 			async (tx) => {
 				const touched = await tx.emailMessage.findMany({
@@ -229,6 +232,7 @@ export class ImapConnectionService {
 				});
 
 				await rebuildThreads(tx, threadIds);
+				await this.participants.linkThreads(threadIds, context, tx);
 
 				return messages.count;
 			},

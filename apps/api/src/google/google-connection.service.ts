@@ -18,6 +18,7 @@ import { backfillProgress } from "../mailbox/backfill-cursor";
 import { MailboxMatchService } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
 import { rebuildThreads } from "../mailbox/thread-rebuild";
 import {
 	GOOGLE_PROVIDER_ID,
@@ -45,6 +46,7 @@ export class GoogleConnectionService {
 		private readonly state: SyncStateService,
 		private readonly match: MailboxMatchService,
 		private readonly stamp: ActivityStampService,
+		private readonly participants: ThreadParticipantsService,
 	) {}
 
 	async status(userId: string): Promise<GoogleConnectionStatus> {
@@ -139,6 +141,7 @@ export class GoogleConnectionService {
 			gmailMessageId: { not: null },
 		};
 
+		const context = await this.participants.context();
 		const purged = await this.db.$transaction(
 			async (tx) => {
 				const touched = await tx.emailMessage.findMany({
@@ -155,6 +158,7 @@ export class GoogleConnectionService {
 				});
 
 				await rebuildThreads(tx, threadIds);
+				await this.participants.linkThreads(threadIds, context, tx);
 
 				const events = await tx.calendarEvent.deleteMany({
 					where: { syncedByUserId: userId },

@@ -12,6 +12,8 @@ import { ConversionService } from "../src/currency/conversion.service";
 import { DealsService } from "../src/deals/deals.service";
 import { ExportsService } from "../src/exports/exports.service";
 import { FieldsService } from "../src/fields/fields.service";
+import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import { withDiscardedCrmEvents } from "./agent-trigger.stub";
 
 const suffix = crypto.randomUUID().slice(0, 8);
@@ -30,6 +32,11 @@ const stamp = new ActivityStampService(db);
 const queue = new AgentQueueService(db);
 const conversion = new ConversionService(db);
 const fields = new FieldsService(db, agent);
+const participants = new ThreadParticipantsService(
+	db,
+	new MailboxMatchService(db, {} as never, {} as never, {} as never),
+	stamp,
+);
 const contacts = new ContactsService(
 	db,
 	new CompanyDirectoryService(agent),
@@ -37,6 +44,7 @@ const contacts = new ContactsService(
 	queue,
 	stamp,
 	fields,
+	participants,
 );
 const companies = new CompaniesService(
 	db,

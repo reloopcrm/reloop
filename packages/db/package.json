@@ -45,6 +45,7 @@
 		"./plan-usage": "./src/plan-usage.ts",
 		"./settings": "./src/settings.ts",
 		"./test-database": "./src/test-database.ts",
+		"./thread-participants": "./src/thread-participants.ts",
 		"./slack-inventory": "./src/slack-inventory.ts",
 		"./tracking": "./src/tracking.ts",
 		"./typesafe": "./src/typesafe.ts",

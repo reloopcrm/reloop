@@ -5,6 +5,7 @@ import { forwardReserve, RESEARCH_RUN_KIND, STORY_KIND } from "@crm/db/plans";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	readAgentTaskInstruction,
+	readAgentTaskMemoryOnly,
 	readAgentTaskOneOff,
 	readAgentTaskReread,
 	readAgentTaskStoryReread,
@@ -424,7 +425,14 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	}
 
 	if (task.kind === REFRESH_KIND) {
-		await runThreadTask(task, runSummaryRefresh, "a summary refresh");
+		await runThreadTask(
+			task,
+			(threadId) =>
+				runSummaryRefresh(threadId, {
+					memoryOnly: readAgentTaskMemoryOnly(task.payload),
+				}),
+			"a summary refresh",
+		);
 		return;
 	}
 

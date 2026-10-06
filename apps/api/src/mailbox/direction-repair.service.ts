@@ -3,8 +3,9 @@ import { cloud } from "@crm/db/cloud/scope";
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
-import { DIRECTION } from "./mailbox.config";
+import { DIRECTION, THREAD_PARTICIPANTS } from "./mailbox.config";
 import { MailboxMatchService } from "./mailbox-match.service";
+import { ThreadParticipantsService } from "./thread-participants.service";
 
 @Injectable()
 export class DirectionRepairService {
@@ -15,6 +16,7 @@ export class DirectionRepairService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly match: MailboxMatchService,
 		private readonly agent: AgentTriggerService,
+		private readonly participants: ThreadParticipantsService,
 	) {}
 
 	async repair(): Promise<number> {
@@ -53,12 +55,24 @@ export class DirectionRepairService {
 			data: { direction: EmailDirection.OUTBOUND },
 		});
 
+		const threadIds = [...new Set(wrong.map((message) => message.threadId))];
+		const context = await this.participants.context();
+		for (
+			let start = 0;
+			start < threadIds.length;
+			start += THREAD_PARTICIPANTS.repairBatch
+		) {
+			const batch = threadIds.slice(
+				start,
+				start + THREAD_PARTICIPANTS.repairBatch,
+			);
+			await this.participants.settle(
+				await this.participants.linkThreads(batch, context),
+			);
+		}
+
 		const stale = await this.db.threadInsight.findMany({
-			where: {
-				threadId: {
-					in: [...new Set(wrong.map((message) => message.threadId))],
-				},
-			},
+			where: { threadId: { in: threadIds } },
 			select: { threadId: true },
 		});
 		for (const { threadId } of stale) {

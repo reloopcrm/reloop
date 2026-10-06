@@ -11,6 +11,7 @@ import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
 import { ConversionService } from "../src/currency/conversion.service";
 import { FieldsService } from "../src/fields/fields.service";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import { withDiscardedCrmEvents } from "./agent-trigger.stub";
 
 const suffix = process.env.TEST_RUN_ID ?? "record-delete-spec";
@@ -37,6 +38,8 @@ const queue = new AgentQueueService(db);
 const conversion = new ConversionService(db);
 
 const fields = new FieldsService(db, agent);
+const match = new MailboxMatchService(db, directory, agent, log);
+const participants = new ThreadParticipantsService(db, match, stamp);
 const contacts = new ContactsService(
 	db,
 	directory,
@@ -44,6 +47,7 @@ const contacts = new ContactsService(
 	queue,
 	stamp,
 	fields,
+	participants,
 );
 const companies = new CompaniesService(
 	db,
@@ -54,7 +58,6 @@ const companies = new CompaniesService(
 	conversion,
 	fields,
 );
-const match = new MailboxMatchService(db, directory, agent, log);
 
 async function matchContext() {
 	const internal = await match.internalIdentity();

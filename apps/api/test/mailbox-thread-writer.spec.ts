@@ -5,6 +5,7 @@ import { CompanyDirectoryService } from "../src/companies/company-directory.serv
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import {
 	type IncomingMessage,
 	ThreadWriterService,
@@ -31,7 +32,8 @@ const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const threads = new ThreadWriterService(db, match, stamp, agent);
+const participants = new ThreadParticipantsService(db, match, stamp);
+const threads = new ThreadWriterService(db, match, stamp, agent, participants);
 
 let row: MailboxSync;
 

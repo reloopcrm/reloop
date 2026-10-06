@@ -25,6 +25,7 @@ import {
 	countMailboxes,
 	SyncStateService,
 } from "../src/mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import type { ThreadWriterService } from "../src/mailbox/thread-writer.service";
 import type { GraphClient } from "../src/microsoft/graph.client";
 import { MicrosoftConnectionService } from "../src/microsoft/microsoft-connection.service";
@@ -46,8 +47,22 @@ const match = new MailboxMatchService(
 	agent,
 	new EnrichmentLogService(db, stamp),
 );
-const microsoft = new MicrosoftConnectionService(db, tokens, state, stamp);
-const google = new GoogleConnectionService(db, tokens, state, match, stamp);
+const participants = new ThreadParticipantsService(db, match, stamp);
+const microsoft = new MicrosoftConnectionService(
+	db,
+	tokens,
+	state,
+	stamp,
+	participants,
+);
+const google = new GoogleConnectionService(
+	db,
+	tokens,
+	state,
+	match,
+	stamp,
+	participants,
+);
 const outlook = new OutlookSyncService(
 	db,
 	{} as GraphClient,

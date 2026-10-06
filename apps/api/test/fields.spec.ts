@@ -18,6 +18,8 @@ import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { ConversionService } from "../src/currency/conversion.service";
 import { DealsService } from "../src/deals/deals.service";
 import { FieldsService } from "../src/fields/fields.service";
+import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import { withDiscardedCrmEvents } from "./agent-trigger.stub";
 
 const suffix = process.env.TEST_RUN_ID ?? "fields-spec";
@@ -61,6 +63,11 @@ const companies = new CompaniesService(
 	conversion,
 	fields,
 );
+const participants = new ThreadParticipantsService(
+	db,
+	new MailboxMatchService(db, {} as never, {} as never, {} as never),
+	stamp,
+);
 const contacts = new ContactsService(
 	db,
 	new CompanyDirectoryService(agent),
@@ -68,6 +75,7 @@ const contacts = new ContactsService(
 	queue,
 	stamp,
 	fields,
+	participants,
 );
 const deals = new DealsService(db, agent, stamp, conversion, fields);
 

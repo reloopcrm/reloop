@@ -16,6 +16,13 @@ export const THREAD_CONTACTS = {
 	previewBudgetMs: 30 * MINUTE_MS,
 } as const;
 
+export const THREAD_PARTICIPANTS = {
+	backfillBatch: 200,
+	contactBatch: 100,
+	repairBatch: 100,
+	scriptBudgetMs: 60 * MINUTE_MS,
+} as const;
+
 export const DIRECTION = {
 	repairBatch: 500,
 } as const;

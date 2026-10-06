@@ -13,6 +13,7 @@ import {
 	REACTIVATION,
 	readReactivationCandidate,
 } from "@crm/db/reactivation";
+import { threadsOfContact } from "@crm/db/thread-participants";
 import {
 	isAgentFunctionEnabled,
 	readAgentFunctions,
@@ -113,7 +114,7 @@ export class WinBackPersonService {
 		}
 		if (!candidate) throw new NotFoundException(NO_MAIL);
 
-		const where = { thread: { contactId } };
+		const where = { thread: threadsOfContact(contactId) };
 		const [newestMails, mailCount, ticks, orders, insights, newest] =
 			await Promise.all([
 				this.db.emailMessage.findMany({
@@ -141,7 +142,7 @@ export class WinBackPersonService {
 					select: { name: true, closedAt: true, stageChangedAt: true },
 				}),
 				this.db.threadInsight.findMany({
-					where: { thread: { contactId } },
+					where: { thread: threadsOfContact(contactId) },
 					select: {
 						threadId: true,
 						evidence: true,
@@ -153,7 +154,7 @@ export class WinBackPersonService {
 					},
 				}),
 				this.db.emailThread.aggregate({
-					where: { contactId },
+					where: threadsOfContact(contactId),
 					_max: { lastMessageAt: true },
 				}),
 			]);
@@ -454,7 +455,7 @@ export class WinBackPersonService {
 		if (missing.length === 0) return [...known];
 
 		const found = await this.db.emailMessage.findMany({
-			where: { id: { in: missing }, thread: { contactId } },
+			where: { id: { in: missing }, thread: threadsOfContact(contactId) },
 			select: { id: true },
 		});
 		return [...known, ...found.map((row) => row.id)];

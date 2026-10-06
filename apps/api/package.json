@@ -16,6 +16,7 @@
 		"set-password": "bun scripts/set-password.ts",
 		"refresh-summaries": "bun scripts/refresh-summaries.ts",
 		"thread-contacts": "bun scripts/thread-contacts.ts",
+		"thread-participants": "bun scripts/thread-participants.ts",
 		"lint": "biome check .",
 		"postinstall": "node scripts/chmod-trpc-binary.mjs",
 		"start": "bun run build && bun run start:prod",

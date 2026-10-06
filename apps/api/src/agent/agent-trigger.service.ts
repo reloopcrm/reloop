@@ -77,6 +77,8 @@ const TENANT_HEADER = "x-reloop-tenant";
 const REFRESH_KIND = "thread-refresh";
 const REFRESH_REASON =
 	"A summary was written in another language than the workspace's";
+const MEMORY_REASON =
+	"A person in this conversation has no contact summary yet";
 
 const STORY_OPENED_REASON = "A rep opened this person in Win back";
 const STORY_REREAD_REASON = "A rep said the win back story is wrong";
@@ -246,6 +248,24 @@ export class AgentTriggerService {
 				payload: { path: [AGENT_TASK_THREAD_ID_KEY], equals: threadId },
 			},
 			data: { priority },
+		});
+	}
+
+	async contactMemoryRequested(threadId: string): Promise<boolean> {
+		if (isSampleRecordId(threadId)) return false;
+
+		return this.enqueue({
+			kind: REFRESH_KIND,
+			reason: MEMORY_REASON,
+			priority: PRIORITY.threadInsightBackfill,
+			budget: 1,
+			payload: {
+				threadId,
+				origin: "backfill",
+				memoryOnly: true,
+			} satisfies AgentTaskThreadPayload,
+			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
+			origin: "backfill",
 		});
 	}
 

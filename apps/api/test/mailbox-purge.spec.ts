@@ -13,6 +13,7 @@ import {
 import type { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import { MicrosoftConnectionService } from "../src/microsoft/microsoft-connection.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "mailbox-purge-spec";
@@ -32,14 +33,28 @@ const tokens = new MailboxTokenService(db);
 const state = new SyncStateService(db);
 const stamp = new ActivityStampService(db);
 
+const match = {
+	internalIdentity: async () => ({ addresses: new Set(), domains: new Set() }),
+	suppressedDomains: async () => new Set(),
+	suppressedEmails: async () => new Set(),
+} as unknown as MailboxMatchService;
+const participants = new ThreadParticipantsService(db, match, stamp);
+
 const google = new GoogleConnectionService(
 	db,
 	tokens,
 	state,
-	{} as unknown as MailboxMatchService,
+	match,
 	stamp,
+	participants,
 );
-const microsoft = new MicrosoftConnectionService(db, tokens, state, stamp);
+const microsoft = new MicrosoftConnectionService(
+	db,
+	tokens,
+	state,
+	stamp,
+	participants,
+);
 
 function at(hour: number): Date {
 	return new Date(Date.UTC(2026, 0, 1, hour));

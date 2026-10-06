@@ -36,6 +36,7 @@ import {
 	queueIdentifyAgain,
 	queuePlaybookLearn,
 	queueUnreadThreads,
+	releaseArchivedClaims,
 } from "./housekeeping";
 import { skippedByPrecheck } from "./identify-precheck";
 import {
@@ -578,7 +579,9 @@ export async function runResearchLane(
 	);
 	if (claimed.length === 0) return 0;
 
-	const tasks = await withinResearchBudget(claimed);
+	const tasks = await withinResearchBudget(
+		await releaseArchivedClaims(claimed),
+	);
 	if (tasks.length === 0) return 0;
 
 	const blocked = await modelUnavailable();

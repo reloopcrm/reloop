@@ -4,10 +4,13 @@ import { cloud } from "@crm/db/cloud/scope";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
+import {
+	budgetTasksWhere,
+	planLimitsOf,
+	usageWindowOf,
+} from "@crm/db/plan-usage";
 import {
 	allowsCompanyResearch,
-	budgetKinds,
 	forwardReserve,
 	keepsReserve,
 	monthlyBudget,
@@ -469,12 +472,7 @@ export class AgentTriggerService {
 
 	private async storyBudgetUsed(tx: Prisma.TransactionClient): Promise<number> {
 		const { since } = await usageWindowOf(this.db);
-		return tx.agentTask.count({
-			where: {
-				kind: { in: budgetKinds(STORY_KIND) },
-				createdAt: { gte: since },
-			},
-		});
+		return tx.agentTask.count({ where: budgetTasksWhere(STORY_KIND, since) });
 	}
 
 	async usageProbeRequested(): Promise<boolean> {
@@ -897,7 +895,7 @@ export class AgentTriggerService {
 
 		const { since } = await usageWindowOf(this.db);
 		const used = await this.db.agentTask.count({
-			where: { kind: { in: budgetKinds(kind) }, createdAt: { gte: since } },
+			where: budgetTasksWhere(kind, since),
 		});
 
 		if (used < ceiling) return true;

@@ -26,7 +26,7 @@ export class TrackingCounterService {
 			return charged.length > 0;
 		} catch (error) {
 			this.logger.error(
-				{ message: "Tracking counter could not be read — refusing the write" },
+				{ message: "Tracking counter could not be read. Refusing the write" },
 				error instanceof Error ? error.stack : String(error),
 			);
 

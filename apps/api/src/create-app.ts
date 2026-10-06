@@ -106,9 +106,9 @@ export async function createApp(): Promise<NestExpressApplication> {
 				const { appRouter } = app.get(AppRouterHost);
 
 				const trpcDocument = generateOpenApiDocument(appRouter, {
-					title: "CRM API — tRPC bridge",
+					title: "CRM API: tRPC bridge",
 					description:
-						"Every tRPC procedure, reachable over REST for tooling that cannot speak tRPC. Same validation, same middlewares, same services as the tRPC transport — this only translates the wire format.",
+						"Every tRPC procedure, reachable over REST for tooling that cannot speak tRPC. Same validation, same middlewares, same services as the tRPC transport. This only translates the wire format.",
 					version: "1.0",
 					baseUrl: `${apiUrl}${REST.bridge.baseUrl}`,
 					securitySchemes: { apiKey: apiKeySecurityScheme },

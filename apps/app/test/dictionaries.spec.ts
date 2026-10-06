@@ -302,3 +302,32 @@ it("translates every fixed API exception in every language", async () => {
 		"Unknown vendor failure",
 	);
 });
+
+it("writes no dash in any text the API source holds", async () => {
+	const root = fileURLToPath(new URL("../../api/src/", import.meta.url));
+	const guilty: string[] = [];
+
+	for await (const path of new Bun.Glob("**/*.ts").scan(root)) {
+		const source = ts.createSourceFile(
+			path,
+			await Bun.file(`${root}/${path}`).text(),
+			ts.ScriptTarget.Latest,
+			true,
+		);
+		const visit = (node: ts.Node): void => {
+			if (
+				(ts.isStringLiteral(node) ||
+					ts.isNoSubstitutionTemplateLiteral(node) ||
+					ts.isTemplateHead(node) ||
+					ts.isTemplateMiddle(node) ||
+					ts.isTemplateTail(node)) &&
+				DASHES.test(node.text)
+			)
+				guilty.push(`${path}: ${node.text.slice(0, 80)}`);
+			ts.forEachChild(node, visit);
+		};
+		visit(source);
+	}
+
+	expect(guilty).toEqual([]);
+});

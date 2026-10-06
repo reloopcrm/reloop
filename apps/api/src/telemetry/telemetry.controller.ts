@@ -60,7 +60,7 @@ export class TelemetryController {
 	private async run(authorization?: string) {
 		if (!this.secret) {
 			this.logger.error({
-				message: "CRON_SECRET is not set — refusing to run the rollup route.",
+				message: "CRON_SECRET is not set. Refusing to run the rollup route.",
 			});
 			throw new ServiceUnavailableException("Telemetry is not configured.");
 		}

@@ -77,7 +77,7 @@ export class SyncController {
 	private async run(authorization?: string) {
 		if (!this.secret) {
 			this.logger.error({
-				message: "CRON_SECRET is not set — refusing to run the sync route.",
+				message: "CRON_SECRET is not set. Refusing to run the sync route.",
 			});
 			throw new ServiceUnavailableException("Sync is not configured.");
 		}

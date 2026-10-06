@@ -48,7 +48,7 @@ export class EnvironmentVariables {
 	@IsString()
 	@MinLength(1, {
 		message:
-			'ALLOWED_SIGN_IN is required — it is the only thing deciding who can sign in. Set it to your email domain, e.g. ALLOWED_SIGN_IN="acme.com", or to a single address for a one-person install.',
+			'ALLOWED_SIGN_IN is required. It is the only thing deciding who can sign in. Set it to your email domain, e.g. ALLOWED_SIGN_IN="acme.com", or to a single address for a one-person install.',
 	})
 	ALLOWED_SIGN_IN?: string;
 

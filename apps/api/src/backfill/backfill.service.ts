@@ -252,6 +252,7 @@ export class BackfillService implements OnModuleInit {
 	private companiesNeedingBrand(): Prisma.CompanyWhereInput {
 		return {
 			...NOT_SAMPLE_RECORD,
+			archivedAt: null,
 			domain: { not: null },
 			enrichmentStatus: NEVER_SUCCEEDED,
 		};
@@ -271,6 +272,7 @@ export class BackfillService implements OnModuleInit {
 
 		const where: Prisma.CompanyWhereInput = {
 			...NOT_SAMPLE_RECORD,
+			archivedAt: null,
 			domain: { not: null },
 			logoUrl: null,
 			iconUrl: null,
@@ -311,6 +313,7 @@ export class BackfillService implements OnModuleInit {
 
 		const where: Prisma.ContactWhereInput = {
 			...NOT_SAMPLE_RECORD,
+			archivedAt: null,
 			imageUrl: null,
 			githubUrl: { not: null },
 		};
@@ -322,6 +325,10 @@ export class BackfillService implements OnModuleInit {
 	}
 
 	private contactsNeverResearched(): Prisma.ContactWhereInput {
-		return { ...NOT_SAMPLE_RECORD, enrichmentStatus: NEVER_SUCCEEDED };
+		return {
+			...NOT_SAMPLE_RECORD,
+			archivedAt: null,
+			enrichmentStatus: NEVER_SUCCEEDED,
+		};
 	}
 }

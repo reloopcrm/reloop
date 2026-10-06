@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, RecordSource } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
-import { usageWindowOf } from "@crm/db/plan-usage";
+import { budgetTasksWhere, usageWindowOf } from "@crm/db/plan-usage";
 import { forwardReserve, INSIGHT_KIND, PLANS, STORY_KIND } from "@crm/db/plans";
 import type { ReactivationGroup } from "@crm/db/reactivation";
 import { readPlan, writePlan } from "@crm/db/settings";
@@ -234,6 +234,7 @@ async function fill(count: number): Promise<void> {
 			priority: 0,
 			budget: 1,
 			dueAt: new Date(),
+			startedAt: new Date(),
 			finishedAt: new Date(),
 		})),
 	});
@@ -241,12 +242,7 @@ async function fill(count: number): Promise<void> {
 
 async function used(): Promise<number> {
 	const { since } = await usageWindowOf(db);
-	return db.agentTask.count({
-		where: {
-			kind: { in: [INSIGHT_KIND, STORY_KIND] },
-			createdAt: { gte: since },
-		},
-	});
+	return db.agentTask.count({ where: budgetTasksWhere(STORY_KIND, since) });
 }
 
 async function clean(): Promise<void> {

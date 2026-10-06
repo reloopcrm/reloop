@@ -14,5 +14,5 @@ export const AGENT_DISPATCH = {
 	fieldBackfill: { concurrency: 8 },
 	businessSetup: { askAgainAfterMs: 24 * HOUR_MS },
 	chatgptLogin: { timeoutMs: 20 * SECOND_MS },
-	summaryRefresh: { scriptBudgetMs: 30 * MINUTE_MS },
+	summaryRefresh: { scriptBudgetMs: 30 * MINUTE_MS, pageSize: 500 },
 } as const;

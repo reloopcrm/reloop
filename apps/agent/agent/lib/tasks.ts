@@ -160,6 +160,21 @@ export async function completeTask(
 	});
 }
 
+export async function closeUncounted(
+	task: Pick<LeasedTask, "id" | "attempts">,
+	outcome: string,
+): Promise<void> {
+	await db.agentTask.updateMany({
+		where: { id: task.id, finishedAt: null },
+		data: {
+			finishedAt: new Date(),
+			outcome: outcome.slice(0, 500),
+			startedAt: task.attempts <= 1 ? null : undefined,
+			attempts: { decrement: 1 },
+		},
+	});
+}
+
 export async function taskSubject(taskId: string): Promise<TaskSubject | null> {
 	return db.agentTask.findUnique({
 		where: { id: taskId },

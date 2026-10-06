@@ -15,7 +15,7 @@ import {
 import { countGate, countGateFailure } from "./jev-meter";
 import { say } from "./language";
 import { isDerivedName } from "./names";
-import type { LeasedTask } from "./tasks";
+import { closeUncounted, type LeasedTask } from "./tasks";
 
 export const IDENTIFY_KIND = "identify";
 
@@ -189,15 +189,7 @@ export async function finishSkipped(
 	if (verdict === "filled") await settle(task, EnrichmentStatus.COMPLETE);
 	else await settle(task, EnrichmentStatus.SKIPPED, outcome);
 
-	await db.agentTask.updateMany({
-		where: { id: task.id, finishedAt: null },
-		data: {
-			finishedAt: new Date(),
-			outcome: outcome.slice(0, 500),
-			startedAt: null,
-			attempts: { decrement: 1 },
-		},
-	});
+	await closeUncounted(task, outcome);
 }
 
 export async function skippedByPrecheck(

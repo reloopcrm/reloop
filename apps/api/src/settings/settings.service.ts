@@ -19,6 +19,7 @@ import { cloud } from "@crm/db/cloud/scope";
 import { DEAL_STAGES } from "@crm/db/deal-stage";
 import { readModelSpend } from "@crm/db/model-spend";
 import {
+	budgetTasksWhere,
 	fixedAiWith,
 	planIdOf,
 	planLimitsOf,
@@ -27,7 +28,6 @@ import {
 	usageWindowOf,
 } from "@crm/db/plan-usage";
 import {
-	budgetKinds,
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	isPlanId,
@@ -226,9 +226,7 @@ export class SettingsService {
 		]);
 		const { since } = await usageWindowOf(this.db);
 		const usedThisMonth = (kind: string) =>
-			this.db.agentTask.count({
-				where: { kind: { in: budgetKinds(kind) }, createdAt: { gte: since } },
-			});
+			this.db.agentTask.count({ where: budgetTasksWhere(kind, since) });
 
 		const [{ contacts, mailboxes }, insightsThisMonth, draftsThisMonth] =
 			await Promise.all([

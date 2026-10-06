@@ -1,13 +1,12 @@
 import { type Db, DealStage } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import type { InsightOutcome } from "@crm/db/insights";
-import { planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
 import {
-	budgetKinds,
-	forwardReserve,
-	monthlyBudget,
-	STORY_KIND,
-} from "@crm/db/plans";
+	budgetTasksWhere,
+	planLimitsOf,
+	usageWindowOf,
+} from "@crm/db/plan-usage";
+import { forwardReserve, monthlyBudget, STORY_KIND } from "@crm/db/plans";
 import {
 	listReactivationCandidates,
 	REACTIVATION,
@@ -400,10 +399,7 @@ export class WinBackPersonService {
 
 		const { since, until } = await usageWindowOf(this.db);
 		const used = await this.db.agentTask.count({
-			where: {
-				kind: { in: budgetKinds(STORY_KIND) },
-				createdAt: { gte: since },
-			},
+			where: budgetTasksWhere(STORY_KIND, since),
 		});
 		return used >= budget - forwardReserve(STORY_KIND, limits)
 			? until.toISOString()

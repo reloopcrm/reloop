@@ -35,6 +35,22 @@ row is `companyRequested`, behind the Research and Re-enrich buttons on the comp
 sheet and the bulk enrich action. The plan gate (`companyResearch`,
 `@crm/db/plans`) still refuses it through `enqueue`.
 
+**Contact research runs for every new contact and never for an archived one.**
+`contactCreated` queues `identify` for each contact the mailbox sync creates, named
+or not: `contactWithoutCompany` in `ThreadWriterService` and
+`MailboxMatchService.addCompanyContact` alike. A contact the sync meets again is
+queued only while its name still comes from the address. `store` asks `resolve`
+with `deferResearch` and calls `queueResearch` after its transaction commits, so the
+pre-check counts the mail that created the contact. `adopt`, `contactWithoutCompany`
+and `ThreadContactsService` work on mail that is already stored and queue at once. The gates stay in
+`enqueue`: sample data, the Functions switch and the plan. The agent's pre-check
+then decides if the research runs. The sign-in backfill (`BackfillService`) takes
+the 500 oldest `PENDING` or `FAILED` contacts for `identify`, and every query of the
+backfill (`identify`, `portrait`, `brand`) has `archivedAt: null`. An archived row
+never takes a place of the pass. A task that finished without ever starting never
+counts against a monthly limit: `planAllows` and every other budget count use
+`budgetTasksWhere` (`@crm/db/plan-usage`).
+
 About to add a vendor client to `apps/api`? You want `apps/agent/agent/lib`. One
 documented exception, for timing: the exchange-rate fetcher, below.
 

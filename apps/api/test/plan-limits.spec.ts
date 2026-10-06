@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { GMAIL_SCOPE, GOOGLE_PROVIDER_ID } from "@crm/auth";
 import { db } from "@crm/db";
+import { budgetTasksWhere } from "@crm/db/plan-usage";
 import {
 	DRAFT_KIND,
 	forwardReserve,
@@ -60,7 +61,7 @@ describe("plan limits in the API", () => {
 		await writePlan(db, "trial");
 		const budget = PLANS.trial.draftsPerMonth;
 		const used = await db.agentTask.count({
-			where: { kind: DRAFT_KIND, createdAt: { gte: startOfMonth() } },
+			where: budgetTasksWhere(DRAFT_KIND, startOfMonth()),
 		});
 		const remaining = Math.max(0, budget - used);
 
@@ -88,7 +89,7 @@ describe("plan limits in the API", () => {
 		const budget = PLANS.start.insightsPerMonth;
 		const ceiling = budget - forwardReserve(INSIGHT_KIND, PLANS.start);
 		const used = await db.agentTask.count({
-			where: { kind: INSIGHT_KIND, createdAt: { gte: startOfMonth() } },
+			where: budgetTasksWhere(INSIGHT_KIND, startOfMonth()),
 		});
 		expect(used).toBeLessThan(budget);
 
@@ -99,6 +100,7 @@ describe("plan limits in the API", () => {
 				priority: 0,
 				budget: 1,
 				dueAt: new Date(),
+				startedAt: new Date(),
 				finishedAt: new Date(),
 			})),
 		});

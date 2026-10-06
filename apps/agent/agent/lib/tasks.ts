@@ -1,5 +1,6 @@
 import { db, type Prisma } from "@crm/db";
 import { MAX_ATTEMPTS, RETIRED_OUTCOME } from "@crm/db/agent-tasks";
+import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { isSampleRecordId, SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
 import {
 	isTaskKindEnabled,
@@ -208,6 +209,7 @@ export async function scheduleTask(input: {
 	dueAt: Date;
 	priority?: number;
 	budget?: number;
+	subject?: { path: string[]; value: string };
 }): Promise<{ id: string } | null> {
 	if (
 		isSampleRecordId(input.contactId) ||
@@ -219,38 +221,48 @@ export async function scheduleTask(input: {
 
 	if (!(await taskKindEnabled(input.kind))) return null;
 
-	const existing = await db.agentTask.findFirst({
-		where: {
-			kind: input.kind,
-			finishedAt: null,
-			contactId: input.contactId ?? undefined,
-			companyId: input.companyId ?? undefined,
-			dealId: input.dealId ?? undefined,
-		},
-		select: { id: true },
-	});
+	return db.$transaction(async (tx) => {
+		await lockIdempotencyKey(
+			tx,
+			`agent-task:${input.kind}:${input.contactId ?? ""}:${input.companyId ?? ""}:${input.subject?.value ?? ""}`,
+		);
 
-	if (existing) {
-		await db.agentTask.update({
-			where: { id: existing.id },
-			data: { dueAt: input.dueAt, reason: input.reason },
+		const existing = await tx.agentTask.findFirst({
+			where: {
+				kind: input.kind,
+				finishedAt: null,
+				contactId: input.contactId ?? undefined,
+				companyId: input.companyId ?? undefined,
+				dealId: input.dealId ?? undefined,
+				payload: input.subject
+					? { path: input.subject.path, equals: input.subject.value }
+					: undefined,
+			},
+			select: { id: true },
 		});
-		return existing;
-	}
 
-	return db.agentTask.create({
-		data: {
-			contactId: input.contactId ?? null,
-			companyId: input.companyId ?? null,
-			dealId: input.dealId ?? null,
-			kind: input.kind,
-			reason: input.reason,
-			payload: input.payload ?? undefined,
-			dueAt: input.dueAt,
-			priority: input.priority ?? 0,
-			budget: input.budget ?? 4,
-		},
-		select: { id: true },
+		if (existing) {
+			await tx.agentTask.update({
+				where: { id: existing.id },
+				data: { dueAt: input.dueAt, reason: input.reason },
+			});
+			return existing;
+		}
+
+		return tx.agentTask.create({
+			data: {
+				contactId: input.contactId ?? null,
+				companyId: input.companyId ?? null,
+				dealId: input.dealId ?? null,
+				kind: input.kind,
+				reason: input.reason,
+				payload: input.payload ?? undefined,
+				dueAt: input.dueAt,
+				priority: input.priority ?? 0,
+				budget: input.budget ?? 4,
+			},
+			select: { id: true },
+		});
 	});
 }
 

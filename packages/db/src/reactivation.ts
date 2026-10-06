@@ -332,34 +332,16 @@ export async function listReactivationCandidates(
 		quietForDays > 0
 			? Prisma.sql`AND mail.last_contact <= ${cutoff}`
 			: Prisma.empty;
-	const topicFilter = rules.include.requireTopic
-		? Prisma.sql`AND mem."didBusiness" IS NOT NULL AND array_length(mem."coveredThreadIds", 1) > 0`
-		: Prisma.empty;
 	const ownerFilter = options.ownerId
 		? Prisma.sql`AND c."ownerId" = ${options.ownerId}`
 		: Prisma.empty;
-	const repliedFilter = rules.include.neverReplied
-		? Prisma.empty
-		: Prisma.sql`AND mail.from_us > 0`;
-	const companyFilter = rules.include.requireCompany
-		? Prisma.sql`AND co.id IS NOT NULL`
-		: Prisma.empty;
-	const excluded = rules.excludedDomains.map((domain) => domain.toLowerCase());
-	const domainFilter =
-		excluded.length > 0
-			? Prisma.sql`AND (c.email IS NULL OR split_part(lower(c.email), '@', 2) NOT IN (${Prisma.join(excluded)}))`
-			: Prisma.empty;
+	const includeFilter = options.rejected ? Prisma.empty : ruleFilter(rules);
 
 	const rows = await db.$queryRaw<Row[]>(
 		rowQuery(
 			Prisma.sql`${standingFilter}
 			${quietFilter}
-			${topicFilter}
-			AND (mail.from_us + mail.from_them) >= ${rules.include.minEmails}
-			AND mail.from_them >= ${rules.include.minFromThem}
-			${repliedFilter}
-			${companyFilter}
-			${domainFilter}
+			${includeFilter}
 			${ownerFilter}`,
 			REACTIVATION.scan.maxRows,
 		),
@@ -367,7 +349,7 @@ export async function listReactivationCandidates(
 
 	const scored = rows
 		.map((row) => candidateOf(row, now, rules))
-		.filter((candidate) => passesRules(candidate, rules))
+		.filter((candidate) => options.rejected || passesRules(candidate, rules))
 		.sort(
 			(a, b) =>
 				b.points - a.points ||
@@ -391,6 +373,30 @@ export async function listReactivationCandidates(
 		generatedAt: now,
 		rules,
 	};
+}
+
+function ruleFilter(rules: WinBackRuleSet): Prisma.Sql {
+	const topicFilter = rules.include.requireTopic
+		? Prisma.sql`AND mem."didBusiness" IS NOT NULL AND array_length(mem."coveredThreadIds", 1) > 0`
+		: Prisma.empty;
+	const repliedFilter = rules.include.neverReplied
+		? Prisma.empty
+		: Prisma.sql`AND mail.from_us > 0`;
+	const companyFilter = rules.include.requireCompany
+		? Prisma.sql`AND co.id IS NOT NULL`
+		: Prisma.empty;
+	const excluded = rules.excludedDomains.map((domain) => domain.toLowerCase());
+	const domainFilter =
+		excluded.length > 0
+			? Prisma.sql`AND (c.email IS NULL OR split_part(lower(c.email), '@', 2) NOT IN (${Prisma.join(excluded)}))`
+			: Prisma.empty;
+
+	return Prisma.sql`${topicFilter}
+		AND (mail.from_us + mail.from_them) >= ${rules.include.minEmails}
+		AND mail.from_them >= ${rules.include.minFromThem}
+		${repliedFilter}
+		${companyFilter}
+		${domainFilter}`;
 }
 
 function asBand(value: string | null): ReactivationBand | null {

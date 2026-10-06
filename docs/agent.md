@@ -504,8 +504,9 @@ that fails logs and the turn runs without them.
 
 ### Backfills
 
-Sign-in sweep covers records never looked up with a `brand` row only (one homepage
-fetch and one small model call per company, no vendor credits, no research session);
+Sign-in sweep queues `brand` for companies never looked up (one homepage fetch and
+one small model call per company, no vendor credits, no research session), and
+`identify` and `portrait` for contacts;
 `ImageMirrorService` in the same sweep re-hosts off-site pictures (free);
 `backfill:images` fixes enriched records missing only pictures (free);
 `backfill:facts` is the blank-field sweep above run by hand, with `--dry` to read it

@@ -34,6 +34,7 @@ const refreshed: string[] = [];
 const agent = {
 	summaryRefreshRequested: async (threadId: string) => {
 		refreshed.push(threadId);
+		return threadId !== threads.tagged;
 	},
 } as unknown as AgentTriggerService;
 
@@ -172,7 +173,7 @@ describe("the summary language catch-up", () => {
 		expect(result).toEqual({
 			markedInsights: 1,
 			markedMemories: 1,
-			queued: 4,
+			queued: 3,
 		});
 		const german = await db.threadInsight.findUniqueOrThrow({
 			where: { threadId: threads.german },

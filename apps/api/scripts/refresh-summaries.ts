@@ -54,7 +54,7 @@ async function main(): Promise<void> {
 
 		const result = await applySummaryCatchUp(db, agent, plan);
 		console.log(
-			`${workspace}: set the language on ${result.markedInsights} thread summaries and ${result.markedMemories} contact memories. Queued ${result.queued} refreshes at the backfill priority.`,
+			`${workspace}: set the language on ${result.markedInsights} thread summaries and ${result.markedMemories} contact memories. Queued ${result.queued} new refreshes at the backfill priority. The other threads already had one waiting, or the Functions switch refused it.`,
 		);
 		return result.queued;
 	};

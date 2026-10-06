@@ -217,13 +217,10 @@ export async function applySummaryCatchUp(
 		markedMemories += count;
 	}
 
+	let queued = 0;
 	for (const threadId of plan.refreshThreads) {
-		await agent.summaryRefreshRequested(threadId, "backfill");
+		if (await agent.summaryRefreshRequested(threadId, "backfill")) queued += 1;
 	}
 
-	return {
-		markedInsights,
-		markedMemories,
-		queued: plan.refreshThreads.length,
-	};
+	return { markedInsights, markedMemories, queued };
 }

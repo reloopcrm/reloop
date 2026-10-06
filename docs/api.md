@@ -39,7 +39,10 @@ sheet and the bulk enrich action. The plan gate (`companyResearch`,
 `contactCreated` queues `identify` for each contact the mailbox sync creates, named
 or not: `contactWithoutCompany` in `ThreadWriterService` and
 `MailboxMatchService.addCompanyContact` alike. A contact the sync meets again is
-queued only while its name still comes from the address. The gates stay in
+queued only while its name still comes from the address. `store` asks `resolve`
+with `deferResearch` and calls `queueResearch` after its transaction commits, so the
+pre-check counts the mail that created the contact. `adopt`, `contactWithoutCompany`
+and `ThreadContactsService` work on mail that is already stored and queue at once. The gates stay in
 `enqueue`: sample data, the Functions switch and the plan. The agent's pre-check
 then decides if the research runs. The sign-in backfill (`BackfillService`) takes
 the 500 oldest `PENDING` or `FAILED` contacts for `identify`, and every query of the

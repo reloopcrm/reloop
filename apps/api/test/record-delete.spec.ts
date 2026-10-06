@@ -39,7 +39,7 @@ const conversion = new ConversionService(db);
 
 const fields = new FieldsService(db, agent);
 const match = new MailboxMatchService(db, directory, agent, log);
-const participants = new ThreadParticipantsService(db, match, stamp);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
 const contacts = new ContactsService(
 	db,
 	directory,

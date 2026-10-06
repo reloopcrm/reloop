@@ -47,7 +47,7 @@ const match = new MailboxMatchService(
 	agent,
 	new EnrichmentLogService(db, stamp),
 );
-const participants = new ThreadParticipantsService(db, match, stamp);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
 const microsoft = new MicrosoftConnectionService(
 	db,
 	tokens,

@@ -20,6 +20,8 @@ export const THREAD_PARTICIPANTS = {
 	backfillBatch: 200,
 	contactBatch: 100,
 	repairBatch: 100,
+	insertChunk: 500,
+	transactionTimeoutMs: MINUTE_MS,
 	scriptBudgetMs: 60 * MINUTE_MS,
 } as const;
 

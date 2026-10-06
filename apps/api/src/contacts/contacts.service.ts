@@ -314,6 +314,7 @@ export class ContactsService {
 		const relationship = await this.relationship(
 			id,
 			contact.company?.id ?? null,
+			contact.email,
 		);
 
 		const { deals, createdAt, archivedAt, brief, facts, company, ...rest } =
@@ -747,18 +748,34 @@ export class ContactsService {
 		});
 	}
 
-	private async relationship(contactId: string, companyId: string | null) {
+	private async relationship(
+		contactId: string,
+		companyId: string | null,
+		email: string | null,
+	) {
 		const now = new Date();
+		const address = email?.trim().toLowerCase() || null;
+		const fromThem: Prisma.EmailMessageWhereInput = address
+			? { direction: "INBOUND", fromEmail: address }
+			: { direction: "INBOUND", thread: { contactId } };
+		const toThem: Prisma.EmailMessageWhereInput = address
+			? {
+					direction: "OUTBOUND",
+					recipients: { array_contains: [{ email: address }] },
+				}
+			: { direction: "OUTBOUND", thread: { contactId } };
 
-		const [threads, lastReply, meetings, nextMeeting, colleagues] =
+		const [threads, mails, lastReply, meetings, nextMeeting, colleagues] =
 			await Promise.all([
-				this.db.emailThread.aggregate({
-					where: threadsOfContact(contactId),
-					_sum: { messageCount: true },
-					_count: { _all: true },
+				this.db.emailThread.count({ where: threadsOfContact(contactId) }),
+				this.db.emailMessage.count({
+					where: {
+						thread: threadsOfContact(contactId),
+						OR: [fromThem, toThem],
+					},
 				}),
 				this.db.emailMessage.findFirst({
-					where: { thread: threadsOfContact(contactId), direction: "INBOUND" },
+					where: { thread: threadsOfContact(contactId), ...fromThem },
 					orderBy: { sentAt: "desc" },
 					select: { sentAt: true },
 				}),
@@ -791,8 +808,8 @@ export class ContactsService {
 			]);
 
 		return {
-			emails: threads._sum.messageCount ?? 0,
-			threads: threads._count._all,
+			emails: mails,
+			threads,
 			lastReplyAt: lastReply?.sentAt.toISOString() ?? null,
 			meetings,
 			nextMeeting: nextMeeting

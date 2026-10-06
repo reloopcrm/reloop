@@ -16,7 +16,14 @@ const staleThread = `summary-stale-${suffix}`;
 const freshThread = `summary-fresh-${suffix}`;
 const sampleThread = `${SAMPLE_DATA.prefix}summary-${suffix}`;
 const bulkThread = `summary-bulk-${suffix}`;
-const threads = [staleThread, freshThread, sampleThread, bulkThread];
+const memoryThread = `summary-memory-${suffix}`;
+const threads = [
+	staleThread,
+	freshThread,
+	sampleThread,
+	bulkThread,
+	memoryThread,
+];
 const service = new AgentTriggerService(db);
 let previousBridgeSecret: string | undefined;
 
@@ -51,6 +58,16 @@ function pending(threadId: string) {
 			payload: { path: [AGENT_TASK_THREAD_ID_KEY], equals: threadId },
 		},
 		select: { kind: true, priority: true },
+	});
+}
+
+function pendingPayloads(threadId: string) {
+	return db.agentTask.findMany({
+		where: {
+			finishedAt: null,
+			payload: { path: [AGENT_TASK_THREAD_ID_KEY], equals: threadId },
+		},
+		select: { priority: true, payload: true },
 	});
 }
 
@@ -92,6 +109,43 @@ describe("a summary in the wrong language is refreshed", () => {
 		await service.summaryRefreshNeeded(bulkThread, null);
 		expect(await pending(bulkThread)).toEqual([
 			{ kind: REFRESH_KIND, priority: PRIORITY.threadRefresh },
+		]);
+	});
+
+	it("turns a waiting memory-only task into a full refresh when one is asked for", async () => {
+		expect(await service.contactMemoryRequested(memoryThread)).toBe(true);
+		expect(await pendingPayloads(memoryThread)).toEqual([
+			{
+				priority: PRIORITY.threadInsightBackfill,
+				payload: {
+					threadId: memoryThread,
+					origin: "backfill",
+					memoryOnly: true,
+				},
+			},
+		]);
+
+		await service.summaryRefreshRequested(memoryThread, "backfill");
+		expect(await pendingPayloads(memoryThread)).toEqual([
+			{
+				priority: PRIORITY.threadInsightBackfill,
+				payload: expect.objectContaining({
+					threadId: memoryThread,
+					memoryOnly: false,
+				}),
+			},
+		]);
+
+		expect(await service.contactMemoryRequested(memoryThread)).toBe(false);
+		await service.summaryRefreshNeeded(memoryThread, null);
+		expect(await pendingPayloads(memoryThread)).toEqual([
+			{
+				priority: PRIORITY.threadRefresh,
+				payload: expect.objectContaining({
+					threadId: memoryThread,
+					memoryOnly: false,
+				}),
+			},
 		]);
 	});
 

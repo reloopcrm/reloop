@@ -238,7 +238,10 @@ export class AgentTriggerService {
 			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
 			origin,
 		});
-		if (created || origin === "backfill") return;
+		if (created) return;
+
+		await this.upgradeMemoryOnly(threadId);
+		if (origin === "backfill") return;
 
 		await this.db.agentTask.updateMany({
 			where: {
@@ -249,6 +252,29 @@ export class AgentTriggerService {
 			},
 			data: { priority },
 		});
+	}
+
+	private async upgradeMemoryOnly(threadId: string): Promise<void> {
+		const open = await this.db.agentTask.findMany({
+			where: {
+				kind: REFRESH_KIND,
+				finishedAt: null,
+				startedAt: null,
+				payload: { path: [AGENT_TASK_THREAD_ID_KEY], equals: threadId },
+			},
+			select: { id: true, payload: true },
+		});
+		for (const task of open) {
+			const payload = agentTaskThreadPayload.parse(task.payload);
+			if (!payload.memoryOnly) continue;
+			await this.db.agentTask.update({
+				where: { id: task.id },
+				data: {
+					reason: REFRESH_REASON,
+					payload: { ...payload, memoryOnly: false },
+				},
+			});
+		}
 	}
 
 	async contactMemoryRequested(threadId: string): Promise<boolean> {

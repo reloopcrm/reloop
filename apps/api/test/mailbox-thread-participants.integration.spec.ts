@@ -14,6 +14,7 @@ import { DEFAULT_WIN_BACK_RULES } from "@crm/db/win-back-rules";
 import { ActivitiesService } from "../src/activities/activities.service";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
+import { ContactsService } from "../src/contacts/contacts.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
@@ -32,21 +33,36 @@ const mailbox = `rep@${ownDomain}`;
 const colleague = `colleague@${ownDomain}`;
 const roleAddress = `info@${domain}`;
 
+const memoryRequests: string[] = [];
+
 const agent = {
 	contactCreated: async () => true,
 	companyCreated: async () => undefined,
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
 	threadStored: async () => undefined,
+	contactMemoryRequested: async (threadId: string) => {
+		memoryRequests.push(threadId);
+		return true;
+	},
 } as unknown as AgentTriggerService;
 
 const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const participants = new ThreadParticipantsService(db, match, stamp);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
 const threads = new ThreadWriterService(db, match, stamp, agent, participants);
 const activities = new ActivitiesService(db, stamp);
+const contacts = new ContactsService(
+	db,
+	directory,
+	agent,
+	{} as never,
+	stamp,
+	{} as never,
+	participants,
+);
 
 const rules = {
 	...DEFAULT_WIN_BACK_RULES,
@@ -257,8 +273,37 @@ describe("every person in a conversation is linked to it", () => {
 			now: at(30),
 		});
 		expect(candidate?.threads).toBe(1);
-		expect(candidate?.messagesFromThem).toBe(2);
+		expect(candidate?.messagesFromThem).toBe(1);
+		expect(candidate?.messagesFromUs).toBe(0);
+		expect(candidate?.lastInboundAt).toEqual(at(3));
 		expect(candidate?.lastSubject).toBe("Re: Angebot Paletten");
+
+		const anna = await db.contact.findFirstOrThrow({
+			where: { email: `anna@${domain}` },
+			select: { id: true },
+		});
+		const owner = await readReactivationCandidate(db, {
+			contactId: anna.id,
+			rules,
+			now: at(30),
+		});
+		expect(owner?.messagesFromThem).toBe(1);
+		expect(owner?.lastInboundAt).toEqual(at(2));
+
+		expect(
+			await contacts["relationship"](bert.id, companyId, `bert@${domain}`),
+		).toMatchObject({
+			emails: 1,
+			threads: 1,
+			lastReplyAt: at(3).toISOString(),
+		});
+		expect(
+			await contacts["relationship"](anna.id, companyId, `anna@${domain}`),
+		).toMatchObject({
+			emails: 1,
+			threads: 1,
+			lastReplyAt: at(2).toISOString(),
+		});
 
 		const attention = await readContactAttention(db, {
 			contactId: bert.id,
@@ -351,6 +396,7 @@ describe("every person in a conversation is linked to it", () => {
 		expect(before.participants).toEqual([]);
 
 		const dora = await contact("dora");
+		memoryRequests.length = 0;
 		expect(
 			await participants.linkContact(
 				dora.id,
@@ -358,6 +404,7 @@ describe("every person in a conversation is linked to it", () => {
 				await threads.context(mailbox),
 			),
 		).toBe(1);
+		expect(memoryRequests).toEqual([]);
 
 		const after = await threadByRoot(rootId);
 		expect(after.contactId).toBe(dora.id);
@@ -366,6 +413,25 @@ describe("every person in a conversation is linked to it", () => {
 			{ contactId: dora.id, role: "SENDER", firstAt: at(8), lastAt: at(9) },
 		]);
 		expect(await emailTimeline(dora.id)).toEqual([after.id]);
+	});
+
+	it("asks for a memory when a new contact is linked to a relevant thread", async () => {
+		const hans = await contact("hans");
+		const rootId = root("memory");
+		expect(await store(inbound(`hans@${domain}`, rootId, at(14)))).toBe(true);
+		expect(await store(inbound(`ida@${domain}`, rootId, at(15)))).toBe(true);
+		const thread = await threadByRoot(rootId);
+		expect(thread.contactId).toBe(hans.id);
+		await markRelevant(thread.id, at(15));
+
+		memoryRequests.length = 0;
+		const ida = await contact("ida");
+		await participants.linkContact(
+			ida.id,
+			`ida@${domain}`,
+			await threads.context(mailbox),
+		);
+		expect(memoryRequests).toEqual([thread.id]);
 	});
 
 	it("links the older threads of a contact the sync creates", async () => {
@@ -476,6 +542,59 @@ describe("every person in a conversation is linked to it", () => {
 		expect(
 			await db.emailThreadContact.count({ where: { contactId: carl.id } }),
 		).toBe(0);
+	});
+
+	it("writes a large batch in a few statements and removes stale links the same way", async () => {
+		const many = await contact("many");
+		const roots: string[] = [];
+		for (let index = 0; index < 120; index += 1) {
+			const rootId = root(`many-${index}`);
+			roots.push(rootId);
+			await db.emailThread.create({
+				data: {
+					rootMessageId: rootId,
+					subject: "Sammel",
+					companyId,
+					contactId: many.id,
+					firstMessageAt: at(16),
+					lastMessageAt: at(16),
+					messageCount: 1,
+					messages: {
+						create: {
+							rfcMessageId: rfc(),
+							syncedByUserId: userId,
+							direction: EmailDirection.INBOUND,
+							fromEmail: `many@${domain}`,
+							recipients: [{ email: mailbox, name: "Rep" }],
+							subject: "Sammel",
+							sentAt: at(16),
+						},
+					},
+				},
+			});
+		}
+		const ids = (
+			await db.emailThread.findMany({
+				where: { rootMessageId: { in: roots } },
+				select: { id: true },
+			})
+		).map((thread) => thread.id);
+		const context = await threads.context(mailbox);
+
+		const written = await db.$transaction((tx) =>
+			participants.linkThreads(ids, context, tx),
+		);
+		expect(written).toMatchObject({ threads: 120, written: 120, removed: 0 });
+		expect(await linksOf(many.id)).toHaveLength(120);
+
+		await db.emailMessage.deleteMany({
+			where: { threadId: { in: ids.slice(0, 10) } },
+		});
+		const removed = await db.$transaction((tx) =>
+			participants.linkThreads(ids, context, tx),
+		);
+		expect(removed).toMatchObject({ threads: 120, written: 0, removed: 10 });
+		expect(await linksOf(many.id)).toHaveLength(110);
 	});
 
 	it("backfills idempotently, resumes from a thread id and writes nothing on a dry run", async () => {

@@ -550,7 +550,21 @@ the largest attachment upload the conversation contracts accept.
   and the activity follows, exactly like a contact the pass creates. Every linked
   active contact that is not the thread's own is stamped with
   `stampThreadMail(lastAt)` after the transaction commits (`settle`), so a person who
-  wrote into a colleague's thread reads as active on that day. Readers take
+  wrote into a colleague's thread reads as active on that day. `linkContact` ends by
+  asking for a memory: a contact that is active, has no `ContactMemory` and is linked
+  to a thread with a relevant insight gets one `thread-refresh` with `memoryOnly:
+  true` for its newest such thread (`AgentTriggerService.contactMemoryRequested`),
+  through the plan gate like every task. A normal refresh asked for the same thread
+  later takes that waiting task over: `summaryRefreshRequested` clears `memoryOnly`
+  on it, so the summary is rewritten and the memory refreshed in one run.
+  **A shared thread is listed on every linked sheet, but the counts are per person.**
+  `readReactivationCandidate` and the relationship line count "from them" only for
+  mail whose sender is the person's address and "to them" only for mail that names
+  the address as a recipient, so a colleague's reply in the same thread is never
+  theirs; the win back list keeps counting the owned thread as before. The writes are
+  set based: one `INSERT … ON CONFLICT` and one `DELETE … IN` per
+  `THREAD_PARTICIPANTS.insertChunk` rows for a whole batch, inside a transaction with
+  `THREAD_PARTICIPANTS.transactionTimeoutMs`. Readers take
   `threadsOfContact(contactId)` from `@crm/db/thread-participants`, which is
   `contactId = X OR a link to X`: the Anfrage panel (`newestReadThread` and the
   signals in `contact-attention.ts`), `readReactivationCandidate`, the contact's

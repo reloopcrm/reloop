@@ -29,6 +29,7 @@ const agent = {
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
 	threadStored: async () => undefined,
+	contactMemoryRequested: async () => true,
 } as unknown as AgentTriggerService;
 
 const limitedAgent = {
@@ -81,7 +82,7 @@ const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const participants = new ThreadParticipantsService(db, match, stamp);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
 const threads = new ThreadWriterService(db, match, stamp, agent, participants);
 const limitedMatch = new MailboxMatchService(db, directory, limitedAgent, log);
 const limited = new ThreadWriterService(

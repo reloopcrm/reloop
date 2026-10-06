@@ -34,6 +34,7 @@ const participants = new ThreadParticipantsService(
 	db,
 	new MailboxMatchService(db, {} as never, {} as never, {} as never),
 	stamp,
+	{} as never,
 );
 const contacts = new ContactsService(
 	db,

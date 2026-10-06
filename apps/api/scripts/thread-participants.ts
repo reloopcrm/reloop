@@ -41,7 +41,7 @@ async function main(): Promise<void> {
 		agent,
 		log,
 	);
-	const participants = new ThreadParticipantsService(db, match, stamp);
+	const participants = new ThreadParticipantsService(db, match, stamp, agent);
 
 	const runHere = async () => {
 		const workspace = cloud.scopeId() ?? "this install";

@@ -2,6 +2,7 @@ import { type Db, EmailDirection, type Prisma, Prisma as Sql } from "@crm/db";
 import { SAMPLE_DATA } from "@crm/db/sample-data";
 import type { ThreadContactRole } from "@crm/db/thread-participants";
 import { Injectable, Logger } from "@nestjs/common";
+import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import {
@@ -84,6 +85,7 @@ export class ThreadParticipantsService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly match: MailboxMatchService,
 		private readonly stamp: ActivityStampService,
+		private readonly agent: AgentTriggerService,
 	) {}
 
 	async context(mailbox?: string): Promise<MatchContext> {
@@ -235,34 +237,39 @@ export class ThreadParticipantsService {
 		client: Client = this.db,
 	): Promise<LinkOutcome> {
 		const outcome = emptyOutcome();
+		const changed = plans.flatMap((plan) => plan.changed);
+		const stale = plans.flatMap((plan) =>
+			plan.stale.map((contactId) => ({ threadId: plan.threadId, contactId })),
+		);
+
+		for (const rows of chunks(changed, THREAD_PARTICIPANTS.insertChunk)) {
+			await client.$executeRaw`
+				INSERT INTO "emailThreadContact" ("threadId", "contactId", "role", "firstAt", "lastAt", "updatedAt")
+				VALUES ${Sql.join(
+					rows.map(
+						(row) =>
+							Sql.sql`(${row.threadId}, ${row.contactId}, ${row.role}, ${row.firstAt}, ${row.lastAt}, now())`,
+					),
+				)}
+				ON CONFLICT ("threadId", "contactId") DO UPDATE
+				SET "role" = EXCLUDED."role",
+					"firstAt" = EXCLUDED."firstAt",
+					"lastAt" = EXCLUDED."lastAt",
+					"updatedAt" = now()`;
+			outcome.written += rows.length;
+		}
+
+		for (const pairs of chunks(stale, THREAD_PARTICIPANTS.insertChunk)) {
+			outcome.removed += await client.$executeRaw`
+				DELETE FROM "emailThreadContact"
+				WHERE ("threadId", "contactId") IN (${Sql.join(
+					pairs.map((pair) => Sql.sql`(${pair.threadId}, ${pair.contactId})`),
+				)})`;
+		}
 
 		for (const plan of plans) {
 			outcome.threads += 1;
 			outcome.linked += plan.rows.length;
-
-			if (plan.changed.length > 0) {
-				await client.$executeRaw`
-					INSERT INTO "emailThreadContact" ("threadId", "contactId", "role", "firstAt", "lastAt", "updatedAt")
-					VALUES ${Sql.join(
-						plan.changed.map(
-							(row) =>
-								Sql.sql`(${row.threadId}, ${row.contactId}, ${row.role}, ${row.firstAt}, ${row.lastAt}, now())`,
-						),
-					)}
-					ON CONFLICT ("threadId", "contactId") DO UPDATE
-					SET "role" = EXCLUDED."role",
-						"firstAt" = EXCLUDED."firstAt",
-						"lastAt" = EXCLUDED."lastAt",
-						"updatedAt" = now()`;
-				outcome.written += plan.changed.length;
-			}
-
-			if (plan.stale.length > 0) {
-				const { count } = await client.emailThreadContact.deleteMany({
-					where: { threadId: plan.threadId, contactId: { in: plan.stale } },
-				});
-				outcome.removed += count;
-			}
 
 			let ownContactId = plan.ownContactId;
 			if (plan.slot) {
@@ -367,12 +374,15 @@ export class ThreadParticipantsService {
 					start,
 					start + THREAD_PARTICIPANTS.contactBatch,
 				);
-				const outcome = await this.db.$transaction((tx) =>
-					this.linkThreads(batch, context, tx),
+				const outcome = await this.db.$transaction(
+					(tx) => this.linkThreads(batch, context, tx),
+					{ timeout: THREAD_PARTICIPANTS.transactionTimeoutMs },
 				);
 				await this.settle(outcome);
 				linked += outcome.threads;
 			}
+
+			await this.requestMemory(contactId);
 
 			return linked;
 		} catch (error) {
@@ -382,6 +392,24 @@ export class ThreadParticipantsService {
 			);
 			return 0;
 		}
+	}
+
+	private async requestMemory(contactId: string): Promise<void> {
+		const contact = await this.db.contact.findFirst({
+			where: { id: contactId, archivedAt: null, memory: null },
+			select: {
+				threadLinks: {
+					where: { thread: { insight: { relevant: true } } },
+					orderBy: { lastAt: "desc" },
+					take: 1,
+					select: { threadId: true },
+				},
+			},
+		});
+		const link = contact?.threadLinks[0];
+		if (!link) return;
+
+		await this.agent.contactMemoryRequested(link.threadId);
 	}
 
 	async relinkContact(
@@ -424,8 +452,9 @@ export class ThreadParticipantsService {
 			const ids = threads.map((thread) => thread.id);
 			const outcome = options.dryRun
 				? await this.preview(await this.plan(ids, context))
-				: await this.db.$transaction((tx) =>
-						this.linkThreads(ids, context, tx),
+				: await this.db.$transaction(
+						(tx) => this.linkThreads(ids, context, tx),
+						{ timeout: THREAD_PARTICIPANTS.transactionTimeoutMs },
 					);
 			if (!options.dryRun) await this.settle(outcome);
 			merge(result, outcome);
@@ -451,6 +480,14 @@ export class ThreadParticipantsService {
 		}
 		return outcome;
 	}
+}
+
+function chunks<Item>(items: readonly Item[], size: number): Item[][] {
+	const parts: Item[][] = [];
+	for (let start = 0; start < items.length; start += size) {
+		parts.push(items.slice(start, start + size));
+	}
+	return parts;
 }
 
 function merge(into: LinkOutcome, from: LinkOutcome): void {

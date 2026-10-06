@@ -39,13 +39,14 @@ const agent = {
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
 	threadStored: async () => undefined,
+	contactMemoryRequested: async () => true,
 } as unknown as AgentTriggerService;
 
 const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const participants = new ThreadParticipantsService(db, match, stamp);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
 const threads = new ThreadWriterService(db, match, stamp, agent, participants);
 
 let rowA: MailboxSync;
@@ -261,6 +262,7 @@ describe("repairing mail stored with the wrong direction", () => {
 			threadStored: async (...args: unknown[]) => {
 				requested.push(args);
 			},
+			contactMemoryRequested: async () => true,
 		} as unknown as AgentTriggerService;
 
 		expect(
@@ -268,7 +270,7 @@ describe("repairing mail stored with the wrong direction", () => {
 				db,
 				scoped,
 				trigger,
-				new ThreadParticipantsService(db, scoped, stamp),
+				new ThreadParticipantsService(db, scoped, stamp, trigger),
 			).repair(),
 		).toBe(1);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);
@@ -287,7 +289,7 @@ describe("repairing mail stored with the wrong direction", () => {
 				db,
 				scoped,
 				trigger,
-				new ThreadParticipantsService(db, scoped, stamp),
+				new ThreadParticipantsService(db, scoped, stamp, trigger),
 			).repair(),
 		).toBe(0);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);

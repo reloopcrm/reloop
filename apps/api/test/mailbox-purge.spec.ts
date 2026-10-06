@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { auth } from "@crm/auth";
 import { ActivityType, db, EmailDirection, GoogleSyncStatus } from "@crm/db";
 import { symmetricEncrypt } from "better-auth/crypto";
+import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { GoogleConnectionService } from "../src/google/google-connection.service";
 import {
@@ -38,7 +39,12 @@ const match = {
 	suppressedDomains: async () => new Set(),
 	suppressedEmails: async () => new Set(),
 } as unknown as MailboxMatchService;
-const participants = new ThreadParticipantsService(db, match, stamp);
+const participants = new ThreadParticipantsService(
+	db,
+	match,
+	stamp,
+	{} as unknown as AgentTriggerService,
+);
 
 const google = new GoogleConnectionService(
 	db,

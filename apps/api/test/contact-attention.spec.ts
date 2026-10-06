@@ -64,7 +64,10 @@ async function person(
 						wire.direction === EmailDirection.OUTBOUND
 							? `rep@${domain}`
 							: email,
-					recipients: [],
+					recipients:
+						wire.direction === EmailDirection.OUTBOUND
+							? [{ email, name: null }]
+							: [],
 					subject: `Bedarf Q4 ${firstName}`,
 					sentAt: wire.sentAt,
 				})),
@@ -320,7 +323,7 @@ describe("readContactAttention picks the case from what the agent stored", () =>
 							syncedByUserId: rep,
 							direction: EmailDirection.OUTBOUND,
 							fromEmail: `rep@${domain}`,
-							recipients: [],
+							recipients: [{ email: `quoted@${domain}`, name: null }],
 							subject: "Bedarf Q4 Quoted",
 							sentAt: daysAgo(9),
 						},

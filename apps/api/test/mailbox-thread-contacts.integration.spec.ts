@@ -26,12 +26,18 @@ const quietUserId = `quiet-${suffix}`;
 const mailbox = `rep@${ownDomain}`;
 const quietMailbox = `quiet@${ownDomain}`;
 
+const memoryRequests: string[] = [];
+
 const agent = {
 	contactCreated: async () => true,
 	companyCreated: async () => undefined,
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
 	threadStored: async () => undefined,
+	contactMemoryRequested: async (threadId: string) => {
+		memoryRequests.push(threadId);
+		return true;
+	},
 } as unknown as AgentTriggerService;
 
 const fullDb = new Proxy(db, {
@@ -55,7 +61,7 @@ const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const participants = new ThreadParticipantsService(db, match, stamp);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
 const threads = new ThreadWriterService(db, match, stamp, agent, participants);
 const pass = new ThreadContactsService(
 	db,
@@ -265,6 +271,14 @@ describe("senders of a relevant thread", () => {
 			select: { contactId: true },
 		});
 		expect(thread?.contactId).toBe(a.id);
+		expect(memoryRequests).toEqual([threadId]);
+		expect(
+			await db.emailThreadContact.findMany({
+				where: { threadId },
+				orderBy: { firstAt: "asc" },
+				select: { contactId: true },
+			}),
+		).toEqual([{ contactId: a.id }, { contactId: bert?.id ?? "" }]);
 	});
 
 	it("dates a new contact at the newest mail from or to them", async () => {

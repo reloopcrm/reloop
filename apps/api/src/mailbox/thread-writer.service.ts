@@ -79,6 +79,7 @@ export class ThreadWriterService {
 		});
 		if (existing?.thread.activity) return false;
 
+		const startedAt = new Date();
 		const repair = existing !== null;
 		const participants = [parsed.from, ...parsed.recipients];
 		const outbound = isOwnAddress(parsed.from.email, context);
@@ -240,6 +241,7 @@ export class ThreadWriterService {
 			);
 		}
 		await this.participants.settle(occurredAt.links);
+		await this.linkNewContact(contactId, startedAt, context);
 
 		await this.agent.threadStored(
 			occurredAt.id,
@@ -277,6 +279,8 @@ export class ThreadWriterService {
 
 		if (!thread || thread.messages.length === 0) return false;
 		if (thread.contactId || thread.companyId) return true;
+
+		const startedAt = new Date();
 
 		if (!hasRealExchange(thread.subject, thread.messages)) {
 			await this.db.emailThread.update({
@@ -374,10 +378,27 @@ export class ThreadWriterService {
 			threadId,
 		);
 		await this.participants.settle(occurredAt.links);
+		await this.linkNewContact(match2.contactId, startedAt, known);
 
 		await this.agent.threadStored(threadId, "Thread adopted into the CRM");
 
 		return true;
+	}
+
+	private async linkNewContact(
+		contactId: string | null,
+		since: Date,
+		context: MatchContext,
+	): Promise<void> {
+		if (!contactId) return;
+
+		const contact = await this.db.contact.findUnique({
+			where: { id: contactId },
+			select: { email: true, createdAt: true },
+		});
+		if (!contact?.email || contact.createdAt < since) return;
+
+		await this.participants.linkContact(contactId, contact.email, context);
 	}
 
 	private async visible(

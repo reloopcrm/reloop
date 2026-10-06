@@ -539,9 +539,12 @@ the largest attachment upload the conversation contracts accept.
   contact that is deleted takes its rows with it (`onDelete: Cascade`). `linkContact`
   is the other direction: a contact made later for an address gets the links of every
   thread where that address wrote or received, found through the `fromEmail` index
-  and the GIN index on `recipients`. `createContact`'s callers, `contactWithoutCompany`,
-  the thread contacts pass and `contacts.create` call it; `contacts.update` with a new
-  address calls `relinkContact`, which drops the old rows first. **A known participant
+  and the GIN index on `recipients`. `store` and `adopt` call it for a contact whose
+  `createdAt` is not older than the call (`linkNewContact`), so do
+  `contactWithoutCompany`, the thread contacts pass and `contacts.create`;
+  `contacts.update` with a new address calls `relinkContact`, which drops the old rows
+  first. A contact the tracking endpoint files gets its links on the next thread it
+  takes part in or from the backfill script. **A known participant
   fills an empty slot**: a thread with an `EMAIL` activity and no `contactId` takes
   the first active linked contact of its company (senders first, then by `firstAt`),
   and the activity follows, exactly like a contact the pass creates. Every linked

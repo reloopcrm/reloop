@@ -55,6 +55,7 @@ const rules = {
 
 let companyId: string;
 let row: MailboxSync;
+let creating: MailboxSync;
 let counter = 0;
 
 function root(name: string): string {
@@ -102,9 +103,12 @@ function outbound(to: string[], rootId: string, sentAt: Date): IncomingMessage {
 	};
 }
 
-async function store(message: IncomingMessage): Promise<boolean> {
+async function store(
+	message: IncomingMessage,
+	mailboxRow: MailboxSync = row,
+): Promise<boolean> {
 	return threads.store(
-		row,
+		mailboxRow,
 		{ origin: "gmail", lane: "forward" },
 		message,
 		await threads.context(mailbox),
@@ -191,6 +195,14 @@ beforeAll(async () => {
 	});
 	row = await db.mailboxSync.create({
 		data: { userId, source: "gmail", autoCreate: false },
+	});
+	creating = await db.mailboxSync.create({
+		data: {
+			userId,
+			source: "imap:creating",
+			autoCreate: true,
+			createWithoutReply: true,
+		},
 	});
 	const company = await db.company.create({
 		data: { name: "Kunde", domain, source: "EMAIL" },
@@ -354,6 +366,34 @@ describe("every person in a conversation is linked to it", () => {
 			{ contactId: dora.id, role: "SENDER", firstAt: at(8), lastAt: at(9) },
 		]);
 		expect(await emailTimeline(dora.id)).toEqual([after.id]);
+	});
+
+	it("links the older threads of a contact the sync creates", async () => {
+		const frank = await contact("frank");
+		const older = root("older");
+		expect(
+			await store(
+				outbound([`frank@${domain}`, `gina@${domain}`], older, at(12)),
+			),
+		).toBe(true);
+		expect((await threadByRoot(older)).contactId).toBe(frank.id);
+
+		const newer = root("newer");
+		expect(
+			await store(inbound(`gina@${domain}`, newer, at(13)), creating),
+		).toBe(true);
+
+		const gina = await db.contact.findFirstOrThrow({
+			where: { email: `gina@${domain}` },
+			select: { id: true },
+		});
+		expect((await threadByRoot(newer)).contactId).toBe(gina.id);
+		expect(
+			(await linksOf(gina.id)).sort((a, b) => a.role.localeCompare(b.role)),
+		).toEqual([
+			{ threadId: (await threadByRoot(older)).id, role: "RECIPIENT" },
+			{ threadId: (await threadByRoot(newer)).id, role: "SENDER" },
+		]);
 	});
 
 	it("links a thread filed under a company to the known sender who wrote into it", async () => {

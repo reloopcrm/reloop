@@ -430,13 +430,15 @@ export class MailboxMatchService {
 			});
 		}
 
-		if (
+		const nameless =
 			!person.name?.trim() &&
-			isDerivedName(person.email, contact.firstName, contact.lastName)
-		) {
+			isDerivedName(person.email, contact.firstName, contact.lastName);
+		if (outcome.created || nameless) {
 			await this.agent.contactCreated(
 				contact.id,
-				"Created by the sync from an address, with no name on it",
+				nameless
+					? "Created by the sync from an address, with no name on it"
+					: "Emailed about your business",
 			);
 		}
 

@@ -114,6 +114,7 @@ export const PRIORITY = {
 	contactClean: 720,
 	emailDraft: 970,
 	personStory: 960,
+	storyPrefetch: 35,
 	playbookLearn: 600,
 	event: 700,
 	dealStall: 30,

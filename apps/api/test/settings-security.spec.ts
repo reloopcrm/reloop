@@ -96,7 +96,11 @@ it("rejects member changes to global win-back rules", async () => {
 	const db = {
 		member: { findUnique: async () => ({ role: "member" }) },
 	} as unknown as Db;
-	const service = new ReactivationService(db, undefined as never);
+	const service = new ReactivationService(
+		db,
+		undefined as never,
+		undefined as never,
+	);
 	await expect(service.setRules("member", {} as never, false)).rejects.toThrow(
 		"Only a workspace admin",
 	);

@@ -12,6 +12,13 @@ export const PERSON_VIEW = {
 	timelineMails: 400,
 	retryAfterMs: 6 * HOUR_MS,
 	rereadPauseMs: 15 * MINUTE_MS,
+	prefetch: {
+		top: 20,
+		everyMs: 5 * MINUTE_MS,
+		openShare: 0.1,
+		sort: "potential",
+		dir: "desc",
+	},
 } as const;
 
 export const WIN_BACK = {

@@ -9,6 +9,7 @@ export const PERSON_STORY = {
 	pointsMax: 4,
 	passagesMax: 8,
 	evidenceMax: 8,
+	messagesRead: 60,
 } as const;
 
 const messageId = z.string().trim().min(1).max(64);

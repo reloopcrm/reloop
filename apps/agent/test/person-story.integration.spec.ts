@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, RecordSource } from "@crm/db";
+import { PRIORITY } from "@crm/db/agent-tasks";
+import { STORY_KIND } from "@crm/db/plans";
+import { readAgentTaskStoryReread } from "@crm/validation/agent-task-payload";
 import { parsePersonStory } from "@crm/validation/person-story";
 import { simulateReadableStream } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
 import type { z } from "zod";
+import { BACKFILL_PRIORITY } from "../agent/lib/dispatch";
 import { runPersonStory } from "../agent/lib/person-story";
 import type { storyAnswer } from "../agent/lib/story-prompt";
+import { claimDue } from "../agent/lib/tasks";
 
 const suffix = process.env.TEST_RUN_ID ?? "person-story-spec";
 const domain = `person-story-${suffix}.test`;
@@ -18,33 +23,38 @@ async function refuseModel(): Promise<never> {
 	throw new Error(NO_MODEL);
 }
 
+let prompts: string[] = [];
+
 function answering(json: z.input<typeof storyAnswer>) {
 	const text = JSON.stringify(json);
 	const model = new MockLanguageModelV4({
 		modelId: "story-test-model",
-		doStream: async () => ({
-			stream: simulateReadableStream({
-				chunks: [
-					{ type: "stream-start", warnings: [] },
-					{ type: "text-start", id: "t" },
-					{ type: "text-delta", id: "t", delta: text },
-					{ type: "text-end", id: "t" },
-					{
-						type: "finish",
-						finishReason: { unified: "stop", raw: "stop" },
-						usage: {
-							inputTokens: {
-								total: 10,
-								noCache: 10,
-								cacheRead: 0,
-								cacheWrite: 0,
+		doStream: async (options) => {
+			prompts.push(JSON.stringify(options.prompt));
+			return {
+				stream: simulateReadableStream({
+					chunks: [
+						{ type: "stream-start", warnings: [] },
+						{ type: "text-start", id: "t" },
+						{ type: "text-delta", id: "t", delta: text },
+						{ type: "text-end", id: "t" },
+						{
+							type: "finish",
+							finishReason: { unified: "stop", raw: "stop" },
+							usage: {
+								inputTokens: {
+									total: 10,
+									noCache: 10,
+									cacheRead: 0,
+									cacheWrite: 0,
+								},
+								outputTokens: { total: 10, text: 10, reasoning: 0 },
 							},
-							outputTokens: { total: 10, text: 10, reasoning: 0 },
 						},
-					},
-				],
-			}),
-		}),
+					],
+				}),
+			};
+		},
 	});
 
 	return async () => {
@@ -99,6 +109,7 @@ async function clean(): Promise<void> {
 		select: { id: true },
 	});
 	const ids = people.map((row) => row.id);
+	await db.agentTask.deleteMany({ where: { contactId: { in: ids } } });
 	await db.contactStory.deleteMany({ where: { contactId: { in: ids } } });
 	await db.emailThread.deleteMany({ where: { contactId: { in: ids } } });
 	await db.contact.deleteMany({ where: { id: { in: ids } } });
@@ -106,6 +117,7 @@ async function clean(): Promise<void> {
 
 beforeEach(async () => {
 	modelCalls = 0;
+	prompts = [];
 	await clean();
 });
 
@@ -167,6 +179,67 @@ describe("runPersonStory", () => {
 		expect(parsed.story.passages).toEqual([
 			{ messageId: mail.id, text: "Unser Budget erst ab Juli frei" },
 		]);
+	});
+
+	it("reads a waiting story the rep asked to redo with the old story beside it", async () => {
+		const id = await person("nochmal");
+		await wrote(
+			id,
+			"Wir melden uns im Herbst.",
+			new Date("2026-03-20T09:00:00.000Z"),
+		);
+		await db.contactStory.create({
+			data: {
+				contactId: id,
+				language: "conversation",
+				basedOnUntil: new Date("2026-03-20T09:00:00.000Z"),
+				story: {
+					v: 1,
+					gist: "Die alte Geschichte sagt, sie kauft nie wieder.",
+					together: null,
+					stopped: null,
+					bringBack: null,
+					passages: [],
+				},
+			},
+		});
+		await db.agentTask.create({
+			data: {
+				contactId: id,
+				kind: STORY_KIND,
+				reason: "A rep said the win back story is wrong",
+				priority: PRIORITY.personStory,
+				budget: 1,
+				dueAt: new Date(Date.now() - 1_000),
+				payload: { reread: true },
+			},
+		});
+
+		const claimed = await claimDue(10, { only: [STORY_KIND] }, 60_000, {
+			above: BACKFILL_PRIORITY,
+		});
+		const task = claimed.find((row) => row.contactId === id);
+		if (!task) throw new Error("the story task was not claimed");
+		const reread = readAgentTaskStoryReread(task.payload);
+		expect(reread).toBe(true);
+
+		await runPersonStory(
+			id,
+			reread,
+			answering({
+				gist: "Sie meldet sich im Herbst.",
+				together: null,
+				stopped: null,
+				bringBack: null,
+				passages: [],
+			}),
+		);
+
+		expect(prompts).toHaveLength(1);
+		expect(prompts[0]).toContain("The rep said the previous story is wrong");
+		expect(prompts[0]).toContain(
+			"Die alte Geschichte sagt, sie kauft nie wieder.",
+		);
 	});
 
 	it("keeps the old story when the model refuses", async () => {

@@ -1,25 +1,40 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { DealStage, db, RecordSource } from "@crm/db";
+import { PRIORITY } from "@crm/db/agent-tasks";
 import { usageWindowOf } from "@crm/db/plan-usage";
 import { INSIGHT_KIND, PLANS } from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
-import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { WinBackPersonService } from "../src/reactivation/win-back-person.service";
+import type { WinBackStoryPrefetchService } from "../src/reactivation/win-back-story-prefetch.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "win-back-person-spec";
 const domain = `person-view-${suffix}.test`;
 const ownerId = `owner-${suffix}`;
 
 let asked: { contactId: string; reread: boolean }[] = [];
+let opened: string[] = [];
+let prefetched: string[] = [];
 
 const agent = {
 	personStoryRequested: async (contactId: string, reread: boolean) => {
 		asked.push({ contactId, reread });
 		return true;
 	},
+	rereadPendingStory: async () => "none",
+	personStoryOpened: async (contactId: string) => {
+		opened.push(contactId);
+		return true;
+	},
 } as unknown as AgentTriggerService;
 
-const service = new WinBackPersonService(db, agent);
+const prefetch = {
+	nextShown: (contactId: string) => {
+		prefetched.push(contactId);
+	},
+} as unknown as WinBackStoryPrefetchService;
+
+const service = new WinBackPersonService(db, agent, prefetch);
 
 const MARCH = new Date("2026-03-02T09:00:00.000Z");
 const OFFER = new Date("2026-03-14T09:00:00.000Z");
@@ -183,6 +198,8 @@ async function clean(): Promise<void> {
 
 beforeEach(async () => {
 	asked = [];
+	opened = [];
+	prefetched = [];
 	await clean();
 });
 
@@ -324,7 +341,7 @@ describe("the story budget", () => {
 				personStoryRequested: async () => false,
 			} as unknown as AgentTriggerService;
 
-			const view = await new WinBackPersonService(db, noQueue).person(
+			const view = await new WinBackPersonService(db, noQueue, prefetch).person(
 				seeded.contactId,
 			);
 
@@ -396,6 +413,45 @@ describe("WinBackPersonService.next", () => {
 		});
 
 		expect(next).toEqual({ id: other.id, name: "Moritz Ahlers" });
+		expect(prefetched).toEqual([other.id]);
+	});
+});
+
+describe("WinBackPersonService.person with a prefetched story", () => {
+	it("moves a waiting prefetched story to the front when the rep opens the person", async () => {
+		const seeded = await setUp();
+		await db.agentTask.create({
+			data: {
+				contactId: seeded.contactId,
+				kind: "person-story",
+				reason: "Prefetched: near the top of the Win back list",
+				priority: PRIORITY.storyPrefetch,
+				dueAt: new Date(Date.now() - 1_000),
+			},
+		});
+
+		const view = await service.person(seeded.contactId);
+
+		expect(opened).toEqual([seeded.contactId]);
+		expect(asked).toEqual([]);
+		expect(view.storyState.queued).toBe(true);
+	});
+
+	it("leaves a story the rep already asked for alone", async () => {
+		const seeded = await setUp();
+		await db.agentTask.create({
+			data: {
+				contactId: seeded.contactId,
+				kind: "person-story",
+				reason: "A rep opened this person in Win back",
+				priority: PRIORITY.personStory,
+				dueAt: new Date(Date.now() - 1_000),
+			},
+		});
+
+		await service.person(seeded.contactId);
+
+		expect(opened).toEqual([]);
 	});
 });
 
@@ -426,6 +482,78 @@ describe("WinBackPersonService.rereadStory", () => {
 			new Date("2026-10-02T10:20:00.000Z"),
 		);
 		expect(later).toEqual({ queued: true, retryAt: null });
+	});
+
+	it("turns a waiting prefetched story into a re-read the rep asked for", async () => {
+		const seeded = await setUp();
+		await story(seeded.contactId, idsOf(seeded), BUDGET);
+		const task = await db.agentTask.create({
+			data: {
+				contactId: seeded.contactId,
+				kind: "person-story",
+				reason: "Prefetched: near the top of the Win back list",
+				priority: PRIORITY.storyPrefetch,
+				dueAt: new Date(Date.now() - 1_000),
+				payload: { reread: false },
+			},
+			select: { id: true },
+		});
+		const real = new WinBackPersonService(
+			db,
+			new AgentTriggerService(db),
+			prefetch,
+		);
+
+		expect(await real.rereadStory(seeded.contactId)).toEqual({
+			queued: true,
+			retryAt: null,
+		});
+
+		const row = await db.agentTask.findUniqueOrThrow({
+			where: { id: task.id },
+		});
+		expect(row.payload).toEqual({ reread: true });
+		expect(row.priority).toBe(PRIORITY.personStory);
+		expect(row.finishedAt).toBeNull();
+		expect(
+			await db.agentTask.count({
+				where: { contactId: seeded.contactId, kind: "person-story" },
+			}),
+		).toBe(1);
+	});
+
+	it("asks the rep to wait while a story is being written", async () => {
+		const seeded = await setUp();
+		const now = new Date();
+		const task = await db.agentTask.create({
+			data: {
+				contactId: seeded.contactId,
+				kind: "person-story",
+				reason: "A rep opened this person in Win back",
+				priority: PRIORITY.personStory,
+				dueAt: new Date(now.getTime() - 5_000),
+				leasedUntil: new Date(now.getTime() + 60_000),
+				startedAt: now,
+				payload: { reread: false },
+			},
+			select: { id: true },
+		});
+		const real = new WinBackPersonService(
+			db,
+			new AgentTriggerService(db),
+			prefetch,
+		);
+
+		const answer = await real.rereadStory(seeded.contactId, now);
+
+		expect(answer.queued).toBe(false);
+		expect(answer.retryAt).toBe(
+			new Date(now.getTime() + 15 * 60_000).toISOString(),
+		);
+		const row = await db.agentTask.findUniqueOrThrow({
+			where: { id: task.id },
+		});
+		expect(row.payload).toEqual({ reread: false });
 	});
 
 	it("queues a re-read", async () => {

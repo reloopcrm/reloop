@@ -1,13 +1,30 @@
 import { cn } from "@crm/ui/lib/utils";
+import { cva, type VariantProps } from "class-variance-authority";
 
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+const skeletonVariants = cva(
+	"animate-pulse rounded-sm motion-reduce:animate-none",
+	{
+		variants: {
+			tone: {
+				muted: "bg-muted",
+				accent: "bg-accent",
+			},
+		},
+		defaultVariants: {
+			tone: "muted",
+		},
+	},
+);
+
+function Skeleton({
+	className,
+	tone,
+	...props
+}: React.ComponentProps<"div"> & VariantProps<typeof skeletonVariants>) {
 	return (
 		<div
 			data-slot="skeleton"
-			className={cn(
-				"animate-pulse rounded-sm bg-muted motion-reduce:animate-none",
-				className,
-			)}
+			className={cn(skeletonVariants({ tone }), className)}
 			{...props}
 		/>
 	);

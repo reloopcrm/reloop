@@ -1,4 +1,5 @@
 import { ActivityType, type Db, type Prisma } from "@crm/db";
+import { threadsOfContact } from "@crm/db/thread-participants";
 import { activityMeta } from "@crm/validation/activity-meta";
 import {
 	BadRequestException,
@@ -337,7 +338,14 @@ export class ActivitiesService {
 		input: Pick<TimelineInput, "companyId" | "contactId" | "dealId">,
 	): Prisma.ActivityWhereInput {
 		if (input.dealId) return { dealId: input.dealId };
-		if (input.contactId) return { contactId: input.contactId };
+		if (input.contactId) {
+			return {
+				OR: [
+					{ contactId: input.contactId },
+					{ emailThread: threadsOfContact(input.contactId) },
+				],
+			};
+		}
 		if (input.companyId) return { companyId: input.companyId };
 		throw new BadRequestException(
 			"A timeline needs a company, a contact or a deal.",

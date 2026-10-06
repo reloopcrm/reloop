@@ -32,6 +32,9 @@ async function main(): Promise<void> {
 	const { ThreadContactsService } = await import(
 		"../src/mailbox/thread-contacts.service"
 	);
+	const { ThreadParticipantsService } = await import(
+		"../src/mailbox/thread-participants.service"
+	);
 
 	const agent = new AgentTriggerService(db);
 	const stamp = new ActivityStampService(db);
@@ -42,8 +45,21 @@ async function main(): Promise<void> {
 		agent,
 		log,
 	);
-	const threads = new ThreadWriterService(db, match, stamp, agent);
-	const pass = new ThreadContactsService(db, match, threads, stamp);
+	const participants = new ThreadParticipantsService(db, match, stamp, agent);
+	const threads = new ThreadWriterService(
+		db,
+		match,
+		stamp,
+		agent,
+		participants,
+	);
+	const pass = new ThreadContactsService(
+		db,
+		match,
+		threads,
+		stamp,
+		participants,
+	);
 
 	const previewHere = async () => {
 		const workspace = cloud.scopeId() ?? "this install";

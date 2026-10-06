@@ -1,4 +1,5 @@
 import { db } from "@crm/db";
+import { threadsOfContact } from "@crm/db/thread-participants";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { focusOn } from "../lib/focus";
@@ -16,7 +17,7 @@ const tool = defineTool({
 			db.contactMemory.findUnique({ where: { contactId } }),
 			db.potentialFeedback.findUnique({ where: { contactId } }),
 			db.threadInsight.findMany({
-				where: { thread: { contactId } },
+				where: { thread: threadsOfContact(contactId) },
 				orderBy: { lastMessageAt: "desc" },
 				take: 10,
 				select: {

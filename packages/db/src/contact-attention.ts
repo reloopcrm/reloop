@@ -17,6 +17,7 @@ import {
 	type ReactivationCandidate,
 	readReactivationCandidate,
 } from "./reactivation";
+import { threadsOfContact } from "./thread-participants";
 import { DEFAULT_WIN_BACK_RULES, type WinBackRuleSet } from "./win-back-rules";
 
 export const ATTENTION = {
@@ -469,7 +470,7 @@ function insightOf(thread: InsightThread | null): AttentionInsight | null {
 function newestReadThread(db: Db, contactId: string, unanswered: boolean) {
 	return db.emailThread.findFirst({
 		where: {
-			contactId,
+			...threadsOfContact(contactId),
 			insight: unanswered
 				? { relevant: true, unansweredByUs: true }
 				: { relevant: true },
@@ -514,7 +515,7 @@ export async function readContactAttention(
 			newestReadThread(db, contactId, false),
 			newestReadThread(db, contactId, true),
 			db.threadInsight.findMany({
-				where: { thread: { contactId } },
+				where: { thread: threadsOfContact(contactId) },
 				select: {
 					relevant: true,
 					outcome: true,

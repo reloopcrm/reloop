@@ -18,6 +18,7 @@ import type {
 } from "@crm/db/fields";
 import { fixedAiWith, planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
 import { DRAFT_KIND, monthlyBudget } from "@crm/db/plans";
+import { threadsOfContact } from "@crm/db/thread-participants";
 import { readDraftRole } from "@crm/validation/draft-style";
 import type { LimitReason } from "@crm/validation/plan-limit-reason";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
@@ -41,6 +42,7 @@ import { blankToNull, normalizeEmail, toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
 import { EXPORTS } from "../exports/exports-config";
 import { FieldsService } from "../fields/fields.service";
+import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
 import {
 	activityFacetCounts,
 	activityFilter,
@@ -150,6 +152,7 @@ export class ContactsService {
 		private readonly queue: AgentQueueService,
 		private readonly stamp: ActivityStampService,
 		private readonly fields: FieldsService,
+		private readonly participants: ThreadParticipantsService,
 	) {}
 
 	async list(input: ContactListInput): Promise<ListResult<ContactRow>> {
@@ -311,6 +314,7 @@ export class ContactsService {
 		const relationship = await this.relationship(
 			id,
 			contact.company?.id ?? null,
+			contact.email,
 		);
 
 		const { deals, createdAt, archivedAt, brief, facts, company, ...rest } =
@@ -366,7 +370,7 @@ export class ContactsService {
 				select: { language: true },
 			}),
 			this.db.emailThread.findFirst({
-				where: { contactId, insight: { relevant: true } },
+				where: { ...threadsOfContact(contactId), insight: { relevant: true } },
 				orderBy: { lastMessageAt: "desc" },
 				select: { id: true },
 			}),
@@ -440,6 +444,13 @@ export class ContactsService {
 
 		this.logger.log({ message: "Contact created", contactId: contact.id });
 
+		if (email) {
+			await this.participants.linkContact(
+				contact.id,
+				email,
+				await this.participants.context(),
+			);
+		}
 		await this.agent.contactCreated(
 			contact.id,
 			"Added by a rep, with nothing on the record yet",
@@ -617,13 +628,14 @@ export class ContactsService {
 				: { disconnect: true };
 		}
 
+		let updated: { id: string; firstName: string; lastName: string | null };
 		try {
-			return await this.db.$transaction(async (tx) => {
+			updated = await this.db.$transaction(async (tx) => {
 				if (input.fields) {
 					await this.fields.applyValues(tx, "CONTACT", id, input.fields);
 				}
 
-				const updated = await tx.contact.update({
+				const row = await tx.contact.update({
 					where: { id },
 					data,
 					select: { id: true, firstName: true, lastName: true },
@@ -633,11 +645,21 @@ export class ContactsService {
 					await this.allowAgain(tx, email);
 				}
 
-				return updated;
+				return row;
 			});
 		} catch (error) {
 			throw this.translate(error, id);
 		}
+
+		if (input.email !== undefined) {
+			await this.participants.relinkContact(
+				id,
+				email,
+				await this.participants.context(),
+			);
+		}
+
+		return updated;
 	}
 
 	async bulkAssignOwner(input: ContactBulkOwnerInput): Promise<BulkResult> {
@@ -726,18 +748,34 @@ export class ContactsService {
 		});
 	}
 
-	private async relationship(contactId: string, companyId: string | null) {
+	private async relationship(
+		contactId: string,
+		companyId: string | null,
+		email: string | null,
+	) {
 		const now = new Date();
+		const address = email?.trim().toLowerCase() || null;
+		const fromThem: Prisma.EmailMessageWhereInput = address
+			? { direction: "INBOUND", fromEmail: address }
+			: { direction: "INBOUND", thread: { contactId } };
+		const toThem: Prisma.EmailMessageWhereInput = address
+			? {
+					direction: "OUTBOUND",
+					recipients: { array_contains: [{ email: address }] },
+				}
+			: { direction: "OUTBOUND", thread: { contactId } };
 
-		const [threads, lastReply, meetings, nextMeeting, colleagues] =
+		const [threads, mails, lastReply, meetings, nextMeeting, colleagues] =
 			await Promise.all([
-				this.db.emailThread.aggregate({
-					where: { contactId },
-					_sum: { messageCount: true },
-					_count: { _all: true },
+				this.db.emailThread.count({ where: threadsOfContact(contactId) }),
+				this.db.emailMessage.count({
+					where: {
+						thread: threadsOfContact(contactId),
+						OR: [fromThem, toThem],
+					},
 				}),
 				this.db.emailMessage.findFirst({
-					where: { thread: { contactId }, direction: "INBOUND" },
+					where: { thread: threadsOfContact(contactId), ...fromThem },
 					orderBy: { sentAt: "desc" },
 					select: { sentAt: true },
 				}),
@@ -770,8 +808,8 @@ export class ContactsService {
 			]);
 
 		return {
-			emails: threads._sum.messageCount ?? 0,
-			threads: threads._count._all,
+			emails: mails,
+			threads,
 			lastReplyAt: lastReply?.sentAt.toISOString() ?? null,
 			meetings,
 			nextMeeting: nextMeeting
@@ -846,7 +884,7 @@ export class ContactsService {
 		}
 
 		const newest = await this.db.emailThread.aggregate({
-			where: { contactId: id },
+			where: threadsOfContact(id),
 			_max: { lastMessageAt: true },
 		});
 		const since = newest._max.lastMessageAt;

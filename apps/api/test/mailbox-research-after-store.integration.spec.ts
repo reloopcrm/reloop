@@ -5,6 +5,7 @@ import { CompanyDirectoryService } from "../src/companies/company-directory.serv
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import {
 	type IncomingMessage,
 	ThreadWriterService,
@@ -45,6 +46,7 @@ const agent = {
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
 	threadStored: async () => undefined,
+	contactMemoryRequested: async () => true,
 } as unknown as AgentTriggerService;
 
 const stamp = new ActivityStampService(db);
@@ -55,7 +57,8 @@ const match = new MailboxMatchService(
 	agent,
 	log,
 );
-const threads = new ThreadWriterService(db, match, stamp, agent);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
+const threads = new ThreadWriterService(db, match, stamp, agent, participants);
 
 let row: MailboxSync;
 

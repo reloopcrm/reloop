@@ -80,6 +80,8 @@ const TENANT_HEADER = "x-reloop-tenant";
 const REFRESH_KIND = "thread-refresh";
 const REFRESH_REASON =
 	"A summary was written in another language than the workspace's";
+const MEMORY_REASON =
+	"A person in this conversation has no contact summary yet";
 
 const STORY_OPENED_REASON = "A rep opened this person in Win back";
 const STORY_REREAD_REASON = "A rep said the win back story is wrong";
@@ -239,7 +241,10 @@ export class AgentTriggerService {
 			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
 			origin,
 		});
-		if (created || origin === "backfill") return created;
+		if (created) return true;
+
+		await this.upgradeMemoryOnly(threadId);
+		if (origin === "backfill") return false;
 
 		await this.db.agentTask.updateMany({
 			where: {
@@ -251,6 +256,47 @@ export class AgentTriggerService {
 			data: { priority },
 		});
 		return false;
+	}
+
+	private async upgradeMemoryOnly(threadId: string): Promise<void> {
+		const open = await this.db.agentTask.findMany({
+			where: {
+				kind: REFRESH_KIND,
+				finishedAt: null,
+				startedAt: null,
+				payload: { path: [AGENT_TASK_THREAD_ID_KEY], equals: threadId },
+			},
+			select: { id: true, payload: true },
+		});
+		for (const task of open) {
+			const payload = agentTaskThreadPayload.parse(task.payload);
+			if (!payload.memoryOnly) continue;
+			await this.db.agentTask.update({
+				where: { id: task.id },
+				data: {
+					reason: REFRESH_REASON,
+					payload: { ...payload, memoryOnly: false },
+				},
+			});
+		}
+	}
+
+	async contactMemoryRequested(threadId: string): Promise<boolean> {
+		if (isSampleRecordId(threadId)) return false;
+
+		return this.enqueue({
+			kind: REFRESH_KIND,
+			reason: MEMORY_REASON,
+			priority: PRIORITY.threadInsightBackfill,
+			budget: 1,
+			payload: {
+				threadId,
+				origin: "backfill",
+				memoryOnly: true,
+			} satisfies AgentTaskThreadPayload,
+			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: threadId },
+			origin: "backfill",
+		});
 	}
 
 	private async markReread(threadId: string): Promise<void> {

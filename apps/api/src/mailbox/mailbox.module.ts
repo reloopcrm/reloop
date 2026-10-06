@@ -8,6 +8,7 @@ import { MailboxTokenService } from "./mailbox-token.service";
 import { SyncStateService } from "./sync-state.service";
 import { ThreadAdoptionService } from "./thread-adoption.service";
 import { ThreadContactsService } from "./thread-contacts.service";
+import { ThreadParticipantsService } from "./thread-participants.service";
 import { ThreadWriterService } from "./thread-writer.service";
 
 @Module({
@@ -17,6 +18,7 @@ import { ThreadWriterService } from "./thread-writer.service";
 		MailboxTokenService,
 		MailboxMatchService,
 		SyncStateService,
+		ThreadParticipantsService,
 		ThreadWriterService,
 		ThreadAdoptionService,
 		ThreadContactsService,
@@ -27,6 +29,7 @@ import { ThreadWriterService } from "./thread-writer.service";
 		MailboxTokenService,
 		MailboxMatchService,
 		SyncStateService,
+		ThreadParticipantsService,
 		ThreadWriterService,
 		ThreadAdoptionService,
 		ThreadContactsService,

@@ -26,6 +26,7 @@ const service = new ContactsService(
 	unused,
 	unused,
 	unused,
+	unused,
 );
 
 async function person(local: string): Promise<string> {

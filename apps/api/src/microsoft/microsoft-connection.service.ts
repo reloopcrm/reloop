@@ -6,6 +6,7 @@ import { InjectDatabase } from "../database/database.constants";
 import { backfillProgress } from "../mailbox/backfill-cursor";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
 import { rebuildThreads } from "../mailbox/thread-rebuild";
 import {
 	MICROSOFT_PROVIDER_ID,
@@ -31,6 +32,7 @@ export class MicrosoftConnectionService {
 		private readonly tokens: MailboxTokenService,
 		private readonly state: SyncStateService,
 		private readonly stamp: ActivityStampService,
+		private readonly participants: ThreadParticipantsService,
 	) {}
 
 	async status(userId: string): Promise<MicrosoftConnectionStatus> {
@@ -131,6 +133,7 @@ export class MicrosoftConnectionService {
 			outlookMessageId: { not: null },
 		};
 
+		const context = await this.participants.context();
 		const purged = await this.db.$transaction(
 			async (tx) => {
 				const touched = await tx.emailMessage.findMany({
@@ -147,6 +150,7 @@ export class MicrosoftConnectionService {
 				});
 
 				await rebuildThreads(tx, threadIds);
+				await this.participants.linkThreads(threadIds, context, tx);
 
 				return messages.count;
 			},

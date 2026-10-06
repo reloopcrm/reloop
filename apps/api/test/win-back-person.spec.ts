@@ -92,7 +92,10 @@ async function setUp() {
 				body,
 				fromEmail:
 					direction === "INBOUND" ? `svenja@${domain}` : `lena@${domain}`,
-				recipients: [],
+				recipients:
+					direction === "INBOUND"
+						? []
+						: [{ email: `svenja@${domain}`, name: null }],
 				gmailMessageId: direction === "INBOUND" ? "gmail-1" : null,
 			},
 			select: { id: true },

@@ -10,6 +10,7 @@ import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
 import { ThreadContactsService } from "../src/mailbox/thread-contacts.service";
 import { readThreadContactsCursor } from "../src/mailbox/thread-contacts-cursor";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import {
 	type IncomingMessage,
 	ThreadWriterService,
@@ -25,12 +26,18 @@ const quietUserId = `quiet-${suffix}`;
 const mailbox = `rep@${ownDomain}`;
 const quietMailbox = `quiet@${ownDomain}`;
 
+const memoryRequests: string[] = [];
+
 const agent = {
 	contactCreated: async () => true,
 	companyCreated: async () => undefined,
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
 	threadStored: async () => undefined,
+	contactMemoryRequested: async (threadId: string) => {
+		memoryRequests.push(threadId);
+		return true;
+	},
 } as unknown as AgentTriggerService;
 
 const fullDb = new Proxy(db, {
@@ -54,13 +61,26 @@ const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const threads = new ThreadWriterService(db, match, stamp, agent);
-const pass = new ThreadContactsService(db, match, threads, stamp).tune({
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
+const threads = new ThreadWriterService(db, match, stamp, agent, participants);
+const pass = new ThreadContactsService(
+	db,
+	match,
+	threads,
+	stamp,
+	participants,
+).tune({
 	settleMs: 0,
 	batch: 1_000,
 });
 const fullMatch = new MailboxMatchService(fullDb, directory, agent, log);
-const fullPass = new ThreadContactsService(db, fullMatch, threads, stamp).tune({
+const fullPass = new ThreadContactsService(
+	db,
+	fullMatch,
+	threads,
+	stamp,
+	participants,
+).tune({
 	settleMs: 0,
 	batch: 1_000,
 });
@@ -251,6 +271,14 @@ describe("senders of a relevant thread", () => {
 			select: { contactId: true },
 		});
 		expect(thread?.contactId).toBe(a.id);
+		expect(memoryRequests).toEqual([threadId]);
+		expect(
+			await db.emailThreadContact.findMany({
+				where: { threadId },
+				orderBy: { firstAt: "asc" },
+				select: { contactId: true },
+			}),
+		).toEqual([{ contactId: a.id }, { contactId: bert?.id ?? "" }]);
 	});
 
 	it("dates a new contact at the newest mail from or to them", async () => {
@@ -345,7 +373,13 @@ describe("senders of a relevant thread", () => {
 	});
 
 	it("holds back a thread younger than the settle window", async () => {
-		const slow = new ThreadContactsService(db, match, threads, stamp).tune({
+		const slow = new ThreadContactsService(
+			db,
+			match,
+			threads,
+			stamp,
+			participants,
+		).tune({
 			settleMs: 60 * 60 * 1_000,
 			batch: 1_000,
 		});
@@ -473,7 +507,13 @@ describe("senders of a relevant thread", () => {
 			contactId: a.id,
 			messages: [{ from: `olga@${domain}` }],
 		});
-		const small = new ThreadContactsService(db, match, threads, stamp).tune({
+		const small = new ThreadContactsService(
+			db,
+			match,
+			threads,
+			stamp,
+			participants,
+		).tune({
 			settleMs: 0,
 			batch: 1,
 		});
@@ -558,7 +598,13 @@ describe("senders of a relevant thread", () => {
 			contactId: a.id,
 			messages: [{ from: `edda@${domain}` }, { from: `fiete@${domain}` }],
 		});
-		const one = new ThreadContactsService(db, match, threads, stamp).tune({
+		const one = new ThreadContactsService(
+			db,
+			match,
+			threads,
+			stamp,
+			participants,
+		).tune({
 			settleMs: 0,
 			batch: 1_000,
 			maxCreates: 1,
@@ -586,7 +632,13 @@ describe("senders of a relevant thread", () => {
 		broken.addCompanyContact = async () => {
 			throw new Error("database went away");
 		};
-		const failing = new ThreadContactsService(db, broken, threads, stamp).tune({
+		const failing = new ThreadContactsService(
+			db,
+			broken,
+			threads,
+			stamp,
+			participants,
+		).tune({
 			settleMs: 0,
 			batch: 1_000,
 		});
@@ -630,7 +682,13 @@ describe("senders of a relevant thread", () => {
 			}
 			return match.addCompanyContact(person, ...rest);
 		};
-		const failing = new ThreadContactsService(db, broken, threads, stamp).tune({
+		const failing = new ThreadContactsService(
+			db,
+			broken,
+			threads,
+			stamp,
+			participants,
+		).tune({
 			settleMs: 0,
 			batch: 1_000,
 		});

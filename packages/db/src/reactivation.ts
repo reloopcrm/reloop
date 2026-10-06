@@ -157,10 +157,45 @@ type Row = {
 	feedback: string | null;
 };
 
+const OWNED_THREADS = Prisma.sql`
+	SELECT t.id, t.subject, t."lastMessageAt", t."contactId" AS contact_id
+	FROM "emailThread" t
+	WHERE t."contactId" IS NOT NULL`;
+
+function threadsOf(contactId: string): Prisma.Sql {
+	return Prisma.sql`
+		SELECT t.id, t.subject, t."lastMessageAt", ${contactId}::text AS contact_id
+		FROM "emailThread" t
+		WHERE t."contactId" = ${contactId}
+			OR EXISTS (
+				SELECT 1 FROM "emailThreadContact" l
+				WHERE l."threadId" = t.id AND l."contactId" = ${contactId}
+			)`;
+}
+
+type PersonMail = { them: Prisma.Sql; us: Prisma.Sql };
+
+const ANY_PERSON: PersonMail = {
+	them: Prisma.sql`m.direction = 'INBOUND'`,
+	us: Prisma.sql`m.direction = 'OUTBOUND'`,
+};
+
+function mailOf(email: string | null): PersonMail {
+	if (!email) return ANY_PERSON;
+	const address = email.trim().toLowerCase();
+	const recipient = JSON.stringify([{ email: address }]);
+
+	return {
+		them: Prisma.sql`m.direction = 'INBOUND' AND lower(m."fromEmail") = ${address}`,
+		us: Prisma.sql`m.direction = 'OUTBOUND' AND m.recipients @> ${recipient}::jsonb`,
+	};
+}
+
 function rowQuery(
 	where: Prisma.Sql,
 	limit: number,
-	mailFilter: Prisma.Sql = Prisma.empty,
+	threads: Prisma.Sql = OWNED_THREADS,
+	person: PersonMail = ANY_PERSON,
 ): Prisma.Sql {
 	const openStages = Prisma.join(
 		OPEN_DEAL_STAGES.map((stage) => Prisma.sql`${stage}::"DealStage"`),
@@ -169,21 +204,20 @@ function rowQuery(
 	return Prisma.sql`
 		WITH mail AS (
 			SELECT
-				t."contactId" AS contact_id,
+				t.contact_id,
 				COUNT(DISTINCT t.id) AS threads,
-				COUNT(*) FILTER (WHERE m.direction = 'INBOUND') AS from_them,
-				COUNT(*) FILTER (WHERE m.direction = 'OUTBOUND') AS from_us,
-				MAX(m."sentAt") FILTER (WHERE m.direction = 'INBOUND') AS last_inbound,
-				MAX(m."sentAt") FILTER (WHERE m.direction = 'OUTBOUND') AS last_outbound,
-				(array_agg(t.id ORDER BY m."sentAt" DESC) FILTER (WHERE m.direction = 'INBOUND'))[1] AS last_inbound_thread,
-				(array_agg(t.id ORDER BY m."sentAt" DESC) FILTER (WHERE m.direction = 'OUTBOUND'))[1] AS last_outbound_thread,
+				COUNT(*) FILTER (WHERE ${person.them}) AS from_them,
+				COUNT(*) FILTER (WHERE ${person.us}) AS from_us,
+				MAX(m."sentAt") FILTER (WHERE ${person.them}) AS last_inbound,
+				MAX(m."sentAt") FILTER (WHERE ${person.us}) AS last_outbound,
+				(array_agg(t.id ORDER BY m."sentAt" DESC) FILTER (WHERE ${person.them}))[1] AS last_inbound_thread,
+				(array_agg(t.id ORDER BY m."sentAt" DESC) FILTER (WHERE ${person.us}))[1] AS last_outbound_thread,
+				(array_agg(t.subject ORDER BY t."lastMessageAt" DESC, t.id))[1] AS last_subject,
 				MAX(m."sentAt") AS last_contact,
 				MIN(m."sentAt") AS first_contact
-			FROM "emailThread" t
+			FROM (${threads}) t
 			JOIN "emailMessage" m ON m."threadId" = t.id
-			WHERE t."contactId" IS NOT NULL
-				${mailFilter}
-			GROUP BY t."contactId"
+			GROUP BY t.contact_id
 		)
 		SELECT
 			c.id,
@@ -224,12 +258,7 @@ function rowQuery(
 					AND d."archivedAt" IS NULL
 					AND d.stage = ${DealStage.CLOSED_WON}::"DealStage"
 			) AS "wonDeals",
-			(
-				SELECT t.subject FROM "emailThread" t
-				WHERE t."contactId" = c.id
-				ORDER BY t."lastMessageAt" DESC
-				LIMIT 1
-			) AS "lastSubject",
+			mail.last_subject AS "lastSubject",
 			mem.summary AS "memorySummary",
 			mem."didBusiness" AS "didBusiness",
 			mem."openInquiries" AS "openInquiries",
@@ -254,11 +283,18 @@ export async function readReactivationCandidate(
 	db: Db,
 	options: { contactId: string; now?: Date; rules?: WinBackRuleSet },
 ): Promise<ReactivationCandidate | null> {
+	const contact = await db.contact.findUnique({
+		where: { id: options.contactId },
+		select: { email: true },
+	});
+	if (!contact) return null;
+
 	const rows = await db.$queryRaw<Row[]>(
 		rowQuery(
 			Prisma.sql`c.id = ${options.contactId}`,
 			1,
-			Prisma.sql`AND t."contactId" = ${options.contactId}`,
+			threadsOf(options.contactId),
+			mailOf(contact.email),
 		),
 	);
 	const row = rows[0];

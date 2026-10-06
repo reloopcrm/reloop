@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { auth } from "@crm/auth";
 import { ActivityType, db, EmailDirection, GoogleSyncStatus } from "@crm/db";
 import { symmetricEncrypt } from "better-auth/crypto";
+import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { GoogleConnectionService } from "../src/google/google-connection.service";
 import {
@@ -13,6 +14,7 @@ import {
 import type { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import { MicrosoftConnectionService } from "../src/microsoft/microsoft-connection.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "mailbox-purge-spec";
@@ -32,14 +34,33 @@ const tokens = new MailboxTokenService(db);
 const state = new SyncStateService(db);
 const stamp = new ActivityStampService(db);
 
+const match = {
+	internalIdentity: async () => ({ addresses: new Set(), domains: new Set() }),
+	suppressedDomains: async () => new Set(),
+	suppressedEmails: async () => new Set(),
+} as unknown as MailboxMatchService;
+const participants = new ThreadParticipantsService(
+	db,
+	match,
+	stamp,
+	{} as unknown as AgentTriggerService,
+);
+
 const google = new GoogleConnectionService(
 	db,
 	tokens,
 	state,
-	{} as unknown as MailboxMatchService,
+	match,
 	stamp,
+	participants,
 );
-const microsoft = new MicrosoftConnectionService(db, tokens, state, stamp);
+const microsoft = new MicrosoftConnectionService(
+	db,
+	tokens,
+	state,
+	stamp,
+	participants,
+);
 
 function at(hour: number): Date {
 	return new Date(Date.UTC(2026, 0, 1, hour));

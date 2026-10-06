@@ -1,4 +1,5 @@
 import { db } from "@crm/db";
+import { threadsOfContact } from "@crm/db/thread-participants";
 import { parsePersonStory } from "@crm/validation/person-story";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 import { COPY } from "./copy";
@@ -28,29 +29,35 @@ async function storyInput(contactId: string) {
 			company: { select: { name: true } },
 			memory: { select: { summary: true } },
 			story: { select: { story: true } },
-			emailThreads: {
-				where: { OR: [{ insight: null }, { insight: { relevant: true } }] },
-				orderBy: { lastMessageAt: "desc" },
-				take: STORY.threads,
+		},
+	});
+	if (!contact) return null;
+
+	const threads = await db.emailThread.findMany({
+		where: {
+			AND: [
+				threadsOfContact(contactId),
+				{ OR: [{ insight: null }, { insight: { relevant: true } }] },
+			],
+		},
+		orderBy: { lastMessageAt: "desc" },
+		take: STORY.threads,
+		select: {
+			messages: {
+				orderBy: { sentAt: "asc" },
 				select: {
-					messages: {
-						orderBy: { sentAt: "asc" },
-						select: {
-							id: true,
-							direction: true,
-							fromName: true,
-							fromEmail: true,
-							subject: true,
-							sentAt: true,
-							body: true,
-							snippet: true,
-						},
-					},
+					id: true,
+					direction: true,
+					fromName: true,
+					fromEmail: true,
+					subject: true,
+					sentAt: true,
+					body: true,
+					snippet: true,
 				},
 			},
 		},
 	});
-	if (!contact) return null;
 
 	const deals = await db.deal.findMany({
 		where: {
@@ -72,7 +79,7 @@ async function storyInput(contactId: string) {
 		},
 	});
 
-	return { contact, deals };
+	return { contact, threads, deals };
 }
 
 export async function runPersonStory(
@@ -84,12 +91,12 @@ export async function runPersonStory(
 	if (!input) return say(COPY.stories.contactGone);
 
 	const { contact } = input;
-	const messages = contact.emailThreads.flatMap((thread) => thread.messages);
+	const messages = input.threads.flatMap((thread) => thread.messages);
 	const numbered = numberMessages(messages, contact.email);
 	if (numbered.length === 0) return say(COPY.stories.noConversation);
 
 	const newest = await db.emailThread.aggregate({
-		where: { contactId },
+		where: threadsOfContact(contactId),
 		_max: { lastMessageAt: true },
 	});
 

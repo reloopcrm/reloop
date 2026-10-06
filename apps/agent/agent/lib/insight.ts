@@ -5,6 +5,7 @@ import {
 	MEMORY,
 	THREAD_CLASSIFICATION,
 } from "@crm/db/insights";
+import { threadsOfContact } from "@crm/db/thread-participants";
 import { TYPESAFE } from "@crm/db/typesafe";
 import type { SummaryLanguage } from "@crm/validation/agent-language";
 import { summaryIsStale } from "@crm/validation/agent-language";
@@ -404,6 +405,7 @@ async function refreshMemory(
 	contactId: string,
 	rules: WinBackRules,
 	added: { threadId: string; verdict: ThreadVerdict },
+	buildModel: typeof directModel = directModel,
 ): Promise<void> {
 	const existing = await db.contactMemory.findUnique({ where: { contactId } });
 	const wanted = summaryLanguage();
@@ -414,7 +416,7 @@ async function refreshMemory(
 	if (fresh && existing.coveredThreadIds.includes(added.threadId)) return;
 
 	const insights = await db.threadInsight.findMany({
-		where: { thread: { contactId }, relevant: true },
+		where: { thread: threadsOfContact(contactId), relevant: true },
 		select: {
 			threadId: true,
 			outcome: true,
@@ -453,7 +455,7 @@ async function refreshMemory(
 	let modelId = existing?.modelId ?? null;
 
 	if (added.verdict.relevant || (!fresh && summary.length > 0)) {
-		const model = await directModel("reading", "contact-memory");
+		const model = await buildModel("reading", "contact-memory");
 		const writtenIn = summaryWrittenIn(wanted);
 		const object = await askJson(
 			model,
@@ -513,6 +515,43 @@ async function refreshMemory(
 	});
 }
 
+export async function memoryContactsOf(thread: {
+	id: string;
+	contactId: string | null;
+}): Promise<string[]> {
+	const linked = await db.emailThreadContact.findMany({
+		where: {
+			threadId: thread.id,
+			contact: { archivedAt: null },
+			contactId: thread.contactId ? { not: thread.contactId } : undefined,
+		},
+		orderBy: { firstAt: "asc" },
+		take: MEMORY.linkedContactsPerThread,
+		select: { contactId: true },
+	});
+
+	return [
+		...(thread.contactId ? [thread.contactId] : []),
+		...linked.map((link) => link.contactId),
+	];
+}
+
+async function refreshMemories(
+	thread: { id: string; contactId: string | null },
+	rules: WinBackRules,
+	verdict: ThreadVerdict,
+	buildModel: typeof directModel,
+): Promise<void> {
+	for (const contactId of await memoryContactsOf(thread)) {
+		await refreshMemory(
+			contactId,
+			rules,
+			{ threadId: thread.id, verdict },
+			buildModel,
+		);
+	}
+}
+
 export type ReadPlan = "stored" | "classify" | "keepRelevant";
 
 export function readPlan(
@@ -569,6 +608,7 @@ export async function runThreadInsight(
 	threadId: string,
 	gateOnly = false,
 	reread = false,
+	buildModel: typeof directModel = directModel,
 ): Promise<string> {
 	const thread = await db.emailThread.findUnique({
 		where: { id: threadId },
@@ -652,9 +692,7 @@ export async function runThreadInsight(
 		}
 	}
 
-	if (thread.contactId) {
-		await refreshMemory(thread.contactId, rules, { threadId, verdict });
-	}
+	await refreshMemories(thread, rules, verdict, buildModel);
 
 	if (!verdict.relevant) {
 		const why = verdict.summary.slice(0, 120);
@@ -675,7 +713,10 @@ export function refreshedSummary(
 	return { summary: written.trim() || stored, language: wanted };
 }
 
-export async function runSummaryRefresh(threadId: string): Promise<string> {
+export async function runSummaryRefresh(
+	threadId: string,
+	options: { memoryOnly?: boolean; buildModel?: typeof directModel } = {},
+): Promise<string> {
 	const thread = await db.emailThread.findUnique({
 		where: { id: threadId },
 		select: {
@@ -711,7 +752,7 @@ export async function runSummaryRefresh(threadId: string): Promise<string> {
 	const wanted = summaryLanguage();
 	let summary = insight.summary;
 
-	if (summaryIsStale(insight.language, wanted)) {
+	if (!options.memoryOnly && summaryIsStale(insight.language, wanted)) {
 		const { verdict } = await classifyWithModel(thread, rules);
 		await storeMessageSummaries(thread, verdict.messageSummaries);
 
@@ -720,12 +761,12 @@ export async function runSummaryRefresh(threadId: string): Promise<string> {
 		summary = data.summary;
 	}
 
-	if (thread.contactId) {
-		await refreshMemory(thread.contactId, rules, {
-			threadId,
-			verdict: storedVerdict({ ...insight, summary }),
-		});
-	}
+	await refreshMemories(
+		thread,
+		rules,
+		storedVerdict({ ...insight, summary }),
+		options.buildModel ?? directModel,
+	);
 
 	return say(COPY.threads.refreshed);
 }

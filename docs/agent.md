@@ -209,6 +209,20 @@ signed up in. The API stores and serves the value and does nothing else with it.
   the contact's newest relevant thread. A text too short to judge is `undetermined`
   and keeps its null tag. With `conversation` as the wanted language every null tag
   is `undetermined`, because the language of the conversation is not known here.
+  A task whose payload says `memoryOnly: true`
+  (`readAgentTaskMemoryOnly`, written by `bun run thread-participants --apply` for a
+  linked contact without a memory) skips the model read of the thread, whatever the
+  stored language, and only refreshes the memories.
+- **The memory follows every person in the conversation.** `memoryContactsOf`
+  (`lib/insight.ts`) names the thread's own contact first, then every active contact
+  linked to the thread through `emailThreadContact`, at most
+  `MEMORY.linkedContactsPerThread` of them by `firstAt`, and `runThreadInsight` and
+  `runSummaryRefresh` call `refreshMemory` for each. A memory that is fresh and already
+  covers the thread returns before the model is asked, so the owner costs nothing on a
+  catch-up; each other person is one model call. `refreshMemory` and the
+  `read_contact_memory` tool read the insights of `threadsOfContact(contactId)`
+  (`@crm/db/thread-participants`), the thread's own contact or a linked one, so a
+  person who wrote into a colleague's conversation has a memory of it.
 - **A reread never changes relevance.** `reread: true` on a `thread-insight` task (the
   direction repair) skips the pre-check for a thread that already has an insight
   (`readPlan`): a relevant thread is read by the model and stays relevant, an off

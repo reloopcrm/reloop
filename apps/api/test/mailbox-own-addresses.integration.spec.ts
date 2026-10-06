@@ -14,6 +14,7 @@ import { DirectionRepairService } from "../src/mailbox/direction-repair.service"
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
 import { isOwnAddress } from "../src/mailbox/participants";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import {
 	type IncomingMessage,
 	ThreadWriterService,
@@ -38,13 +39,15 @@ const agent = {
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
 	threadStored: async () => undefined,
+	contactMemoryRequested: async () => true,
 } as unknown as AgentTriggerService;
 
 const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const threads = new ThreadWriterService(db, match, stamp, agent);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
+const threads = new ThreadWriterService(db, match, stamp, agent, participants);
 
 let rowA: MailboxSync;
 let rowB: MailboxSync;
@@ -251,17 +254,25 @@ describe("repairing mail stored with the wrong direction", () => {
 				addresses: new Set([mailboxB]),
 				domains: new Set<string>(),
 			}),
+			suppressedDomains: async () => new Set<string>(),
+			suppressedEmails: async () => new Set<string>(),
 		} as unknown as MailboxMatchService;
 		const requested: unknown[][] = [];
 		const trigger = {
 			threadStored: async (...args: unknown[]) => {
 				requested.push(args);
 			},
+			contactMemoryRequested: async () => true,
 		} as unknown as AgentTriggerService;
 
-		expect(await new DirectionRepairService(db, scoped, trigger).repair()).toBe(
-			1,
-		);
+		expect(
+			await new DirectionRepairService(
+				db,
+				scoped,
+				trigger,
+				new ThreadParticipantsService(db, scoped, stamp, trigger),
+			).repair(),
+		).toBe(1);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);
 		expect(await directionOf("customer")).toBe(EmailDirection.INBOUND);
 		expect(requested).toEqual([
@@ -273,9 +284,14 @@ describe("repairing mail stored with the wrong direction", () => {
 			],
 		]);
 
-		expect(await new DirectionRepairService(db, scoped, trigger).repair()).toBe(
-			0,
-		);
+		expect(
+			await new DirectionRepairService(
+				db,
+				scoped,
+				trigger,
+				new ThreadParticipantsService(db, scoped, stamp, trigger),
+			).repair(),
+		).toBe(0);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);
 		expect(requested).toHaveLength(1);
 	});
@@ -328,7 +344,11 @@ describe("a contact that already exists", () => {
 			source: RecordSource.EMAIL,
 			ownerId: userA,
 		});
-		await threads["contactWithoutCompany"](person, userA);
+		await threads["contactWithoutCompany"](
+			person,
+			userA,
+			await threads.context(),
+		);
 
 		expect(
 			await db.contact.findUniqueOrThrow({

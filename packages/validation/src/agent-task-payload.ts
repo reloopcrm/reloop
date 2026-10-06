@@ -9,6 +9,7 @@ export const agentTaskThreadPayload = z.object({
 	threadId: z.string().min(1),
 	origin: z.enum(AGENT_TASK_ORIGINS).default("forward"),
 	reread: z.boolean().default(false),
+	memoryOnly: z.boolean().default(false),
 });
 
 export type AgentTaskThreadPayload = z.input<typeof agentTaskThreadPayload>;
@@ -29,6 +30,11 @@ export function readAgentTaskOrigin(value: unknown): AgentTaskOrigin {
 export function readAgentTaskReread(value: unknown): boolean {
 	const parsed = agentTaskThreadPayload.safeParse(value);
 	return parsed.success ? parsed.data.reread : false;
+}
+
+export function readAgentTaskMemoryOnly(value: unknown): boolean {
+	const parsed = agentTaskThreadPayload.safeParse(value);
+	return parsed.success ? parsed.data.memoryOnly : false;
 }
 
 export const agentTaskDraftPayload = z.object({

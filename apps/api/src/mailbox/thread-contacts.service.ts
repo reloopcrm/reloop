@@ -1,14 +1,15 @@
 import { type Db, Prisma, RecordSource } from "@crm/db";
-import { AUTO_REPLY_BODY_CHARS } from "@crm/db/message-text";
 import { limitsOf } from "@crm/db/plans";
 import { SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
 import { readPlan, SETTINGS_ID } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
-import { z } from "zod";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import { NO_DEADLINE, pastDeadline, THREAD_CONTACTS } from "./mailbox.config";
-import { MailboxMatchService } from "./mailbox-match.service";
+import {
+	MailboxMatchService,
+	type MatchContext,
+} from "./mailbox-match.service";
 import {
 	type CreatePolicy,
 	planThread,
@@ -26,28 +27,13 @@ import {
 	type ThreadContactsCursor,
 	type ThreadFailure,
 } from "./thread-contacts-cursor";
-import { recipientsOf, ThreadWriterService } from "./thread-writer.service";
+import { groupByThread, readThreadMessages } from "./thread-messages";
+import { ThreadParticipantsService } from "./thread-participants.service";
+import { ThreadWriterService } from "./thread-writer.service";
 
 type ChangedThread = { id: string; changedAt: string };
 
 type KnownContact = { id: string; archivedAt: Date | null };
-
-const isoInstant = z.iso.datetime().transform((value) => new Date(value));
-
-const scannedMessage = z.object({
-	threadId: z.string(),
-	direction: z.enum(["INBOUND", "OUTBOUND"]),
-	fromEmail: z.string(),
-	fromName: z.string().nullable(),
-	subject: z.string().nullable(),
-	body: z.string().nullable(),
-	snippet: z.string().nullable(),
-	syncedByUserId: z.string().nullable(),
-	sentAt: isoInstant,
-	recipients: z.json(),
-});
-
-const scannedMessages = z.array(scannedMessage);
 
 type ScannedThread = {
 	row: ChangedThread;
@@ -90,6 +76,7 @@ export class ThreadContactsService {
 		private readonly match: MailboxMatchService,
 		private readonly threads: ThreadWriterService,
 		private readonly stamp: ActivityStampService,
+		private readonly participants: ThreadParticipantsService,
 	) {}
 
 	tune(options: Partial<ThreadContactsOptions>): this {
@@ -152,6 +139,10 @@ export class ThreadContactsService {
 					wanted,
 					known,
 					this.options.maxCreates - created,
+					policy.context,
+				);
+				await this.participants.settle(
+					await this.participants.linkThread(thread.row.id, policy.context),
 				);
 				created += outcome.created;
 				for (const domain of outcome.domains) domains.add(domain);
@@ -214,6 +205,7 @@ export class ThreadContactsService {
 		wanted: readonly SenderOutcome[],
 		known: Map<string, KnownContact>,
 		room: number,
+		context: MatchContext,
 	): Promise<{
 		created: number;
 		domains: string[];
@@ -253,6 +245,13 @@ export class ThreadContactsService {
 			if (!slot) {
 				await this.fillEmptySlot(thread.row.id, added.contactId);
 				slot = added.contactId;
+			}
+			if (added.created) {
+				await this.participants.linkContact(
+					added.contactId,
+					sender.email,
+					context,
+				);
 			}
 		}
 
@@ -443,15 +442,10 @@ export class ThreadContactsService {
 					},
 				},
 			}),
-			this.messagesOf(ids),
+			readThreadMessages(this.db, ids),
 		]);
 		const byId = new Map(details.map((thread) => [thread.id, thread]));
-		const mail = new Map<string, ThreadMessage[]>();
-		for (const message of messages) {
-			const list = mail.get(message.threadId) ?? [];
-			list.push(message);
-			mail.set(message.threadId, list);
-		}
+		const mail: Map<string, ThreadMessage[]> = groupByThread(messages);
 
 		return rows.flatMap((row) => {
 			const thread = byId.get(row.id);
@@ -472,35 +466,6 @@ export class ThreadContactsService {
 				},
 			];
 		});
-	}
-
-	private async messagesOf(
-		threadIds: readonly string[],
-	): Promise<(ThreadMessage & { threadId: string })[]> {
-		if (threadIds.length === 0) return [];
-
-		const raw = await this.db.$queryRaw<unknown[]>`
-			SELECT m."threadId",
-				m.direction::text AS direction,
-				m."fromEmail",
-				m."fromName",
-				m.subject,
-				left(m.body, ${AUTO_REPLY_BODY_CHARS}) AS body,
-				m.snippet,
-				m."syncedByUserId",
-				to_char(m."sentAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "sentAt",
-				CASE WHEN m.direction = 'OUTBOUND' THEN m.recipients ELSE '[]'::jsonb END AS recipients
-			FROM "emailMessage" m
-			WHERE m."threadId" IN (${Prisma.join(threadIds)})
-			ORDER BY m."threadId", m."sentAt"
-		`;
-
-		return scannedMessages.parse(raw).map((message) => ({
-			...message,
-			recipients: recipientsOf(message.recipients as Prisma.JsonValue).map(
-				(person) => person.email,
-			),
-		}));
 	}
 
 	private async knownAddresses(

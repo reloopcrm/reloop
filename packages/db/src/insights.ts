@@ -48,6 +48,7 @@ export const MEMORY = {
 	messageSummaryMaxChars: 200,
 	evidenceQuoteMaxChars: 200,
 	messagesPerThread: 12,
+	linkedContactsPerThread: 5,
 	bodyMaxChars: 1_500,
 	jsonAttempts: 2,
 	callTimeoutMs: 90_000,

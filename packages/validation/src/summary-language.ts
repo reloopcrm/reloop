@@ -10,7 +10,7 @@ export const SUMMARY_LANGUAGE_DETECTION = {
 
 type LatinLocale = Exclude<Locale, "zh-Hans">;
 
-const STOPWORDS: Record<LatinLocale, ReadonlySet<string>> = {
+const STOPWORDS = {
 	de: new Set([
 		"der",
 		"die",
@@ -242,7 +242,7 @@ const STOPWORDS: Record<LatinLocale, ReadonlySet<string>> = {
 		"yeni",
 		"tekrar",
 	]),
-};
+} satisfies Record<LatinLocale, ReadonlySet<string>>;
 
 const LATIN_LOCALES = Object.keys(STOPWORDS) as LatinLocale[];
 

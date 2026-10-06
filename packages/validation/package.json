@@ -27,6 +27,7 @@
 		"./field-templates": "./src/field-templates.ts",
 		"./mailbox-profile": "./src/mailbox-profile.ts",
 		"./saved-view": "./src/saved-view.ts",
+		"./summary-language": "./src/summary-language.ts",
 		"./summary-text": "./src/summary-text.ts",
 		"./tenant-signup": "./src/tenant-signup.ts",
 		"./waitlist": "./src/waitlist.ts",

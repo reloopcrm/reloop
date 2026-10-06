@@ -1,17 +1,39 @@
 import { cloud } from "@crm/db/cloud/scope";
-import { SAMPLE_DATA } from "@crm/db/sample-data";
 import {
 	readAgentLanguage,
 	summaryLanguage,
 } from "@crm/validation/agent-language";
 import { AGENT_DISPATCH } from "../src/agent/agent-dispatch.config";
+import {
+	applySummaryCatchUp,
+	planSummaryCatchUp,
+	type SummaryVerdictCounts,
+} from "../src/agent/summary-catch-up";
+
+function describe(counts: SummaryVerdictCounts): string {
+	return [
+		`${counts.stale} written for another language`,
+		`${counts.correct} already in the wanted language`,
+		`${counts.foreign} detected in another language`,
+		`${counts.mixed} detected as mixed`,
+		`${counts.undetermined} undetermined`,
+	].join(", ");
+}
+
+function mode(argv: readonly string[]): "dry-run" | "apply" {
+	const apply = argv.includes("--apply");
+	if (apply && argv.includes("--dry-run")) {
+		throw new Error("Pass --dry-run or --apply, not both.");
+	}
+	return apply ? "apply" : "dry-run";
+}
 
 async function main(): Promise<void> {
 	const { db } = await import("@crm/db");
 	const { AgentTriggerService } = await import(
 		"../src/agent/agent-trigger.service"
 	);
-	const apply = process.argv.includes("--apply");
+	const run = mode(process.argv);
 	const agent = new AgentTriggerService(db);
 
 	const refreshHere = async () => {
@@ -20,48 +42,21 @@ async function main(): Promise<void> {
 			await readAgentLanguage(db),
 			process.env.RELOOP_GERMAN,
 		);
-		const stale = { OR: [{ language: null }, { language: { not: wanted } }] };
+		const plan = await planSummaryCatchUp(db, wanted);
 
-		const insights = await db.threadInsight.findMany({
-			where: {
-				...stale,
-				relevant: true,
-				summary: { not: "" },
-				NOT: { threadId: { startsWith: SAMPLE_DATA.prefix } },
-			},
-			select: { threadId: true },
-		});
-		const memories = await db.contactMemory.findMany({
-			where: {
-				...stale,
-				summary: { not: "" },
-				NOT: { contactId: { startsWith: SAMPLE_DATA.prefix } },
-			},
-			select: { contactId: true },
-		});
-
-		const threadIds = new Set(insights.map((insight) => insight.threadId));
-		for (const memory of memories) {
-			const thread = await db.emailThread.findFirst({
-				where: { contactId: memory.contactId, insight: { relevant: true } },
-				orderBy: { lastMessageAt: "desc" },
-				select: { id: true },
-			});
-			if (thread) threadIds.add(thread.id);
-		}
-
+		console.log(`${workspace}: wanted language ${wanted}.`);
+		console.log(`${workspace}: thread summaries: ${describe(plan.insights)}.`);
+		console.log(`${workspace}: contact memories: ${describe(plan.memories)}.`);
 		console.log(
-			`${workspace}: wanted language ${wanted}. ${insights.length} thread summaries and ${memories.length} contact memories are in another language. ${threadIds.size} threads would be refreshed.`,
+			`${workspace}: ${plan.markThreads.length} thread summaries and ${plan.markContacts.length} contact memories get their language set without a rewrite. ${plan.refreshThreads.length} threads would be refreshed.`,
 		);
-		if (!apply) return threadIds.size;
+		if (run === "dry-run") return plan.refreshThreads.length;
 
-		for (const threadId of threadIds) {
-			await agent.summaryRefreshRequested(threadId, "backfill");
-		}
+		const result = await applySummaryCatchUp(db, agent, plan);
 		console.log(
-			`${workspace}: queued ${threadIds.size} refreshes at the backfill priority.`,
+			`${workspace}: set the language on ${result.markedInsights} thread summaries and ${result.markedMemories} contact memories. Queued ${result.queued} refreshes at the backfill priority.`,
 		);
-		return threadIds.size;
+		return result.queued;
 	};
 
 	await cloud.forEachScope(refreshHere, {
@@ -69,8 +64,8 @@ async function main(): Promise<void> {
 		budgetMs: AGENT_DISPATCH.summaryRefresh.scriptBudgetMs,
 	});
 
-	if (!apply) {
-		console.log("Nothing was queued. Run again with --apply to queue them.");
+	if (run === "dry-run") {
+		console.log("Dry run. Nothing was written. Run again with --apply.");
 	}
 
 	await db.$disconnect();

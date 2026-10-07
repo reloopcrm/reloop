@@ -8,7 +8,7 @@ export const messageFailures = z
 			attempts: z.number().int().min(1).max(MESSAGE_FAILURES.maxAttempts),
 		}),
 	)
-	.max(MESSAGE_FAILURES.maxTracked);
+	.refine((entries) => entries.length <= MESSAGE_FAILURES.maxTracked);
 
 export type MessageFailures = z.infer<typeof messageFailures>;
 

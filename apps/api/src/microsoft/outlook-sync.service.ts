@@ -256,6 +256,10 @@ export class OutlookSyncService {
 		}
 
 		if (page.outcome !== "ok") {
+			await this.state.saveBackfill(
+				row.id,
+				await this.carry(row, row.backfill, ledger),
+			);
 			return this.handleFailure(row, page);
 		}
 

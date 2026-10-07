@@ -1,5 +1,5 @@
 import { DealStage } from "@crm/db";
-import { USAGE_COUNTERS } from "@crm/db/plan-usage";
+import { USAGE_COUNTERS, USAGE_LEVELS } from "@crm/db/plan-usage";
 import { CAPACITY_COUNTERS } from "@crm/db/plans";
 import {
 	MAX_ARCHIVE_RETENTION_DAYS,
@@ -151,6 +151,7 @@ export const aiUsageOutput = z.object({
 			counter: z.enum(CAPACITY_COUNTERS),
 			used: z.number(),
 			limit: z.number().nullable(),
+			level: z.enum(USAGE_LEVELS),
 		}),
 	),
 	lines: z.array(
@@ -159,6 +160,7 @@ export const aiUsageOutput = z.object({
 			used: z.number(),
 			limit: z.number().nullable(),
 			included: z.boolean(),
+			level: z.enum(USAGE_LEVELS),
 			reached: z.boolean(),
 		}),
 	),

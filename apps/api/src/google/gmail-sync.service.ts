@@ -12,6 +12,7 @@ import {
 	advancePhase,
 	backfillBefore,
 	backfillFloor,
+	carryFailures,
 	finishBackfill,
 	isBackfillRunning,
 	type MailboxBackfill,
@@ -22,9 +23,15 @@ import {
 	serialiseBackfill,
 } from "../mailbox/backfill-cursor";
 import { importCapRemaining } from "../mailbox/import-cap";
-import { MAILBOX, NO_DEADLINE, pastDeadline } from "../mailbox/mailbox.config";
+import {
+	MAILBOX,
+	MESSAGE_FAILURES,
+	NO_DEADLINE,
+	pastDeadline,
+} from "../mailbox/mailbox.config";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
+import { FailureLedger } from "../mailbox/message-failures";
 import {
 	normaliseMessageId,
 	stripQuotedHistory,
@@ -66,6 +73,7 @@ type Ingested = {
 type Backfilled = {
 	written: number;
 	backfill: string | null;
+	running: boolean;
 	failure?: MailboxFailure;
 };
 
@@ -188,6 +196,10 @@ export class GmailSyncService {
 		startHistoryId: string,
 		deadlineAt: number,
 	): Promise<GmailSyncOutcome> {
+		const stored = readBackfill(row.backfill);
+		const ledger = new FailureLedger(
+			stored.outcome === "ok" ? stored.backfill.failures : undefined,
+		);
 		const entries: { id: string | undefined; ids: string[] }[] = [];
 		let pageToken: string | undefined;
 		let latestHistoryId: string | undefined;
@@ -242,22 +254,39 @@ export class GmailSyncService {
 			MAILBOX.sync.forwardMax,
 			deadlineAt,
 			"forward",
+			ledger,
 		);
 
 		let cursor = startHistoryId;
+		let passed = 0;
 		let complete = true;
-		for (const entry of entries) {
+		for (const [at, entry] of entries.entries()) {
 			if (!entry.ids.every((id) => forward.done.has(id))) {
 				complete = false;
 				break;
 			}
-			cursor = entry.id ?? cursor;
+			if (entry.id) {
+				cursor = entry.id;
+				passed = at + 1;
+			}
 		}
-		if (complete && !more) cursor = latestHistoryId ?? cursor;
+		if (complete && !more && latestHistoryId) {
+			cursor = latestHistoryId;
+			passed = entries.length;
+		}
+
+		const ahead = new Set(entries.slice(passed).flatMap((entry) => entry.ids));
+		const behind = new Set(
+			entries.slice(0, passed).flatMap((entry) => entry.ids),
+		);
+		const keepForward = (id: string) =>
+			ahead.has(id) || (more && !behind.has(id));
 
 		if (forward.failure) {
+			ledger.retain("forward", keepForward);
 			await this.state.settle(row.id, {
 				cursor,
+				backfill: await this.carry(row, row.backfill, ledger),
 				status: GoogleSyncStatus.RUNNING,
 			});
 			return this.handleFailure(row, forward.failure);
@@ -269,11 +298,15 @@ export class GmailSyncService {
 			mailbox,
 			MAILBOX.sync.gmail.maxMessagesPerTick - forward.fetched,
 			deadlineAt,
+			ledger,
 		);
+
+		ledger.retain("forward", keepForward);
+		if (!back.running) ledger.retain("backfill", () => false);
 
 		await this.state.settle(row.id, {
 			cursor,
-			backfill: back.backfill,
+			backfill: await this.carry(row, back.backfill, ledger),
 			status: GoogleSyncStatus.RUNNING,
 		});
 
@@ -305,6 +338,7 @@ export class GmailSyncService {
 		mailbox: string,
 		budget: number,
 		deadlineAt: number,
+		ledger: FailureLedger,
 	): Promise<Backfilled> {
 		const read = readBackfill(row.backfill);
 
@@ -317,7 +351,7 @@ export class GmailSyncService {
 		}
 
 		if (read.outcome === "ok" && !isBackfillRunning(read.backfill)) {
-			return { written: 0, backfill: row.backfill };
+			return { written: 0, backfill: row.backfill, running: false };
 		}
 
 		let plan: MailboxBackfill =
@@ -362,7 +396,12 @@ export class GmailSyncService {
 					break;
 				}
 
-				return { written, backfill: serialiseBackfill(plan), failure: page };
+				return {
+					written,
+					backfill: serialiseBackfill(plan),
+					running: isBackfillRunning(plan),
+					failure: page,
+				};
 			}
 
 			const ids: string[] = [];
@@ -383,6 +422,7 @@ export class GmailSyncService {
 				Math.min(left, remaining),
 				deadlineAt,
 				"backfill",
+				ledger,
 			);
 			if (run.oldest) plan = reachedBack(plan, run.oldest);
 
@@ -393,6 +433,7 @@ export class GmailSyncService {
 				return {
 					written,
 					backfill: serialiseBackfill(plan),
+					running: isBackfillRunning(plan),
 					failure: run.failure,
 				};
 			}
@@ -403,7 +444,21 @@ export class GmailSyncService {
 			plan = next ? { ...plan, position: next } : advancePhase(plan);
 		}
 
-		return { written, backfill: serialiseBackfill(plan) };
+		return {
+			written,
+			backfill: serialiseBackfill(plan),
+			running: isBackfillRunning(plan),
+		};
+	}
+
+	private async carry(
+		row: MailboxSync,
+		raw: string | null,
+		ledger: FailureLedger,
+	): Promise<string | null> {
+		return carryFailures(raw, ledger.list(), async () =>
+			planBackfill({ before: new Date(), floor: await this.floorFor(row) }),
+		);
 	}
 
 	private async floorFor(row: MailboxSync): Promise<Date | null> {
@@ -422,6 +477,7 @@ export class GmailSyncService {
 		cap: number,
 		deadlineAt: number,
 		lane: AgentTaskOrigin,
+		ledger: FailureLedger,
 	): Promise<Ingested> {
 		const empty: Ingested = {
 			done: new Set<string>(),
@@ -440,8 +496,10 @@ export class GmailSyncService {
 			alreadyHave.map((existing) => existing.gmailMessageId),
 		);
 
-		const done = new Set<string>(ids.filter((id) => seen.has(id)));
-		const pending = ids.filter((id) => !seen.has(id));
+		const done = new Set<string>(
+			ids.filter((id) => seen.has(id) || ledger.skip(id, lane)),
+		);
+		const pending = ids.filter((id) => !done.has(id));
 		const batch = pending.slice(0, Math.max(cap, 0));
 		const remaining = pending.length - batch.length;
 
@@ -482,13 +540,34 @@ export class GmailSyncService {
 
 			if (!oldest || parsed.sentAt < oldest) oldest = parsed.sentAt;
 
-			const stored = await this.threads.store(
-				row,
-				{ origin: "gmail", lane },
-				parsed,
-				context,
-			);
-			if (stored) written += 1;
+			try {
+				const stored = await this.threads.store(
+					row,
+					{ origin: "gmail", lane },
+					parsed,
+					context,
+				);
+				if (stored) written += 1;
+				ledger.clear(id);
+			} catch (error) {
+				const attempts = ledger.record(id, lane);
+				if (attempts < MESSAGE_FAILURES.maxAttempts) {
+					await this.state.saveBackfill(
+						row.id,
+						await this.carry(row, row.backfill, ledger),
+					);
+					throw error;
+				}
+
+				this.logger.warn({
+					message:
+						"A Gmail message could not be stored after repeated attempts. It is skipped",
+					mailboxId: row.id,
+					providerMessageId: id,
+					attempts,
+				});
+				done.add(id);
+			}
 		}
 
 		return {

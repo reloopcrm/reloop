@@ -1,7 +1,8 @@
 import { cloud } from "@crm/db/cloud/scope";
 import { THREAD_CONTACTS } from "../src/mailbox/mailbox.config";
+import { closeDatabase } from "./close-database";
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
 	if (!process.argv.includes("--dry-run")) {
 		console.error(
 			"Only a dry run exists. The sync tick adds the contacts. Run again with --dry-run.",
@@ -92,7 +93,7 @@ async function main(): Promise<void> {
 
 	console.log("Nothing was written. This was a dry run.");
 
-	await db.$disconnect();
+	await closeDatabase();
 }
 
 function formatCounts(counts: Record<string, number>): string {

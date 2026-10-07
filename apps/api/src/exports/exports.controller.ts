@@ -9,6 +9,7 @@ import {
 	Query,
 	Res,
 	StreamableFile,
+	UseGuards,
 } from "@nestjs/common";
 import {
 	ApiCookieAuth,
@@ -19,6 +20,7 @@ import {
 	ApiTags,
 } from "@nestjs/swagger";
 import type { Response } from "express";
+import { SignInAllowedGuard } from "../auth/sign-in-allowed.guard";
 import { EXPORT_ENTITIES, parseExportRequest } from "./exports.contracts";
 import { ExportsService } from "./exports.service";
 import { EXPORTS } from "./exports-config";
@@ -26,6 +28,7 @@ import { EXPORTS } from "./exports-config";
 @ApiTags("Exports")
 @ApiCookieAuth(SESSION_COOKIE_NAME)
 @Controller("api/exports")
+@UseGuards(SignInAllowedGuard)
 export class ExportsController {
 	constructor(private readonly exports: ExportsService) {}
 

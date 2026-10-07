@@ -3,6 +3,7 @@ import {
 	canChangeRole,
 	canRemoveMember,
 	canRenameWorkspace,
+	endAccessOf,
 	ensureWorkspaceMembership,
 	generatePassword,
 	grantSignIn,
@@ -305,8 +306,7 @@ export class WorkspaceService {
 				where: { id: target.userId },
 				data: { removedAt: new Date() },
 			});
-			await tx.session.deleteMany({ where: { userId: target.userId } });
-			await tx.apikey.deleteMany({ where: { referenceId: target.userId } });
+			await endAccessOf(tx, [target.userId]);
 
 			return target;
 		});

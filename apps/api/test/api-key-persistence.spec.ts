@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { describe, expect, it } from "bun:test";
+import { AgentsRouter } from "../src/agent/agents.router";
 import { ImapRouter } from "../src/imap/imap.router";
 import { SettingsRouter } from "../src/settings/settings.router";
 import { SsoRouter } from "../src/sso/sso.router";
@@ -35,6 +36,9 @@ describe("an API key cannot build lasting access", () => {
 			"settings.chatgptLoginAction",
 			SettingsRouter.prototype.chatgptLoginAction,
 		],
+		["agents.deploy", AgentsRouter.prototype.deploy],
+		["agents.saveFile", AgentsRouter.prototype.saveFile],
+		["agents.revise", AgentsRouter.prototype.revise],
 	] as const;
 
 	for (const [name, handler] of guarded) {

@@ -230,16 +230,6 @@ signed up in. The API stores and serves the value and does nothing else with it.
   other stored text keeps the language it was written in. The business unit and
   description are edited by hand in Win back, Rules, because business setup keeps a
   value that is already set.
-- **A decline is hard or soft, and the agent decides.** `classifyWithModel` asks for
-  `declineKind` beside `outcome`: `HARD` is a no without interest shown first (no
-  price or offer asked, no talk about needs, only "no interest", "stop writing" or an
-  unsubscribe), `SOFT` is a no after interest (too expensive, no need right now,
-  another supplier). `askedToStop` is asked in the same call and is never stored:
-  `insightAnswer` turns it into `DECLINED` and `HARD`, whatever the model said. A
-  `DECLINED` answer without a kind is `SOFT`, any other outcome has none. The column
-  is `ThreadInsight.declineKind`, read through `parseDeclineKind`
-  (`@crm/validation/thread-decline`). A row read before this field is null and counts
-  as soft; nothing rereads old threads for it, the next normal read fills it.
 - **The record sheet shows the brief, not the memory.** `ContactMemory.summary` is the
   long running memory a draft and the win back list read, at most
   `MEMORY.summaryMaxChars`. `ContactMemory.brief` is written in the same call, at most

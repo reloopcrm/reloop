@@ -152,6 +152,9 @@ beforeAll(async () => {
 		body: "Yes, we have 500 pallets. What do you pay?",
 	});
 	ids.terse = await reachedOutTo("terse", { subject: null, body: null });
+	ids.quoting = await reachedOutTo("quoting", {
+		body: "Back now, yes please send the offer.\n\nOn Mon, 5 Jan 2026, Quoting wrote:\n> I am currently out of the office until Monday.",
+	});
 });
 
 afterAll(async () => {
@@ -171,8 +174,8 @@ describe("a win back answer is a person writing back", () => {
 	it("counts only the real replies as replied", async () => {
 		const counted = await outcome();
 
-		expect(counted.contacted).toBe(7);
-		expect(counted.answered).toBe(2);
+		expect(counted.contacted).toBe(8);
+		expect(counted.answered).toBe(3);
 	});
 
 	it("still writes the follow-up after an out-of-office reply or a bounce", async () => {
@@ -188,5 +191,6 @@ describe("a win back answer is a person writing back", () => {
 	it("writes no follow-up after a real reply", async () => {
 		expect(await followUpFor(ids.answered ?? "")).toBe(0);
 		expect(await followUpFor(ids.terse ?? "")).toBe(0);
+		expect(await followUpFor(ids.quoting ?? "")).toBe(0);
 	});
 });

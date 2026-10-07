@@ -670,6 +670,8 @@ the pattern lists in `packages/db/src/message-text.ts`
 - **TypeScript asks `isRealAnswer`**, which is `isAutoReply` and `isBounce` beside
   it. `EmailMessage` stores no headers, so they read the sender, the subject and the
   first `AUTO_REPLY_BODY_CHARS` of the body (the snippet when there is no body).
+  The body is cut at the first quote marker or `>` line after its first character
+  (`authoredText`), so a real reply that quotes an out-of-office still counts.
 - **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same
   lists. Every query that counts a reply uses it; never write
   `direction = 'INBOUND'` alone for that.

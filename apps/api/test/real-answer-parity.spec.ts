@@ -70,6 +70,21 @@ const samples = {
 		subject: "Re: Delivery failed yesterday",
 		body: "The truck did not arrive. Can you send the pallets again?",
 	}),
+	replyQuotingAutoReply: inbound({
+		body: "Yes, we have 500 pallets.\n\n> I am currently out of the office until Monday.",
+	}),
+	replyBelowEnglishHeader: inbound({
+		body: "Yes, we have 500 pallets.\n\nOn Tue, 3 Feb 2026, Anna wrote:\nI am currently out of the office.",
+	}),
+	replyBelowGermanHeader: inbound({
+		body: "Ja, passt.\n\nvon: Anna\nIch bin derzeit nicht im Büro.",
+	}),
+	replyQuotingBounce: inbound({
+		body: "Sorry, wrong address before.\n-----Original Message-----\nYour message to anna@example.com couldn't be delivered.",
+	}),
+	autoReplyStartingWithHeader: inbound({
+		body: "From: Anna\nI am currently out of the office.",
+	}),
 	senderNamedPostmasterInside: inbound({
 		fromEmail: "anna.postmaster@example.com",
 	}),
@@ -125,6 +140,10 @@ describe("the real answer rule", () => {
 				"deliveryOfGoods",
 				"noSubjectNoBody",
 				"realReply",
+				"replyBelowEnglishHeader",
+				"replyBelowGermanHeader",
+				"replyQuotingAutoReply",
+				"replyQuotingBounce",
 				"senderNamedPostmasterInside",
 				"snippetOnly",
 				"vacationAcrossLines",

@@ -82,7 +82,13 @@ const BOUNCE_BODY = [
 	String.raw`\b(ihre|die)\s+(e-?mail|nachricht)\s+(konnte|kann)\s+.{0,60}nicht\s+zugestellt\s+werden`,
 ];
 
+const QUOTE_START = [
+	...QUOTE_MARKERS.map((marker) => marker.source),
+	String.raw`^\s*>`,
+];
+
 export const AUTOMATED_MESSAGE_PATTERNS = {
+	quoteStart: QUOTE_START,
 	sender: BOUNCE_SENDER,
 	subject: [...AUTO_REPLY_SUBJECT, ...BOUNCE_SUBJECT],
 	body: [...AUTO_REPLY_BODY, ...BOUNCE_BODY],
@@ -99,6 +105,16 @@ const autoReplyBody = matcher(AUTO_REPLY_BODY);
 const bounceSender = matcher(BOUNCE_SENDER);
 const bounceSubject = matcher(BOUNCE_SUBJECT);
 const bounceBody = matcher(BOUNCE_BODY);
+
+const quoteStart = new RegExp(
+	String.raw`(?<=[\s\S])(?:${QUOTE_START.map((source) => `(?:${source})`).join("|")})`,
+	"im",
+);
+
+export function authoredText(body: string): string {
+	const cut = body.search(quoteStart);
+	return cut > 0 ? body.slice(0, cut) : body;
+}
 
 function matchesSubject(subject: string | null, markers: RegExp[]): boolean {
 	const line = (subject ?? "").trim();
@@ -141,7 +157,8 @@ export type AnswerCandidate = {
 };
 
 export function isRealAnswer(message: AnswerCandidate): boolean {
-	const text = message.body ?? message.snippet;
+	const stored = message.body ?? message.snippet;
+	const text = stored === null ? null : authoredText(stored);
 	return (
 		message.direction === "INBOUND" &&
 		!isAutoReply(message.subject, text) &&

@@ -119,6 +119,21 @@ describe("isRealAnswer", () => {
 		expect(isRealAnswer({ ...reply, subject: null, body: null })).toBe(true);
 	});
 
+	it("reads only what the person wrote, not the quoted history", () => {
+		expect(
+			isRealAnswer({
+				...reply,
+				body: "Ja, gerne.\n\nAm 03.02.2026 schrieb Anna:\n> Ich bin derzeit nicht im Büro.",
+			}),
+		).toBe(true);
+		expect(
+			isRealAnswer({
+				...reply,
+				body: "Ich bin derzeit nicht im Büro.\n\nAm 03.02.2026 schrieb Anna:\n> Paletten?",
+			}),
+		).toBe(false);
+	});
+
 	it("never counts an auto-reply, a bounce or our own mail", () => {
 		expect(
 			isRealAnswer({ ...reply, subject: "Automatische Antwort: Paletten" }),

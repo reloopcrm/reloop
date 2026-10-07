@@ -247,4 +247,19 @@ describe("turning creation on for an IMAP mailbox", () => {
 			emailThreads: 1,
 		});
 	});
+
+	it("keeps a purged cursor empty when a sync that started earlier saves afterwards", async () => {
+		const before = await state.get(userId, source as never);
+		expect(before?.cursor).not.toBeNull();
+
+		onOpen = async () => {
+			onOpen = null;
+			await connections.purgeSyncedData(userId, accountId);
+		};
+		await runSync();
+		expect(onOpen).toBeNull();
+
+		const after = await state.get(userId, source as never);
+		expect(after?.cursor).toBeNull();
+	});
 });

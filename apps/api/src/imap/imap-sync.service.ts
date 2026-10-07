@@ -203,6 +203,7 @@ export class ImapSyncService {
 				select: { cursor: true },
 			});
 			if (!fresh) return;
+			if (fresh.cursor === null && expected !== null) return;
 
 			expected = fresh.cursor;
 			next = rewindBackfill(next);

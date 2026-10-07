@@ -27,6 +27,7 @@ import {
 	MAILBOX,
 	MESSAGE_FAILURES,
 	NO_DEADLINE,
+	PROVIDER_API,
 	pastDeadline,
 } from "../mailbox/mailbox.config";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
@@ -656,7 +657,10 @@ export class GmailSyncService {
 		}
 
 		if (result.outcome === "rate-limited") {
-			await this.state.markRateLimited(row.id, result.retryAfterMs ?? 60_000);
+			await this.state.markRateLimited(
+				row.id,
+				result.retryAfterMs ?? PROVIDER_API.rateLimitFallbackMs,
+			);
 			return {
 				source: "gmail",
 				userId: row.userId,

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
+import { PROVIDER_API } from "./mailbox.config";
 
 export type MailboxResult<T> =
 	| { outcome: "ok"; data: T }
@@ -8,11 +9,6 @@ export type MailboxResult<T> =
 	| { outcome: "rate-limited"; reason: string; retryAfterMs: number }
 	| { outcome: "unreadable"; reason: string }
 	| { outcome: "failed"; reason: string; retryable: boolean };
-
-const DEFAULT_TIMEOUT_MS = 20_000;
-
-const MIN_BACKOFF_MS = 30_000;
-const MAX_BACKOFF_MS = 15 * 60_000;
 
 const providerErrorBody = z.object({
 	error: z
@@ -40,7 +36,10 @@ export class MailboxApiClient {
 		}
 
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+		const timeout = setTimeout(
+			() => controller.abort(),
+			PROVIDER_API.timeoutMs,
+		);
 
 		try {
 			const response = await fetch(target, {
@@ -54,7 +53,7 @@ export class MailboxApiClient {
 			return {
 				outcome: "failed",
 				reason: aborted
-					? `Timed out after ${DEFAULT_TIMEOUT_MS}ms.`
+					? `Timed out after ${PROVIDER_API.timeoutMs}ms.`
 					: error instanceof Error
 						? error.message
 						: String(error),
@@ -133,9 +132,12 @@ export class MailboxApiClient {
 		const seconds = header ? Number(header) : Number.NaN;
 		const suggested = Number.isFinite(seconds)
 			? seconds * 1000
-			: MIN_BACKOFF_MS;
+			: PROVIDER_API.minBackoffMs;
 
-		return Math.min(Math.max(suggested, MIN_BACKOFF_MS), MAX_BACKOFF_MS);
+		return Math.min(
+			Math.max(suggested, PROVIDER_API.minBackoffMs),
+			PROVIDER_API.maxBackoffMs,
+		);
 	}
 
 	private async reason(response: Response): Promise<string> {

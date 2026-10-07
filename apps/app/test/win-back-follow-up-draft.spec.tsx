@@ -148,7 +148,7 @@ function viewOf(feedback: string | null, email: string | null): PersonView {
 }
 
 function Person({ view }: { view: PersonView }) {
-	const step = useNextStep(view, null);
+	const step = useNextStep(view, null, null);
 	return createElement(NextStepCard, { step, id: "next-step" });
 }
 

@@ -48,6 +48,10 @@ import { isSyncing, SYNC_POLL_MS } from "@/lib/sync-status";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import {
+	GOOGLE_CONNECT_ERROR_FALLBACK,
+	GOOGLE_CONNECT_ERRORS,
+} from "./connection-copy";
+import {
 	DEFAULT_IMPORT_HISTORY,
 	historyOf,
 	ImportHistoryField,
@@ -115,13 +119,6 @@ function failureSignature(
 	}
 	return failures.sort().join("|");
 }
-
-const CONNECT_ERRORS = new Map([
-	[
-		"email_doesn't_match",
-		"That Google account has a different email address to the one you sign in with, so it cannot be attached to your account. Connect the Google account that matches your sign-in address.",
-	],
-]);
 
 function ConnectGoogle({
 	slug,
@@ -210,8 +207,8 @@ function ConnectGoogle({
 						<AlertTitle>{t("Google did not finish connecting")}</AlertTitle>
 						<AlertDescription>
 							{t(
-								CONNECT_ERRORS.get(connectError) ??
-									"Google returned an error before the connection was made. Try again.",
+								GOOGLE_CONNECT_ERRORS.get(connectError) ??
+									GOOGLE_CONNECT_ERROR_FALLBACK,
 							)}
 						</AlertDescription>
 					</Alert>
@@ -412,7 +409,7 @@ export function GoogleConnection({
 										source: t(SOURCES[source.source].label),
 									})}
 								</AlertTitle>
-								<AlertDescription>{summary}</AlertDescription>
+								<AlertDescription>{t(summary)}</AlertDescription>
 
 								{url ? (
 									<AlertAction>

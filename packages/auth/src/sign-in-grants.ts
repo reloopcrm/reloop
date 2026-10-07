@@ -83,10 +83,38 @@ export async function revokeSignIn(
 	const granted = await readSignInGrants(database);
 	if (!granted.includes(address)) return false;
 
-	await database.appSetting.update({
-		where: { id: SETTINGS_ID },
-		data: { signInAddresses: granted.filter((entry) => entry !== address) },
+	await database.$transaction(async (tx) => {
+		await tx.appSetting.update({
+			where: { id: SETTINGS_ID },
+			data: { signInAddresses: granted.filter((entry) => entry !== address) },
+		});
+
+		const people = await tx.user.findMany({
+			where: { email: { equals: address, mode: "insensitive" } },
+			select: { id: true },
+		});
+
+		await endAccessOf(
+			tx,
+			people.map((person) => person.id),
+		);
 	});
 
 	return true;
+}
+
+type CredentialStore = Pick<Db, "session" | "apikey">;
+
+export async function endAccessOf(
+	database: CredentialStore,
+	userIds: readonly string[],
+): Promise<void> {
+	if (userIds.length === 0) return;
+
+	await database.session.deleteMany({
+		where: { userId: { in: [...userIds] } },
+	});
+	await database.apikey.deleteMany({
+		where: { referenceId: { in: [...userIds] } },
+	});
 }

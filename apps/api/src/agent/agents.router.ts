@@ -10,6 +10,7 @@ import {
 import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
+import { SessionOnlyMiddleware } from "../trpc/middlewares/session-only.middleware";
 import { restMeta } from "../trpc/openapi";
 import { AgentDefinitionsService } from "./agent-definitions.service";
 import { AgentRunsService } from "./agent-runs.service";
@@ -65,6 +66,7 @@ export class AgentsRouter {
 		output: agentReviseOutput,
 		meta: restMeta("POST", "/agents/{id}/revise", ["Agents"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async revise(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof agentReviseInput>,
@@ -86,6 +88,7 @@ export class AgentsRouter {
 		output: agentSaveFileOutput,
 		meta: restMeta("POST", "/agents/{id}/save-file", ["Agents"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async saveFile(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof agentSaveFileInput>,
@@ -143,6 +146,7 @@ export class AgentsRouter {
 		output: agentDeployOutput,
 		meta: restMeta("POST", "/agents/{id}/deploy", ["Agents"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async deploy(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof agentDeployInput>,

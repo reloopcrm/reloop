@@ -99,6 +99,7 @@ const CARD_SELECT = {
 	amount: true,
 	currency: true,
 	baseAmount: true,
+	baseCurrency: true,
 	stageChangedAt: true,
 	expectedCloseDate: true,
 	closedAt: true,
@@ -107,7 +108,7 @@ const CARD_SELECT = {
 
 type CardRow = Prisma.DealGetPayload<{ select: typeof CARD_SELECT }>;
 
-function toCard(row: CardRow): DealCard {
+function toCard(row: CardRow, base: string): DealCard {
 	return {
 		id: row.id,
 		name: row.name,
@@ -115,7 +116,7 @@ function toCard(row: CardRow): DealCard {
 		currency: row.currency,
 		company: row.company,
 		amountCents: toCents(row.amount),
-		baseAmountCents: toCents(row.baseAmount),
+		baseAmountCents: row.baseCurrency === base ? toCents(row.baseAmount) : null,
 		stageChangedAt: row.stageChangedAt.toISOString(),
 		expectedCloseDate: row.expectedCloseDate?.toISOString() ?? null,
 		closedAt: row.closedAt?.toISOString() ?? null,
@@ -190,6 +191,7 @@ export class DealsService {
 						amount: true,
 						currency: true,
 						baseAmount: true,
+						baseCurrency: true,
 						expectedCloseDate: true,
 						stageChangedAt: true,
 						closedAt: true,
@@ -220,6 +222,7 @@ export class DealsService {
 				({
 					amount,
 					baseAmount,
+					baseCurrency,
 					expectedCloseDate,
 					stageChangedAt,
 					closedAt,
@@ -230,7 +233,7 @@ export class DealsService {
 				}) => ({
 					...row,
 					amountCents: toCents(amount),
-					baseAmountCents: toCents(baseAmount),
+					baseAmountCents: baseCurrency === base ? toCents(baseAmount) : null,
 					expectedCloseDate: expectedCloseDate?.toISOString() ?? null,
 					stageChangedAt: stageChangedAt.toISOString(),
 					closedAt: closedAt?.toISOString() ?? null,
@@ -321,7 +324,7 @@ export class DealsService {
 				stage,
 				count: countByStage[stage] ?? 0,
 				sumCents: sumByStage.get(stage) ?? null,
-				deals: (columns[index] ?? []).map(toCard),
+				deals: (columns[index] ?? []).map((row) => toCard(row, base)),
 			})),
 			openCount: OPEN_DEAL_STAGES.reduce(
 				(total, stage) => total + (countByStage[stage] ?? 0),
@@ -333,7 +336,7 @@ export class DealsService {
 				(total, stage) => total + (closedByStage[stage] ?? 0),
 				0,
 			),
-			recentClosed: recentClosed.map(toCard),
+			recentClosed: recentClosed.map((row) => toCard(row, base)),
 			reportingCurrency: base,
 			unconverted,
 		};
@@ -383,6 +386,7 @@ export class DealsService {
 				amount: true,
 				currency: true,
 				baseAmount: true,
+				baseCurrency: true,
 				fxRate: true,
 				fxRateAt: true,
 				expectedCloseDate: true,
@@ -407,18 +411,22 @@ export class DealsService {
 			contacts,
 			amount,
 			baseAmount,
+			baseCurrency,
 			fxRate,
 			fxRateAt,
 			archivedAt,
 			...rest
 		} = deal;
 
+		const reportingCurrency = await this.conversion.reportingCurrency();
+
 		return {
 			...rest,
 			fields: await this.fields.valuesFor("DEAL", id),
 			amountCents: toCents(amount),
-			baseAmountCents: toCents(baseAmount),
-			reportingCurrency: await this.conversion.reportingCurrency(),
+			baseAmountCents:
+				baseCurrency === reportingCurrency ? toCents(baseAmount) : null,
+			reportingCurrency,
 			fxRate: fxRate?.toNumber() ?? null,
 			fxRateAt: fxRateAt?.toISOString() ?? null,
 			stageChangedAt: deal.stageChangedAt.toISOString(),

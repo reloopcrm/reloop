@@ -128,6 +128,7 @@ let waiting: string;
 let owing: string;
 let bare: string;
 let quiet: string;
+let declined: string;
 
 beforeAll(async () => {
 	await db.user.createMany({
@@ -144,6 +145,10 @@ beforeAll(async () => {
 	quiet = await person("Quiet", [inbound(244), outbound(241)], {
 		...OFFER,
 		outcome: "DEAL_DONE",
+	});
+	declined = await person("Declined", [outbound(244), inbound(241)], {
+		...OFFER,
+		outcome: "DECLINED",
 	});
 });
 
@@ -186,6 +191,13 @@ describe("readContactAttention picks the case from what the agent stored", () =>
 		expect(answer.fields).toEqual([]);
 		expect(answer.evidence).toBeNull();
 		expect(answer.firstContactAt).not.toBeNull();
+	});
+
+	it("keeps the decline after months of silence instead of a win back", async () => {
+		const answer = await read(declined);
+
+		expect(answer.kind).toBe("declined");
+		expect(answer.points).toBeNull();
 	});
 
 	it("calls for a win back after months of silence, with the score table", async () => {

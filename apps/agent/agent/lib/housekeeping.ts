@@ -26,13 +26,6 @@ import {
 import { playbookDue } from "./playbook";
 import { closeUncounted, type LeasedTask, scheduleTask } from "./tasks";
 
-const HOUSEKEEPING = {
-	cleanBatch: 20,
-	readBatch: 40,
-} as const;
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
-
 export async function cancelArchivedWork(): Promise<number> {
 	const [contacts, companies, deals] = await Promise.all([
 		db.contact.findMany({
@@ -146,8 +139,8 @@ export async function queueUnreadThreads(): Promise<number> {
 		orderBy: { lastMessageAt: "desc" },
 		take:
 			room === null
-				? HOUSEKEEPING.readBatch
-				: Math.min(HOUSEKEEPING.readBatch, room),
+				? DISPATCH.housekeeping.readBatch
+				: Math.min(DISPATCH.housekeeping.readBatch, room),
 		select: { id: true },
 	});
 
@@ -203,7 +196,7 @@ export async function queueContactCleanups(): Promise<number> {
 		db.contact.findMany({
 			where: { ...readable, cleanedAt: null },
 			orderBy: { createdAt: "desc" },
-			take: HOUSEKEEPING.cleanBatch,
+			take: DISPATCH.housekeeping.cleanBatch,
 			select: { id: true },
 		}),
 		db.contact.findMany({
@@ -213,7 +206,7 @@ export async function queueContactCleanups(): Promise<number> {
 				lastActivityAt: { gt: db.contact.fields.cleanedAt },
 			},
 			orderBy: { lastActivityAt: "desc" },
-			take: HOUSEKEEPING.cleanBatch,
+			take: DISPATCH.housekeeping.cleanBatch,
 			select: { id: true, email: true, firstName: true, lastName: true },
 		}),
 	]);
@@ -327,7 +320,9 @@ export async function pruneAgentHistory(
 	if (days <= 0) return { events: 0, tasks: 0 };
 
 	const { batch } = DISPATCH.retention;
-	const eventCutoff = new Date(now.getTime() - days * DAY_MS);
+	const eventCutoff = new Date(
+		now.getTime() - days * DISPATCH.housekeeping.dayMs,
+	);
 	const taskCutoff = eventCutoff;
 
 	const events = await db.$executeRaw`

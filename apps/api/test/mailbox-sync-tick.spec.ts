@@ -9,11 +9,8 @@ import type { GoogleSyncService } from "../src/google/google-sync.service";
 import type { ImapConnectionService } from "../src/imap/imap-connection.service";
 import type { ImapSyncService } from "../src/imap/imap-sync.service";
 import type { DirectionRepairService } from "../src/mailbox/direction-repair.service";
-import { SYNC_TICK } from "../src/mailbox/mailbox.config";
-import {
-	SYNC_LEASE_MS,
-	type SyncStateService,
-} from "../src/mailbox/sync-state.service";
+import { SYNC_LEASE, SYNC_TICK } from "../src/mailbox/mailbox.config";
+import type { SyncStateService } from "../src/mailbox/sync-state.service";
 import type { ThreadAdoptionService } from "../src/mailbox/thread-adoption.service";
 import type { ThreadContactsService } from "../src/mailbox/thread-contacts.service";
 import type { MicrosoftConnectionService } from "../src/microsoft/microsoft-connection.service";
@@ -62,7 +59,7 @@ class FakeState {
 
 		this.write(stored, {
 			status: GoogleSyncStatus.RUNNING,
-			retryAfter: new Date(now.getTime() + SYNC_LEASE_MS),
+			retryAfter: new Date(now.getTime() + SYNC_LEASE.leaseMs),
 		});
 
 		return true;
@@ -394,7 +391,7 @@ describe("runDue counts a rate-limited run honestly", () => {
 		expect(retryAfter).not.toBeNull();
 		expect((retryAfter as Date).getTime()).toBeGreaterThan(Date.now());
 		expect((retryAfter as Date).getTime()).toBeLessThan(
-			Date.now() + SYNC_LEASE_MS,
+			Date.now() + SYNC_LEASE.leaseMs,
 		);
 	});
 });

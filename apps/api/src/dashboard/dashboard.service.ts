@@ -154,7 +154,9 @@ export class DashboardService {
 					id: true,
 					subject: true,
 					dueAt: true,
+					meta: true,
 					company: { select: { id: true, name: true } },
+					contact: { select: { id: true, firstName: true, lastName: true } },
 					deal: { select: { id: true, name: true } },
 				},
 			}),
@@ -296,9 +298,10 @@ export class DashboardService {
 					}),
 				)
 				.sort((a, b) => (b.baseAmountCents ?? -1) - (a.baseAmountCents ?? -1)),
-			overdueTasks: overdueTasks.map(({ dueAt, ...task }) => ({
+			overdueTasks: overdueTasks.map(({ dueAt, meta, ...task }) => ({
 				...task,
 				dueAt: dueAt?.toISOString() ?? null,
+				meta: activityMeta.parse(meta),
 			})),
 			recentActivity: recentActivity.map(({ createdAt, meta, ...entry }) => ({
 				...entry,

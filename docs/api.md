@@ -930,6 +930,17 @@ marked passages and the follow-up delay. It writes nothing but an
   same as taking it off.
 - **`contacts.draft` carries a one-off version beside the draft** (`oneOff`), written
   by `writeDraft` with `oneOff: true`; the stored draft stays as suggested.
+- **Opening a person rewrites a stale draft.** The person page calls
+  `contacts.refreshDraft` once when it mounts, never from a sweep. The API queues a
+  normal `email-draft` task only when the stored draft is `stale`, no draft task is
+  open or held, the plan's `draftsPerMonth` has room, and no draft task finished
+  after the newest mail. That last check spends one try per newer mail, so a draft
+  that stays stale does not cost a draft on every open. After the win back mail
+  goes out, this is how the follow-up replaces the sent text.
+- **The win back follow-up task opens the person page.** The overview's task lists
+  read `meta` and the contact of each task, and a task whose `meta` is
+  `{ winBack: true }` (`winBackTaskMeta` in `@crm/validation/activity-meta`) links
+  to `/<slug>/win-back/<contactId>` instead of the record sheet.
 - **`followUpDays` is null when the win back follow-up function is off**, so the page
   never promises a reminder the sweep will not write.
 - The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared

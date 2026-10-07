@@ -5,6 +5,7 @@ import {
 	type TenantLookupResult,
 	type TenantResetConfirmInput,
 	type TenantResetInput,
+	type TenantVerifyInput,
 	tenantDone,
 	tenantLookupResult,
 } from "@crm/validation/tenant-signup";
@@ -42,9 +43,15 @@ export type TenantOutcome<T> =
 	| { ok: true; data: T }
 	| { ok: false; code: TenantRefusal };
 
+export type TenantRequest =
+	| TenantLookupInput
+	| TenantVerifyInput
+	| TenantResetInput
+	| TenantResetConfirmInput;
+
 export async function post<T>(
 	path: string,
-	body: object,
+	body: TenantRequest,
 	schema: z.ZodType<T>,
 ): Promise<TenantOutcome<T>> {
 	let response: Response;

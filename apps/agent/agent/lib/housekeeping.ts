@@ -24,11 +24,16 @@ import {
 	planLimits,
 } from "./plan-limits";
 import { playbookDue } from "./playbook";
+import {
+	quietCutoff,
+	quietSlots,
+	quietUnreadThreadsWhere,
+	unreadThreadsWhere,
+} from "./quiet-reads";
 import { closeUncounted, type LeasedTask, scheduleTask } from "./tasks";
 
 const HOUSEKEEPING = {
 	cleanBatch: 20,
-	readBatch: 40,
 } as const;
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -122,7 +127,9 @@ export async function cancelSampleWork(): Promise<number> {
 	return gone.count;
 }
 
-export async function queueUnreadThreads(): Promise<number> {
+export async function queueUnreadThreads(
+	batch: number = DISPATCH.read.batch,
+): Promise<number> {
 	const left = await monthlyRoom(INSIGHT_KIND);
 	const room =
 		left === null
@@ -141,15 +148,26 @@ export async function queueUnreadThreads(): Promise<number> {
 		return 0;
 	}
 
-	const threads = await db.emailThread.findMany({
-		where: { ...NOT_SAMPLE_RECORD, insight: null, messages: { some: {} } },
-		orderBy: { lastMessageAt: "desc" },
-		take:
-			room === null
-				? HOUSEKEEPING.readBatch
-				: Math.min(HOUSEKEEPING.readBatch, room),
-		select: { id: true },
-	});
+	const size = room === null ? batch : Math.min(batch, room);
+	const [quiet, newest] = await Promise.all([
+		db.emailThread.findMany({
+			where: quietUnreadThreadsWhere(quietCutoff()),
+			orderBy: { lastMessageAt: "desc" },
+			take: quietSlots(size),
+			select: { id: true },
+		}),
+		db.emailThread.findMany({
+			where: unreadThreadsWhere(),
+			orderBy: { lastMessageAt: "desc" },
+			take: size,
+			select: { id: true },
+		}),
+	]);
+	const quietIds = new Set(quiet.map((thread) => thread.id));
+	const threads = [
+		...quiet,
+		...newest.filter((thread) => !quietIds.has(thread.id)),
+	].slice(0, size);
 
 	if (threads.length === 0) return 0;
 

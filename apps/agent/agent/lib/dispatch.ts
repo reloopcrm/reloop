@@ -71,6 +71,7 @@ import {
 import { runPlaybookLearn } from "./playbook";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
+import { quietCutoff, quietSlots, quietThreadTaskFilter } from "./quiet-reads";
 import { researchAllowance } from "./research-throttle";
 import { runRulesTune } from "./rules-tuner";
 import { runSlackChannelJoin } from "./slack-join-task";
@@ -255,6 +256,23 @@ export type InsightLaneDeps = {
 	exhausted: () => Promise<boolean>;
 };
 
+async function claimSlowLane(allowed: number): Promise<LeasedTask[]> {
+	const quiet = await claimDue(
+		quietSlots(allowed),
+		{ only: [INSIGHT_KIND] },
+		DISPATCH.insight.leaseMs,
+		{ atMost: BACKFILL_PRIORITY },
+		quietThreadTaskFilter(quietCutoff()),
+	);
+	const rest = await claimDue(
+		allowed - quiet.length,
+		{ only: [INSIGHT_KIND, REFRESH_KIND] },
+		DISPATCH.insight.leaseMs,
+		{ atMost: BACKFILL_PRIORITY },
+	);
+	return [...quiet, ...rest];
+}
+
 export async function runInsightLane(
 	signal?: AbortSignal,
 	deps: InsightLaneDeps = {
@@ -290,12 +308,7 @@ export async function runInsightLane(
 			if (allowed <= 0) break;
 
 			lane = "slow";
-			tasks = await claimDue(
-				allowed,
-				{ only: [INSIGHT_KIND, REFRESH_KIND] },
-				DISPATCH.insight.leaseMs,
-				{ atMost: BACKFILL_PRIORITY },
-			);
+			tasks = await claimSlowLane(allowed);
 			if (tasks.length === 0) break;
 		}
 

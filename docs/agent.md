@@ -381,6 +381,18 @@ too, at the backfill priority with origin `backfill`: it is a catch-up sweep, an
 nobody is waiting on a row it writes. The forward task a stored thread gets is what
 carries a person's wait.
 
+**Quiet customers are read beside the newest mail.** Win back scores only a person
+whose conversations are read, and a history read newest first leaves the old, quiet
+cases for last. `DISPATCH.read.quiet` holds a share and an age (90 days). A thread is
+quiet when its last message is at least that old and it has mail in both directions.
+`queueUnreadThreads` gives that share of its batch (`DISPATCH.read.batch`) to the
+newest quiet unread threads and the rest to the newest unread threads, and the slow
+lane in `runInsightLane` claims the same share of every backfill batch from waiting
+tasks on quiet unread threads (`lib/quiet-reads.ts`). With fewer quiet threads the
+newest part takes the rest, so a batch never shrinks. A sync stores every thread with
+its own task, so on an install without plan limits the slow lane claim is the part
+that moves quiet cases forward.
+
 Fairness between tenants is the per-tenant share plus the rotation in
 `eachActiveTenant`: a tenant's backfill can only ever drain its own share, so one
 tenant with a large mailbox slows nobody else.

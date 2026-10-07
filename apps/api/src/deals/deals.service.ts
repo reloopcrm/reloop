@@ -677,7 +677,7 @@ export class DealsService {
 			}
 			if (LOSING.has(input.stage) && !closedReason) {
 				throw new BadRequestException(
-					"Say why it was lost — a closed-lost deal with no reason teaches nobody anything.",
+					"Say why it was lost. A closed-lost deal with no reason teaches nobody anything.",
 				);
 			}
 
@@ -881,7 +881,7 @@ export class DealsService {
 
 		if (LOSING.has(input.stage) && !closedReason) {
 			throw new BadRequestException(
-				"Say why they were lost — a closed-lost deal with no reason teaches nobody anything.",
+				"Say why they were lost. A closed-lost deal with no reason teaches nobody anything.",
 			);
 		}
 

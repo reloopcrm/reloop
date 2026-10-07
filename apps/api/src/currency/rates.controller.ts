@@ -61,7 +61,7 @@ export class RatesController {
 	private async run(authorization?: string) {
 		if (!this.secret) {
 			this.logger.error({
-				message: "CRON_SECRET is not set — refusing to run the rates route.",
+				message: "CRON_SECRET is not set. Refusing to run the rates route.",
 			});
 			throw new ServiceUnavailableException("Rate refresh is not configured.");
 		}

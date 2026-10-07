@@ -184,7 +184,7 @@ export class TrackingRetentionController {
 	private async run(authorization?: string) {
 		if (!this.secret) {
 			this.logger.error({
-				message: "CRON_SECRET is not set — refusing to run tracking retention.",
+				message: "CRON_SECRET is not set. Refusing to run tracking retention.",
 			});
 			throw new ServiceUnavailableException("Retention is not configured.");
 		}
@@ -209,7 +209,7 @@ export class TrackingRetentionController {
 		if (!complete) {
 			this.logger.warn({
 				message:
-					"Tracking retention hit its pass limit — events older than the window remain",
+					"Tracking retention hit its pass limit, events older than the window remain",
 				removed,
 				retentionDays: EVENT_RETENTION_DAYS,
 			});

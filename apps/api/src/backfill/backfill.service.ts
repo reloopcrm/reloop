@@ -158,7 +158,7 @@ export class BackfillService implements OnModuleInit {
 
 		const queued = await this.agent.backfill({
 			kind: "brand",
-			reason: "Backfill — this company has no logo or icon",
+			reason: "Backfill: this company has no logo or icon",
 			companyIds,
 			budget: 2,
 			priority: PRIORITY.brand,
@@ -188,7 +188,7 @@ export class BackfillService implements OnModuleInit {
 
 		const photos = await this.agent.backfill({
 			kind: "portrait",
-			reason: "Backfill — somewhere to look for a picture, and no picture",
+			reason: "Backfill: somewhere to look for a picture, and no picture",
 			contactIds: photoRows.map((row) => row.id),
 			budget: 1,
 			priority: PRIORITY.portrait,
@@ -210,7 +210,7 @@ export class BackfillService implements OnModuleInit {
 
 		const research = await this.agent.backfill({
 			kind: "identify",
-			reason: "Backfill — this contact was never researched",
+			reason: "Backfill: this contact was never researched",
 			contactIds: researchRows.map((row) => row.id),
 		});
 

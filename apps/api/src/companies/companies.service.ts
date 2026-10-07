@@ -424,7 +424,7 @@ export class CompaniesService {
 			const domain = normalizeDomain(input.domain);
 			if (input.domain.trim() && !domain) {
 				throw new BadRequestException(
-					`"${input.domain}" is not a domain — try something like "stripe.com".`,
+					`"${input.domain}" is not a domain. Try something like "stripe.com".`,
 				);
 			}
 			data.domain = domain;
@@ -457,7 +457,7 @@ export class CompaniesService {
 			if (data.enrichmentStatus === "PENDING") {
 				await this.agent.companyCreated(
 					id,
-					"Domain changed — anything we knew was about a different company",
+					"Domain changed, anything we knew was about a different company",
 				);
 				void this.favicon.backfill(id, updated.domain);
 			}
@@ -666,7 +666,7 @@ export class CompaniesService {
 
 		if (!company.domain) {
 			throw new BadRequestException(
-				"There is nothing to read without a domain — add one first.",
+				"There is nothing to read without a domain. Add one first.",
 			);
 		}
 

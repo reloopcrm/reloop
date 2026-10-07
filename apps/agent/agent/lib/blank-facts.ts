@@ -146,11 +146,17 @@ async function appliedValues(
 ): Promise<Map<string, string>> {
 	const values = new Map<string, string>();
 
-	for (let start = 0; start < contactIds.length; start += DISPATCH.blankFacts.contactChunk) {
+	for (
+		let start = 0;
+		start < contactIds.length;
+		start += DISPATCH.blankFacts.contactChunk
+	) {
 		const rows = await db.contactFact.findMany({
 			where: {
 				status: FactStatus.APPLIED,
-				contactId: { in: contactIds.slice(start, start + DISPATCH.blankFacts.contactChunk) },
+				contactId: {
+					in: contactIds.slice(start, start + DISPATCH.blankFacts.contactChunk),
+				},
 			},
 			select: { contactId: true, field: true, value: true },
 		});

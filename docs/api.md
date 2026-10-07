@@ -59,26 +59,20 @@ documented exception, for timing: the exchange-rate fetcher, below.
 Single tenant. No org header, no org interceptor, no org-scoped cache keys, **no
 `organizationId` on any CRM record.**
 
-Hosted mode does not change that: the hosted Reloop Cloud gives each customer a
-whole database, from a private overlay. Core code reaches it only through the
-port `cloud` from `@crm/db/cloud/scope`, typed by `@crm/db/cloud/contract`, and
+Core code reaches the optional hosted version only through the port `cloud` from
+`@crm/db/cloud/scope`, typed by `@crm/db/cloud/contract`, and
 `tools/tenancy-guard.ts` refuses an import of any other `@crm/db/cloud/*` module
-outside the slot folders. In this repository every slot is a no-op:
-`cloud.hosted()` is false; `run`, `hold` and `forEachScope` call the work exactly
-once; `resolveClient` returns the one client of `DATABASE_URL`; `byId`,
-`activeBySite` and `active` find nothing; the member hooks do nothing. Only
+outside the slot folders. The hosted version plugs in here; the open core runs
+without it. In this repository every slot is a no-op: `cloud.hosted()` is false;
+`run`, `hold` and `forEachScope` call the work exactly once; `resolveClient`
+returns the one client of `DATABASE_URL`; the member hooks do nothing. Only
 `current()` and `addOns()` throw, because a self-hosted install has no scope:
-guard them with `cloud.hosted()` or `cloud.customer()`. `cloudMiddleware()`
-(`apps/api/src/cloud/cloud-middleware.ts`) mounts nothing.
+guard them with `cloud.hosted()` or `cloud.customer()`.
 
-Code still has to be ready for the overlay. A process-wide cache key that is per
-workspace goes through `cloud.scopedKey()`, and a cron route that serves every
-workspace loops through `cloud.forEachScope()`, with `cloud.loop.budgetMs` per
-workspace. Work that outlives its request, a detached `void (async …)()`, wraps
-itself in `cloud.hold()`. `cloud.run()` takes only a `WorkspaceScope` the port
-made (`cloud.byId`, `cloud.active`, `cloud.activeBySite`, `cloud.current`). The
-exchange-rate loop fetches the feed once per base currency
-(`RatesService.refreshAll`) and writes it to every workspace.
+Keep the port in use. A process-wide cache key that is per workspace goes through
+`cloud.scopedKey()`, a cron route that serves every workspace loops through
+`cloud.forEachScope()`, and work that outlives its request, a detached
+`void (async …)()`, wraps itself in `cloud.hold()`.
 
 A **singleton workspace** exists — Better Auth's `organization` plugin, one row with
 id `WORKSPACE_ID` (the literal `workspace`, in `@crm/db`, re-exported by `@crm/auth`
@@ -109,7 +103,7 @@ here, what do we sell.
   `databaseHooks.session.create.before`, not the allow-list: a domain on
   `ALLOWED_SIGN_IN` still matches the address, and without the stamp the next sign-in
   would enrol the person again. The granted address in `AppSetting.signInAddresses` is
-  revoked too, and `cloud.onMemberRemoved()` tells the hosted Cloud, a no-op here. A
+  revoked too, and `cloud.onMemberRemoved()` is a no-op here. A
   removed user is left out of
   `users.list`, of the first enrolment in `ensureWorkspaceMembership`, and of the
   mailbox sync (`dueWhere`), so their inbox stops feeding the CRM. `addPerson` with the
@@ -117,8 +111,7 @@ here, what do we sell.
   row with the chosen role, sets a new password and grants the address again. No
   second `user` row, so their records
   are theirs again. An active person still gets "That address already has an account."
-  Every `addPerson` calls `cloud.onMemberAdded()`, a no-op here, so on the hosted
-  Cloud a person whose domain is not registered still finds the workspace at sign-in.
+  Every `addPerson` calls `cloud.onMemberAdded()`, a no-op here.
 - **Reads and writes go through tRPC**, not `authClient.organization.*`. `accessGuard`
   refuses every mutating `/api/auth/organization/*` path (`isOrganizationWrite`), so
   the raw plugin endpoints cannot skip the last-owner count or overwrite the slug and
@@ -131,8 +124,6 @@ here, what do we sell.
 - **The name starts as `DEFAULT_WORKSPACE_NAME` (`CRM`), a placeholder not an
   answer.** The header renders `<name> CRM`, so `workspaceLabel` tests the name rather
   than comparing to the default.
-  A hosted sign-up already asked for the company, so the hosted Cloud writes that
-  name and its slug into the new workspace's row, and `/onboarding` pre-fills both.
   Only `onboardedAt` settles the gate, so the website step still runs.
 - **The website queues the agent's `workspace-profile` task** and goes through
   `normalizeDomain`, rejecting null. Stored canonical, so re-saving uncanonically
@@ -157,7 +148,7 @@ One gate: has the workspace been named. Asked server-side on every request.
 
 ### The name is also the URL
 
-Served under the workspace slug (`/comp-ai/companies`). **Cosmetic, not tenancy** —
+Served under the workspace slug (`/acme/companies`). **Cosmetic, not tenancy** —
 every query still resolves through `WORKSPACE_ID`.
 
 - **The slug is the plugin's column**, written by `workspaceSlug(name)`
@@ -484,11 +475,11 @@ the largest attachment upload the conversation contracts accept.
   however long the backfill runs. Gmail's share is clamped by its API quota
   (`GMAIL_QUOTA`, 240 `messages.get` per tick at 80 % of 6,000 units a minute),
   so the operator's cap raises Outlook and IMAP only. **Every mailbox also gets a
-  deadline**: `runDue` splits the tick budget (`TENANCY.loop.budgetMs` hosted,
-  `SYNC_TICK.selfHostBudgetMs` otherwise, minus a settle reserve) evenly over the
+  deadline**: `runDue` splits the tick budget (`SYNC_TICK.selfHostBudgetMs`
+  minus a settle reserve) evenly over the
   mailboxes still due, and each provider stops between two messages when its
   deadline passes, persists the position and returns. That is what keeps one
-  tenant's first import inside its `cloud.forEachScope` budget, so the tenant is never
+  first import inside the tick budget, so the mailbox is never
   reported as failed and the next tick's forward read is never held behind a
   detached backfill. **The plan's `importThreads` cap holds exactly**:
   `importCapRemaining` is read before every page and each batch is cut to the
@@ -589,7 +580,7 @@ the largest attachment upload the conversation contracts accept.
   known address is never created twice. **The cursor query has a cost**: no index
   serves `GREATEST` of two columns, so every tick hash-joins all relevant threads with
   a company or contact and sorts the ones after the cursor. That is fine at thousands
-  of threads; the batch stays at 100. A tenant far larger needs a stored cursor column
+  of threads; the batch stays at 100. A far larger install needs a stored cursor column
   with its own index.
 - **Every person in a conversation is linked to it.** `emailThreadContact` holds one
   row per thread and contact: `role` (`SENDER` when they wrote into the thread, else
@@ -690,6 +681,25 @@ the largest attachment upload the conversation contracts accept.
   `attendee.resource`.
 - **`isAutomatedAddress` is a separate list about the local part** (`sales@`,
   `noreply@`), which is why `support@acme.com` never becomes a lead.
+
+## An answer is a person writing back
+
+An out-of-office reply or a bounce is never an answer. The rule has one home:
+the pattern lists in `packages/db/src/message-text.ts`
+(`AUTOMATED_MESSAGE_PATTERNS`).
+
+- **TypeScript asks `isRealAnswer`**, which is `isAutoReply` and `isBounce` beside
+  it. `EmailMessage` stores no headers, so they read the sender, the subject and the
+  first `AUTO_REPLY_BODY_CHARS` of the body (the snippet when there is no body).
+  The body is cut at the first quote marker or `>` line after its first character
+  (`authoredText`), so a real reply that quotes an out-of-office still counts.
+- **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same
+  lists. Every query that counts a reply uses it; never write
+  `direction = 'INBOUND'` alone for that.
+- **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
+  and the follow-up sweep both skip auto-replies and bounces.
+- `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides. A new
+  pattern goes in the list and gets a sample there.
 
 ## People on a deal
 
@@ -972,39 +982,17 @@ marked passages and the follow-up delay. It writes nothing but an
 - The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared
   with `google.thread`.
 
-## The billing seam
+## Cloud slots
 
-The open source build has no billing. Core code injects `BILLING_PORT` from
-`billing-port/billing-port.ts`, a `BillingPort` with `cancelNow` and
-`healStoredTarget`, and reads the few constants it needs from `BILLING_SEAM`: the
-webhook path and size limit, the return path and the rebuild delay. Both methods
-take a tenant id, never a registry row: the implementation loads the tenant
-itself. `CloudModule` (`cloud/cloud.module.ts`) is global and registered once in
-`AppModule`. Here it provides `NO_BILLING_PORT` with `useValue`, so every call is
-a no-op, and nothing else. The app's slots in `apps/app/cloud` are empty the same
-way: no billing page, no checkout, no marketing pages, no hosted routes
-(`HOSTED_ROUTES`), no danger zone on Settings, General (`DangerZone`), no agreement prompt in the
-workspace layout (`AgreementGate`), and `/`
-sends a visitor to sign in, or a signed-in one to the workspace.
+The open source build has no billing and no hosted tenancy. Core code injects
+`BILLING_PORT` from `billing-port/billing-port.ts`. `CloudModule`
+(`cloud/cloud.module.ts`) is global and registered once in `AppModule`. Here it
+provides `NO_BILLING_PORT`, so every call is a no-op. The app's slots in
+`apps/app/cloud` are empty the same way, and `/` sends a visitor to sign in, or a
+signed-in one to the workspace. The hosted version plugs in here; the open core
+runs without it.
 
-The hosted Reloop Cloud adds the tenancy, billing and its marketing site from a
-private overlay. The overlay replaces exactly these files and only adds others:
-
-- `apps/api/src/cloud/cloud.module.ts`
-- `apps/api/src/cloud/cloud-middleware.ts`
-- `packages/db/src/cloud/scope.ts`
-- `apps/app/cloud/scope.server.ts`
-- `apps/app/cloud/slots.tsx`
-- `apps/app/cloud/slots.data.ts`
-- `apps/app/cloud/slots.server.tsx`
-- `apps/app/lib/i18n/cloud.ts`
-- `apps/app/app/(landing)/page.tsx`
-- `apps/api/package.json` and `bun.lock`, for the `stripe` package
-
-The overlay then runs `trpc:generate`, because the router set changes
-`src/generated/server.ts`. `apps/app/cloud/contract.ts` and `billing-port.ts`
-stay public: both sides build against them. A core test must pass with the empty
-slots and with the overlay's, so it reads its expectations from
+A core test must pass with the empty slots, so it reads its expectations from
 `apps/app/cloud/slots.data.ts` instead of naming a cloud page.
 
 ## Money

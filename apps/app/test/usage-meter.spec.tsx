@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import type { UsageLine } from "../app/(app)/[slug]/settings/ai/usage";
 import { meterShare, meterTone } from "../lib/usage-meter";
 
 GlobalRegistrator.register();
@@ -14,8 +15,20 @@ afterAll(() => {
 });
 
 const CAPACITY = [
-	{ counter: "contacts", used: 43, limit: 100, included: true, reached: false },
-	{ counter: "mailboxes", used: 1, limit: 1, included: true, reached: true },
+	{
+		counter: "contacts",
+		used: 43,
+		limit: 100,
+		included: true,
+		level: "normal",
+	},
+	{
+		counter: "mailboxes",
+		used: 1,
+		limit: 1,
+		included: true,
+		level: "reached",
+	},
 ] as const;
 
 const LINES = [
@@ -24,17 +37,29 @@ const LINES = [
 		used: 850,
 		limit: 1000,
 		included: true,
-		reached: false,
+		level: "warning",
 	},
-	{ counter: "sessions", used: 3, limit: 100, included: true, reached: false },
+	{
+		counter: "sessions",
+		used: 3,
+		limit: 100,
+		included: true,
+		level: "normal",
+	},
 	{
 		counter: "research",
 		used: 0,
 		limit: null,
 		included: false,
-		reached: false,
+		level: "normal",
 	},
-	{ counter: "chat", used: 7, limit: null, included: true, reached: false },
+	{
+		counter: "chat",
+		used: 7,
+		limit: null,
+		included: true,
+		level: "normal",
+	},
 ] as const;
 
 function shownValue(markup: string, counter: string): string {
@@ -105,8 +130,53 @@ describe("the usage meters", () => {
 		expect(toneOf(markup, "Company research runs")).toBeNull();
 	});
 
-	it("shows no warning while no monthly limit is reached", () => {
+	it("shows no reached warning while no monthly limit is reached", () => {
 		expect(markup).not.toContain("A monthly limit is reached");
+	});
+
+	it("warns that a monthly limit is almost reached from 80 percent", () => {
+		expect(markup).toContain("A monthly limit is almost reached");
+		expect(markup).toContain("December 1, 2026");
+	});
+});
+
+describe("the almost reached warning", () => {
+	const render = (lines: UsageLine[], trialEnds = false) =>
+		renderToStaticMarkup(
+			createElement(I18nProvider, {
+				locale: "en",
+				children: createElement(Usage, {
+					label: "Trial",
+					capacity: [...CAPACITY],
+					lines,
+					resetsAt: "2026-11-11T12:00:00.000Z",
+					trialEnds,
+				}),
+			}),
+		);
+
+	it("stays away while every monthly line is below 80 percent", () => {
+		const markup = render([
+			{ ...LINES[0], used: 790, level: "normal" },
+			LINES[1],
+		]);
+		expect(markup).not.toContain("almost reached");
+		expect(markup).not.toContain("is reached");
+	});
+
+	it("names the trial while a trial limit is almost reached", () => {
+		const markup = render([LINES[0]], true);
+		expect(markup).toContain("A limit of your trial is almost reached");
+		expect(markup).toContain("November 11, 2026");
+	});
+
+	it("gives way to the reached warning once a limit is reached", () => {
+		const markup = render([
+			LINES[0],
+			{ ...LINES[1], used: 100, level: "reached" },
+		]);
+		expect(markup).toContain("A monthly limit is reached");
+		expect(markup).not.toContain("almost reached");
 	});
 });
 
@@ -118,7 +188,7 @@ describe("the limit warning", () => {
 				children: createElement(Usage, {
 					label: "Trial",
 					capacity: [...CAPACITY],
-					lines: [{ ...LINES[0], used: 1000, reached: true }],
+					lines: [{ ...LINES[0], used: 1000, level: "reached" }],
 					resetsAt: "2026-11-11T12:00:00.000Z",
 					trialEnds,
 				}),
@@ -141,13 +211,10 @@ describe("the limit warning", () => {
 });
 
 describe("the meter tone", () => {
-	it("is green below 80 percent, warning from 80, destructive at 100", () => {
-		expect(meterTone(0, 100)).toBe("success");
-		expect(meterTone(79, 100)).toBe("success");
-		expect(meterTone(80, 100)).toBe("warning");
-		expect(meterTone(99, 100)).toBe("warning");
-		expect(meterTone(100, 100)).toBe("destructive");
-		expect(meterTone(140, 100)).toBe("destructive");
+	it("follows the level of the line", () => {
+		expect(meterTone("normal")).toBe("success");
+		expect(meterTone("warning")).toBe("warning");
+		expect(meterTone("reached")).toBe("destructive");
 	});
 
 	it("caps the share at 100", () => {

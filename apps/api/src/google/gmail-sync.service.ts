@@ -499,7 +499,7 @@ export class GmailSyncService {
 		);
 
 		const done = new Set<string>(
-			ids.filter((id) => seen.has(id) || ledger.exhausted(id)),
+			ids.filter((id) => seen.has(id) || ledger.skip(id, lane)),
 		);
 		const pending = ids.filter((id) => !done.has(id));
 		const batch = pending.slice(0, Math.max(cap, 0));

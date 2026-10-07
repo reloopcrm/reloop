@@ -479,7 +479,7 @@ export class OutlookSyncService {
 			context ??= await this.threads.context(mailbox);
 
 			const messageId = message.id;
-			if (messageId && ledger.exhausted(messageId)) continue;
+			if (messageId && ledger.skip(messageId, lane)) continue;
 
 			try {
 				const stored = await this.threads.store(

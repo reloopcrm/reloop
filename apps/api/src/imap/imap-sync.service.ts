@@ -316,7 +316,7 @@ export class ImapSyncService {
 		for await (const raw of run.session.fetch(range)) {
 			seen += 1;
 
-			if (run.ledger.exhausted(String(raw.uid))) continue;
+			if (run.ledger.skip(String(raw.uid), lane)) continue;
 
 			let parsed: Awaited<ReturnType<typeof parseImapMessage>>;
 			try {

@@ -9,7 +9,7 @@ export const messageFailures = z.array(
 	z.object({
 		id: z.string().min(1).max(MESSAGE_FAILURES.maxIdLength),
 		attempts: z.number().int().min(1).max(MESSAGE_FAILURES.maxAttempts),
-		lane: z.enum(AGENT_TASK_ORIGINS),
+		lanes: z.array(z.enum(AGENT_TASK_ORIGINS)).min(1),
 	}),
 );
 
@@ -19,28 +19,33 @@ export class FailureLedger {
 	private entries: MessageFailures;
 
 	constructor(entries: MessageFailures = []) {
-		this.entries = [...entries];
+		this.entries = entries.map((entry) => ({
+			...entry,
+			lanes: [...entry.lanes],
+		}));
 	}
 
-	exhausted(id: string): boolean {
-		return this.entries.some(
-			(entry) =>
-				entry.id === id && entry.attempts >= MESSAGE_FAILURES.maxAttempts,
-		);
+	skip(id: string, lane: AgentTaskOrigin): boolean {
+		const entry = this.entries.find((candidate) => candidate.id === id);
+		if (!entry || entry.attempts < MESSAGE_FAILURES.maxAttempts) return false;
+
+		this.join(entry, lane);
+		return true;
 	}
 
 	record(id: string, lane: AgentTaskOrigin): number {
-		const attempts = Math.min(
-			(this.entries.find((entry) => entry.id === id)?.attempts ?? 0) + 1,
-			MESSAGE_FAILURES.maxAttempts,
-		);
+		const entry = this.entries.find((candidate) => candidate.id === id);
+		if (entry) {
+			entry.attempts = Math.min(
+				entry.attempts + 1,
+				MESSAGE_FAILURES.maxAttempts,
+			);
+			this.join(entry, lane);
+			return entry.attempts;
+		}
 
-		this.entries = [
-			...this.entries.filter((entry) => entry.id !== id),
-			{ id, attempts, lane },
-		];
-
-		return attempts;
+		this.entries = [...this.entries, { id, attempts: 1, lanes: [lane] }];
+		return 1;
 	}
 
 	clear(id: string): void {
@@ -48,12 +53,20 @@ export class FailureLedger {
 	}
 
 	retain(lane: AgentTaskOrigin, ahead: (id: string) => boolean): void {
-		this.entries = this.entries.filter(
-			(entry) => entry.lane !== lane || ahead(entry.id),
-		);
+		this.entries = this.entries.flatMap((entry) => {
+			if (!entry.lanes.includes(lane) || ahead(entry.id)) return [entry];
+			const lanes = entry.lanes.filter((other) => other !== lane);
+			return lanes.length > 0 ? [{ ...entry, lanes }] : [];
+		});
 	}
 
 	list(): MessageFailures | undefined {
-		return this.entries.length > 0 ? [...this.entries] : undefined;
+		return this.entries.length > 0
+			? this.entries.map((entry) => ({ ...entry, lanes: [...entry.lanes] }))
+			: undefined;
+	}
+
+	private join(entry: MessageFailures[number], lane: AgentTaskOrigin): void {
+		if (!entry.lanes.includes(lane)) entry.lanes = [...entry.lanes, lane];
 	}
 }

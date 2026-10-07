@@ -303,129 +303,187 @@ function graphMessage(id: string, at: string): GraphMessage {
 	};
 }
 
+function outlookKit(options: {
+	cursor: string;
+	plan?: string;
+	forward: (tick: number) => GraphMessage[][];
+	back: GraphMessage[];
+	poisoned: readonly string[];
+	slow?: (id: string, tick: number) => boolean;
+}) {
+	const persisted: Persisted = {
+		cursor: options.cursor,
+		backfill: options.plan ?? null,
+	};
+	let tickNo = 0;
+
+	const graph = {
+		async me() {
+			return ok({ mail: MAILBOX });
+		},
+		async folder(_token: string, name: string) {
+			return ok({ id: `folder-${name}` });
+		},
+		async listMessages(
+			_token: string,
+			request: { order?: string; after: Date; folder?: string },
+		) {
+			if (request.order === "desc") {
+				return ok({ value: request.folder ? [] : options.back });
+			}
+			const pages = options.forward(tickNo);
+			const page: { value: GraphMessage[]; "@odata.nextLink"?: string } = {
+				value: (pages[0] ?? []).filter(
+					(message) =>
+						new Date(message.receivedDateTime ?? "") >= request.after,
+				),
+			};
+			if (pages.length > 1) page["@odata.nextLink"] = "1";
+			return ok(page);
+		},
+		async nextPage(_token: string, link: string) {
+			const pages = options.forward(tickNo);
+			const at = Number(link);
+			const page: { value: GraphMessage[]; "@odata.nextLink"?: string } = {
+				value: pages[at] ?? [],
+			};
+			if (at + 1 < pages.length) page["@odata.nextLink"] = String(at + 1);
+			return ok(page);
+		},
+	} as unknown as GraphClient;
+
+	const db = {
+		appSetting: { findUnique: async () => ({ plan: null }) },
+		emailThread: { count: async () => 0 },
+	} as unknown as Db;
+
+	const tokens = {
+		accessTokenFor: async () => ({
+			outcome: "ok" as const,
+			accessToken: "token",
+		}),
+	} as unknown as MailboxTokenService;
+
+	const state = {
+		async markRunning() {},
+		async recordAddress() {},
+		async settle(
+			_id: string,
+			update: { cursor?: string | null; backfill?: string | null },
+		) {
+			if (update.cursor !== undefined && update.cursor !== null) {
+				persisted.cursor = update.cursor;
+			}
+			if (update.backfill !== undefined) persisted.backfill = update.backfill;
+		},
+		async saveBackfill(_id: string, backfill: string | null) {
+			persisted.backfill = backfill;
+		},
+		async clearCursor() {},
+		async markNeedsReconnect() {},
+		async markRateLimited() {},
+		async markFailed() {},
+	} as unknown as SyncStateService;
+
+	const threads = {
+		async context() {
+			return {};
+		},
+		async store(
+			_row: MailboxSync,
+			_options: { origin: string },
+			parsed: IncomingMessage,
+		) {
+			const id = parsed.outlookMessageId ?? "";
+			if (options.slow?.(id, tickNo)) await Bun.sleep(150);
+			if (options.poisoned.includes(id)) {
+				throw new Error(`insert failed for ${SENDER}`);
+			}
+			return true;
+		},
+	} as unknown as ThreadWriterService;
+
+	const service = new OutlookSyncService(db, graph, tokens, state, threads);
+
+	const tick = async (deadlineAt?: number) => {
+		tickNo += 1;
+		try {
+			await service.sync(
+				{
+					id: "sync-1",
+					userId: "user-1",
+					source: "outlook",
+					cursor: persisted.cursor,
+					backfill: persisted.backfill,
+					importSince: null,
+					autoCreate: true,
+					createFrom: null,
+					status: "IDLE",
+				} as unknown as MailboxSync,
+				deadlineAt,
+			);
+		} catch {
+			return;
+		}
+	};
+
+	return { tick, persisted };
+}
+
+function poisonWarnings(spy: { mock: { calls: unknown[][] } }): string[] {
+	return spy.mock.calls
+		.map((call) => JSON.stringify(call[0]))
+		.filter((line) => line.includes(`"poison"`));
+}
+
 describe("an Outlook tick that stops before a page it read before", () => {
 	it("keeps the count of the message on the unread page", async () => {
 		const warn = spyOn(Logger.prototype, "warn").mockImplementation(() => {});
-		const persisted: Persisted = {
+		const kit = outlookKit({
 			cursor: "2025-08-01T00:00:00.000Z",
-			backfill: null,
-		};
-		const first = [
-			graphMessage("a", "2025-09-01T00:00:00.000Z"),
-			graphMessage("b", "2025-09-02T00:00:00.000Z"),
-		];
-		const second = [graphMessage("poison", "2025-09-03T00:00:00.000Z")];
-		let short = false;
+			forward: () => [
+				[
+					graphMessage("a", "2025-09-01T00:00:00.000Z"),
+					graphMessage("b", "2025-09-02T00:00:00.000Z"),
+				],
+				[graphMessage("poison", "2025-09-03T00:00:00.000Z")],
+			],
+			back: [],
+			poisoned: ["poison"],
+			slow: (id, tick) => tick === 2 && id === "a",
+		});
 
-		const graph = {
-			async me() {
-				return ok({ mail: MAILBOX });
-			},
-			async folder(_token: string, name: string) {
-				return ok({ id: `folder-${name}` });
-			},
-			async listMessages(
-				_token: string,
-				request: { order?: string; after: Date },
-			) {
-				if (request.order === "desc") return ok({ value: [] });
-				return ok({
-					value: first.filter(
-						(message) =>
-							new Date(message.receivedDateTime ?? "") >= request.after,
-					),
-					"@odata.nextLink": "page-2",
-				});
-			},
-			async nextPage() {
-				return ok({ value: second });
-			},
-		} as unknown as GraphClient;
+		await kit.tick();
+		await kit.tick(Date.now() + 50);
+		await kit.tick();
+		await kit.tick();
 
-		const db = {
-			appSetting: { findUnique: async () => ({ plan: null }) },
-			emailThread: { count: async () => 0 },
-		} as unknown as Db;
+		expect(poisonWarnings(warn)).toHaveLength(1);
+	});
+});
 
-		const tokens = {
-			accessTokenFor: async () => ({
-				outcome: "ok" as const,
-				accessToken: "token",
+describe("an Outlook message both lanes read", () => {
+	it("keeps its count while the forward overlap still reads it", async () => {
+		const warn = spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+		const at = "2025-09-01T00:00:00.000Z";
+		const kit = outlookKit({
+			cursor: at,
+			plan: serialiseBackfill({
+				...planBackfill({ before: new Date(), floor: null }),
+				phase: "all",
 			}),
-		} as unknown as MailboxTokenService;
+			forward: (tick) => [tick >= 4 ? [graphMessage("poison", at)] : []],
+			back: [graphMessage("poison", at), graphMessage("good", at)],
+			poisoned: ["poison"],
+			slow: (id, tick) => tick === 3 && id === "poison",
+		});
 
-		const state = {
-			async markRunning() {},
-			async recordAddress() {},
-			async settle(
-				_id: string,
-				update: { cursor?: string | null; backfill?: string | null },
-			) {
-				if (update.cursor !== undefined && update.cursor !== null) {
-					persisted.cursor = update.cursor;
-				}
-				if (update.backfill !== undefined) persisted.backfill = update.backfill;
-			},
-			async saveBackfill(_id: string, backfill: string | null) {
-				persisted.backfill = backfill;
-			},
-			async clearCursor() {},
-			async markNeedsReconnect() {},
-			async markRateLimited() {},
-			async markFailed() {},
-		} as unknown as SyncStateService;
+		await kit.tick();
+		await kit.tick();
+		await kit.tick(Date.now() + 50);
+		for (let tick = 4; tick <= 8; tick += 1) await kit.tick();
 
-		const threads = {
-			async context() {
-				return {};
-			},
-			async store(
-				_row: MailboxSync,
-				_options: { origin: string },
-				parsed: IncomingMessage,
-			) {
-				if (parsed.outlookMessageId === "poison") {
-					throw new Error(`insert failed for ${SENDER}`);
-				}
-				if (short && parsed.outlookMessageId === "a") await Bun.sleep(150);
-				return true;
-			},
-		} as unknown as ThreadWriterService;
-
-		const service = new OutlookSyncService(db, graph, tokens, state, threads);
-
-		const tick = async (deadlineAt?: number) => {
-			try {
-				await service.sync(
-					{
-						id: "sync-1",
-						userId: "user-1",
-						source: "outlook",
-						cursor: persisted.cursor,
-						backfill: persisted.backfill,
-						importSince: null,
-						autoCreate: true,
-						createFrom: null,
-						status: "IDLE",
-					} as unknown as MailboxSync,
-					deadlineAt,
-				);
-			} catch {
-				return;
-			}
-		};
-
-		await tick();
-		short = true;
-		await tick(Date.now() + 50);
-		short = false;
-		await tick();
-		await tick();
-
-		const lines = warn.mock.calls
-			.map((call) => JSON.stringify(call[0]))
-			.filter((line) => line.includes(`"poison"`));
-		expect(lines).toHaveLength(1);
+		expect(poisonWarnings(warn)).toHaveLength(1);
 	});
 });
 

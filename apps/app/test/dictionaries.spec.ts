@@ -4,8 +4,18 @@ import { USAGE_PROBE_OUTCOMES } from "@crm/db/agent-tasks";
 import { LOCALE, LOCALES } from "@crm/db/locale";
 import { AGENT_MODEL_OPTIONS } from "@crm/db/settings";
 import { BRAND } from "@crm/ui/lib/brand";
+import { ALL_MAILBOX_RECONNECT_REASONS } from "@crm/validation/mailbox-reasons";
 import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import ts from "typescript";
+import {
+	GOOGLE_CONNECT_ERROR_FALLBACK,
+	GOOGLE_CONNECT_ERRORS,
+	MICROSOFT_CONNECT_ERROR_FALLBACK,
+	MICROSOFT_CONNECT_ERRORS,
+	SLACK_CONNECT_ERRORS,
+	SLACK_NEVER,
+	SLACK_SUGGESTIONS,
+} from "../app/(app)/[slug]/settings/connections/connection-copy";
 import { BILLING_SETTINGS_NAV, MARKETING_NAV } from "../cloud/slots.data";
 import { DOCS } from "../components/docs/docs-config";
 import { SHOTS } from "../components/site/site-config";
@@ -330,4 +340,24 @@ it("writes no dash in any text the API source holds", async () => {
 	}
 
 	expect(guilty).toEqual([]);
+});
+
+describe("the connection texts that reach t() through a variable", () => {
+	const texts = [
+		...GOOGLE_CONNECT_ERRORS.values(),
+		GOOGLE_CONNECT_ERROR_FALLBACK,
+		...MICROSOFT_CONNECT_ERRORS.values(),
+		MICROSOFT_CONNECT_ERROR_FALLBACK,
+		...SLACK_CONNECT_ERRORS.values(),
+		...SLACK_NEVER,
+		...SLACK_SUGGESTIONS.flat(),
+		...ALL_MAILBOX_RECONNECT_REASONS,
+	];
+
+	for (const locale of translated)
+		it(`holds every one in ${locale}`, () => {
+			const dictionary = DICTIONARIES[locale];
+
+			expect(texts.filter((text) => !(text in dictionary))).toEqual([]);
+		});
 });

@@ -6,6 +6,10 @@ import {
 	type SignInAccount,
 } from "@crm/auth";
 import { type Db } from "@crm/db";
+import {
+	MAILBOX_RECONNECT_REASONS,
+	type MailboxProviderLabel,
+} from "@crm/validation/mailbox-reasons";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import {
@@ -100,7 +104,7 @@ export class MailboxTokenService {
 			if (!accessToken) {
 				return {
 					outcome: "needs-reconnect",
-					reason: `${label(providerId)} returned no access token.`,
+					reason: MAILBOX_RECONNECT_REASONS.noAccessToken(label(providerId)),
 				};
 			}
 
@@ -116,7 +120,7 @@ export class MailboxTokenService {
 
 			return {
 				outcome: "needs-reconnect",
-				reason: `${label(providerId)} would not refresh the access token.`,
+				reason: MAILBOX_RECONNECT_REASONS.refreshFailed(label(providerId)),
 			};
 		}
 	}
@@ -178,6 +182,6 @@ export class MailboxTokenService {
 	}
 }
 
-function label(providerId: MailboxProviderId): string {
+function label(providerId: MailboxProviderId): MailboxProviderLabel {
 	return providerId === GOOGLE_PROVIDER_ID ? "Google" : "Microsoft";
 }

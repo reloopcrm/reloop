@@ -24,6 +24,7 @@ import { NewAgentDialog } from "@/components/agent-builder/new-agent-dialog";
 import { getT } from "@/lib/i18n/server";
 import { requireSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { SLACK_NEVER, SLACK_SUGGESTIONS } from "../connection-copy";
 import { ConnectionPage, ConnectionPageLoading } from "../connection-page";
 import { OAuthAppCard } from "../oauth-app-card";
 import { type ConnectionQuery, connectErrorOf } from "../oauth-connection-page";
@@ -40,18 +41,6 @@ const PRIVATE_CHANNEL_SCOPES = [
 	"groups:history",
 	SLACK_USER_GRANT.scope,
 ];
-
-const never = [
-	"Send anything at all until you build an automation and switch it on",
-	"Post anywhere except the destination approved in that automation",
-	"Read a direct message between two people",
-];
-
-const suggestions = [
-	["When a deal is created", "Post the deal to an approved sales channel."],
-	["When a deal is won", "Tell an approved channel that the deal closed."],
-	["When a deal reopens", "Notify one approved channel or teammate."],
-] as const;
 
 type SlackConnectionPageProps = {
 	params: Promise<{ slug: string }>;
@@ -105,7 +94,7 @@ async function SlackConnectionPageContent({
 			/>
 			<PlainList
 				title={t("What it will never do")}
-				items={never}
+				items={SLACK_NEVER}
 				icon={Close}
 				tone="text-muted-foreground"
 			/>
@@ -127,7 +116,7 @@ async function SlackConnectionPageContent({
 					{t("Most teams start with one of these")}
 				</h2>
 				<div className="grid gap-3 md:grid-cols-3">
-					{suggestions.map(([name, description]) => (
+					{SLACK_SUGGESTIONS.map(([name, description]) => (
 						<div className="rounded-lg border p-4" key={name}>
 							<h3 className="font-medium text-sm">{t(name)}</h3>
 							<p className="mt-2 text-muted-foreground text-xs leading-relaxed">

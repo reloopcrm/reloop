@@ -148,7 +148,7 @@ One gate: has the workspace been named. Asked server-side on every request.
 
 ### The name is also the URL
 
-Served under the workspace slug (`/comp-ai/companies`). **Cosmetic, not tenancy** —
+Served under the workspace slug (`/acme/companies`). **Cosmetic, not tenancy** —
 every query still resolves through `WORKSPACE_ID`.
 
 - **The slug is the plugin's column**, written by `workspaceSlug(name)`

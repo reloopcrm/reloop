@@ -3,8 +3,8 @@ import {
 	GoogleSyncStatus,
 	type MailboxSyncModel as MailboxSync,
 } from "@crm/db";
-import { clampImportSince, limitsOf } from "@crm/db/plans";
-import { readPlan } from "@crm/db/settings";
+import { planLimitsOf } from "@crm/db/plan-usage";
+import { clampImportSince } from "@crm/db/plans";
 import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -356,7 +356,7 @@ export class OutlookSyncService {
 
 		let left = budget;
 		let written = 0;
-		const limits = limitsOf(await readPlan(this.db));
+		const limits = await planLimitsOf(this.db);
 
 		while (left > 0 && isBackfillRunning(plan) && !pastDeadline(deadlineAt)) {
 			const remaining = await importCapRemaining(this.db, limits);
@@ -524,7 +524,7 @@ export class OutlookSyncService {
 	private async floorFor(row: MailboxSync): Promise<Date | null> {
 		return clampImportSince(
 			row.importSince,
-			limitsOf(await readPlan(this.db)),
+			await planLimitsOf(this.db),
 			new Date(),
 		);
 	}

@@ -1,24 +1,20 @@
 import { DIRECT_KINDS } from "./agent-tasks";
 import type { Db } from "./client";
+import type { UsageWindow } from "./cloud/contract";
 import { cloud } from "./cloud/scope";
 import type { Prisma } from "./generated/prisma/client";
 import {
-	type AddOnQuantities,
 	budgetKinds,
-	canonicalPlanId,
-	DAY_MS,
 	DRAFT_KIND,
 	INSIGHT_KIND,
-	limitsOf,
-	NO_ADD_ONS,
 	nextMonthStart,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
 	startOfMonth,
-	TRIAL_DAYS,
-	withAddOns,
 } from "./plans";
 import { readPlan } from "./settings";
+
+export type { UsageWindow } from "./cloud/contract";
 
 export async function planIdOf(db: Db): Promise<string | null> {
 	const stored = await readPlan(db);
@@ -27,45 +23,28 @@ export async function planIdOf(db: Db): Promise<string | null> {
 }
 
 export function fixedAiFor(plan: string | null | undefined): boolean {
-	return cloud.customer() && limitsOf(plan).aiIncluded;
-}
-
-export function addOnsOf(): AddOnQuantities {
-	return cloud.customer() ? cloud.addOns() : NO_ADD_ONS;
+	return cloud.customer() && cloud.plans.limitsOf(plan).aiIncluded;
 }
 
 export async function planLimitsOf(db: Db): Promise<PlanLimits> {
-	return withAddOns(limitsOf(await planIdOf(db)), addOnsOf());
+	return cloud.plans.withAddOns(cloud.plans.limitsOf(await planIdOf(db)));
 }
 
 export async function fixedAiWith(db: Db): Promise<boolean> {
 	return fixedAiFor(await planIdOf(db));
 }
 
-export type UsageWindow = { since: Date; until: Date; trialEnds: boolean };
-
 function usageWindowFor(
 	plan: string | null | undefined,
 	now: Date = new Date(),
 ): UsageWindow {
-	const tenant =
-		cloud.customer() && canonicalPlanId(plan) === "trial"
-			? cloud.current()
-			: null;
-	if (tenant?.trialEndsAt) {
-		const trialEnds = tenant.trialEndsAt > now;
-		const started = tenant.trialEndsAt.getTime() - TRIAL_DAYS * DAY_MS;
-		return {
-			since: new Date(Math.min(started, tenant.createdAt.getTime())),
-			until: trialEnds ? tenant.trialEndsAt : nextMonthStart(now),
-			trialEnds,
-		};
-	}
-	return {
-		since: startOfMonth(now),
-		until: nextMonthStart(now),
-		trialEnds: false,
-	};
+	return (
+		cloud.plans.usageWindow(plan, now) ?? {
+			since: startOfMonth(now),
+			until: nextMonthStart(now),
+			trialEnds: false,
+		}
+	);
 }
 
 export async function usageWindowOf(

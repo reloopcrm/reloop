@@ -6,91 +6,24 @@ import {
 	allowsCompanyResearch,
 	budgetKinds,
 	COMPANY_RESEARCH_KINDS,
-	canonicalPlanId,
+	CONTACT_LIMIT_MESSAGE,
+	capacityExcess,
 	clampImportSince,
 	clampResearchPerHour,
 	DRAFT_KIND,
 	forwardReserve,
 	INSIGHT_KIND,
-	isPlanId,
 	keepsReserve,
-	LEGACY_PLAN_IDS,
-	limitsOf,
 	monthlyBudget,
 	NO_PLAN,
 	nextMonthStart,
-	PLAN_IDS,
-	PLANS,
-	type PlanId,
-	type PlanLimits,
 	RESEARCH_RUN_KIND,
 	STORY_KIND,
 	startOfMonth,
-	TRIAL_DAYS,
 } from "../src/plans";
+import { TEST_PLANS } from "../src/test-plans";
 
 const now = new Date("2026-09-12T00:00:00.000Z");
-
-const PRICING_PAGE = {
-	start: {
-		mailboxes: 1,
-		insightsPerMonth: 1_000,
-		draftsPerMonth: 40,
-		contacts: 10_000,
-	},
-	standard: {
-		mailboxes: 1,
-		insightsPerMonth: 3_000,
-		draftsPerMonth: 100,
-		contacts: 25_000,
-	},
-	plus: {
-		mailboxes: 2,
-		insightsPerMonth: 7_000,
-		draftsPerMonth: 300,
-		contacts: 50_000,
-	},
-	team: {
-		mailboxes: 4,
-		insightsPerMonth: 18_000,
-		draftsPerMonth: 800,
-		contacts: 150_000,
-	},
-	office: {
-		mailboxes: 8,
-		insightsPerMonth: 45_000,
-		draftsPerMonth: 2_000,
-		contacts: 500_000,
-	},
-	hosting: {
-		mailboxes: 2,
-		insightsPerMonth: null,
-		draftsPerMonth: null,
-		contacts: 10_000,
-		storageGb: 5,
-	},
-	"hosting-pro": {
-		mailboxes: 6,
-		insightsPerMonth: null,
-		draftsPerMonth: null,
-		contacts: 50_000,
-		storageGb: 25,
-	},
-} as const;
-
-const AI_COUNTERS = {
-	trial: { researchPerMonth: null, builderPerMonth: 100 },
-	start: { researchPerMonth: 50, builderPerMonth: 200 },
-	standard: { researchPerMonth: 150, builderPerMonth: 500 },
-	plus: { researchPerMonth: 300, builderPerMonth: 1_000 },
-	team: { researchPerMonth: 800, builderPerMonth: 2_000 },
-	office: { researchPerMonth: 2_000, builderPerMonth: 5_000 },
-	hosting: { researchPerMonth: null, builderPerMonth: null },
-	"hosting-pro": { researchPerMonth: null, builderPerMonth: null },
-} as const satisfies Record<
-	PlanId,
-	Pick<PlanLimits, "researchPerMonth" | "builderPerMonth">
->;
 
 const NO_USAGE = {
 	insights: 0,
@@ -103,9 +36,6 @@ const NO_USAGE = {
 
 describe("an install without a plan", () => {
 	it("has no limit at all", () => {
-		for (const plan of [null, undefined, ""]) {
-			expect(limitsOf(plan)).toEqual(NO_PLAN);
-		}
 		for (const [key, value] of Object.entries(NO_PLAN)) {
 			if (key === "label") continue;
 			if (key === "aiIncluded") {
@@ -134,35 +64,21 @@ describe("an install without a plan", () => {
 		expect(monthlyBudget(INSIGHT_KIND, NO_PLAN)).toBeNull();
 		expect(monthlyBudget(DRAFT_KIND, NO_PLAN)).toBeNull();
 	});
+
+	it("never fixes the AI chain outside a hosted customer", () => {
+		expect(fixedAiFor("small")).toBe(false);
+		expect(fixedAiFor(null)).toBe(false);
+	});
+
+	it("holds no capacity excess", () => {
+		expect(
+			capacityExcess({ contacts: 1_000_000, mailboxes: 9 }, NO_PLAN),
+		).toEqual([]);
+	});
 });
 
-describe("the pricing page", () => {
-	for (const [id, expected] of Object.entries(PRICING_PAGE)) {
-		it(`is what the ${id} plan enforces`, () => {
-			expect(PLANS[id as keyof typeof PRICING_PAGE]).toMatchObject(expected);
-		});
-	}
-
-	it("sells AI without a limit on the own key plans", () => {
-		for (const id of ["hosting", "hosting-pro"] as const) {
-			expect(PLANS[id].researchPerHour).toBeNull();
-			expect(PLANS[id].companyResearch).toBe(true);
-			expect(PLANS[id].aiIncluded).toBe(false);
-		}
-	});
-
-	it("includes the AI on every other plan", () => {
-		for (const id of [
-			"trial",
-			"start",
-			"standard",
-			"plus",
-			"team",
-			"office",
-		] as const) {
-			expect(PLANS[id].aiIncluded).toBe(true);
-		}
-	});
+describe("a plan with limits", () => {
+	const limits = TEST_PLANS.small;
 
 	it("prices Sol at the standard OpenRouter route", () => {
 		expect(MODEL_PRICES["gpt-5.6-sol"]).toEqual({
@@ -176,31 +92,9 @@ describe("the pricing page", () => {
 	it("counts a month from its first day in UTC", () => {
 		expect(startOfMonth(now).toISOString()).toBe("2026-09-01T00:00:00.000Z");
 		expect(nextMonthStart(now).toISOString()).toBe("2026-10-01T00:00:00.000Z");
-		expect(monthlyBudget(RESEARCH_RUN_KIND, PLANS.trial)).toBeNull();
-		expect(fixedAiFor("start")).toBe(false);
 	});
 
-	it("names every plan id it carries", () => {
-		expect(Object.keys(PLANS).sort()).toEqual([...PLAN_IDS].sort());
-	});
-});
-
-describe("the trial plan", () => {
-	const limits = PLANS.trial;
-
-	it("runs fourteen days with one mailbox and five hundred conversations", () => {
-		expect(TRIAL_DAYS).toBe(14);
-		expect(limits.mailboxes).toBe(1);
-		expect(limits.insightsPerMonth).toBe(500);
-	});
-
-	it("caps drafts, research sessions and chat so a trial costs little", () => {
-		expect(limits.draftsPerMonth).toBe(20);
-		expect(limits.researchSessionsPerMonth).toBe(100);
-		expect(limits.chatPerMonth).toBe(200);
-	});
-
-	it("imports the last ninety days and at most five hundred conversations", () => {
+	it("imports the last months and at most the allowed conversations", () => {
 		expect(limits.importThreads).toBe(500);
 		const floor = clampImportSince(null, limits, now);
 		expect(floor?.toISOString()).toBe("2026-06-12T00:00:00.000Z");
@@ -234,32 +128,26 @@ describe("the trial plan", () => {
 		}
 	});
 
-	it("is what an unknown plan id gets", () => {
-		expect(limitsOf("erfunden")).toEqual(PLANS.trial);
+	it("reports the counters past their limit", () => {
+		expect(capacityExcess({ contacts: 2_001, mailboxes: 1 }, limits)).toEqual([
+			{ counter: "contacts", used: 2_001, limit: 2_000 },
+		]);
 	});
 });
 
 describe("the monthly budgets", () => {
 	it("count conversations and drafts by task kind", () => {
-		expect(monthlyBudget(INSIGHT_KIND, PLANS.standard)).toBe(3_000);
-		expect(monthlyBudget(DRAFT_KIND, PLANS.standard)).toBe(100);
-		expect(monthlyBudget("identify", PLANS.standard)).toBeNull();
+		expect(monthlyBudget(INSIGHT_KIND, TEST_PLANS.wide)).toBe(7_000);
+		expect(monthlyBudget(DRAFT_KIND, TEST_PLANS.wide)).toBe(300);
+		expect(monthlyBudget(RESEARCH_RUN_KIND, TEST_PLANS.wide)).toBe(300);
+		expect(monthlyBudget(RESEARCH_RUN_KIND, TEST_PLANS.small)).toBeNull();
+		expect(monthlyBudget("identify", TEST_PLANS.wide)).toBeNull();
 	});
-
-	for (const [id, expected] of Object.entries(AI_COUNTERS)) {
-		it(`cap research runs and builder messages on the ${id} plan`, () => {
-			const limits = PLANS[id as PlanId];
-			expect(limits).toMatchObject(expected);
-			expect(monthlyBudget(RESEARCH_RUN_KIND, limits)).toBe(
-				expected.researchPerMonth,
-			);
-		});
-	}
 });
 
 describe("the usage lines", () => {
-	it("say company research is not included on the trial", () => {
-		const lines = usageLines(NO_USAGE, PLANS.trial);
+	it("say company research is not included where the plan excludes it", () => {
+		const lines = usageLines(NO_USAGE, TEST_PLANS.small);
 		expect(lines.find((line) => line.counter === "research")).toEqual({
 			counter: "research",
 			used: 0,
@@ -281,95 +169,65 @@ describe("the usage lines", () => {
 		for (const line of usageLines(NO_USAGE, NO_PLAN)) {
 			expect(line).toMatchObject({ limit: null, included: true });
 		}
-		const start = usageLines(NO_USAGE, PLANS.start);
-		expect(start.find((line) => line.counter === "sessions")).toMatchObject({
-			limit: 100,
+		const wide = usageLines(NO_USAGE, TEST_PLANS.wide);
+		expect(wide.find((line) => line.counter === "chat")).toMatchObject({
+			limit: 3_000,
 			included: true,
 		});
-		expect(start.find((line) => line.counter === "chat")).toMatchObject({
-			limit: 500,
-			included: true,
-		});
-		const hosting = usageLines(NO_USAGE, PLANS.hosting);
-		expect(hosting.find((line) => line.counter === "sessions")).toMatchObject({
+		const keyless = usageLines(NO_USAGE, TEST_PLANS.keyless);
+		expect(keyless.find((line) => line.counter === "sessions")).toMatchObject({
 			limit: null,
-			included: true,
-		});
-		expect(start.find((line) => line.counter === "research")).toMatchObject({
-			limit: 50,
 			included: true,
 		});
 	});
 
 	it("mark a counter reached at its limit", () => {
-		const lines = usageLines({ ...NO_USAGE, builder: 100 }, PLANS.trial);
+		const lines = usageLines({ ...NO_USAGE, builder: 100 }, TEST_PLANS.small);
 		expect(lines.find((line) => line.counter === "builder")?.reached).toBe(
 			true,
 		);
 	});
 });
 
-describe("the old plan ids", () => {
-	it("map to the new plans", () => {
-		expect(LEGACY_PLAN_IDS).toEqual({
-			test: "trial",
-			handel: "standard",
-			"handel-plus": "team",
-		});
-		for (const [old, current] of Object.entries(LEGACY_PLAN_IDS)) {
-			expect(isPlanId(old)).toBe(false);
-			expect(canonicalPlanId(old)).toBe(current);
-			expect(limitsOf(old)).toBe(PLANS[current]);
-		}
-	});
-
-	it("are not offered as a choice", () => {
-		for (const id of PLAN_IDS) expect(canonicalPlanId(id)).toBe(id);
-		expect(canonicalPlanId("erfunden")).toBeNull();
-		expect(canonicalPlanId(null)).toBeNull();
-	});
-});
-
 describe("the contact trigger", () => {
 	const sql = readFileSync(
 		new URL(
-			"../prisma/migrations/20260921120000_plan_ids/migration.sql",
+			"../prisma/migrations/20261008100000_contact_limit_from_column/migration.sql",
 			import.meta.url,
 		),
 		"utf8",
 	);
 
-	it("carries every plan's contact limit", () => {
-		for (const id of PLAN_IDS) {
-			expect(sql).toContain(`WHEN '${id}' THEN ${PLANS[id].contacts}`);
-		}
-		expect(sql).toContain(`ELSE ${PLANS.trial.contacts} END`);
+	it("reads the stored contact limit and names no plan", () => {
+		expect(sql).toContain('RETURNING "contactLimit" INTO contact_limit');
+		expect(sql).toContain("IF contact_limit IS NOT NULL");
+		expect(sql).not.toMatch(/WHEN '[a-z-]+' THEN \d+/);
+		expect(sql).not.toContain("current_plan");
 	});
 
-	it("moves every old id to its new plan", () => {
-		for (const [old, current] of Object.entries(LEGACY_PLAN_IDS)) {
-			expect(sql).toContain(`WHEN '${old}' THEN '${current}'`);
-		}
+	it("raises the message the services match on", () => {
+		expect(sql).toContain(`RAISE EXCEPTION '${CONTACT_LIMIT_MESSAGE}'`);
+		expect(sql).toContain("ERRCODE = '23514'");
 	});
 });
 
 describe("the reading reserve for new mail", () => {
 	it("holds a fifth of the reading budget", () => {
 		expect(
-			forwardReserve(INSIGHT_KIND, { ...PLANS.trial, insightsPerMonth: 100 }),
+			forwardReserve(INSIGHT_KIND, { ...NO_PLAN, insightsPerMonth: 100 }),
 		).toBe(20);
 	});
 
 	it("holds nothing without a limit or for other kinds", () => {
 		expect(forwardReserve(INSIGHT_KIND, NO_PLAN)).toBe(0);
-		expect(forwardReserve(DRAFT_KIND, PLANS.trial)).toBe(0);
+		expect(forwardReserve(DRAFT_KIND, TEST_PLANS.small)).toBe(0);
 	});
 });
 
 describe("a win back story", () => {
 	it("spends the conversation budget of the plan", () => {
-		expect(monthlyBudget(STORY_KIND, PLANS.trial)).toBe(
-			PLANS.trial.insightsPerMonth,
+		expect(monthlyBudget(STORY_KIND, TEST_PLANS.small)).toBe(
+			TEST_PLANS.small.insightsPerMonth,
 		);
 		expect(monthlyBudget(STORY_KIND, NO_PLAN)).toBeNull();
 	});
@@ -381,8 +239,8 @@ describe("a win back story", () => {
 	});
 
 	it("leaves the reserve for new mail alone, like a backfill", () => {
-		expect(forwardReserve(STORY_KIND, PLANS.trial)).toBe(
-			forwardReserve(INSIGHT_KIND, PLANS.trial),
+		expect(forwardReserve(STORY_KIND, TEST_PLANS.small)).toBe(
+			forwardReserve(INSIGHT_KIND, TEST_PLANS.small),
 		);
 		expect(keepsReserve(STORY_KIND, "forward")).toBe(true);
 		expect(keepsReserve(INSIGHT_KIND, "forward")).toBe(false);

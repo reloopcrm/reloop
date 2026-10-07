@@ -1,6 +1,4 @@
 import { LOCALES } from "@crm/db/locale";
-import { PLAN_IDS } from "@crm/db/plans";
-import { planPurchase } from "@crm/db/pricing";
 import { z } from "zod";
 
 const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
@@ -32,32 +30,13 @@ export const tenantLookupResult = z.object({
 
 export type TenantLookupResult = z.infer<typeof tenantLookupResult>;
 
-export const tenantSignupInput = z.object({
+export const tenantSignupFields = {
 	email,
 	name: z.string().trim().min(1).max(120),
 	company: z.string().trim().min(1).max(120),
-	plan: z.enum(PLAN_IDS),
 	locale: z.enum(LOCALES),
 	password: password.optional(),
-	purchase: planPurchase.optional(),
-});
-
-export type TenantSignupInput = z.infer<typeof tenantSignupInput>;
-
-export const tenantSignupResult = z.object({
-	tenantId: z.string().min(1),
-	next: z.enum(["verify-email", "oauth"]),
-	provider: z.enum(["google", "microsoft"]).optional(),
-});
-
-export type TenantSignupResult = z.infer<typeof tenantSignupResult>;
-
-export const tenantSignupOptions = z.object({
-	password: z.boolean(),
-	signIn: z.array(z.enum(TENANT_SIGN_IN_METHODS)),
-});
-
-export type TenantSignupOptions = z.infer<typeof tenantSignupOptions>;
+};
 
 export const tenantVerifyInput = z.object({ email, code });
 

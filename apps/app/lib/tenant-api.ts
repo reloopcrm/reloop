@@ -5,16 +5,8 @@ import {
 	type TenantLookupResult,
 	type TenantResetConfirmInput,
 	type TenantResetInput,
-	type TenantSignupInput,
-	type TenantSignupOptions,
-	type TenantSignupResult,
-	type TenantVerifyInput,
-	type TenantVerifyResult,
 	tenantDone,
 	tenantLookupResult,
-	tenantSignupOptions,
-	tenantSignupResult,
-	tenantVerifyResult,
 } from "@crm/validation/tenant-signup";
 import { z } from "zod";
 
@@ -50,16 +42,9 @@ export type TenantOutcome<T> =
 	| { ok: true; data: T }
 	| { ok: false; code: TenantRefusal };
 
-type TenantRequest =
-	| TenantLookupInput
-	| TenantSignupInput
-	| TenantVerifyInput
-	| TenantResetInput
-	| TenantResetConfirmInput;
-
-async function post<T>(
+export async function post<T>(
 	path: string,
-	body: TenantRequest,
+	body: object,
 	schema: z.ZodType<T>,
 ): Promise<TenantOutcome<T>> {
 	let response: Response;
@@ -93,43 +78,10 @@ async function post<T>(
 	return { ok: false, code: refused.success ? refused.data.code : "FAILED" };
 }
 
-export async function signupOptions(
-	apiUrl: string,
-): Promise<TenantSignupOptions | null> {
-	try {
-		const response = await fetch(`${apiUrl}${TENANT_API.options}`, {
-			cache: "no-store",
-		});
-		if (!response.ok) return null;
-		const parsed = tenantSignupOptions.safeParse(await response.json());
-		return parsed.success ? parsed.data : null;
-	} catch {
-		return null;
-	}
-}
-
 export function lookupWorkspace(
 	input: TenantLookupInput,
 ): Promise<TenantOutcome<TenantLookupResult>> {
 	return post(TENANT_API.lookup, input, tenantLookupResult);
-}
-
-export function signUpWorkspace(
-	input: TenantSignupInput,
-): Promise<TenantOutcome<TenantSignupResult>> {
-	return post(TENANT_API.signup, input, tenantSignupResult);
-}
-
-export function resendSignupCode(
-	input: TenantLookupInput,
-): Promise<TenantOutcome<TenantDone>> {
-	return post(TENANT_API.resend, input, tenantDone);
-}
-
-export function verifyWorkspace(
-	input: TenantVerifyInput,
-): Promise<TenantOutcome<TenantVerifyResult>> {
-	return post(TENANT_API.verify, input, tenantVerifyResult);
 }
 
 export function requestPasswordReset(

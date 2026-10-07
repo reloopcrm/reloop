@@ -1,9 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
 import { DealStage, db, RecordSource } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { budgetTasksWhere, usageWindowOf } from "@crm/db/plan-usage";
-import { INSIGHT_KIND, PLANS } from "@crm/db/plans";
+import { INSIGHT_KIND } from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
+import {
+	actWithoutPlans,
+	actWithTestPlans,
+	TEST_PLANS,
+} from "@crm/db/test-plans";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { WinBackPersonService } from "../src/reactivation/win-back-person.service";
 import type { WinBackStoryPrefetchService } from "../src/reactivation/win-back-story-prefetch.service";
@@ -199,6 +212,10 @@ async function clean(): Promise<void> {
 	await db.user.deleteMany({ where: { id: ownerId } });
 }
 
+beforeAll(actWithTestPlans);
+
+afterAll(actWithoutPlans);
+
 beforeEach(async () => {
 	asked = [];
 	opened = [];
@@ -318,14 +335,14 @@ describe("the story budget", () => {
 		const planBefore = await readPlan(db);
 		const seeded = await setUp();
 		try {
-			await writePlan(db, "trial");
+			await writePlan(db, "small");
 			const { since } = await usageWindowOf(db);
 			const used = await db.agentTask.count({
 				where: budgetTasksWhere(INSIGHT_KIND, since),
 			});
 			await db.agentTask.createMany({
 				data: Array.from(
-					{ length: Math.max(0, PLANS.trial.insightsPerMonth - used) },
+					{ length: Math.max(0, TEST_PLANS.small.insightsPerMonth - used) },
 					() => ({
 						contactId: seeded.contactId,
 						kind: INSIGHT_KIND,

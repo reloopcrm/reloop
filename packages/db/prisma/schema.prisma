@@ -1526,7 +1526,8 @@ model SuppressedContact {
 model AppSetting {
   id String @id
 
-  plan String?
+  plan         String?
+  contactLimit Int?
 
   agentModelId String?
 

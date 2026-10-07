@@ -181,7 +181,11 @@ export function useNextStep(
 
 	const open = () => {
 		setStep("open");
-		void draft.ensure({ renewStale: answerIsNext(view) });
+		void draft.ensure({
+			writtenBefore: answerIsNext(view)
+				? view.wroteBack?.answeredAt
+				: undefined,
+		});
 	};
 
 	const later = () => {
@@ -396,7 +400,7 @@ function OpenMail({ step }: { step: NextStep }) {
 					type="single"
 					size="sm"
 					value={step.variant}
-					disabled={!draft.draft || draft.blocked}
+					disabled={!draft.draft || draft.blocked || step.outdated}
 					onValueChange={(value) => {
 						if (value === "full" || value === "short")
 							step.changeVariant(value);

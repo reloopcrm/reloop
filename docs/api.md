@@ -711,7 +711,8 @@ the pattern lists in `packages/db/src/message-text.ts`
   while no mail from us to their address followed it, in any conversation they
   own or are linked to. The next step then reads "Reply to them", and
   the page promises no follow-up reminder, because the sweep skips anyone who
-  answered.
+  answered. A draft written before their answer is never shown or sent: opening the
+  message asks the agent for a new one.
 - `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides. A new
   pattern goes in the list and gets a sample there.
 

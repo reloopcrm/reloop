@@ -75,32 +75,41 @@ describe("the next step after a reply", () => {
 
 describe("the draft for a reply", () => {
 	const ready = { queued: false, waitingUntil: null, limit: null };
+	const OLD = "2026-09-10T08:00:00.000Z";
+	const NEW = "2026-09-25T08:00:00.000Z";
+	const ANSWER = "2026-09-20T08:00:00.000Z";
 
 	it("writes a new draft when the stored one is older than their answer", () => {
 		expect(
-			draftToWrite({ ...ready, draft: { stale: true } }, { renewStale: true }),
+			draftToWrite(
+				{ ...ready, draft: { writtenAt: OLD } },
+				{ writtenBefore: ANSWER },
+			),
 		).toBe(true);
 	});
 
 	it("keeps a current draft and keeps the old behaviour elsewhere", () => {
 		expect(
-			draftToWrite({ ...ready, draft: { stale: false } }, { renewStale: true }),
+			draftToWrite(
+				{ ...ready, draft: { writtenAt: NEW } },
+				{ writtenBefore: ANSWER },
+			),
 		).toBe(false);
-		expect(draftToWrite({ ...ready, draft: { stale: true } })).toBe(false);
+		expect(draftToWrite({ ...ready, draft: { writtenAt: OLD } })).toBe(false);
 		expect(draftToWrite({ ...ready, draft: null })).toBe(true);
 	});
 
 	it("writes nothing while a draft is queued or the limit holds it", () => {
 		expect(
 			draftToWrite(
-				{ ...ready, queued: true, draft: { stale: true } },
-				{ renewStale: true },
+				{ ...ready, queued: true, draft: { writtenAt: OLD } },
+				{ writtenBefore: ANSWER },
 			),
 		).toBe(false);
 		expect(
 			draftToWrite(
-				{ ...ready, limit: "plan", draft: { stale: true } },
-				{ renewStale: true },
+				{ ...ready, limit: "plan", draft: { writtenAt: OLD } },
+				{ writtenBefore: ANSWER },
 			),
 		).toBe(false);
 	});
@@ -108,20 +117,22 @@ describe("the draft for a reply", () => {
 
 describe("an outdated draft in the reply state", () => {
 	const answer = { answeredAt: "2026-09-20T08:00:00.000Z", open: true };
+	const before = { writtenAt: "2026-09-10T08:00:00.000Z" };
+	const after = { writtenAt: "2026-09-25T08:00:00.000Z" };
 
 	it("is never offered as the answer", () => {
-		expect(replyDraftOutdated({ wroteBack: answer }, { stale: true })).toBe(
-			true,
-		);
+		expect(replyDraftOutdated({ wroteBack: answer }, before)).toBe(true);
+	});
+
+	it("is free once Reloop wrote it after their answer", () => {
+		expect(replyDraftOutdated({ wroteBack: answer }, after)).toBe(false);
 	});
 
 	it("is the normal draft when no answer is due", () => {
-		expect(replyDraftOutdated({ wroteBack: null }, { stale: true })).toBe(
-			false,
-		);
-		expect(replyDraftOutdated({ wroteBack: answer }, { stale: false })).toBe(
-			false,
-		);
+		expect(replyDraftOutdated({ wroteBack: null }, before)).toBe(false);
+		expect(
+			replyDraftOutdated({ wroteBack: { ...answer, open: false } }, before),
+		).toBe(false);
 		expect(replyDraftOutdated({ wroteBack: answer }, null)).toBe(false);
 	});
 });

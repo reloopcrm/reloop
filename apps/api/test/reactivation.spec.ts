@@ -352,6 +352,53 @@ describe("the rejected view", () => {
 		expect(mine).toHaveLength(0);
 	});
 
+	it("shows a rejected person the include rules leave out, and keeps the normal list as it was", async () => {
+		await db.potentialFeedback.create({
+			data: { contactId: heavy, verdict: "bad" },
+		});
+		const strict = {
+			...DEFAULT_WIN_BACK_RULES,
+			include: { ...DEFAULT_WIN_BACK_RULES.include, requireMeeting: true },
+			excludedDomains: [domain],
+		};
+
+		const rejected = await listReactivationCandidates(db, {
+			rejected: true,
+			quietForDays: 30,
+			now,
+			limit: 50,
+			rules: strict,
+		});
+		const normal = await listReactivationCandidates(db, {
+			quietForDays: 30,
+			now,
+			limit: 50,
+			rules: strict,
+		});
+		const lenient = await listReactivationCandidates(db, {
+			quietForDays: 30,
+			now,
+			limit: 50,
+			rules,
+		});
+
+		expect(
+			rejected.candidates
+				.filter((candidate) => candidate.contact.email?.endsWith(`@${domain}`))
+				.map((candidate) => candidate.contact.id),
+		).toEqual([heavy]);
+		expect(
+			normal.candidates.some((candidate) =>
+				candidate.contact.email?.endsWith(`@${domain}`),
+			),
+		).toBe(false);
+		expect(
+			lenient.candidates.some((candidate) => candidate.contact.id === heavy),
+		).toBe(false);
+
+		await db.potentialFeedback.deleteMany({ where: { contactId: heavy } });
+	});
+
 	it("still finds a rejected person after the agent archived them", async () => {
 		await db.potentialFeedback.create({
 			data: { contactId: heavy, verdict: "bad" },

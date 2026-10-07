@@ -32,12 +32,18 @@ export const trackingEvent = z.object({
 export const trackingBatch = z.object({
 	siteId: z.string(),
 	visitorId: z.string(),
-	events: z.array(trackingEvent),
+	events: z.array(z.unknown()).transform((items) =>
+		items.flatMap((item) => {
+			const parsed = trackingEvent.safeParse(item);
+
+			return parsed.success ? [parsed.data] : [];
+		}),
+	),
 });
 
 export type TrackingTouch = z.infer<typeof trackingTouch>;
 export type TrackingEvent = z.infer<typeof trackingEvent>;
-export type TrackingBatch = z.infer<typeof trackingBatch>;
+export type TrackingBatch = z.output<typeof trackingBatch>;
 
 export function parseTrackingBatch(raw: string): TrackingBatch | null {
 	let json: unknown;

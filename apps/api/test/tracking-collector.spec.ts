@@ -111,6 +111,32 @@ describe("Tracking collector", () => {
 			expect(error).not.toHaveBeenCalled();
 		});
 
+		it("stores the valid events of a batch that also holds bad ones", async () => {
+			forSite();
+
+			const response = await post(
+				JSON.stringify({
+					siteId: SITE_ID,
+					visitorId: "collector00004",
+					events: [
+						null,
+						{ type: "page_view", host: HOST, path: "/kept" },
+						{ type: "page_view", host: 123, path: "/numeric" },
+						{ type: "future_kind", host: HOST, path: "/unknown" },
+					],
+				}),
+			);
+
+			expect(response.status).toBe(204);
+
+			const rows = await db.trackedEvent.findMany({
+				where: { host: HOST },
+				select: { path: true },
+			});
+
+			expect(rows).toEqual([{ path: "/kept" }]);
+		});
+
 		it("still stores a batch shaped like the tracking script's", async () => {
 			forSite();
 

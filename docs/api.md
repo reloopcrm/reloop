@@ -931,6 +931,27 @@ marked passages and the follow-up delay. It writes nothing but an
   claims it only after the stories reps asked for. When a rep opens a person whose
   prefetched task still waits, `person` lifts it to `PRIORITY.personStory` through
   `personStoryOpened`. A task the budget postponed keeps its date.
+- **The email is written ahead too, for fewer people.** The same two calls hand
+  their people to `WinBackDraftPrefetchService`
+  (`reactivation/win-back-draft-prefetch.service.ts`): the first
+  `PERSON_VIEW.prefetch.drafts.top` of the list and the next person. It queues
+  `email-draft` only for a person with an address, mail, no stored draft and no open
+  draft task, and it checks the stored draft and a finished try again under the lock.
+  A stored draft that is stale is left alone; a rep's open asks for that one. The
+  `retryAfterMs` pause holds here as well, so a person whose draft came back empty is
+  not queued on every list read.
+- **A draft prefetch never spends a rep's last drafts.** The writes go through
+  `AgentTriggerService.emailDraftsPrefetched`, with the same per-contact lock as
+  `enqueue` and one lock for the prefetch budget. It stops at
+  `PERSON_VIEW.prefetch.drafts.perMonth` prefetched drafts in the usage window, and
+  with a plan at `draftsPerMonth` minus `reserveShare` of it, which stays for drafts a
+  rep asks for. Without an AI provider (no stored key, no `OPENROUTER_API_KEY` for a
+  self-hosted install, no included AI, no ChatGPT usage the agent has recorded) it
+  queues nothing.
+- **A draft a rep looks at goes first.** A prefetched draft carries
+  `PRIORITY.draftPrefetch`, just below `storyPrefetch`. When `contacts.draft` finds
+  it still waiting, `emailDraftOpened` lifts it to `PRIORITY.emailDraft`. The lifted
+  task no longer counts against the prefetch cap.
 - **A reference to a message that no longer exists is dropped on read**
   (`keepKnownMessages`). A message the story names but older than the newest
   `PERSON_VIEW.mails` is added to the list, so "where Reloop knows this from" always

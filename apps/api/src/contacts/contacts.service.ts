@@ -7,7 +7,7 @@ import {
 	Prisma as PrismaNamespace,
 	RecordSource,
 } from "@crm/db";
-import { REP_ASKED_REASON } from "@crm/db/agent-tasks";
+import { PRIORITY, REP_ASKED_REASON } from "@crm/db/agent-tasks";
 import {
 	type ContactAttention,
 	readContactAttention,
@@ -847,12 +847,15 @@ export class ContactsService {
 		const open = await this.db.agentTask.findFirst({
 			where: { contactId: id, kind: "email-draft", finishedAt: null },
 			orderBy: { dueAt: "asc" },
-			select: { dueAt: true },
+			select: { dueAt: true, priority: true },
 		});
 		const now = new Date();
 		const held =
 			open && open.dueAt.getTime() > now.getTime() ? open.dueAt : null;
 		const queued = open !== null && held === null;
+		if (queued && open.priority < PRIORITY.emailDraft) {
+			await this.agent.emailDraftOpened(id);
+		}
 		const resumesAt = await this.draftLimitResumesAt(now);
 		const planReached = resumesAt !== null;
 		const waitingUntil =

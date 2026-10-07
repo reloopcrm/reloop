@@ -18,6 +18,11 @@ export const PERSON_VIEW = {
 		openShare: 0.1,
 		sort: "potential",
 		dir: "desc",
+		drafts: {
+			top: 5,
+			perMonth: 20,
+			reserveShare: 0.5,
+		},
 	},
 } as const;
 

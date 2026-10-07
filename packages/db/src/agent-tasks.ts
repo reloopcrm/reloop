@@ -115,6 +115,7 @@ export const PRIORITY = {
 	emailDraft: 970,
 	personStory: 960,
 	storyPrefetch: 35,
+	draftPrefetch: 34,
 	playbookLearn: 600,
 	event: 700,
 	dealStall: 30,

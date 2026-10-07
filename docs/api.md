@@ -381,6 +381,16 @@ the largest attachment upload the conversation contracts accept.
   Outlook write `MailboxSync.address` from the provider profile on every sync,
   before the first message. The API only reads `ownAddresses`; deciding that an
   address is an alias is the agent's job.
+- **Adoption reads the newest page and one cursor page.** `ThreadAdoptionService`
+  runs once per sync tick, before direction repair, and files relevant threads
+  without a contact or a company that pass `threadWorthAdopting`. It reads the `ADOPTION.batch` newest
+  waiting threads, so new mail is adopted on the next tick, and the batch after
+  `AppSetting.threadAdoptionCursor` (`{ v, at, id }` in
+  `mailbox/thread-adoption-cursor.ts`) in `(lastMessageAt, id)` order, newest
+  first. The cursor moves past every thread it read, adopted or not, and a page
+  shorter than a batch sets it back to null. So an older thread behind a full page
+  of threads that are not worth adopting is reached within one round of the waiting
+  threads. An unreadable cursor is logged and starts again from the newest thread.
 - **Old rows follow the identity.** `DirectionRepairService` runs once per sync
   tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`,
   at most `DIRECTION.repairBatch` per tick, and never the other way. Once a pass

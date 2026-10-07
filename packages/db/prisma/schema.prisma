@@ -1575,6 +1575,7 @@ model AppSetting {
   agentFunctions        Json?
   mailboxProfile        Json?
   threadContactsCursor  String?
+  threadAdoptionCursor  String?
 
   trackingSiteId           String? @unique
   trackingCrossDomain      Boolean @default(true)

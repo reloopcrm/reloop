@@ -283,6 +283,7 @@
 	"No verdict": "未判断",
 	"Remove verdict": "取消判断",
 	"Nobody has gone quiet.": "没有人失联。",
+	"Reloop is still reading your mail. Quiet customers show up here as soon as their conversations are read.": "Reloop 仍在读取你的邮件。沉默的客户会在其对话读完后立即显示在这里。",
 	"Search by company or person…": "按公司或人搜索…",
 	"Take {name} off the list?": "把 {name} 从列表里去掉？",
 	"This person leaves Win back at once. The agent archives them on its next pass, and their company when nobody else stays there.": "这个人会立刻从赢回里消失。智能体在下一轮归档他，如果那家公司再没有别人，公司也一起归档。",

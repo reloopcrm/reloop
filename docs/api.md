@@ -208,6 +208,11 @@ self-hoster's admin cannot redeploy.
   environment-only half, and `workspaceDomains()` still answers "is this address us" for the
   mailbox and the tracking filter. The database is read only when the environment already said no.
   See `SECURITY.md` for what the boundary holds.
+- **`revokeSignIn` ends access, not only the grant.** In one transaction it takes the
+  address off `AppSetting.signInAddresses` and runs `endAccessOf`, which deletes every
+  `session` and every `apikey` of the account with that address. `removeMember` runs the
+  same `endAccessOf`. A row left behind would come back to life the day the address is
+  granted again. With no account for the address, only the list changes.
 - `organizationProvisioning: { disabled: true }` — `ensureWorkspaceMembership` already
   does the join.
 
@@ -220,7 +225,10 @@ self-hoster's admin cannot redeploy.
   key is a session in a header, so a procedure that mints a credential, grants a
   role, registers a sign-in provider, stores an outbound address or deploys code
   must refuse one: revoking the key must undo everything the key did. The list is
-  in `SECURITY.md`. A role gate on top of it is still the service's job.
+  in `SECURITY.md`. `agents.revise`, `agents.saveFile` and `agents.deploy` are on
+  it: a deployed agent keeps running after the key is gone, so a key may read an
+  agent but never change or deploy its code. A role gate on top of it is still
+  the service's job.
 - **Routers are thin**: zod in, service call out; Prisma lives in `*.service.ts`.
 - Services throw Nest's `HttpException` family; `DomainErrorMiddleware` maps them.
 - **Filter, sort and paginate in Prisma.** List procedures take `listInput` and return

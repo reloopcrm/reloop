@@ -213,11 +213,14 @@ language in Settings > General. The API stores and serves the value and does not
   `DECLINED` and `HARD`, whatever the model said, but only when that message is the
   person's latest real answer in the transcript (`isTheirAnswer` in
   `lib/thread-decline.ts`: their own address, no auto reply, no bounce), so a later
-  mail from them outweighs it. A `DECLINED` answer without a kind is `SOFT`, any
-  other outcome has none. A hard no stores `declinedAt`, the time of the person's
+  mail from them outweighs it. A `DECLINED` answer without a kind is `SOFT`, and so
+  is a `HARD` one in a thread the person never answered in; any other outcome has
+  none. A hard no stores `declinedAt`, the time of the person's
   latest real answer in the thread, so a later mail from us never moves it. A stored
   hard no survives a new read until the person answers after `declinedAt`
-  (`keptDecline`), so a thread whose refusal slid out of the transcript keeps it. The
+  (`keptDecline`), so a thread whose refusal slid out of the transcript keeps it. It
+  survives only while the mail at `declinedAt` is still their real answer, so a
+  direction repair that turns it into our mail clears it. The
   columns are `ThreadInsight.declineKind` and `ThreadInsight.declinedAt`, read through
   `parseDeclineKind` (`@crm/validation/thread-decline`). A row read before this field
   is null and counts as soft; nothing rereads old threads for it, the next normal

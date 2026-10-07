@@ -76,10 +76,9 @@ export function stopIsLastWord(
 	return latest > 0 && stopRequest === latest;
 }
 
-function lastAnswerAt(thread: DeclineThread): Date {
+function lastAnswerAt(thread: DeclineThread): Date | null {
 	return (
-		thread.messages[lastAnswerIndex(thread, thread.messages)]?.sentAt ??
-		thread.lastMessageAt
+		thread.messages[lastAnswerIndex(thread, thread.messages)]?.sentAt ?? null
 	);
 }
 
@@ -90,25 +89,24 @@ export function settledDecline<
 	stopped: boolean,
 	thread: DeclineThread,
 ): Omit<T, keyof DeclineFields> & DeclineFields {
-	if (stopped) {
+	const declinedAt = lastAnswerAt(thread);
+
+	if (stopped && declinedAt !== null) {
 		return {
 			...answer,
 			outcome: DECLINED_OUTCOME,
 			declineKind: DECLINE_KIND.hard,
-			declinedAt: lastAnswerAt(thread),
+			declinedAt,
 		};
 	}
 	if (answer.outcome !== DECLINED_OUTCOME) {
 		return { ...answer, declineKind: null, declinedAt: null };
 	}
+	if (answer.declineKind === DECLINE_KIND.hard && declinedAt !== null) {
+		return { ...answer, declineKind: DECLINE_KIND.hard, declinedAt };
+	}
 
-	const kind = answer.declineKind ?? DECLINE_KIND.soft;
-
-	return {
-		...answer,
-		declineKind: kind,
-		declinedAt: kind === DECLINE_KIND.hard ? lastAnswerAt(thread) : null,
-	};
+	return { ...answer, declineKind: DECLINE_KIND.soft, declinedAt: null };
 }
 
 export function keptDecline<T extends DeclineFields>(
@@ -121,6 +119,13 @@ export function keptDecline<T extends DeclineFields>(
 
 	const since = stored.declinedAt;
 	if (since === null) return verdict;
+
+	const refusalStands = thread.messages.some(
+		(message) =>
+			message.sentAt.getTime() === since.getTime() &&
+			isTheirAnswer(thread, message),
+	);
+	if (!refusalStands) return verdict;
 
 	const answered = thread.messages.some(
 		(message) => message.sentAt > since && isTheirAnswer(thread, message),

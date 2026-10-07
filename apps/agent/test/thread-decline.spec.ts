@@ -189,6 +189,29 @@ describe("the decline the agent reads from a thread", () => {
 		});
 	});
 
+	it("never makes a hard no of a thread the person never answered in", () => {
+		const verdict = insightAnswerFor(threadOf([offer, colleague])).parse(
+			answer({ declineKind: DECLINE_KIND.hard }),
+		);
+
+		expect(verdict.declineKind).toBe(DECLINE_KIND.soft);
+		expect(verdict.declinedAt).toBeNull();
+	});
+
+	it("drops a stored hard no whose refusal is no longer their mail", () => {
+		const stored = { declineKind: DECLINE_KIND.hard, declinedAt: STOPPED };
+		const repaired = { ...stop, direction: "OUTBOUND" as const };
+		const reread = {
+			outcome: "OTHER" as const,
+			declineKind: null,
+			declinedAt: null,
+		};
+
+		expect(keptDecline(reread, stored, threadOf([offer, repaired]))).toEqual(
+			reread,
+		);
+	});
+
 	it("ignores a request to stop that points at our own mail", () => {
 		const verdict = insightAnswerFor(stopped).parse(
 			answer({ outcome: "OTHER", stopRequest: 1 }),

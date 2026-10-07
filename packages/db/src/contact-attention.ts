@@ -255,11 +255,12 @@ export function attentionKindOf(facts: AttentionFacts): AttentionKind {
 	const candidate = facts.candidate;
 	if (!candidate) return "nothing-known";
 
-	if (quiet(candidate)) return "win-back";
-	if (owed(candidate, facts.insight)) return "owed";
-
 	const outcome = outcomeOf(facts.insight?.outcome ?? "OTHER");
-	if (outcome === "DECLINED") return "declined";
+	const declined = outcome === "DECLINED";
+
+	if (quiet(candidate)) return declined ? "declined" : "win-back";
+	if (owed(candidate, facts.insight)) return "owed";
+	if (declined) return "declined";
 	if (waiting(outcome)) return "waiting";
 	if (outcome === "DEAL_DONE") return "settled";
 

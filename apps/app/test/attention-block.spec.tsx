@@ -265,6 +265,15 @@ describe("the verdict names the person", () => {
 	it("falls back to a word rather than an empty gap", () => {
 		expect(block({ name: null })).toContain("You are waiting on this person.");
 	});
+
+	it("says a quiet person who declined said no, not that you write again", () => {
+		const markup = block({ kind: "declined", quietDays: 241 });
+
+		expect(markup).toContain("Martin Berg said no.");
+		expect(markup).toContain("Write to them");
+		expect(markup).not.toContain("Write again");
+		expect(markup).not.toContain("quiet for");
+	});
 });
 
 describe("each mail moment is one sentence on one line", () => {

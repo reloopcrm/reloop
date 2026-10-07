@@ -1289,6 +1289,7 @@ model ThreadInsight {
   loads              Int?
   outcome            String
   declineKind        String?
+  declinedAt         DateTime?
   unansweredByUs     Boolean  @default(false)
   summary            String
   language           String?

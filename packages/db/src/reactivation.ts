@@ -384,7 +384,17 @@ const HARD_NO_FILTER = Prisma.sql`AND NOT EXISTS (
 	WHERE ht."contactId" = c.id
 		AND hi.outcome = ${DECLINED_OUTCOME}
 		AND hi."declineKind" = ${DECLINE_KIND.hard}
-		AND (mail.last_inbound IS NULL OR mail.last_inbound <= hi."lastMessageAt")
+		AND NOT EXISTS (
+			SELECT 1 FROM "emailMessage" rm
+			WHERE rm.direction = 'INBOUND'
+				AND rm."sentAt" > COALESCE(hi."declinedAt", hi."lastMessageAt")
+				AND (c.email IS NULL OR lower(rm."fromEmail") = lower(c.email))
+				AND rm."threadId" IN (
+					SELECT rt.id FROM "emailThread" rt WHERE rt."contactId" = c.id
+					UNION
+					SELECT rl."threadId" FROM "emailThreadContact" rl WHERE rl."contactId" = c.id
+				)
+		)
 )`;
 
 function ruleFilter(rules: WinBackRuleSet): Prisma.Sql {

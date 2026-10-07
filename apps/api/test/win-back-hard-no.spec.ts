@@ -16,11 +16,16 @@ function daysAgo(days: number, hour = 9): Date {
 	return new Date(now.getTime() - days * 86_400_000 + hour * 3_600_000);
 }
 
-type Wire = { direction: EmailDirection; sentAt: Date };
+type Wire = { direction: EmailDirection; sentAt: Date; from?: string };
 
 const inbound = (days: number): Wire => ({
 	direction: EmailDirection.INBOUND,
 	sentAt: daysAgo(days),
+});
+const colleague = (days: number): Wire => ({
+	direction: EmailDirection.INBOUND,
+	sentAt: daysAgo(days),
+	from: `colleague@${domain}`,
 });
 const outbound = (days: number): Wire => ({
 	direction: EmailDirection.OUTBOUND,
@@ -57,9 +62,10 @@ async function thread(
 					rfcMessageId: `${name}-${index}-${position}-${suffix}@${domain}`,
 					direction: wire.direction,
 					fromEmail:
-						wire.direction === EmailDirection.OUTBOUND
+						wire.from ??
+						(wire.direction === EmailDirection.OUTBOUND
 							? `rep@${domain}`
-							: email,
+							: email),
 					recipients: [],
 					subject: `${name} ${index}`,
 					sentAt: wire.sentAt,
@@ -70,6 +76,9 @@ async function thread(
 	});
 
 	if (decline) {
+		const declinedAt = sorted.findLast(
+			(wire) => wire.direction === EmailDirection.INBOUND && !wire.from,
+		)?.sentAt;
 		await db.threadInsight.create({
 			data: {
 				threadId: created.id,
@@ -78,6 +87,8 @@ async function thread(
 				products: ["Europaletten"],
 				outcome: "DECLINED",
 				declineKind: decline.declineKind,
+				declinedAt:
+					decline.declineKind === DECLINE_KIND.hard ? declinedAt : null,
 				summary: "Sie haben abgelehnt.",
 				evidence: [],
 				modelId: "test-model",
@@ -128,6 +139,8 @@ let berta: string;
 let clara: string;
 let dora: string;
 let emil: string;
+let fritz: string;
+let gina: string;
 
 async function clean(): Promise<void> {
 	const contacts = await db.contact.findMany({
@@ -157,6 +170,14 @@ beforeAll(async () => {
 	emil = await person("Emil", [
 		{ wires: [outbound(130), inbound(120)], decline: hard },
 		{ wires: [outbound(100)], decline: null },
+	]);
+	fritz = await person("Fritz", [
+		{ wires: [outbound(130), inbound(120), outbound(60)], decline: hard },
+		{ wires: [inbound(100)], decline: null },
+	]);
+	gina = await person("Gina", [
+		{ wires: [outbound(130), inbound(120)], decline: hard },
+		{ wires: [colleague(100)], decline: null },
 	]);
 });
 
@@ -199,6 +220,14 @@ describe("a hard no in Win back", () => {
 
 	it("brings the person back when they write again on their own", async () => {
 		expect(await listed()).toContain(dora);
+	});
+
+	it("dates the no by their mail, so a later mail from us does not hide them again", async () => {
+		expect(await listed()).toContain(fritz);
+	});
+
+	it("needs mail from the person, not from a colleague in the thread", async () => {
+		expect(await listed()).not.toContain(gina);
 	});
 
 	it("never continues with a hard no", async () => {

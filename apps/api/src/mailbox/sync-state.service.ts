@@ -220,6 +220,13 @@ export class SyncStateService {
 		});
 	}
 
+	async saveBackfill(id: string, backfill: string | null): Promise<void> {
+		await this.db.mailboxSync.update({
+			where: { id },
+			data: { backfill },
+		});
+	}
+
 	async clearCursor(id: string, reason: string): Promise<void> {
 		this.logger.warn({
 			message: "Sync cursor invalidated. Resuming from now",

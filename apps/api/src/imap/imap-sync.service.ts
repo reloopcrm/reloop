@@ -10,13 +10,18 @@ import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { importCapRemaining } from "../mailbox/import-cap";
-import { NO_DEADLINE, pastDeadline } from "../mailbox/mailbox.config";
+import {
+	MESSAGE_FAILURES,
+	NO_DEADLINE,
+	pastDeadline,
+} from "../mailbox/mailbox.config";
 import {
 	type ImapSyncSource,
 	imapAccountIdOf,
 	isImapSyncSource,
 } from "../mailbox/mailbox.constants";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
+import { FailureLedger } from "../mailbox/message-failures";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { ThreadWriterService } from "../mailbox/thread-writer.service";
 import {
@@ -48,12 +53,14 @@ export type ImapSyncOutcome = {
 type Ingest = { seen: number; written: number };
 
 type FolderRun = {
+	entry: ImapFolderCursor;
 	session: ImapSession;
 	row: MailboxSync;
 	account: ImapAccount;
 	folder: ImapFolder;
 	uidValidity: string;
 	context: MatchContext;
+	ledger: FailureLedger;
 };
 
 @Injectable()
@@ -259,13 +266,17 @@ export class ImapSyncService {
 				};
 			}
 
+			cursor.folders[folder.path] = entry;
+
 			const run: FolderRun = {
+				entry,
 				session,
 				row,
 				account,
 				folder,
 				uidValidity: opened.uidValidity,
 				context,
+				ledger: new FailureLedger(entry.failures),
 			};
 
 			while (
@@ -303,6 +314,17 @@ export class ImapSyncService {
 				entry.backfillUid = from > entry.floorUid ? from - 1 : null;
 			}
 
+			const { lastUid, backfillUid, floorUid } = entry;
+			run.ledger.retain("forward", (uid) => Number(uid) > lastUid);
+			run.ledger.retain(
+				"backfill",
+				(uid) =>
+					backfillUid !== null &&
+					Number(uid) >= floorUid &&
+					Number(uid) <= backfillUid,
+			);
+			entry.failures = run.ledger.list();
+
 			cursor.folders[folder.path] = entry satisfies ImapFolderCursor;
 		}
 
@@ -319,6 +341,8 @@ export class ImapSyncService {
 
 		for await (const raw of run.session.fetch(range)) {
 			seen += 1;
+
+			if (run.ledger.skip(String(raw.uid), lane)) continue;
 
 			let parsed: Awaited<ReturnType<typeof parseImapMessage>>;
 			try {
@@ -339,13 +363,30 @@ export class ImapSyncService {
 
 			if (!parsed) continue;
 
-			const stored = await this.threads.store(
-				run.row,
-				{ origin: "imap", lane },
-				parsed,
-				run.context,
-			);
-			if (stored) written += 1;
+			try {
+				const stored = await this.threads.store(
+					run.row,
+					{ origin: "imap", lane },
+					parsed,
+					run.context,
+				);
+				if (stored) written += 1;
+				run.ledger.clear(String(raw.uid));
+				run.entry.failures = run.ledger.list();
+			} catch (error) {
+				const attempts = run.ledger.record(String(raw.uid), lane);
+				run.entry.failures = run.ledger.list();
+				if (attempts < MESSAGE_FAILURES.maxAttempts) throw error;
+
+				this.logger.warn({
+					message:
+						"An IMAP message could not be stored after repeated attempts. It is skipped",
+					mailboxId: run.row.id,
+					providerMessageId: raw.uid,
+					folder: run.folder.path,
+					attempts,
+				});
+			}
 		}
 
 		return { seen, written };

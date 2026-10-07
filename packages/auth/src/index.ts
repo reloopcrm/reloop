@@ -78,6 +78,7 @@ export {
 	signsInWithMicrosoft,
 } from "./scopes";
 export {
+	endAccessOf,
 	grantSignIn,
 	isSignInAllowed,
 	normalizeSignInAddress,

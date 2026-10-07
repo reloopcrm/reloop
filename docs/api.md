@@ -997,7 +997,7 @@ marked passages and the follow-up delay. It writes nothing but an
 - **Opening a person rewrites a stale draft.** The person page calls
   `contacts.refreshDraft` once when it mounts, never from a sweep. The API queues a
   normal `email-draft` task only when the stored draft is `stale`, no draft task is
-  open or held, the plan's `draftsPerMonth` has room, and no finished draft task
+  open or held, any draft allowance has room, and no finished draft task
   was created after the newest mail was stored (the newest `EmailMessage.createdAt`). That last
   check spends one try per newer mail, so a draft that stays stale does not cost a
   draft on every open, and mail stored while a draft was written still counts. The

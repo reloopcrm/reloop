@@ -342,6 +342,7 @@
 	"Your change is kept for this message.": "Ta modification est gardée pour ce message.",
 	"Continue with {name}": "Continuer avec {name}",
 	"Back to the list": "Retour à la liste",
+	"Person {position} of {total}": "Personne {position} sur {total}",
 	"Reloop is writing a shorter version…": "Reloop écrit une version plus courte…",
 	"Reloop is writing the message…": "Reloop écrit le message…",
 	"Length": "Longueur",

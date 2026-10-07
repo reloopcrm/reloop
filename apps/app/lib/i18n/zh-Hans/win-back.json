@@ -342,6 +342,7 @@
 	"Your change is kept for this message.": "你的修改会保留在这条消息中。",
 	"Continue with {name}": "继续处理 {name}",
 	"Back to the list": "返回列表",
+	"Person {position} of {total}": "第 {position} 人，共 {total} 人",
 	"Reloop is writing a shorter version…": "Reloop 正在写一个更短的版本…",
 	"Reloop is writing the message…": "Reloop 正在写这条消息…",
 	"Length": "长度",

@@ -27,6 +27,7 @@ import {
 	MAILBOX,
 	MESSAGE_FAILURES,
 	NO_DEADLINE,
+	PROVIDER_API,
 	pastDeadline,
 } from "../mailbox/mailbox.config";
 import type { MailboxResult } from "../mailbox/mailbox-api.client";
@@ -640,7 +641,10 @@ export class OutlookSyncService {
 		}
 
 		if (result.outcome === "rate-limited") {
-			await this.state.markRateLimited(row.id, result.retryAfterMs ?? 60_000);
+			await this.state.markRateLimited(
+				row.id,
+				result.retryAfterMs ?? PROVIDER_API.rateLimitFallbackMs,
+			);
 			return {
 				source: "outlook",
 				userId: row.userId,

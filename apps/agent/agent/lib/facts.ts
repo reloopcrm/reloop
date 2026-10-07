@@ -1,5 +1,5 @@
 import { db, FactBand, FactStatus, type Prisma, RecordSource } from "@crm/db";
-import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { lockFactField } from "@crm/db/idempotency";
 import { type Evidence, scoreEvidence, selfAssertedOnly } from "./evidence";
 import { currentFocus } from "./focus";
 import { isDerivedName, shortensName, splitName } from "./names";
@@ -281,14 +281,6 @@ async function settleFact(
 					hasPrimary: attempt.hasPrimary,
 				}),
 	};
-}
-
-export function lockFactField(
-	tx: Prisma.TransactionClient,
-	contactId: string,
-	field: FactField,
-): Promise<void> {
-	return lockIdempotencyKey(tx, `fact:${contactId}:${field}`);
 }
 
 export function readFactSubject(

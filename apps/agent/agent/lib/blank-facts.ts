@@ -1,4 +1,5 @@
 import { db, FactStatus, type Prisma } from "@crm/db";
+import { lockFactField } from "@crm/db/idempotency";
 import { parseEvidence } from "./evidence";
 import {
 	canonicalValue,
@@ -7,7 +8,6 @@ import {
 	type FactSubject,
 	factColumn,
 	fillsBlank,
-	lockFactField,
 	mayFillBlank,
 	readFactSubject,
 	writeFactValue,

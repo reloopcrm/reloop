@@ -16,6 +16,7 @@ import type {
 	FieldDefinitionWithOptions,
 	FieldValueJson,
 } from "@crm/db/fields";
+import { lockFactField } from "@crm/db/idempotency";
 import { fixedAiWith, planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
 import { DRAFT_KIND, monthlyBudget } from "@crm/db/plans";
 import { threadsOfContact } from "@crm/db/thread-participants";
@@ -1001,14 +1002,23 @@ export class ContactsService {
 			throw new NotFoundException(`No fact with id ${input.factId}.`);
 		}
 
-		if (fact.status !== FactStatus.PROPOSED) {
-			throw new ConflictException("That suggestion has already been settled.");
-		}
-
 		const accepted = input.decision === "accept";
 		const column = FACT_COLUMNS[fact.field];
 
 		await this.db.$transaction(async (tx) => {
+			await lockFactField(tx, fact.contactId, fact.field);
+
+			const current = await tx.contactFact.findUnique({
+				where: { id: fact.id },
+				select: { status: true },
+			});
+
+			if (current?.status !== FactStatus.PROPOSED) {
+				throw new ConflictException(
+					"That suggestion has already been settled.",
+				);
+			}
+
 			if (accepted) {
 				await tx.contactFact.updateMany({
 					where: {

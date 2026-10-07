@@ -9,6 +9,7 @@ export const imapFolderCursor = z.object({
 
 export const imapCursor = z.object({
 	v: z.literal(1),
+	rewinds: z.number().int().min(0).optional(),
 	folders: z.record(z.string(), imapFolderCursor),
 });
 
@@ -45,6 +46,14 @@ export function rewindBackfill(cursor: ImapCursor): ImapCursor {
 	}
 
 	return { ...cursor, folders };
+}
+
+export function rewindsOf(cursor: ImapCursor): number {
+	return cursor.rewinds ?? 0;
+}
+
+export function requestRewind(cursor: ImapCursor): ImapCursor {
+	return { ...rewindBackfill(cursor), rewinds: rewindsOf(cursor) + 1 };
 }
 
 export function backlogOf(cursor: ImapCursor): number {

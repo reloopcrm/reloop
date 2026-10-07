@@ -31,6 +31,7 @@ import {
 	type ImapFolderCursor,
 	parseImapCursor,
 	rewindBackfill,
+	rewindsOf,
 	serialiseImapCursor,
 } from "./imap-cursor";
 import { planFolders } from "./imap-folders";
@@ -189,6 +190,7 @@ export class ImapSyncService {
 
 	private async saveCursor(row: MailboxSync, cursor: ImapCursor) {
 		let expected = row.cursor;
+		let seen = rewindsOf(parseImapCursor(row.cursor));
 		let next = cursor;
 
 		for (;;) {
@@ -206,7 +208,12 @@ export class ImapSyncService {
 			if (fresh.cursor === null && expected !== null) return;
 
 			expected = fresh.cursor;
-			next = rewindBackfill(next);
+			const requested = rewindsOf(parseImapCursor(fresh.cursor));
+
+			if (requested > seen) {
+				next = { ...rewindBackfill(next), rewinds: requested };
+				seen = requested;
+			}
 		}
 	}
 

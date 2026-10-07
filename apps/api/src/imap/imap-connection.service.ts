@@ -30,7 +30,7 @@ import { ImapCredentialService } from "./imap-credentials";
 import {
 	backlogOf,
 	parseImapCursor,
-	rewindBackfill,
+	requestRewind,
 	serialiseImapCursor,
 } from "./imap-cursor";
 
@@ -202,17 +202,23 @@ export class ImapConnectionService {
 
 		if (!policy.autoCreate && policy.createFrom !== "relevant") return;
 
-		const row = await this.state.get(userId, source);
-		if (!row?.cursor) return;
+		let row = await this.state.get(userId, source);
 
-		await this.db.mailboxSync.update({
-			where: { id: row.id },
-			data: {
-				cursor: serialiseImapCursor(
-					rewindBackfill(parseImapCursor(row.cursor)),
-				),
-			},
-		});
+		while (row) {
+			const { count } = await this.db.mailboxSync.updateMany({
+				where: { id: row.id, cursor: row.cursor },
+				data: {
+					cursor: serialiseImapCursor(
+						requestRewind(parseImapCursor(row.cursor)),
+					),
+				},
+			});
+			if (count > 0) return;
+
+			const fresh = await this.state.get(userId, source);
+			if (fresh?.cursor === null && row.cursor !== null) return;
+			row = fresh;
+		}
 	}
 
 	async remove(userId: string, id: string): Promise<ImapRemoveOutput> {

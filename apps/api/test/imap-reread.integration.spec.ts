@@ -263,3 +263,104 @@ describe("turning creation on for an IMAP mailbox", () => {
 		expect(after?.cursor).toBeNull();
 	});
 });
+
+async function reset(cursor: string | null) {
+	await db.activity.deleteMany({ where: { createdById: userId } });
+	await db.emailThread.deleteMany({ where: { rootMessageId: messageId } });
+	await db.contact.deleteMany({ where: { email: { endsWith: `@${domain}` } } });
+	await db.company.deleteMany({ where: { domain } });
+	await db.mailboxSync.updateMany({
+		where: { userId, source },
+		data: {
+			cursor,
+			autoCreate: false,
+			createWithoutReply: false,
+			createFrom: "nobody",
+		},
+	});
+}
+
+const finished = JSON.stringify({
+	v: 1,
+	folders: {
+		INBOX: { uidValidity: "1", lastUid: 2, backfillUid: null, floorUid: 1 },
+	},
+});
+
+const untouched = JSON.stringify({
+	v: 1,
+	folders: {
+		INBOX: { uidValidity: "1", lastUid: 2, backfillUid: 2, floorUid: 1 },
+	},
+});
+
+describe("a rewind request is tracked apart from the cursor contents", () => {
+	it("is not lost when it lands during the first sync", async () => {
+		await reset(null);
+
+		onOpen = async () => {
+			onOpen = null;
+			await connections.setCreateFrom(userId, accountId, "everyone");
+		};
+		await runSync();
+
+		const row = await state.get(userId, source as never);
+		expect(parseImapCursor(row?.cursor).folders.INBOX?.backfillUid).toBe(2);
+
+		await runSync();
+		expect(await counts()).toEqual({
+			contacts: 1,
+			messages: 1,
+			emailThreads: 1,
+		});
+	});
+
+	it("is not lost when it lands before a backfill that had not moved", async () => {
+		await reset(untouched);
+
+		onOpen = async () => {
+			onOpen = null;
+			await connections.setCreateFrom(userId, accountId, "everyone");
+		};
+		await runSync();
+
+		const row = await state.get(userId, source as never);
+		expect(parseImapCursor(row?.cursor).folders.INBOX?.backfillUid).toBe(2);
+
+		await runSync();
+		expect(await counts()).toEqual({
+			contacts: 1,
+			messages: 1,
+			emailThreads: 1,
+		});
+	});
+
+	it("does not bring back a cursor purged while the rewind is written", async () => {
+		await reset(finished);
+
+		const racing = new ImapConnectionService(
+			db,
+			clients,
+			credentials,
+			{
+				setCreatePolicy: (...args: Parameters<typeof state.setCreatePolicy>) =>
+					state.setCreatePolicy(...args),
+				get: async (...args: Parameters<typeof state.get>) => {
+					const found = await state.get(...args);
+					await db.mailboxSync.updateMany({
+						where: { userId, source },
+						data: { cursor: null },
+					});
+					return found;
+				},
+			} as unknown as SyncStateService,
+			stamp,
+			participants,
+		);
+
+		await racing.setCreateFrom(userId, accountId, "everyone");
+
+		const row = await state.get(userId, source as never);
+		expect(row?.cursor).toBeNull();
+	});
+});

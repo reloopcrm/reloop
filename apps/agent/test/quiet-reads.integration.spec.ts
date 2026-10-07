@@ -177,6 +177,25 @@ describe("queueUnreadThreads reads quiet customers beside the newest mail", () =
 		);
 	});
 
+	it("gives a quiet slot to a quiet thread that has no task yet", async () => {
+		const active = await activeThreads(10);
+		const quiet = await quietThreads(3);
+		const [first, second, third] = quiet;
+		if (!first || !second || !third) throw new Error("No quiet thread.");
+		await waitingTask(first, new Date());
+		await waitingTask(second, new Date());
+		const batch = 8;
+
+		const started = await queueUnreadThreads(batch);
+
+		const queued = await queuedThreads();
+		expect(started).toBe(batch);
+		expect(queued.has(third)).toBe(true);
+		expect(active.filter((id) => queued.has(id))).toHaveLength(
+			batch - quietSlots(batch) + 1,
+		);
+	});
+
 	it("queues no second task for a quiet thread that already waits", async () => {
 		await activeThreads(2);
 		const [quiet] = await quietThreads(1);

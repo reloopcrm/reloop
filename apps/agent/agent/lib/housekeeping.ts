@@ -27,7 +27,7 @@ import { playbookDue } from "./playbook";
 import {
 	quietCutoff,
 	quietSlots,
-	quietUnreadThreadsWhere,
+	quietUnreadThreadIds,
 	unreadThreadsWhere,
 } from "./quiet-reads";
 import { closeUncounted, type LeasedTask, scheduleTask } from "./tasks";
@@ -150,12 +150,7 @@ export async function queueUnreadThreads(
 
 	const size = room === null ? batch : Math.min(batch, room);
 	const [quiet, newest] = await Promise.all([
-		db.emailThread.findMany({
-			where: quietUnreadThreadsWhere(quietCutoff()),
-			orderBy: { lastMessageAt: "desc" },
-			take: quietSlots(size),
-			select: { id: true },
-		}),
+		quietUnreadThreadIds(quietCutoff(), quietSlots(size)),
 		db.emailThread.findMany({
 			where: unreadThreadsWhere(),
 			orderBy: { lastMessageAt: "desc" },

@@ -26,15 +26,19 @@ describe("generate-client environment", () => {
 		expect(generateEnv({ DATABASE_URL: url }).DATABASE_URL).toBe(url);
 	});
 
-	it("runs prisma generate without DATABASE_URL", () => {
-		const env: Record<string, string> = {};
-		for (const [key, value] of Object.entries(process.env)) {
-			if (value !== undefined && key !== "DATABASE_URL") env[key] = value;
-		}
-		const result = Bun.spawnSync(["bun", "scripts/generate-client.ts"], {
-			cwd: DB_DIR,
-			env,
-		});
-		expect(result.exitCode).toBe(0);
-	}, GENERATE_TIMEOUT_MS);
+	it(
+		"runs prisma generate without DATABASE_URL",
+		() => {
+			const env: Record<string, string> = {};
+			for (const [key, value] of Object.entries(process.env)) {
+				if (value !== undefined && key !== "DATABASE_URL") env[key] = value;
+			}
+			const result = Bun.spawnSync(["bun", "scripts/generate-client.ts"], {
+				cwd: DB_DIR,
+				env,
+			});
+			expect(result.exitCode).toBe(0);
+		},
+		GENERATE_TIMEOUT_MS,
+	);
 });

@@ -1,4 +1,5 @@
 import { db, FactStatus, type Prisma } from "@crm/db";
+import { DISPATCH } from "./dispatch-config";
 import { parseEvidence } from "./evidence";
 import {
 	canonicalValue,
@@ -9,10 +10,6 @@ import {
 	mayFillBlank,
 } from "./facts";
 import { splitName } from "./names";
-
-const SCAN = 2000;
-
-const MAX_FILLS = 500;
 
 const CONTACT_SELECT = {
 	id: true,
@@ -64,7 +61,7 @@ export async function sweepBlankFacts(
 				contact: { select: CONTACT_SELECT },
 			},
 			orderBy: [{ score: "desc" }, { observedAt: "desc" }],
-			take: SCAN,
+			take: DISPATCH.blankFacts.scan,
 		}),
 	]);
 
@@ -118,7 +115,7 @@ export async function sweepBlankFacts(
 			continue;
 		}
 
-		if (sweep.filled >= MAX_FILLS) {
+		if (sweep.filled >= DISPATCH.blankFacts.maxFills) {
 			sweep.waiting += group.length;
 			continue;
 		}

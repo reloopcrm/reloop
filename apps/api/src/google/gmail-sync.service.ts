@@ -22,7 +22,12 @@ import {
 	serialiseBackfill,
 } from "../mailbox/backfill-cursor";
 import { importCapRemaining } from "../mailbox/import-cap";
-import { MAILBOX, NO_DEADLINE, pastDeadline } from "../mailbox/mailbox.config";
+import {
+	MAILBOX,
+	NO_DEADLINE,
+	PROVIDER_API,
+	pastDeadline,
+} from "../mailbox/mailbox.config";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import {
@@ -577,7 +582,10 @@ export class GmailSyncService {
 		}
 
 		if (result.outcome === "rate-limited") {
-			await this.state.markRateLimited(row.id, result.retryAfterMs ?? 60_000);
+			await this.state.markRateLimited(
+				row.id,
+				result.retryAfterMs ?? PROVIDER_API.rateLimitFallbackMs,
+			);
 			return {
 				source: "gmail",
 				userId: row.userId,

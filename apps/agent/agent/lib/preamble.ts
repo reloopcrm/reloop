@@ -8,7 +8,6 @@ export type Opened = {
 	kind?: string | null;
 	reason?: string | null;
 	budget?: number | null;
-	/** Set only for a `field-backfill` task — the custom field key(s) still blank on this record. */
 	fieldKeys?: string[] | null;
 };
 

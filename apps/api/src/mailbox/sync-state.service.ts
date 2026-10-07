@@ -10,14 +10,13 @@ import { SETTINGS_ID } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { serialiseBackfill, stoppedBackfill } from "./backfill-cursor";
+import { SYNC_LEASE } from "./mailbox.config";
 import {
 	MAILBOX_SOURCES,
 	type MailboxSource,
 	PROVIDER_FOR_SOURCE,
 	SCOPE_FOR_SOURCE,
 } from "./mailbox.constants";
-
-export const SYNC_LEASE_MS = 300_000;
 
 export async function countMailboxes(db: Db): Promise<number> {
 	const [synced, imap] = await Promise.all([
@@ -90,7 +89,7 @@ export class SyncStateService {
 			where: { id: row.id, updatedAt: row.updatedAt, ...dueWhere(now) },
 			data: {
 				status: GoogleSyncStatus.RUNNING,
-				retryAfter: new Date(now.getTime() + SYNC_LEASE_MS),
+				retryAfter: new Date(now.getTime() + SYNC_LEASE.leaseMs),
 			},
 		});
 

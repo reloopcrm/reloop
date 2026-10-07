@@ -6,6 +6,7 @@ export type MailboxResult<T> =
 	| { outcome: "cursor-invalid"; reason: string }
 	| { outcome: "unauthorized"; reason: string }
 	| { outcome: "rate-limited"; reason: string; retryAfterMs: number }
+	| { outcome: "unreadable"; reason: string }
 	| { outcome: "failed"; reason: string; retryable: boolean };
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -82,9 +83,8 @@ export class MailboxApiClient {
 				issues,
 			});
 			return {
-				outcome: "failed",
+				outcome: "unreadable",
 				reason: `Unreadable response from ${path}: ${issues}`,
-				retryable: false,
 			};
 		}
 

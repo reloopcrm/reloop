@@ -228,9 +228,8 @@ describe("MailboxApiClient", () => {
 			gmailMessageList,
 		);
 
-		expect(result.outcome).toBe("failed");
-		if (result.outcome === "failed") {
-			expect(result.retryable).toBe(false);
+		expect(result.outcome).toBe("unreadable");
+		if (result.outcome === "unreadable") {
 			expect(result.reason).toContain("messages");
 		}
 	});
@@ -243,8 +242,8 @@ describe("MailboxApiClient", () => {
 			graphMessagePage,
 		);
 
-		expect(result.outcome).toBe("failed");
-		if (result.outcome === "failed") {
+		expect(result.outcome).toBe("unreadable");
+		if (result.outcome === "unreadable") {
 			expect(result.reason).toContain("value.0.id");
 		}
 	});
@@ -287,9 +286,8 @@ describe("MailboxApiClient", () => {
 			z.object({ historyId: z.string() }),
 		);
 
-		expect(result.outcome).toBe("failed");
-		if (result.outcome === "failed") {
-			expect(result.retryable).toBe(false);
+		expect(result.outcome).toBe("unreadable");
+		if (result.outcome === "unreadable") {
 			expect(result.reason).toContain("historyId");
 		}
 	});

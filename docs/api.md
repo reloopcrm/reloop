@@ -367,8 +367,10 @@ the largest attachment upload the conversation contracts accept.
 
 - **Every provider response is parsed where it arrives.** `MailboxApiClient.get`
   takes a Zod schema and returns the parsed type. A body that does not match is
-  `{ outcome: "failed", retryable: false }` with the failing fields in `reason`,
-  never data. Each client owns its shapes: `gmail.client.ts`, `gmail-mime.ts`,
+  `{ outcome: "unreadable" }` with the failing fields in `reason`, never data. It
+  is not `failed`, because a non-retryable `failed` page restarts the backfill.
+  An unreadable page keeps the backfill position and marks the mailbox failed;
+  an unreadable Gmail message is skipped. Each client owns its shapes: `gmail.client.ts`, `gmail-mime.ts`,
   `calendar.client.ts` and `graph.client.ts`. They stay in `apps/api`, because no
   other package reads them. Graph sends `null` for an empty field, so the Graph
   schemas read `null` as absent; Google omits the field instead.

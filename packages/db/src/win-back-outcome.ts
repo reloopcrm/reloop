@@ -1,5 +1,6 @@
 import type { Db } from "./client";
 import { Prisma } from "./generated/prisma/client";
+import { realAnswer } from "./real-answer";
 
 export type WinBackOutcome = {
 	verdicts: number;
@@ -63,7 +64,7 @@ function loop(ownerId: string | null | undefined): Prisma.Sql {
 			FROM outreach o
 			JOIN "emailThread" t ON t."contactId" = o.contact_id
 			JOIN "emailMessage" m ON m."threadId" = t.id
-			WHERE m.direction = 'INBOUND' AND m."sentAt" > o.contacted_at
+			WHERE m."sentAt" > o.contacted_at AND ${realAnswer("m")}
 			GROUP BY o.contact_id
 		)
 	`;

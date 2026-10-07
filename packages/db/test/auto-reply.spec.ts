@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { DIRECT_KINDS, isDirectKind } from "../src/agent-tasks";
 import {
 	isAutoReply,
+	isBounce,
+	isRealAnswer,
 	isReplySubject,
 	stripQuotedHistory,
 } from "../src/message-text";
@@ -58,6 +60,80 @@ describe("isAutoReply", () => {
 			isAutoReply("Re: Paletten", "Wir haben 500 Stück, was zahlen Sie?"),
 		).toBe(false);
 		expect(isAutoReply("Angebot Gitterboxen", null)).toBe(false);
+	});
+});
+
+describe("isBounce", () => {
+	it("knows the mail system as a sender", () => {
+		expect(isBounce("MAILER-DAEMON@example.com", "Re: Paletten", null)).toBe(
+			true,
+		);
+		expect(isBounce("postmaster@example.com", "Re: Paletten", null)).toBe(true);
+		expect(isBounce("anna.postmaster@example.com", "Re: Paletten", null)).toBe(
+			false,
+		);
+	});
+
+	it("knows the bounce subjects", () => {
+		expect(
+			isBounce(
+				"notify@example.com",
+				"Delivery Status Notification (Failure)",
+				null,
+			),
+		).toBe(true);
+		expect(
+			isBounce(
+				"notify@example.com",
+				"Undelivered Mail Returned to Sender",
+				null,
+			),
+		).toBe(true);
+		expect(isBounce("notify@example.com", "Re: Delivery failed", null)).toBe(
+			false,
+		);
+	});
+
+	it("reads a bounce body", () => {
+		expect(
+			isBounce(
+				"notify@example.com",
+				"Re: Paletten",
+				"Delivery to the following recipient failed permanently.",
+			),
+		).toBe(true);
+	});
+});
+
+describe("isRealAnswer", () => {
+	const reply = {
+		direction: "INBOUND" as const,
+		fromEmail: "anna@example.com",
+		subject: "Re: Paletten",
+		body: "Wir haben 500 Stück, was zahlen Sie?",
+		snippet: null,
+	};
+
+	it("counts a person writing back", () => {
+		expect(isRealAnswer(reply)).toBe(true);
+		expect(isRealAnswer({ ...reply, subject: null, body: null })).toBe(true);
+	});
+
+	it("never counts an auto-reply, a bounce or our own mail", () => {
+		expect(
+			isRealAnswer({ ...reply, subject: "Automatische Antwort: Paletten" }),
+		).toBe(false);
+		expect(
+			isRealAnswer({ ...reply, fromEmail: "mailer-daemon@example.com" }),
+		).toBe(false);
+		expect(
+			isRealAnswer({
+				...reply,
+				body: null,
+				snippet: "I am currently out of the office.",
+			}),
+		).toBe(false);
+		expect(isRealAnswer({ ...reply, direction: "OUTBOUND" })).toBe(false);
 	});
 });
 

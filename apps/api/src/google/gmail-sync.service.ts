@@ -73,7 +73,7 @@ type Ingested = {
 type Backfilled = {
 	written: number;
 	backfill: string | null;
-	keep: (id: string) => boolean;
+	running: boolean;
 	failure?: MailboxFailure;
 };
 
@@ -302,7 +302,7 @@ export class GmailSyncService {
 		);
 
 		ledger.retain("forward", keepForward);
-		ledger.retain("backfill", back.keep);
+		if (!back.running) ledger.retain("backfill", () => false);
 
 		await this.state.settle(row.id, {
 			cursor,
@@ -351,7 +351,7 @@ export class GmailSyncService {
 		}
 
 		if (read.outcome === "ok" && !isBackfillRunning(read.backfill)) {
-			return { written: 0, backfill: row.backfill, keep: () => false };
+			return { written: 0, backfill: row.backfill, running: false };
 		}
 
 		let plan: MailboxBackfill =
@@ -364,9 +364,6 @@ export class GmailSyncService {
 
 		let left = budget;
 		let written = 0;
-		const passed = new Set<string>();
-		const keep = (): ((id: string) => boolean) =>
-			isBackfillRunning(plan) ? (id) => !passed.has(id) : () => false;
 		const limits = limitsOf(await readPlan(this.db));
 
 		while (left > 0 && isBackfillRunning(plan) && !pastDeadline(deadlineAt)) {
@@ -386,7 +383,6 @@ export class GmailSyncService {
 
 			if (page.outcome === "cursor-invalid") {
 				plan = restartBackfill(plan);
-				passed.clear();
 				break;
 			}
 
@@ -397,14 +393,13 @@ export class GmailSyncService {
 					plan.position !== null
 				) {
 					plan = restartBackfill(plan);
-					passed.clear();
 					break;
 				}
 
 				return {
 					written,
 					backfill: serialiseBackfill(plan),
-					keep: keep(),
+					running: isBackfillRunning(plan),
 					failure: page,
 				};
 			}
@@ -438,19 +433,22 @@ export class GmailSyncService {
 				return {
 					written,
 					backfill: serialiseBackfill(plan),
-					keep: keep(),
+					running: isBackfillRunning(plan),
 					failure: run.failure,
 				};
 			}
 
 			if (run.remaining > 0) break;
 
-			if (plan.phase === "all") for (const id of ids) passed.add(id);
 			const next = page.data.nextPageToken ?? null;
 			plan = next ? { ...plan, position: next } : advancePhase(plan);
 		}
 
-		return { written, backfill: serialiseBackfill(plan), keep: keep() };
+		return {
+			written,
+			backfill: serialiseBackfill(plan),
+			running: isBackfillRunning(plan),
+		};
 	}
 
 	private async carry(

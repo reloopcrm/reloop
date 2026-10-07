@@ -440,14 +440,13 @@ the largest attachment upload the conversation contracts accept.
   history entries the cursor passed. When it read the whole history, it also
   drops every forward id outside the entries it has not passed. Outlook drops
   the forward ids it read below the new cursor minus the overlap. When it read
-  the whole window, it also drops every forward id it did not read. Both drop a
-  backfill id when the plan passes a page of the `all` phase that holds it, and
-  drop every backfill id when the backfill ends. The `sent` phase keeps its
-  counts, because the `all` phase reads the sent mail again. IMAP drops UIDs at
-  or below `lastUid` and above `backfillUid`. The list therefore holds only
-  messages a cursor reads again, and backfill ids of messages that disappear
-  stay until the backfill ends. Outlook saves the list before it returns on a
-  failed page fetch.
+  the whole window, it also drops every forward id it did not read. Both keep
+  backfill ids until the backfill ends, because the `all` phase reads the sent
+  mail again and an expired page token restarts the phase at its first page.
+  IMAP drops UIDs at or below `lastUid` and above `backfillUid`. The list
+  therefore holds the forward messages a cursor reads again and the failures of
+  the running backfill. Outlook saves the list before it returns on a failed
+  page fetch.
 - **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
   `mailbox/backfill-cursor.ts`: the phase, the opaque page token or
   `@odata.nextLink`, the `before` anchor, the `floor` date, and how far back it

@@ -73,7 +73,7 @@ type SyncFailure = {
 type Backfilled = {
 	written: number;
 	backfill: string | null;
-	keep: (id: string) => boolean;
+	running: boolean;
 	failure?: SyncFailure;
 };
 
@@ -292,7 +292,7 @@ export class OutlookSyncService {
 			"forward",
 			(id) => !behind.has(id) && (!whole || seenIds.has(id)),
 		);
-		ledger.retain("backfill", back.keep);
+		if (!back.running) ledger.retain("backfill", () => false);
 
 		await this.state.settle(row.id, {
 			cursor: furthest.toISOString(),
@@ -343,7 +343,7 @@ export class OutlookSyncService {
 		}
 
 		if (read.outcome === "ok" && !isBackfillRunning(read.backfill)) {
-			return { written: 0, backfill: row.backfill, keep: () => false };
+			return { written: 0, backfill: row.backfill, running: false };
 		}
 
 		let plan: MailboxBackfill =
@@ -356,9 +356,6 @@ export class OutlookSyncService {
 
 		let left = budget;
 		let written = 0;
-		const passed = new Set<string>();
-		const keep = (): ((id: string) => boolean) =>
-			isBackfillRunning(plan) ? (id) => !passed.has(id) : () => false;
 		const limits = limitsOf(await readPlan(this.db));
 
 		while (left > 0 && isBackfillRunning(plan) && !pastDeadline(deadlineAt)) {
@@ -380,7 +377,6 @@ export class OutlookSyncService {
 
 			if (page.outcome === "cursor-invalid") {
 				plan = restartBackfill(plan);
-				passed.clear();
 				break;
 			}
 
@@ -391,14 +387,13 @@ export class OutlookSyncService {
 					plan.position !== null
 				) {
 					plan = restartBackfill(plan);
-					passed.clear();
 					break;
 				}
 
 				return {
 					written,
 					backfill: serialiseBackfill(plan),
-					keep: keep(),
+					running: isBackfillRunning(plan),
 					failure: page,
 				};
 			}
@@ -426,14 +421,15 @@ export class OutlookSyncService {
 
 			if (run.processed < all.length) break;
 
-			if (plan.phase === "all") {
-				for (const message of all) if (message.id) passed.add(message.id);
-			}
 			const next = page.data["@odata.nextLink"] ?? null;
 			plan = next ? { ...plan, position: next } : advancePhase(plan);
 		}
 
-		return { written, backfill: serialiseBackfill(plan), keep: keep() };
+		return {
+			written,
+			backfill: serialiseBackfill(plan),
+			running: isBackfillRunning(plan),
+		};
 	}
 
 	private async file(

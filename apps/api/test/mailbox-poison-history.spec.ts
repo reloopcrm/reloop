@@ -269,7 +269,7 @@ describe("a Gmail backfill failure after a forward skip in the same tick", () =>
 });
 
 describe("a Gmail backfill page the tick finishes in the last phase", () => {
-	it("drops the counts of that page when the plan moves on", async () => {
+	it("keeps the counts until the backfill ends", async () => {
 		spyOn(Logger.prototype, "warn").mockImplementation(() => {});
 		useTinySizes();
 		const kit = gmailKit({
@@ -286,9 +286,18 @@ describe("a Gmail backfill page the tick finishes in the last phase", () => {
 			await kit.tick();
 		}
 
-		const read = readBackfill(kit.persisted.backfill);
-		expect(read.outcome === "ok" && read.backfill.position).toBe("1");
-		expect(read.outcome === "ok" && read.backfill.failures).toBeUndefined();
+		const moved = readBackfill(kit.persisted.backfill);
+		expect(moved.outcome === "ok" && moved.backfill.position).toBe("1");
+		expect(
+			moved.outcome === "ok" &&
+				moved.backfill.failures?.map((entry) => entry.id),
+		).toEqual(["p0"]);
+
+		await kit.tick();
+
+		const done = readBackfill(kit.persisted.backfill);
+		expect(done.outcome === "ok" && done.backfill.state).toBe("done");
+		expect(done.outcome === "ok" && done.backfill.failures).toBeUndefined();
 	});
 });
 
@@ -492,6 +501,28 @@ describe("an Outlook message both lanes read", () => {
 describe("a Gmail backfill page token that expires after a finished page", () => {
 	it("keeps the counts of the page the restart reads again", async () => {
 		const warn = spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+		const kit = gmailKit({
+			history: [],
+			backfill: [["p0"], ["good"]],
+			poisoned: ["p0"],
+			plan: serialiseBackfill({
+				...planBackfill({ before: new Date(), floor: null }),
+				phase: "all",
+			}),
+			expireOnce: "1",
+		});
+
+		for (let tick = 1; tick <= TICKS; tick += 1) await kit.tick();
+
+		expect(kit.stored).toEqual(["good"]);
+		warnedOnce(warn, ["p0"]);
+	});
+});
+
+describe("a Gmail backfill page token that expires a tick after a finished page", () => {
+	it("keeps the counts of the page the restart reads again", async () => {
+		const warn = spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+		useTinySizes();
 		const kit = gmailKit({
 			history: [],
 			backfill: [["p0"], ["good"]],

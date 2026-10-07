@@ -100,11 +100,24 @@ export async function readWinBackReply(
 				SELECT 1
 				FROM "emailThread" t
 				JOIN "emailMessage" m ON m."threadId" = t.id
-				WHERE t."contactId" = a.contact_id
+				WHERE (
+						t."contactId" = a.contact_id
+						OR EXISTS (
+							SELECT 1 FROM "emailThreadContact" l
+							WHERE l."threadId" = t.id AND l."contactId" = a.contact_id
+						)
+					)
 					AND m.direction = 'OUTBOUND'
 					AND m."sentAt" > a.answered_at
+					AND (
+						c.email IS NULL
+						OR m.recipients @> jsonb_build_array(
+							jsonb_build_object('email', lower(trim(c.email)))
+						)
+					)
 			) AS open
 		FROM answered a
+		JOIN contact c ON c.id = a.contact_id
 	`;
 	const row = rows[0];
 

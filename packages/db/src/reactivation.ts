@@ -337,7 +337,8 @@ export async function listReactivationCandidates(
 	const ownerFilter = options.ownerId
 		? Prisma.sql`AND c."ownerId" = ${options.ownerId}`
 		: Prisma.empty;
-	const includeFilter = options.rejected ? Prisma.empty : ruleFilter(rules);
+	const ruled = !options.rejected && !options.replied;
+	const includeFilter = ruled ? ruleFilter(rules) : Prisma.empty;
 	const repliedFilter = options.replied
 		? Prisma.sql`AND ${wroteBackAfterOutreach(Prisma.sql`c.id`)}`
 		: Prisma.empty;
@@ -355,7 +356,7 @@ export async function listReactivationCandidates(
 
 	const scored = rows
 		.map((row) => candidateOf(row, now, rules))
-		.filter((candidate) => options.rejected || passesRules(candidate, rules))
+		.filter((candidate) => !ruled || passesRules(candidate, rules))
 		.sort(
 			(a, b) =>
 				b.points - a.points ||

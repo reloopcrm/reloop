@@ -42,6 +42,7 @@ type Mail = {
 	direction: EmailDirection;
 	at: number;
 	fromEmail?: string;
+	to?: string;
 	subject?: string;
 	body: string;
 };
@@ -49,7 +50,11 @@ type Mail = {
 const contactIds: string[] = [];
 let companyId = "";
 
-async function personWith(name: string, mails: Mail[]): Promise<string> {
+async function personWith(
+	name: string,
+	mails: Mail[],
+	options: { memory: boolean } = { memory: true },
+): Promise<string> {
 	const email = `${name}@${domain}`;
 	const contact = await db.contact.create({
 		data: {
@@ -92,7 +97,9 @@ async function personWith(name: string, mails: Mail[]): Promise<string> {
 							? `rep@${domain}`
 							: email),
 					recipients:
-						mail.direction === EmailDirection.OUTBOUND ? [{ email }] : [],
+						mail.direction === EmailDirection.OUTBOUND
+							? [{ email: mail.to ?? email }]
+							: [],
 					subject: mail.subject ?? `Re: Pallets for ${name}`,
 					body: mail.body,
 					sentAt: daysAgo(mail.at),
@@ -101,6 +108,8 @@ async function personWith(name: string, mails: Mail[]): Promise<string> {
 		},
 		select: { id: true },
 	});
+
+	if (!options.memory) return contact.id;
 
 	await db.contactMemory.create({
 		data: {
@@ -190,6 +199,75 @@ beforeAll(async () => {
 		OUTREACH,
 	]);
 	ids.silent = await personWith("silent", [OLD_ASK, OUTREACH]);
+	ids.unread = await personWith(
+		"unread",
+		[
+			OLD_ASK,
+			OUTREACH,
+			{
+				direction: EmailDirection.INBOUND,
+				at: 17,
+				body: "Yes, call me tomorrow about the pallets.",
+			},
+		],
+		{ memory: false },
+	);
+	ids.colleague = await personWith("colleague", [
+		OLD_ASK,
+		OUTREACH,
+		{
+			direction: EmailDirection.INBOUND,
+			at: 17,
+			body: "Sounds good, what would the price be?",
+		},
+		{
+			direction: EmailDirection.OUTBOUND,
+			at: 16,
+			to: `someone-else@${domain}`,
+			body: "Forwarding this to you, can you check the price?",
+		},
+	]);
+	ids.linked = await personWith("linked", [
+		OLD_ASK,
+		OUTREACH,
+		{
+			direction: EmailDirection.INBOUND,
+			at: 17,
+			body: "We are interested, please write to our purchasing thread.",
+		},
+	]);
+	const shared = await db.emailThread.create({
+		data: {
+			rootMessageId: `linked-shared-${suffix}@${domain}`,
+			subject: "Pallets for purchasing",
+			companyId,
+			firstMessageAt: daysAgo(16),
+			lastMessageAt: daysAgo(16),
+			messageCount: 1,
+			messages: {
+				create: {
+					rfcMessageId: `linked-shared-0-${suffix}@${domain}`,
+					syncedByUserId: userId,
+					direction: EmailDirection.OUTBOUND,
+					fromEmail: `rep@${domain}`,
+					recipients: [{ email: `linked@${domain}` }],
+					subject: "Pallets for purchasing",
+					body: "Here is our offer, as you asked.",
+					sentAt: daysAgo(16),
+				},
+			},
+		},
+		select: { id: true },
+	});
+	await db.emailThreadContact.create({
+		data: {
+			threadId: shared.id,
+			contactId: ids.linked,
+			role: "to",
+			firstAt: daysAgo(16),
+			lastAt: daysAgo(16),
+		},
+	});
 });
 
 afterAll(async () => {
@@ -207,6 +285,18 @@ afterAll(async () => {
 	await db.user.deleteMany({ where: { id: userId } });
 });
 
+function WROTE_BACK(): string[] {
+	return [
+		ids.answered,
+		ids.repliedToAgain,
+		ids.unread,
+		ids.colleague,
+		ids.linked,
+	]
+		.map((id) => id ?? "")
+		.sort();
+}
+
 function listedIds(
 	report: Awaited<ReturnType<typeof listReactivationCandidates>>,
 ) {
@@ -222,9 +312,7 @@ describe("the Wrote back filter", () => {
 			now,
 		});
 
-		expect(listedIds(report)).toEqual(
-			[ids.answered ?? "", ids.repliedToAgain ?? ""].sort(),
-		);
+		expect(listedIds(report)).toEqual(WROTE_BACK());
 	});
 
 	it("does not count an out of office or an answer before the win back mail", async () => {
@@ -248,7 +336,7 @@ describe("the Wrote back filter", () => {
 			now,
 		});
 
-		expect(listedIds(report)).toHaveLength(5);
+		expect(listedIds(report)).toHaveLength(8);
 	});
 
 	it("is honoured by the list procedure", async () => {
@@ -260,10 +348,8 @@ describe("the Wrote back filter", () => {
 			row.people.map((entry) => entry.id),
 		);
 
-		expect(people.sort()).toEqual(
-			[ids.answered ?? "", ids.repliedToAgain ?? ""].sort(),
-		);
-		expect(result.people).toBe(2);
+		expect(people.sort()).toEqual(WROTE_BACK());
+		expect(result.people).toBe(5);
 	});
 
 	it("is off unless the list asks for it", () => {
@@ -282,7 +368,7 @@ describe("the Wrote back filter", () => {
 			contactId: ids.answered ?? "",
 		});
 
-		expect(first.total).toBe(2);
+		expect(first.total).toBe(5);
 		expect(first.position).not.toBeNull();
 
 		const outside = await person.next(userId, {
@@ -305,6 +391,30 @@ describe("the person page after a reply", () => {
 		const view = await person.person(ids.repliedToAgain ?? "");
 
 		expect(view.wroteBack).not.toBeNull();
+		expect(view.wroteBack?.open).toBe(false);
+	});
+
+	it("shows a person whose mail Reloop has not read yet", async () => {
+		const result = await list.list(
+			userId,
+			reactivationListInput.parse({ scope: "me", replied: true }),
+		);
+		const people = result.rows.flatMap((row) =>
+			row.people.map((entry) => entry.id),
+		);
+
+		expect(people).toContain(ids.unread);
+	});
+
+	it("does not close the reply with a mail to somebody else", async () => {
+		const view = await person.person(ids.colleague ?? "");
+
+		expect(view.wroteBack?.open).toBe(true);
+	});
+
+	it("closes the reply with an answer in a conversation the person is linked to", async () => {
+		const view = await person.person(ids.linked ?? "");
+
 		expect(view.wroteBack?.open).toBe(false);
 	});
 

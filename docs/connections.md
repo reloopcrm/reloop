@@ -117,14 +117,21 @@ refresh token, cannot recover by itself: the sync tick skips the row
 (`dueWhere` in `apps/api/src/mailbox/sync-state.service.ts`). So the card puts
 **Reconnect** where Check now stands, as the one filled button.
 `mailboxNeedsReconnect` in `mailbox-status.ts` decides it. Google without a
-refresh token keeps its own advice, because a second consent does not always
-return one.
+refresh token keeps its own advice, Sign out and back in.
 
 - **One hook links a mailbox.** `useMailboxLink` (`use-mailbox-link.ts`) runs
   `authClient.linkSocial` for Connect and Reconnect alike, and
   `mailboxLinkRequest` (`mailbox-link.ts`) builds the request from
   `SYNC_SCOPES_FOR`. A reconnect asks for exactly the scopes a connect asks for,
   never more.
+- **A Google reconnect asks for consent again.** Google sends a new refresh
+  token only on a consent screen, and the provider sets no `prompt`. Better
+  Auth keeps the old, dead refresh token when none comes back, so the mailbox
+  breaks again within the hour. A reconnect therefore asks Better Auth for the
+  address (`disableRedirect`) and `reconnectAuthorizationUrl` sets
+  `prompt=select_account consent` on it. A sign in and a first connect are
+  unchanged. Microsoft keeps its own `select_account`, because `offline_access`
+  returns a refresh token on every grant.
 - **A reconnect keeps everything.** It does not call `setImportSince`, so the
   answer to how far back and the backfill stay. Better Auth updates the tokens
   on the existing `account` row and never touches `MailboxSync`, so Auto create,

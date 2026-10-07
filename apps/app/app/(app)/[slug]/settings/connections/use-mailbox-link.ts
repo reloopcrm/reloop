@@ -7,7 +7,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/client";
-import { type MailboxLinkMode, mailboxLinkRequest } from "./mailbox-link";
+import {
+	type MailboxLinkMode,
+	mailboxLinkRequest,
+	reconnectAuthorizationUrl,
+} from "./mailbox-link";
 
 const UNREACHABLE = {
 	google: "Could not reach Google. Try again in a minute.",
@@ -31,16 +35,25 @@ export function useMailboxLink(provider: MailboxProviderId, slug: string) {
 
 		await prepare?.();
 
-		const { error } = await authClient.linkSocial(
-			mailboxLinkRequest({
-				provider,
-				slug,
-				origin: window.location.origin,
-				mode,
-			}),
-		);
+		const request = mailboxLinkRequest({
+			provider,
+			slug,
+			origin: window.location.origin,
+			mode,
+		});
+		const { data, error } = await authClient.linkSocial(request);
 
-		if (error) fail(error.message);
+		if (error) {
+			fail(error.message);
+			return;
+		}
+		if (!request.disableRedirect) return;
+		if (!data?.url) {
+			fail();
+			return;
+		}
+
+		window.location.assign(reconnectAuthorizationUrl(provider, data.url));
 	}
 
 	return {

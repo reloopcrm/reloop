@@ -4,11 +4,17 @@ export type MailboxLinkMode = "connect" | "reconnect";
 
 export const RECONNECTED_PARAM = "reconnected";
 
+const RECONNECT_PROMPT = {
+	google: "select_account consent",
+	microsoft: null,
+} as const satisfies Record<MailboxProviderId, string | null>;
+
 export type MailboxLinkRequest = {
 	provider: MailboxProviderId;
 	scopes: string[];
 	callbackURL: string;
 	errorCallbackURL: string;
+	disableRedirect: boolean;
 };
 
 export function mailboxLinkRequest({
@@ -30,7 +36,20 @@ export function mailboxLinkRequest({
 		callbackURL:
 			mode === "reconnect" ? `${page}?${RECONNECTED_PARAM}=${provider}` : page,
 		errorCallbackURL: `${page}?provider=${provider}`,
+		disableRedirect: mode === "reconnect",
 	};
+}
+
+export function reconnectAuthorizationUrl(
+	provider: MailboxProviderId,
+	url: string,
+): string {
+	const prompt = RECONNECT_PROMPT[provider];
+	if (!prompt) return url;
+
+	const next = new URL(url);
+	next.searchParams.set("prompt", prompt);
+	return next.toString();
 }
 
 export function reconnectedOf(

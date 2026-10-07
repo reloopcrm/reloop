@@ -12,9 +12,18 @@ type LinkRequest = {
 	scopes: string[];
 	callbackURL: string;
 	errorCallbackURL: string;
+	disableRedirect?: boolean;
 };
 
 const requests: LinkRequest[] = [];
+const navigations: string[] = [];
+
+const AUTHORIZE = {
+	google:
+		"https://accounts.google.com/o/oauth2/v2/auth?state=s1&access_type=offline",
+	microsoft:
+		"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?state=s1&prompt=select_account",
+} as const;
 
 const authClientModule = { ...(await import("@crm/auth/client")) };
 
@@ -24,7 +33,14 @@ mock.module("@crm/auth/client", () => ({
 		...authClientModule.authClient,
 		linkSocial: async (request: LinkRequest) => {
 			requests.push(request);
-			return { data: null, error: null };
+			if (!request.disableRedirect) return { data: null, error: null };
+			return {
+				data: {
+					url: AUTHORIZE[request.provider as keyof typeof AUTHORIZE],
+					redirect: false,
+				},
+				error: null,
+			};
 		},
 	},
 }));
@@ -33,9 +49,8 @@ const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { MICROSOFT_SYNC_SCOPES, SYNC_SCOPES } = await import("@crm/auth/scopes");
 const { I18nProvider } = await import("../lib/i18n/client");
-const { mailboxLinkRequest, reconnectedOf } = await import(
-	"../app/(app)/[slug]/settings/connections/mailbox-link"
-);
+const { mailboxLinkRequest, reconnectAuthorizationUrl, reconnectedOf } =
+	await import("../app/(app)/[slug]/settings/connections/mailbox-link");
 const { useMailboxLink } = await import(
 	"../app/(app)/[slug]/settings/connections/use-mailbox-link"
 );
@@ -58,6 +73,10 @@ async function linkThroughHook(
 	mode: "connect" | "reconnect",
 ): Promise<LinkRequest> {
 	requests.length = 0;
+	navigations.length = 0;
+	window.location.assign = (url: string | URL) => {
+		navigations.push(String(url));
+	};
 	let link: ReturnType<typeof useMailboxLink>["link"] | null = null;
 
 	function Probe() {
@@ -158,4 +177,43 @@ describe("useMailboxLink", () => {
 			expect(reconnect.scopes).toEqual(scopes);
 		});
 	}
+
+	it("asks Google for a fresh consent on a reconnect", async () => {
+		await linkThroughHook("google", "reconnect");
+
+		const [target] = navigations;
+		if (!target) throw new Error("the hook did not open Google");
+		const url = new URL(target);
+		expect(url.searchParams.get("prompt")).toContain("consent");
+		expect(url.searchParams.get("state")).toBe("s1");
+		expect(url.searchParams.get("access_type")).toBe("offline");
+	});
+
+	it("opens the Microsoft address unchanged on a reconnect", async () => {
+		await linkThroughHook("microsoft", "reconnect");
+
+		expect(navigations).toEqual([AUTHORIZE.microsoft]);
+	});
+
+	it("leaves the connect redirect to Better Auth", async () => {
+		const request = await linkThroughHook("google", "connect");
+
+		expect(request.disableRedirect).toBeFalsy();
+		expect(navigations).toEqual([]);
+	});
+});
+
+describe("reconnectAuthorizationUrl", () => {
+	it("replaces the Google prompt with a consent prompt", () => {
+		const url = new URL(
+			reconnectAuthorizationUrl(
+				"google",
+				`${AUTHORIZE.google}&prompt=select_account`,
+			),
+		);
+
+		expect(url.searchParams.getAll("prompt")).toEqual([
+			"select_account consent",
+		]);
+	});
 });

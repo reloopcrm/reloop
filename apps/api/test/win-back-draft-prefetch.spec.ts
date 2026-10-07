@@ -38,6 +38,7 @@ function config(key: string | undefined) {
 function check(overrides: Partial<DraftCheck> = {}): DraftCheck {
 	return {
 		hasDraft: false,
+		hasAddress: true,
 		newestAt: MAIL,
 		open: false,
 		lastFinishedAt: null,
@@ -56,6 +57,10 @@ describe("needsDraft", () => {
 
 	it("skips a person whose draft is already queued", () => {
 		expect(needsDraft(check({ open: true }), NOW)).toBe(false);
+	});
+
+	it("skips a person without an address", () => {
+		expect(needsDraft(check({ hasAddress: false }), NOW)).toBe(false);
 	});
 
 	it("skips a person without mail", () => {
@@ -100,37 +105,40 @@ describe("prefetchRoom", () => {
 
 describe("draftsCanRun", () => {
 	const setting = {
-		provider: "openrouter",
 		openrouterKey: null,
 		openaiKey: null,
 		anthropicKey: null,
 	} as const;
+	const none = {
+		fixedAi: false,
+		envKey: false,
+		hosted: false,
+		chatgptWorked: false,
+	};
 
 	it("is off without any key", () => {
-		expect(
-			draftsCanRun(setting, { fixedAi: false, envKey: false, hosted: false }),
-		).toBe(false);
+		expect(draftsCanRun(setting, none)).toBe(false);
 	});
 
 	it("is on with a stored key, the env key or the included AI", () => {
+		expect(draftsCanRun({ ...setting, anthropicKey: "sealed" }, none)).toBe(
+			true,
+		);
+		expect(draftsCanRun(setting, { ...none, envKey: true })).toBe(true);
 		expect(
-			draftsCanRun(
-				{ ...setting, anthropicKey: "sealed" },
-				{ fixedAi: false, envKey: false, hosted: false },
-			),
-		).toBe(true);
-		expect(
-			draftsCanRun(setting, { fixedAi: false, envKey: true, hosted: false }),
-		).toBe(true);
-		expect(
-			draftsCanRun(setting, { fixedAi: true, envKey: false, hosted: true }),
+			draftsCanRun(setting, { ...none, fixedAi: true, hosted: true }),
 		).toBe(true);
 	});
 
+	it("trusts a ChatGPT login only once the agent has used it", () => {
+		expect(draftsCanRun(setting, none)).toBe(false);
+		expect(draftsCanRun(setting, { ...none, chatgptWorked: true })).toBe(true);
+	});
+
 	it("ignores the operator's env key for a hosted customer", () => {
-		expect(
-			draftsCanRun(setting, { fixedAi: false, envKey: true, hosted: true }),
-		).toBe(false);
+		expect(draftsCanRun(setting, { ...none, envKey: true, hosted: true })).toBe(
+			false,
+		);
 	});
 });
 
@@ -268,6 +276,38 @@ describe("WinBackDraftPrefetchService.queue", () => {
 
 		expect(await service.queue([missing], REASON)).toBe(0);
 		expect(await draftTasks([missing])).toHaveLength(1);
+	});
+
+	it("rechecks a stored draft and a finished try under the lock", async () => {
+		await writePlan(db, null);
+		const checkedAt = new Date();
+		const drafted = await person("Quirin");
+		const tried = await person("Rosa");
+		await db.emailDraft.create({
+			data: { contactId: drafted, subject: "Hallo", body: "Wie geht es?" },
+		});
+		await db.agentTask.create({
+			data: {
+				contactId: tried,
+				kind: DRAFT_KIND,
+				reason: REASON,
+				priority: PRIORITY.draftPrefetch,
+				dueAt: checkedAt,
+				startedAt: new Date(),
+				finishedAt: new Date(),
+			},
+		});
+
+		expect(
+			await trigger.emailDraftsPrefetched(
+				[drafted, tried],
+				REASON,
+				prefetchRoom,
+				checkedAt,
+			),
+		).toBe(0);
+		expect(await draftTasks([drafted])).toHaveLength(0);
+		expect(await draftTasks([tried])).toHaveLength(1);
 	});
 
 	it("queues nothing without an AI key", async () => {

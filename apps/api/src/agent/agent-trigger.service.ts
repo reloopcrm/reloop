@@ -451,6 +451,7 @@ export class AgentTriggerService {
 		contactIds: readonly string[],
 		reason: string,
 		roomOf: DraftPrefetchRoom,
+		checkedAt: Date,
 	): Promise<number> {
 		const ids = [...new Set(contactIds)].filter((id) => !isSampleRecordId(id));
 		if (ids.length === 0) return 0;
@@ -474,11 +475,23 @@ export class AgentTriggerService {
 				const room = roomOf(budget, used, prefetched);
 				if (room <= 0) return { created: 0, room };
 
-				const pending = await tx.agentTask.findMany({
-					where: { kind: DRAFT_KIND, finishedAt: null, contactId: { in: ids } },
-					select: { contactId: true },
-				});
-				const taken = new Set(pending.map((row) => row.contactId));
+				const [pending, drafted] = await Promise.all([
+					tx.agentTask.findMany({
+						where: {
+							kind: DRAFT_KIND,
+							contactId: { in: ids },
+							OR: [{ finishedAt: null }, { finishedAt: { gte: checkedAt } }],
+						},
+						select: { contactId: true },
+					}),
+					tx.emailDraft.findMany({
+						where: { contactId: { in: ids } },
+						select: { contactId: true },
+					}),
+				]);
+				const taken = new Set(
+					[...pending, ...drafted].map((row) => row.contactId),
+				);
 				const fresh = ids.filter((id) => !taken.has(id)).slice(0, room);
 				if (fresh.length === 0) return { created: 0, room };
 

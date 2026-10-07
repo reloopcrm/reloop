@@ -913,7 +913,8 @@ marked passages and the follow-up delay. It writes nothing but an
   their people to `WinBackDraftPrefetchService`
   (`reactivation/win-back-draft-prefetch.service.ts`): the first
   `PERSON_VIEW.prefetch.drafts.top` of the list and the next person. It queues
-  `email-draft` only for a person with mail, no stored draft and no open draft task.
+  `email-draft` only for a person with an address, mail, no stored draft and no open
+  draft task, and it checks the stored draft and a finished try again under the lock.
   A stored draft that is stale is left alone; a rep's open asks for that one. The
   `retryAfterMs` pause holds here as well, so a person whose draft came back empty is
   not queued on every list read.
@@ -923,7 +924,8 @@ marked passages and the follow-up delay. It writes nothing but an
   `PERSON_VIEW.prefetch.drafts.perMonth` prefetched drafts in the usage window, and
   with a plan at `draftsPerMonth` minus `reserveShare` of it, which stays for drafts a
   rep asks for. Without an AI provider (no stored key, no `OPENROUTER_API_KEY` for a
-  self-hosted install, no included AI) it queues nothing.
+  self-hosted install, no included AI, no ChatGPT usage the agent has recorded) it
+  queues nothing.
 - **A draft a rep looks at goes first.** A prefetched draft carries
   `PRIORITY.draftPrefetch`, just below `storyPrefetch`. When `contacts.draft` finds
   it still waiting, `emailDraftOpened` lifts it to `PRIORITY.emailDraft`. The lifted

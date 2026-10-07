@@ -2,6 +2,7 @@ import type { Db } from "@crm/db";
 import { cloud } from "@crm/db/cloud/scope";
 import { fixedAiWith } from "@crm/db/plan-usage";
 import { DRAFT_KIND } from "@crm/db/plans";
+import { readProviderUsage } from "@crm/db/provider-usage";
 import { type AgentProviderSetting, readAgentProvider } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -14,13 +15,15 @@ const DRAFTS = PERSON_VIEW.prefetch.drafts;
 
 export type DraftCheck = {
 	hasDraft: boolean;
+	hasAddress: boolean;
 	newestAt: Date | null;
 	open: boolean;
 	lastFinishedAt: Date | null;
 };
 
 export function needsDraft(check: DraftCheck, now: Date): boolean {
-	if (check.hasDraft || check.open || check.newestAt === null) return false;
+	if (check.hasDraft || check.open || !check.hasAddress) return false;
+	if (check.newestAt === null) return false;
 
 	const triedSince = Math.max(
 		check.newestAt.getTime(),
@@ -46,15 +49,19 @@ export function prefetchRoom(
 export function draftsCanRun(
 	setting: Pick<
 		AgentProviderSetting,
-		"provider" | "openrouterKey" | "openaiKey" | "anthropicKey"
+		"openrouterKey" | "openaiKey" | "anthropicKey"
 	>,
-	context: { fixedAi: boolean; envKey: boolean; hosted: boolean },
+	context: {
+		fixedAi: boolean;
+		envKey: boolean;
+		hosted: boolean;
+		chatgptWorked: boolean;
+	},
 ): boolean {
-	if (context.fixedAi) return true;
+	if (context.fixedAi || context.chatgptWorked) return true;
 	if (setting.openrouterKey || setting.openaiKey || setting.anthropicKey) {
 		return true;
 	}
-	if (setting.provider === "chatgpt") return true;
 	return context.envKey && !context.hosted;
 }
 
@@ -76,7 +83,11 @@ export class WinBackDraftPrefetchService {
 			if (!(await this.canRun())) return 0;
 
 			const now = new Date();
-			const [drafts, newest, open, finished] = await Promise.all([
+			const [addressed, drafts, newest, open, finished] = await Promise.all([
+				this.db.contact.findMany({
+					where: { id: { in: ids }, email: { not: null } },
+					select: { id: true },
+				}),
 				this.db.emailDraft.findMany({
 					where: { contactId: { in: ids } },
 					select: { contactId: true },
@@ -101,6 +112,7 @@ export class WinBackDraftPrefetchService {
 				}),
 			]);
 
+			const reachable = new Set(addressed.map((row) => row.id));
 			const drafted = new Set(drafts.map((row) => row.contactId));
 			const newestOf = new Map(
 				newest.map((row) => [row.contactId, row._max.lastMessageAt]),
@@ -114,6 +126,7 @@ export class WinBackDraftPrefetchService {
 				needsDraft(
 					{
 						hasDraft: drafted.has(id),
+						hasAddress: reachable.has(id),
 						newestAt: newestOf.get(id) ?? null,
 						open: openIds.has(id),
 						lastFinishedAt: finishedOf.get(id) ?? null,
@@ -127,6 +140,7 @@ export class WinBackDraftPrefetchService {
 				wantedIds,
 				reason,
 				prefetchRoom,
+				now,
 			);
 		} catch (error) {
 			this.logger.error(
@@ -138,9 +152,10 @@ export class WinBackDraftPrefetchService {
 	}
 
 	private async canRun(): Promise<boolean> {
-		const [setting, fixedAi] = await Promise.all([
+		const [setting, fixedAi, chatgpt] = await Promise.all([
 			readAgentProvider(this.db),
 			fixedAiWith(this.db),
+			readProviderUsage(this.db, "chatgpt"),
 		]);
 		const ready = draftsCanRun(setting, {
 			fixedAi,
@@ -148,6 +163,7 @@ export class WinBackDraftPrefetchService {
 				this.config.get("OPENROUTER_API_KEY", { infer: true })?.trim(),
 			),
 			hosted: cloud.customer(),
+			chatgptWorked: chatgpt !== null,
 		});
 		if (!ready) {
 			this.logger.log({

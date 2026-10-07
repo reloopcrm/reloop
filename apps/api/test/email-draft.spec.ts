@@ -338,6 +338,31 @@ describe("a person opened after newer mail", () => {
 		expect(asked).toEqual([]);
 	});
 
+	it("asks again when the newer mail was stored while the last draft was written", async () => {
+		const id = await person("waehrenddessen");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await db.agentTask.create({
+			data: {
+				contactId: id,
+				kind: "email-draft",
+				reason: "test",
+				priority: 970,
+				budget: 1,
+				createdAt: new Date(Date.now() - 60 * 60_000),
+				dueAt: new Date(Date.now() - 60 * 60_000),
+			},
+		});
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		await db.agentTask.updateMany({
+			where: { contactId: id, kind: "email-draft" },
+			data: { finishedAt: new Date(Date.now() + 60_000), outcome: "done" },
+		});
+
+		await service.refreshDraft(id);
+
+		expect(asked).toEqual([{ contactId: id, instruction: null }]);
+	});
+
 	it("asks again once mail newer than the last try arrives", async () => {
 		const id = await person("wieder");
 		await store(id, new Date("2026-08-01T00:00:00.000Z"));

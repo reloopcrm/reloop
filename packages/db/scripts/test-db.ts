@@ -1,11 +1,16 @@
+import "@crm/env/load";
+
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { findWorkspaceRoot } from "@crm/env";
 import pg from "pg";
 import { databaseName, isTestDatabaseName } from "../src/test-database";
+import { prismaCommand } from "./test-db-prisma";
 
-const SCHEMA = join(dirname(import.meta.dirname), "prisma", "schema.prisma");
-const MIGRATIONS = join(dirname(import.meta.dirname), "prisma", "migrations");
+const PACKAGE = dirname(import.meta.dirname);
+const SCHEMA = join(PACKAGE, "prisma", "schema.prisma");
+const MIGRATIONS = join(PACKAGE, "prisma", "migrations");
 
 const url = resolve();
 
@@ -133,18 +138,19 @@ async function appliedMigrations(target: string): Promise<string[] | null> {
 }
 
 function drifted(target: string): boolean {
-	const result = spawnSync(
-		"prisma",
-		[
-			"migrate",
-			"diff",
-			"--from-config-datasource",
-			"--to-schema",
-			SCHEMA,
-			"--exit-code",
-		],
-		{ encoding: "utf8", env: { ...process.env, DATABASE_URL: target } },
-	);
+	const prisma = prismaInvocation([
+		"migrate",
+		"diff",
+		"--from-config-datasource",
+		"--to-schema",
+		SCHEMA,
+		"--exit-code",
+	]);
+	const result = spawnSync(prisma.command, prisma.args, {
+		encoding: "utf8",
+		cwd: PACKAGE,
+		env: { ...process.env, DATABASE_URL: target },
+	});
 
 	if (result.error || (result.status !== 0 && result.status !== 2)) {
 		fail([
@@ -156,23 +162,28 @@ function drifted(target: string): boolean {
 }
 
 function migrate(target: string): void {
-	const result = spawnSync("prisma", ["migrate", "deploy"], {
+	const prisma = prismaInvocation(["migrate", "deploy"]);
+	const result = spawnSync(prisma.command, prisma.args, {
 		stdio: "inherit",
+		cwd: PACKAGE,
 		env: { ...process.env, DATABASE_URL: target },
 	});
 
 	if (result.error) {
 		fail([
 			"Could not run prisma migrate deploy.",
-			"Run this through the package script, which puts prisma on PATH:",
-			"",
-			"    bun run db:test",
+			"Run bun install at the repo root, then run bun run db:test again.",
 			"",
 			result.error.message,
 		]);
 	}
 
 	if (result.status !== 0) process.exit(result.status ?? 1);
+}
+
+function prismaInvocation(subcommand: string[]) {
+	const root = findWorkspaceRoot(PACKAGE);
+	return prismaCommand(root ? [PACKAGE, root] : [PACKAGE], subcommand);
 }
 
 function resolve(): string | null {

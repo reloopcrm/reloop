@@ -81,6 +81,7 @@ function harness(options: {
 	const fetched: { folder: string; range: string }[] = [];
 	const asked: Date[] = [];
 	let closed = 0;
+	let saved: string | null = null;
 	let current: FakeFolder | null = null;
 
 	const session: ImapSession = {
@@ -149,7 +150,7 @@ function harness(options: {
 			_id: string,
 			update: { cursor?: string | null; status: string },
 		) {
-			settled.push(update);
+			settled.push({ ...update, cursor: update.cursor ?? saved });
 		},
 	} as unknown as SyncStateService;
 
@@ -178,7 +179,12 @@ function harness(options: {
 
 	const db = {
 		imapAccount: { findUnique: async () => account },
-		mailboxSync: { update: async () => undefined },
+		mailboxSync: {
+			updateMany: async (args: { data: { cursor: string } }) => {
+				saved = args.data.cursor;
+				return { count: 1 };
+			},
+		},
 		appSetting: { findUnique: async () => ({ plan }) },
 		emailThread: {
 			count: async () => (options.threads ?? 0) + stored.length,
@@ -347,7 +353,7 @@ describe("ImapSyncService", () => {
 		const since = { ...account, importSince: new Date("2025-01-01") };
 		(h.service as unknown as { db: Db }).db = {
 			imapAccount: { findUnique: async () => since },
-			mailboxSync: { update: async () => undefined },
+			mailboxSync: { updateMany: async () => ({ count: 1 }) },
 			appSetting: { findUnique: async () => ({ plan: null }) },
 			emailThread: { count: async () => 0 },
 		} as unknown as Db;
@@ -372,7 +378,7 @@ describe("ImapSyncService", () => {
 		const wide = { ...account, importSince: new Date("2015-01-01") };
 		(h.service as unknown as { db: Db }).db = {
 			imapAccount: { findUnique: async () => wide },
-			mailboxSync: { update: async () => undefined },
+			mailboxSync: { updateMany: async () => ({ count: 1 }) },
 			appSetting: { findUnique: async () => ({ plan: "test" }) },
 			emailThread: { count: async () => 0 },
 		} as unknown as Db;

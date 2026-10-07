@@ -52,11 +52,14 @@ const raw = Buffer.from(
 	].join("\r\n"),
 );
 
+let onOpen: (() => Promise<void>) | null = null;
+
 const session: ImapSession = {
 	async folders() {
 		return [{ path: "INBOX", specialUse: null, selectable: true }];
 	},
 	async open() {
+		await onOpen?.();
 		return { uidValidity: "1", uidNext: 3, exists: 2 };
 	},
 	async uidsSince() {
@@ -196,5 +199,52 @@ describe("turning creation on for an IMAP mailbox", () => {
 
 		const after = (await state.get(userId, source as never))?.cursor;
 		expect(after).toBe(before);
+	});
+
+	it("keeps the rewind when a sync that started earlier saves afterwards", async () => {
+		await clean();
+		await db.user.create({
+			data: { id: userId, name: "Reread Rep", email: mailbox },
+		});
+		const account = await db.imapAccount.create({
+			data: {
+				userId,
+				email: mailbox,
+				host: "imap.example.test",
+				username: mailbox,
+				secret: "sealed",
+			},
+		});
+		accountId = account.id;
+		source = imapSourceFor(accountId);
+		await db.mailboxSync.create({
+			data: { userId, source, autoCreate: false, createFrom: "nobody" },
+		});
+
+		await runSync();
+		expect(await counts()).toEqual({
+			contacts: 0,
+			messages: 0,
+			emailThreads: 0,
+		});
+
+		onOpen = async () => {
+			onOpen = null;
+			await connections.setCreateFrom(userId, accountId, "everyone");
+		};
+		await runSync();
+		expect(onOpen).toBeNull();
+
+		const rewound = await state.get(userId, source as never);
+		const folder = parseImapCursor(rewound?.cursor).folders.INBOX;
+		expect(folder?.backfillUid).toBe(2);
+		expect(folder?.lastUid).toBe(2);
+
+		await runSync();
+		expect(await counts()).toEqual({
+			contacts: 1,
+			messages: 1,
+			emailThreads: 1,
+		});
 	});
 });

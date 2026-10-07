@@ -276,9 +276,9 @@ export class GmailSyncService {
 		}
 
 		const ahead = new Set(entries.slice(passed).flatMap((entry) => entry.ids));
-		ledger.retain("forward", (id) => ahead.has(id));
 
 		if (forward.failure) {
+			ledger.retain("forward", (id) => ahead.has(id));
 			await this.state.settle(row.id, {
 				cursor,
 				backfill: await this.carry(row, row.backfill, ledger),
@@ -296,6 +296,7 @@ export class GmailSyncService {
 			ledger,
 		);
 
+		ledger.retain("forward", (id) => ahead.has(id));
 		const backAhead = back.ahead;
 		if (backAhead) ledger.retain("backfill", (id) => backAhead.has(id));
 

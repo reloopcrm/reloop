@@ -434,13 +434,14 @@ the largest attachment upload the conversation contracts accept.
   it. A message that stores clears its count. The list has no size cap, because
   a cap evicts counts the cursor still needs: one Gmail history entry can hold
   any number of messages, and the cursor passes the entry only as a whole. A
-  count leaves the list only when its lane's cursor has passed the message.
-  Gmail drops forward ids outside the history entries the cursor has not passed.
-  Outlook keeps only forward ids it read this tick at or after the new cursor
-  minus the overlap. Both drop backfill ids outside the page the plan stands on,
-  and keep them while the tick did not read that page. IMAP drops UIDs at or below `lastUid` and above
-  `backfillUid`. The list therefore holds at most the messages one tick can read
-  again. Outlook saves the list before it returns on a failed page fetch.
+  count leaves the list only in the save that also stores the cursor that passed
+  the message, so a tick that throws keeps every count. Gmail drops forward ids
+  outside the history entries the cursor has not passed. Outlook keeps only
+  forward ids it read this tick at or after the new cursor minus the overlap.
+  Both drop backfill ids outside the page the plan stands on, and keep them
+  while the tick did not read that page. IMAP drops UIDs at or below `lastUid`
+  and above `backfillUid`. The list therefore holds at most the messages one
+  tick can read again. Outlook saves the list before it returns on a failed page fetch.
 - **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
   `mailbox/backfill-cursor.ts`: the phase, the opaque page token or
   `@odata.nextLink`, the `before` anchor, the `floor` date, and how far back it

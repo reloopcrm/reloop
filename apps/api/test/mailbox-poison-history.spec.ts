@@ -61,7 +61,11 @@ function gmailMessage(id: string): GmailMessage {
 	};
 }
 
-function gmailKit(options: { history: string[]; backfill: string[] }) {
+function gmailKit(options: {
+	history: string[];
+	backfill: string[];
+	poisoned: readonly string[];
+}) {
 	const persisted: Persisted = { cursor: "1000", backfill: null };
 	const stored: string[] = [];
 
@@ -143,7 +147,9 @@ function gmailKit(options: { history: string[]; backfill: string[] }) {
 			parsed: IncomingMessage,
 		) {
 			const id = parsed.gmailMessageId ?? "";
-			if (POISONED.includes(id)) throw new Error(`insert failed for ${SENDER}`);
+			if (options.poisoned.includes(id)) {
+				throw new Error(`insert failed for ${SENDER}`);
+			}
 			stored.push(id);
 			return true;
 		},
@@ -172,9 +178,12 @@ function gmailKit(options: { history: string[]; backfill: string[] }) {
 	return { tick, stored, persisted };
 }
 
-function warnedOnce(spy: { mock: { calls: unknown[][] } }): void {
+function warnedOnce(
+	spy: { mock: { calls: unknown[][] } },
+	ids: readonly string[],
+): void {
 	const lines = spy.mock.calls.map((call) => JSON.stringify(call[0]));
-	for (const id of POISONED) {
+	for (const id of ids) {
 		const mine = lines.filter((line) => line.includes(`"${id}"`));
 		expect(mine).toHaveLength(1);
 		expect(mine[0]).toContain("sync-1");
@@ -186,23 +195,49 @@ describe("more poisoned Gmail messages than one tick reads", () => {
 	it("walks past one history entry that holds all of them", async () => {
 		const warn = spyOn(Logger.prototype, "warn").mockImplementation(() => {});
 		useTinySizes();
-		const kit = gmailKit({ history: [...POISONED, "good"], backfill: [] });
+		const kit = gmailKit({
+			history: [...POISONED, "good"],
+			backfill: [],
+			poisoned: POISONED,
+		});
 
 		for (let tick = 1; tick <= TICKS; tick += 1) await kit.tick();
 
 		expect(kit.persisted.cursor).toBe("1100");
 		expect(kit.stored).toEqual(["good"]);
-		warnedOnce(warn);
+		warnedOnce(warn, POISONED);
 	});
 
 	it("walks past one backfill page that holds all of them", async () => {
 		const warn = spyOn(Logger.prototype, "warn").mockImplementation(() => {});
 		useTinySizes();
-		const kit = gmailKit({ history: [], backfill: [...POISONED, "good"] });
+		const kit = gmailKit({
+			history: [],
+			backfill: [...POISONED, "good"],
+			poisoned: POISONED,
+		});
 
 		for (let tick = 1; tick <= TICKS; tick += 1) await kit.tick();
 
 		expect(kit.stored).toEqual(["good"]);
-		warnedOnce(warn);
+		warnedOnce(warn, POISONED);
+	});
+});
+
+describe("a Gmail backfill failure after a forward skip in the same tick", () => {
+	it("keeps the forward count until the cursor is saved", async () => {
+		const warn = spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+		const poisoned = ["forward-poison", "backfill-poison"];
+		const kit = gmailKit({
+			history: ["forward-poison", "good"],
+			backfill: ["backfill-poison"],
+			poisoned,
+		});
+
+		for (let tick = 1; tick <= TICKS; tick += 1) await kit.tick();
+
+		expect(kit.persisted.cursor).toBe("1100");
+		expect(kit.stored).toEqual(["good"]);
+		warnedOnce(warn, poisoned);
 	});
 });

@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, RecordSource } from "@crm/db";
+import { PRIORITY } from "@crm/db/agent-tasks";
 import { DRAFT_KIND, PLANS, startOfMonth } from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
-import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ContactsService } from "../src/contacts/contacts.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "email-draft-spec";
@@ -395,6 +396,10 @@ describe("a person opened after newer mail", () => {
 		const id = await person("wieder");
 		await store(id, new Date("2026-08-01T00:00:00.000Z"));
 		await doneTask(id, "A draft is ready: Europaletten");
+		await db.agentTask.updateMany({
+			where: { contactId: id },
+			data: { createdAt: new Date(Date.now() - 60_000) },
+		});
 		await thread(id, new Date(Date.now() + 60_000));
 
 		await service.refreshDraft(id);
@@ -432,5 +437,56 @@ describe("a person opened after newer mail", () => {
 		} finally {
 			await writePlan(db, planBefore);
 		}
+	});
+});
+
+describe("a stale draft and a draft written ahead", () => {
+	const live = new ContactsService(
+		db,
+		unused,
+		new AgentTriggerService(db) as Deps[2],
+		unused,
+		unused,
+		unused,
+		unused,
+	);
+
+	async function openTasks(contactId: string) {
+		return db.agentTask.findMany({
+			where: { contactId, kind: DRAFT_KIND, finishedAt: null },
+			select: { priority: true },
+		});
+	}
+
+	it("moves a draft written ahead to the front instead of queueing a second one", async () => {
+		const id = await person("vorab");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		await db.agentTask.create({
+			data: {
+				contactId: id,
+				kind: DRAFT_KIND,
+				reason: "test",
+				priority: PRIORITY.draftPrefetch,
+				budget: 1,
+				dueAt: new Date(),
+			},
+		});
+
+		const state = await live.refreshDraft(id);
+
+		expect(state.queued).toBe(true);
+		expect(await openTasks(id)).toEqual([{ priority: PRIORITY.emailDraft }]);
+	});
+
+	it("queues one rewrite at the front when nothing was written ahead", async () => {
+		const id = await person("ohne-vorab");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+
+		const state = await live.refreshDraft(id);
+
+		expect(state.queued).toBe(true);
+		expect(await openTasks(id)).toEqual([{ priority: PRIORITY.emailDraft }]);
 	});
 });

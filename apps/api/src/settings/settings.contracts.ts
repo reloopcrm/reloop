@@ -161,6 +161,7 @@ export const aiUsageOutput = z.object({
 			limit: z.number().nullable(),
 			included: z.boolean(),
 			level: z.enum(USAGE_LEVELS),
+			reached: z.boolean(),
 		}),
 	),
 });

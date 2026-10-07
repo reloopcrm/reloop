@@ -122,6 +122,7 @@ export type UsageLine = {
 	limit: number | null;
 	included: boolean;
 	level: UsageLevel;
+	reached: boolean;
 };
 
 const LIMIT_OF = {
@@ -195,12 +196,14 @@ export function usageLines(
 	return USAGE_COUNTERS.map((counter) => {
 		const limit = limitOf(counter, limits);
 		const used = usage[counter];
+		const level = usageLevel(used, limit);
 		return {
 			counter,
 			used,
 			limit,
 			included: includedIn(counter, limits),
-			level: usageLevel(used, limit),
+			level,
+			reached: level === "reached",
 		};
 	});
 }

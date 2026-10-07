@@ -266,6 +266,7 @@ describe("the usage lines", () => {
 			limit: null,
 			included: false,
 			level: "normal",
+			reached: false,
 		});
 		expect(lines.find((line) => line.counter === "sessions")).toMatchObject({
 			limit: 100,
@@ -318,6 +319,18 @@ describe("the usage lines", () => {
 		expect(levelAt(99)).toBe("warning");
 		expect(levelAt(100)).toBe("reached");
 		expect(levelAt(140)).toBe("reached");
+	});
+
+	it("keep reached for older readers, true only at the reached level", () => {
+		for (const builder of [0, 79, 80, 99, 100, 140]) {
+			for (const line of usageLines({ ...NO_USAGE, builder }, PLANS.trial)) {
+				expect(line.reached).toBe(line.level === "reached");
+			}
+		}
+		const builder = usageLines({ ...NO_USAGE, builder: 100 }, PLANS.trial).find(
+			(line) => line.counter === "builder",
+		);
+		expect(builder).toMatchObject({ level: "reached", reached: true });
 	});
 
 	it("never warn where the plan has no limit", () => {

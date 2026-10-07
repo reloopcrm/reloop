@@ -55,10 +55,9 @@ small enough to read:
 | `ui.json` | The shared components in `packages/ui` |
 | `win-back.json` | Win back |
 
-The hosted Cloud's private overlay adds a fourteenth file, `cloud.json`, with the
-text only its marketing pages, pricing and billing show, and registers it in
-`apps/app/lib/i18n/cloud.ts`. A key a core screen uses never goes there. In this
-repository `cloud.ts` holds an empty map per locale.
+The hosted version adds one more file through `apps/app/lib/i18n/cloud.ts`. A key a
+core screen uses never goes there. In this repository `cloud.ts` holds an empty map
+per locale.
 
 A file is a flat object. The key is the English text, the value is your language:
 
@@ -144,7 +143,7 @@ and one unfinished language must never hold up a release.
   are Chinese.
 - **What the agent writes follows the workspace, not the reader.** One language per
   workspace, `AppSetting.agentLanguage`, picked under Agent language in Settings >
-  General. A hosted sign-up stores the language the person signed up in. With no
+  General. With no
   value the agent writes English, or German with `RELOOP_GERMAN`. See
   `docs/environment.md` and `docs/agent.md`.
 - **The sample data follows the reader.** `sampleData.load` takes the locale of

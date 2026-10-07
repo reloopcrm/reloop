@@ -37,6 +37,7 @@ import { mailboxLinkOf } from "../mailbox/mailbox-link";
 import { PERSON_VIEW, WIN_BACK } from "./reactivation.config";
 import type {
 	WinBackNextInput,
+	WinBackNextOutput,
 	WinBackPersonViewOutput,
 } from "./reactivation.contracts";
 import { filterBands, searchGroups, sortGroups } from "./win-back-groups";
@@ -460,7 +461,7 @@ export class WinBackPersonService {
 	async next(
 		userId: string,
 		input: WinBackNextInput,
-	): Promise<{ id: string; name: string } | null> {
+	): Promise<WinBackNextOutput> {
 		const rules = await readWinBackRules(this.db);
 		const report = await listReactivationCandidates(this.db, {
 			rejected: input.rejected,
@@ -478,16 +479,21 @@ export class WinBackPersonService {
 		const index = order.findIndex(
 			(person) => person.contact.id === input.contactId,
 		);
-		const after = [...order.slice(index + 1), ...order.slice(0, index)];
-		const next = after.find(
-			(person) =>
-				person.contact.email !== null && person.contact.id !== input.contactId,
-		);
+		const total = order.length;
+		if (index === -1) return { next: null, position: null, total };
 
-		if (!next) return null;
+		const position = index + 1;
+		const next = order
+			.slice(position)
+			.find((person) => person.contact.email !== null);
+		if (!next) return { next: null, position, total };
 
 		this.prefetch.nextShown(next.contact.id);
-		return { id: next.contact.id, name: nameOf(next.contact) };
+		return {
+			next: { id: next.contact.id, name: nameOf(next.contact) },
+			position,
+			total,
+		};
 	}
 }
 

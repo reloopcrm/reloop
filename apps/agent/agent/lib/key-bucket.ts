@@ -13,8 +13,6 @@ type ModelObject = Exclude<LanguageModel, string>;
 
 type Bucket = { tokens: number; cap: number; at: number };
 
-const MINUTE_MS = 60_000;
-
 const perMinuteEnv = z.coerce
 	.number()
 	.int()
@@ -56,7 +54,7 @@ export class KeyBucket {
 
 	private refill(bucket: Bucket): Bucket {
 		const at = this.now();
-		const gained = ((at - bucket.at) / MINUTE_MS) * bucket.cap;
+		const gained = ((at - bucket.at) / DISPATCH.bucket.minuteMs) * bucket.cap;
 		bucket.tokens = Math.min(bucket.cap, bucket.tokens + gained);
 		bucket.at = at;
 		return bucket;
@@ -105,7 +103,7 @@ export class KeyBucket {
 
 	private waitFor(bucket: Bucket, floor: number): number {
 		const missing = floor + 1 - bucket.tokens;
-		const ms = (missing / bucket.cap) * MINUTE_MS;
+		const ms = (missing / bucket.cap) * DISPATCH.bucket.minuteMs;
 		return Math.min(Math.max(0, Math.ceil(ms)), DISPATCH.bucket.waitMaxMs);
 	}
 }

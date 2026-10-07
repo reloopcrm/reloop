@@ -86,45 +86,21 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
 - **There is no image search by name, and there must never be.** Nobody audits a face.
   **Guess where to look, never what you will find.**
 
-## Hosted mode: one agent, every tenant
+## Tenant wrappers
 
-On the hosted Cloud, where the private overlay turns `cloud.hosted()` on, the one
-agent process serves every tenant, and `db` resolves through the tenant in
-`AsyncLocalStorage` exactly as in the API. In this repository `cloud.hosted()` is
-false and every wrapper below passes straight through. eve runs
-authored code step by step, so that context never survives a step boundary: every
-entry point reads the tenant again from `session.auth.attributes.tenantId` and
-`lib/tenant.ts` is the only place that does it.
-
-- **`tenantTool(defineTool(...))` wraps every tool**, root and subagent. `tenantHook`
-  wraps the hooks that touch the database, the two instruction resolvers and the
-  three model resolvers call `withTenant(ctx, ...)`, and `tenantChannelEvents` wraps
-  the crm channel's event handlers. `session.failed` carries no `ctx`, so the crm
-  channel keeps the tenant in its channel `state` and every `send` seeds it with
-  `channelState()`.
-- **A session names its tenant in the auth attributes.** `taskAuth` adds it for the
-  research lane, `dispatchBuilderSubmission` and `dispatchAgentRun` add it for the
-  builder and the runner, and the bridge token carries it for a rep's chat. Without
-  it, hosted mode throws rather than guessing, and `db` throws for a wrapper
-  somebody forgot.
-- **The dispatch tick loops over the active tenants**: `eachActiveTenant` runs
-  `DISPATCH.tenants.concurrency` tenants at once, each under
-  `DISPATCH.tenants.budgetMs`, the start rotates every tick, and one tenant's failure
-  is one log line. The internal routes loop the same way; `x-reloop-tenant` from the
-  API's poke narrows a route to one tenant.
-- **Module state is per tenant** through `tenantState()`: the provider cache and the
-  exhaustion marks in `lib/model.ts`, the health counters and the collapsing sweep in
-  `lib/dispatch.ts`, the stall sweep, the stale task sweep, the gate meter, the spend
-  queue and the telemetry model id. The boot reads in `agent.ts` are skipped, and a
-  ChatGPT login is never a candidate.
+`tenantTool(defineTool(...))` wraps every tool, root and subagent. `tenantHook`
+wraps the hooks that touch the database, and the instruction and model resolvers
+call `withTenant(ctx, ...)`. `lib/tenant.ts` is the only place that reads the tenant
+from `session.auth.attributes.tenantId`. In this repository `cloud.hosted()` is false
+and every wrapper passes straight through. The hosted version plugs in here; the
+open core runs without it. Wrap every new tool and hook the same way.
 
 ### Every workspace has its own language
 
 The agent writes what a customer reads in the workspace's language, never in one
 language for the whole process. `AppSetting.agentLanguage` holds one of the seven
 locales, parsed by `@crm/validation/agent-language`. An admin picks it under Agent
-language in Settings > General, and a hosted sign-up stores the language the person
-signed up in. The API stores and serves the value and does nothing else with it.
+language in Settings > General. The API stores and serves the value and does nothing else with it.
 
 - **Resolved at the tenant boundary.** `withTenant`, `withTenantId` and
   `eachActiveTenant` read it once and run their work inside `inWorkspaceLanguage`, an
@@ -144,9 +120,7 @@ signed up in. The API stores and serves the value and does nothing else with it.
   reads and log lines stay English. `USAGE_PROBE_OUTCOMES` and `RETIRED_OUTCOME`
   stay English on purpose: the app translates the first per reader, and telemetry
   compares the second.
-- **Every tenant gets a value when it is made.** A hosted sign-up stores the sign-up
-  language, and the hosted Cloud's own tools store theirs.
-- **The settings card says what the agent does now.** In hosted mode with no value it
+- **The settings card says what the agent does now.** With no value it
   shows the fallback language with "not chosen yet", so an owner sees why the agent
   writes English.
 - **A draft keeps the language of its conversation.** `lib/email-draft.ts` tells the
@@ -237,53 +211,11 @@ signed up in. The API stores and serves the value and does nothing else with it.
   tab shows the brief, and falls back to the memory until a reread writes one. Both are
   cut at a word, never inside one (`@crm/validation/summary-text`).
 
-### Included AI
+### Usage limits
 
-A plan with `aiIncluded` (`@crm/db/plans`) fixes the chain: the TypeSafe gate first,
-`MODEL.fixed.chat` and `MODEL.fixed.reading` (Luna) for every session, summary and
-research, `MODEL.fixed.draft` (Sol) for an email draft only. The key is the
-operator's `OPENROUTER_API_KEY`; a key or model a customer stored is not read. The
-customer never sees a model name: the settings page shows usage against limits, the
-spend report carries no model column, drafts and runs carry no model id, and
-`publicReason()` replaces any error that names a vendor with `MODEL.fixed.unavailable`
-before `settle()` or `failRun()` writes it. `MODEL.openrouter.pins` pins Sol to OpenAI's
-own route with `allow_fallbacks: false`, so OpenRouter never bills the 5/30 route.
-Hosting plans and a self-hosted install keep the model choice.
-
-### Monthly limits, enforced here
-
-`lib/plan-limits.ts` reads the plan (the tenant's registry plan when the row has
-none) and counts one usage window, the same way the API's `planAllows` does.
-`usageWindowOf` in `@crm/db/plan-usage` is the one source of that window, for both
-apps:
-
-- **A hosted trial** counts from the day the trial started to `trial_ends_at`. The
-  start is `trial_ends_at` minus `TRIAL_DAYS`, never later than the tenant's
-  `created_at`. The first of the month resets nothing.
-- **Every other plan, and a self-hosted install,** counts the calendar month in UTC.
-
-Nothing fails silently: work past a limit waits until the window ends, the end of
-the trial or the first of the next month, and the settings page names that day.
-
-| Limit | Where | What happens past it |
-| --- | --- | --- |
-| `insightsPerMonth` | `queueUnreadThreads`, and `handleDirect` for `person-story` | queues at most the room left, then nothing until the window ends |
-| `draftsPerMonth` | `handleDirect` for `email-draft` | `postponeTask` to the end of the window; the draft dialog names the day |
-| `researchSessionsPerMonth` | `researchAllowance` in `lib/research-throttle.ts` | the lane starts at most the room left in the window, then nothing until it ends |
-| `researchPerMonth` | `runResearchLane` | `company-profile` rows past the room are postponed to the end of the window, the rest run |
-| `chatPerMonth`, `builderPerMonth` | `instructions/task.ts` | the session answers with the limit sentence and the day it continues, and calls no tool |
-
-`readMonthlyUsage` (`@crm/db/plan-usage`) is the one counter for both apps. Chat and
-builder count `message.received` events by conversation kind.
-
-`budgetTasksWhere` (`@crm/db/plan-usage`) is the one filter of every budget count,
-here and in the API: the window by `createdAt`, by `finishedAt` for
-`company-profile`, and never a task with `finishedAt` set and `startedAt` null. That
-task closed before a session or a model run: dropped as archived, dropped as sample
-data, or skipped by the `identify` pre-check.
-
-Backfill reading never uses the last 20 % of `insightsPerMonth` (`PLAN_RESERVE.insightForwardShare` in
-`@crm/db/plans`). That share stays for new mail. It applies only with plan limits: an install without them reserves nothing.
+The open core sets no usage limits. The hosted version plugs in here; the open core
+runs without it. `lib/plan-limits.ts` is the slot, and without a plan nothing is
+counted or held back.
 
 ### Retention
 
@@ -366,10 +298,10 @@ which is the fast lane: a conversation a person is waiting for. Only when that c
 is empty does it claim backfill rows, and at most `slowLaneRoom()` of them. A row
 that is not claimed keeps its place and its attempt; nothing is postponed.
 
-**The operator's key is one bucket for every tenant.** `lib/key-bucket.ts` holds a
+**The shared key is one bucket.** `lib/key-bucket.ts` holds a
 process-wide token bucket, `DISPATCH.bucket` its numbers: `perMinute` calls
-(`AGENT_SHARED_KEY_PER_MINUTE`), `fastReserve` 0.3 that only the fast lane may use,
-and a `share` of the rest per tenant by plan. `withKeyBucket` wraps the shared key's
+(`AGENT_SHARED_KEY_PER_MINUTE`) and `fastReserve` 0.3 that only the fast lane may
+use. `withKeyBucket` wraps the shared key's
 model in `fixedCandidates`, so every call through it, direct or in a session, takes
 a token, and a call with no token waits for the next one, `waitMaxMs` at most. It is
 never an error to the customer. The lane travels in `AsyncLocalStorage`
@@ -380,10 +312,6 @@ the backfill claim above. Self-hosting with an own key has no bucket.
 too, at the backfill priority with origin `backfill`: it is a catch-up sweep, and
 nobody is waiting on a row it writes. The forward task a stored thread gets is what
 carries a person's wait.
-
-Fairness between tenants is the per-tenant share plus the rotation in
-`eachActiveTenant`: a tenant's backfill can only ever drain its own share, so one
-tenant with a large mailbox slows nobody else.
 
 **`claimDue` sorts what it claims** — Postgres does not order `UPDATE … RETURNING` by
 its sub-select's `ORDER BY`.
@@ -1348,7 +1276,7 @@ in 24 hours. The numbers are `MAILBOX_PROFILE` in `agent/lib/mailbox-config.ts`.
 - **`profileDue` decides.** Build when there is no readable profile. Never within 7 days
   of the last build. After that, build when the profile is 90 days old, when the
   conversation count has doubled, or when the freemail or role share changed.
-- **One reading call per build**, on the reading model (Luna on included AI). The sample
+- **One reading call per build**, on the reading model. The sample
   is our own sent mail first (36 conversations), then 24 unanswered ones, 8 per sender
   kind, without a conversation the thread gate already called irrelevant. 400 characters
   each, 2,500 output tokens, two attempts. That is about 12k input tokens, under one cent.

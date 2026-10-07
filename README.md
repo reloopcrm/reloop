@@ -55,7 +55,7 @@ curl -fsSL https://reloopcrm.com/install.sh | sh
 
 The script asks for your domain, your email and a password, then starts everything. The full guide is in [`docs/self-host.md`](./docs/self-host.md).
 
-A hosted cloud version is coming later.
+A hosted version runs at [reloopcrm.com](https://reloopcrm.com).
 
 ## Develop
 

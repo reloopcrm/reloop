@@ -1,6 +1,7 @@
 const SECOND_MS = 1_000;
 const MINUTE_MS = 60 * SECOND_MS;
-const DAY_MS = 24 * 60 * MINUTE_MS;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 export const DISPATCH = {
 	visible: {
@@ -22,6 +23,7 @@ export const DISPATCH = {
 	research: {
 		batch: 12,
 		leaseMs: 30 * MINUTE_MS,
+		hourMs: HOUR_MS,
 		link: { attempts: 3, retryMs: 250 },
 		precheck: {
 			question: "worthResearch",
@@ -93,6 +95,7 @@ export const DISPATCH = {
 		perMinute: 300,
 		fastReserve: 0.3,
 		waitMaxMs: 30 * SECOND_MS,
+		minuteMs: MINUTE_MS,
 		share: {
 			byPlan: {
 				trial: 0.05,
@@ -104,6 +107,18 @@ export const DISPATCH = {
 			},
 			other: 0.1,
 		},
+	},
+
+	housekeeping: {
+		cleanBatch: 20,
+		readBatch: 40,
+		dayMs: DAY_MS,
+	},
+
+	blankFacts: {
+		scan: 2_000,
+		maxFills: 500,
+		contactChunk: 1_000,
 	},
 
 	retention: {

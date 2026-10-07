@@ -93,31 +93,51 @@ export async function readWinBackReply(
 	contactId: string,
 ): Promise<WinBackReply | null> {
 	const rows = await db.$queryRaw<{ answeredAt: Date; open: boolean }[]>`
-		WITH ${loop({ contactId })}
+		WITH ${loop({ contactId })},
+		own AS (
+			SELECT t.id
+			FROM "emailThread" t
+			WHERE t."contactId" = ${contactId}
+				OR EXISTS (
+					SELECT 1 FROM "emailThreadContact" l
+					WHERE l."threadId" = t.id AND l."contactId" = ${contactId}
+				)
+		),
+		reply AS (
+			SELECT
+				c.email,
+				COALESCE(
+					(
+						SELECT MAX(m."sentAt")
+						FROM own
+						JOIN "emailMessage" m ON m."threadId" = own.id
+						WHERE m."sentAt" > o.contacted_at
+							AND c.email IS NOT NULL
+							AND lower(m."fromEmail") = lower(trim(c.email))
+							AND ${realAnswer("m")}
+					),
+					a.answered_at
+				) AS answered_at
+			FROM answered a
+			JOIN outreach o ON o.contact_id = a.contact_id
+			JOIN contact c ON c.id = a.contact_id
+		)
 		SELECT
-			a.answered_at AS "answeredAt",
+			r.answered_at AS "answeredAt",
 			NOT EXISTS (
 				SELECT 1
-				FROM "emailThread" t
-				JOIN "emailMessage" m ON m."threadId" = t.id
-				WHERE (
-						t."contactId" = a.contact_id
-						OR EXISTS (
-							SELECT 1 FROM "emailThreadContact" l
-							WHERE l."threadId" = t.id AND l."contactId" = a.contact_id
-						)
-					)
-					AND m.direction = 'OUTBOUND'
-					AND m."sentAt" > a.answered_at
+				FROM own
+				JOIN "emailMessage" m ON m."threadId" = own.id
+				WHERE m.direction = 'OUTBOUND'
+					AND m."sentAt" > r.answered_at
 					AND (
-						c.email IS NULL
+						r.email IS NULL
 						OR m.recipients @> jsonb_build_array(
-							jsonb_build_object('email', lower(trim(c.email)))
+							jsonb_build_object('email', lower(trim(r.email)))
 						)
 					)
 			) AS open
-		FROM answered a
-		JOIN contact c ON c.id = a.contact_id
+		FROM reply r
 	`;
 	const row = rows[0];
 

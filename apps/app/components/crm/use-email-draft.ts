@@ -33,6 +33,25 @@ export async function copyText(text: string, t: Translate): Promise<boolean> {
 	}
 }
 
+type DraftCheck = {
+	queued: boolean;
+	waitingUntil: string | null;
+	limit: string | null;
+	draft: { stale: boolean } | null;
+};
+
+export function draftToWrite(
+	current: DraftCheck,
+	options: { renewStale?: boolean } = {},
+): boolean {
+	if (current.queued || current.waitingUntil || current.limit !== null) {
+		return false;
+	}
+	if (!current.draft) return true;
+
+	return options.renewStale === true && current.draft.stale;
+}
+
 export function useEmailDraft(
 	contactId: string,
 	enabled: boolean,
@@ -63,17 +82,12 @@ export function useEmailDraft(
 		}),
 	);
 
-	const ensure = async () => {
+	const ensure = async (options: { renewStale?: boolean } = {}) => {
 		try {
 			const current = await queries.fetchQuery(
 				trpc.contacts.draft.queryOptions({ id: contactId }),
 			);
-			if (
-				!current.draft &&
-				!current.queued &&
-				!current.waitingUntil &&
-				current.limit === null
-			) {
+			if (draftToWrite(current, options)) {
 				write.mutate({ id: contactId });
 			}
 		} catch (error) {

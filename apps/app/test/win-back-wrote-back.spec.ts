@@ -9,6 +9,7 @@ import {
 	winBackTable,
 	wroteBackListHref,
 } from "@/app/(app)/[slug]/win-back/win-back-search-params";
+import { draftToWrite } from "@/components/crm/use-email-draft";
 import german from "@/lib/i18n/de/win-back.json";
 
 const dictionary: Record<string, string> = german;
@@ -68,5 +69,38 @@ describe("the next step after a reply", () => {
 		expect(dictionary["Wrote back"]).toBe("Hat geantwortet");
 		expect(dictionary["Reply to them"]).toBe("Antworte ihnen");
 		expect(dictionary["See who wrote back"]).toBeDefined();
+	});
+});
+
+describe("the draft for a reply", () => {
+	const ready = { queued: false, waitingUntil: null, limit: null };
+
+	it("writes a new draft when the stored one is older than their answer", () => {
+		expect(
+			draftToWrite({ ...ready, draft: { stale: true } }, { renewStale: true }),
+		).toBe(true);
+	});
+
+	it("keeps a current draft and keeps the old behaviour elsewhere", () => {
+		expect(
+			draftToWrite({ ...ready, draft: { stale: false } }, { renewStale: true }),
+		).toBe(false);
+		expect(draftToWrite({ ...ready, draft: { stale: true } })).toBe(false);
+		expect(draftToWrite({ ...ready, draft: null })).toBe(true);
+	});
+
+	it("writes nothing while a draft is queued or the limit holds it", () => {
+		expect(
+			draftToWrite(
+				{ ...ready, queued: true, draft: { stale: true } },
+				{ renewStale: true },
+			),
+		).toBe(false);
+		expect(
+			draftToWrite(
+				{ ...ready, limit: "plan", draft: { stale: true } },
+				{ renewStale: true },
+			),
+		).toBe(false);
 	});
 });

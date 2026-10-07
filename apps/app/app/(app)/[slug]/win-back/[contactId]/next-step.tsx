@@ -178,7 +178,7 @@ export function useNextStep(
 
 	const open = () => {
 		setStep("open");
-		void draft.ensure();
+		void draft.ensure({ renewStale: answerIsNext(view) });
 	};
 
 	const later = () => {
@@ -428,9 +428,11 @@ function CardBody({ step }: { step: NextStep }) {
 	const { first, draft } = step;
 
 	if (step.step === "read") {
-		const preview = draft.draft
-			? paragraphs(draft.draft.body).slice(1, 3).join(" ")
-			: "";
+		const outdated = draft.draft?.stale === true && answerIsNext(step.view);
+		const preview =
+			draft.draft && !outdated
+				? paragraphs(draft.draft.body).slice(1, 3).join(" ")
+				: "";
 		return (
 			<>
 				<CardEyebrow>{t("Your next step")}</CardEyebrow>

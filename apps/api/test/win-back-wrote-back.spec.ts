@@ -227,6 +227,26 @@ beforeAll(async () => {
 			body: "Forwarding this to you, can you check the price?",
 		},
 	]);
+	ids.team = await personWith("team", [
+		OLD_ASK,
+		OUTREACH,
+		{
+			direction: EmailDirection.INBOUND,
+			at: 17,
+			body: "Yes, we want to order again, what is the price?",
+		},
+		{
+			direction: EmailDirection.OUTBOUND,
+			at: 16,
+			body: "The price is the same as last year.",
+		},
+		{
+			direction: EmailDirection.INBOUND,
+			at: 15,
+			fromEmail: `teammate@${domain}`,
+			body: "Adding myself here, I handle the deliveries for us.",
+		},
+	]);
 	ids.linked = await personWith("linked", [
 		OLD_ASK,
 		OUTREACH,
@@ -292,6 +312,7 @@ function WROTE_BACK(): string[] {
 		ids.unread,
 		ids.colleague,
 		ids.linked,
+		ids.team,
 	]
 		.map((id) => id ?? "")
 		.sort();
@@ -336,7 +357,7 @@ describe("the Wrote back filter", () => {
 			now,
 		});
 
-		expect(listedIds(report)).toHaveLength(8);
+		expect(listedIds(report)).toHaveLength(9);
 	});
 
 	it("is honoured by the list procedure", async () => {
@@ -349,7 +370,7 @@ describe("the Wrote back filter", () => {
 		);
 
 		expect(people.sort()).toEqual(WROTE_BACK());
-		expect(result.people).toBe(5);
+		expect(result.people).toBe(6);
 	});
 
 	it("is off unless the list asks for it", () => {
@@ -368,7 +389,7 @@ describe("the Wrote back filter", () => {
 			contactId: ids.answered ?? "",
 		});
 
-		expect(first.total).toBe(5);
+		expect(first.total).toBe(6);
 		expect(first.position).not.toBeNull();
 
 		const outside = await person.next(userId, {
@@ -403,13 +424,19 @@ describe("the person page after a reply", () => {
 			row.people.map((entry) => entry.id),
 		);
 
-		expect(people).toContain(ids.unread);
+		expect(people).toContain(ids.unread ?? "missing");
 	});
 
 	it("does not close the reply with a mail to somebody else", async () => {
 		const view = await person.person(ids.colleague ?? "");
 
 		expect(view.wroteBack?.open).toBe(true);
+	});
+
+	it("reads the person's own answer, not a colleague's later mail", async () => {
+		const view = await person.person(ids.team ?? "");
+
+		expect(view.wroteBack?.open).toBe(false);
 	});
 
 	it("closes the reply with an answer in a conversation the person is linked to", async () => {

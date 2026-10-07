@@ -89,7 +89,7 @@ export async function readWinBackOutcome(
 			SELECT * FROM outreach WHERE contacted_at >= ${options.since}
 		),
 		won AS (
-			SELECT DISTINCT d.id, d."baseAmount", d."baseCurrency"
+			SELECT DISTINCT d.id, d.amount, d."baseAmount", d."baseCurrency"
 			FROM reached r
 			JOIN "dealContact" dc ON dc."contactId" = r.contact_id
 			JOIN deal d ON d.id = dc."dealId"
@@ -109,7 +109,8 @@ export async function readWinBackOutcome(
 			) AS "dealAmount",
 			(
 				SELECT COUNT(*) FROM won
-				WHERE "baseCurrency" IS DISTINCT FROM ${options.baseCurrency}
+				WHERE amount IS NOT NULL
+					AND "baseCurrency" IS DISTINCT FROM ${options.baseCurrency}
 			) AS unconverted
 	`;
 

@@ -439,6 +439,28 @@ the largest attachment upload the conversation contracts accept.
   Graph has no mailbox-wide delta, so the Outlook cursor is re-read with a
   one-second overlap; `rfcMessageId` is unique, so the overlap costs a duplicate
   fetch and never a duplicate row.
+- **A message the store rejects is retried, then skipped.** Gmail and Outlook
+  keep `failures` (`{ id, attempts, lanes }`) in the backfill blob, IMAP keeps
+  it in the folder's cursor entry (`mailbox/message-failures.ts`). The cursor
+  stays before the message until it fails `MESSAGE_FAILURES.maxAttempts` times.
+  Then the sync logs one warning with the mailbox id and the provider message
+  id, never an address, and moves past it. A message that stores clears its
+  count. The list has no size cap, because a cap evicts counts the cursor still
+  needs: one Gmail history entry can hold any number of messages, and the
+  cursor passes the entry only as a whole. A lane that fails or skips a message
+  joins its `lanes`. A lane leaves the entry only in the save that also stores
+  the cursor that passed the message, so a tick that throws keeps every count.
+  The count goes when no lane is left. Gmail drops the forward ids of the
+  history entries the cursor passed. When it read the whole history, it also
+  drops every forward id outside the entries it has not passed. Outlook drops
+  the forward ids it read below the new cursor minus the overlap. When it read
+  the whole window, it also drops every forward id it did not read. Both keep
+  backfill ids until the backfill ends, because the `all` phase reads the sent
+  mail again and an expired page token restarts the phase at its first page.
+  IMAP drops UIDs at or below `lastUid` and above `backfillUid`. The list
+  therefore holds the forward messages a cursor reads again and the failures of
+  the running backfill. Outlook saves the list before it returns on a failed
+  page fetch.
 - **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
   `mailbox/backfill-cursor.ts`: the phase, the opaque page token or
   `@odata.nextLink`, the `before` anchor, the `floor` date, and how far back it

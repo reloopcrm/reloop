@@ -73,7 +73,7 @@ type Ingested = {
 type Backfilled = {
 	written: number;
 	backfill: string | null;
-	ahead: ReadonlySet<string> | null;
+	keep: (id: string) => boolean;
 	failure?: MailboxFailure;
 };
 
@@ -276,9 +276,14 @@ export class GmailSyncService {
 		}
 
 		const ahead = new Set(entries.slice(passed).flatMap((entry) => entry.ids));
+		const behind = new Set(
+			entries.slice(0, passed).flatMap((entry) => entry.ids),
+		);
+		const keepForward = (id: string) =>
+			ahead.has(id) || (more && !behind.has(id));
 
 		if (forward.failure) {
-			ledger.retain("forward", (id) => ahead.has(id));
+			ledger.retain("forward", keepForward);
 			await this.state.settle(row.id, {
 				cursor,
 				backfill: await this.carry(row, row.backfill, ledger),
@@ -296,9 +301,8 @@ export class GmailSyncService {
 			ledger,
 		);
 
-		ledger.retain("forward", (id) => ahead.has(id));
-		const backAhead = back.ahead;
-		if (backAhead) ledger.retain("backfill", (id) => backAhead.has(id));
+		ledger.retain("forward", keepForward);
+		ledger.retain("backfill", back.keep);
 
 		await this.state.settle(row.id, {
 			cursor,
@@ -347,7 +351,7 @@ export class GmailSyncService {
 		}
 
 		if (read.outcome === "ok" && !isBackfillRunning(read.backfill)) {
-			return { written: 0, backfill: row.backfill, ahead: new Set() };
+			return { written: 0, backfill: row.backfill, keep: () => false };
 		}
 
 		let plan: MailboxBackfill =
@@ -360,9 +364,9 @@ export class GmailSyncService {
 
 		let left = budget;
 		let written = 0;
-		let ahead: ReadonlySet<string> | null = null;
-		const unpassed = () =>
-			isBackfillRunning(plan) ? ahead : new Set<string>();
+		const passed = new Set<string>();
+		const keep = (): ((id: string) => boolean) =>
+			isBackfillRunning(plan) ? (id) => !passed.has(id) : () => false;
 		const limits = limitsOf(await readPlan(this.db));
 
 		while (left > 0 && isBackfillRunning(plan) && !pastDeadline(deadlineAt)) {
@@ -398,7 +402,7 @@ export class GmailSyncService {
 				return {
 					written,
 					backfill: serialiseBackfill(plan),
-					ahead: unpassed(),
+					keep: keep(),
 					failure: page,
 				};
 			}
@@ -410,7 +414,6 @@ export class GmailSyncService {
 
 			if (ids.length === 0) {
 				plan = advancePhase(plan);
-				ahead = null;
 				continue;
 			}
 
@@ -425,7 +428,6 @@ export class GmailSyncService {
 				ledger,
 			);
 			if (run.oldest) plan = reachedBack(plan, run.oldest);
-			ahead = new Set(ids);
 
 			written += run.written;
 			left -= Math.max(run.fetched, 1);
@@ -434,19 +436,19 @@ export class GmailSyncService {
 				return {
 					written,
 					backfill: serialiseBackfill(plan),
-					ahead: unpassed(),
+					keep: keep(),
 					failure: run.failure,
 				};
 			}
 
 			if (run.remaining > 0) break;
 
+			if (plan.phase === "all") for (const id of ids) passed.add(id);
 			const next = page.data.nextPageToken ?? null;
 			plan = next ? { ...plan, position: next } : advancePhase(plan);
-			ahead = null;
 		}
 
-		return { written, backfill: serialiseBackfill(plan), ahead: unpassed() };
+		return { written, backfill: serialiseBackfill(plan), keep: keep() };
 	}
 
 	private async carry(

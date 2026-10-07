@@ -435,13 +435,17 @@ the largest attachment upload the conversation contracts accept.
   a cap evicts counts the cursor still needs: one Gmail history entry can hold
   any number of messages, and the cursor passes the entry only as a whole. A
   count leaves the list only in the save that also stores the cursor that passed
-  the message, so a tick that throws keeps every count. Gmail drops forward ids
-  outside the history entries the cursor has not passed. Outlook keeps only
-  forward ids it read this tick at or after the new cursor minus the overlap.
-  Both drop backfill ids outside the page the plan stands on, and keep them
-  while the tick did not read that page. IMAP drops UIDs at or below `lastUid`
-  and above `backfillUid`. The list therefore holds at most the messages one
-  tick can read again. Outlook saves the list before it returns on a failed page fetch.
+  the message, so a tick that throws keeps every count. Gmail drops the forward
+  ids of the history entries the cursor passed. When it read the whole history,
+  it also drops every forward id outside the entries it has not passed. Outlook
+  drops the forward ids it read below the new cursor minus the overlap. When it
+  read the whole window, it also drops every forward id it did not read. Both
+  drop a backfill id when the plan passes a page of the `all` phase that holds
+  it, and drop every backfill id when the backfill ends. The `sent` phase keeps
+  its counts, because the `all` phase reads the sent mail again. IMAP drops UIDs
+  at or below `lastUid` and above `backfillUid`. The list therefore holds only
+  messages a cursor reads again, and backfill ids of messages that disappear
+  stay until the backfill ends. Outlook saves the list before it returns on a failed page fetch.
 - **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
   `mailbox/backfill-cursor.ts`: the phase, the opaque page token or
   `@odata.nextLink`, the `before` anchor, the `floor` date, and how far back it

@@ -288,6 +288,17 @@ export class ImapSyncService {
 				entry.backfillUid = from > entry.floorUid ? from - 1 : null;
 			}
 
+			const { lastUid, backfillUid, floorUid } = entry;
+			run.ledger.retain("forward", (uid) => Number(uid) > lastUid);
+			run.ledger.retain(
+				"backfill",
+				(uid) =>
+					backfillUid !== null &&
+					Number(uid) >= floorUid &&
+					Number(uid) <= backfillUid,
+			);
+			entry.failures = run.ledger.list();
+
 			cursor.folders[folder.path] = entry satisfies ImapFolderCursor;
 		}
 
@@ -337,7 +348,7 @@ export class ImapSyncService {
 				run.ledger.clear(String(raw.uid));
 				run.entry.failures = run.ledger.list();
 			} catch (error) {
-				const attempts = run.ledger.record(String(raw.uid));
+				const attempts = run.ledger.record(String(raw.uid), lane);
 				run.entry.failures = run.ledger.list();
 				if (attempts < MESSAGE_FAILURES.maxAttempts) throw error;
 

@@ -426,15 +426,21 @@ the largest attachment upload the conversation contracts accept.
   one-second overlap; `rfcMessageId` is unique, so the overlap costs a duplicate
   fetch and never a duplicate row.
 - **A message the store rejects is retried, then skipped.** Gmail and Outlook keep
-  `failures` (`{ id, attempts }`) in the
+  `failures` (`{ id, attempts, lane }`) in the
   backfill blob, IMAP keeps it in the folder's cursor entry
   (`mailbox/message-failures.ts`). The cursor stays before the message until it
   fails `MESSAGE_FAILURES.maxAttempts` times. Then the sync logs one warning with
   the mailbox id and the provider message id, never an address, and moves past
-  it. A message that stores clears its count. The list holds at most
-  `MESSAGE_FAILURES.maxTracked` entries, twice the largest read a tick makes, so
-  one chunk or page never evicts a count the cursor has not passed. Outlook saves
-  the list before it returns on a failed page fetch.
+  it. A message that stores clears its count. The list has no size cap, because
+  a cap evicts counts the cursor still needs: one Gmail history entry can hold
+  any number of messages, and the cursor passes the entry only as a whole. A
+  count leaves the list only when its lane's cursor has passed the message.
+  Gmail drops forward ids outside the history entries the cursor has not passed.
+  Outlook keeps only forward ids it read this tick at or after the new cursor
+  minus the overlap. Both drop backfill ids outside the page the plan stands on,
+  and keep them while the tick did not read that page. IMAP drops UIDs at or below `lastUid` and above
+  `backfillUid`. The list therefore holds at most the messages one tick can read
+  again. Outlook saves the list before it returns on a failed page fetch.
 - **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
   `mailbox/backfill-cursor.ts`: the phase, the opaque page token or
   `@odata.nextLink`, the `before` anchor, the `floor` date, and how far back it

@@ -344,13 +344,19 @@ describe("an Outlook message the store always rejects", () => {
 			async folder(_token: string, name: string) {
 				return ok({ id: `folder-${name}` });
 			},
-			async listMessages(_token: string, request: { order?: string }) {
+			async listMessages(
+				_token: string,
+				request: { order?: string; after: Date },
+			) {
 				if (request.order === "desc") return ok({ value: [] });
 				return ok({
 					value: [
 						graphMessage("poison", "2025-09-01T00:00:00.000Z"),
 						graphMessage("next", "2025-09-02T00:00:00.000Z"),
-					],
+					].filter(
+						(message) =>
+							new Date(message.receivedDateTime ?? "") >= request.after,
+					),
 				});
 			},
 		} as unknown as GraphClient;

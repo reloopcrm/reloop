@@ -73,6 +73,7 @@ type SyncFailure = {
 type Backfilled = {
 	written: number;
 	backfill: string | null;
+	ahead: ReadonlySet<string> | null;
 	failure?: SyncFailure;
 };
 
@@ -225,9 +226,11 @@ export class OutlookSyncService {
 		let written = 0;
 		let seen = 0;
 		let furthest = from;
+		const read: GraphMessage[] = [];
 
 		while (page.outcome === "ok") {
 			const remaining = MAILBOX.sync.forwardMax - seen;
+			read.push(...(page.data.value ?? []));
 			const messages = (page.data.value ?? []).slice(0, Math.max(remaining, 0));
 
 			const run = await this.file(
@@ -272,6 +275,20 @@ export class OutlookSyncService {
 			deadlineAt,
 			ledger,
 		);
+
+		const overlapFrom = furthest.getTime() - MAILBOX.sync.forwardOverlapMs;
+		const ahead = new Set(
+			read
+				.filter((message) => {
+					const at = new Date(message.receivedDateTime ?? Number.NaN);
+					return Number.isNaN(at.getTime()) || at.getTime() >= overlapFrom;
+				})
+				.flatMap((message) => message.id ?? []),
+		);
+		ledger.retain("forward", (id) => ahead.has(id));
+
+		const backAhead = back.ahead;
+		if (backAhead) ledger.retain("backfill", (id) => backAhead.has(id));
 
 		await this.state.settle(row.id, {
 			cursor: furthest.toISOString(),
@@ -322,7 +339,7 @@ export class OutlookSyncService {
 		}
 
 		if (read.outcome === "ok" && !isBackfillRunning(read.backfill)) {
-			return { written: 0, backfill: row.backfill };
+			return { written: 0, backfill: row.backfill, ahead: new Set() };
 		}
 
 		let plan: MailboxBackfill =
@@ -335,6 +352,9 @@ export class OutlookSyncService {
 
 		let left = budget;
 		let written = 0;
+		let ahead: ReadonlySet<string> | null = null;
+		const unpassed = () =>
+			isBackfillRunning(plan) ? ahead : new Set<string>();
 		const limits = limitsOf(await readPlan(this.db));
 
 		while (left > 0 && isBackfillRunning(plan) && !pastDeadline(deadlineAt)) {
@@ -369,12 +389,18 @@ export class OutlookSyncService {
 					break;
 				}
 
-				return { written, backfill: serialiseBackfill(plan), failure: page };
+				return {
+					written,
+					backfill: serialiseBackfill(plan),
+					ahead: unpassed(),
+					failure: page,
+				};
 			}
 
 			const all = page.data.value ?? [];
 			if (all.length === 0) {
 				plan = advancePhase(plan);
+				ahead = null;
 				continue;
 			}
 
@@ -389,6 +415,7 @@ export class OutlookSyncService {
 				ledger,
 			);
 			if (run.oldest) plan = reachedBack(plan, run.oldest);
+			ahead = new Set(all.flatMap((message) => message.id ?? []));
 
 			written += run.written;
 			left -= Math.max(run.processed, 1);
@@ -397,9 +424,10 @@ export class OutlookSyncService {
 
 			const next = page.data["@odata.nextLink"] ?? null;
 			plan = next ? { ...plan, position: next } : advancePhase(plan);
+			ahead = null;
 		}
 
-		return { written, backfill: serialiseBackfill(plan) };
+		return { written, backfill: serialiseBackfill(plan), ahead: unpassed() };
 	}
 
 	private async file(
@@ -459,7 +487,7 @@ export class OutlookSyncService {
 			} catch (error) {
 				if (!messageId) throw error;
 
-				const attempts = ledger.record(messageId);
+				const attempts = ledger.record(messageId, lane);
 				if (attempts < MESSAGE_FAILURES.maxAttempts) {
 					await this.state.saveBackfill(
 						row.id,

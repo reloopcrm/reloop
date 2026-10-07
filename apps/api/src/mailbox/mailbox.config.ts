@@ -19,18 +19,6 @@ export const THREAD_CONTACTS = {
 export const MESSAGE_FAILURES = {
 	maxAttempts: THREAD_CONTACTS.maxThreadAttempts,
 	maxIdLength: 256,
-	get maxTracked(): number {
-		const sync = MAILBOX.sync;
-		return (
-			2 *
-			Math.max(
-				sync.maxMessagesPerTick,
-				sync.backfillChunk,
-				sync.pageSize,
-				sync.forwardMax,
-			)
-		);
-	},
 } as const;
 
 export const THREAD_PARTICIPANTS = {

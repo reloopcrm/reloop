@@ -327,7 +327,7 @@ describe("an Outlook message skipped before a rate-limited page", () => {
 				before: "2025-08-01T00:00:00.000Z",
 				floor: null,
 				reached: null,
-				failures: [{ id: "poison", attempts: 2 }],
+				failures: [{ id: "poison", attempts: 2, lane: "forward" }],
 			}),
 		};
 
@@ -355,7 +355,7 @@ describe("an Outlook message skipped before a rate-limited page", () => {
 
 		const read = readBackfill(persisted.backfill);
 		expect(read.outcome === "ok" && read.backfill.failures).toEqual([
-			{ id: "poison", attempts: MESSAGE_FAILURES.maxAttempts },
+			{ id: "poison", attempts: MESSAGE_FAILURES.maxAttempts, lane: "forward" },
 		]);
 	});
 });

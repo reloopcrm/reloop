@@ -1,14 +1,17 @@
+import {
+	AGENT_TASK_ORIGINS,
+	type AgentTaskOrigin,
+} from "@crm/validation/agent-task-payload";
 import { z } from "zod";
 import { MESSAGE_FAILURES } from "./mailbox.config";
 
-export const messageFailures = z
-	.array(
-		z.object({
-			id: z.string().min(1).max(MESSAGE_FAILURES.maxIdLength),
-			attempts: z.number().int().min(1).max(MESSAGE_FAILURES.maxAttempts),
-		}),
-	)
-	.refine((entries) => entries.length <= MESSAGE_FAILURES.maxTracked);
+export const messageFailures = z.array(
+	z.object({
+		id: z.string().min(1).max(MESSAGE_FAILURES.maxIdLength),
+		attempts: z.number().int().min(1).max(MESSAGE_FAILURES.maxAttempts),
+		lane: z.enum(AGENT_TASK_ORIGINS),
+	}),
+);
 
 export type MessageFailures = z.infer<typeof messageFailures>;
 
@@ -26,7 +29,7 @@ export class FailureLedger {
 		);
 	}
 
-	record(id: string): number {
+	record(id: string, lane: AgentTaskOrigin): number {
 		const attempts = Math.min(
 			(this.entries.find((entry) => entry.id === id)?.attempts ?? 0) + 1,
 			MESSAGE_FAILURES.maxAttempts,
@@ -34,14 +37,20 @@ export class FailureLedger {
 
 		this.entries = [
 			...this.entries.filter((entry) => entry.id !== id),
-			{ id, attempts },
-		].slice(-MESSAGE_FAILURES.maxTracked);
+			{ id, attempts, lane },
+		];
 
 		return attempts;
 	}
 
 	clear(id: string): void {
 		this.entries = this.entries.filter((entry) => entry.id !== id);
+	}
+
+	retain(lane: AgentTaskOrigin, ahead: (id: string) => boolean): void {
+		this.entries = this.entries.filter(
+			(entry) => entry.lane !== lane || ahead(entry.id),
+		);
 	}
 
 	list(): MessageFailures | undefined {

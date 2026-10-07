@@ -95,7 +95,7 @@ export async function readWinBackReply(
 	const rows = await db.$queryRaw<{ answeredAt: Date; open: boolean }[]>`
 		WITH ${loop({ contactId })},
 		own AS (
-			SELECT t.id
+			SELECT t.id, t."contactId" = ${contactId} AS owned
 			FROM "emailThread" t
 			WHERE t."contactId" = ${contactId}
 				OR EXISTS (
@@ -111,7 +111,8 @@ export async function readWinBackReply(
 						SELECT MAX(m."sentAt")
 						FROM own
 						JOIN "emailMessage" m ON m."threadId" = own.id
-						WHERE m."sentAt" > o.contacted_at
+						WHERE own.owned
+							AND m."sentAt" > o.contacted_at
 							AND c.email IS NOT NULL
 							AND lower(m."fromEmail") = lower(trim(c.email))
 							AND ${realAnswer("m")}

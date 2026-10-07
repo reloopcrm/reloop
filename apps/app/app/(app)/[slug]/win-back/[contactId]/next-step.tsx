@@ -182,9 +182,7 @@ export function useNextStep(
 	const open = () => {
 		setStep("open");
 		void draft.ensure({
-			writtenBefore: answerIsNext(view)
-				? view.wroteBack?.answeredAt
-				: undefined,
+			covering: answerIsNext(view) ? view.wroteBack?.answeredAt : undefined,
 		});
 	};
 

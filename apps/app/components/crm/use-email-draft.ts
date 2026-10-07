@@ -37,21 +37,23 @@ type DraftCheck = {
 	queued: boolean;
 	waitingUntil: string | null;
 	limit: string | null;
-	draft: { writtenAt: string } | null;
+	draft: { basedOnUntil: string | null } | null;
 };
 
 export function draftToWrite(
 	current: DraftCheck,
-	options: { writtenBefore?: string } = {},
+	options: { covering?: string } = {},
 ): boolean {
 	if (current.queued || current.waitingUntil || current.limit !== null) {
 		return false;
 	}
 	if (!current.draft) return true;
 
+	if (options.covering === undefined) return false;
+
 	return (
-		options.writtenBefore !== undefined &&
-		new Date(current.draft.writtenAt) < new Date(options.writtenBefore)
+		current.draft.basedOnUntil === null ||
+		new Date(current.draft.basedOnUntil) < new Date(options.covering)
 	);
 }
 
@@ -85,7 +87,7 @@ export function useEmailDraft(
 		}),
 	);
 
-	const ensure = async (options: { writtenBefore?: string } = {}) => {
+	const ensure = async (options: { covering?: string } = {}) => {
 		try {
 			const current = await queries.fetchQuery(
 				trpc.contacts.draft.queryOptions({ id: contactId }),

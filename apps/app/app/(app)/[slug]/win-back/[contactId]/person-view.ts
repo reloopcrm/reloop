@@ -20,12 +20,15 @@ export function answerIsNext(view: Pick<PersonView, "wroteBack">): boolean {
 
 export function replyDraftOutdated(
 	view: Pick<PersonView, "wroteBack">,
-	draft: { writtenAt: string } | null,
+	draft: { basedOnUntil: string | null } | null,
 ): boolean {
 	const answeredAt = view.wroteBack?.answeredAt;
 	if (!answerIsNext(view) || !answeredAt || !draft) return false;
 
-	return new Date(draft.writtenAt) < new Date(answeredAt);
+	return (
+		draft.basedOnUntil === null ||
+		new Date(draft.basedOnUntil) < new Date(answeredAt)
+	);
 }
 
 export function followUpDaysOf(

@@ -170,6 +170,20 @@ export class AgentTriggerService {
 		);
 	}
 
+	async contactRequested(contactId: string, reason: string): Promise<boolean> {
+		return this.enqueue(
+			{
+				contactId,
+				kind: "identify",
+				reason,
+				priority: PRIORITY.requested,
+				budget: 4,
+				upgradeOpen: true,
+			},
+			true,
+		);
+	}
+
 	async threadStored(
 		threadId: string,
 		reason: string,
@@ -970,6 +984,7 @@ export class AgentTriggerService {
 			payload?: Prisma.InputJsonValue;
 			subject?: { path: string[]; value: string };
 			origin?: AgentTaskOrigin;
+			upgradeOpen?: boolean;
 		},
 		required = false,
 		client?: Prisma.TransactionClient,
@@ -996,9 +1011,21 @@ export class AgentTriggerService {
 							? { path: task.subject.path, equals: task.subject.value }
 							: undefined,
 					},
-					select: { id: true },
+					select: { id: true, startedAt: true, priority: true, dueAt: true },
 				});
-				if (pending) return false;
+				if (pending) {
+					if (!task.upgradeOpen || pending.startedAt) return false;
+					const now = new Date();
+					const { count } = await tx.agentTask.updateMany({
+						where: { id: pending.id, startedAt: null, finishedAt: null },
+						data: {
+							reason: task.reason,
+							priority: Math.max(pending.priority, task.priority),
+							dueAt: pending.dueAt < now ? pending.dueAt : now,
+						},
+					});
+					return count > 0;
+				}
 
 				await tx.agentTask.create({
 					data: {

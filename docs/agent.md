@@ -265,7 +265,9 @@ the row finishes with `COPY.precheck.unlikely` and the contact settles `SKIPPED`
 the sign-in backfill does not queue it again. No key, no business description, no
 answer or an error all run the research as before. A reason that starts with
 `REP_ASKED_REASON` (`@crm/db/agent-tasks`), which the Re-enrich click in
-`ContactsService.enrich` writes, never asks. `AgentTask` has no field that names
+`ContactsService.enrich` writes at `requested`, never asks. The click also rewrites a
+waiting automatic `identify` row to that reason, so a row the agent has not claimed
+yet never meets the pre-check with the sync reason. `AgentTask` has no field that names
 who asked, so the reason prefix is the signal.
 
 A skipped row finishes with `startedAt` cleared and its attempt returned, so

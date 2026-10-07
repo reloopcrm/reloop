@@ -137,7 +137,6 @@ async function Ai({ hosted, slug }: { hosted: boolean; slug: string }) {
 				capacity={usage.capacity.map((line) => ({
 					...line,
 					included: true,
-					reached: line.limit !== null && line.used >= line.limit,
 				}))}
 				lines={usage.lines}
 				resetsAt={usage.resetsAt}

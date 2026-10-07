@@ -3,10 +3,9 @@ import { DIRECT_KINDS } from "@crm/db/agent-tasks";
 import { usageWindowOf } from "@crm/db/plan-usage";
 import { clampResearchPerHour } from "@crm/db/plans";
 import { AGENT_RESEARCH_PER_HOUR, readAgentProvider } from "@crm/db/settings";
+import { DISPATCH } from "./dispatch-config";
 import { modelUnavailable, providersExhausted } from "./model";
 import { planLimits } from "./plan-limits";
-
-const HOUR_MS = 3_600_000;
 
 export type ThrottleDecision = {
 	allowed: number;
@@ -27,7 +26,10 @@ export function researchSessionsBetween(
 }
 
 export function researchRunsInHour(now: Date): Promise<number> {
-	return researchSessionsBetween(new Date(now.getTime() - HOUR_MS), now);
+	return researchSessionsBetween(
+		new Date(now.getTime() - DISPATCH.research.hourMs),
+		now,
+	);
 }
 
 export async function researchAllowance(

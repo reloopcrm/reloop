@@ -16,7 +16,12 @@ function daysAgo(days: number, hour = 9): Date {
 	return new Date(now.getTime() - days * 86_400_000 + hour * 3_600_000);
 }
 
-type Wire = { direction: EmailDirection; sentAt: Date; from?: string };
+type Wire = {
+	direction: EmailDirection;
+	sentAt: Date;
+	from?: string;
+	subject?: string;
+};
 
 const inbound = (days: number): Wire => ({
 	direction: EmailDirection.INBOUND,
@@ -26,6 +31,11 @@ const colleague = (days: number): Wire => ({
 	direction: EmailDirection.INBOUND,
 	sentAt: daysAgo(days),
 	from: `colleague@${domain}`,
+});
+const autoReply = (days: number): Wire => ({
+	direction: EmailDirection.INBOUND,
+	sentAt: daysAgo(days),
+	subject: "Automatische Antwort: Europaletten",
 });
 const outbound = (days: number): Wire => ({
 	direction: EmailDirection.OUTBOUND,
@@ -67,7 +77,7 @@ async function thread(
 							? `rep@${domain}`
 							: email),
 					recipients: [],
-					subject: `${name} ${index}`,
+					subject: wire.subject ?? `${name} ${index}`,
 					sentAt: wire.sentAt,
 				})),
 			},
@@ -141,6 +151,7 @@ let dora: string;
 let emil: string;
 let fritz: string;
 let gina: string;
+let hans: string;
 
 async function clean(): Promise<void> {
 	const contacts = await db.contact.findMany({
@@ -178,6 +189,10 @@ beforeAll(async () => {
 	gina = await person("Gina", [
 		{ wires: [outbound(130), inbound(120)], decline: hard },
 		{ wires: [colleague(100)], decline: null },
+	]);
+	hans = await person("Hans", [
+		{ wires: [outbound(130), inbound(120)], decline: hard },
+		{ wires: [autoReply(100)], decline: null },
 	]);
 });
 
@@ -230,6 +245,10 @@ describe("a hard no in Win back", () => {
 		expect(await listed()).not.toContain(gina);
 	});
 
+	it("does not count an automatic reply as writing again", async () => {
+		expect(await listed()).not.toContain(hans);
+	});
+
 	it("never continues with a hard no", async () => {
 		const prefetch = {
 			nextShown: () => undefined,
@@ -253,6 +272,6 @@ describe("a hard no in Win back", () => {
 			potential: [],
 		});
 
-		expect(next).toEqual({ id: clara, name: "Clara Probe" });
+		expect(next.next).toEqual({ id: clara, name: "Clara Probe" });
 	});
 });

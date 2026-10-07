@@ -4,6 +4,7 @@ import { OPEN_DEAL_STAGES } from "./deal-stage";
 import { Prisma } from "./generated/prisma/client";
 import { DealStage } from "./generated/prisma/enums";
 import { DECLINE_KIND, DECLINED_OUTCOME } from "./insights";
+import { realAnswer } from "./real-answer";
 import { DEFAULT_WIN_BACK_RULES, type WinBackRuleSet } from "./win-back-rules";
 
 const DAY_MS = 86_400_000;
@@ -386,7 +387,7 @@ const HARD_NO_FILTER = Prisma.sql`AND NOT EXISTS (
 		AND hi."declineKind" = ${DECLINE_KIND.hard}
 		AND NOT EXISTS (
 			SELECT 1 FROM "emailMessage" rm
-			WHERE rm.direction = 'INBOUND'
+			WHERE ${realAnswer("rm")}
 				AND rm."sentAt" > COALESCE(hi."declinedAt", hi."lastMessageAt")
 				AND (c.email IS NULL OR lower(rm."fromEmail") = lower(c.email))
 				AND rm."threadId" IN (

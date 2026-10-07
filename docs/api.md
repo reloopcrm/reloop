@@ -634,6 +634,15 @@ the largest attachment upload the conversation contracts accept.
   newest mail, the win back person view and the agent's memory. **The win back list
   keeps one person per conversation**: `listReactivationCandidates` still groups by
   `emailThread.contactId`, so a thread never lifts a second person onto the list.
+- **A hard no leaves the win back list.** `listReactivationCandidates` drops a person
+  with an owned thread whose insight is `DECLINED` with `declineKind` `HARD`, until a
+  real answer (`realAnswer`, so no auto reply or bounce) from that person's own
+  address arrives after `declinedAt`, in a thread they own or take part in. Mail from
+  us or from a colleague does not bring them back. The list, "Continue with", the
+  story prefetch and the agent's `list_win_back_candidates` all read it. A soft no,
+  or a null kind, stays and shows "said no". The rejected view and
+  `readReactivationCandidate` do not filter it, so the person page and the Anfrage
+  panel still open.
 - **The links of existing mail are written by a script, once.** `bun run
   thread-participants` in `apps/api` walks every thread by id in batches of
   `THREAD_PARTICIPANTS.backfillBatch` inside `cloud.forEachScope` and prints per

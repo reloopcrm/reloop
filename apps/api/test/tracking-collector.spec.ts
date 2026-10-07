@@ -68,12 +68,12 @@ describe("Tracking collector", () => {
 					siteId === SITE_ID ? { config, hash: "0123456789ab" } : null,
 			);
 
-		const post = (body: object) =>
+		const post = (body: string) =>
 			request(app.getHttpServer())
 				.post("/api/t/e")
 				.set("origin", `https://${HOST}`)
 				.set("content-type", "text/plain")
-				.send(JSON.stringify(body));
+				.send(body);
 
 		afterEach(async () => {
 			await db.trackedEvent.deleteMany({ where: { host: HOST } });
@@ -83,11 +83,13 @@ describe("Tracking collector", () => {
 			forSite();
 			const error = spyOn(Logger.prototype, "error");
 
-			const response = await post({
-				siteId: SITE_ID,
-				visitorId: "collector00001",
-				events: [null],
-			});
+			const response = await post(
+				JSON.stringify({
+					siteId: SITE_ID,
+					visitorId: "collector00001",
+					events: [null],
+				}),
+			);
 
 			expect(response.status).toBe(204);
 			expect(error).not.toHaveBeenCalled();
@@ -97,11 +99,13 @@ describe("Tracking collector", () => {
 			forSite();
 			const error = spyOn(Logger.prototype, "error");
 
-			const response = await post({
-				siteId: SITE_ID,
-				visitorId: "collector00002",
-				events: [{ type: "page_view", host: 123, path: "/" }],
-			});
+			const response = await post(
+				JSON.stringify({
+					siteId: SITE_ID,
+					visitorId: "collector00002",
+					events: [{ type: "page_view", host: 123, path: "/" }],
+				}),
+			);
 
 			expect(response.status).toBe(204);
 			expect(error).not.toHaveBeenCalled();
@@ -110,20 +114,22 @@ describe("Tracking collector", () => {
 		it("still stores a batch shaped like the tracking script's", async () => {
 			forSite();
 
-			const response = await post({
-				siteId: SITE_ID,
-				visitorId: "collector00003",
-				events: [
-					{
-						type: "page_view",
-						path: "/pricing",
-						referrer: "https://www.google.com/",
-						touch: { landing: "/pricing", at: Date.now(), source: "news" },
-						host: HOST,
-						at: Date.now(),
-					},
-				],
-			});
+			const response = await post(
+				JSON.stringify({
+					siteId: SITE_ID,
+					visitorId: "collector00003",
+					events: [
+						{
+							type: "page_view",
+							path: "/pricing",
+							referrer: "https://www.google.com/",
+							touch: { landing: "/pricing", at: Date.now(), source: "news" },
+							host: HOST,
+							at: Date.now(),
+						},
+					],
+				}),
+			);
 
 			expect(response.status).toBe(204);
 			expect(await db.trackedEvent.count({ where: { host: HOST } })).toBe(1);

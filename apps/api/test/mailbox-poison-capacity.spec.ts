@@ -20,6 +20,8 @@ import type {
 import type { GraphClient, GraphMessage } from "../src/microsoft/graph.client";
 import { OutlookSyncService } from "../src/microsoft/outlook-sync.service";
 
+type GraphPage = { value: GraphMessage[]; "@odata.nextLink"?: string };
+
 type Persisted = { cursor: string | null; backfill: string | null };
 
 const MAILBOX = "rep@example.com";
@@ -70,11 +72,11 @@ function outlookKit(options: {
 		) {
 			if (request.order !== "desc") {
 				forwardCalls += 1;
-				const value = options.forward(forwardCalls);
-				return ok({
-					value,
-					...(options.nextPage ? { "@odata.nextLink": "next-1" } : {}),
-				});
+				const page: GraphPage = {
+					value: options.forward(forwardCalls),
+				};
+				if (options.nextPage) page["@odata.nextLink"] = "next-1";
+				return ok(page);
 			}
 			return ok({ value: request.folder ? [] : options.back });
 		},

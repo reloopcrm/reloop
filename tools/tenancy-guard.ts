@@ -28,6 +28,7 @@ const DB_READING_AUTH_EXPORTS = [
 	"isSignInAllowed",
 	"readSignInGrants",
 	"revokeSignIn",
+	"endAccessOf",
 ];
 
 const DB_READING_DB_MODULES = [

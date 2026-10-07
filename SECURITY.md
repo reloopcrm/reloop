@@ -42,7 +42,9 @@ An attacker holding a **member** session can therefore add no account and grant 
 already read and write every record, which is the limit named above. An attacker holding an
 **owner** session owns the deployment for every other purpose too. Removing the member revokes a
 granted address (below); the shell revokes one without an account:
-`bun apps/api/scripts/sign-in-grants.ts revoke <address>`. Taking the address off
+`bun apps/api/scripts/sign-in-grants.ts revoke <address>`. Revoking an address also deletes
+every session and every API key of the account with that address, so a later grant does not bring
+an old login or an old key back. Taking the address off
 `ALLOWED_SIGN_IN` does not reach the database list.
 
 **Removing a member closes the door that `ALLOWED_SIGN_IN` leaves open.** Settings → Members →
@@ -57,11 +59,13 @@ every record its owner can, and an expiry is optional. What it cannot do is buil
 its own revocation. `SessionOnlyMiddleware` refuses an `x-api-key` header on `apiKeys.*`,
 `settings.setPassword`, `settings.setAgentProvider`, `settings.chatgptLoginAction`,
 `workspace.addPerson`, `workspace.setMemberRole`, `workspace.removeMember`, `sso.register`, `sso.remove`, `imap.add`,
-`webhooks.create`, `webhooks.update` and `system.update`, and on the same kind of call in any optional
+`webhooks.create`, `webhooks.update`, `system.update`, `agents.revise`, `agents.saveFile` and
+`agents.deploy`, and on the same kind of call in any optional
 cloud module, and `accessGuard` refuses it on
 `/api/auth/api-key/*`, `/api/auth/sso/register`, `/change-password` and `/set-password`. Those are the calls that mint a
 credential, grant a role, register a sign-in provider, point CRM events at an address, or deploy
-new code. Revoke a key on the same page.
+new code. An agent runs on its own schedule and acts for the person who deployed it, so changing
+or deploying its code is deploying new code. Revoke a key on the same page.
 
 **Operators can read everything.** Whoever runs the deployment has the database, the environment
 and the logs. Nothing here protects data from the person hosting it.

@@ -1,45 +1,69 @@
 import { Injectable } from "@nestjs/common";
+import { z } from "zod";
 import {
 	MailboxApiClient,
 	type MailboxResult,
 } from "../mailbox/mailbox-api.client";
-import type { GmailPart } from "./gmail-mime";
+import { gmailPart } from "./gmail-mime";
 
 const BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 
-export type GmailMessage = {
-	id?: string;
-	threadId?: string;
-	labelIds?: string[];
-	snippet?: string;
-	internalDate?: string;
-	historyId?: string;
-	payload?: GmailPart;
-};
+const gmailMessageRef = z.object({
+	id: z.string().optional(),
+	threadId: z.string().optional(),
+});
 
-export type MessageList = {
-	messages?: { id?: string; threadId?: string }[];
-	nextPageToken?: string;
-	resultSizeEstimate?: number;
-};
+export const gmailMessage = z.object({
+	id: z.string().optional(),
+	threadId: z.string().optional(),
+	labelIds: z.array(z.string()).optional(),
+	snippet: z.string().optional(),
+	internalDate: z.string().optional(),
+	historyId: z.string().optional(),
+	payload: gmailPart.optional(),
+});
 
-export type HistoryList = {
-	history?: {
-		id?: string;
-		messagesAdded?: { message?: { id?: string; threadId?: string } }[];
-		labelsRemoved?: {
-			message?: { id?: string; threadId?: string };
-			labelIds?: string[];
-		}[];
-	}[];
-	nextPageToken?: string;
-	historyId?: string;
-};
+export type GmailMessage = z.infer<typeof gmailMessage>;
 
-export type Profile = {
-	emailAddress?: string;
-	historyId?: string;
-};
+export const gmailMessageList = z.object({
+	messages: z.array(gmailMessageRef).optional(),
+	nextPageToken: z.string().optional(),
+	resultSizeEstimate: z.number().optional(),
+});
+
+export type MessageList = z.infer<typeof gmailMessageList>;
+
+export const gmailHistoryList = z.object({
+	history: z
+		.array(
+			z.object({
+				id: z.string().optional(),
+				messagesAdded: z
+					.array(z.object({ message: gmailMessageRef.optional() }))
+					.optional(),
+				labelsRemoved: z
+					.array(
+						z.object({
+							message: gmailMessageRef.optional(),
+							labelIds: z.array(z.string()).optional(),
+						}),
+					)
+					.optional(),
+			}),
+		)
+		.optional(),
+	nextPageToken: z.string().optional(),
+	historyId: z.string().optional(),
+});
+
+export type HistoryList = z.infer<typeof gmailHistoryList>;
+
+export const gmailProfile = z.object({
+	emailAddress: z.string().optional(),
+	historyId: z.string().optional(),
+});
+
+export type Profile = z.infer<typeof gmailProfile>;
 
 export const WORK_MAIL_QUERY =
 	"-in:chats -in:drafts -in:spam -in:trash -category:promotions -category:social -category:forums";
@@ -51,7 +75,7 @@ export class GmailClient {
 	constructor(private readonly api: MailboxApiClient) {}
 
 	async profile(accessToken: string): Promise<MailboxResult<Profile>> {
-		return this.api.get<Profile>(`${BASE}/profile`, accessToken);
+		return this.api.get(`${BASE}/profile`, accessToken, gmailProfile);
 	}
 
 	async listMessages(
@@ -71,7 +95,7 @@ export class GmailClient {
 		}
 		parts.push(`before:${Math.ceil(options.before.getTime() / 1000)}`);
 
-		return this.api.get<MessageList>(`${BASE}/messages`, accessToken, {
+		return this.api.get(`${BASE}/messages`, accessToken, gmailMessageList, {
 			q: parts.join(" "),
 			maxResults: options.maxResults ?? 100,
 			pageToken: options.pageToken,
@@ -82,9 +106,10 @@ export class GmailClient {
 		accessToken: string,
 		options: { startHistoryId: string; pageToken?: string },
 	): Promise<MailboxResult<HistoryList>> {
-		return this.api.get<HistoryList>(
+		return this.api.get(
 			`${BASE}/history?historyTypes=messageAdded&historyTypes=labelRemoved`,
 			accessToken,
+			gmailHistoryList,
 			{
 				startHistoryId: options.startHistoryId,
 				maxResults: 500,
@@ -97,7 +122,7 @@ export class GmailClient {
 		accessToken: string,
 		id: string,
 	): Promise<MailboxResult<GmailMessage>> {
-		return this.api.get<GmailMessage>(`${BASE}/messages/${id}`, accessToken, {
+		return this.api.get(`${BASE}/messages/${id}`, accessToken, gmailMessage, {
 			format: "full",
 		});
 	}

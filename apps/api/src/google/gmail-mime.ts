@@ -1,18 +1,34 @@
+import { z } from "zod";
 import {
 	decodeBase64Url,
 	rootMessageIdFrom,
 	stripHtml,
 } from "../mailbox/message-text";
 
-export type GmailHeader = { name?: string; value?: string };
+export const gmailHeader = z.object({
+	name: z.string().optional(),
+	value: z.string().optional(),
+});
 
-export type GmailPart = {
-	mimeType?: string;
-	filename?: string;
-	headers?: GmailHeader[];
-	body?: { data?: string; size?: number; attachmentId?: string };
-	parts?: GmailPart[];
-};
+export type GmailHeader = z.infer<typeof gmailHeader>;
+
+export const gmailPart = z.object({
+	mimeType: z.string().optional(),
+	filename: z.string().optional(),
+	headers: z.array(gmailHeader).optional(),
+	body: z
+		.object({
+			data: z.string().optional(),
+			size: z.number().optional(),
+			attachmentId: z.string().optional(),
+		})
+		.optional(),
+	get parts() {
+		return z.array(gmailPart).optional();
+	},
+});
+
+export type GmailPart = z.infer<typeof gmailPart>;
 
 export function header(
 	headers: readonly GmailHeader[] | undefined,

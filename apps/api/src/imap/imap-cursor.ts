@@ -34,6 +34,19 @@ export function serialiseImapCursor(cursor: ImapCursor): string {
 	return JSON.stringify(cursor);
 }
 
+export function rewindBackfill(cursor: ImapCursor): ImapCursor {
+	const folders: ImapCursor["folders"] = {};
+
+	for (const [path, folder] of Object.entries(cursor.folders)) {
+		folders[path] = {
+			...folder,
+			backfillUid: folder.lastUid >= folder.floorUid ? folder.lastUid : null,
+		};
+	}
+
+	return { ...cursor, folders };
+}
+
 export function backlogOf(cursor: ImapCursor): number {
 	let remaining = 0;
 

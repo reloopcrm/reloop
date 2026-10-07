@@ -27,7 +27,12 @@ import type {
 	ImapStatus,
 } from "./imap.contracts";
 import { ImapCredentialService } from "./imap-credentials";
-import { backlogOf, parseImapCursor } from "./imap-cursor";
+import {
+	backlogOf,
+	parseImapCursor,
+	rewindBackfill,
+	serialiseImapCursor,
+} from "./imap-cursor";
 
 type ImapCreatePolicy = {
 	autoCreate: boolean;
@@ -189,11 +194,25 @@ export class ImapConnectionService {
 		createFrom: ImapCreateFrom,
 	): Promise<void> {
 		await this.owned(userId, id);
-		await this.state.setCreatePolicy(
-			userId,
-			imapSourceFor(id),
-			policyOf(createFrom),
-		);
+
+		const source = imapSourceFor(id);
+		const policy = policyOf(createFrom);
+
+		await this.state.setCreatePolicy(userId, source, policy);
+
+		if (!policy.autoCreate && policy.createFrom !== "relevant") return;
+
+		const row = await this.state.get(userId, source);
+		if (!row?.cursor) return;
+
+		await this.db.mailboxSync.update({
+			where: { id: row.id },
+			data: {
+				cursor: serialiseImapCursor(
+					rewindBackfill(parseImapCursor(row.cursor)),
+				),
+			},
+		});
 	}
 
 	async remove(userId: string, id: string): Promise<ImapRemoveOutput> {

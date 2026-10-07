@@ -706,6 +706,18 @@ the pattern lists in `packages/db/src/message-text.ts`
   the list with `?replied=true` and the dashboard's scope. The card counts this
   month, the list shows every reply. A filtered list is never the prefetch's default
   list (`readsDefaultList`).
+- **"Remind me in 7 days" hides the person until that day.** The date is the
+  reminder task's own `dueAt`; nothing else stores it. `activities.create` with
+  `winBackLater: true` writes the task with `meta` `{ winBack: true, later: true }`
+  (`WIN_BACK_LATER_META`, `@crm/db/win-back-snooze`). While such a task is open and
+  its `dueAt` lies after now, `snoozedAt` keeps the person out of
+  `listReactivationCandidates`, so out of the list, its counts, `nextPerson`, the
+  prefetch and the agent's list tool. A task on a company with no contact snoozes
+  everyone at that company. The person comes back by themselves on the due day, or
+  earlier when the rep completes or deletes the task; no job runs. The "Not for us"
+  view ignores the snooze. `snoozed: true` on `reactivation.list` and `nextPerson`
+  shows exactly the people the snooze hides, under the same win back rules. A
+  reminder written before this mark existed has no `meta` and hides nobody.
 - **The person view says when the answer is ours to give.** `wroteBack` comes from
   `readWinBackReply`: the newest real answer after the win back mail, and `open`
   while no mail from us to their address followed it, in any conversation they
@@ -737,9 +749,10 @@ picker reads.
 `activities.update` changes the subject, the body, and for a task the due day.
 `activities.remove` deletes the row. Both go through `isEditable`
 (`activities/editable.ts`): kind `NOTE` or `TASK`, `meta` is null, and
-`createdById` is the signed-in user. The one exception to null `meta` is the win
-back follow up task (`{ winBack: true }`): it is assigned to the rep, so the rep
-moves it. A synced mail, a meeting, and anything the agent or tracking wrote stay
+`createdById` is the signed-in user. The one exception to null `meta` is a win
+back task: the follow up task (`{ winBack: true }`), assigned to the rep, so the rep
+moves it, and the "Remind me" task (`{ winBack: true, later: true }`), which the rep
+wrote and may undo. A synced mail, a meeting, and anything the agent or tracking wrote stay
 read only. `Activity` has no `archivedAt`,
 so a delete is final. After it, `lastActivityAt` is recomputed for the company,
 contact and deal; a failure there is logged, never thrown.
@@ -982,7 +995,9 @@ marked passages and the follow-up delay. It writes nothing but an
   not hold gets a null `position` and no next person. Both count only people with an
   address, the same people `next` can reach, so the last of them reads "Person 87 of
   87" beside "Back to the list". A person without an address gets a null `position`
-  and still a next person.
+  and still a next person. A snoozed person outside the list also
+  gets a null `position`, but `next` is the first person of the list, so the page
+  of someone just snoozed still continues after a reload.
 - **A story past the plan's budget is held back, not an error.** `storyState.limitUntil`
   names the end of the usage window when the conversation budget, which stories share
   (`budgetKinds`) and of which they leave the new-mail reserve alone, is spent. A story

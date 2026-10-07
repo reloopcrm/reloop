@@ -14,6 +14,7 @@ export const winBackBand = z.enum(["high", "medium", "low"]);
 export const reactivationListInput = z.object({
 	rejected: z.boolean().default(false),
 	replied: z.boolean().default(false),
+	snoozed: z.boolean().default(false),
 	quietForDays: z
 		.number()
 		.int()

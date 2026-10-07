@@ -319,6 +319,7 @@ export function WinBackTable() {
 		quiet?: number | null;
 		rejected?: boolean;
 		replied?: boolean;
+		snoozed?: boolean;
 	}) => {
 		void setScope(next);
 		table.query.setPage(1);
@@ -334,7 +335,12 @@ export function WinBackTable() {
 				query={table.query}
 				search={<ListSearch placeholder={t("Search by company or person…")} />}
 				onReset={() =>
-					setFilter({ quiet: null, rejected: false, replied: false })
+					setFilter({
+						quiet: null,
+						rejected: false,
+						replied: false,
+						snoozed: false,
+					})
 				}
 				quickFilters={[
 					{
@@ -357,6 +363,12 @@ export function WinBackTable() {
 						label: t("Wrote back"),
 						active: scope.replied,
 						onToggle: () => setFilter({ replied: !scope.replied }),
+					},
+					{
+						id: "snoozed",
+						label: t("Snoozed"),
+						active: scope.snoozed,
+						onToggle: () => setFilter({ snoozed: !scope.snoozed }),
 					},
 				]}
 				leadingActions={

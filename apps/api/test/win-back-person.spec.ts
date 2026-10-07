@@ -444,6 +444,7 @@ function listFrom(contactId: string) {
 		contactId,
 		rejected: false,
 		replied: false,
+		snoozed: false,
 		quietForDays: 0,
 		scope: "everyone" as const,
 		q: "Kranich Dental",

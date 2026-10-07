@@ -10,10 +10,12 @@ import { forwardReserve, monthlyBudget, STORY_KIND } from "@crm/db/plans";
 import {
 	listReactivationCandidates,
 	REACTIVATION,
+	type ReactivationCandidate,
 	readReactivationCandidate,
 } from "@crm/db/reactivation";
 import { threadsOfContact } from "@crm/db/thread-participants";
 import { readWinBackReply } from "@crm/db/win-back-outcome";
+import { isSnoozed } from "@crm/db/win-back-snooze";
 import {
 	isAgentFunctionEnabled,
 	readAgentFunctions,
@@ -463,17 +465,31 @@ export class WinBackPersonService {
 		return [...known, ...found.map((row) => row.id)];
 	}
 
+	private async firstAfterSnooze(
+		input: WinBackNextInput,
+		reachable: ReactivationCandidate[],
+		now: Date,
+	): Promise<ReactivationCandidate | null> {
+		const first = reachable[0];
+		if (!first || input.snoozed || input.rejected) return null;
+
+		return (await isSnoozed(this.db, input.contactId, now)) ? first : null;
+	}
+
 	async next(
 		userId: string,
 		input: WinBackNextInput,
+		now = new Date(),
 	): Promise<WinBackNextOutput> {
 		const rules = await readWinBackRules(this.db);
 		const report = await listReactivationCandidates(this.db, {
 			rejected: input.rejected,
 			replied: input.replied,
+			snoozed: input.snoozed,
 			quietForDays: input.quietForDays,
 			limit: REACTIVATION.limit.max,
 			ownerId: input.scope === "me" ? userId : null,
+			now,
 			rules,
 		});
 		const groups = sortGroups(
@@ -487,7 +503,17 @@ export class WinBackPersonService {
 		);
 		const reachable = order.filter((person) => person.contact.email !== null);
 		const total = reachable.length;
-		if (index === -1) return { next: null, position: null, total };
+		if (index === -1) {
+			const first = await this.firstAfterSnooze(input, reachable, now);
+			if (first) this.prefetch.nextShown(first.contact.id);
+			return {
+				next: first
+					? { id: first.contact.id, name: nameOf(first.contact) }
+					: null,
+				position: null,
+				total,
+			};
+		}
 
 		const place = reachable.findIndex(
 			(person) => person.contact.id === input.contactId,

@@ -1,5 +1,6 @@
 import { ActivityType, type Db, type Prisma } from "@crm/db";
 import { threadsOfContact } from "@crm/db/thread-participants";
+import { WIN_BACK_LATER_META } from "@crm/db/win-back-snooze";
 import { activityMeta } from "@crm/validation/activity-meta";
 import {
 	BadRequestException,
@@ -174,6 +175,7 @@ export class ActivitiesService {
 				contactId: input.contactId ?? null,
 				dealId: input.dealId ?? null,
 				createdById: actingUserId,
+				meta: input.winBackLater ? WIN_BACK_LATER_META : undefined,
 			},
 			select: ENTRY_SELECT,
 		});

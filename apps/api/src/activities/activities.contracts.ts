@@ -63,6 +63,7 @@ export const activityCreateInput = z
 		companyId: z.string().optional(),
 		contactId: z.string().optional(),
 		dealId: z.string().optional(),
+		winBackLater: z.literal(true).optional(),
 	})
 	.refine((input) => input.companyId || input.contactId || input.dealId, {
 		message: "An activity has to be about a company, a contact or a deal.",
@@ -72,6 +73,15 @@ export const activityCreateInput = z
 		{
 			message: "A task needs a subject. It is the thing to do.",
 			path: ["subject"],
+		},
+	)
+	.refine(
+		(input) =>
+			!input.winBackLater ||
+			(input.type === ActivityType.TASK && Boolean(input.dueAt)),
+		{
+			message: "A win back reminder is a task with a due day.",
+			path: ["winBackLater"],
 		},
 	);
 

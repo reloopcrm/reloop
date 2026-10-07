@@ -24,6 +24,7 @@ export const winBackScopeParsers = {
 	quiet: parseAsInteger.withDefault(0),
 	rejected: parseAsBoolean.withDefault(false),
 	replied: parseAsBoolean.withDefault(false),
+	snoozed: parseAsBoolean.withDefault(false),
 };
 
 export const winBackParsers = {
@@ -56,6 +57,7 @@ export function winBackInput(
 		quiet: number;
 		rejected: boolean;
 		replied: boolean;
+		snoozed: boolean;
 	},
 ) {
 	return {
@@ -69,5 +71,6 @@ export function winBackInput(
 		quietForDays: scope.quiet,
 		rejected: scope.rejected,
 		replied: scope.replied,
+		snoozed: scope.snoozed,
 	};
 }

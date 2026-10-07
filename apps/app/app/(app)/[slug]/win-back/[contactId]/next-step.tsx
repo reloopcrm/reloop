@@ -135,13 +135,19 @@ export function useNextStep(
 	);
 	const reminder = useMutation(
 		trpc.activities.create.mutationOptions({
-			onSuccess: () => void cache.activity(),
+			onSuccess: () => {
+				void cache.activity();
+				void cache.winBack();
+			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
 	const unremind = useMutation(
 		trpc.activities.remove.mutationOptions({
-			onSuccess: () => void cache.activity(),
+			onSuccess: () => {
+				void cache.activity();
+				void cache.winBack();
+			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
@@ -200,6 +206,7 @@ export function useNextStep(
 				subject: t("Get back to {name}", { name: first }),
 				dueAt: due.toISOString(),
 				contactId,
+				winBackLater: true,
 			},
 			{
 				onSuccess: (entry) =>

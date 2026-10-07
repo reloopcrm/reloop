@@ -5,6 +5,7 @@ import { Prisma } from "./generated/prisma/client";
 import { DealStage } from "./generated/prisma/enums";
 import { wroteBackAfterOutreach } from "./win-back-outcome";
 import { DEFAULT_WIN_BACK_RULES, type WinBackRuleSet } from "./win-back-rules";
+import { snoozedAt } from "./win-back-snooze";
 
 const DAY_MS = 86_400_000;
 
@@ -17,6 +18,7 @@ export const REACTIVATION = {
 export type ReactivationOptions = {
 	rejected?: boolean;
 	replied?: boolean;
+	snoozed?: boolean;
 	quietForDays?: number;
 	limit?: number;
 	ownerId?: string | null;
@@ -342,6 +344,12 @@ export async function listReactivationCandidates(
 	const repliedFilter = options.replied
 		? Prisma.sql`AND ${wroteBackAfterOutreach(Prisma.sql`c.id`)}`
 		: Prisma.empty;
+	const snoozed = snoozedAt(Prisma.sql`c.id`, Prisma.sql`c."companyId"`, now);
+	const snoozeFilter = options.snoozed
+		? Prisma.sql`AND ${snoozed}`
+		: options.rejected
+			? Prisma.empty
+			: Prisma.sql`AND NOT ${snoozed}`;
 
 	const rows = await db.$queryRaw<Row[]>(
 		rowQuery(
@@ -349,7 +357,8 @@ export async function listReactivationCandidates(
 			${quietFilter}
 			${includeFilter}
 			${ownerFilter}
-			${repliedFilter}`,
+			${repliedFilter}
+			${snoozeFilter}`,
 			REACTIVATION.scan.maxRows,
 		),
 	);

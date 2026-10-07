@@ -81,6 +81,7 @@ export class ReactivationService {
 		const report = await listReactivationCandidates(this.db, {
 			rejected: input.rejected,
 			replied: input.replied,
+			snoozed: input.snoozed,
 			quietForDays: input.quietForDays,
 			limit: REACTIVATION.limit.max,
 			ownerId: input.scope === "me" ? userId : null,

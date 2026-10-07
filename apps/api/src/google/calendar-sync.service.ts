@@ -132,7 +132,7 @@ export class CalendarSyncService {
 				};
 			}
 
-			if (result.outcome === "failed") {
+			if (result.outcome === "failed" || result.outcome === "unreadable") {
 				await this.state.markFailed(row.id, result.reason);
 				return {
 					source: "calendar",

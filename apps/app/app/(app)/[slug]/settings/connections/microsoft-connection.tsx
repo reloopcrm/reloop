@@ -42,6 +42,10 @@ import { isSyncing, SYNC_POLL_MS } from "@/lib/sync-status";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import {
+	MICROSOFT_CONNECT_ERROR_FALLBACK,
+	MICROSOFT_CONNECT_ERRORS,
+} from "./connection-copy";
+import {
 	DEFAULT_IMPORT_HISTORY,
 	historyOf,
 	ImportHistoryField,
@@ -53,13 +57,6 @@ import {
 import { OAuthAppCard } from "./oauth-app-card";
 
 const AUTO_CREATE = "Add the company and contact when you reply to someone new";
-
-const CONNECT_ERRORS = new Map([
-	[
-		"email_doesn't_match",
-		"That Microsoft account has a different email address to the one you sign in with, so it cannot be attached to your account. Connect the Microsoft account that matches your sign-in address.",
-	],
-]);
 
 function ConnectMicrosoft({
 	slug,
@@ -150,8 +147,8 @@ function ConnectMicrosoft({
 						<AlertTitle>{t("Microsoft did not finish connecting")}</AlertTitle>
 						<AlertDescription>
 							{t(
-								CONNECT_ERRORS.get(connectError) ??
-									"Microsoft returned an error before the connection was made. Try again.",
+								MICROSOFT_CONNECT_ERRORS.get(connectError) ??
+									MICROSOFT_CONNECT_ERROR_FALLBACK,
 							)}
 						</AlertDescription>
 					</Alert>
@@ -315,7 +312,7 @@ export function MicrosoftConnection({
 							<Icon icon={Warning} />
 							<AlertTitle>{t("Email sync failed")}</AlertTitle>
 							<AlertDescription>
-								{source.lastError ?? t("Microsoft needs reconnecting.")}
+								{t(source.lastError ?? "Microsoft needs reconnecting.")}
 							</AlertDescription>
 						</Alert>
 					))

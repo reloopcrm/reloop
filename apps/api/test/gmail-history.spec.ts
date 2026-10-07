@@ -42,6 +42,7 @@ function harness(options: {
 	labels?: Record<string, string[]>;
 	dropped?: string[];
 	failures?: ReadonlyMap<string, boolean>;
+	unreadable?: string[];
 }) {
 	const stored: IncomingMessage[] = [];
 	const settled: { cursor?: string | null }[] = [];
@@ -87,6 +88,9 @@ function harness(options: {
 			const retryable = options.failures?.get(id);
 			if (retryable !== undefined) {
 				return { outcome: "failed", reason: "Gmail failed", retryable };
+			}
+			if (options.unreadable?.includes(id)) {
+				return { outcome: "unreadable", reason: "payload.parts not a list" };
 			}
 			return ok(gmailMessage(id, options.labels?.[id] ?? ["INBOUND"]));
 		},
@@ -246,6 +250,22 @@ describe("Gmail incremental history", () => {
 		await kit.service.sync(rowAt("1200"));
 		expect(ids(kit)).toContain("t1");
 		expect(kit.settled.at(-1)?.cursor).toBe("1400");
+	});
+
+	it("moves the cursor past a message whose body does not match the schema", async () => {
+		const kit = harness({
+			entries: [
+				{ id: 1100, added: ["a1"] },
+				{ id: 1200, added: ["u1"] },
+				{ id: 1300, added: ["z1"] },
+			],
+			unreadable: ["u1"],
+		});
+
+		await kit.service.sync(rowAt("1000"));
+
+		expect(ids(kit)).toEqual(["a1", "z1"]);
+		expect(kit.settled.at(-1)?.cursor).toBe("1300");
 	});
 
 	it("skips drafts, spam and trash", async () => {

@@ -1,18 +1,27 @@
 import { describe, expect, it } from "bun:test";
 import type { Db, MailboxSyncModel as MailboxSync } from "@crm/db";
+import type { z } from "zod";
 import type {
 	GmailClient,
 	GmailMessage,
 	MessageList,
 } from "../src/google/gmail.client";
-import { SENT_MAIL_QUERY } from "../src/google/gmail.client";
+import { gmailMessageList, SENT_MAIL_QUERY } from "../src/google/gmail.client";
 import { GmailSyncService } from "../src/google/gmail-sync.service";
-import { readBackfill } from "../src/mailbox/backfill-cursor";
+import {
+	planBackfill,
+	readBackfill,
+	serialiseBackfill,
+} from "../src/mailbox/backfill-cursor";
 import {
 	mailboxSyncConfig,
 	MAILBOX as SYNC_CONFIG,
 } from "../src/mailbox/mailbox.config";
 import type { SyncOrigin } from "../src/mailbox/mailbox.constants";
+import {
+	MailboxApiClient,
+	type MailboxResult,
+} from "../src/mailbox/mailbox-api.client";
 import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import type { SyncStateService } from "../src/mailbox/sync-state.service";
 import type {
@@ -75,6 +84,7 @@ function harness(options: {
 	threads?: number;
 	alreadyFiled?: string[];
 	getMessage?: (id: string) => NotOk | null;
+	listPage?: (pageToken?: string) => MailboxResult<MessageList> | null;
 	delayMs?: (id: string) => number;
 }) {
 	const pages = options.pages ?? [[]];
@@ -91,6 +101,7 @@ function harness(options: {
 	const fetched: string[] = [];
 	const settled: { cursor?: string | null; backfill?: string | null }[] = [];
 	const rateLimited: number[] = [];
+	const failed: string[] = [];
 
 	const gmail = {
 		async profile() {
@@ -114,6 +125,9 @@ function harness(options: {
 			},
 		) {
 			listed.push(request);
+
+			const replaced = options.listPage?.(request.pageToken);
+			if (replaced) return replaced;
 
 			const sent = request.query === SENT_MAIL_QUERY;
 			const all = sent ? sentPages : pages;
@@ -183,7 +197,9 @@ function harness(options: {
 		async markRateLimited(_id: string, retryAfterMs: number) {
 			rateLimited.push(retryAfterMs);
 		},
-		async markFailed() {},
+		async markFailed(_id: string, reason: string) {
+			failed.push(reason);
+		},
 	} as unknown as SyncStateService;
 
 	const threads = {
@@ -208,7 +224,30 @@ function harness(options: {
 		fetched,
 		settled,
 		rateLimited,
+		failed,
 	};
+}
+
+async function servedBody<T>(
+	schema: z.ZodType<T>,
+	body: z.core.util.JSONType,
+): Promise<MailboxResult<T>> {
+	const realFetch = globalThis.fetch;
+	globalThis.fetch = (async () =>
+		new Response(JSON.stringify(body), {
+			status: 200,
+			headers: { "content-type": "application/json" },
+		})) as unknown as typeof fetch;
+
+	try {
+		return await new MailboxApiClient().get(
+			"https://example.test/messages",
+			"token",
+			schema,
+		);
+	} finally {
+		globalThis.fetch = realFetch;
+	}
 }
 
 const backfillOf = (raw: string | null | undefined) => {
@@ -355,6 +394,30 @@ describe("GmailSyncService backfill", () => {
 		const plan = backfillOf(kit.settled.at(-1)?.backfill);
 		expect(plan.state).toBe("running");
 		expect(plan.position).toBe("p1");
+	});
+
+	it("keeps its page and fails the mailbox when a page does not match the schema", async () => {
+		const unreadable = await servedBody(gmailMessageList, {
+			messages: "nope",
+		});
+		const stored = serialiseBackfill({
+			...planBackfill({ before: new Date(), floor: null }),
+			phase: "all",
+			position: "p2",
+		});
+
+		const kit = harness({
+			pages: [ids(5, 0), ids(5, 5), ids(5, 10)],
+			listPage: (pageToken) => (pageToken === "p2" ? unreadable : null),
+		});
+
+		const outcome = await kit.service.sync(row({ backfill: stored }));
+
+		expect(outcome.status).toBe("failed");
+		expect(kit.failed).toHaveLength(1);
+		expect(kit.failed[0]).toContain("messages");
+		expect(kit.listed.map((request) => request.pageToken)).toEqual(["p2"]);
+		expect(backfillOf(kit.settled.at(-1)?.backfill).position).toBe("p2");
 	});
 
 	it("gives the forward read the whole budget before the backfill", async () => {

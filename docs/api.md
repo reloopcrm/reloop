@@ -199,12 +199,12 @@ self-hoster's admin cannot redeploy.
   so `/grant-access` offers the button they can actually use.
 - `ALLOWED_SIGN_IN` still decides who gets an account, in
   `databaseHooks.user.create.before`, for SSO sign-ups too.
-  Session creation, existing auth sessions, app sessions, and tRPC calls also check the current list.
+  Session creation, existing auth sessions, app sessions, tRPC calls and the REST downloads also check the current list.
 - **`isSignInAllowed` (`@crm/auth/sign-in-grants`) is that check, and it is async.** It is
   `ALLOWED_SIGN_IN` **or** an address an owner granted through Settings → Members, stored in
   `AppSetting.signInAddresses`. The environment variable is the floor; the app only adds. Every
   gate reads the one function: both `databaseHooks`, `accessGuard`, `AuthMiddleware`,
-  `serveOpenApiDocument` and `apps/app/lib/session.ts`. `isWorkspaceEmail` stays the
+  `SignInAllowedGuard`, `serveOpenApiDocument` and `apps/app/lib/session.ts`. `isWorkspaceEmail` stays the
   environment-only half, and `workspaceDomains()` still answers "is this address us" for the
   mailbox and the tracking filter. The database is read only when the environment already said no.
   See `SECURITY.md` for what the boundary holds.
@@ -235,15 +235,20 @@ self-hoster's admin cannot redeploy.
 
 tRPC answers with JSON, so a CSV is a Nest controller:
 `GET /api/exports/:entity` (`contacts`, `companies`, `deals`), in
-`apps/api/src/exports`. Three rules make it work.
+`apps/api/src/exports`. Four rules make it work.
 
-- **Same guard as the attachment controller**, which is to say no decorator at
-  all. `AuthModule.forRoot`
+- **Same guards as the attachment controller and `GET /auth/me`.** `AuthModule.forRoot`
   registers the Better Auth guard globally, and the route carries no
   `@AllowAnonymous`/`@OptionalAuth`, so it needs a session. The guard hands every
   request header to `auth.api.getSession`, and `enableSessionForAPIKeys` is on, so
   an `x-api-key` works too. A caller with neither gets 401 **before** the route
   says which lists exist.
+- **`@UseGuards(SignInAllowedGuard)` checks the allow-list after that.**
+  `accessGuard` refuses a revoked cookie session, but an `x-api-key` session never
+  passes through it, so without this guard a key whose owner lost access still
+  downloads every list. The guard reads the session the global guard stored and asks
+  `isSignInAllowed`; an address off the list gets 403. A new controller that serves
+  workspace data to a signed-in caller takes the same decorator.
 - **The filter is the list's own filter.** `?filter=` carries the list input as
   JSON, parsed by `contactListInput` / `companyListInput` / `dealListInput` and
   handed to each service's `exportRows`, which calls the same private `buildWhere`
@@ -365,6 +370,15 @@ the largest attachment upload the conversation contracts accept.
 `MailboxMatchService`, `participants.ts`, `message-text.ts`, and
 `ThreadWriterService`.
 
+- **Every provider response is parsed where it arrives.** `MailboxApiClient.get`
+  takes a Zod schema and returns the parsed type. A body that does not match is
+  `{ outcome: "unreadable" }` with the failing fields in `reason`, never data. It
+  is not `failed`, because a non-retryable `failed` page restarts the backfill.
+  An unreadable page keeps the backfill position and marks the mailbox failed;
+  an unreadable Gmail message is skipped. Each client owns its shapes: `gmail.client.ts`, `gmail-mime.ts`,
+  `calendar.client.ts` and `graph.client.ts`. They stay in `apps/api`, because no
+  other package reads them. Graph sends `null` for an empty field, so the Graph
+  schemas read `null` as absent; Google omits the field instead.
 - **The sync never renames a contact that already exists.** A new contact takes
   its name from the From line through `splitName`. A contact that `resolve`,
   `createContact` or `contactWithoutCompany` finds by address keeps its name, even

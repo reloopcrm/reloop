@@ -92,7 +92,12 @@ const COMPANY_EXPORT_SELECT = {
 	_count: {
 		select: {
 			contacts: true,
-			deals: { where: { stage: { in: [...OPEN_DEAL_STAGES] } } },
+			deals: {
+				where: {
+					...archivedFilter(false),
+					stage: { in: [...OPEN_DEAL_STAGES] },
+				},
+			},
 		},
 	},
 	createdAt: true,
@@ -149,7 +154,12 @@ export class CompaniesService {
 					_count: {
 						select: {
 							contacts: true,
-							deals: { where: { stage: { in: [...OPEN_DEAL_STAGES] } } },
+							deals: {
+								where: {
+									...archivedFilter(false),
+									stage: { in: [...OPEN_DEAL_STAGES] },
+								},
+							},
 						},
 					},
 					lastActivityAt: true,
@@ -287,7 +297,9 @@ export class CompaniesService {
 						owner: { select: OWNER_SELECT },
 					},
 				},
+				_count: { select: { deals: true } },
 				deals: {
+					where: archivedFilter(false),
 					orderBy: [{ stage: "asc" }, { expectedCloseDate: "asc" }],
 					select: {
 						id: true,
@@ -309,6 +321,7 @@ export class CompaniesService {
 		}
 
 		const {
+			_count,
 			deals,
 			primaryContact,
 			enrichedAt,
@@ -329,6 +342,7 @@ export class CompaniesService {
 			primaryContactId: primaryContact?.id ?? null,
 			primaryContact,
 			reportingCurrency,
+			dealCount: _count.deals,
 			deals: deals.map(({ baseCurrency, ...deal }) => ({
 				...deal,
 				amount: undefined,

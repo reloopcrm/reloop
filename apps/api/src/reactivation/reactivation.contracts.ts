@@ -222,6 +222,10 @@ export const winBackNextInput = reactivationListInput.extend({
 
 export type WinBackNextInput = z.infer<typeof winBackNextInput>;
 
-export const winBackNextOutput = z
-	.object({ id: z.string(), name: z.string() })
-	.nullable();
+export const winBackNextOutput = z.object({
+	next: z.object({ id: z.string(), name: z.string() }).nullable(),
+	position: z.number().int().positive().nullable(),
+	total: z.number().int().nonnegative(),
+});
+
+export type WinBackNextOutput = z.infer<typeof winBackNextOutput>;

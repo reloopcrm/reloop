@@ -24,6 +24,7 @@ import {
 	planIdOf,
 	planLimitsOf,
 	readMonthlyUsage,
+	usageLevel,
 	usageLines,
 	usageWindowOf,
 } from "@crm/db/plan-usage";
@@ -178,8 +179,18 @@ export class SettingsService {
 			resetsAt: window.until.toISOString(),
 			trialEnds: window.trialEnds,
 			capacity: [
-				{ counter: "contacts", used: contacts, limit: limits.contacts },
-				{ counter: "mailboxes", used: mailboxes, limit: limits.mailboxes },
+				{
+					counter: "contacts",
+					used: contacts,
+					limit: limits.contacts,
+					level: usageLevel(contacts, limits.contacts),
+				},
+				{
+					counter: "mailboxes",
+					used: mailboxes,
+					limit: limits.mailboxes,
+					level: usageLevel(mailboxes, limits.mailboxes),
+				},
 			],
 			lines: usageLines(usage, limits),
 		};

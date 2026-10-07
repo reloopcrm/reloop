@@ -7,6 +7,7 @@ import { overdueBefore } from "../activities/due-date";
 import { toCents } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
+import { archivedFilter } from "../trpc/list-input";
 import type { DashboardSummaryInput } from "./dashboard.contracts";
 
 const OWNER_SELECT = {
@@ -43,7 +44,10 @@ export class DashboardService {
 
 	async summary(actingUserId: string, input: DashboardSummaryInput) {
 		const mine = input.scope === "me";
-		const owned = mine ? { ownerId: actingUserId } : {};
+		const live = {
+			...archivedFilter(false),
+			ownerId: mine ? actingUserId : undefined,
+		};
 
 		const now = new Date();
 		const startOfMonth = monthStart(now, 0);
@@ -68,19 +72,19 @@ export class DashboardService {
 		] = await Promise.all([
 			this.db.deal.groupBy({
 				by: ["stage"],
-				where: { ...owned, stage: { in: [...OPEN_DEAL_STAGES] } },
+				where: { ...live, stage: { in: [...OPEN_DEAL_STAGES] } },
 				_count: { _all: true },
 			}),
 			this.db.deal.groupBy({
 				by: ["stage"],
 				where: {
-					AND: [{ ...owned, stage: { in: [...OPEN_DEAL_STAGES] } }, counted],
+					AND: [{ ...live, stage: { in: [...OPEN_DEAL_STAGES] } }, counted],
 				},
 				_sum: { baseAmount: true },
 			}),
 			this.db.deal.findMany({
 				where: {
-					...owned,
+					...live,
 					OR: [
 						{ createdAt: { gte: trendStart } },
 						{ closedAt: { gte: trendStart } },
@@ -98,7 +102,7 @@ export class DashboardService {
 				where: {
 					AND: [
 						{
-							...owned,
+							...live,
 							stage: { in: [...OPEN_DEAL_STAGES] },
 							expectedCloseDate: { gte: startOfMonth, lt: startOfNextMonth },
 						},
@@ -109,7 +113,7 @@ export class DashboardService {
 				_sum: { baseAmount: true },
 			}),
 			this.db.deal.findMany({
-				where: { ...owned, stage: { in: [...OPEN_DEAL_STAGES] } },
+				where: { ...live, stage: { in: [...OPEN_DEAL_STAGES] } },
 				orderBy: [
 					{ baseAmount: { sort: "desc", nulls: "last" } },
 					{ expectedCloseDate: "asc" },
@@ -170,7 +174,13 @@ export class DashboardService {
 					deal: { select: { id: true, name: true } },
 				},
 			}),
-			this.conversion.unconverted(owned),
+			this.conversion.unconverted({
+				...live,
+				OR: [
+					{ stage: { in: [...OPEN_DEAL_STAGES] } },
+					{ stage: DealStage.CLOSED_WON, closedAt: { gte: trendStart } },
+				],
+			}),
 			readWinBackOutcome(this.db, {
 				since: startOfMonth,
 				baseCurrency: base,

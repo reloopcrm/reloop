@@ -273,6 +273,13 @@ describe("an IMAP message the store always rejects", () => {
 						persisted.cursor = args.data.cursor;
 					}
 				},
+				updateMany: async (args: { data: { cursor?: string } }) => {
+					if (args.data.cursor !== undefined) {
+						persisted.cursor = args.data.cursor;
+					}
+					return { count: 1 };
+				},
+				findUnique: async () => ({ cursor: persisted.cursor }),
 			},
 			appSetting: { findUnique: async () => ({ plan: null }) },
 			emailThread: { count: async () => 0 },

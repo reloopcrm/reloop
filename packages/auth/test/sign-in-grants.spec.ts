@@ -26,6 +26,8 @@ const fake = {
 			stored = data.signInAddresses;
 		},
 	},
+	user: { findMany: async () => [] },
+	$transaction: async (run: (client: Db) => Promise<void>) => run(fake),
 } as unknown as Db;
 
 beforeEach(() => {

@@ -1,5 +1,6 @@
 import { db, FactStatus, type Prisma } from "@crm/db";
 import { lockFactField } from "@crm/db/idempotency";
+import { DISPATCH } from "./dispatch-config";
 import { parseEvidence } from "./evidence";
 import {
 	canonicalValue,
@@ -12,10 +13,6 @@ import {
 	readFactSubject,
 	writeFactValue,
 } from "./facts";
-
-const SCAN = 2000;
-
-const MAX_FILLS = 500;
 
 export type BlankFactFill = {
 	contactId: string;
@@ -52,7 +49,7 @@ export async function sweepBlankFacts(
 				contact: { select: FACT_SUBJECT_SELECT },
 			},
 			orderBy: [{ score: "desc" }, { observedAt: "desc" }],
-			take: SCAN,
+			take: DISPATCH.blankFacts.scan,
 		}),
 	]);
 
@@ -106,7 +103,7 @@ export async function sweepBlankFacts(
 			continue;
 		}
 
-		if (sweep.filled >= MAX_FILLS) {
+		if (sweep.filled >= DISPATCH.blankFacts.maxFills) {
 			sweep.waiting += group.length;
 			continue;
 		}
@@ -149,11 +146,17 @@ async function appliedValues(
 ): Promise<Map<string, string>> {
 	const values = new Map<string, string>();
 
-	for (let start = 0; start < contactIds.length; start += 1000) {
+	for (
+		let start = 0;
+		start < contactIds.length;
+		start += DISPATCH.blankFacts.contactChunk
+	) {
 		const rows = await db.contactFact.findMany({
 			where: {
 				status: FactStatus.APPLIED,
-				contactId: { in: contactIds.slice(start, start + 1000) },
+				contactId: {
+					in: contactIds.slice(start, start + DISPATCH.blankFacts.contactChunk),
+				},
 			},
 			select: { contactId: true, field: true, value: true },
 		});

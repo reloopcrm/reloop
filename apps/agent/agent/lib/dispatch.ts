@@ -1,7 +1,12 @@
 import { EnrichmentStatus } from "@crm/db";
 import { PRIORITY, waitsForPerson } from "@crm/db/agent-tasks";
 import { cloud } from "@crm/db/cloud/scope";
-import { forwardReserve, RESEARCH_RUN_KIND, STORY_KIND } from "@crm/db/plans";
+import {
+	forwardReserve,
+	INSIGHT_KIND,
+	RESEARCH_RUN_KIND,
+	STORY_KIND,
+} from "@crm/db/plans";
 import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	readAgentTaskInstruction,
@@ -95,7 +100,6 @@ export const VISIBLE_LEASE_MS = DISPATCH.visible.leaseMs;
 export const RESEARCH_BATCH = DISPATCH.research.batch;
 export const RESEARCH_LEASE_MS = DISPATCH.research.leaseMs;
 
-const INSIGHT_KIND = "thread-insight";
 const REFRESH_KIND = "thread-refresh";
 const MODEL_KINDS = new Set([
 	INSIGHT_KIND,

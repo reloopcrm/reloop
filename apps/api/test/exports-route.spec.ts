@@ -121,9 +121,7 @@ describe("the export route", () => {
 
 		apiKey = created.key;
 
-		const { grantSignIn, revokeSignIn, setPasswordFor } = await import(
-			"@crm/auth"
-		);
+		const { grantSignIn, setPasswordFor } = await import("@crm/auth");
 
 		await db.user.create({
 			data: {
@@ -148,7 +146,16 @@ describe("the export route", () => {
 		attachmentId = await attachmentOf(userId);
 		revokedAttachmentId = await attachmentOf(revokedId);
 
-		expect(await revokeSignIn(db, revokedEmail)).toBe(true);
+		const { readSignInGrants } = await import("@crm/auth");
+		const { SETTINGS_ID } = await import("@crm/db/settings");
+		const granted = await readSignInGrants(db);
+		expect(granted).toContain(revokedEmail);
+		await db.appSetting.update({
+			where: { id: SETTINGS_ID },
+			data: {
+				signInAddresses: granted.filter((entry) => entry !== revokedEmail),
+			},
+		});
 	});
 
 	afterAll(async () => {

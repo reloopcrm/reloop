@@ -341,6 +341,7 @@
 	"Your change is kept for this message.": "Değişikliğin bu mesaj için saklanır.",
 	"Continue with {name}": "{name} ile devam et",
 	"Back to the list": "Listeye dön",
+	"Person {position} of {total}": "Kişi {position} / {total}",
 	"Reloop is writing a shorter version…": "Reloop daha kısa bir sürüm yazıyor…",
 	"Reloop is writing the message…": "Reloop mesajı yazıyor…",
 	"Length": "Uzunluk",

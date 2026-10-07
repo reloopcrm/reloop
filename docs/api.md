@@ -714,7 +714,9 @@ the pattern lists in `packages/db/src/message-text.ts`
   `listReactivationCandidates`, so out of the list, its counts, `nextPerson`, the
   prefetch and the agent's list tool. A task on a company with no contact snoozes
   everyone at that company. The person comes back by themselves on the due day, or
-  earlier when the rep completes or deletes the task; no job runs. The "Not for us"
+  earlier when the rep completes or deletes the task; no job runs. Any task change
+  can move someone in or out, so `cache.activity()` also refreshes
+  `reactivation.list`. The "Not for us"
   view ignores the snooze. `snoozed: true` on `reactivation.list` and `nextPerson`
   shows exactly the people the snooze hides, under the same win back rules. A
   reminder written before this mark existed has no `meta` and hides nobody.

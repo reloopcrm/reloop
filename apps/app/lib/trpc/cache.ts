@@ -253,6 +253,7 @@ export function useCrmCache(): CrmCache {
 					trpc.contacts.byId.queryKey(),
 					trpc.deals.byId.queryKey(),
 					trpc.dashboard.summary.queryKey(),
+					trpc.reactivation.list.queryKey(),
 				],
 				options,
 			),

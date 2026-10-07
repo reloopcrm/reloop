@@ -97,7 +97,6 @@ export function WinBackVerdictMenu({
 		trpc.activities.create.mutationOptions({
 			onSuccess: () => {
 				void cache.activity();
-				void cache.winBack();
 				toast.success(
 					t("A task to get back to {name} is due in {count} days.", {
 						name,

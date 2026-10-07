@@ -6,6 +6,7 @@ import {
 	Query,
 	Res,
 	StreamableFile,
+	UseGuards,
 } from "@nestjs/common";
 import {
 	ApiCookieAuth,
@@ -17,6 +18,7 @@ import {
 } from "@nestjs/swagger";
 import { Session, type UserSession } from "@thallesp/nestjs-better-auth";
 import type { Response } from "express";
+import { SignInAllowedGuard } from "../auth/sign-in-allowed.guard";
 import { ConversationsService } from "./conversations.service";
 
 type CrmSession = UserSession<typeof auth>;
@@ -24,6 +26,7 @@ type CrmSession = UserSession<typeof auth>;
 @ApiTags("Conversations")
 @ApiCookieAuth(SESSION_COOKIE_NAME)
 @Controller("api/conversations/attachments")
+@UseGuards(SignInAllowedGuard)
 export class ConversationAttachmentsController {
 	constructor(private readonly conversations: ConversationsService) {}
 

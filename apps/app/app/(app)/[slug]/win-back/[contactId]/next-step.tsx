@@ -181,6 +181,10 @@ export function useNextStep(
 
 	const open = () => {
 		setStep("open");
+		if (outdated) {
+			setBody(null);
+			setEditing(false);
+		}
 		void draft.ensure({
 			covering: answerIsNext(view) ? view.wroteBack?.answeredAt : undefined,
 		});

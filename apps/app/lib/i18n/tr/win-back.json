@@ -405,5 +405,9 @@
 	"Reloop has not written a shorter version.": "Reloop henüz daha kısa bir sürüm yazmadı.",
 	"The suggested version comes back. Your changes to the text are lost.": "Önerilen sürüm geri gelir. Metindeki değişikliklerin kaybolur.",
 	"Show the suggestion": "Öneriyi göster",
-	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop {name} ile e-postaları az önce okudu. {time} sonrasında yeniden iste."
+	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop {name} ile e-postaları az önce okudu. {time} sonrasında yeniden iste.",
+	"Wrote back": "Cevap yazdı",
+	"See who wrote back": "Kimin cevap yazdığını gör",
+	"Reply to them": "Onlara cevap ver",
+	"{name} wrote back after your win back mail. Reloop prepares the answer in your tone.": "{name} geri kazanma mailine cevap yazdı. Reloop cevabı senin üslubunla hazırlar."
 }

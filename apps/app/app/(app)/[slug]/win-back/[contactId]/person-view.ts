@@ -14,6 +14,16 @@ export type NextInList = RouterOutputs["reactivation"]["nextPerson"];
 
 export type NextPerson = NextInList["next"];
 
+export function answerIsNext(view: Pick<PersonView, "wroteBack">): boolean {
+	return view.wroteBack?.open === true;
+}
+
+export function followUpDaysOf(
+	view: Pick<PersonView, "wroteBack" | "followUpDays">,
+): number | null {
+	return view.wroteBack === null ? view.followUpDays : null;
+}
+
 export function nextLabel(next: NextPerson, t: Translate): string {
 	return next
 		? t("Continue with {name}", { name: next.name })

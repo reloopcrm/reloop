@@ -13,6 +13,7 @@ import {
 	readReactivationCandidate,
 } from "@crm/db/reactivation";
 import { threadsOfContact } from "@crm/db/thread-participants";
+import { readWinBackReply } from "@crm/db/win-back-outcome";
 import {
 	isAgentFunctionEnabled,
 	readAgentFunctions,
@@ -115,7 +116,7 @@ export class WinBackPersonService {
 		if (!candidate) throw new NotFoundException(NO_MAIL);
 
 		const where = { thread: threadsOfContact(contactId) };
-		const [newestMails, mailCount, ticks, orders, insights, newest] =
+		const [newestMails, mailCount, ticks, orders, insights, newest, reply] =
 			await Promise.all([
 				this.db.emailMessage.findMany({
 					where,
@@ -157,6 +158,7 @@ export class WinBackPersonService {
 					where: threadsOfContact(contactId),
 					_max: { lastMessageAt: true },
 				}),
+				readWinBackReply(this.db, contactId),
 			]);
 
 		const stored = await this.storedStory(contactId, contact.story);
@@ -276,6 +278,9 @@ export class WinBackPersonService {
 			firstContactAt: candidate.firstContactAt.toISOString(),
 			lastContactAt: candidate.lastContactAt.toISOString(),
 			feedback: candidate.feedback,
+			wroteBack: reply
+				? { answeredAt: reply.answeredAt.toISOString(), open: reply.open }
+				: null,
 			facts: {
 				orders: Math.max(orders.length, candidate.memory.didBusiness),
 				maxPallets: candidate.memory.maxPallets,
@@ -465,6 +470,7 @@ export class WinBackPersonService {
 		const rules = await readWinBackRules(this.db);
 		const report = await listReactivationCandidates(this.db, {
 			rejected: input.rejected,
+			replied: input.replied,
 			quietForDays: input.quietForDays,
 			limit: REACTIVATION.limit.max,
 			ownerId: input.scope === "me" ? userId : null,

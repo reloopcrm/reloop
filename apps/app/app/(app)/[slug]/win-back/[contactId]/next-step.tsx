@@ -51,7 +51,9 @@ import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { WIN_BACK_UI } from "../win-back-config";
 import {
+	answerIsNext,
 	type CardStep,
+	followUpDaysOf,
 	type NextPerson,
 	nextLabel,
 	type PersonView,
@@ -433,12 +435,19 @@ function CardBody({ step }: { step: NextStep }) {
 			<>
 				<CardEyebrow>{t("Your next step")}</CardEyebrow>
 				<DraftCardTitle>
-					{step.email
-						? t("Send {name} a short email", { name: first })
-						: t("{name} has no email address", { name: first })}
+					{!step.email
+						? t("{name} has no email address", { name: first })
+						: answerIsNext(step.view)
+							? t("Reply to them")
+							: t("Send {name} a short email", { name: first })}
 				</DraftCardTitle>
 				<DraftCardDescription>
-					{t("Reloop prepares it in your tone, with what the story says.")}
+					{step.email && answerIsNext(step.view)
+						? t(
+								"{name} wrote back after your win back mail. Reloop prepares the answer in your tone.",
+								{ name: first },
+							)
+						: t("Reloop prepares it in your tone, with what the story says.")}
 				</DraftCardDescription>
 				{preview ? (
 					<DraftCardPreview>
@@ -512,6 +521,7 @@ function CardBody({ step }: { step: NextStep }) {
 		);
 	}
 
+	const followUpDays = followUpDaysOf(step.view);
 	const done = {
 		sent: {
 			eyebrow: t("Completed"),
@@ -549,13 +559,13 @@ function CardBody({ step }: { step: NextStep }) {
 					<CheckItem>
 						{t("Your mail program opened with this text. Send it from there.")}
 					</CheckItem>
-					{step.view.followUpDays !== null ? (
+					{followUpDays !== null ? (
 						<CheckItem>
 							{t(
 								"If {name} does not answer, Reloop reminds you in {count} days.",
 								{
 									name: first,
-									count: step.view.followUpDays,
+									count: followUpDays,
 								},
 							)}
 						</CheckItem>

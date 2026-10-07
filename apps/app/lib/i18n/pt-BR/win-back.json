@@ -405,5 +405,9 @@
 	"Reloop has not written a shorter version.": "O Reloop ainda não escreveu uma versão mais curta.",
 	"The suggested version comes back. Your changes to the text are lost.": "A versão sugerida volta. Suas alterações no texto se perdem.",
 	"Show the suggestion": "Mostrar a sugestão",
-	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "O Reloop acabou de ler os e-mails com {name}. Peça de novo depois das {time}."
+	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "O Reloop acabou de ler os e-mails com {name}. Peça de novo depois das {time}.",
+	"Wrote back": "Respondeu",
+	"See who wrote back": "Ver quem respondeu",
+	"Reply to them": "Responda a eles",
+	"{name} wrote back after your win back mail. Reloop prepares the answer in your tone.": "{name} respondeu ao seu e-mail para reconquistar. O Reloop prepara a resposta no seu tom."
 }

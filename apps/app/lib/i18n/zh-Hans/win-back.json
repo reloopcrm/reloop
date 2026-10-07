@@ -405,5 +405,9 @@
 	"Reloop has not written a shorter version.": "Reloop 还没有写出更短的版本。",
 	"The suggested version comes back. Your changes to the text are lost.": "建议的版本会恢复。你对文字的修改会丢失。",
 	"Show the suggestion": "显示建议",
-	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop 刚刚读过与 {name} 的邮件。请在 {time} 之后再试。"
+	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop 刚刚读过与 {name} 的邮件。请在 {time} 之后再试。",
+	"Wrote back": "已回复",
+	"See who wrote back": "查看谁回复了",
+	"Reply to them": "回复他们",
+	"{name} wrote back after your win back mail. Reloop prepares the answer in your tone.": "{name} 回复了你的赢回邮件。Reloop 会用你的语气准备回复。"
 }

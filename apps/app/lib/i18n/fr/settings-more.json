@@ -201,6 +201,7 @@
 	"Could not connect Slack.": "Slack n'a pas pu être connecté.",
 	"Opening Slack…": "Ouverture de Slack…",
 	"Reconnect": "Reconnecter",
+	"{provider} is connected again.": "{provider} est de nouveau connecté.",
 	"Connect Slack": "Connecter Slack",
 	"Slack is not configured": "Slack n'est pas configuré",
 	"Slack could not be connected ({reason}).": "Slack n'a pas pu être connecté ({reason}).",

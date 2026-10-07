@@ -201,6 +201,7 @@
 	"Could not connect Slack.": "无法连接 Slack。",
 	"Opening Slack…": "正在打开 Slack…",
 	"Reconnect": "重新连接",
+	"{provider} is connected again.": "{provider} 已重新连接。",
 	"Connect Slack": "连接 Slack",
 	"Slack is not configured": "Slack 没有配置",
 	"Slack could not be connected ({reason}).": "Slack 连接失败（{reason}）。",

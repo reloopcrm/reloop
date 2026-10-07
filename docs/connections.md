@@ -110,6 +110,36 @@ day it is connected, and keeps reading new mail at the same time.
   (`SyncStateService.stopBackfill`). IMAP promises the opposite and is
   unchanged.
 
+## A broken grant is fixed where it shows
+
+A Gmail or Outlook row in `NEEDS_RECONNECT`, or a Microsoft account with no
+refresh token, cannot recover by itself: the sync tick skips the row
+(`dueWhere` in `apps/api/src/mailbox/sync-state.service.ts`). So the card puts
+**Reconnect** where Check now stands, as the one filled button.
+`mailboxNeedsReconnect` in `mailbox-status.ts` decides it. Google without a
+refresh token keeps its own advice, because a second consent does not always
+return one.
+
+- **One hook links a mailbox.** `useMailboxLink` (`use-mailbox-link.ts`) runs
+  `authClient.linkSocial` for Connect and Reconnect alike, and
+  `mailboxLinkRequest` (`mailbox-link.ts`) builds the request from
+  `SYNC_SCOPES_FOR`. A reconnect asks for exactly the scopes a connect asks for,
+  never more.
+- **A reconnect keeps everything.** It does not call `setImportSince`, so the
+  answer to how far back and the backfill stay. Better Auth updates the tokens
+  on the existing `account` row and never touches `MailboxSync`, so Auto create,
+  the cursor and the backfill position stay too.
+  `apps/api/test/mailbox-reconnect-settings.integration.spec.ts` pins it.
+- **The return checks at once.** The callback carries `?reconnected=<provider>`.
+  The card runs Check now one time, which clears `NEEDS_RECONNECT` when the new
+  grant works, and removes the marker from the address. A healthy result says
+  "Google is connected again" or "Microsoft is connected again". A grant that
+  still fails keeps the alert, and the alert pulses.
+- **Both cards give the same feedback.** A Check now that changes nothing makes
+  the alert pulse on Outlook as it does on Gmail (`failureSignature`), and a
+  refused consent shows the "did not finish connecting" alert on the connected
+  card as well as on the Connect card.
+
 ## A webhook is the connection with no vendor
 
 Settings → Connections → Webhooks sends the six events in `@crm/db/crm-events`

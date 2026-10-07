@@ -201,6 +201,7 @@
 	"Could not connect Slack.": "Slack bağlanamadı.",
 	"Opening Slack…": "Slack açılıyor…",
 	"Reconnect": "Yeniden bağlan",
+	"{provider} is connected again.": "{provider} yeniden bağlandı.",
 	"Connect Slack": "Slack'i bağla",
 	"Slack is not configured": "Slack kurulu değil",
 	"Slack could not be connected ({reason}).": "Slack bağlanamadı ({reason}).",

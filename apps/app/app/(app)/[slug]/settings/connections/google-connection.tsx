@@ -2,8 +2,6 @@
 
 import Launch from "@carbon/icons-react/es/Launch";
 import Warning from "@carbon/icons-react/es/Warning";
-import { authClient } from "@crm/auth/client";
-import { SYNC_SCOPES } from "@crm/auth/scopes";
 import {
 	Alert,
 	AlertAction,
@@ -60,7 +58,13 @@ import {
 	ImportProgress,
 	importSinceFor,
 } from "./import-history";
+import {
+	failureSignature,
+	mailboxNeedsReconnect,
+	mailboxReconnected,
+} from "./mailbox-status";
 import { OAuthAppCard } from "./oauth-app-card";
+import { useMailboxLink, useReconnectedCheck } from "./use-mailbox-link";
 
 const SOURCES = {
 	calendar: {
@@ -104,22 +108,6 @@ function explain(error: string) {
 	};
 }
 
-function failureSignature(
-	sources: readonly {
-		source: string;
-		status: string | null;
-		lastError: string | null;
-	}[],
-): string {
-	const failures: string[] = [];
-	for (const source of sources) {
-		if (source.status === "NEEDS_RECONNECT" || source.lastError) {
-			failures.push(`${source.source}:${source.lastError ?? "reconnect"}`);
-		}
-	}
-	return failures.sort().join("|");
-}
-
 function ConnectGoogle({
 	slug,
 	connectError,
@@ -130,34 +118,12 @@ function ConnectGoogle({
 	const t = useT();
 	const trpc = useTRPC();
 	const historyId = useId();
-	const [pending, setPending] = useState(false);
 	const [history, setHistory] = useState<ImportHistoryValue>(
 		DEFAULT_IMPORT_HISTORY,
 	);
+	const { pending, link } = useMailboxLink("google", slug);
 
 	const remember = useMutation(trpc.google.setImportSince.mutationOptions());
-
-	function fail(message?: string) {
-		setPending(false);
-		toast.error(message ?? t("Could not reach Google. Try again in a minute."));
-	}
-
-	async function handleConnect() {
-		setPending(true);
-
-		await remember.mutateAsync({ importSince: importSinceFor(history) });
-
-		const origin = window.location.origin;
-
-		const { error } = await authClient.linkSocial({
-			provider: "google",
-			scopes: [...SYNC_SCOPES],
-			callbackURL: `${origin}/${slug}/settings/connections/google`,
-			errorCallbackURL: `${origin}/${slug}/settings/connections/google?provider=google`,
-		});
-
-		if (error) fail(error.message);
-	}
 
 	return (
 		<Card>
@@ -186,7 +152,9 @@ function ConnectGoogle({
 						size="sm"
 						disabled={pending}
 						onClick={() => {
-							handleConnect().catch(() => fail());
+							link("connect", () =>
+								remember.mutateAsync({ importSince: importSinceFor(history) }),
+							);
 						}}
 						type="button"
 					>
@@ -228,9 +196,11 @@ function ConnectGoogle({
 export function GoogleConnection({
 	slug,
 	connectError,
+	reconnected = false,
 }: {
 	slug: string;
 	connectError?: string;
+	reconnected?: boolean;
 }) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
@@ -239,6 +209,7 @@ export function GoogleConnection({
 	const queryClient = useQueryClient();
 
 	const historyId = useId();
+	const reconnect = useMailboxLink("google", slug);
 
 	const status = useQuery({
 		...trpc.google.status.queryOptions(),
@@ -317,6 +288,18 @@ export function GoogleConnection({
 		}),
 	);
 
+	useReconnectedCheck(reconnected, () =>
+		syncNow.mutate(undefined, {
+			onSuccess: (result) => {
+				if (mailboxReconnected(result)) {
+					toast.success(
+						t("{provider} is connected again.", { provider: "Google" }),
+					);
+				}
+			},
+		}),
+	);
+
 	if (!status.data) return null;
 
 	const { sources, hasRefreshToken, configured, linked, required } =
@@ -341,6 +324,10 @@ export function GoogleConnection({
 		.at(-1);
 
 	const healthy = failing.length === 0 && hasRefreshToken;
+	const needsReconnect = mailboxNeedsReconnect("google", {
+		hasRefreshToken,
+		sources,
+	});
 	const mail = sources.find((source) => source.source === "gmail");
 	const progress = importProgressOf(mail?.backfill);
 	const reading = healthy && mail?.backfill?.state === "running";
@@ -371,18 +358,49 @@ export function GoogleConnection({
 				</CardDescription>
 
 				<CardAction>
-					<Button
-						variant="contrast"
-						size="sm"
-						disabled={syncNow.isPending}
-						onClick={() => syncNow.mutate()}
-					>
-						{syncNow.isPending ? t("Checking…") : t("Check now")}
-					</Button>
+					{needsReconnect ? (
+						<Button
+							size="sm"
+							disabled={reconnect.pending}
+							onClick={() => {
+								reconnect.link("reconnect");
+							}}
+							type="button"
+						>
+							{reconnect.pending ? (
+								<Spinner data-icon="inline-start" />
+							) : (
+								<GoogleLogo data-icon="inline-start" className="size-4" />
+							)}
+							{t("Reconnect")}
+						</Button>
+					) : (
+						<Button
+							variant="contrast"
+							size="sm"
+							disabled={syncNow.isPending}
+							onClick={() => syncNow.mutate()}
+						>
+							{syncNow.isPending ? t("Checking…") : t("Check now")}
+						</Button>
+					)}
 				</CardAction>
 			</CardHeader>
 
 			<CardContent>
+				{connectError ? (
+					<Alert variant="destructive">
+						<Icon icon={Warning} />
+						<AlertTitle>{t("Google did not finish connecting")}</AlertTitle>
+						<AlertDescription>
+							{t(
+								GOOGLE_CONNECT_ERRORS.get(connectError) ??
+									GOOGLE_CONNECT_ERROR_FALLBACK,
+							)}
+						</AlertDescription>
+					</Alert>
+				) : null}
+
 				{!hasRefreshToken ? (
 					<Alert variant="destructive" attention={insistence}>
 						<Icon icon={Warning} />

@@ -49,9 +49,10 @@ import { NextStepBar, NextStepCard, useNextStep } from "./next-step";
 import { mailElementId, PersonMails } from "./person-mails";
 import { PersonStory, PersonTrack } from "./person-story";
 import {
-	type NextPerson,
+	type NextInList,
 	type PersonView,
 	personName,
+	placeLabel,
 	withListState,
 } from "./person-view";
 
@@ -282,7 +283,7 @@ export function WinBackPerson({ contactId }: { contactId: string }) {
 		<PersonPage
 			key={view.contact.id}
 			view={view}
-			next={next.data ?? null}
+			list={next.data ?? null}
 			tab={tab}
 			setTab={setTab}
 			highlighted={highlighted}
@@ -337,7 +338,7 @@ export function WinBackPerson({ contactId }: { contactId: string }) {
 
 function PersonPage({
 	view,
-	next,
+	list,
 	tab,
 	setTab,
 	highlighted,
@@ -346,7 +347,7 @@ function PersonPage({
 	onReread,
 }: {
 	view: PersonView;
-	next: NextPerson;
+	list: NextInList | null;
 	tab: Tab;
 	setTab: (tab: Tab) => void;
 	highlighted: ReadonlySet<string>;
@@ -355,7 +356,12 @@ function PersonPage({
 	onReread: () => void;
 }) {
 	const t = useT();
-	const step = useNextStep(view, next);
+	const locale = useLocale();
+	const step = useNextStep(
+		view,
+		list?.next ?? null,
+		placeLabel(list, t, locale),
+	);
 	const stage = step.step === "read" ? 0 : step.step === "open" ? 1 : 2;
 
 	return (

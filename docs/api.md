@@ -962,10 +962,9 @@ marked passages and the follow-up delay. It writes nothing but an
   `AgentTriggerService.emailDraftsPrefetched`, with the same per-contact lock as
   `enqueue` and one lock for the prefetch budget. It stops at
   `PERSON_VIEW.prefetch.drafts.perMonth` prefetched drafts in the usage window, and
-  with a plan at `draftsPerMonth` minus `reserveShare` of it, which stays for drafts a
-  rep asks for. Without an AI provider (no stored key, no `OPENROUTER_API_KEY` for a
-  self-hosted install, no included AI, no ChatGPT usage the agent has recorded) it
-  queues nothing.
+  keeps a share of any draft allowance for drafts a rep asks for. Without an AI
+  provider (no stored key, no `OPENROUTER_API_KEY`, no ChatGPT usage the agent has
+  recorded) it queues nothing.
 - **A draft a rep looks at goes first.** A prefetched draft carries
   `PRIORITY.draftPrefetch`, just below `storyPrefetch`. When `contacts.draft` finds
   it still waiting, `emailDraftOpened` lifts it to `PRIORITY.emailDraft`. The lifted

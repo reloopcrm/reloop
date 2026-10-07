@@ -30,6 +30,8 @@ import {
 	type ImapCursor,
 	type ImapFolderCursor,
 	parseImapCursor,
+	rewindBackfill,
+	rewindsOf,
 	serialiseImapCursor,
 } from "./imap-cursor";
 import { planFolders } from "./imap-folders";
@@ -147,10 +149,8 @@ export class ImapSyncService {
 				deadlineAt,
 			);
 
-			await this.state.settle(row.id, {
-				cursor: serialiseImapCursor(cursor),
-				status: GoogleSyncStatus.IDLE,
-			});
+			await this.saveCursor(row, cursor);
+			await this.state.settle(row.id, { status: GoogleSyncStatus.IDLE });
 
 			if (written > 0) {
 				this.logger.log({
@@ -170,10 +170,7 @@ export class ImapSyncService {
 		} catch (error) {
 			const reason = error instanceof Error ? error.message : String(error);
 
-			await this.db.mailboxSync.update({
-				where: { id: row.id },
-				data: { cursor: serialiseImapCursor(cursor) },
-			});
+			await this.saveCursor(row, cursor);
 			await this.state.markFailed(row.id, reason);
 
 			this.logger.error(
@@ -188,6 +185,35 @@ export class ImapSyncService {
 			return { source, userId: row.userId, status: "failed", reason };
 		} finally {
 			await session.close();
+		}
+	}
+
+	private async saveCursor(row: MailboxSync, cursor: ImapCursor) {
+		let expected = row.cursor;
+		let seen = rewindsOf(parseImapCursor(row.cursor));
+		let next = cursor;
+
+		for (;;) {
+			const { count } = await this.db.mailboxSync.updateMany({
+				where: { id: row.id, cursor: expected },
+				data: { cursor: serialiseImapCursor(next) },
+			});
+			if (count > 0) return;
+
+			const fresh = await this.db.mailboxSync.findUnique({
+				where: { id: row.id },
+				select: { cursor: true },
+			});
+			if (!fresh) return;
+			if (fresh.cursor === null && expected !== null) return;
+
+			expected = fresh.cursor;
+			const requested = rewindsOf(parseImapCursor(fresh.cursor));
+
+			if (requested > seen) {
+				next = { ...rewindBackfill(next), rewinds: requested };
+				seen = requested;
+			}
 		}
 	}
 

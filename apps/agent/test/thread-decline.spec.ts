@@ -3,26 +3,40 @@ import { DECLINE_KIND } from "@crm/db/insights";
 import { parseDeclineKind } from "@crm/validation/thread-decline";
 import type { z } from "zod";
 import { insightAnswerFor, threadInsightSchema } from "../agent/lib/insight";
+import { keptDecline } from "../agent/lib/thread-decline";
 
 const OFFERED = new Date("2026-03-01T09:00:00.000Z");
 const STOPPED = new Date("2026-03-02T09:00:00.000Z");
 const ASKED = new Date("2026-03-03T09:00:00.000Z");
 const FOLLOWED = new Date("2026-03-04T09:00:00.000Z");
 
-type Mail = { direction: "INBOUND" | "OUTBOUND"; sentAt: Date; body: string };
+const LATER = new Date("2026-03-05T09:00:00.000Z");
+
+type Mail = {
+	direction: "INBOUND" | "OUTBOUND";
+	sentAt: Date;
+	body: string;
+	from?: string;
+	subject?: string;
+};
 
 function threadOf(mails: Mail[]) {
 	return {
 		id: "t1",
 		subject: "Europaletten",
 		contactId: "c1",
+		contact: { email: "preview@example.com" },
 		lastMessageAt: mails.at(-1)?.sentAt ?? OFFERED,
 		messages: mails.map((mail) => ({
-			...mail,
+			direction: mail.direction,
+			sentAt: mail.sentAt,
+			body: mail.body,
+			subject: mail.subject ?? "Re: Europaletten",
 			fromEmail:
-				mail.direction === "INBOUND"
+				mail.from ??
+				(mail.direction === "INBOUND"
 					? "preview@example.com"
-					: "rep@example.com",
+					: "rep@example.com"),
 			fromName: null,
 			snippet: null,
 		})),
@@ -48,6 +62,24 @@ const followUp: Mail = {
 	direction: "OUTBOUND",
 	sentAt: FOLLOWED,
 	body: "Kommen Sie noch einmal auf uns zu?",
+};
+
+const autoReply: Mail = {
+	direction: "INBOUND",
+	sentAt: LATER,
+	body: "Ich bin bis Montag nicht im Büro.",
+	subject: "Automatische Antwort: Europaletten",
+};
+const colleague: Mail = {
+	direction: "INBOUND",
+	sentAt: LATER,
+	body: "Ich übernehme das Thema.",
+	from: "colleague@example.com",
+};
+const answerLater: Mail = {
+	direction: "INBOUND",
+	sentAt: LATER,
+	body: "Haben Sie wieder Europaletten?",
 };
 
 const stopped = threadOf([offer, stop]);
@@ -134,6 +166,29 @@ describe("the decline the agent reads from a thread", () => {
 		expect(verdict.declineKind).toBeNull();
 	});
 
+	it("keeps a request to stop when an automatic reply follows it", () => {
+		const verdict = insightAnswerFor(threadOf([offer, stop, autoReply])).parse(
+			answer({ declineKind: DECLINE_KIND.soft, stopRequest: 2 }),
+		);
+
+		expect(verdict).toMatchObject({
+			outcome: "DECLINED",
+			declineKind: DECLINE_KIND.hard,
+			declinedAt: STOPPED,
+		});
+	});
+
+	it("dates a hard no by the person, not by a colleague in the thread", () => {
+		const verdict = insightAnswerFor(threadOf([offer, stop, colleague])).parse(
+			answer({ declineKind: DECLINE_KIND.soft, stopRequest: 2 }),
+		);
+
+		expect(verdict).toMatchObject({
+			declineKind: DECLINE_KIND.hard,
+			declinedAt: STOPPED,
+		});
+	});
+
 	it("ignores a request to stop that points at our own mail", () => {
 		const verdict = insightAnswerFor(stopped).parse(
 			answer({ outcome: "OTHER", stopRequest: 1 }),
@@ -161,6 +216,30 @@ describe("the decline the agent reads from a thread", () => {
 		expect(verdict.outcome).toBe("OPEN_INQUIRY_THEIRS");
 		expect(verdict.declineKind).toBeNull();
 		expect(verdict.declinedAt).toBeNull();
+	});
+
+	it("keeps a stored hard no when a new read sees only our mail", () => {
+		const stored = { declineKind: DECLINE_KIND.hard, declinedAt: STOPPED };
+		const reread = {
+			outcome: "OPEN_OFFER_OURS" as const,
+			declineKind: null,
+			declinedAt: null,
+		};
+
+		expect(
+			keptDecline(reread, stored, threadOf([offer, stop, followUp])),
+		).toEqual({
+			outcome: "DECLINED",
+			declineKind: DECLINE_KIND.hard,
+			declinedAt: STOPPED,
+		});
+		expect(
+			keptDecline(reread, stored, threadOf([offer, stop, autoReply])),
+		).toMatchObject({ declineKind: DECLINE_KIND.hard });
+		expect(
+			keptDecline(reread, stored, threadOf([offer, stop, answerLater])),
+		).toEqual(reread);
+		expect(keptDecline(reread, null, stopped)).toEqual(reread);
 	});
 
 	it("reads the stored kind and refuses one it does not know", () => {

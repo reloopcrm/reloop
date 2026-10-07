@@ -1,7 +1,5 @@
-import { db, EmailDirection } from "@crm/db";
+import { db } from "@crm/db";
 import {
-	DECLINE_KIND,
-	DECLINED_OUTCOME,
 	INSIGHT_OUTCOMES,
 	INSIGHT_SIDES,
 	MEMORY,
@@ -26,6 +24,7 @@ import { say, summaryLanguage, summaryWrittenIn } from "./language";
 import { directModel } from "./model";
 import { MODEL } from "./model-config";
 import { playbookPrompt, readPlaybook } from "./playbook";
+import { keptDecline, settledDecline, stopIsLastWord } from "./thread-decline";
 import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
 function clamped(max: number) {
@@ -154,62 +153,24 @@ const lenientDigestSchema = threadDigestSchema.extend({
 	),
 });
 
-function isInbound(message: { direction: string }): boolean {
-	return message.direction === EmailDirection.INBOUND;
-}
-
-function lastInboundIndex(messages: ThreadRecord["messages"]): number {
-	return messages.map(isInbound).lastIndexOf(true);
-}
-
-function lastWordIsStop(
-	thread: ThreadRecord,
-	stopRequest: number | null,
-): boolean {
-	if (stopRequest === null) return false;
-
-	const shown = transcriptMessages(thread);
-	const latest = lastInboundIndex(shown) + 1;
-
-	return latest > 0 && stopRequest === latest;
-}
-
-function settledDecline(
+function settledAnswer(
 	{ stopRequest, ...answer }: z.output<typeof lenientInsightSchema>,
 	thread: ThreadRecord,
 ) {
-	const declinedAt =
-		thread.messages[lastInboundIndex(thread.messages)]?.sentAt ??
-		thread.lastMessageAt;
-
-	if (lastWordIsStop(thread, stopRequest)) {
-		return {
-			...answer,
-			outcome: DECLINED_OUTCOME,
-			declineKind: DECLINE_KIND.hard,
-			declinedAt,
-		};
-	}
-	if (answer.outcome !== DECLINED_OUTCOME) {
-		return { ...answer, declineKind: null, declinedAt: null };
-	}
-
-	const kind = answer.declineKind ?? DECLINE_KIND.soft;
-
-	return {
-		...answer,
-		declineKind: kind,
-		declinedAt: kind === DECLINE_KIND.hard ? declinedAt : null,
-	};
+	return settledDecline(
+		answer,
+		stopIsLastWord(thread, transcriptMessages(thread), stopRequest),
+		thread,
+	);
 }
 
 export function insightAnswerFor(thread: ThreadRecord) {
 	return lenientInsightSchema.transform((answer) =>
-		settledDecline(answer, thread),
+		settledAnswer(answer, thread),
 	);
 }
 
-export type ThreadInsightVerdict = ReturnType<typeof settledDecline>;
+export type ThreadInsightVerdict = ReturnType<typeof settledAnswer>;
 
 export type ThreadVerdict = Omit<ThreadInsightVerdict, "side"> & {
 	side: ThreadInsightVerdict["side"] | null;
@@ -245,9 +206,11 @@ type ThreadRecord = {
 	id: string;
 	subject: string | null;
 	contactId: string | null;
+	contact?: { email: string | null } | null;
 	lastMessageAt: Date;
 	messages: {
 		id?: string;
+		subject?: string | null;
 		summary?: string | null;
 		direction: string;
 		fromEmail: string;
@@ -704,13 +667,22 @@ export async function runThreadInsight(
 			id: true,
 			subject: true,
 			contactId: true,
+			contact: { select: { email: true } },
 			lastMessageAt: true,
 			classification: true,
-			insight: { select: { lastMessageAt: true, relevant: true } },
+			insight: {
+				select: {
+					lastMessageAt: true,
+					relevant: true,
+					declineKind: true,
+					declinedAt: true,
+				},
+			},
 			messages: {
 				orderBy: { sentAt: "asc" },
 				select: {
 					id: true,
+					subject: true,
 					direction: true,
 					fromEmail: true,
 					fromName: true,
@@ -742,7 +714,7 @@ export async function runThreadInsight(
 				: gateOnly
 					? gateOnlyVerdict(await askGate(thread, rules, askJev))
 					: await classifyThread(thread, rules);
-		verdict = result.verdict;
+		verdict = keptDecline(result.verdict, thread.insight, thread);
 
 		await storeMessageSummaries(thread, verdict.messageSummaries);
 

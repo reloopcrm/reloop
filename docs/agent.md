@@ -210,14 +210,18 @@ language in Settings > General. The API stores and serves the value and does not
   unsubscribe), `SOFT` is a no after interest (too expensive, no need right now,
   another supplier). The same call names `stopRequest`, the number of their message
   that asks us to stop; it is never stored. `insightAnswerFor(thread)` turns it into
-  `DECLINED` and `HARD`, whatever the model said, but only when that message is their
-  latest one in the transcript, so a later mail from them outweighs it. A `DECLINED`
-  answer without a kind is `SOFT`, any other outcome has none. A hard no stores
-  `declinedAt`, the time of their latest mail in the thread, so a later mail from us
-  never moves it. The columns are `ThreadInsight.declineKind` and
-  `ThreadInsight.declinedAt`, read through `parseDeclineKind`
-  (`@crm/validation/thread-decline`). A row read before this field is null and counts
-  as soft; nothing rereads old threads for it, the next normal read fills it.
+  `DECLINED` and `HARD`, whatever the model said, but only when that message is the
+  person's latest real answer in the transcript (`isTheirAnswer` in
+  `lib/thread-decline.ts`: their own address, no auto reply, no bounce), so a later
+  mail from them outweighs it. A `DECLINED` answer without a kind is `SOFT`, any
+  other outcome has none. A hard no stores `declinedAt`, the time of the person's
+  latest real answer in the thread, so a later mail from us never moves it. A stored
+  hard no survives a new read until the person answers after `declinedAt`
+  (`keptDecline`), so a thread whose refusal slid out of the transcript keeps it. The
+  columns are `ThreadInsight.declineKind` and `ThreadInsight.declinedAt`, read through
+  `parseDeclineKind` (`@crm/validation/thread-decline`). A row read before this field
+  is null and counts as soft; nothing rereads old threads for it, the next normal
+  read fills it.
 - **The record sheet shows the brief, not the memory.** `ContactMemory.summary` is the
   long running memory a draft and the win back list read, at most
   `MEMORY.summaryMaxChars`. `ContactMemory.brief` is written in the same call, at most

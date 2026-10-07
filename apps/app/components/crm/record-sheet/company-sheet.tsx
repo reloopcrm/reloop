@@ -94,7 +94,7 @@ function pendingFields(company: Company, t: Translate): string[] {
 }
 
 function companyConsequence(company: Company, t: Translate): string {
-	const deals = company.deals.length;
+	const deals = company.dealCount;
 	const contacts = company.contacts.length;
 
 	const gone =

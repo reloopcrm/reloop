@@ -1,30 +1,18 @@
 import { db, FactStatus, type Prisma } from "@crm/db";
+import { lockFactField } from "@crm/db/idempotency";
 import { DISPATCH } from "./dispatch-config";
 import { parseEvidence } from "./evidence";
 import {
 	canonicalValue,
+	FACT_SUBJECT_SELECT,
 	type FactField,
 	type FactSubject,
 	factColumn,
 	fillsBlank,
 	mayFillBlank,
+	readFactSubject,
+	writeFactValue,
 } from "./facts";
-import { splitName } from "./names";
-
-const CONTACT_SELECT = {
-	id: true,
-	email: true,
-	firstName: true,
-	lastName: true,
-	source: true,
-	title: true,
-	phone: true,
-	seniority: true,
-	function: true,
-	linkedinUrl: true,
-	twitterUrl: true,
-	githubUrl: true,
-} as const;
 
 export type BlankFactFill = {
 	contactId: string;
@@ -58,7 +46,7 @@ export async function sweepBlankFacts(
 				value: true,
 				score: true,
 				evidence: true,
-				contact: { select: CONTACT_SELECT },
+				contact: { select: FACT_SUBJECT_SELECT },
 			},
 			orderBy: [{ score: "desc" }, { observedAt: "desc" }],
 			take: DISPATCH.blankFacts.scan,
@@ -120,14 +108,12 @@ export async function sweepBlankFacts(
 			continue;
 		}
 
-		if (!options.dry) {
-			await fill(
-				candidate.id,
-				candidate.contactId,
-				field,
-				candidate.value,
-				column,
-			);
+		if (
+			!options.dry &&
+			!(await fill(candidate.id, candidate.contactId, field, candidate.value))
+		) {
+			sweep.waiting += group.length;
+			continue;
 		}
 
 		sweep.filled += 1;
@@ -152,7 +138,7 @@ type Proposal = {
 	value: string;
 	score: number;
 	evidence: Prisma.JsonValue;
-	contact: FactSubject & { id: string };
+	contact: FactSubject;
 };
 
 async function appliedValues(
@@ -160,11 +146,11 @@ async function appliedValues(
 ): Promise<Map<string, string>> {
 	const values = new Map<string, string>();
 
-	for (let start = 0; start < contactIds.length; start += 1000) {
+	for (let start = 0; start < contactIds.length; start += DISPATCH.blankFacts.contactChunk) {
 		const rows = await db.contactFact.findMany({
 			where: {
 				status: FactStatus.APPLIED,
-				contactId: { in: contactIds.slice(start, start + 1000) },
+				contactId: { in: contactIds.slice(start, start + DISPATCH.blankFacts.contactChunk) },
 			},
 			select: { contactId: true, field: true, value: true },
 		});
@@ -208,9 +194,36 @@ async function fill(
 	contactId: string,
 	field: FactField,
 	value: string,
-	column: string | null,
-): Promise<void> {
-	await db.$transaction(async (tx) => {
+): Promise<boolean> {
+	return db.$transaction(async (tx) => {
+		await lockFactField(tx, contactId, field);
+
+		const contact = await readFactSubject(tx, contactId);
+		if (!contact) return false;
+
+		const facts = await tx.contactFact.findMany({
+			where: {
+				contactId,
+				field,
+				status: { in: [FactStatus.APPLIED, FactStatus.PROPOSED] },
+			},
+			select: { id: true, value: true, status: true },
+		});
+
+		const candidate = facts.find(
+			(fact) => fact.id === factId && fact.status === FactStatus.PROPOSED,
+		);
+		if (!candidate) return false;
+
+		const agentValue =
+			facts.find((fact) => fact.status === FactStatus.APPLIED)?.value ?? null;
+		if (!fillsBlank({ field, contact, agentValue })) return false;
+
+		if (
+			!(await writeFactValue(tx, { contactId, field, value, basis: contact }))
+		)
+			return false;
+
 		await tx.contactFact.updateMany({
 			where: {
 				contactId,
@@ -226,22 +239,7 @@ async function fill(
 			data: { status: FactStatus.APPLIED },
 		});
 
-		if (column) {
-			await tx.contact.update({
-				where: { id: contactId },
-				data: { [column]: value },
-			});
-		}
-
-		if (field === "name") {
-			const split = splitName(value);
-			if (split) {
-				await tx.contact.update({
-					where: { id: contactId },
-					data: { firstName: split.firstName, lastName: split.lastName },
-				});
-			}
-		}
+		return true;
 	});
 }
 

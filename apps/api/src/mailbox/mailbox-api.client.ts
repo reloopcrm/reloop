@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { z } from "zod";
 import { PROVIDER_API } from "./mailbox.config";
 
 export type MailboxResult<T> =
@@ -6,7 +7,18 @@ export type MailboxResult<T> =
 	| { outcome: "cursor-invalid"; reason: string }
 	| { outcome: "unauthorized"; reason: string }
 	| { outcome: "rate-limited"; reason: string; retryAfterMs: number }
+	| { outcome: "unreadable"; reason: string }
 	| { outcome: "failed"; reason: string; retryable: boolean };
+
+const providerErrorBody = z.object({
+	error: z
+		.object({
+			message: z.string().optional(),
+			status: z.string().optional(),
+			code: z.union([z.string(), z.number()]).transform(String).optional(),
+		})
+		.optional(),
+});
 
 @Injectable()
 export class MailboxApiClient {
@@ -15,6 +27,7 @@ export class MailboxApiClient {
 	async get<T>(
 		url: string,
 		accessToken: string,
+		schema: z.ZodType<T>,
 		params: Record<string, string | number | boolean | undefined> = {},
 	): Promise<MailboxResult<T>> {
 		const target = new URL(url);
@@ -34,7 +47,7 @@ export class MailboxApiClient {
 				signal: controller.signal,
 			});
 
-			return await this.interpret<T>(response, target.pathname);
+			return await this.interpret(response, target.pathname, schema);
 		} catch (error) {
 			const aborted = error instanceof Error && error.name === "AbortError";
 			return {
@@ -54,9 +67,24 @@ export class MailboxApiClient {
 	private async interpret<T>(
 		response: Response,
 		path: string,
+		schema: z.ZodType<T>,
 	): Promise<MailboxResult<T>> {
 		if (response.ok) {
-			return { outcome: "ok", data: (await response.json()) as T };
+			const parsed = schema.safeParse(await response.json());
+			if (parsed.success) return { outcome: "ok", data: parsed.data };
+
+			const issues = parsed.error.issues
+				.map((issue) => `${issue.path.join(".") || "body"} ${issue.message}`)
+				.join("; ");
+			this.logger.warn({
+				message: "Mailbox API response did not match its schema",
+				path,
+				issues,
+			});
+			return {
+				outcome: "unreadable",
+				reason: `Unreadable response from ${path}: ${issues}`,
+			};
 		}
 
 		const detail = await this.reason(response);
@@ -114,13 +142,12 @@ export class MailboxApiClient {
 
 	private async reason(response: Response): Promise<string> {
 		try {
-			const body = (await response.json()) as {
-				error?: { message?: string; status?: string; code?: string };
-			};
+			const body = providerErrorBody.safeParse(await response.json());
+			const error = body.success ? body.data.error : undefined;
 			return (
-				body.error?.message ??
-				body.error?.status ??
-				body.error?.code ??
+				error?.message ??
+				error?.status ??
+				error?.code ??
 				`HTTP ${response.status}`
 			);
 		} catch {

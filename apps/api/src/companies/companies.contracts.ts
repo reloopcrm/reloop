@@ -221,6 +221,7 @@ export const companyDetailOutput = z.object({
 	primaryContactId: z.string().nullable(),
 	primaryContact: companyDetailPrimaryContactOutput.nullable(),
 	reportingCurrency: z.string(),
+	dealCount: z.number().int(),
 	deals: z.array(companyDetailDealOutput),
 });
 

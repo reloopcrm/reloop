@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { z } from "zod";
 import {
 	MailboxApiClient,
 	type MailboxResult,
@@ -7,45 +8,67 @@ import {
 const EVENTS_URL =
 	"https://www.googleapis.com/calendar/v3/calendars/primary/events";
 
-export type GoogleEvent = {
-	id?: string;
-	iCalUID?: string;
-	status?: string;
-	summary?: string;
-	description?: string;
-	location?: string;
-	hangoutLink?: string;
-	htmlLink?: string;
-	recurringEventId?: string;
-	start?: GoogleEventTime;
-	end?: GoogleEventTime;
-	originalStartTime?: GoogleEventTime;
-	organizer?: { email?: string; displayName?: string; self?: boolean };
-	creator?: { email?: string; displayName?: string; self?: boolean };
-	attendees?: {
-		email?: string;
-		displayName?: string;
-		responseStatus?: string;
-		organizer?: boolean;
-		self?: boolean;
-		resource?: boolean;
-	}[];
-	conferenceData?: {
-		entryPoints?: { entryPointType?: string; uri?: string }[];
-	};
-};
+const googleEventTime = z.object({
+	dateTime: z.string().optional(),
+	date: z.string().optional(),
+	timeZone: z.string().optional(),
+});
 
-export type GoogleEventTime = {
-	dateTime?: string;
-	date?: string;
-	timeZone?: string;
-};
+export type GoogleEventTime = z.infer<typeof googleEventTime>;
 
-export type EventsPage = {
-	items?: GoogleEvent[];
-	nextPageToken?: string;
-	nextSyncToken?: string;
-};
+const googlePerson = z.object({
+	email: z.string().optional(),
+	displayName: z.string().optional(),
+	self: z.boolean().optional(),
+});
+
+export const googleEvent = z.object({
+	id: z.string().optional(),
+	iCalUID: z.string().optional(),
+	status: z.string().optional(),
+	summary: z.string().optional(),
+	description: z.string().optional(),
+	location: z.string().optional(),
+	hangoutLink: z.string().optional(),
+	htmlLink: z.string().optional(),
+	recurringEventId: z.string().optional(),
+	start: googleEventTime.optional(),
+	end: googleEventTime.optional(),
+	originalStartTime: googleEventTime.optional(),
+	organizer: googlePerson.optional(),
+	creator: googlePerson.optional(),
+	attendees: z
+		.array(
+			googlePerson.extend({
+				responseStatus: z.string().optional(),
+				organizer: z.boolean().optional(),
+				resource: z.boolean().optional(),
+			}),
+		)
+		.optional(),
+	conferenceData: z
+		.object({
+			entryPoints: z
+				.array(
+					z.object({
+						entryPointType: z.string().optional(),
+						uri: z.string().optional(),
+					}),
+				)
+				.optional(),
+		})
+		.optional(),
+});
+
+export type GoogleEvent = z.infer<typeof googleEvent>;
+
+export const googleEventsPage = z.object({
+	items: z.array(googleEvent).optional(),
+	nextPageToken: z.string().optional(),
+	nextSyncToken: z.string().optional(),
+});
+
+export type EventsPage = z.infer<typeof googleEventsPage>;
 
 export type EventsQuery = {
 	syncToken?: string;
@@ -67,7 +90,7 @@ export class CalendarClient {
 			? {}
 			: { timeMin: query.timeMin, timeMax: query.timeMax };
 
-		return this.api.get<EventsPage>(EVENTS_URL, accessToken, {
+		return this.api.get(EVENTS_URL, accessToken, googleEventsPage, {
 			singleEvents: true,
 			showDeleted: true,
 			maxResults: query.maxResults ?? 250,

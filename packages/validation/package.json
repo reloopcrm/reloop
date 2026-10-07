@@ -12,6 +12,7 @@
 		"./agent-language": "./src/agent-language.ts",
 		"./agent-manifest": "./src/agent-manifest.ts",
 		"./agent-task-payload": "./src/agent-task-payload.ts",
+		"./mailbox-reasons": "./src/mailbox-reasons.ts",
 		"./builder-question": "./src/builder-question.ts",
 		"./chatgpt-login": "./src/chatgpt-login.ts",
 		"./conversations": "./src/conversations.ts",

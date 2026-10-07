@@ -1,4 +1,5 @@
 import { db, FactBand, FactStatus, type Prisma, RecordSource } from "@crm/db";
+import { lockFactField } from "@crm/db/idempotency";
 import { type Evidence, scoreEvidence, selfAssertedOnly } from "./evidence";
 import { currentFocus } from "./focus";
 import { isDerivedName, shortensName, splitName } from "./names";
@@ -22,6 +23,20 @@ export type FactField = keyof typeof FIELDS;
 export type FactColumn = NonNullable<(typeof FIELDS)[FactField]["column"]>;
 
 export const FACT_FIELDS = Object.keys(FIELDS) as FactField[];
+
+export const FACT_SUBJECT_SELECT = {
+	email: true,
+	firstName: true,
+	lastName: true,
+	source: true,
+	title: true,
+	phone: true,
+	seniority: true,
+	function: true,
+	linkedinUrl: true,
+	twitterUrl: true,
+	githubUrl: true,
+} as const satisfies Prisma.ContactSelect;
 
 export type FactSubject = {
 	email: string | null;
@@ -66,8 +81,7 @@ export type RecordFactResult = {
 export async function recordFact(
 	input: RecordFactInput,
 ): Promise<RecordFactResult> {
-	const { contactId, field, value } = input;
-	const trimmed = value.trim();
+	const trimmed = input.value.trim();
 
 	const scored = scoreEvidence(input.evidence);
 	const base = {
@@ -90,23 +104,39 @@ export async function recordFact(
 		};
 	}
 
-	const contact = await db.contact.findUnique({
-		where: { id: contactId },
-		select: {
-			id: true,
-			email: true,
-			firstName: true,
-			lastName: true,
-			source: true,
-			title: true,
-			phone: true,
-			seniority: true,
-			function: true,
-			linkedinUrl: true,
-			twitterUrl: true,
-			githubUrl: true,
-		},
+	const attempt: FactAttempt = {
+		input,
+		trimmed,
+		band: scored.band,
+		hasPrimary: scored.hasPrimary,
+		base,
+		sessionId: currentFocus().sessionId,
+	};
+
+	return db.$transaction(async (tx) => {
+		await lockFactField(tx, input.contactId, input.field);
+		return settleFact(tx, attempt, true);
 	});
+}
+
+type FactAttempt = {
+	input: RecordFactInput;
+	trimmed: string;
+	band: FactBand;
+	hasPrimary: boolean;
+	base: Pick<RecordFactResult, "score" | "band" | "rationale">;
+	sessionId: string | null;
+};
+
+async function settleFact(
+	tx: Prisma.TransactionClient,
+	attempt: FactAttempt,
+	retry: boolean,
+): Promise<RecordFactResult> {
+	const { input, trimmed, base } = attempt;
+	const { contactId, field } = input;
+
+	const contact = await readFactSubject(tx, contactId);
 
 	if (!contact) {
 		return {
@@ -117,7 +147,7 @@ export async function recordFact(
 		};
 	}
 
-	const existing = await db.contactFact.findMany({
+	const existing = await tx.contactFact.findMany({
 		where: { contactId, field },
 		select: { id: true, value: true, status: true },
 	});
@@ -173,7 +203,7 @@ export async function recordFact(
 	}
 
 	const applies =
-		scored.band === FactBand.VERIFIED ||
+		attempt.band === FactBand.VERIFIED ||
 		(mayFillBlank(field, input.evidence) &&
 			fillsBlank({ field, contact, agentValue }));
 
@@ -193,53 +223,50 @@ export async function recordFact(
 		};
 	}
 
-	const sessionId = currentFocus().sessionId;
+	if (
+		applies &&
+		!(await writeFactValue(tx, {
+			contactId,
+			field,
+			value: trimmed,
+			basis: contact,
+		}))
+	) {
+		if (retry) return settleFact(tx, attempt, false);
 
-	await db.$transaction(async (tx) => {
-		if (applies) {
-			await tx.contactFact.updateMany({
-				where: {
-					contactId,
-					field,
-					status: { in: [FactStatus.APPLIED, FactStatus.PROPOSED] },
-				},
-				data: { status: FactStatus.SUPERSEDED, supersededAt: new Date() },
-			});
-		}
+		return {
+			...base,
+			stored: false,
+			applied: false,
+			reason:
+				"The record changed while this was being written. Nothing was stored; read the record again before offering a value.",
+		};
+	}
 
-		await tx.contactFact.create({
-			data: {
+	if (applies) {
+		await tx.contactFact.updateMany({
+			where: {
 				contactId,
 				field,
-				value: trimmed,
-				score: scored.score,
-				band: scored.band as FactBand,
-				evidence: input.evidence as Prisma.InputJsonValue,
-				method: input.method,
-				sourceUrl: input.sourceUrl ?? null,
-				sessionId,
-				status: applies ? FactStatus.APPLIED : FactStatus.PROPOSED,
+				status: { in: [FactStatus.APPLIED, FactStatus.PROPOSED] },
 			},
+			data: { status: FactStatus.SUPERSEDED, supersededAt: new Date() },
 		});
+	}
 
-		if (!applies) return;
-
-		if (column) {
-			await tx.contact.update({
-				where: { id: contactId },
-				data: { [column]: trimmed },
-			});
-		}
-
-		if (field === "name") {
-			const split = splitName(trimmed);
-			if (split) {
-				await tx.contact.update({
-					where: { id: contactId },
-					data: { firstName: split.firstName, lastName: split.lastName },
-				});
-			}
-		}
+	await tx.contactFact.create({
+		data: {
+			contactId,
+			field,
+			value: trimmed,
+			score: base.score,
+			band: attempt.band,
+			evidence: input.evidence as Prisma.InputJsonValue,
+			method: input.method,
+			sourceUrl: input.sourceUrl ?? null,
+			sessionId: attempt.sessionId,
+			status: applies ? FactStatus.APPLIED : FactStatus.PROPOSED,
+		},
 	});
 
 	return {
@@ -251,9 +278,56 @@ export async function recordFact(
 			: heldReason({
 					field,
 					evidence: input.evidence,
-					hasPrimary: scored.hasPrimary,
+					hasPrimary: attempt.hasPrimary,
 				}),
 	};
+}
+
+export function readFactSubject(
+	tx: Prisma.TransactionClient,
+	contactId: string,
+): Promise<FactSubject | null> {
+	return tx.contact.findUnique({
+		where: { id: contactId },
+		select: FACT_SUBJECT_SELECT,
+	});
+}
+
+export async function writeFactValue(
+	tx: Prisma.TransactionClient,
+	input: {
+		contactId: string;
+		field: FactField;
+		value: string;
+		basis: FactSubject;
+	},
+): Promise<boolean> {
+	const { contactId, field, value, basis } = input;
+	const column = FIELDS[field].column;
+
+	if (column) {
+		const { count } = await tx.contact.updateMany({
+			where: { id: contactId, [column]: basis[column] },
+			data: { [column]: value },
+		});
+		return count === 1;
+	}
+
+	if (field !== "name") return true;
+
+	const split = splitName(value);
+	if (!split) return true;
+
+	const { count } = await tx.contact.updateMany({
+		where: {
+			id: contactId,
+			firstName: basis.firstName,
+			lastName: basis.lastName,
+			source: basis.source,
+		},
+		data: { firstName: split.firstName, lastName: split.lastName },
+	});
+	return count === 1;
 }
 
 export function mayFillBlank(field: FactField, evidence: Evidence[]): boolean {

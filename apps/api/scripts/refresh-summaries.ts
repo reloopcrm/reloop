@@ -9,6 +9,7 @@ import {
 	planSummaryCatchUp,
 	type SummaryVerdictCounts,
 } from "../src/agent/summary-catch-up";
+import { closeDatabase } from "./close-database";
 
 function describe(counts: SummaryVerdictCounts): string {
 	return [
@@ -28,7 +29,7 @@ function mode(argv: readonly string[]): "dry-run" | "apply" {
 	return apply ? "apply" : "dry-run";
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
 	const { db } = await import("@crm/db");
 	const { AgentTriggerService } = await import(
 		"../src/agent/agent-trigger.service"
@@ -68,7 +69,7 @@ async function main(): Promise<void> {
 		console.log("Dry run. Nothing was written. Run again with --apply.");
 	}
 
-	await db.$disconnect();
+	await closeDatabase();
 }
 
 if (import.meta.main) await main();

@@ -1,5 +1,5 @@
 import { type auth, SESSION_COOKIE_NAME } from "@crm/auth";
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, UseGuards } from "@nestjs/common";
 import {
 	ApiCookieAuth,
 	ApiOkResponse,
@@ -13,6 +13,7 @@ import {
 	type UserSession,
 } from "@thallesp/nestjs-better-auth";
 import { AuthService } from "./auth.service";
+import { SignInAllowedGuard } from "./sign-in-allowed.guard";
 
 type CrmSession = UserSession<typeof auth>;
 
@@ -23,6 +24,7 @@ export class AuthController {
 	constructor(private readonly authService: AuthService) {}
 
 	@Get("me")
+	@UseGuards(SignInAllowedGuard)
 	@ApiOperation({ summary: "Get the signed-in user's profile" })
 	@ApiOkResponse({ description: "The signed-in user's profile." })
 	@ApiUnauthorizedResponse({ description: "No valid session." })

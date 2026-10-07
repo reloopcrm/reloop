@@ -118,6 +118,7 @@ export const DISPATCH = {
 	blankFacts: {
 		scan: 2_000,
 		maxFills: 500,
+		contactChunk: 1_000,
 	},
 
 	retention: {

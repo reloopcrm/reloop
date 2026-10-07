@@ -1,6 +1,7 @@
 import { cloud } from "@crm/db/cloud/scope";
 import { SAMPLE_DATA } from "@crm/db/sample-data";
 import { THREAD_PARTICIPANTS } from "../src/mailbox/mailbox.config";
+import { closeDatabase } from "./close-database";
 
 function flagValue(name: string): string | null {
 	const at = process.argv.indexOf(name);
@@ -8,7 +9,7 @@ function flagValue(name: string): string | null {
 	return process.argv[at + 1] ?? null;
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
 	const apply = process.argv.includes("--apply");
 	const from = flagValue("--from");
 
@@ -99,7 +100,7 @@ async function main(): Promise<void> {
 		);
 	}
 
-	await db.$disconnect();
+	await closeDatabase();
 }
 
 async function contactsWithoutMemory(

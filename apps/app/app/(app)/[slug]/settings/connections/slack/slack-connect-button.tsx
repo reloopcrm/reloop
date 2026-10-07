@@ -6,29 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
-
-const CONNECT_ERRORS = new Map([
-	[
-		"access_denied",
-		"Slack installation was cancelled before access was granted.",
-	],
-	[
-		"account_already_linked_to_different_user",
-		"That Slack installer is already linked to another CRM account.",
-	],
-	[
-		"email_doesn't_match",
-		"The Slack installer's email must match the CRM account you are signed in with.",
-	],
-	[
-		"oauth_code_verification_failed",
-		"Slack rejected the app credentials or redirect URL. Check the client ID, client secret, and OAuth redirect URL, then try again.",
-	],
-	[
-		"user_info_is_missing",
-		"Slack did not return the installer's profile. Confirm the app has users:read and users:read.email, reinstall it, then try again.",
-	],
-]);
+import { SLACK_CONNECT_ERRORS } from "../connection-copy";
 
 async function startSlackOAuth(slug: string, t: Translate) {
 	try {
@@ -81,7 +59,9 @@ export function SlackConnectButton({
 		await startSlackOAuth(slug, t);
 		setPending(false);
 	};
-	const failure = connectError ? CONNECT_ERRORS.get(connectError) : undefined;
+	const failure = connectError
+		? SLACK_CONNECT_ERRORS.get(connectError)
+		: undefined;
 
 	return (
 		<div className="flex shrink-0 flex-col gap-2">

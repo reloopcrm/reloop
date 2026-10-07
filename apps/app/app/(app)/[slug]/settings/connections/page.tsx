@@ -15,6 +15,7 @@ import { requireSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AddConnectionDialog } from "./add-connection-dialog";
 import { ImportProgress as ImportProgressView } from "./import-history";
+import { mailboxNeedsAttention, mailboxStatus } from "./mailbox-status";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getT();
@@ -64,7 +65,7 @@ async function ConnectionsSettingsPageContent({
 			? [
 					{
 						name: "Google Workspace",
-						status: mailboxStatus(gmail, t),
+						status: mailboxStatus(gmail, google.sources, t),
 						bringsIn: t("Emails, meetings and the people on them"),
 						sends: t("Nothing yet"),
 						href: `/${slug}/settings/connections/google`,
@@ -91,7 +92,7 @@ async function ConnectionsSettingsPageContent({
 			? [
 					{
 						name: "Microsoft 365",
-						status: mailboxStatus(outlook, t),
+						status: mailboxStatus(outlook, microsoft.sources, t),
 						bringsIn: t("Outlook email and the people on it"),
 						sends: t("Nothing yet"),
 						href: `/${slug}/settings/connections/microsoft`,
@@ -104,8 +105,9 @@ async function ConnectionsSettingsPageContent({
 			? [
 					{
 						name: "Mailbox (IMAP)",
-						status:
-							imap.accounts.length === 1
+						status: mailboxNeedsAttention(imap.accounts)
+							? t("Needs attention")
+							: imap.accounts.length === 1
 								? t("Connected to {mailbox}", {
 										mailbox: imap.accounts[0]?.email ?? "",
 									})
@@ -316,10 +318,6 @@ async function StarterRow({
 			</Button>
 		</div>
 	);
-}
-
-function mailboxStatus(progress: ImportProgress | null, t: Translate): string {
-	return progress && !progress.done ? t("Reading mail") : t("Connected");
 }
 
 function webhookStatus(

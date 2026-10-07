@@ -1,4 +1,4 @@
-import { db, type Prisma } from "@crm/db";
+import { db, Prisma } from "@crm/db";
 import { MAX_ATTEMPTS, RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { isSampleRecordId, SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
@@ -54,12 +54,14 @@ export async function claimDue(
 	kinds: { only: readonly string[] } | { except: readonly string[] },
 	leaseMs = LEASE_MS,
 	priority: PriorityBound = {},
+	filter: Prisma.Sql = Prisma.empty,
 ): Promise<LeasedTask[]> {
 	const now = new Date();
 	const until = new Date(now.getTime() + leaseMs);
 	const above = priority.above ?? PRIORITY_RANGE.min;
 	const atMost = priority.atMost ?? PRIORITY_RANGE.max;
 
+	if (limit <= 0) return [];
 	const list = "only" in kinds ? [...kinds.only] : [...kinds.except];
 	if ("only" in kinds && list.length === 0) return [];
 
@@ -81,6 +83,7 @@ export async function claimDue(
 				AND COALESCE(t2."contactId", '') NOT LIKE ${SAMPLE_ID_PATTERN}
 				AND COALESCE(t2."companyId", '') NOT LIKE ${SAMPLE_ID_PATTERN}
 				AND COALESCE(t2."dealId", '') NOT LIKE ${SAMPLE_ID_PATTERN}
+				${filter}
 			ORDER BY t2."priority" DESC, t2."dueAt" ASC
 			LIMIT ${limit}
 			FOR UPDATE SKIP LOCKED

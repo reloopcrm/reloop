@@ -28,6 +28,32 @@ describe("isAutoReply", () => {
 		expect(isAutoReply("Unzustellbar: Paletten", null)).toBe(true);
 	});
 
+	it("keeps its bounce subjects as they were, the newer ones belong to isBounce", () => {
+		expect(isAutoReply("Mail delivery failed: Paletten", null)).toBe(true);
+		expect(isAutoReply("Delivery Status Notification (Failure)", null)).toBe(
+			true,
+		);
+		expect(isAutoReply("Zustellungsstatus: Paletten", null)).toBe(true);
+		for (const subject of [
+			"Nicht zustellbar: Paletten",
+			"Non remis: Paletten",
+			"Onbestelbaar: Paletten",
+			"Undelivered Mail Returned to Sender",
+			"Returned mail: see transcript",
+			"failure notice",
+			"Message not delivered",
+		]) {
+			expect({ subject, auto: isAutoReply(subject, null) }).toEqual({
+				subject,
+				auto: false,
+			});
+			expect({
+				subject,
+				bounce: isBounce("notify@example.com", subject, null),
+			}).toEqual({ subject, bounce: true });
+		}
+	});
+
 	it("reads the body when the subject says nothing", () => {
 		expect(
 			isAutoReply(

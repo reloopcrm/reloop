@@ -64,10 +64,15 @@ const BOUNCE_SENDER = [
 	String.raw`^\s*(mailer-daemon|mailer_daemon|mail-daemon|maildaemon|postmaster|microsoftexchange[0-9a-f]+)@`,
 ];
 
-const BOUNCE_SUBJECT = [
-	String.raw`${REPLY_LEAD}(undeliverable|unzustellbar|nicht\s+zustellbar|non\s+remis|onbestelbaar)`,
+const MAIL_SYSTEM_SUBJECT = [
+	`${REPLY_LEAD}(undeliverable|unzustellbar)`,
 	String.raw`${REPLY_LEAD}(mail\s+delivery|delivery\s+status\s+notification)`,
 	`${REPLY_LEAD}(zustellungs|übermittlungs)status`,
+];
+
+const BOUNCE_SUBJECT = [
+	...MAIL_SYSTEM_SUBJECT,
+	String.raw`${REPLY_LEAD}(nicht\s+zustellbar|non\s+remis|onbestelbaar)`,
 	String.raw`${REPLY_LEAD}undelivered\s+(mail|message)`,
 	String.raw`${REPLY_LEAD}returned\s+mail`,
 	String.raw`${REPLY_LEAD}failure\s+notice`,
@@ -87,11 +92,24 @@ const QUOTE_START = [
 	String.raw`^\s*>`,
 ];
 
+export const AUTO_REPLY_PATTERNS = {
+	subject: [...AUTO_REPLY_SUBJECT, ...MAIL_SYSTEM_SUBJECT],
+	body: AUTO_REPLY_BODY,
+} as const;
+
+export const BOUNCE_PATTERNS = {
+	sender: BOUNCE_SENDER,
+	subject: BOUNCE_SUBJECT,
+	body: BOUNCE_BODY,
+} as const;
+
 export const AUTOMATED_MESSAGE_PATTERNS = {
 	quoteStart: QUOTE_START,
-	sender: BOUNCE_SENDER,
-	subject: [...AUTO_REPLY_SUBJECT, ...BOUNCE_SUBJECT],
-	body: [...AUTO_REPLY_BODY, ...BOUNCE_BODY],
+	sender: BOUNCE_PATTERNS.sender,
+	subject: [
+		...new Set([...AUTO_REPLY_PATTERNS.subject, ...BOUNCE_PATTERNS.subject]),
+	],
+	body: [...AUTO_REPLY_PATTERNS.body, ...BOUNCE_PATTERNS.body],
 } as const;
 
 export const AUTO_REPLY_BODY_CHARS = 800;
@@ -100,11 +118,11 @@ function matcher(sources: readonly string[]): RegExp[] {
 	return sources.map((source) => new RegExp(source, "i"));
 }
 
-const autoReplySubject = matcher([...AUTO_REPLY_SUBJECT, ...BOUNCE_SUBJECT]);
-const autoReplyBody = matcher(AUTO_REPLY_BODY);
-const bounceSender = matcher(BOUNCE_SENDER);
-const bounceSubject = matcher(BOUNCE_SUBJECT);
-const bounceBody = matcher(BOUNCE_BODY);
+const autoReplySubject = matcher(AUTO_REPLY_PATTERNS.subject);
+const autoReplyBody = matcher(AUTO_REPLY_PATTERNS.body);
+const bounceSender = matcher(BOUNCE_PATTERNS.sender);
+const bounceSubject = matcher(BOUNCE_PATTERNS.subject);
+const bounceBody = matcher(BOUNCE_PATTERNS.body);
 
 const quoteStart = new RegExp(
 	String.raw`(?<=[\s\S])(?:${QUOTE_START.map((source) => `(?:${source})`).join("|")})`,

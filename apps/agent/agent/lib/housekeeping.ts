@@ -183,6 +183,7 @@ export async function queueUnreadThreads(): Promise<number> {
 			dueAt: new Date(),
 			priority: PRIORITY.threadInsightBackfill,
 			budget: 1,
+			subject: { path: [AGENT_TASK_THREAD_ID_KEY], value: thread.id },
 		});
 		started += 1;
 	}

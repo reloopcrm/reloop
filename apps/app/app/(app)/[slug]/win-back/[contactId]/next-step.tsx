@@ -54,6 +54,7 @@ import { WIN_BACK_UI } from "../win-back-config";
 import {
 	type CardStep,
 	type NextPerson,
+	nextLabel,
 	type PersonView,
 	withListState,
 } from "./person-view";
@@ -82,7 +83,11 @@ function paragraphs(text: string): string[] {
 		.filter(Boolean);
 }
 
-export function useNextStep(view: PersonView, next: NextPerson) {
+export function useNextStep(
+	view: PersonView,
+	next: NextPerson,
+	place: string | null,
+) {
 	const t = useT();
 	const locale = useLocale();
 	const errorMessage = useErrorMessage();
@@ -274,6 +279,7 @@ export function useNextStep(view: PersonView, next: NextPerson) {
 	return {
 		view,
 		next,
+		place,
 		shown,
 		step,
 		first,
@@ -306,15 +312,17 @@ type NextStep = ReturnType<typeof useNextStep>;
 
 function NextButton({ step }: { step: NextStep }) {
 	const t = useT();
-	const next = step.next;
 
 	return (
-		<Button onClick={step.goNext}>
-			<OpenIcon data-icon="inline-start" />
-			{next
-				? t("Continue with {name}", { name: next.name })
-				: t("Back to the list")}
-		</Button>
+		<>
+			<Button onClick={step.goNext}>
+				<OpenIcon data-icon="inline-start" />
+				{nextLabel(step.next, t)}
+			</Button>
+			{step.place ? (
+				<span className="text-2sm text-muted-foreground">{step.place}</span>
+			) : null}
+		</>
 	);
 }
 
@@ -681,9 +689,7 @@ export function NextStepBar({
 	return (
 		<ActionBar>
 			<Button size="lg" onClick={step.goNext}>
-				{step.next
-					? t("Continue with {name}", { name: step.next.name })
-					: t("Back to the list")}
+				{nextLabel(step.next, t)}
 			</Button>
 			<Button variant="link" size="text" onClick={step.undo}>
 				{t("Undo")}

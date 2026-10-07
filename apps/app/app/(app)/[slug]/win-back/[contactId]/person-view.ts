@@ -1,4 +1,6 @@
 import type { TrackMark } from "@crm/ui/components/story";
+import { numberFormat } from "@/lib/i18n/format";
+import type { Locale, Translate } from "@/lib/i18n/locale";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { WIN_BACK_UI } from "../win-back-config";
 
@@ -8,7 +10,29 @@ export type PersonMail = PersonView["mails"][number];
 
 export type CardStep = "read" | "open" | "sent" | "later" | "skip";
 
-export type NextPerson = RouterOutputs["reactivation"]["nextPerson"];
+export type NextInList = RouterOutputs["reactivation"]["nextPerson"];
+
+export type NextPerson = NextInList["next"];
+
+export function nextLabel(next: NextPerson, t: Translate): string {
+	return next
+		? t("Continue with {name}", { name: next.name })
+		: t("Back to the list");
+}
+
+export function placeLabel(
+	list: NextInList | null,
+	t: Translate,
+	locale: Locale,
+): string | null {
+	if (!list || list.position === null) return null;
+	const format = numberFormat(locale);
+
+	return t("Person {position} of {total}", {
+		position: format.format(list.position),
+		total: format.format(list.total),
+	});
+}
 
 export function withListState(path: string, search: string): string {
 	return search ? `${path}?${search}` : path;

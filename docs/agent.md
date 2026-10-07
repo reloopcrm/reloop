@@ -311,10 +311,11 @@ than failing.
 
 **Priority**: `personStory` 960 · `brand` 900 · `portrait` 800 · `threadRefresh` 750 · `threadInsight` 700 · `workspace` 500 ·
 `requested` 300 · `meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 ·
-`storyPrefetch` 35 · `threadInsightBackfill` 10 · `recheck` 0. `brand` and `portrait` are what a rep reads
+`storyPrefetch` 35 · `draftPrefetch` 34 · `threadInsightBackfill` 10 · `recheck` 0. `brand` and `portrait` are what a rep reads
 *before* deciding what to open; `personStory` is what a rep waits for after opening.
 `storyPrefetch` is a story nobody waits for yet: above the backfill, so the fast lane
-claims it, and below every story a rep opened.
+claims it, and below every story a rep opened. `draftPrefetch` is a Win back
+email nobody asked for yet, one step below it, because a rep reads the story first.
 
 **`company-profile` runs only when a rep asks.** Nothing queues it on its own: a new
 company, an email-domain company, a changed domain and the sign-in backfill queue

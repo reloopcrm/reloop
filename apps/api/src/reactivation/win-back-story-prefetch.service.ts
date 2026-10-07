@@ -21,6 +21,7 @@ import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
 import { PERSON_VIEW } from "./reactivation.config";
 import type { ReactivationListInput } from "./reactivation.contracts";
+import { WinBackDraftPrefetchService } from "./win-back-draft-prefetch.service";
 import { sortGroups } from "./win-back-groups";
 
 const PREFETCH_KEY = "win-back:story-prefetch";
@@ -28,6 +29,11 @@ const PREFETCH_KEY = "win-back:story-prefetch";
 const REASON = {
 	top: "Prefetched: near the top of the Win back list",
 	next: "Prefetched: the next person in Win back",
+} as const;
+
+const DRAFT_REASON = {
+	top: "Prefetched email: near the top of the Win back list",
+	next: "Prefetched email: the next person in Win back",
 } as const;
 
 export type StoryCheck = {
@@ -95,6 +101,7 @@ export class WinBackStoryPrefetchService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
 		@Inject(CACHE_MANAGER) private readonly cache: Cache,
+		private readonly drafts: WinBackDraftPrefetchService,
 	) {}
 
 	listRead(groups: readonly ReactivationGroup[] | null): void {
@@ -104,9 +111,11 @@ export class WinBackStoryPrefetchService {
 				if (await this.cache.get(key)) return;
 				await this.cache.set(key, true, PERSON_VIEW.prefetch.everyMs);
 
-				await this.queue(
-					topOfList(groups ?? (await this.defaultList())),
-					REASON.top,
+				const list = groups ?? (await this.defaultList());
+				await this.queue(topOfList(list), REASON.top);
+				await this.drafts.queue(
+					topOfList(list, PERSON_VIEW.prefetch.drafts.top),
+					DRAFT_REASON.top,
 				);
 			} catch (error) {
 				this.logger.error(
@@ -121,6 +130,7 @@ export class WinBackStoryPrefetchService {
 		void cloud.hold(async () => {
 			try {
 				await this.queue([contactId], REASON.next);
+				await this.drafts.queue([contactId], DRAFT_REASON.next);
 			} catch (error) {
 				this.logger.error(
 					{ message: "The story prefetch for the next person failed" },

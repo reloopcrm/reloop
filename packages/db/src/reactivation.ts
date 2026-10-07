@@ -3,6 +3,7 @@ import { isBoxThread } from "./contact-worth";
 import { OPEN_DEAL_STAGES } from "./deal-stage";
 import { Prisma } from "./generated/prisma/client";
 import { DealStage } from "./generated/prisma/enums";
+import { DECLINE_KIND, DECLINED_OUTCOME } from "./insights";
 import { DEFAULT_WIN_BACK_RULES, type WinBackRuleSet } from "./win-back-rules";
 
 const DAY_MS = 86_400_000;
@@ -336,12 +337,14 @@ export async function listReactivationCandidates(
 		? Prisma.sql`AND c."ownerId" = ${options.ownerId}`
 		: Prisma.empty;
 	const includeFilter = options.rejected ? Prisma.empty : ruleFilter(rules);
+	const hardNoFilter = options.rejected ? Prisma.empty : HARD_NO_FILTER;
 
 	const rows = await db.$queryRaw<Row[]>(
 		rowQuery(
 			Prisma.sql`${standingFilter}
 			${quietFilter}
 			${includeFilter}
+			${hardNoFilter}
 			${ownerFilter}`,
 			REACTIVATION.scan.maxRows,
 		),
@@ -374,6 +377,15 @@ export async function listReactivationCandidates(
 		rules,
 	};
 }
+
+const HARD_NO_FILTER = Prisma.sql`AND NOT EXISTS (
+	SELECT 1 FROM "emailThread" ht
+	JOIN "threadInsight" hi ON hi."threadId" = ht.id
+	WHERE ht."contactId" = c.id
+		AND hi.outcome = ${DECLINED_OUTCOME}
+		AND hi."declineKind" = ${DECLINE_KIND.hard}
+		AND (mail.last_inbound IS NULL OR mail.last_inbound <= hi."lastMessageAt")
+)`;
 
 function ruleFilter(rules: WinBackRuleSet): Prisma.Sql {
 	const topicFilter = rules.include.requireTopic

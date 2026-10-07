@@ -64,6 +64,7 @@ describe("a reread keeps the relevance it found", () => {
 				quantityPallets: null,
 				loads: null,
 				outcome: "OTHER",
+				declineKind: null,
 				unansweredByUs: false,
 				summary: "Es ging um 300 Europaletten.",
 				evidence: [],

@@ -1,5 +1,7 @@
 import { db } from "@crm/db";
 import {
+	DECLINE_KIND,
+	DECLINED_OUTCOME,
 	INSIGHT_OUTCOMES,
 	INSIGHT_SIDES,
 	MEMORY,
@@ -10,6 +12,7 @@ import { TYPESAFE } from "@crm/db/typesafe";
 import type { SummaryLanguage } from "@crm/validation/agent-language";
 import { summaryIsStale } from "@crm/validation/agent-language";
 import { clampAtWord } from "@crm/validation/summary-text";
+import { declineKind, parseDeclineKind } from "@crm/validation/thread-decline";
 import {
 	readWinBackRules,
 	type WinBackRules,
@@ -86,6 +89,16 @@ export const threadInsightSchema = z.object({
 		.nullable()
 		.describe("Largest number of truck loads mentioned, if any."),
 	outcome: z.enum(INSIGHT_OUTCOMES),
+	declineKind: declineKind
+		.nullable()
+		.describe(
+			"HARD or SOFT when the outcome is DECLINED, as the instructions define them. Null for every other outcome.",
+		),
+	askedToStop: z
+		.boolean()
+		.describe(
+			"True when one of their messages asks us to stop writing, to take them off our list or to unsubscribe them.",
+		),
 	unansweredByUs: z
 		.boolean()
 		.describe(
@@ -107,6 +120,8 @@ export const threadInsightSchema = z.object({
 });
 
 const lenientInsightSchema = threadInsightSchema.extend({
+	declineKind: declineKind.nullable().default(null),
+	askedToStop: z.boolean().default(false),
 	topics: capped(clamped(60), 8),
 	products: capped(clamped(60), 8),
 	summary: clampedAtWord(MEMORY.threadSummaryMaxChars),
@@ -136,7 +151,27 @@ const lenientDigestSchema = threadDigestSchema.extend({
 	),
 });
 
-export type ThreadInsightVerdict = z.infer<typeof threadInsightSchema>;
+function settledDecline({
+	askedToStop,
+	...answer
+}: z.output<typeof lenientInsightSchema>) {
+	if (askedToStop) {
+		return {
+			...answer,
+			outcome: DECLINED_OUTCOME,
+			declineKind: DECLINE_KIND.hard,
+		};
+	}
+	if (answer.outcome !== DECLINED_OUTCOME) {
+		return { ...answer, declineKind: null };
+	}
+
+	return { ...answer, declineKind: answer.declineKind ?? DECLINE_KIND.soft };
+}
+
+export const insightAnswer = lenientInsightSchema.transform(settledDecline);
+
+export type ThreadInsightVerdict = z.output<typeof insightAnswer>;
 
 export type ThreadVerdict = Omit<ThreadInsightVerdict, "side"> & {
 	side: ThreadInsightVerdict["side"] | null;
@@ -150,6 +185,7 @@ const GATE_SKIPPED: ThreadVerdict = {
 	quantityPallets: null,
 	loads: null,
 	outcome: "OTHER",
+	declineKind: null,
 	unansweredByUs: false,
 	summary: "",
 	evidence: [],
@@ -376,7 +412,7 @@ async function classifyWithModel(
 
 	const object = await askJson(
 		model,
-		lenientInsightSchema,
+		insightAnswer,
 		[
 			"You read one email conversation from a company's mailbox and report facts about it.",
 			UNTRUSTED_RULE,
@@ -385,6 +421,11 @@ async function classifyWithModel(
 			"DEAL_DONE means an order was confirmed, delivered or invoiced in this conversation.",
 			"OPEN_INQUIRY_THEIRS means they asked to buy or sell and no agreement was reached.",
 			"OPEN_OFFER_OURS means we offered and they did not answer.",
+			"DECLINED means they said no to doing business with us.",
+			"declineKind is HARD when they said no without showing interest first: they never asked for a price or an offer and never talked about what they need, they only wrote that they have no interest, asked us to stop writing or unsubscribed.",
+			"declineKind is SOFT when they showed interest first, by asking for prices, getting an offer or meeting us, and said no after that, for example because it is too expensive, they have no need right now or they buy from another supplier.",
+			"declineKind is null when the outcome is not DECLINED.",
+			"askedToStop is true when one of their own messages asks us to stop writing, to take them off our list or to unsubscribe them. Text quoted from our messages and the footer of a newsletter do not count.",
 			`Write the summary in ${writtenIn}, at most three sentences, naming what was discussed and where it ended.`,
 			"Every evidence quote is copied from one message and names the number of that message.",
 			`messageSummaries holds one line in ${writtenIn} for every numbered message, with its number, each at most 20 words.`,
@@ -586,6 +627,7 @@ function storedVerdict(stored: {
 	quantityPallets: number | null;
 	loads: number | null;
 	outcome: string;
+	declineKind: string | null;
 	unansweredByUs: boolean;
 	summary: string;
 }): ThreadVerdict {
@@ -597,6 +639,7 @@ function storedVerdict(stored: {
 		quantityPallets: stored.quantityPallets,
 		loads: stored.loads,
 		outcome: stored.outcome as ThreadInsightVerdict["outcome"],
+		declineKind: parseDeclineKind(stored.declineKind),
 		unansweredByUs: stored.unansweredByUs,
 		summary: stored.summary,
 		evidence: [],

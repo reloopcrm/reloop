@@ -386,6 +386,7 @@ export class GmailSyncService {
 
 			if (page.outcome === "cursor-invalid") {
 				plan = restartBackfill(plan);
+				passed.clear();
 				break;
 			}
 
@@ -396,6 +397,7 @@ export class GmailSyncService {
 					plan.position !== null
 				) {
 					plan = restartBackfill(plan);
+					passed.clear();
 					break;
 				}
 

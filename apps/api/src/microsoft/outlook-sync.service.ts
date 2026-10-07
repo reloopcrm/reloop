@@ -380,6 +380,7 @@ export class OutlookSyncService {
 
 			if (page.outcome === "cursor-invalid") {
 				plan = restartBackfill(plan);
+				passed.clear();
 				break;
 			}
 
@@ -390,6 +391,7 @@ export class OutlookSyncService {
 					plan.position !== null
 				) {
 					plan = restartBackfill(plan);
+					passed.clear();
 					break;
 				}
 

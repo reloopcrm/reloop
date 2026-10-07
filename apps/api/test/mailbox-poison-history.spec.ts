@@ -73,12 +73,14 @@ function gmailKit(options: {
 	backfill: string[][];
 	poisoned: readonly string[];
 	plan?: string;
+	expireOnce?: string;
 }) {
 	const persisted: Persisted = {
 		cursor: "1000",
 		backfill: options.plan ?? null,
 	};
 	const stored: string[] = [];
+	let expired: string | undefined;
 
 	const gmail = {
 		async profile() {
@@ -101,6 +103,11 @@ function gmailKit(options: {
 			});
 		},
 		async listMessages(_token: string, request: { pageToken?: string }) {
+			const expiring = options.expireOnce ?? null;
+			if (expired === undefined && request.pageToken === expiring) {
+				expired = request.pageToken;
+				return { outcome: "cursor-invalid" as const, reason: "expired" };
+			}
 			const at = Number(request.pageToken ?? 0);
 			const next =
 				at + 1 < options.backfill.length ? String(at + 1) : undefined;
@@ -419,5 +426,26 @@ describe("an Outlook tick that stops before a page it read before", () => {
 			.map((call) => JSON.stringify(call[0]))
 			.filter((line) => line.includes(`"poison"`));
 		expect(lines).toHaveLength(1);
+	});
+});
+
+describe("a Gmail backfill page token that expires after a finished page", () => {
+	it("keeps the counts of the page the restart reads again", async () => {
+		const warn = spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+		const kit = gmailKit({
+			history: [],
+			backfill: [["p0"], ["good"]],
+			poisoned: ["p0"],
+			plan: serialiseBackfill({
+				...planBackfill({ before: new Date(), floor: null }),
+				phase: "all",
+			}),
+			expireOnce: "1",
+		});
+
+		for (let tick = 1; tick <= TICKS; tick += 1) await kit.tick();
+
+		expect(kit.stored).toEqual(["good"]);
+		warnedOnce(warn, ["p0"]);
 	});
 });

@@ -290,6 +290,7 @@ export class ContactsService {
 				},
 				owner: { select: OWNER_SELECT },
 				deals: {
+					where: { deal: archivedFilter(false) },
 					select: {
 						role: true,
 						deal: {

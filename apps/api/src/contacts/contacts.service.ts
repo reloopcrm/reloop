@@ -966,12 +966,11 @@ export class ContactsService {
 			throw new NotFoundException(`No contact with id ${id}.`);
 		}
 
-		const queued = await this.agent.contactCreated(
+		const queued = await this.agent.contactRequested(
 			id,
 			contact.linkedinUrl && !contact.imageUrl
 				? `${REP_ASKED_REASON}. They have a LinkedIn profile on file but no picture`
 				: REP_ASKED_REASON,
-			true,
 		);
 
 		if (queued) {

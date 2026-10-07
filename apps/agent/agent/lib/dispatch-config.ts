@@ -20,6 +20,14 @@ export const DISPATCH = {
 		},
 	},
 
+	read: {
+		batch: 40,
+		quiet: {
+			share: 0.25,
+			afterMs: 90 * DAY_MS,
+		},
+	},
+
 	research: {
 		batch: 12,
 		leaseMs: 30 * MINUTE_MS,

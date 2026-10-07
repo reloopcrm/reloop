@@ -57,6 +57,7 @@ import {
 	type NextPerson,
 	nextLabel,
 	type PersonView,
+	replyDraftOutdated,
 	withListState,
 } from "./person-view";
 
@@ -113,8 +114,10 @@ export function useNextStep(
 	const draft = useEmailDraft(contactId, true);
 	const email = view.contact.email;
 	const shortVersion = draft.draft?.oneOff ?? null;
-	const shown =
-		variant === "short"
+	const outdated = replyDraftOutdated(view, draft.draft);
+	const shown = outdated
+		? null
+		: variant === "short"
 			? shortVersion
 			: draft.draft
 				? { subject: draft.draft.subject, body: draft.draft.body }
@@ -279,6 +282,7 @@ export function useNextStep(
 		next,
 		place,
 		shown,
+		outdated,
 		step,
 		first,
 		days,
@@ -328,7 +332,7 @@ function DraftState({ step }: { step: NextStep }) {
 	const t = useT();
 	const { draft } = step;
 
-	if (draft.held && !draft.draft) {
+	if (draft.held && (!draft.draft || step.outdated)) {
 		return (
 			<p className="text-muted-foreground text-sm">
 				{draft.planLimit
@@ -360,6 +364,15 @@ function DraftState({ step }: { step: NextStep }) {
 		return (
 			<p className="text-muted-foreground text-sm">
 				{t("The agent could not write this draft. Press Write again to retry.")}
+			</p>
+		);
+	}
+	if (step.outdated) {
+		return (
+			<p className="text-muted-foreground text-sm">
+				{t(
+					"Reloop has not written the answer yet. Reload the page to try again.",
+				)}
 			</p>
 		);
 	}
@@ -428,9 +441,8 @@ function CardBody({ step }: { step: NextStep }) {
 	const { first, draft } = step;
 
 	if (step.step === "read") {
-		const outdated = draft.draft?.stale === true && answerIsNext(step.view);
 		const preview =
-			draft.draft && !outdated
+			draft.draft && !step.outdated
 				? paragraphs(draft.draft.body).slice(1, 3).join(" ")
 				: "";
 		return (
@@ -446,8 +458,7 @@ function CardBody({ step }: { step: NextStep }) {
 				<DraftCardDescription>
 					{step.email && answerIsNext(step.view)
 						? t(
-								"{name} wrote back after your win back mail. Reloop prepares the answer in your tone.",
-								{ name: first },
+								"They wrote back after your win back mail. Reloop prepares the answer in your tone.",
 							)
 						: t("Reloop prepares it in your tone, with what the story says.")}
 				</DraftCardDescription>
@@ -505,7 +516,7 @@ function CardBody({ step }: { step: NextStep }) {
 					<Button
 						variant="link"
 						size="text"
-						disabled={!draft.draft}
+						disabled={!step.shown}
 						onClick={() => void step.copy()}
 					>
 						{t("Copy")}

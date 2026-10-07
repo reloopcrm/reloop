@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	answerIsNext,
 	followUpDaysOf,
+	replyDraftOutdated,
 } from "@/app/(app)/[slug]/win-back/[contactId]/person-view";
 import {
 	winBackInput,
@@ -102,5 +103,25 @@ describe("the draft for a reply", () => {
 				{ renewStale: true },
 			),
 		).toBe(false);
+	});
+});
+
+describe("an outdated draft in the reply state", () => {
+	const answer = { answeredAt: "2026-09-20T08:00:00.000Z", open: true };
+
+	it("is never offered as the answer", () => {
+		expect(replyDraftOutdated({ wroteBack: answer }, { stale: true })).toBe(
+			true,
+		);
+	});
+
+	it("is the normal draft when no answer is due", () => {
+		expect(replyDraftOutdated({ wroteBack: null }, { stale: true })).toBe(
+			false,
+		);
+		expect(replyDraftOutdated({ wroteBack: answer }, { stale: false })).toBe(
+			false,
+		);
+		expect(replyDraftOutdated({ wroteBack: answer }, null)).toBe(false);
 	});
 });

@@ -18,6 +18,13 @@ export function answerIsNext(view: Pick<PersonView, "wroteBack">): boolean {
 	return view.wroteBack?.open === true;
 }
 
+export function replyDraftOutdated(
+	view: Pick<PersonView, "wroteBack">,
+	draft: { stale: boolean } | null,
+): boolean {
+	return answerIsNext(view) && draft?.stale === true;
+}
+
 export function followUpDaysOf(
 	view: Pick<PersonView, "wroteBack" | "followUpDays">,
 ): number | null {

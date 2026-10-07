@@ -155,6 +155,7 @@ export async function readMonthlyUsage(
 				where: {
 					kind: { notIn: [...DIRECT_KINDS] },
 					startedAt: { gte: since },
+					attempts: { gte: 1 },
 				},
 			}),
 			count(RESEARCH_RUN_KIND),

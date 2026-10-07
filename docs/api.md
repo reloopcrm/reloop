@@ -979,7 +979,10 @@ marked passages and the follow-up delay. It writes nothing but an
   It never starts over at the top: after the last person `next` is null and the page
   offers "Back to the list". It also returns the person's `position` and the list's
   `total` in the same order and filters, for "Person 12 of 87". A person the list does
-  not hold gets a null `position` and no next person.
+  not hold gets a null `position` and no next person. Both count only people with an
+  address, the same people `next` can reach, so the last of them reads "Person 87 of
+  87" beside "Back to the list". A person without an address gets a null `position`
+  and still a next person.
 - **A story past the plan's budget is held back, not an error.** `storyState.limitUntil`
   names the end of the usage window when the conversation budget, which stories share
   (`budgetKinds`) and of which they leave the new-mail reserve alone, is spent. A story

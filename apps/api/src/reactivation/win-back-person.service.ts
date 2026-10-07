@@ -485,12 +485,16 @@ export class WinBackPersonService {
 		const index = order.findIndex(
 			(person) => person.contact.id === input.contactId,
 		);
-		const total = order.length;
+		const reachable = order.filter((person) => person.contact.email !== null);
+		const total = reachable.length;
 		if (index === -1) return { next: null, position: null, total };
 
-		const position = index + 1;
+		const place = reachable.findIndex(
+			(person) => person.contact.id === input.contactId,
+		);
+		const position = place === -1 ? null : place + 1;
 		const next = order
-			.slice(position)
+			.slice(index + 1)
 			.find((person) => person.contact.email !== null);
 		if (!next) return { next: null, position, total };
 

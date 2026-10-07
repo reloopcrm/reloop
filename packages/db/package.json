@@ -66,7 +66,7 @@
 		"test": "bun test",
 		"dev:prepare": "bun scripts/prepare-dev.ts",
 		"lint": "biome check .",
-		"postinstall": "prisma generate",
+		"postinstall": "bun scripts/generate-client.ts",
 		"clean": "rm -rf .turbo node_modules src/generated"
 	},
 	"dependencies": {

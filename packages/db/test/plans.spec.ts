@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { MODEL_PRICES } from "../src/model-prices";
-import { fixedAiFor, usageLines } from "../src/plan-usage";
+import { fixedAiFor, usageLevel, usageLines } from "../src/plan-usage";
 import {
 	allowsCompanyResearch,
 	budgetKinds,
@@ -265,7 +265,7 @@ describe("the usage lines", () => {
 			used: 0,
 			limit: null,
 			included: false,
-			reached: false,
+			level: "normal",
 		});
 		expect(lines.find((line) => line.counter === "sessions")).toMatchObject({
 			limit: 100,
@@ -303,9 +303,26 @@ describe("the usage lines", () => {
 
 	it("mark a counter reached at its limit", () => {
 		const lines = usageLines({ ...NO_USAGE, builder: 100 }, PLANS.trial);
-		expect(lines.find((line) => line.counter === "builder")?.reached).toBe(
-			true,
+		expect(lines.find((line) => line.counter === "builder")?.level).toBe(
+			"reached",
 		);
+	});
+
+	it("warn from 80 percent of a limit and stay normal below", () => {
+		const levelAt = (builder: number) =>
+			usageLines({ ...NO_USAGE, builder }, PLANS.trial).find(
+				(line) => line.counter === "builder",
+			)?.level;
+		expect(levelAt(79)).toBe("normal");
+		expect(levelAt(80)).toBe("warning");
+		expect(levelAt(99)).toBe("warning");
+		expect(levelAt(100)).toBe("reached");
+		expect(levelAt(140)).toBe("reached");
+	});
+
+	it("never warn where the plan has no limit", () => {
+		expect(usageLevel(10_000, null)).toBe("normal");
+		expect(usageLevel(0, 0)).toBe("reached");
 	});
 });
 

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, RecordSource } from "@crm/db";
+import { DRAFT_KIND, PLANS, startOfMonth } from "@crm/db/plans";
+import { readPlan, writePlan } from "@crm/db/settings";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ContactsService } from "../src/contacts/contacts.service";
 
@@ -269,5 +271,113 @@ describe("the email a rep can send back", () => {
 
 		expect(state.waitingUntil).not.toBeNull();
 		expect(state.queued).toBe(false);
+	});
+});
+
+describe("a person opened after newer mail", () => {
+	it("asks the agent for a fresh draft once the stored one is stale", async () => {
+		const id = await person("nachfassen");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+
+		await service.refreshDraft(id);
+
+		expect(asked).toEqual([{ contactId: id, instruction: null }]);
+	});
+
+	it("leaves a draft alone that already knows the newest mail", async () => {
+		const id = await person("frisch");
+		await store(id, new Date("2026-09-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-08-01T00:00:00.000Z"));
+
+		const state = await service.refreshDraft(id);
+
+		expect(asked).toEqual([]);
+		expect(state.draft?.stale).toBe(false);
+	});
+
+	it("asks for nothing before any draft exists", async () => {
+		const id = await person("ohne-entwurf");
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+
+		await service.refreshDraft(id);
+
+		expect(asked).toEqual([]);
+	});
+
+	it("asks for no second draft while one is on its way", async () => {
+		const id = await person("schon-unterwegs");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		await task(id, new Date());
+
+		await service.refreshDraft(id);
+
+		expect(asked).toEqual([]);
+	});
+
+	it("asks for no second draft while the limit holds one back", async () => {
+		const id = await person("gehalten");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		await task(id, new Date(Date.now() + 60 * 60_000));
+
+		await service.refreshDraft(id);
+
+		expect(asked).toEqual([]);
+	});
+
+	it("tries once per newer mail, so a draft that stays stale costs no more", async () => {
+		const id = await person("einmal");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		await doneTask(id, "A draft is ready: Europaletten");
+
+		await service.refreshDraft(id);
+
+		expect(asked).toEqual([]);
+	});
+
+	it("asks again once mail newer than the last try arrives", async () => {
+		const id = await person("wieder");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await doneTask(id, "A draft is ready: Europaletten");
+		await thread(id, new Date(Date.now() + 60_000));
+
+		await service.refreshDraft(id);
+
+		expect(asked).toEqual([{ contactId: id, instruction: null }]);
+	});
+
+	it("spends nothing once the plan's draft budget is used up", async () => {
+		const id = await person("budget");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		const planBefore = await readPlan(db);
+		await writePlan(db, "trial");
+		try {
+			const used = await db.agentTask.count({
+				where: { kind: DRAFT_KIND, createdAt: { gte: startOfMonth() } },
+			});
+			const room = Math.max(0, PLANS.trial.draftsPerMonth - used);
+			await db.agentTask.createMany({
+				data: Array.from({ length: room }, () => ({
+					contactId: id,
+					kind: DRAFT_KIND,
+					reason: "test",
+					priority: 970,
+					budget: 1,
+					dueAt: new Date(),
+					finishedAt: new Date("2026-08-15T00:00:00.000Z"),
+				})),
+			});
+
+			const state = await service.refreshDraft(id);
+
+			expect(asked).toEqual([]);
+			expect(state.limit).toBe("plan");
+		} finally {
+			await writePlan(db, planBefore);
+		}
 	});
 });

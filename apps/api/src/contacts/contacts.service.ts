@@ -885,11 +885,7 @@ export class ContactsService {
 			};
 		}
 
-		const newest = await this.db.emailThread.aggregate({
-			where: threadsOfContact(id),
-			_max: { lastMessageAt: true },
-		});
-		const since = newest._max.lastMessageAt;
+		const since = await this.newestMailAt(id);
 
 		return {
 			contactId: id,
@@ -943,6 +939,39 @@ export class ContactsService {
 			);
 		}
 		return this.draft(id);
+	}
+
+	async refreshDraft(id: string): Promise<ContactDraftState> {
+		const state = await this.draft(id);
+		if (
+			!state.draft?.stale ||
+			state.queued ||
+			state.waitingUntil !== null ||
+			(await this.triedSinceNewestMail(id))
+		) {
+			return state;
+		}
+
+		return this.writeDraft(id);
+	}
+
+	private async newestMailAt(id: string): Promise<Date | null> {
+		const newest = await this.db.emailThread.aggregate({
+			where: threadsOfContact(id),
+			_max: { lastMessageAt: true },
+		});
+		return newest._max.lastMessageAt;
+	}
+
+	private async triedSinceNewestMail(id: string): Promise<boolean> {
+		const newest = await this.newestMailAt(id);
+		if (newest === null) return false;
+
+		const tried = await this.db.agentTask.findFirst({
+			where: { contactId: id, kind: DRAFT_KIND, finishedAt: { gte: newest } },
+			select: { id: true },
+		});
+		return tried !== null;
 	}
 
 	private async draftLimitResumesAt(now: Date): Promise<Date | null> {

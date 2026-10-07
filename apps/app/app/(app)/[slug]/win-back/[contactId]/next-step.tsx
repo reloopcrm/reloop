@@ -32,6 +32,7 @@ import {
 } from "@crm/ui/components/story";
 import { Textarea } from "@crm/ui/components/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
+import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -105,6 +106,9 @@ export function useNextStep(view: PersonView, next: NextPerson) {
 
 	const draft = useEmailDraft(contactId, true);
 	const email = view.contact.email;
+	useMountEffect(() => {
+		if (email && view.feedback !== "bad") draft.refresh();
+	});
 	const shortVersion = draft.draft?.oneOff ?? null;
 	const shown =
 		variant === "short"
@@ -418,9 +422,10 @@ function CardBody({ step }: { step: NextStep }) {
 	const { first, draft } = step;
 
 	if (step.step === "read") {
-		const preview = draft.draft
-			? paragraphs(draft.draft.body).slice(1, 3).join(" ")
-			: "";
+		const preview =
+			draft.draft && !draft.waiting
+				? paragraphs(draft.draft.body).slice(1, 3).join(" ")
+				: "";
 		return (
 			<>
 				<CardEyebrow>{t("Your next step")}</CardEyebrow>
@@ -432,7 +437,12 @@ function CardBody({ step }: { step: NextStep }) {
 				<DraftCardDescription>
 					{t("Reloop prepares it in your tone, with what the story says.")}
 				</DraftCardDescription>
-				{preview ? (
+				{draft.waiting && step.email ? (
+					<p className="flex items-center gap-2 text-muted-foreground text-sm">
+						<Spinner />
+						{t("Reloop is writing the message…")}
+					</p>
+				) : preview ? (
 					<DraftCardPreview>
 						<p>{preview}</p>
 					</DraftCardPreview>
@@ -486,7 +496,7 @@ function CardBody({ step }: { step: NextStep }) {
 					<Button
 						variant="link"
 						size="text"
-						disabled={!draft.draft}
+						disabled={!draft.draft || draft.waiting}
 						onClick={() => void step.copy()}
 					>
 						{t("Copy")}

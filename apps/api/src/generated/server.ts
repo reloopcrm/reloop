@@ -268,6 +268,10 @@ const appRouter = t.router({
       .input(writeContactDraftInput)
       .output(contactDraftStateOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    refreshDraft: publicProcedure
+      .input(contactIdInput)
+      .output(contactDraftStateOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     bulkAssignOwner: publicProcedure
       .input(contactBulkOwnerInput)
       .output(bulkResultOutput)

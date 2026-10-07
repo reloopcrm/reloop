@@ -140,6 +140,15 @@ export class ContactsRouter {
 	}
 
 	@Mutation({
+		input: contactIdInput,
+		output: contactDraftStateOutput,
+		meta: restMeta("POST", "/contacts/{id}/draft/refresh", ["Contacts"]),
+	})
+	async refreshDraft(@Input("id") id: string) {
+		return this.contacts.refreshDraft(id);
+	}
+
+	@Mutation({
 		input: contactBulkOwnerInput,
 		output: bulkResultOutput,
 		meta: restMeta("POST", "/contacts/bulk-assign-owner", ["Contacts"]),

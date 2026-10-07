@@ -63,6 +63,18 @@ export function useEmailDraft(
 		}),
 	);
 
+	const refresh = useMutation(
+		trpc.contacts.refreshDraft.mutationOptions({
+			onSuccess: (result) => {
+				queries.setQueryData(
+					trpc.contacts.draft.queryKey({ id: contactId }),
+					result,
+				);
+			},
+			onError: (error) => toast.error(translateError(t, locale, error.message)),
+		}),
+	);
+
 	const ensure = async () => {
 		try {
 			const current = await queries.fetchQuery(
@@ -83,7 +95,10 @@ export function useEmailDraft(
 		}
 	};
 
-	const waiting = state.data?.queued === true || write.isPending;
+	const waiting =
+		state.data?.queued === true ||
+		write.isPending ||
+		(refresh.isPending && state.data?.draft?.stale === true);
 	const held = state.data?.waitingUntil ?? null;
 
 	return {
@@ -101,5 +116,6 @@ export function useEmailDraft(
 					: { id: contactId },
 			),
 		ensure,
+		refresh: () => refresh.mutate({ id: contactId }),
 	};
 }

@@ -6,7 +6,7 @@ import { Progress } from "@crm/ui/components/progress";
 import Link from "next/link";
 import { LocalDateTime } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
-import { meterShare, meterTone } from "@/lib/usage-meter";
+import { meterShare, meterTone, type UsageLevel } from "@/lib/usage-meter";
 
 export type UsageCounter =
 	| "contacts"
@@ -23,7 +23,7 @@ export type UsageLine = {
 	used: number;
 	limit: number | null;
 	included: boolean;
-	reached: boolean;
+	level: UsageLevel;
 };
 
 export type UsagePlan = {
@@ -65,7 +65,7 @@ export function UsageMeter({ line }: { line: UsageLine }) {
 		line.included && line.limit !== null
 			? {
 					share: meterShare(line.used, line.limit),
-					tone: meterTone(line.used, line.limit),
+					tone: meterTone(line.level),
 				}
 			: null;
 
@@ -132,7 +132,8 @@ export function Usage({
 	plan?: UsagePlan;
 }) {
 	const t = useT();
-	const reached = lines.some((line) => line.reached);
+	const reached = lines.some((line) => line.level === "reached");
+	const warning = !reached && lines.some((line) => line.level === "warning");
 
 	return (
 		<section className="flex flex-col gap-4">
@@ -169,6 +170,23 @@ export function Usage({
 						{t("Work above the limit waits until")}{" "}
 						<LocalDateTime date={resetsAt} options={LONG_DAY} />.{" "}
 						{t("Upgrade your plan or buy an add-on to continue now.")}
+					</AlertDescription>
+				</Alert>
+			) : null}
+
+			{warning ? (
+				<Alert variant="warning">
+					<AlertTitle>
+						{trialEnds
+							? t("A limit of your trial is almost reached")
+							: t("A monthly limit is almost reached")}
+					</AlertTitle>
+					<AlertDescription>
+						{t("Work above the limit waits until")}{" "}
+						<LocalDateTime date={resetsAt} options={LONG_DAY} />.{" "}
+						{t(
+							"Upgrade your plan or buy an add-on so the agent keeps working.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}

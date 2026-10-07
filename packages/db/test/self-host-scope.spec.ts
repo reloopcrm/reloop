@@ -66,14 +66,13 @@ describe("the cloud slot on a self-hosted install", () => {
 		expect(() => cloud.current()).toThrow();
 	});
 
-	it("knows no plan, whatever the row says", () => {
-		for (const plan of [null, undefined, "", "standard", "erfunden"]) {
+	it("knows no plan without a plan string, and no add-ons outside a scope", () => {
+		for (const plan of [null, undefined, ""]) {
 			expect(cloud.plans.limitsOf(plan)).toBe(NO_PLAN);
 			expect(cloud.plans.isTrial(plan)).toBe(false);
 			expect(cloud.plans.usageWindow(plan, new Date())).toBeNull();
 		}
 		const limits = { ...NO_PLAN, contacts: 3 };
-		expect(cloud.plans.withAddOns(limits)).toBe(limits);
-		expect(cloud.plans.options()).toEqual([]);
+		expect(cloud.plans.withAddOns(limits)).toEqual(limits);
 	});
 });

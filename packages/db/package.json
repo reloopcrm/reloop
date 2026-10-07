@@ -35,6 +35,7 @@
 		"./provider-usage": "./src/provider-usage.ts",
 		"./quote-deals": "./src/quote-deals.ts",
 		"./reactivation": "./src/reactivation.ts",
+		"./real-answer": "./src/real-answer.ts",
 		"./win-back-outcome": "./src/win-back-outcome.ts",
 		"./win-back-rules": "./src/win-back-rules.ts",
 		"./safe-fetch": "./src/safe-fetch.ts",
@@ -66,7 +67,7 @@
 		"test": "bun test",
 		"dev:prepare": "bun scripts/prepare-dev.ts",
 		"lint": "biome check .",
-		"postinstall": "prisma generate",
+		"postinstall": "bun scripts/generate-client.ts",
 		"clean": "rm -rf .turbo node_modules src/generated"
 	},
 	"dependencies": {

@@ -8,6 +8,7 @@ import {
 	DRAFT_KIND,
 	INSIGHT_KIND,
 	nextMonthStart,
+	PLAN_USAGE,
 	type PlanLimits,
 	RESEARCH_RUN_KIND,
 	startOfMonth,
@@ -84,11 +85,22 @@ export type UsageCounter = (typeof USAGE_COUNTERS)[number];
 
 export type MonthlyUsage = Record<UsageCounter, number>;
 
+export const USAGE_LEVELS = ["normal", "warning", "reached"] as const;
+
+export type UsageLevel = (typeof USAGE_LEVELS)[number];
+
+export function usageLevel(used: number, limit: number | null): UsageLevel {
+	if (limit === null) return "normal";
+	if (used >= limit) return "reached";
+	return used / limit >= PLAN_USAGE.warnShare ? "warning" : "normal";
+}
+
 export type UsageLine = {
 	counter: UsageCounter;
 	used: number;
 	limit: number | null;
 	included: boolean;
+	level: UsageLevel;
 	reached: boolean;
 };
 
@@ -163,12 +175,14 @@ export function usageLines(
 	return USAGE_COUNTERS.map((counter) => {
 		const limit = limitOf(counter, limits);
 		const used = usage[counter];
+		const level = usageLevel(used, limit);
 		return {
 			counter,
 			used,
 			limit,
 			included: includedIn(counter, limits),
-			reached: limit !== null && used >= limit,
+			level,
+			reached: level === "reached",
 		};
 	});
 }

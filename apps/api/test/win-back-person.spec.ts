@@ -200,7 +200,12 @@ async function clean(): Promise<void> {
 	});
 	const companyIds = companies.map((row) => row.id);
 	const contacts = await db.contact.findMany({
-		where: { email: { endsWith: `@${domain}` } },
+		where: {
+			OR: [
+				{ email: { endsWith: `@${domain}` } },
+				{ companyId: { in: companyIds } },
+			],
+		},
 		select: { id: true },
 	});
 	const contactIds = contacts.map((row) => row.id);
@@ -389,11 +394,28 @@ async function listed(contactId: string) {
 }
 
 async function secondPerson(companyId: string) {
+	return person(companyId, {
+		firstName: "Moritz",
+		lastName: "Ahlers",
+		email: `moritz@${domain}`,
+		sentAt: MARCH,
+	});
+}
+
+async function person(
+	companyId: string,
+	who: {
+		firstName: string;
+		lastName: string;
+		email: string | null;
+		sentAt: Date;
+	},
+) {
 	const other = await db.contact.create({
 		data: {
-			firstName: "Moritz",
-			lastName: "Ahlers",
-			email: `moritz@${domain}`,
+			firstName: who.firstName,
+			lastName: who.lastName,
+			email: who.email,
 			companyId,
 			source: RecordSource.EMAIL,
 		},
@@ -405,8 +427,8 @@ async function secondPerson(companyId: string) {
 			subject: "Workshop",
 			contactId: other.id,
 			companyId,
-			firstMessageAt: MARCH,
-			lastMessageAt: MARCH,
+			firstMessageAt: who.sentAt,
+			lastMessageAt: who.sentAt,
 			messageCount: 1,
 		},
 		select: { id: true },
@@ -416,9 +438,9 @@ async function secondPerson(companyId: string) {
 			threadId: thread.id,
 			rfcMessageId: `msg-${crypto.randomUUID()}@${domain}`,
 			direction: "INBOUND",
-			sentAt: MARCH,
+			sentAt: who.sentAt,
 			body: "Wann hätten Sie Zeit?",
-			fromEmail: `moritz@${domain}`,
+			fromEmail: who.email ?? `info@${domain}`,
 			recipients: [],
 		},
 	});
@@ -495,6 +517,51 @@ describe("WinBackPersonService.next", () => {
 
 		expect(next).toEqual({ next: null, position: null, total: 2 });
 		expect(prefetched).toEqual([]);
+	});
+
+	it("does not count a person without an address in the middle", async () => {
+		const seeded = await setUp();
+		await listed(seeded.contactId);
+		const between = await person(seeded.companyId, {
+			firstName: "Ole",
+			lastName: "Brandt",
+			email: null,
+			sentAt: OFFER,
+		});
+		const other = await secondPerson(seeded.companyId);
+
+		const first = await service.next(ownerId, listFrom(seeded.contactId));
+		const last = await service.next(ownerId, listFrom(other.id));
+		const skipped = await service.next(ownerId, listFrom(between.id));
+
+		expect(first).toEqual({
+			next: { id: other.id, name: "Moritz Ahlers" },
+			position: 1,
+			total: 2,
+		});
+		expect(last).toEqual({ next: null, position: 2, total: 2 });
+		expect(skipped).toEqual({
+			next: { id: other.id, name: "Moritz Ahlers" },
+			position: null,
+			total: 2,
+		});
+	});
+
+	it("reads Person N of N for the last person with an address", async () => {
+		const seeded = await setUp();
+		await listed(seeded.contactId);
+		const other = await secondPerson(seeded.companyId);
+		await person(seeded.companyId, {
+			firstName: "Ole",
+			lastName: "Brandt",
+			email: null,
+			sentAt: new Date("2026-02-02T09:00:00.000Z"),
+		});
+
+		const last = await service.next(ownerId, listFrom(other.id));
+
+		expect(last).toEqual({ next: null, position: 2, total: 2 });
+		expect(last.position).toBe(last.total);
 	});
 });
 

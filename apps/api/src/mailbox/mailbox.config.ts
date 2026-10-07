@@ -43,6 +43,17 @@ export const SYNC_TICK = {
 	settleReserveMs: 2 * SECOND_MS,
 } as const;
 
+export const PROVIDER_API = {
+	timeoutMs: 20 * SECOND_MS,
+	minBackoffMs: 30 * SECOND_MS,
+	maxBackoffMs: 15 * MINUTE_MS,
+	rateLimitFallbackMs: MINUTE_MS,
+} as const;
+
+export const SYNC_LEASE = {
+	leaseMs: 5 * MINUTE_MS,
+} as const;
+
 export const NO_DEADLINE = Number.POSITIVE_INFINITY;
 
 export function pastDeadline(deadlineAt: number): boolean {

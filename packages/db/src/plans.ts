@@ -105,6 +105,8 @@ export function monthlyBudget(kind: string, limits: PlanLimits): number | null {
 
 export const PLAN_RESERVE = { insightForwardShare: 0.2 } as const;
 
+export const PLAN_USAGE = { warnShare: 0.8 } as const;
+
 export function forwardReserve(kind: string, limits: PlanLimits): number {
 	const budget = monthlyBudget(kind, limits);
 	if (budget === null || !budgetKinds(INSIGHT_KIND).includes(kind)) return 0;

@@ -370,6 +370,15 @@ the largest attachment upload the conversation contracts accept.
 `MailboxMatchService`, `participants.ts`, `message-text.ts`, and
 `ThreadWriterService`.
 
+- **Every provider response is parsed where it arrives.** `MailboxApiClient.get`
+  takes a Zod schema and returns the parsed type. A body that does not match is
+  `{ outcome: "unreadable" }` with the failing fields in `reason`, never data. It
+  is not `failed`, because a non-retryable `failed` page restarts the backfill.
+  An unreadable page keeps the backfill position and marks the mailbox failed;
+  an unreadable Gmail message is skipped. Each client owns its shapes: `gmail.client.ts`, `gmail-mime.ts`,
+  `calendar.client.ts` and `graph.client.ts`. They stay in `apps/api`, because no
+  other package reads them. Graph sends `null` for an empty field, so the Graph
+  schemas read `null` as absent; Google omits the field instead.
 - **The sync never renames a contact that already exists.** A new contact takes
   its name from the From line through `splitName`. A contact that `resolve`,
   `createContact` or `contactWithoutCompany` finds by address keeps its name, even

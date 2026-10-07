@@ -1,14 +1,28 @@
 import { describe, expect, it } from "bun:test";
 import type { Db, MailboxSyncModel as MailboxSync } from "@crm/db";
-import { readBackfill } from "../src/mailbox/backfill-cursor";
+import type { z } from "zod";
+import {
+	planBackfill,
+	readBackfill,
+	serialiseBackfill,
+} from "../src/mailbox/backfill-cursor";
 import type { SyncSource } from "../src/mailbox/mailbox.constants";
+import {
+	MailboxApiClient,
+	type MailboxResult,
+} from "../src/mailbox/mailbox-api.client";
 import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import type { SyncStateService } from "../src/mailbox/sync-state.service";
 import type {
 	IncomingMessage,
 	ThreadWriterService,
 } from "../src/mailbox/thread-writer.service";
-import type { GraphClient, GraphMessage } from "../src/microsoft/graph.client";
+import {
+	type GraphClient,
+	type GraphMessage,
+	graphMessagePage,
+	type MessagePage,
+} from "../src/microsoft/graph.client";
 import { OutlookSyncService } from "../src/microsoft/outlook-sync.service";
 
 type Ok<T> = { outcome: "ok"; data: T };
@@ -52,7 +66,7 @@ function harness(options: {
 	pages?: GraphMessage[][];
 	backfillPages?: GraphMessage[][];
 	sentPages?: GraphMessage[][];
-	backfillPage?: (link: string | null) => Ok<GraphPage> | NotOk;
+	backfillPage?: (link: string | null) => MailboxResult<MessagePage>;
 	plan?: string | null;
 	threads?: number;
 	meDelayMs?: number;
@@ -187,6 +201,28 @@ function harness(options: {
 		failed,
 		meResolvedAt,
 	};
+}
+
+async function servedBody<T>(
+	schema: z.ZodType<T>,
+	body: z.core.util.JSONType,
+): Promise<MailboxResult<T>> {
+	const realFetch = globalThis.fetch;
+	globalThis.fetch = (async () =>
+		new Response(JSON.stringify(body), {
+			status: 200,
+			headers: { "content-type": "application/json" },
+		})) as unknown as typeof fetch;
+
+	try {
+		return await new MailboxApiClient().get(
+			"https://graph.microsoft.com/v1.0/me/messages",
+			"token",
+			schema,
+		);
+	} finally {
+		globalThis.fetch = realFetch;
+	}
 }
 
 const rowWith = (cursor: string | null): MailboxSync =>
@@ -535,6 +571,33 @@ describe("OutlookSyncService backfill", () => {
 
 		expect(again.backfillLinks).toHaveLength(0);
 		expect(again.stored).toHaveLength(0);
+	});
+
+	it("keeps its page and fails the mailbox when a page does not match the schema", async () => {
+		const unreadable = await servedBody(graphMessagePage, {
+			value: [{ id: 7 }],
+		});
+		const backfill = serialiseBackfill({
+			...planBackfill({ before: new Date(), floor: null }),
+			phase: "all",
+			position: "back-3",
+		});
+
+		const kit = harness({
+			backfillPage: (link) =>
+				link === "back-3" ? unreadable : ok({ value: [] }),
+		});
+
+		const outcome = await kit.service.sync({
+			...row,
+			backfill,
+		} as MailboxSync);
+
+		expect(outcome.status).toBe("failed");
+		expect(kit.failed).toHaveLength(1);
+		expect(kit.failed[0]).toContain("value.0.id");
+		expect(kit.backfillLinks).toEqual(["back-3"]);
+		expect(planOf(kit.settled.at(-1)?.backfill).position).toBe("back-3");
 	});
 
 	it("pauses the backfill on a quota error and keeps the position", async () => {

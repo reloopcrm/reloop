@@ -260,6 +260,22 @@ describe("the block answers what to do about this person", () => {
 		expect(read.kind).toBe("declined");
 	});
 
+	it("keeps the decline when a contact who said no is quiet for months", () => {
+		const read = attentionOf(
+			facts({
+				candidate: candidate({ quietDays: ATTENTION.quiet.days + 151 }),
+				insight: insight({ outcome: "DECLINED" }),
+			}),
+		);
+
+		expect(read.kind).toBe("declined");
+		expect(read.points).toBeNull();
+		expect(read.fields.map((field) => field.key)).toEqual([
+			"outcome",
+			"standing",
+		]);
+	});
+
 	it("says nobody waits once the business is closed", () => {
 		const read = attentionOf(
 			facts({ insight: insight({ outcome: "DEAL_DONE" }) }),

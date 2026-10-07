@@ -308,6 +308,7 @@ export class CompaniesService {
 						amount: true,
 						currency: true,
 						baseAmount: true,
+						baseCurrency: true,
 						expectedCloseDate: true,
 						owner: { select: OWNER_SELECT },
 					},
@@ -329,6 +330,8 @@ export class CompaniesService {
 			...rest
 		} = company;
 
+		const reportingCurrency = await this.conversion.reportingCurrency();
+
 		return {
 			...rest,
 			fields: await this.fields.valuesFor("COMPANY", id),
@@ -338,14 +341,15 @@ export class CompaniesService {
 			enrichedAt: enrichedAt?.toISOString() ?? null,
 			primaryContactId: primaryContact?.id ?? null,
 			primaryContact,
-			reportingCurrency: await this.conversion.reportingCurrency(),
+			reportingCurrency,
 			dealCount: _count.deals,
-			deals: deals.map((deal) => ({
+			deals: deals.map(({ baseCurrency, ...deal }) => ({
 				...deal,
 				amount: undefined,
 				baseAmount: undefined,
 				amountCents: toCents(deal.amount),
-				baseAmountCents: toCents(deal.baseAmount),
+				baseAmountCents:
+					baseCurrency === reportingCurrency ? toCents(deal.baseAmount) : null,
 				expectedCloseDate: deal.expectedCloseDate?.toISOString() ?? null,
 			})),
 		};

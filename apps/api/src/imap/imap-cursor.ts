@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { messageFailures } from "../mailbox/message-failures";
 
 export const imapFolderCursor = z.object({
 	uidValidity: z.string(),
 	lastUid: z.number().int().min(0),
 	backfillUid: z.number().int().min(1).nullable(),
 	floorUid: z.number().int().min(1),
+	failures: messageFailures.optional(),
 });
 
 export const imapCursor = z.object({

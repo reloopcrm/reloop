@@ -12,6 +12,9 @@ const SENT_BODY =
 let stale = true;
 let refreshing = false;
 const refreshed: { id: string }[] = [];
+const cacheCalls: string[] = [];
+type Queued = { queued: boolean };
+let refreshSuccess: ((result: Queued) => Promise<void>) | undefined;
 
 const sonner = { ...(await import("sonner")) };
 const navigation = { ...(await import("next/navigation")) };
@@ -80,15 +83,29 @@ mock.module("@tanstack/react-query", () => ({
 			},
 		},
 	}),
-	useMutation: ({ name }: { name: string }) => ({
-		isPending: name === "refreshDraft" && refreshing,
-		mutate: (input: { id: string }) => {
-			if (name === "refreshDraft") refreshed.push(input);
-		},
-	}),
+	useMutation: ({
+		name,
+		onSuccess,
+	}: {
+		name: string;
+		onSuccess?: (result: Queued) => Promise<void>;
+	}) => {
+		if (name === "refreshDraft") refreshSuccess = onSuccess;
+		return {
+			isPending: name === "refreshDraft" && refreshing,
+			mutate: (input: { id: string }) => {
+				if (name === "refreshDraft") refreshed.push(input);
+			},
+		};
+	},
 	useQueryClient: () => ({
 		fetchQuery: async () => null,
-		setQueryData: () => {},
+		cancelQueries: async () => {
+			cacheCalls.push("cancel");
+		},
+		setQueryData: (_key: string[], value: Queued) => {
+			cacheCalls.push(value.queued ? "set queued" : "set");
+		},
 	}),
 }));
 
@@ -107,6 +124,8 @@ afterEach(async () => {
 	await act(async () => root?.unmount());
 	document.body.innerHTML = "";
 	refreshed.length = 0;
+	cacheCalls.length = 0;
+	refreshSuccess = undefined;
 	stale = true;
 	refreshing = false;
 });
@@ -182,5 +201,13 @@ describe("the Win back person opened after the first mail went out", () => {
 
 		expect(page.textContent).not.toContain("Reloop is writing the message");
 		expect(page.textContent).toContain("wir haben Ihnen im August");
+	});
+
+	it("stops an older draft read before it can overwrite the queued rewrite", async () => {
+		await open(viewOf(null, "erika@example.com"));
+
+		await act(async () => refreshSuccess?.({ queued: true }));
+
+		expect(cacheCalls).toEqual(["cancel", "set queued"]);
 	});
 });

@@ -964,11 +964,11 @@ export class ContactsService {
 	}
 
 	private async triedSinceNewestMail(id: string): Promise<boolean> {
-		const stored = await this.db.emailThread.aggregate({
-			where: threadsOfContact(id),
-			_max: { updatedAt: true },
+		const stored = await this.db.emailMessage.aggregate({
+			where: { thread: threadsOfContact(id) },
+			_max: { createdAt: true },
 		});
-		const newest = stored._max.updatedAt;
+		const newest = stored._max.createdAt;
 		if (newest === null) return false;
 
 		const tried = await this.db.agentTask.findFirst({

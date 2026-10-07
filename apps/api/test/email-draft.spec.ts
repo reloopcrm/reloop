@@ -43,16 +43,29 @@ async function person(local: string): Promise<string> {
 	return row.id;
 }
 
-async function thread(contactId: string, at: Date): Promise<void> {
-	await db.emailThread.create({
+async function thread(contactId: string, at: Date): Promise<string> {
+	const row = await db.emailThread.create({
 		data: {
 			rootMessageId: `root-${crypto.randomUUID()}@${domain}`,
 			subject: "Europaletten",
 			contactId,
 			firstMessageAt: at,
 			lastMessageAt: at,
+			messageCount: 1,
+			messages: {
+				create: {
+					rfcMessageId: `message-${crypto.randomUUID()}@${domain}`,
+					direction: "OUTBOUND",
+					fromEmail: `rep@${domain}`,
+					recipients: [],
+					subject: "Europaletten",
+					sentAt: at,
+				},
+			},
 		},
+		select: { id: true },
 	});
+	return row.id;
 }
 
 async function store(contactId: string, basedOnUntil: Date | null) {
@@ -361,6 +374,21 @@ describe("a person opened after newer mail", () => {
 		await service.refreshDraft(id);
 
 		expect(asked).toEqual([{ contactId: id, instruction: null }]);
+	});
+
+	it("does not try again when only the thread's reading changes", async () => {
+		const id = await person("umsortiert");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		const threadId = await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		await doneTask(id, "A draft is ready: Europaletten");
+		await db.emailThread.update({
+			where: { id: threadId },
+			data: { subject: "Europaletten, neu gelesen" },
+		});
+
+		await service.refreshDraft(id);
+
+		expect(asked).toEqual([]);
 	});
 
 	it("asks again once mail newer than the last try arrives", async () => {

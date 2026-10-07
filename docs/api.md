@@ -956,9 +956,11 @@ marked passages and the follow-up delay. It writes nothing but an
   `contacts.refreshDraft` once when it mounts, never from a sweep. The API queues a
   normal `email-draft` task only when the stored draft is `stale`, no draft task is
   open or held, the plan's `draftsPerMonth` has room, and no finished draft task
-  was created after the newest mail was stored (the thread's `updatedAt`). That last
+  was created after the newest mail was stored (the newest `EmailMessage.createdAt`). That last
   check spends one try per newer mail, so a draft that stays stale does not cost a
-  draft on every open, and mail stored while a draft was written still counts. After the win back mail
+  draft on every open, and mail stored while a draft was written still counts. The
+  page cancels a draft read in flight before it writes the result, so polling sees
+  the queued task. After the win back mail
   goes out, this is how the follow-up replaces the sent text.
 - **The win back follow-up task opens the person page.** The overview's task lists
   read `meta` and the contact of each task, and a task whose `meta` is

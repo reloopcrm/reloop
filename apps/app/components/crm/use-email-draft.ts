@@ -65,11 +65,10 @@ export function useEmailDraft(
 
 	const refresh = useMutation(
 		trpc.contacts.refreshDraft.mutationOptions({
-			onSuccess: (result) => {
-				queries.setQueryData(
-					trpc.contacts.draft.queryKey({ id: contactId }),
-					result,
-				);
+			onSuccess: async (result) => {
+				const queryKey = trpc.contacts.draft.queryKey({ id: contactId });
+				await queries.cancelQueries({ queryKey });
+				queries.setQueryData(queryKey, result);
 			},
 			onError: (error) => toast.error(translateError(t, locale, error.message)),
 		}),

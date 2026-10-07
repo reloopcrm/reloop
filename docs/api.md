@@ -691,6 +691,25 @@ the largest attachment upload the conversation contracts accept.
 - **`isAutomatedAddress` is a separate list about the local part** (`sales@`,
   `noreply@`), which is why `support@acme.com` never becomes a lead.
 
+## An answer is a person writing back
+
+An out-of-office reply or a bounce is never an answer. The rule has one home:
+the pattern lists in `packages/db/src/message-text.ts`
+(`AUTOMATED_MESSAGE_PATTERNS`).
+
+- **TypeScript asks `isRealAnswer`**, which is `isAutoReply` and `isBounce` beside
+  it. `EmailMessage` stores no headers, so they read the sender, the subject and the
+  first `AUTO_REPLY_BODY_CHARS` of the body (the snippet when there is no body).
+  The body is cut at the first quote marker or `>` line after its first character
+  (`authoredText`), so a real reply that quotes an out-of-office still counts.
+- **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same
+  lists. Every query that counts a reply uses it; never write
+  `direction = 'INBOUND'` alone for that.
+- **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
+  and the follow-up sweep both skip auto-replies and bounces.
+- `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides. A new
+  pattern goes in the list and gets a sample there.
+
 ## People on a deal
 
 `DealContact` is the join, and `deals.attachContact` / `detachContact` /

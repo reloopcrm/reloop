@@ -12,6 +12,7 @@ import {
 	advancePhase,
 	backfillBefore,
 	backfillFloor,
+	carryFailures,
 	finishBackfill,
 	isBackfillRunning,
 	type MailboxBackfill,
@@ -22,10 +23,16 @@ import {
 	serialiseBackfill,
 } from "../mailbox/backfill-cursor";
 import { importCapRemaining } from "../mailbox/import-cap";
-import { MAILBOX, NO_DEADLINE, pastDeadline } from "../mailbox/mailbox.config";
+import {
+	MAILBOX,
+	MESSAGE_FAILURES,
+	NO_DEADLINE,
+	pastDeadline,
+} from "../mailbox/mailbox.config";
 import type { MailboxResult } from "../mailbox/mailbox-api.client";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
+import { FailureLedger } from "../mailbox/message-failures";
 import {
 	normaliseMessageId,
 	rootMessageIdFrom,
@@ -205,6 +212,11 @@ export class OutlookSyncService {
 
 		const excluded = folders.ids;
 
+		const stored = readBackfill(row.backfill);
+		const ledger = new FailureLedger(
+			stored.outcome === "ok" ? stored.backfill.failures : undefined,
+		);
+
 		let page = await this.graph.listMessages(accessToken, {
 			after: new Date(from.getTime() - MAILBOX.sync.forwardOverlapMs),
 			top: MAILBOX.sync.pageSize,
@@ -225,6 +237,7 @@ export class OutlookSyncService {
 				excluded,
 				deadlineAt,
 				"forward",
+				ledger,
 			);
 			seen += run.processed;
 			written += run.written;
@@ -253,11 +266,12 @@ export class OutlookSyncService {
 			excluded,
 			MAILBOX.sync.maxMessagesPerTick - seen,
 			deadlineAt,
+			ledger,
 		);
 
 		await this.state.settle(row.id, {
 			cursor: furthest.toISOString(),
-			backfill: back.backfill,
+			backfill: await this.carry(row, back.backfill, ledger),
 			status: GoogleSyncStatus.RUNNING,
 		});
 
@@ -290,6 +304,7 @@ export class OutlookSyncService {
 		excluded: Set<string>,
 		budget: number,
 		deadlineAt: number,
+		ledger: FailureLedger,
 	): Promise<Backfilled> {
 		const read = readBackfill(row.backfill);
 
@@ -367,6 +382,7 @@ export class OutlookSyncService {
 				excluded,
 				deadlineAt,
 				"backfill",
+				ledger,
 			);
 			if (run.oldest) plan = reachedBack(plan, run.oldest);
 
@@ -389,6 +405,7 @@ export class OutlookSyncService {
 		excluded: Set<string>,
 		deadlineAt: number,
 		lane: AgentTaskOrigin,
+		ledger: FailureLedger,
 	): Promise<{
 		written: number;
 		processed: number;
@@ -423,16 +440,51 @@ export class OutlookSyncService {
 
 			context ??= await this.threads.context(mailbox);
 
-			const stored = await this.threads.store(
-				row,
-				{ origin: "outlook", lane },
-				parsed,
-				context,
-			);
-			if (stored) written += 1;
+			const messageId = message.id;
+			if (messageId && ledger.exhausted(messageId)) continue;
+
+			try {
+				const stored = await this.threads.store(
+					row,
+					{ origin: "outlook", lane },
+					parsed,
+					context,
+				);
+				if (stored) written += 1;
+				if (messageId) ledger.clear(messageId);
+			} catch (error) {
+				if (!messageId) throw error;
+
+				const attempts = ledger.record(messageId);
+				if (attempts < MESSAGE_FAILURES.maxAttempts) {
+					await this.state.saveBackfill(
+						row.id,
+						await this.carry(row, row.backfill, ledger),
+					);
+					throw error;
+				}
+
+				this.logger.warn({
+					message:
+						"An Outlook message could not be stored after repeated attempts. It is skipped",
+					mailboxId: row.id,
+					providerMessageId: messageId,
+					attempts,
+				});
+			}
 		}
 
 		return { written, processed, oldest, newest };
+	}
+
+	private async carry(
+		row: MailboxSync,
+		raw: string | null,
+		ledger: FailureLedger,
+	): Promise<string | null> {
+		return carryFailures(raw, ledger.list(), async () =>
+			planBackfill({ before: new Date(), floor: await this.floorFor(row) }),
+		);
 	}
 
 	private async floorFor(row: MailboxSync): Promise<Date | null> {

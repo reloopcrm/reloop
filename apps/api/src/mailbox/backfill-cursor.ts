@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type MessageFailures, messageFailures } from "./message-failures";
 
 export const mailboxBackfill = z.object({
 	v: z.literal(1),
@@ -8,6 +9,7 @@ export const mailboxBackfill = z.object({
 	before: z.iso.datetime(),
 	floor: z.iso.datetime().nullable(),
 	reached: z.iso.datetime().nullable(),
+	failures: messageFailures.optional(),
 });
 
 export type MailboxBackfill = z.infer<typeof mailboxBackfill>;
@@ -51,6 +53,23 @@ export function planBackfill(options: {
 		floor: options.floor?.toISOString() ?? null,
 		reached: null,
 	};
+}
+
+export async function carryFailures(
+	raw: string | null,
+	failures: MessageFailures | undefined,
+	fresh: () => Promise<MailboxBackfill>,
+): Promise<string | null> {
+	const read = readBackfill(raw);
+
+	if (read.outcome === "ok") {
+		const { failures: _previous, ...rest } = read.backfill;
+		return serialiseBackfill(failures ? { ...rest, failures } : rest);
+	}
+
+	if (!failures) return raw;
+
+	return serialiseBackfill({ ...(await fresh()), failures });
 }
 
 export function serialiseBackfill(backfill: MailboxBackfill): string {

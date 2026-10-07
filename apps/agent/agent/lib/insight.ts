@@ -24,7 +24,7 @@ import { say, summaryLanguage, summaryWrittenIn } from "./language";
 import { directModel } from "./model";
 import { MODEL } from "./model-config";
 import { playbookPrompt, readPlaybook } from "./playbook";
-import { keptDecline, settledDecline, stopIsLastWord } from "./thread-decline";
+import { isLastWord, keptDecline, settledDecline } from "./thread-decline";
 import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
 function clamped(max: number) {
@@ -93,6 +93,14 @@ export const threadInsightSchema = z.object({
 		.describe(
 			"HARD or SOFT when the outcome is DECLINED, as the instructions define them. Null for every other outcome.",
 		),
+	declineMessage: z
+		.number()
+		.int()
+		.min(1)
+		.nullable()
+		.describe(
+			"When the outcome is DECLINED, the number of their message that says no. Null for every other outcome.",
+		),
 	stopRequest: z
 		.number()
 		.int()
@@ -123,6 +131,7 @@ export const threadInsightSchema = z.object({
 
 const lenientInsightSchema = threadInsightSchema.extend({
 	declineKind: declineKind.nullable().default(null),
+	declineMessage: z.number().int().min(1).nullable().default(null),
 	stopRequest: z.number().int().min(1).nullable().default(null),
 	topics: capped(clamped(60), 8),
 	products: capped(clamped(60), 8),
@@ -154,12 +163,21 @@ const lenientDigestSchema = threadDigestSchema.extend({
 });
 
 function settledAnswer(
-	{ stopRequest, ...answer }: z.output<typeof lenientInsightSchema>,
+	{
+		stopRequest,
+		declineMessage,
+		...answer
+	}: z.output<typeof lenientInsightSchema>,
 	thread: ThreadRecord,
 ) {
+	const shown = transcriptMessages(thread);
+
 	return settledDecline(
 		answer,
-		stopIsLastWord(thread, transcriptMessages(thread), stopRequest),
+		{
+			stopped: isLastWord(thread, shown, stopRequest),
+			theirNo: isLastWord(thread, shown, declineMessage),
+		},
 		thread,
 	);
 }
@@ -431,6 +449,7 @@ async function classifyWithModel(
 			"declineKind is HARD when they said no without showing interest first: they never asked for a price or an offer and never talked about what they need, they only wrote that they have no interest, asked us to stop writing or unsubscribed.",
 			"declineKind is SOFT when they showed interest first, by asking for prices, getting an offer or meeting us, and said no after that, for example because it is too expensive, they have no need right now or they buy from another supplier.",
 			"declineKind is null when the outcome is not DECLINED.",
+			"declineMessage is the number of their own message that says no when the outcome is DECLINED, and null otherwise.",
 			"stopRequest is the number of their own message that asks us to stop writing, to take them off our list or to unsubscribe them, and null when none does. Text quoted from our messages and the footer of a newsletter do not count.",
 			`Write the summary in ${writtenIn}, at most three sentences, naming what was discussed and where it ended.`,
 			"Every evidence quote is copied from one message and names the number of that message.",

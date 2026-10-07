@@ -64,16 +64,16 @@ function lastAnswerIndex(
 	return -1;
 }
 
-export function stopIsLastWord(
+export function isLastWord(
 	thread: DeclineThread,
 	shown: readonly DeclineMail[],
-	stopRequest: number | null,
+	message: number | null,
 ): boolean {
-	if (stopRequest === null) return false;
+	if (message === null) return false;
 
 	const latest = lastAnswerIndex(thread, shown) + 1;
 
-	return latest > 0 && stopRequest === latest;
+	return latest > 0 && message === latest;
 }
 
 function lastAnswerAt(thread: DeclineThread): Date | null {
@@ -86,12 +86,12 @@ export function settledDecline<
 	T extends { outcome: InsightOutcome; declineKind: DeclineKind | null },
 >(
 	answer: T,
-	stopped: boolean,
+	said: { stopped: boolean; theirNo: boolean },
 	thread: DeclineThread,
 ): Omit<T, keyof DeclineFields> & DeclineFields {
 	const declinedAt = lastAnswerAt(thread);
 
-	if (stopped && declinedAt !== null) {
+	if (said.stopped && declinedAt !== null) {
 		return {
 			...answer,
 			outcome: DECLINED_OUTCOME,
@@ -102,7 +102,11 @@ export function settledDecline<
 	if (answer.outcome !== DECLINED_OUTCOME) {
 		return { ...answer, declineKind: null, declinedAt: null };
 	}
-	if (answer.declineKind === DECLINE_KIND.hard && declinedAt !== null) {
+	if (
+		answer.declineKind === DECLINE_KIND.hard &&
+		said.theirNo &&
+		declinedAt !== null
+	) {
 		return { ...answer, declineKind: DECLINE_KIND.hard, declinedAt };
 	}
 

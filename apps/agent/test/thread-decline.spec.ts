@@ -96,6 +96,7 @@ function answer(fields: Partial<Answer>): Answer {
 		loads: null,
 		outcome: "DECLINED",
 		declineKind: null,
+		declineMessage: null,
 		stopRequest: null,
 		unansweredByUs: false,
 		summary: "Sie haben abgelehnt.",
@@ -119,7 +120,7 @@ describe("the decline the agent reads from a thread", () => {
 
 	it("keeps a hard no hard and dates it by their last mail", () => {
 		const verdict = insightAnswerFor(threadOf([offer, stop, followUp])).parse(
-			answer({ declineKind: DECLINE_KIND.hard }),
+			answer({ declineKind: DECLINE_KIND.hard, declineMessage: 2 }),
 		);
 
 		expect(verdict.outcome).toBe("DECLINED");
@@ -191,11 +192,33 @@ describe("the decline the agent reads from a thread", () => {
 
 	it("never makes a hard no of a thread the person never answered in", () => {
 		const verdict = insightAnswerFor(threadOf([offer, colleague])).parse(
-			answer({ declineKind: DECLINE_KIND.hard }),
+			answer({ declineKind: DECLINE_KIND.hard, declineMessage: 2 }),
 		);
 
 		expect(verdict.declineKind).toBe(DECLINE_KIND.soft);
 		expect(verdict.declinedAt).toBeNull();
+	});
+
+	it("never makes a hard no of a colleague's no after the person's greeting", () => {
+		const greeting: Mail = {
+			direction: "INBOUND",
+			sentAt: STOPPED,
+			body: "Danke für die Nachricht.",
+		};
+		const verdict = insightAnswerFor(
+			threadOf([offer, greeting, colleague]),
+		).parse(answer({ declineKind: DECLINE_KIND.hard, declineMessage: 3 }));
+
+		expect(verdict.declineKind).toBe(DECLINE_KIND.soft);
+		expect(verdict.declinedAt).toBeNull();
+	});
+
+	it("needs the model to name the person's own no for a hard no", () => {
+		const verdict = insightAnswerFor(stopped).parse(
+			answer({ declineKind: DECLINE_KIND.hard, declineMessage: null }),
+		);
+
+		expect(verdict.declineKind).toBe(DECLINE_KIND.soft);
 	});
 
 	it("drops a stored hard no whose refusal is no longer their mail", () => {

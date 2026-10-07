@@ -213,9 +213,11 @@ language in Settings > General. The API stores and serves the value and does not
   `DECLINED` and `HARD`, whatever the model said, but only when that message is the
   person's latest real answer in the transcript (`isTheirAnswer` in
   `lib/thread-decline.ts`: their own address, no auto reply, no bounce), so a later
-  mail from them outweighs it. A `DECLINED` answer without a kind is `SOFT`, and so
-  is a `HARD` one in a thread the person never answered in; any other outcome has
-  none. A hard no stores `declinedAt`, the time of the person's
+  mail from them outweighs it. The model also names `declineMessage`, the number of
+  the message that says no. A `HARD` answer counts only when that message is the
+  person's latest real answer, so a colleague's no never hides the thread's owner;
+  otherwise, and when no kind is given, a `DECLINED` answer is `SOFT`. Any other
+  outcome has no kind. A hard no stores `declinedAt`, the time of the person's
   latest real answer in the thread, so a later mail from us never moves it. A stored
   hard no survives a new read until the person answers after `declinedAt`
   (`keptDecline`), so a thread whose refusal slid out of the transcript keeps it. It

@@ -25,6 +25,8 @@ import { OutlookSyncService } from "../src/microsoft/outlook-sync.service";
 
 type Persisted = { cursor: string | null; backfill: string | null };
 
+type GraphPage = { value: GraphMessage[]; "@odata.nextLink"?: string };
+
 const MAILBOX = "rep@example.com";
 const SENDER = "jane@acme.example.com";
 const POISONED = Array.from({ length: 6 }, (_, at) => `p${at}`);
@@ -332,7 +334,7 @@ function outlookKit(options: {
 				return ok({ value: request.folder ? [] : options.back });
 			}
 			const pages = options.forward(tickNo);
-			const page: { value: GraphMessage[]; "@odata.nextLink"?: string } = {
+			const page: GraphPage = {
 				value: (pages[0] ?? []).filter(
 					(message) =>
 						new Date(message.receivedDateTime ?? "") >= request.after,
@@ -344,7 +346,7 @@ function outlookKit(options: {
 		async nextPage(_token: string, link: string) {
 			const pages = options.forward(tickNo);
 			const at = Number(link);
-			const page: { value: GraphMessage[]; "@odata.nextLink"?: string } = {
+			const page: GraphPage = {
 				value: pages[at] ?? [],
 			};
 			if (at + 1 < pages.length) page["@odata.nextLink"] = String(at + 1);

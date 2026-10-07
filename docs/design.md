@@ -276,7 +276,7 @@ more). `--destructive` differs per theme, in the app and inside `.site`:
 and `#eb5757` reaches only 3:1 there.
 A product image may carry the one shadow token `--shadow`; nothing else in `.site`
 has a shadow. Marketing blocks live in `apps/app/components/site/` (public) or
-`components/landing/` (hosted overlay). The app never renders inside `.site`.
+`components/landing/`. The app never renders inside `.site`.
 
 A product image shows invented sample data only, captured from a disposable
 database with the built-in sample data. Each file is listed in

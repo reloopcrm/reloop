@@ -34,46 +34,154 @@ export function stripQuotedHistory(body: string): string {
 	return trimmed.replace(/\n{3,}/g, "\n\n").trim();
 }
 
-const AUTO_SUBJECT = [
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*automatische?\s+(antwort|antwoord)/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*automatisch\s+antwoord/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*automatic\s+reply/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*auto\s*-?\s*reply/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*out\s+of\s+(the\s+)?office/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*abwesen(heit|d)/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*r(é|e)ponse\s+automatique/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*(undeliverable|unzustellbar)/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*(mail\s+delivery|delivery\s+status\s+notification)/i,
-	/^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*(zustellungs|übermittlungs)status/i,
+const REPLY_LEAD = String.raw`^\s*(re\s*:|aw\s*:|wg\s*:|fwd?\s*:)*\s*`;
+
+const AUTO_REPLY_SUBJECT = [
+	String.raw`${REPLY_LEAD}automatische?\s+(antwort|antwoord)`,
+	String.raw`${REPLY_LEAD}automatisch\s+antwoord`,
+	String.raw`${REPLY_LEAD}automatic\s+reply`,
+	String.raw`${REPLY_LEAD}auto\s*-?\s*reply`,
+	String.raw`${REPLY_LEAD}out\s+of\s+(the\s+)?office`,
+	`${REPLY_LEAD}abwesen(heit|d)`,
+	String.raw`${REPLY_LEAD}r(é|e)ponse\s+automatique`,
 ];
 
-const AUTO_BODY = [
-	/\bich\s+bin\s+(zurzeit|derzeit|momentan|bis)\s+.{0,40}(nicht\s+im\s+(b(ü|ue)ro|hause)|abwesend|urlaub)/i,
-	/\bbin\s+ich\s+.{0,30}(im\s+urlaub|abwesend|nicht\s+erreichbar)/i,
-	/\bi\s+am\s+(currently\s+)?(out\s+of\s+the\s+office|away|on\s+(annual\s+)?leave)/i,
-	/\bthis\s+is\s+an\s+automated\s+(reply|response|message)/i,
-	/\bdiese\s+(e-?mail|nachricht)\s+wurde\s+automatisch\s+(erzeugt|erstellt|versendet)/i,
-	/\bin\s+dringenden\s+f(ä|ae)llen\s+wenden\s+sie\s+sich/i,
-	/\bihre\s+(e-?mail|nachricht)\s+wird\s+nicht\s+weitergeleitet/i,
-	/\bthis\s+(e-?mail|message)\s+was\s+(generated|sent)\s+automatically/i,
-	/\bfor\s+urgent\s+(matters|requests|inquiries),?\s+please\s+contact/i,
-	/\byour\s+(e-?mail|message)\s+will\s+not\s+be\s+forwarded/i,
-	/\bi\s+will\s+(be\s+)?(back|return)\s+(on|in\s+the\s+office)/i,
+const AUTO_REPLY_BODY = [
+	String.raw`\bich\s+bin\s+(zurzeit|derzeit|momentan|bis)\s+.{0,40}(nicht\s+im\s+(b(ü|ue)ro|hause)|abwesend|urlaub)`,
+	String.raw`\bbin\s+ich\s+.{0,30}(im\s+urlaub|abwesend|nicht\s+erreichbar)`,
+	String.raw`\bi\s+am\s+(currently\s+)?(out\s+of\s+the\s+office|away|on\s+(annual\s+)?leave)`,
+	String.raw`\bthis\s+is\s+an\s+automated\s+(reply|response|message)`,
+	String.raw`\bdiese\s+(e-?mail|nachricht)\s+wurde\s+automatisch\s+(erzeugt|erstellt|versendet)`,
+	String.raw`\bin\s+dringenden\s+f(ä|ae)llen\s+wenden\s+sie\s+sich`,
+	String.raw`\bihre\s+(e-?mail|nachricht)\s+wird\s+nicht\s+weitergeleitet`,
+	String.raw`\bthis\s+(e-?mail|message)\s+was\s+(generated|sent)\s+automatically`,
+	String.raw`\bfor\s+urgent\s+(matters|requests|inquiries),?\s+please\s+contact`,
+	String.raw`\byour\s+(e-?mail|message)\s+will\s+not\s+be\s+forwarded`,
+	String.raw`\bi\s+will\s+(be\s+)?(back|return)\s+(on|in\s+the\s+office)`,
 ];
+
+const BOUNCE_SENDER = [
+	String.raw`^\s*(mailer-daemon|mailer_daemon|mail-daemon|maildaemon|postmaster|microsoftexchange[0-9a-f]+)@`,
+];
+
+const MAIL_SYSTEM_SUBJECT = [
+	`${REPLY_LEAD}(undeliverable|unzustellbar)`,
+	String.raw`${REPLY_LEAD}(mail\s+delivery|delivery\s+status\s+notification)`,
+	`${REPLY_LEAD}(zustellungs|übermittlungs)status`,
+];
+
+const BOUNCE_SUBJECT = [
+	...MAIL_SYSTEM_SUBJECT,
+	String.raw`${REPLY_LEAD}(nicht\s+zustellbar|non\s+remis|onbestelbaar)`,
+	String.raw`${REPLY_LEAD}undelivered\s+(mail|message)`,
+	String.raw`${REPLY_LEAD}returned\s+mail`,
+	String.raw`${REPLY_LEAD}failure\s+notice`,
+	String.raw`${REPLY_LEAD}(message|mail)\s+(not\s+delivered|could\s+not\s+be\s+delivered)`,
+];
+
+const BOUNCE_BODY = [
+	String.raw`\bdelivery\s+to\s+the\s+following\s+recipients?\s+(has\s+)?failed`,
+	String.raw`\bdelivery\s+has\s+failed\s+to\s+these\s+recipients`,
+	String.raw`\bthis\s+is\s+the\s+mail\s+system\s+at\s+host`,
+	String.raw`\byour\s+message\s+(to\s+\S+\s+)?(couldn['’]t|could\s+not|wasn['’]t|was\s+not)\s+(be\s+)?delivered`,
+	String.raw`\b(ihre|die)\s+(e-?mail|nachricht)\s+(konnte|kann)\s+.{0,60}nicht\s+zugestellt\s+werden`,
+];
+
+const QUOTE_START = [
+	...QUOTE_MARKERS.map((marker) => marker.source),
+	String.raw`^\s*>`,
+];
+
+export const AUTO_REPLY_PATTERNS = {
+	subject: [...AUTO_REPLY_SUBJECT, ...MAIL_SYSTEM_SUBJECT],
+	body: AUTO_REPLY_BODY,
+} as const;
+
+export const BOUNCE_PATTERNS = {
+	sender: BOUNCE_SENDER,
+	subject: BOUNCE_SUBJECT,
+	body: BOUNCE_BODY,
+} as const;
+
+export const AUTOMATED_MESSAGE_PATTERNS = {
+	quoteStart: QUOTE_START,
+	sender: BOUNCE_PATTERNS.sender,
+	subject: [
+		...new Set([...AUTO_REPLY_PATTERNS.subject, ...BOUNCE_PATTERNS.subject]),
+	],
+	body: [...AUTO_REPLY_PATTERNS.body, ...BOUNCE_PATTERNS.body],
+} as const;
 
 export const AUTO_REPLY_BODY_CHARS = 800;
+
+function matcher(sources: readonly string[]): RegExp[] {
+	return sources.map((source) => new RegExp(source, "i"));
+}
+
+const autoReplySubject = matcher(AUTO_REPLY_PATTERNS.subject);
+const autoReplyBody = matcher(AUTO_REPLY_PATTERNS.body);
+const bounceSender = matcher(BOUNCE_PATTERNS.sender);
+const bounceSubject = matcher(BOUNCE_PATTERNS.subject);
+const bounceBody = matcher(BOUNCE_PATTERNS.body);
+
+const quoteStart = new RegExp(
+	String.raw`(?<=[\s\S])(?:${QUOTE_START.map((source) => `(?:${source})`).join("|")})`,
+	"im",
+);
+
+export function authoredText(body: string): string {
+	const cut = body.search(quoteStart);
+	return cut > 0 ? body.slice(0, cut) : body;
+}
+
+function matchesSubject(subject: string | null, markers: RegExp[]): boolean {
+	const line = (subject ?? "").trim();
+	return line.length > 0 && markers.some((marker) => marker.test(line));
+}
+
+function matchesBody(body: string | null, markers: RegExp[]): boolean {
+	const text = (body ?? "").slice(0, AUTO_REPLY_BODY_CHARS);
+	return text.length > 0 && markers.some((marker) => marker.test(text));
+}
 
 export function isAutoReply(
 	subject: string | null,
 	body: string | null,
 ): boolean {
-	const line = (subject ?? "").trim();
-	if (line.length > 0 && AUTO_SUBJECT.some((marker) => marker.test(line))) {
-		return true;
-	}
+	return (
+		matchesSubject(subject, autoReplySubject) ||
+		matchesBody(body, autoReplyBody)
+	);
+}
 
-	const text = (body ?? "").slice(0, AUTO_REPLY_BODY_CHARS);
-	return text.length > 0 && AUTO_BODY.some((marker) => marker.test(text));
+export function isBounce(
+	fromEmail: string,
+	subject: string | null,
+	body: string | null,
+): boolean {
+	return (
+		bounceSender.some((marker) => marker.test(fromEmail)) ||
+		matchesSubject(subject, bounceSubject) ||
+		matchesBody(body, bounceBody)
+	);
+}
+
+export type AnswerCandidate = {
+	direction: "INBOUND" | "OUTBOUND";
+	fromEmail: string;
+	subject: string | null;
+	body: string | null;
+	snippet: string | null;
+};
+
+export function isRealAnswer(message: AnswerCandidate): boolean {
+	const stored = message.body ?? message.snippet;
+	const text = stored === null ? null : authoredText(stored);
+	return (
+		message.direction === "INBOUND" &&
+		!isAutoReply(message.subject, text) &&
+		!isBounce(message.fromEmail, message.subject, text)
+	);
 }
 
 export const REPLY_PREFIX =

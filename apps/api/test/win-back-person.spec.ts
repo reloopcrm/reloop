@@ -355,66 +355,129 @@ describe("the story budget", () => {
 	});
 });
 
+async function listed(contactId: string) {
+	const threads = await db.emailThread.findMany({
+		where: { contactId },
+		select: { id: true },
+	});
+	await db.contactMemory.create({
+		data: {
+			contactId,
+			summary: "Hat ein Training gebucht.",
+			didBusiness: 1,
+			openInquiries: 1,
+			coveredThreadIds: threads.map((thread) => thread.id),
+		},
+	});
+}
+
+async function secondPerson(companyId: string) {
+	const other = await db.contact.create({
+		data: {
+			firstName: "Moritz",
+			lastName: "Ahlers",
+			email: `moritz@${domain}`,
+			companyId,
+			source: RecordSource.EMAIL,
+		},
+		select: { id: true },
+	});
+	const thread = await db.emailThread.create({
+		data: {
+			rootMessageId: `root-${crypto.randomUUID()}@${domain}`,
+			subject: "Workshop",
+			contactId: other.id,
+			companyId,
+			firstMessageAt: MARCH,
+			lastMessageAt: MARCH,
+			messageCount: 1,
+		},
+		select: { id: true },
+	});
+	await db.emailMessage.create({
+		data: {
+			threadId: thread.id,
+			rfcMessageId: `msg-${crypto.randomUUID()}@${domain}`,
+			direction: "INBOUND",
+			sentAt: MARCH,
+			body: "Wann hätten Sie Zeit?",
+			fromEmail: `moritz@${domain}`,
+			recipients: [],
+		},
+	});
+	await db.contactMemory.create({
+		data: {
+			contactId: other.id,
+			summary: "Fragt nach einem Workshop.",
+			openInquiries: 1,
+			coveredThreadIds: [thread.id],
+		},
+	});
+
+	return other;
+}
+
+function listFrom(contactId: string) {
+	return {
+		contactId,
+		rejected: false,
+		quietForDays: 0,
+		scope: "everyone" as const,
+		q: "Kranich Dental",
+		sort: "potential",
+		dir: "desc" as const,
+		page: 1,
+		pageSize: 25,
+		potential: [],
+	};
+}
+
 describe("WinBackPersonService.next", () => {
 	it("follows the list's search and skips the person it starts from", async () => {
 		const seeded = await setUp();
-		const other = await db.contact.create({
+		await listed(seeded.contactId);
+		const other = await secondPerson(seeded.companyId);
+
+		const next = await service.next(ownerId, listFrom(seeded.contactId));
+
+		expect(next).toEqual({
+			next: { id: other.id, name: "Moritz Ahlers" },
+			position: 1,
+			total: 2,
+		});
+		expect(prefetched).toEqual([other.id]);
+	});
+
+	it("does not start over at the end of the list", async () => {
+		const seeded = await setUp();
+		await listed(seeded.contactId);
+		const other = await secondPerson(seeded.companyId);
+
+		const next = await service.next(ownerId, listFrom(other.id));
+
+		expect(next).toEqual({ next: null, position: 2, total: 2 });
+		expect(prefetched).toEqual([]);
+	});
+
+	it("names no next person for someone outside the list", async () => {
+		const seeded = await setUp();
+		await listed(seeded.contactId);
+		await secondPerson(seeded.companyId);
+		const outside = await db.contact.create({
 			data: {
-				firstName: "Moritz",
-				lastName: "Ahlers",
-				email: `moritz@${domain}`,
+				firstName: "Jana",
+				lastName: "Wulf",
+				email: `jana@${domain}`,
 				companyId: seeded.companyId,
 				source: RecordSource.EMAIL,
 			},
 			select: { id: true },
 		});
-		const thread = await db.emailThread.create({
-			data: {
-				rootMessageId: `root-${crypto.randomUUID()}@${domain}`,
-				subject: "Workshop",
-				contactId: other.id,
-				companyId: seeded.companyId,
-				firstMessageAt: MARCH,
-				lastMessageAt: MARCH,
-				messageCount: 1,
-			},
-			select: { id: true },
-		});
-		await db.emailMessage.create({
-			data: {
-				threadId: thread.id,
-				rfcMessageId: `msg-${crypto.randomUUID()}@${domain}`,
-				direction: "INBOUND",
-				sentAt: MARCH,
-				body: "Wann hätten Sie Zeit?",
-				fromEmail: `moritz@${domain}`,
-				recipients: [],
-			},
-		});
-		await db.contactMemory.create({
-			data: {
-				contactId: other.id,
-				summary: "Fragt nach einem Workshop.",
-				openInquiries: 1,
-				coveredThreadIds: [thread.id],
-			},
-		});
 
-		const next = await service.next(ownerId, {
-			contactId: seeded.contactId,
-			rejected: false,
-			quietForDays: 0,
-			scope: "everyone",
-			q: "Kranich Dental",
-			sort: "potential",
-			dir: "desc",
-			page: 1,
-			pageSize: 25,
-			potential: [],
-		});
+		const next = await service.next(ownerId, listFrom(outside.id));
 
-		expect(next).toEqual({ id: other.id, name: "Moritz Ahlers" });
-		expect(prefetched).toEqual([other.id]);
+		expect(next).toEqual({ next: null, position: null, total: 2 });
+		expect(prefetched).toEqual([]);
 	});
 });
 

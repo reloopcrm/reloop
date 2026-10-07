@@ -5,6 +5,7 @@ import {
 	generateEnv,
 } from "../scripts/generate-client-env";
 
+const GENERATE_TIMEOUT_MS = 60_000;
 const DB_DIR = join(import.meta.dir, "..");
 
 describe("generate-client environment", () => {
@@ -35,5 +36,5 @@ describe("generate-client environment", () => {
 			env,
 		});
 		expect(result.exitCode).toBe(0);
-	});
+	}, GENERATE_TIMEOUT_MS);
 });

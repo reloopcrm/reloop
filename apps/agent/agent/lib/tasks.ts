@@ -7,6 +7,7 @@ import {
 	readAgentFunctions,
 } from "@crm/validation/agent-functions";
 import { DISPATCH } from "./dispatch-config";
+import { RESEARCH } from "./research-config";
 
 export type LeasedTask = {
 	id: string;
@@ -273,7 +274,7 @@ export async function scheduleTask(input: {
 				payload: input.payload ?? undefined,
 				dueAt: input.dueAt,
 				priority: input.priority ?? 0,
-				budget: input.budget ?? 4,
+				budget: input.budget ?? RESEARCH.budget.defaultUnits,
 			},
 			select: { id: true },
 		});

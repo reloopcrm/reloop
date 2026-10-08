@@ -6,6 +6,7 @@ import {
 	namesMatch,
 } from "./names";
 import { ask } from "./perplexity";
+import { RESEARCH } from "./research-config";
 
 const text = z.string().trim().min(1).nullable().catch(null);
 const rawText = z.string().nullable().catch(null);
@@ -47,64 +48,14 @@ export type Person = {
 
 export type Verdict =
 	| { accepted: true; profile: SocialProfile; evidence: Evidence[] }
-	| { accepted: false; reason: string };
+	| { accepted: false; reason: string; answered: boolean };
 
-const X_HOSTS = new Set([
-	"x.com",
-	"www.x.com",
-	"twitter.com",
-	"www.twitter.com",
-	"mobile.twitter.com",
-]);
+const { socials } = RESEARCH;
 
-const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
-
-const X_RESERVED = new Set([
-	"i",
-	"home",
-	"explore",
-	"search",
-	"settings",
-	"notifications",
-	"messages",
-	"intent",
-	"share",
-	"hashtag",
-	"status",
-	"login",
-	"signup",
-	"about",
-	"privacy",
-	"tos",
-	"compose",
-]);
-
-const GITHUB_RESERVED = new Set([
-	"orgs",
-	"organizations",
-	"features",
-	"about",
-	"pricing",
-	"topics",
-	"collections",
-	"sponsors",
-	"marketplace",
-	"settings",
-	"login",
-	"join",
-	"signup",
-	"enterprise",
-	"apps",
-	"explore",
-	"trending",
-	"security",
-	"readme",
-	"site",
-	"contact",
-	"search",
-	"new",
-	"notifications",
-]);
+const X_HOSTS = new Set<string>(socials.hosts.x);
+const GITHUB_HOSTS = new Set<string>(socials.hosts.github);
+const X_RESERVED = new Set<string>(socials.reserved.x);
+const GITHUB_RESERVED = new Set<string>(socials.reserved.github);
 
 const X_HANDLE = /^[A-Za-z0-9_]{1,15}$/;
 const GITHUB_HANDLE = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
@@ -179,31 +130,39 @@ type GithubUser = {
 
 async function fetchGithubUser(
 	handle: string,
-): Promise<{ ok: true; user: GithubUser } | { ok: false; reason: string }> {
+): Promise<
+	| { ok: true; user: GithubUser }
+	| { ok: false; reason: string; answered: boolean }
+> {
 	const token = process.env.GITHUB_TOKEN;
 	const headers = new Headers({
 		accept: "application/vnd.github+json",
-		"user-agent": "reloop-crm-research-agent",
+		"user-agent": socials.github.userAgent,
 	});
 	if (token) headers.set("authorization", `Bearer ${token}`);
 
 	try {
 		const response = await fetch(
-			`https://api.github.com/users/${encodeURIComponent(handle)}`,
-			{ headers, signal: AbortSignal.timeout(15_000) },
+			`${socials.github.endpoint}${encodeURIComponent(handle)}`,
+			{ headers, signal: AbortSignal.timeout(socials.github.timeoutMs) },
 		);
 
 		if (response.status === 404) {
-			return { ok: false, reason: "No such GitHub account." };
+			return { ok: false, reason: "No such GitHub account.", answered: true };
 		}
 		if (response.status === 403 || response.status === 429) {
 			return {
 				ok: false,
 				reason: "GitHub rate-limited the check. Try this contact again later.",
+				answered: false,
 			};
 		}
 		if (!response.ok) {
-			return { ok: false, reason: `GitHub returned HTTP ${response.status}.` };
+			return {
+				ok: false,
+				reason: `GitHub returned HTTP ${response.status}.`,
+				answered: false,
+			};
 		}
 
 		const account = githubAccount.parse(await response.json());
@@ -223,6 +182,7 @@ async function fetchGithubUser(
 		return {
 			ok: false,
 			reason: cause instanceof Error ? cause.message : String(cause),
+			answered: false,
 		};
 	}
 }
@@ -232,7 +192,13 @@ export async function verifyGithub(
 	person: Person,
 ): Promise<Verdict> {
 	const result = await fetchGithubUser(profile.handle);
-	if (!result.ok) return { accepted: false, reason: result.reason };
+	if (!result.ok) {
+		return {
+			accepted: false,
+			reason: result.reason,
+			answered: result.answered,
+		};
+	}
 
 	const user = result.user;
 
@@ -240,6 +206,7 @@ export async function verifyGithub(
 		return {
 			accepted: false,
 			reason: `github.com/${user.login} is an ${user.type.toLowerCase()} account, not a person.`,
+			answered: true,
 		};
 	}
 
@@ -306,6 +273,7 @@ export async function verifyGithub(
 			reason:
 				`github.com/${user.login} says nothing connecting it to ${person.fullName}: ` +
 				`name "${user.name ?? "—"}", company "${user.company ?? "—"}".`,
+			answered: true,
 		};
 	}
 
@@ -327,6 +295,7 @@ export async function verifyX(
 		return {
 			accepted: false,
 			reason: `x.com/${profile.handle} looks like ${person.companyName}'s own account, not ${person.fullName}'s.`,
+			answered: false,
 		};
 	}
 
@@ -341,6 +310,7 @@ export async function verifyX(
 			reason:
 				`x.com/${profile.handle} is not a form of "${person.fullName}", and X profiles cannot be read to check. ` +
 				"Leave it empty.",
+			answered: false,
 		};
 	}
 
@@ -349,13 +319,14 @@ export async function verifyX(
 			`${person.title ? `, ${person.title}` : ""}` +
 			`${person.companyName ? ` at ${person.companyName}` : ""}? ` +
 			"Answer yes or no and give the profile URL.",
-		{ domains: ["x.com", "twitter.com"] },
+		{ domains: [...socials.domains.x] },
 	);
 
 	if (!answer.ok) {
 		return {
 			accepted: false,
 			reason: `Could not corroborate: ${answer.reason}`,
+			answered: false,
 		};
 	}
 
@@ -370,6 +341,7 @@ export async function verifyX(
 			reason:
 				`Nothing retrieved for "${person.fullName}" cites x.com/${profile.handle}. ` +
 				"A handle that merely resembles their name is a guess.",
+			answered: true,
 		};
 	}
 
@@ -391,12 +363,15 @@ export async function verifyX(
 	};
 }
 
+export type SocialSearch =
+	| { ok: true; candidates: SocialProfile[]; citations: string[] }
+	| { ok: false; reason: string };
+
 export async function findSocialCandidates(
 	person: Person,
 	network: Network,
-): Promise<{ candidates: SocialProfile[]; citations: string[] }> {
+): Promise<SocialSearch> {
 	const where = network === "x" ? "X (Twitter)" : "GitHub";
-	const domains = network === "x" ? ["x.com", "twitter.com"] : ["github.com"];
 
 	const answer = await ask(
 		`What is the ${where} profile of ${person.fullName}` +
@@ -404,15 +379,15 @@ export async function findSocialCandidates(
 			`${person.companyName ? ` at ${person.companyName}` : ""}` +
 			`${person.companyDomain ? ` (${person.companyDomain})` : ""}? ` +
 			"Reply with the profile URL only, or say you do not know.",
-		{ domains },
+		{ domains: [...socials.domains[network]] },
 	);
 
-	if (!answer.ok) return { candidates: [], citations: [] };
+	if (!answer.ok) return { ok: false, reason: answer.reason };
 
 	const candidates = extractSocialUrls([
 		answer.data.text,
 		...answer.data.citations,
 	]).filter((candidate) => candidate.network === network);
 
-	return { candidates, citations: answer.data.citations };
+	return { ok: true, candidates, citations: answer.data.citations };
 }

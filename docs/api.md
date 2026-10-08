@@ -792,8 +792,9 @@ picker reads.
 - **Moving a deal to another company keeps that rule.** `deals.update` with a new
   `companyId` removes every `DealContact` whose contact is not at the new company
   (a contact with no company included) and moves the deal's activities to the new
-  company, in the same transaction. After commit it raises the new company's
-  `lastActivityAt` to the deal's newest activity. The old company drops to the
+  company, in the same transaction. Still under the deal's `FOR UPDATE` it raises
+  the new company's `lastActivityAt` to the deal's newest activity, so two quick
+  moves cannot stamp a company the deal already left. The old company drops to the
   newest activity it still has (null with none), but only when its stamp is not
   newer than the moved deal's newest activity
   (`ActivityStampService.releaseMovedDeal`, one `UPDATE`). A newer stamp came from

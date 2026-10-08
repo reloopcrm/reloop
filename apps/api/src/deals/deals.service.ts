@@ -553,13 +553,8 @@ export class DealsService {
 			Object.assign(data, await this.conversion.dealFields(amount, currency));
 		}
 
-		let outcome: {
-			updated: { id: string; name: string };
-			moved: { from: string; to: string } | null;
-		};
-
 		try {
-			outcome = await this.db.$transaction(async (tx) => {
+			return await this.db.$transaction(async (tx) => {
 				if (input.fields) {
 					await this.fields.applyValues(tx, "DEAL", id, input.fields);
 				}
@@ -577,26 +572,19 @@ export class DealsService {
 					select: { id: true, name: true, companyId: true },
 				});
 
-				const updated = { id: result.id, name: result.name };
-
-				if (!before || before.companyId === result.companyId) {
-					return { updated, moved: null };
+				if (before && before.companyId !== result.companyId) {
+					await this.moveToCompany(tx, id, result.companyId);
+					await this.restampMove(tx, id, {
+						from: before.companyId,
+						to: result.companyId,
+					});
 				}
 
-				await this.moveToCompany(tx, id, result.companyId);
-
-				return {
-					updated,
-					moved: { from: before.companyId, to: result.companyId },
-				};
+				return { id: result.id, name: result.name };
 			});
 		} catch (error) {
 			throw this.translate(error, id);
 		}
-
-		if (outcome.moved) await this.restampMove(id, outcome.moved);
-
-		return outcome.updated;
 	}
 
 	private async moveToCompany(
@@ -619,29 +607,18 @@ export class DealsService {
 	}
 
 	private async restampMove(
+		tx: Prisma.TransactionClient,
 		dealId: string,
 		moved: { from: string; to: string },
 	): Promise<void> {
-		try {
-			const { _max } = await this.db.activity.aggregate({
-				where: { dealId },
-				_max: { createdAt: true },
-			});
-			if (_max.createdAt) {
-				await this.stamp.touch({ companyId: moved.to }, _max.createdAt);
-				await this.stamp.releaseMovedDeal(moved.from, dealId);
-			}
-		} catch (error) {
-			this.logger.error(
-				{
-					message:
-						"A deal moved company but the activity stamps of both companies were not updated",
-					dealId,
-					...moved,
-				},
-				error instanceof Error ? error.stack : String(error),
-			);
-		}
+		const { _max } = await tx.activity.aggregate({
+			where: { dealId },
+			_max: { createdAt: true },
+		});
+		if (!_max.createdAt) return;
+
+		await this.stamp.touch({ companyId: moved.to }, _max.createdAt, tx);
+		await this.stamp.releaseMovedDeal(moved.from, dealId, tx);
 	}
 
 	async archive(id: string): Promise<{ id: string; name: string }> {

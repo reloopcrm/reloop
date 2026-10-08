@@ -331,6 +331,73 @@ describe("the old company's activity stamp after a move", () => {
 	});
 });
 
+describe("two quick moves of one deal", () => {
+	it("leaves no stamp at the company the deal left", async () => {
+		const first = await company("quick-first");
+		const second = await company("quick-second");
+		const at = new Date("2026-04-02T10:00:00.000Z");
+
+		let delayed = false;
+		let started = () => {};
+		const stampStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		class SlowStamp extends ActivityStampService {
+			override async touch(
+				...args: Parameters<ActivityStampService["touch"]>
+			): Promise<void> {
+				if (!delayed && args[0].companyId === second.id) {
+					delayed = true;
+					started();
+					await Bun.sleep(400);
+				}
+				return super.touch(...args);
+			}
+		}
+		const slow = new DealsService(
+			db,
+			agent,
+			new SlowStamp(db),
+			new ConversionService(db),
+			new FieldsService(db, { fieldBackfill: async () => undefined } as never),
+		);
+
+		const deal = await deals.create({
+			name: `Quick moves ${suffix}`,
+			companyId: first.id,
+			ownerId: userId,
+		});
+		await db.activity.create({
+			data: {
+				type: ActivityType.NOTE,
+				subject: "Quick notes",
+				companyId: first.id,
+				dealId: deal.id,
+				createdById: userId,
+				createdAt: at,
+			},
+		});
+		await db.company.update({
+			where: { id: first.id },
+			data: { lastActivityAt: at },
+		});
+
+		const away = slow.update(deal.id, { companyId: second.id });
+		await stampStarted;
+		const back = slow.update(deal.id, { companyId: first.id });
+		await Promise.all([away, back]);
+
+		const stamps = await db.company.findMany({
+			where: { id: { in: [first.id, second.id] } },
+			select: { id: true, lastActivityAt: true },
+		});
+		const stampOf = (id: string) =>
+			stamps.find((row) => row.id === id)?.lastActivityAt;
+		expect(stampOf(first.id)).toEqual(at);
+		expect(stampOf(second.id)).toBeNull();
+	});
+});
+
 describe("attaching a contact while the deal moves", () => {
 	it("never leaves a contact of the old company on the deal", async () => {
 		const from = await company("attach-from");

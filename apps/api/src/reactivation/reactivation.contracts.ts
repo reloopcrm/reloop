@@ -14,7 +14,7 @@ export const winBackBand = z.enum(["high", "medium", "low"]);
 export const reactivationListInput = z.object({
 	rejected: z.boolean().default(false),
 	replied: z.boolean().default(false),
-	since: z.iso.datetime().optional(),
+	since: z.iso.datetime({ offset: true }).optional(),
 	quietForDays: z
 		.number()
 		.int()

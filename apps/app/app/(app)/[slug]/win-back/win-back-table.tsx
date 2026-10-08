@@ -44,6 +44,7 @@ import {
 	winBackInput,
 	winBackScopeParsers,
 	winBackTable,
+	windowDay,
 } from "./win-back-search-params";
 import { factTitle, shortFact } from "./win-back-verdict";
 import { WinBackVerdictMenu } from "./win-back-verdict-menu";
@@ -366,7 +367,7 @@ export function WinBackTable() {
 										date: dateFormat(
 											locale,
 											WIN_BACK_UI.quickFilter.sinceDate,
-										).format(scope.since),
+										).format(windowDay(scope.since)),
 									})
 								: t("Wrote back"),
 						active: scope.replied,

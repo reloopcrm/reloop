@@ -22,6 +22,12 @@ function thisMonth(minutes: number): Date {
 	return new Date(monthStart.getTime() + minutes * MINUTE_MS);
 }
 
+function calendarDay(date: Date): string {
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${date.getFullYear()}-${month}-${day}`;
+}
+
 function lastMonth(days: number): Date {
 	return new Date(monthStart.getTime() - days * DAY_MS);
 }
@@ -261,7 +267,8 @@ describe("the Replied card and the Wrote back list", () => {
 	it("names the start of the window it counted", async () => {
 		const winBack = await card();
 
-		expect(winBack.since).toBe(monthStart.toISOString());
+		expect(new Date(winBack.since).getTime()).toBe(monthStart.getTime());
+		expect(winBack.since.slice(0, 10)).toBe(calendarDay(monthStart));
 	});
 
 	it("opens exactly the people the card counted", async () => {

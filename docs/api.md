@@ -757,10 +757,11 @@ the pattern lists in `packages/db/src/message-text.ts`
   from `since`. Neither applies the win back rules. `answered` itself keeps the
   hard no, so the follow-up sweep never writes to a person who said no.
 - **The card link carries the window.** The dashboard returns `winBack.since`, the
-  instant its month started on the server. The "Replied" card links to the list
-  with `?replied=true`, the dashboard's scope and `since`, so the list shows
-  exactly the people the card counted. The chip then reads "Wrote back,
-  contacted since" that day. Turning the chip off or resetting the filters drops
+  instant its month started on the server, written with the server's offset
+  (`2026-10-01T00:00:00+02:00`). The "Replied" card links to the list with
+  `?replied=true`, the dashboard's scope and `since`, so the list shows exactly
+  the people the card counted. The chip then reads "Wrote back, contacted since"
+  the server's calendar day from that string, whatever the reader's time zone. Turning the chip off or resetting the filters drops
   `since`, and the plain chip shows every reply. `since` without `replied` does
   nothing. A filtered list is never the prefetch's default list
   (`readsDefaultList`).

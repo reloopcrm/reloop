@@ -20,13 +20,23 @@ export const RESERVED_SLUGS: readonly string[] = [
 	"agents",
 	"chat",
 	"companies",
+	"contact",
 	"contacts",
 	"deals",
+	"docs",
 	"eve",
+	"get-started",
 	"grant-access",
+	"imprint",
 	"onboarding",
+	"opengraph-image",
+	"paused",
+	"privacy",
 	"settings",
 	"sign-in",
+	"t",
+	"twitter-image",
+	"win-back",
 ];
 
 export function workspaceSlug(name: string): string {

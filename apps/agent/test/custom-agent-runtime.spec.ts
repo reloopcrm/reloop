@@ -286,6 +286,8 @@ describe("deployed Slack actions", () => {
 				body: {
 					channel: "D123",
 					text: "A deal just closed.",
+					parse: "none",
+					link_names: false,
 					client_msg_id: "7d3e8854-79f9-48dd-a933-8cfb5994f99e",
 				},
 			},
@@ -295,6 +297,34 @@ describe("deployed Slack actions", () => {
 			"guard",
 			"https://slack.com/api/chat.postMessage",
 		]);
+	});
+
+	it("sends mentions and control sequences as literal text", async () => {
+		const bodies: Array<{ text: string; parse: string; link_names: boolean }> =
+			[];
+		const fetcher = (async (_url: string, init: RequestInit) => {
+			bodies.push(JSON.parse(String(init.body)));
+			return Response.json({ ok: true, channel: "C123", ts: "1.2" });
+		}) as unknown as typeof fetch;
+		const hostile =
+			"<!channel> <!here> <!everyone> <@U123> <#C123|general> <!subteam^S123> Q&A 3 < 5";
+
+		await sendSlackMessage(
+			"xoxb-test",
+			{ kind: "channel", id: "C123", label: "#alerts" },
+			hostile,
+			"7d3e8854-79f9-48dd-a933-8cfb5994f99e",
+			{ fetcher },
+		);
+
+		const text = bodies[0]?.text ?? "";
+		expect(text).not.toContain("<");
+		expect(text).not.toContain(">");
+		expect(text).toBe(
+			"&lt;!channel&gt; &lt;!here&gt; &lt;!everyone&gt; &lt;@U123&gt; &lt;#C123|general&gt; &lt;!subteam^S123&gt; Q&amp;A 3 &lt; 5",
+		);
+		expect(bodies[0]?.parse).toBe("none");
+		expect(bodies[0]?.link_names).toBe(false);
 	});
 
 	it("surfaces an actionable missing-channel error", async () => {

@@ -32,6 +32,22 @@ const samples = {
 	autoReplyPastTheLimit: inbound({
 		body: `${"Thanks for the offer. ".repeat(40)}I am currently out of the office.`,
 	}),
+	autoReplyAfterEmoji: inbound({
+		body: `${"😀".repeat(50)}${"a".repeat(700)} I am away.`,
+	}),
+	autoReplyAfterEmojiInsideTheLimit: inbound({
+		body: `${"😀".repeat(50)}${"a".repeat(600)} I am away.`,
+	}),
+	bounceAfterEmoji: inbound({
+		body: `${"😀".repeat(100)}${"a".repeat(630)} This is the mail system at host mail.example.com.`,
+	}),
+	autoReplyWithNoBreakSpace: inbound({ body: "I\u00a0am away until Monday." }),
+	autoReplyWithEmSpace: inbound({ body: "I\u2003am away until Monday." }),
+	autoReplyWithZeroWidthNoBreakSpace: inbound({
+		body: "I\ufeffam away until Monday.",
+	}),
+	nextLineIsNotWhitespace: inbound({ body: "I\u0085am away until Monday." }),
+	autoReplyWithLineSeparator: inbound({ body: "I\u2028am away until Monday." }),
 	mailerDaemon: inbound({
 		fromEmail: "MAILER-DAEMON@example.com",
 		subject: "Re: Pallets",
@@ -162,6 +178,7 @@ describe("the real answer rule", () => {
 			[
 				"autoReplyPastTheLimit",
 				"deliveryOfGoods",
+				"nextLineIsNotWhitespace",
 				"noSubjectNoBody",
 				"realReply",
 				"replyBelowEnglishHeader",

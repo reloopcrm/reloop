@@ -1,4 +1,4 @@
-import type { PlanPurchase } from "@crm/db/pricing";
+import type { PlanPurchase } from "@crm/db/cloud/contract";
 import type { Button } from "@crm/ui/components/button";
 import type { ComponentProps, ReactNode } from "react";
 

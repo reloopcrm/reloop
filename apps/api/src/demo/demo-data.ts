@@ -16,6 +16,7 @@ import type { QuantityRule, ThreadSignal } from "@crm/db/contact-worth";
 import { convertToBase } from "@crm/db/fx";
 import { POTENTIAL_VERDICT, type PotentialVerdict } from "@crm/db/insights";
 import { DEFAULT_LOCALE, type Locale } from "@crm/db/locale";
+import { isRealAnswer } from "@crm/db/message-text";
 import { SAMPLE_DATA } from "@crm/db/sample-data";
 import { readReportingCurrency } from "@crm/db/settings";
 import { WORKSPACE_ID } from "@crm/db/workspace";
@@ -2038,10 +2039,11 @@ async function writeThread(
 			sentAt: sentAt[index] ?? last,
 			createdAt: sentAt[index] ?? last,
 		};
+		const realAnswer = isRealAnswer(data);
 		await db.emailMessage.upsert({
 			where: { id: messageId },
-			create: { id: messageId, ...data },
-			update: data,
+			create: { id: messageId, ...data, realAnswer },
+			update: { ...data, realAnswer },
 		});
 	}
 

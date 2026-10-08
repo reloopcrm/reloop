@@ -1,4 +1,9 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import {
+	actWithoutPlans,
+	actWithTestPlans,
+	TEST_PLANS,
+} from "@crm/db/test-plans";
 import { DISPATCH } from "../agent/lib/dispatch-config";
 import {
 	currentLane,
@@ -20,6 +25,10 @@ function clock(start = 0) {
 	};
 }
 
+beforeAll(actWithTestPlans);
+
+afterAll(actWithoutPlans);
+
 describe("the shared key bucket", () => {
 	it("reads the per-minute budget from the environment and falls back on nonsense", () => {
 		expect(perMinuteFrom({})).toBe(DISPATCH.bucket.perMinute);
@@ -33,8 +42,9 @@ describe("the shared key bucket", () => {
 	});
 
 	it("shares the slow lane by plan, and a plan it does not know gets the default", () => {
-		expect(slowShareOf("trial")).toBe(DISPATCH.bucket.share.byPlan.trial);
-		expect(slowShareOf("handel")).toBe(DISPATCH.bucket.share.byPlan.standard);
+		expect(slowShareOf("small")).toBe(TEST_PLANS.small.sharedKeyShare);
+		expect(slowShareOf("keyless")).toBe(DISPATCH.bucket.share.other);
+		expect(slowShareOf("erfunden")).toBe(DISPATCH.bucket.share.other);
 		expect(slowShareOf(null)).toBe(DISPATCH.bucket.share.other);
 	});
 
@@ -68,19 +78,19 @@ describe("the shared key bucket", () => {
 		const time = clock();
 		const bucket = new KeyBucket(1_000, time.now);
 		const slowBudget = 1_000 * (1 - DISPATCH.bucket.fastReserve);
-		const shareA = Math.floor(slowBudget * DISPATCH.bucket.share.byPlan.trial);
-		const shareB = Math.floor(slowBudget * DISPATCH.bucket.share.byPlan.team);
+		const shareA = Math.floor(slowBudget * TEST_PLANS.small.sharedKeyShare);
+		const shareB = Math.floor(slowBudget * TEST_PLANS.wide.sharedKeyShare);
 
-		expect(bucket.slowAllowance("a", "trial")).toBe(shareA);
-		expect(bucket.slowAllowance("b", "team")).toBe(shareB);
+		expect(bucket.slowAllowance("a", "small")).toBe(shareA);
+		expect(bucket.slowAllowance("b", "wide")).toBe(shareB);
 
 		for (let call = 0; call < shareA; call += 1)
-			bucket.take("slow", "a", "trial");
+			bucket.take("slow", "a", "small");
 
-		expect(bucket.slowAllowance("a", "trial")).toBe(0);
-		expect(bucket.slowAllowance("b", "team")).toBe(shareB);
-		expect(bucket.take("slow", "a", "trial")).toBeGreaterThan(0);
-		expect(bucket.take("slow", "b", "team")).toBe(0);
+		expect(bucket.slowAllowance("a", "small")).toBe(0);
+		expect(bucket.slowAllowance("b", "wide")).toBe(shareB);
+		expect(bucket.take("slow", "a", "small")).toBeGreaterThan(0);
+		expect(bucket.take("slow", "b", "wide")).toBe(0);
 	});
 
 	it("carries the lane through async work and defaults to fast", async () => {

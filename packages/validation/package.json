@@ -32,6 +32,7 @@
 		"./summary-language": "./src/summary-language.ts",
 		"./summary-text": "./src/summary-text.ts",
 		"./tenant-signup": "./src/tenant-signup.ts",
+		"./thread-decline": "./src/thread-decline.ts",
 		"./waitlist": "./src/waitlist.ts",
 		"./win-back-rules": "./src/win-back-rules.ts"
 	},

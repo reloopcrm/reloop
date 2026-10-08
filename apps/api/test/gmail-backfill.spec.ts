@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { Db, MailboxSyncModel as MailboxSync } from "@crm/db";
+import { actWithoutPlans, actWithTestPlans } from "@crm/db/test-plans";
 import type { z } from "zod";
 import type {
 	GmailClient,
@@ -257,6 +258,10 @@ const backfillOf = (raw: string | null | undefined) => {
 	return read.backfill;
 };
 
+beforeAll(actWithTestPlans);
+
+afterAll(actWithoutPlans);
+
 describe("GmailSyncService backfill", () => {
 	it("reads mail older than the cursor and files it", async () => {
 		const kit = harness({ pages: [["old-1", "old-2"]] });
@@ -298,7 +303,7 @@ describe("GmailSyncService backfill", () => {
 	});
 
 	it("keeps the plan floor when the workspace plan limits the history", async () => {
-		const kit = harness({ pages: [["old-1"]], plan: "test" });
+		const kit = harness({ pages: [["old-1"]], plan: "small" });
 
 		await kit.service.sync(row());
 
@@ -307,7 +312,7 @@ describe("GmailSyncService backfill", () => {
 	});
 
 	it("finishes the backfill once the plan's import cap is reached", async () => {
-		const kit = harness({ pages: [["old-1"]], plan: "test", threads: 500 });
+		const kit = harness({ pages: [["old-1"]], plan: "small", threads: 500 });
 
 		await kit.service.sync(row());
 
@@ -437,7 +442,7 @@ describe("GmailSyncService backfill", () => {
 	it("never stores past the plan's thread cap, even inside one chunk", async () => {
 		const kit = harness({
 			pages: [ids(100, 0), ids(100, 100)],
-			plan: "test",
+			plan: "small",
 			threads: 450,
 		});
 
@@ -448,7 +453,7 @@ describe("GmailSyncService backfill", () => {
 
 		const again = harness({
 			pages: [ids(100, 0), ids(100, 100)],
-			plan: "test",
+			plan: "small",
 			threads: 500,
 		});
 		await again.service.sync(row({ backfill: kit.settled.at(-1)?.backfill }));

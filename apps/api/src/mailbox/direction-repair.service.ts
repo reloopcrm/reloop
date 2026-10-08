@@ -52,7 +52,7 @@ export class DirectionRepairService {
 				id: { in: wrong.map((message) => message.id) },
 				direction: EmailDirection.INBOUND,
 			},
-			data: { direction: EmailDirection.OUTBOUND },
+			data: { direction: EmailDirection.OUTBOUND, realAnswer: false },
 		});
 
 		const threadIds = [...new Set(wrong.map((message) => message.threadId))];

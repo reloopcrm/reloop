@@ -268,9 +268,18 @@ export class CalendarSyncService {
 			}
 		}
 
+		if (!iCalUid) return "ignored";
+
+		if (!event.recurringEventId && !event.originalStartTime) {
+			const single = await this.db.calendarEvent.deleteMany({
+				where: { iCalUid, recurringEventId: null },
+			});
+			return single.count > 0 ? "removed" : "ignored";
+		}
+
 		const originalStart =
 			eventTime(event.originalStartTime) ?? eventTime(event.start);
-		if (!iCalUid || !originalStart) return "ignored";
+		if (!originalStart) return "ignored";
 
 		const byKey = await this.db.calendarEvent.deleteMany({
 			where: { iCalUid, originalStartTime: originalStart.at },

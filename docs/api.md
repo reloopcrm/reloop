@@ -470,8 +470,9 @@ the largest attachment upload the conversation contracts accept.
   the next tick starts the pass again; a retryable failure keeps it.
 - **A calendar event is found by its Google id.** A cancelled entry in an
   incremental sync carries only `id` and `status`, so it is deleted by
-  `googleEventId`, narrowed by `iCalUid` when the entry has one, with `iCalUid`
-  + `originalStartTime` as the second way. Google ids are unique per calendar
+  `googleEventId`, narrowed by `iCalUid` when the entry has one. The second way
+  is `iCalUid`: for a single event every row without a `recurringEventId`, for
+  an instance the row with its `originalStartTime`. Google ids are unique per calendar
   only, so an id that matches events with different `iCalUid`s deletes nothing. A
   moved single event keeps its row: the sync finds it by `googleEventId`, or by
   `iCalUid` without a `recurringEventId`, updates the times and leaves

@@ -215,6 +215,38 @@ describe("calendar sync of a cancelled event", () => {
 		expect(await eventsOf("instance")).toHaveLength(0);
 	});
 
+	it("removes a moved single event that another calendar cancels with its own id", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+		const moved = at(36, 15);
+
+		calendar.respond = onePage([
+			meeting("other-copy", at(35), { id: "event-first-copy" }),
+		]);
+		await sync.sync(first);
+
+		calendar.respond = onePage([
+			meeting("other-copy", moved, { id: "event-second-copy" }),
+		]);
+		await sync.sync(second);
+		expect(await eventsOf("other-copy")).toHaveLength(1);
+
+		second = await reload(second);
+		calendar.respond = onePage([
+			{
+				id: "event-second-copy",
+				iCalUID: `ical-other-copy-${suffix}@google.com`,
+				status: "cancelled",
+				start: { dateTime: moved.toISOString() },
+			},
+		]);
+		await sync.sync(second);
+
+		expect(await eventsOf("other-copy")).toHaveLength(0);
+	});
+
 	it("leaves another event alone that shares the Google id", async () => {
 		const calendar = new FakeCalendar();
 		const sync = service(calendar);

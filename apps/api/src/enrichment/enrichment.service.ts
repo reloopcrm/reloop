@@ -1,4 +1,5 @@
 import type { Db, Prisma } from "@crm/db";
+import { WEBHOOKS } from "@crm/db/webhooks";
 import { ENRICHMENT_PAGE, pageSize } from "@crm/validation/enrichment-queue";
 import { Injectable } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -79,6 +80,7 @@ export class EnrichmentService {
 		const now = new Date();
 
 		const named: Prisma.AgentTaskWhereInput = {
+			kind: { not: WEBHOOKS.kind },
 			finishedAt: null,
 			OR: [{ contactId: { not: null } }, { companyId: { not: null } }],
 		};

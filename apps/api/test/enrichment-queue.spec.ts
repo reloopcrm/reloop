@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
+import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	ENRICHMENT_PAGE,
 	ENRICHMENT_PAGE_MAX,
@@ -24,8 +25,13 @@ let companyId: string;
 let dueId: string;
 let scheduledId: string;
 
+const delivery = `webhook delivery (${suffix})`;
+
 async function clean() {
 	await db.agentTask.deleteMany({ where: { kind } });
+	await db.agentTask.deleteMany({
+		where: { kind: WEBHOOKS.kind, reason: delivery },
+	});
 	await db.contact.deleteMany({ where: { email } });
 	await db.contact.deleteMany({
 		where: { email: { endsWith: `-${suffix}@example.test` } },
@@ -127,6 +133,39 @@ describe("what the enrichment widget reads", () => {
 
 		expect(row?.subject.id).toBe(companyId);
 		expect(row?.line).toBe("Waiting");
+	});
+
+	it("leaves a webhook delivery out, due or booked", async () => {
+		const due = await db.agentTask.create({
+			data: {
+				kind: WEBHOOKS.kind,
+				reason: delivery,
+				dueAt: new Date(Date.now() - 60_000),
+				budget: 1,
+				contactId,
+			},
+			select: { id: true },
+		});
+		const later = await db.agentTask.create({
+			data: {
+				kind: WEBHOOKS.kind,
+				reason: delivery,
+				dueAt: new Date(Date.now() + DAY_MS),
+				budget: 1,
+				companyId,
+			},
+			select: { id: true },
+		});
+
+		const queue = await enrichment.queue(ENRICHMENT_PAGE_MAX);
+		const listed = [...queue.rows, ...queue.scheduled].map((row) => row.id);
+
+		expect(listed).not.toContain(due.id);
+		expect(listed).not.toContain(later.id);
+
+		await db.agentTask.deleteMany({
+			where: { id: { in: [due.id, later.id] } },
+		});
 	});
 
 	it("hands back exactly the number of rows asked for", async () => {

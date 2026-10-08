@@ -289,3 +289,59 @@ describe("a delivery task", () => {
 		expect(delivery?.outcome).toBe("The webhook is switched off.");
 	});
 });
+
+describe("a delivery for a record that is purged", () => {
+	const records = [
+		{ type: "contact.created", kind: "contact", column: "contactId" },
+		{ type: "company.created", kind: "company", column: "companyId" },
+		{ type: "deal.created", kind: "deal", column: "dealId" },
+	] as const;
+
+	async function anEventFor(record: (typeof records)[number]) {
+		const id = `webhook-spec-${record.kind}-${crypto.randomUUID()}`;
+
+		const task = await db.agentTask.create({
+			data: {
+				kind: "agent-event",
+				[record.column]: id,
+				reason: REASON,
+				priority: 700,
+				budget: 1,
+				dueAt: new Date(),
+				payload: {
+					type: record.type,
+					record: { kind: record.kind, id },
+					occurredAt: new Date().toISOString(),
+					data: { name: "Preview Person", email: "preview@example.com" },
+				},
+			},
+			select: { id: true, payload: true },
+		});
+
+		return { id, task };
+	}
+
+	for (const record of records) {
+		it(`carries the ${record.kind} id, so the purge takes it and nothing is sent`, async () => {
+			let calls = 0;
+			const url = await listening((_received, answer) => {
+				calls += 1;
+				answer(200);
+			});
+			const webhook = await aWebhook({ url, events: [record.type] });
+			const event = await anEventFor(record);
+
+			expect(await queueWebhookDeliveries(event.task)).toBe(1);
+
+			const [delivery] = await deliveriesOf(webhook.id);
+			expect(delivery?.[record.column]).toBe(event.id);
+
+			await db.agentTask.deleteMany({ where: { [record.column]: event.id } });
+
+			await runWebhookLane(undefined, TIMEOUT_MS);
+
+			expect(calls).toBe(0);
+			expect(await deliveriesOf(webhook.id)).toHaveLength(0);
+		});
+	}
+});

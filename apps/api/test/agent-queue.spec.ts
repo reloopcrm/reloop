@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
+import { WEBHOOKS } from "@crm/db/webhooks";
 import { AgentQueueService } from "../src/agent/agent-queue.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "agent-queue-spec";
@@ -14,8 +15,13 @@ const DAY_MS = 86_400_000;
 let contactId: string;
 let companyId: string;
 
+const delivery = `webhook delivery (${suffix})`;
+
 async function clean() {
 	await db.agentTask.deleteMany({ where: { kind } });
+	await db.agentTask.deleteMany({
+		where: { kind: WEBHOOKS.kind, reason: delivery },
+	});
 	await db.contact.deleteMany({ where: { email } });
 	await db.company.deleteMany({ where: { name } });
 }
@@ -67,6 +73,21 @@ describe("the queued badge", () => {
 	it("marks work that is due now", async () => {
 		expect(await queue.queuedCompanies([companyId])).toContain(companyId);
 		expect(await queue.isQueued({ companyId })).toBe(true);
+	});
+
+	it("ignores a webhook delivery about the record", async () => {
+		await db.agentTask.create({
+			data: {
+				kind: WEBHOOKS.kind,
+				reason: delivery,
+				dueAt: new Date(Date.now() - 60_000),
+				budget: 1,
+				contactId,
+			},
+		});
+
+		expect(await queue.queuedContacts([contactId])).not.toContain(contactId);
+		expect(await queue.isQueued({ contactId })).toBe(false);
 	});
 
 	it("asks for nothing when given no records", async () => {

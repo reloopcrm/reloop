@@ -49,3 +49,20 @@ export const CRM_EVENT_TYPES = Object.keys(CRM_EVENT_CATALOG) as [
 export function isCrmEventType(value: string): value is CrmEventType {
 	return Object.hasOwn(CRM_EVENT_CATALOG, value);
 }
+
+export type CrmEventRecordIds = {
+	contactId: string | null;
+	companyId: string | null;
+	dealId: string | null;
+};
+
+export function crmEventRecordIds(record: {
+	kind: string;
+	id: string;
+}): CrmEventRecordIds {
+	return {
+		contactId: record.kind === "contact" ? record.id : null,
+		companyId: record.kind === "company" ? record.id : null,
+		dealId: record.kind === "deal" ? record.id : null,
+	};
+}

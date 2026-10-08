@@ -544,6 +544,7 @@ export class ContactsService {
 
 				await tx.agentTask.deleteMany({ where: { contactId: id } });
 				await tx.agentEvent.deleteMany({ where: { contactId: id } });
+				await tx.formSubmission.deleteMany({ where: { contactId: id } });
 
 				const contact = await tx.contact.delete({
 					where: { id },
@@ -554,6 +555,9 @@ export class ContactsService {
 				const suppress = normalizeEmail(contact.email ?? "");
 
 				if (suppress) {
+					await tx.formSubmission.deleteMany({
+						where: { email: { equals: suppress, mode: "insensitive" } },
+					});
 					await tx.suppressedContact.upsert({
 						where: { email: suppress },
 						create: {

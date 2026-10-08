@@ -1,7 +1,11 @@
 import { type Db, type FieldEntity, Prisma } from "@crm/db";
 import { PRIORITY, USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
 import { cloud } from "@crm/db/cloud/scope";
-import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
+import {
+	CRM_EVENT_CATALOG,
+	type CrmEventType,
+	crmEventRecordIds,
+} from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import {
@@ -1073,14 +1077,9 @@ export class AgentTriggerService {
 	): Promise<void> {
 		if (isSampleRecordId(input.record.id)) return;
 
-		const recordIds = {
-			contactId: input.record.kind === "contact" ? input.record.id : null,
-			companyId: input.record.kind === "company" ? input.record.id : null,
-			dealId: input.record.kind === "deal" ? input.record.id : null,
-		};
 		await tx.agentTask.create({
 			data: {
-				...recordIds,
+				...crmEventRecordIds(input.record),
 				kind: "agent-event",
 				reason: input.type,
 				payload: {

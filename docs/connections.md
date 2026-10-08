@@ -175,7 +175,11 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   `agent-event` task, and the agent worker fans it out. `queueWebhookDeliveries`
   (`apps/agent/agent/lib/webhooks.ts`) writes one `webhook-delivery` task per
   matching enabled webhook, keyed `webhook:<taskId>:<webhookId>` so a re-read of
-  the event queues nothing twice. There is no second delivery path and no
+  the event queues nothing twice. The task carries the event's record id in
+  `contactId`, `companyId` or `dealId` (`crmEventRecordIds`), so "Delete forever"
+  removes an open delivery with the record and nothing about them is sent after.
+  The queued badge and the enrichment queue leave `webhook-delivery` out, because
+  a delivery is not research about the person. There is no second delivery path and no
   outbound call in Nest.
 - **Delivery has its own lane.** `runWebhookLane` runs beside the visible,
   insight and research lanes, and `webhook-delivery` is filtered out of
@@ -194,7 +198,8 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   masked hint, never the value.
 - **Only an owner or an admin writes a webhook, or reads its address.**
   `canManageConnections`, the same predicate Slack uses, in the service and on
-  the button. `webhooks.status` returns `url` and `secretHint` as null to a
+  the button. Create, update and remove refuse an API key
+  (`SessionOnlyMiddleware`), so a leaked key cannot add, change or delete one. `webhooks.status` returns `url` and `secretHint` as null to a
   member, because a receiver address is itself a bearer credential: anybody who
   holds it can post forged events at that receiver. A member still sees the
   events and the liveness, so failure stays on the surface.
@@ -202,8 +207,13 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   does not resolve to a public address, because the CRM would otherwise post to
   whatever the operator's network runs. `allowPrivateHost` lifts that for one
   webhook, and the switch states the risk where it is turned on. Link-local,
-  unspecified and multicast addresses stay refused whatever the switch says, so
-  the cloud metadata service is never reachable. The answer's body is never read
+  unspecified and multicast addresses and every cloud metadata address
+  (`169.254.169.254`, `fd00:ec2::254`, `100.100.100.200`, `168.63.129.16`, in
+  `NETWORK.metadataAddresses`) stay refused whatever the switch says, so the
+  metadata service is never reachable. A NAT64 (`64:ff9b::/96`), 6to4
+  (`2002::/16`) or IPv4-mapped address is judged by the IPv4 address inside it,
+  and the protocol and documentation ranges (`192.0.0.0/24`, `192.0.2.0/24`,
+  `198.51.100.0/24`, `203.0.113.0/24`) count as private. The answer's body is never read
   back into the CRM: the card keeps the delivery time and the status code the
   receiver returned, and nothing else from it.
 

@@ -53,7 +53,8 @@ const agent = {
 	contactMemoryRequested: async () => true,
 } as unknown as AgentTriggerService;
 
-const prep = new MeetingPrepService(db, new AgentTriggerService(db));
+const trigger = new AgentTriggerService(db);
+const prep = new MeetingPrepService(db, trigger);
 
 const tokens = {
 	accessTokenFor: async () => ({
@@ -703,6 +704,62 @@ describe("meeting preparation", () => {
 
 		await prep.sweep();
 		expect(await prepTasksFor("deadline")).toHaveLength(1);
+	});
+
+	it("never queues a second task for a meeting whose task finished, even from a stale read", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+		const startsAt = at(3);
+
+		calendar.respond = onePage([meeting("stale", startsAt)]);
+		await sync.sync(row);
+		const [task] = await prepTasksFor("stale");
+		const [event] = await eventsOf("stale");
+		await db.agentTask.update({
+			where: { id: task?.id ?? "" },
+			data: { finishedAt: new Date(), outcome: "Done." },
+		});
+
+		const queued = await trigger.meetingSoon(
+			task?.contactId ?? "",
+			startsAt,
+			event?.id ?? "",
+		);
+
+		expect(queued).toBe(false);
+		expect(await prepTasksFor("stale")).toHaveLength(1);
+	});
+
+	it("stops between attendees once the sweep is aborted", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+
+		calendar.respond = onePage([
+			meeting("abort", at(3), {
+				attendees: [
+					{ email: buyer, responseStatus: "accepted" },
+					{ email: colleague, responseStatus: "accepted" },
+				],
+			}),
+		]);
+		await sync.sync(row);
+		await cleanTasks();
+
+		const controller = new AbortController();
+		const stopping = new MeetingPrepService(db, {
+			meetingSoon: async (
+				...args: Parameters<AgentTriggerService["meetingSoon"]>
+			) => {
+				controller.abort();
+				return trigger.meetingSoon(...args);
+			},
+		} as unknown as AgentTriggerService);
+
+		await stopping.sweep({ signal: controller.signal });
+
+		expect((await prepTasksFor("abort")).length).toBeLessThanOrEqual(1);
 	});
 
 	it("prepares nothing for a meeting that already started", async () => {

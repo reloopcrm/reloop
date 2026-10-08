@@ -38,6 +38,7 @@ import {
 	type AgentTaskStoryPayload,
 	type AgentTaskThreadPayload,
 	agentTaskThreadPayload,
+	MEETING_EVENT_KEY,
 	readAgentTaskStoryReread,
 } from "@crm/validation/agent-task-payload";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
@@ -799,6 +800,7 @@ export class AgentTriggerService {
 			priority: PRIORITY.meeting,
 			budget: 10,
 			payload,
+			onceFor: { path: [MEETING_EVENT_KEY], value: eventId },
 		});
 	}
 
@@ -994,6 +996,7 @@ export class AgentTriggerService {
 			budget: number;
 			payload?: Prisma.InputJsonValue;
 			subject?: { path: string[]; value: string };
+			onceFor?: { path: string[]; value: string };
 			origin?: AgentTaskOrigin;
 			upgradeOpen?: boolean;
 		},
@@ -1012,6 +1015,22 @@ export class AgentTriggerService {
 					tx,
 					`agent-task:${task.kind}:${task.contactId ?? ""}:${task.companyId ?? ""}:${task.subject?.value ?? ""}`,
 				);
+				if (task.onceFor) {
+					const earlier = await tx.agentTask.findFirst({
+						where: {
+							kind: task.kind,
+							contactId: task.contactId ?? undefined,
+							companyId: task.companyId ?? undefined,
+							payload: {
+								path: task.onceFor.path,
+								equals: task.onceFor.value,
+							},
+						},
+						select: { id: true },
+					});
+					if (earlier) return false;
+				}
+
 				const pending = await tx.agentTask.findFirst({
 					where: {
 						kind: task.kind,

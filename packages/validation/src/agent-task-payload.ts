@@ -71,6 +71,9 @@ export const agentTaskMeetingPayload = z.object({
 
 export type AgentTaskMeetingPayload = z.infer<typeof agentTaskMeetingPayload>;
 
+export const MEETING_EVENT_KEY =
+	"eventId" satisfies keyof AgentTaskMeetingPayload;
+
 export function readAgentTaskMeetingEventId(value: unknown): string | null {
 	const parsed = agentTaskMeetingPayload.safeParse(value);
 	return parsed.success ? parsed.data.eventId : null;

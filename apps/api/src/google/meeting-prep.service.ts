@@ -116,6 +116,7 @@ export class MeetingPrepService {
 			if (limit.signal?.aborted || Date.now() > limit.deadlineAt) break;
 
 			for (const attendee of event.attendees) {
+				if (limit.signal?.aborted || Date.now() > limit.deadlineAt) break;
 				if (!attendee.contactId) continue;
 				if (prepared.has(`${attendee.contactId}:${event.id}`)) continue;
 

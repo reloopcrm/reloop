@@ -242,14 +242,32 @@ export class CalendarSyncService {
 	}
 
 	private async remove(event: GoogleEvent): Promise<"removed" | "ignored"> {
+		const iCalUid = event.iCalUID;
+
 		if (event.id) {
-			const byId = await this.db.calendarEvent.deleteMany({
-				where: { googleEventId: event.id },
+			const rows = await this.db.calendarEvent.findMany({
+				where: { googleEventId: event.id, ...(iCalUid ? { iCalUid } : {}) },
+				select: { id: true, iCalUid: true },
 			});
-			if (byId.count > 0) return "removed";
+			const uids = new Set(rows.map((found) => found.iCalUid));
+
+			if (uids.size > 1) {
+				this.logger.warn({
+					message: "Cancelled calendar entry matches several events. Kept",
+					googleEventId: event.id,
+					matches: rows.length,
+				});
+				return "ignored";
+			}
+
+			if (rows.length > 0) {
+				const byId = await this.db.calendarEvent.deleteMany({
+					where: { id: { in: rows.map((found) => found.id) } },
+				});
+				if (byId.count > 0) return "removed";
+			}
 		}
 
-		const iCalUid = event.iCalUID;
 		const originalStart =
 			eventTime(event.originalStartTime) ?? eventTime(event.start);
 		if (!iCalUid || !originalStart) return "ignored";

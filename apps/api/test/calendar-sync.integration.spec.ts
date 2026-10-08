@@ -214,6 +214,44 @@ describe("calendar sync of a cancelled event", () => {
 
 		expect(await eventsOf("instance")).toHaveLength(0);
 	});
+
+	it("leaves another event alone that shares the Google id", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		let row = await freshRow();
+
+		calendar.respond = onePage([
+			meeting("shared-a", at(31), { id: "event-shared" }),
+			meeting("shared-b", at(32), { id: "event-shared" }),
+		]);
+		await sync.sync(row);
+		expect(await eventsOf("shared-a")).toHaveLength(1);
+		expect(await eventsOf("shared-b")).toHaveLength(1);
+
+		row = await reload(row);
+		calendar.respond = onePage([
+			{
+				id: "event-shared",
+				iCalUID: `ical-shared-a-${suffix}@google.com`,
+				status: "cancelled",
+			},
+		]);
+		await sync.sync(row);
+		expect(await eventsOf("shared-a")).toHaveLength(0);
+		expect(await eventsOf("shared-b")).toHaveLength(1);
+
+		row = await reload(row);
+		calendar.respond = onePage([
+			meeting("shared-c", at(33), { id: "event-shared" }),
+		]);
+		await sync.sync(row);
+
+		row = await reload(row);
+		calendar.respond = onePage([{ id: "event-shared", status: "cancelled" }]);
+		await sync.sync(row);
+		expect(await eventsOf("shared-b")).toHaveLength(1);
+		expect(await eventsOf("shared-c")).toHaveLength(1);
+	});
 });
 
 describe("calendar sync of a moved single event", () => {

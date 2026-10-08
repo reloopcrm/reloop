@@ -5,6 +5,7 @@ import {
 	BadRequestException,
 	Controller,
 	Get,
+	Logger,
 	Param,
 	Query,
 	Res,
@@ -30,6 +31,8 @@ import { EXPORTS } from "./exports-config";
 @Controller("api/exports")
 @UseGuards(SignInAllowedGuard)
 export class ExportsController {
+	private readonly logger = new Logger(ExportsController.name);
+
 	constructor(private readonly exports: ExportsService) {}
 
 	@Get(":entity")
@@ -73,7 +76,19 @@ export class ExportsController {
 		);
 		response.setHeader("X-Content-Type-Options", "nosniff");
 
-		return new StreamableFile(Readable.from(file.lines));
+		return new StreamableFile(Readable.from(file.lines)).setErrorHandler(
+			(error) => this.abort(error, response),
+		);
+	}
+
+	private abort(error: Error, response: Response) {
+		this.logger.error(`The export stopped: ${error.message}`);
+		if (response.destroyed) return;
+		if (response.headersSent) {
+			response.destroy(error);
+			return;
+		}
+		response.status(500).send("The export failed.");
 	}
 
 	private read(

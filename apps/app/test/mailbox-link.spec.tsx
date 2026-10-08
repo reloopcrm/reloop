@@ -25,6 +25,21 @@ const AUTHORIZE = {
 		"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?state=s1&prompt=select_account",
 } as const;
 
+const PAGE = "/acme/settings/connections/google";
+const replaced: string[] = [];
+
+const navigation = { ...(await import("next/navigation")) };
+
+mock.module("next/navigation", () => ({
+	...navigation,
+	useRouter: () => ({
+		replace: (href: string) => {
+			replaced.push(href);
+		},
+	}),
+	usePathname: () => PAGE,
+}));
+
 const authClientModule = { ...(await import("@crm/auth/client")) };
 
 mock.module("@crm/auth/client", () => ({
@@ -51,11 +66,12 @@ const { MICROSOFT_SYNC_SCOPES, SYNC_SCOPES } = await import("@crm/auth/scopes");
 const { I18nProvider } = await import("../lib/i18n/client");
 const { mailboxLinkRequest, reconnectAuthorizationUrl, reconnectedOf } =
 	await import("../app/(app)/[slug]/settings/connections/mailbox-link");
-const { useMailboxLink } = await import(
+const { useMailboxLink, useReconnectedCheck } = await import(
 	"../app/(app)/[slug]/settings/connections/use-mailbox-link"
 );
 
 afterAll(() => {
+	mock.module("next/navigation", () => navigation);
 	mock.module("@crm/auth/client", () => authClientModule);
 	GlobalRegistrator.unregister();
 });
@@ -215,5 +231,45 @@ describe("reconnectAuthorizationUrl", () => {
 		expect(url.searchParams.getAll("prompt")).toEqual([
 			"select_account consent",
 		]);
+	});
+});
+
+async function returnTo(address: string): Promise<number> {
+	replaced.length = 0;
+	window.history.replaceState(null, "", address);
+	let checks = 0;
+
+	function Probe() {
+		useReconnectedCheck(true, () => {
+			checks += 1;
+		});
+		return null;
+	}
+
+	const root = createRoot(document.createElement("div"));
+	await act(async () => {
+		root.render(createElement(Probe));
+	});
+	await act(async () => {
+		root.unmount();
+	});
+
+	return checks;
+}
+
+describe("the return from a reconnect", () => {
+	it("removes only the marker and keeps every other parameter", async () => {
+		const checks = await returnTo(
+			`${PAGE}?tab=sync&reconnected=google&provider=google#history`,
+		);
+
+		expect(checks).toBe(1);
+		expect(replaced).toEqual([`${PAGE}?tab=sync&provider=google#history`]);
+	});
+
+	it("leaves a clean address when the marker was the only parameter", async () => {
+		await returnTo(`${PAGE}?reconnected=google`);
+
+		expect(replaced).toEqual([PAGE]);
 	});
 });

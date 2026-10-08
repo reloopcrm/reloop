@@ -52,6 +52,17 @@ export function reconnectAuthorizationUrl(
 	return next.toString();
 }
 
+export function withoutReconnectedMarker(
+	pathname: string,
+	search: string,
+	hash = "",
+): string {
+	const query = new URLSearchParams(search);
+	query.delete(RECONNECTED_PARAM);
+	const rest = query.toString();
+	return `${pathname}${rest ? `?${rest}` : ""}${hash}`;
+}
+
 export function reconnectedOf(
 	query: Record<string, string | string[] | undefined>,
 	provider: string,

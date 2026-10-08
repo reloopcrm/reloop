@@ -11,6 +11,7 @@ import {
 	type MailboxLinkMode,
 	mailboxLinkRequest,
 	reconnectAuthorizationUrl,
+	withoutReconnectedMarker,
 } from "./mailbox-link";
 
 const UNREACHABLE = {
@@ -74,7 +75,14 @@ export function useReconnectedCheck(
 	useMountEffect(() => {
 		if (!reconnected || started.current) return;
 		started.current = true;
-		router.replace(pathname, { scroll: false });
+		router.replace(
+			withoutReconnectedMarker(
+				pathname,
+				window.location.search,
+				window.location.hash,
+			),
+			{ scroll: false },
+		);
 		check();
 	});
 }

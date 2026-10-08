@@ -57,12 +57,14 @@ describe("reading progress canRead", () => {
 		const progress = await build().progress();
 		expect(progress.pending).toBeGreaterThan(0);
 		expect(progress.canRead).toBe(false);
+		expect(progress.readingBlock).toBe("noProvider");
 	});
 
 	it("is true once a ChatGPT login is connected", async () => {
 		login = "connected";
 		const progress = await build().progress();
 		expect(progress.canRead).toBe(true);
+		expect(progress.readingBlock).toBeNull();
 	});
 
 	it("stays true when the agent cannot report the login", async () => {

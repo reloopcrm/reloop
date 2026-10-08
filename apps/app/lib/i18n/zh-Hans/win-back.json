@@ -412,5 +412,9 @@
 	"Reply to them": "回复他们",
 	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "对方回复了你的赢回邮件。Reloop 会用你的语气准备回复。",
 	"Reloop has not written the answer yet. Reload the page to try again.": "Reloop 还没有写好回复。请刷新页面再试一次。",
-	"Wrote back, contacted since {date}": "已回复，自 {date} 起联系"
+	"Wrote back, contacted since {date}": "已回复，自 {date} 起联系",
+	"Reloop cannot read your mail because no AI provider is connected.": "Reloop 无法读取你的邮件，因为没有连接 AI 服务商。",
+	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop 无法读取你的邮件，因为对话摘要已关闭。",
+	"Connect an AI provider": "连接 AI 服务商",
+	"Switch summaries on": "开启摘要"
 }

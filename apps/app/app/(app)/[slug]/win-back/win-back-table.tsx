@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@crm/ui/components/button";
 import { DataTable, type DataTableFacet } from "@crm/ui/components/data-table";
 import { EntityLogo } from "@crm/ui/components/entity-logo";
 import {
@@ -16,6 +17,7 @@ import { RowOpenButton } from "@crm/ui/components/row-controls";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryStates } from "nuqs";
 import { useMemo } from "react";
@@ -39,7 +41,7 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { withListState } from "./[contactId]/person-view";
 import { WinBackBulkVerdict } from "./win-back-bulk-verdict";
 import { WIN_BACK_UI } from "./win-back-config";
-import { winBackEmptyText } from "./win-back-empty";
+import { readingHint, winBackEmptyText } from "./win-back-empty";
 import {
 	winBackInput,
 	winBackScopeParsers,
@@ -292,6 +294,7 @@ export function WinBackTable() {
 		placeholderData: (previous) => previous,
 	});
 	const reading = useQuery(trpc.reactivation.progress.queryOptions());
+	const hint = readingHint(reading.data, t);
 
 	const rows = query.data?.rows ?? [];
 	const selection = useTableSelection(
@@ -446,7 +449,18 @@ export function WinBackTable() {
 						),
 					label: (row) => t("Show the people at {name}", { name: row.name }),
 				}}
-				empty={winBackEmptyText(reading.data, t)}
+				empty={
+					hint ? (
+						<>
+							{hint.text}{" "}
+							<Button asChild variant="link" size="text">
+								<Link href={workspaceUrl(hint.path)}>{hint.action}</Link>
+							</Button>
+						</>
+					) : (
+						winBackEmptyText(reading.data, t)
+					)
+				}
 			/>
 			<ReadingProgress />
 		</div>

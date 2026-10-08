@@ -38,3 +38,17 @@ export function readingReady({
 			(environmentKey && !cloud.customer()),
 	);
 }
+
+export type ReadingBlock = "noProvider" | "functionOff";
+
+export function readingBlockOf(input: {
+	canRead: boolean;
+	paused: boolean;
+	functions: AgentFunctionSettings;
+}): ReadingBlock | null {
+	if (input.canRead || input.paused) return null;
+
+	return isTaskKindEnabled(input.functions, READING_KIND)
+		? "noProvider"
+		: "functionOff";
+}

@@ -31,7 +31,7 @@ import type {
 	SetPotentialFeedbackInput,
 	WinBackRulesState,
 } from "./reactivation.contracts";
-import { readingReady } from "./reading-ready";
+import { readingBlockOf, readingReady } from "./reading-ready";
 import {
 	bandTotals,
 	continuedBand,
@@ -498,6 +498,7 @@ export class ReactivationService {
 			etaMinutes,
 			paused,
 			canRead,
+			readingBlock: readingBlockOf({ canRead, paused, functions }),
 		};
 	}
 }

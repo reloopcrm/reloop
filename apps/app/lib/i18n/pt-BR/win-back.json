@@ -412,5 +412,9 @@
 	"Reply to them": "Responda a eles",
 	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "Eles responderam ao seu e-mail para reconquistar. O Reloop prepara a resposta no seu tom.",
 	"Reloop has not written the answer yet. Reload the page to try again.": "O Reloop ainda não escreveu a resposta. Recarregue a página para tentar de novo.",
-	"Wrote back, contacted since {date}": "Respondeu, contatado desde {date}"
+	"Wrote back, contacted since {date}": "Respondeu, contatado desde {date}",
+	"Reloop cannot read your mail because no AI provider is connected.": "O Reloop não consegue ler seus e-mails porque nenhum provedor de IA está conectado.",
+	"Reloop cannot read your mail because conversation summaries are switched off.": "O Reloop não consegue ler seus e-mails porque os resumos de conversas estão desativados.",
+	"Connect an AI provider": "Conectar um provedor de IA",
+	"Switch summaries on": "Ativar os resumos"
 }

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { readingReady } from "../src/reactivation/reading-ready";
+import {
+	readingBlockOf,
+	readingReady,
+} from "../src/reactivation/reading-ready";
 
 const none = {
 	openrouterKey: null,
@@ -88,5 +91,35 @@ describe("readingReady", () => {
 				env: key,
 			}),
 		).toBe(true);
+	});
+});
+
+describe("readingBlockOf", () => {
+	it("names the missing provider when reading cannot run", () => {
+		expect(
+			readingBlockOf({ canRead: false, paused: false, functions: {} }),
+		).toBe("noProvider");
+	});
+
+	it("names the switched off summaries function", () => {
+		expect(
+			readingBlockOf({
+				canRead: false,
+				paused: false,
+				functions: { "thread-insight": false },
+			}),
+		).toBe("functionOff");
+	});
+
+	it("names nothing while reading can run", () => {
+		expect(
+			readingBlockOf({ canRead: true, paused: false, functions: {} }),
+		).toBeNull();
+	});
+
+	it("names nothing while the subscription limit pauses reading", () => {
+		expect(
+			readingBlockOf({ canRead: false, paused: true, functions: {} }),
+		).toBeNull();
 	});
 });

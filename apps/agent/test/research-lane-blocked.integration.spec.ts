@@ -73,11 +73,15 @@ async function offerAModel(): Promise<void> {
 	forgetProviderCache();
 }
 
-async function queueOne(kind = "company-profile"): Promise<string> {
+async function queueOne(
+	kind = "company-profile",
+	payload?: Prisma.InputJsonValue,
+): Promise<string> {
 	const row = await db.agentTask.create({
 		data: {
 			companyId: null,
 			kind,
+			payload,
 			reason,
 			priority: 40,
 			budget: 1,
@@ -90,6 +94,9 @@ async function queueOne(kind = "company-profile"): Promise<string> {
 
 async function clean(): Promise<void> {
 	await db.agentTask.deleteMany({ where: { reason } });
+	await db.calendarEvent.deleteMany({
+		where: { iCalUid: { endsWith: suffix } },
+	});
 	await db.appSetting.deleteMany({ where: { id: SETTINGS_ID } });
 	await db.providerUsage.deleteMany({ where: { provider: "chatgpt" } });
 }
@@ -201,5 +208,34 @@ describe("the research lane while no model works", () => {
 
 		expect(started).toBeGreaterThan(0);
 		expect(starts).toBeGreaterThan(0);
+	});
+});
+
+describe("the research lane and a meeting that is over", () => {
+	it("closes the preparation without a session and without spending an attempt", async () => {
+		await offerAModel();
+		const startsAt = new Date(Date.now() - 60_000);
+		const event = await db.calendarEvent.create({
+			data: {
+				iCalUid: `lane-past-${suffix}`,
+				originalStartTime: startsAt,
+				startsAt,
+				endsAt: new Date(startsAt.getTime() + 3_600_000),
+				status: "confirmed",
+			},
+			select: { id: true },
+		});
+		const id = await queueOne("meeting-prep", { eventId: event.id });
+
+		await runResearchLane(start);
+
+		expect(starts).toBe(0);
+		const task = await db.agentTask.findUnique({
+			where: { id },
+			select: { finishedAt: true, attempts: true, startedAt: true },
+		});
+		expect(task?.finishedAt).not.toBeNull();
+		expect(task?.attempts).toBe(0);
+		expect(task?.startedAt).toBeNull();
 	});
 });

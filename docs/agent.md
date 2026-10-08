@@ -303,6 +303,14 @@ A claim the research lane hands back without a run, because the monthly budget
 `returnClaim` (`lib/tasks.ts`) with the same rule. The row reads as waiting again, so
 a rep's Research click still rewrites it before the pre-check sees the sync reason.
 
+**`meeting-prep` checks its meeting first** (`lib/meeting-precheck.ts`, called
+from `beginResearch` before the identify pre-check). The task names its event in
+`payload.eventId` (`agentTaskMeetingPayload` in `@crm/validation/agent-task-payload`).
+An event that is gone, cancelled, declined by the rep (`CalendarAttendee.isSelf`
+with `declined`) or already started closes the row through `closeUncounted` with
+`COPY.meetingPrep`, so no session runs and no attempt counts. A row without an
+event id runs as before.
+
 **An archived record never reaches the pre-check.** `runResearchLane` hands each
 claimed batch to `releaseArchivedClaims` (`lib/housekeeping.ts`) first. A task whose
 contact, company or deal is archived closes through `closeUncounted` with

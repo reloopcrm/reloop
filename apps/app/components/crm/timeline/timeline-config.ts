@@ -12,6 +12,7 @@ export const TIMELINE = {
 		dayShort: { weekday: "short", day: "numeric" },
 		weekday: { weekday: "long" },
 		date: { day: "numeric", month: "short" },
+		allDay: { day: "numeric", month: "short", timeZone: "UTC" },
 		dateWithYear: { day: "numeric", month: "short", year: "numeric" },
 		range: {
 			month: "short",

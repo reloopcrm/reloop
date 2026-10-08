@@ -1,0 +1,1 @@
+ALTER TABLE "calendarAttendee" ADD COLUMN "isSelf" BOOLEAN NOT NULL DEFAULT false;

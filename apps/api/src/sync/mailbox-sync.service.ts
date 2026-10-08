@@ -4,6 +4,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { GoogleConnectionService } from "../google/google-connection.service";
 import { GoogleSyncService } from "../google/google-sync.service";
+import { MeetingPrepService } from "../google/meeting-prep.service";
 import { ImapConnectionService } from "../imap/imap-connection.service";
 import { ImapSyncService } from "../imap/imap-sync.service";
 import { DirectionRepairService } from "../mailbox/direction-repair.service";
@@ -58,6 +59,7 @@ export class MailboxSyncService {
 		private readonly direction: DirectionRepairService,
 		private readonly threadContacts: ThreadContactsService,
 		private readonly realAnswers: RealAnswerBackfillService,
+		private readonly meetingPrep: MeetingPrepService,
 	) {}
 
 	async runDue(signal?: AbortSignal): Promise<TickSummary> {
@@ -160,6 +162,17 @@ export class MailboxSyncService {
 				);
 
 				syncError({ error, source: row.source });
+			}
+		}
+
+		if (!signal?.aborted) {
+			try {
+				await this.meetingPrep.sweep();
+			} catch (error) {
+				this.logger.error(
+					{ message: "Meeting preparation sweep failed" },
+					error instanceof Error ? error.stack : String(error),
+				);
 			}
 		}
 

@@ -6,7 +6,6 @@ import {
 	RecordSource,
 } from "@crm/db";
 import { Injectable, Logger } from "@nestjs/common";
-import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import {
@@ -27,6 +26,7 @@ import {
 	readCalendarPage,
 	serialiseCalendarPage,
 } from "./calendar-page-cursor";
+import { MeetingPrepService } from "./meeting-prep.service";
 
 type CalendarPass = {
 	syncToken: string | null;
@@ -55,7 +55,7 @@ export class CalendarSyncService {
 		private readonly match: MailboxMatchService,
 		private readonly state: SyncStateService,
 		private readonly stamp: ActivityStampService,
-		private readonly agent: AgentTriggerService,
+		private readonly prep: MeetingPrepService,
 	) {}
 
 	async sync(row: MailboxSync): Promise<SyncOutcome> {
@@ -394,13 +394,12 @@ export class CalendarSyncService {
 				});
 
 		await this.syncAttendees(record.id, event);
-		await this.prepareForMeeting(record.id, start.at);
+		await this.prep.forEvent(record.id);
 		await this.project(record.id, row.userId, {
-			title: event.summary ?? "Meeting",
+			title: event.summary ?? null,
 			startsAt: start.at,
 			companyId: match.companyId,
 			contactId: match.contactId,
-			location: event.location ?? null,
 		});
 
 		return "written";
@@ -449,38 +448,17 @@ export class CalendarSyncService {
 					name: attendee.displayName ?? null,
 					responseStatus: attendee.responseStatus ?? null,
 					isOrganizer: attendee.organizer ?? false,
+					isSelf: attendee.self ?? false,
 					contactId: contactByEmail.get(email) ?? null,
 				},
 				update: {
 					name: attendee.displayName ?? null,
 					responseStatus: attendee.responseStatus ?? null,
 					isOrganizer: attendee.organizer ?? false,
+					isSelf: attendee.self ?? false,
 					contactId: contactByEmail.get(email) ?? null,
 				},
 			});
-		}
-	}
-
-	private async prepareForMeeting(
-		eventId: string,
-		startsAt: Date,
-	): Promise<void> {
-		const soon = new Date(Date.now() + CALENDAR.meetingPrep.soonMs);
-		if (startsAt <= new Date() || startsAt > soon) return;
-
-		const attendees = await this.db.calendarAttendee.findMany({
-			where: {
-				eventId,
-				contactId: { not: null },
-				contact: { brief: { is: null } },
-			},
-			select: { contactId: true },
-		});
-
-		for (const attendee of attendees) {
-			if (attendee.contactId) {
-				await this.agent.meetingSoon(attendee.contactId, startsAt);
-			}
 		}
 	}
 
@@ -488,21 +466,18 @@ export class CalendarSyncService {
 		calendarEventId: string,
 		userId: string,
 		summary: {
-			title: string;
+			title: string | null;
 			startsAt: Date;
 			companyId: string | null;
 			contactId: string | null;
-			location: string | null;
 		},
 	): Promise<void> {
-		const body = summary.location ? `Location: ${summary.location}` : null;
-
 		const activity = await this.db.activity.upsert({
 			where: { calendarEventId },
 			create: {
 				type: ActivityType.MEETING,
 				subject: summary.title,
-				body,
+				body: null,
 				occurredAt: summary.startsAt,
 				companyId: summary.companyId,
 				contactId: summary.contactId,
@@ -512,7 +487,7 @@ export class CalendarSyncService {
 			},
 			update: {
 				subject: summary.title,
-				body,
+				body: null,
 				occurredAt: summary.startsAt,
 				companyId: summary.companyId,
 				contactId: summary.contactId,

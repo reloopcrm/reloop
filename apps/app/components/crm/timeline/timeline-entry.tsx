@@ -220,15 +220,17 @@ export function TimelineEntry({
 	const written = voice === "system";
 	const { body, preview } = entryBody(entry, t);
 
+	const event = entry.calendarEvent;
+
 	const subject = change
 		? `${stageLabel(change.from)} → ${stageLabel(change.to)}`
 		: entry.subject
 			? written
 				? t(entry.subject)
 				: entry.subject
-			: null;
-
-	const event = entry.calendarEvent;
+			: event
+				? kind
+				: null;
 	const links = blockRecords([entry], anchorId(anchor));
 	const hasLinks = links.deals.length > 0 || links.contacts.length > 0;
 
@@ -263,6 +265,7 @@ export function TimelineEntry({
 						isAllDay={event.isAllDay}
 						attendeeCount={event.attendeeCount}
 						conferenceUrl={event.conferenceUrl}
+						location={entry.body === null ? event.location : null}
 					/>
 				) : null}
 				<RecordLinks entries={[entry]} anchor={anchor} />

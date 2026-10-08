@@ -24,7 +24,7 @@ export function MeetingWhen({
 
 	return isAllDay ? (
 		<>
-			<LocalDateTime date={startsAt} options={TIMELINE.format.date} /> ·{" "}
+			<LocalDateTime date={startsAt} options={TIMELINE.format.allDay} /> ·{" "}
 			{t("All day")}
 		</>
 	) : (
@@ -43,6 +43,7 @@ export function MeetingEntry({
 	isAllDay,
 	attendeeCount,
 	conferenceUrl,
+	location,
 }: {
 	eventId: string;
 	startsAt: string;
@@ -50,6 +51,7 @@ export function MeetingEntry({
 	isAllDay: boolean;
 	attendeeCount: number;
 	conferenceUrl: string | null;
+	location: string | null;
 }) {
 	const t = useT();
 	const trpc = useTRPC();
@@ -64,6 +66,8 @@ export function MeetingEntry({
 			<span>
 				<MeetingWhen startsAt={startsAt} endsAt={endsAt} isAllDay={isAllDay} />
 			</span>
+
+			{location ? <span>{t("Location: {location}", { location })}</span> : null}
 
 			{event.data?.attendees && event.data.attendees.length > 0 ? (
 				<AttendeeList attendees={event.data.attendees} />

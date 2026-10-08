@@ -179,6 +179,7 @@
 	"Log meeting": "Toplantı kaydet",
 	"All day": "Tüm gün",
 	"Join call": "Aramaya katıl",
+	"Location: {location}": "Konum: {location}",
 	"1 message": "1 mesaj",
 	"{count} messages": "{count} mesaj",
 	"Open in {mailbox}": "{mailbox} içinde aç",

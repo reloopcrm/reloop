@@ -1,5 +1,9 @@
 import { type Db, type FieldEntity, Prisma } from "@crm/db";
-import { PRIORITY, USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
+import {
+	MEETING_PREP_KIND,
+	PRIORITY,
+	USAGE_PROBE_KIND,
+} from "@crm/db/agent-tasks";
 import { cloud } from "@crm/db/cloud/scope";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
@@ -29,6 +33,7 @@ import {
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskDraftPayload,
+	type AgentTaskMeetingPayload,
 	type AgentTaskOrigin,
 	type AgentTaskStoryPayload,
 	type AgentTaskThreadPayload,
@@ -781,13 +786,19 @@ export class AgentTriggerService {
 		return { queued, merged };
 	}
 
-	async meetingSoon(contactId: string, when: Date): Promise<void> {
-		await this.enqueue({
+	async meetingSoon(
+		contactId: string,
+		when: Date,
+		eventId: string,
+	): Promise<boolean> {
+		const payload: AgentTaskMeetingPayload = { eventId };
+		return this.enqueue({
 			contactId,
-			kind: "meeting-prep",
-			reason: `Meeting on ${when.toDateString()} with someone we know nothing about`,
+			kind: MEETING_PREP_KIND,
+			reason: `Meeting on ${when.toISOString().slice(0, 10)}`,
 			priority: PRIORITY.meeting,
 			budget: 10,
+			payload,
 		});
 	}
 

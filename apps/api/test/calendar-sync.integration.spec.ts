@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { db, type MailboxSyncModel as MailboxSync } from "@crm/db";
-import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import { readAgentTaskMeetingEventId } from "@crm/validation/agent-task-payload";
+import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
@@ -12,6 +13,7 @@ import {
 	googleEventsPage,
 } from "../src/google/calendar.client";
 import { CalendarSyncService } from "../src/google/calendar-sync.service";
+import { MeetingPrepService } from "../src/google/meeting-prep.service";
 import type { MailboxResult } from "../src/mailbox/mailbox-api.client";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
 import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
@@ -49,8 +51,9 @@ const agent = {
 	companyRequested: async () => true,
 	threadStored: async () => undefined,
 	contactMemoryRequested: async () => true,
-	meetingSoon: async () => undefined,
 } as unknown as AgentTriggerService;
+
+const prep = new MeetingPrepService(db, new AgentTriggerService(db));
 
 const tokens = {
 	accessTokenFor: async () => ({
@@ -77,7 +80,7 @@ function service(calendar: FakeCalendar): CalendarSyncService {
 		match,
 		state,
 		stamp,
-		agent,
+		prep,
 	);
 }
 
@@ -136,7 +139,39 @@ function eventsOf(key: string) {
 	});
 }
 
+function ourContactIds(): Promise<string[]> {
+	return db.contact
+		.findMany({
+			where: { email: { endsWith: `@${domain}` } },
+			select: { id: true },
+		})
+		.then((rows) => rows.map((contact) => contact.id));
+}
+
+async function cleanTasks(): Promise<void> {
+	await db.agentTask.deleteMany({
+		where: { contactId: { in: await ourContactIds() } },
+	});
+}
+
+function prepTasks() {
+	return ourContactIds().then((contactIds) =>
+		db.agentTask.findMany({
+			where: { kind: "meeting-prep", contactId: { in: contactIds } },
+			select: { id: true, reason: true, payload: true, contactId: true },
+		}),
+	);
+}
+
+async function prepTasksFor(key: string) {
+	const ids = (await eventsOf(key)).map((event) => event.id);
+	return (await prepTasks()).filter((task) =>
+		ids.includes(readAgentTaskMeetingEventId(task.payload) ?? ""),
+	);
+}
+
 async function clean(): Promise<void> {
+	await cleanTasks();
 	await db.calendarEvent.deleteMany({
 		where: { iCalUid: { endsWith: `-${suffix}@google.com` } },
 	});
@@ -161,6 +196,8 @@ beforeAll(async () => {
 });
 
 afterAll(clean);
+
+afterEach(cleanTasks);
 
 describe("calendar sync of a cancelled event", () => {
 	it("removes the row when the incremental entry carries only id and status", async () => {
@@ -525,5 +562,125 @@ describe("calendar event status values", () => {
 		const events = await eventsOf("odd");
 		expect(events).toHaveLength(1);
 		expect(events[0]?.status).toBe("confirmed");
+	});
+});
+
+describe("meeting preparation", () => {
+	it("queues prep once an event far ahead comes within the lead time", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+
+		calendar.respond = onePage([meeting("ahead", at(20))]);
+		await sync.sync(row);
+		expect(await prepTasksFor("ahead")).toHaveLength(0);
+
+		const later = new Date(Date.now() + 14 * DAY_MS);
+		await prep.sweep(later);
+
+		const [event] = await eventsOf("ahead");
+		const tasks = await prepTasksFor("ahead");
+		expect(tasks).toHaveLength(1);
+		expect(tasks[0]?.payload).toEqual({ eventId: event?.id });
+
+		await prep.sweep(later);
+		expect(await prepTasksFor("ahead")).toHaveLength(1);
+	});
+
+	it("does not prepare the same event again after its task finished", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+
+		calendar.respond = onePage([meeting("again", at(3))]);
+		await sync.sync(row);
+		const [task] = await prepTasksFor("again");
+		expect(task).toBeDefined();
+
+		await db.agentTask.update({
+			where: { id: task?.id ?? "" },
+			data: { finishedAt: new Date(), outcome: "Done." },
+		});
+
+		await prep.sweep();
+		expect(await prepTasksFor("again")).toHaveLength(1);
+	});
+
+	it("names the meeting day in UTC and nothing about the person", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+		const startsAt = at(2, 23);
+
+		calendar.respond = onePage([meeting("reason", startsAt)]);
+		await sync.sync(row);
+
+		const [task] = await prepTasksFor("reason");
+		expect(task?.reason).toBe(
+			`Meeting on ${startsAt.toISOString().slice(0, 10)}`,
+		);
+	});
+
+	it("prepares nothing for an invitation the rep declined", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+
+		calendar.respond = onePage([
+			meeting("declined", at(3), {
+				attendees: [
+					{
+						email: buyer,
+						displayName: "Anna Preview",
+						responseStatus: "accepted",
+					},
+					{
+						email: `rep-declined@${repDomain}`,
+						self: true,
+						responseStatus: "declined",
+					},
+				],
+			}),
+		]);
+		await sync.sync(row);
+
+		expect(await eventsOf("declined")).toHaveLength(1);
+		expect(await prepTasksFor("declined")).toHaveLength(0);
+		await prep.sweep();
+		expect(await prepTasksFor("declined")).toHaveLength(0);
+	});
+
+	it("prepares nothing for a meeting that already started", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+
+		calendar.respond = onePage([meeting("started", at(3))]);
+		await sync.sync(row);
+		await cleanTasks();
+
+		await prep.sweep(new Date(Date.now() + 4 * DAY_MS));
+		expect(await prepTasksFor("started")).toHaveLength(0);
+	});
+});
+
+describe("the meeting activity", () => {
+	it("stores no English fallback title and no English location line", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+
+		calendar.respond = onePage([
+			meeting("plain", at(30), {
+				summary: undefined,
+				location: "Hafenstrasse 1, Hamburg",
+			}),
+		]);
+		await sync.sync(row);
+
+		const [event] = await eventsOf("plain");
+		expect(event?.location).toBe("Hafenstrasse 1, Hamburg");
+		expect(event?.activity?.subject).toBeNull();
+		expect(event?.activity?.body).toBeNull();
 	});
 });

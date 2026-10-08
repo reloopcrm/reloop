@@ -480,6 +480,17 @@ the largest attachment upload the conversation contracts accept.
   attendee rows follow Google's list, unless Google sets `attendeesOmitted`. An
   unknown `status` or `responseStatus` reads as absent instead of failing the
   page.
+- **Meeting prep follows the event, not the sync.** `MeetingPrepService`
+  (`google/meeting-prep.service.ts`) queues one `meeting-prep` task per contact
+  without a brief for an event that starts within `CALENDAR.meetingPrep.soonMs`,
+  is not cancelled and is not declined by the rep (`CalendarAttendee.isSelf`).
+  The calendar sync calls it for each written event, and every mailbox sync tick
+  sweeps all events, so a meeting stored weeks ahead is prepared once it comes
+  close. The task carries `payload.eventId`; an event that already had a task
+  for that contact is not queued again, finished or not.
+- **The `MEETING` activity stores the event's own title and no body.** An event
+  without a title stores `subject` null, and the location stays on the event.
+  The timeline renders "Meeting" and the location through `t()`.
 - **A message the store rejects is retried, then skipped.** Gmail and Outlook
   keep `failures` (`{ id, attempts, lanes }`) in the backfill blob, IMAP keeps
   it in the folder's cursor entry (`mailbox/message-failures.ts`). The cursor

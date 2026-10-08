@@ -217,8 +217,10 @@ deleted* comes to be true of email and not of forms.
   after every accepted batch, and the `refile` window (`refileWindowKey`) lets
   one pass run per minute. The nightly retention sweep runs one more. A pass
   stops at the first row the contact cap refuses, because the hour is full. A
-  row whose filing throws is logged and kept with its code, and the pass goes on
-  to the next row, so one broken row never blocks the queue. The read uses the
+  row whose filing throws is logged and kept with the code `refile_failed`, and
+  the pass goes on to the next row. A pass reads waiting rows first and
+  `refile_failed` rows only with the room that is left, so a set of rows that
+  keep failing never blocks the rows behind them. The read uses the
   `(skipReason, createdAt)` index, so a long history of filed rows costs nothing.
 - **A filing never moves a visitor backwards.** `attach` writes the visitor's
   `contactId` and `last*` columns in one `UPDATE` whose `WHERE` refuses when a

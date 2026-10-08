@@ -5,6 +5,8 @@ import {
 	FORM_REFILE,
 	REFILABLE_REASONS,
 	refileWindowKey,
+	TRACKING_SKIP,
+	WAITING_REASONS,
 } from "@crm/db/tracking";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -59,20 +61,15 @@ export class TrackingRefileService {
 	}
 
 	async drain(limit: number): Promise<number> {
-		const rows = await this.db.formSubmission.findMany({
-			where: { filedAt: null, skipReason: { in: [...REFILABLE_REASONS] } },
-			orderBy: { createdAt: "asc" },
-			take: limit,
-			select: {
-				id: true,
-				email: true,
-				host: true,
-				visitorId: true,
-				fields: true,
-				firstTouch: true,
-				lastTouch: true,
-			},
-		});
+		const waiting = await this.queued([...WAITING_REASONS], limit);
+		const failed =
+			waiting.length < limit
+				? await this.queued(
+						[TRACKING_SKIP.refileFailed],
+						limit - waiting.length,
+					)
+				: [];
+		const rows = [...waiting, ...failed];
 
 		let filed = 0;
 
@@ -127,6 +124,23 @@ export class TrackingRefileService {
 		return filed;
 	}
 
+	private queued(reasons: string[], limit: number) {
+		return this.db.formSubmission.findMany({
+			where: { filedAt: null, skipReason: { in: reasons } },
+			orderBy: { createdAt: "asc" },
+			take: limit,
+			select: {
+				id: true,
+				email: true,
+				host: true,
+				visitorId: true,
+				fields: true,
+				firstTouch: true,
+				lastTouch: true,
+			},
+		});
+	}
+
 	private async fileOne(
 		submissionId: string,
 		file: () => Promise<FilingOutcome>,
@@ -141,6 +155,11 @@ export class TrackingRefileService {
 				},
 				error instanceof Error ? error.stack : String(error),
 			);
+
+			await this.db.formSubmission.updateMany({
+				where: { id: submissionId, filedAt: null },
+				data: { skipReason: TRACKING_SKIP.refileFailed },
+			});
 
 			return null;
 		}

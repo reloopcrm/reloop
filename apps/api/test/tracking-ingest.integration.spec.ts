@@ -629,7 +629,21 @@ describe("a submission kept for later", () => {
 			where: { id: broken.id },
 			select: { filedAt: true, skipReason: true },
 		});
-		expect(kept).toEqual({ filedAt: null, skipReason: TRACKING_SKIP.formCap });
+		expect(kept).toEqual({
+			filedAt: null,
+			skipReason: TRACKING_SKIP.refileFailed,
+		});
+	});
+
+	it("files a newer row before an older row whose filing failed", async () => {
+		const failed = await deferred(TRACKING_SKIP.refileFailed, 7);
+		const waiting = await deferred(TRACKING_SKIP.formCap, 8);
+
+		expect(await refile.drain(1)).toBe(1);
+		expect(filed).toEqual([waiting.id]);
+
+		expect(await refile.drain(1)).toBe(1);
+		expect(filed).toEqual([waiting.id, failed.id]);
 	});
 
 	it("is filed when the tracker resends it", async () => {

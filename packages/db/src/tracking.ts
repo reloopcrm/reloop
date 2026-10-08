@@ -23,6 +23,7 @@ export const CONTACTS_PER_HOUR = 50;
 export const TRACKING_SKIP = {
 	contactCap: "contact_cap",
 	formCap: "form_cap",
+	refileFailed: "refile_failed",
 } as const;
 
 export type TrackingSkipCode =
@@ -31,6 +32,8 @@ export type TrackingSkipCode =
 export const TRACKING_SKIP_TEXT = {
 	[TRACKING_SKIP.contactCap]: "Hourly contact cap reached, filed later",
 	[TRACKING_SKIP.formCap]: "Hourly form cap reached, filed later",
+	[TRACKING_SKIP.refileFailed]:
+		"Filing failed, retried when the queue is empty",
 } as const satisfies Record<TrackingSkipCode, string>;
 
 export function skipText(reason: string): string {
@@ -49,9 +52,14 @@ export const CONTACT_CAP_REASONS = [
 	LEGACY_CONTACT_CAP_REASON,
 ] as const;
 
-export const REFILABLE_REASONS = [
+export const WAITING_REASONS = [
 	...CONTACT_CAP_REASONS,
 	TRACKING_SKIP.formCap,
+] as const;
+
+export const REFILABLE_REASONS = [
+	...WAITING_REASONS,
+	TRACKING_SKIP.refileFailed,
 ] as const;
 
 export const FORMS_PER_VISITOR_HOUR = 10;

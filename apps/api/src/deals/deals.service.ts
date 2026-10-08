@@ -566,6 +566,10 @@ export class DealsService {
 								SELECT "companyId" FROM deal WHERE id = ${id} FOR UPDATE
 							`;
 
+				if (before && input.companyId && before.companyId !== input.companyId) {
+					await this.lockCompanies(tx, [before.companyId, input.companyId]);
+				}
+
 				const result = await tx.deal.update({
 					where: { id },
 					data,
@@ -585,6 +589,18 @@ export class DealsService {
 		} catch (error) {
 			throw this.translate(error, id);
 		}
+	}
+
+	private async lockCompanies(
+		tx: Prisma.TransactionClient,
+		ids: string[],
+	): Promise<void> {
+		await tx.$queryRaw`
+			SELECT id FROM company
+			WHERE id IN (${PrismaNamespace.join([...ids].sort())})
+			ORDER BY id
+			FOR NO KEY UPDATE
+		`;
 	}
 
 	private async moveToCompany(

@@ -398,6 +398,77 @@ describe("two quick moves of one deal", () => {
 	});
 });
 
+describe("two deals leaving one company at once", () => {
+	it("leaves the company no stamp from activity it gave away", async () => {
+		const home = await company("leave-home");
+		const north = await company("leave-north");
+		const south = await company("leave-south");
+		const newer = new Date("2026-05-09T10:00:00.000Z");
+		const older = new Date("2026-05-02T10:00:00.000Z");
+
+		let paused = false;
+		let released = () => {};
+		const firstReleased = new Promise<void>((resolve) => {
+			released = resolve;
+		});
+		class SlowRelease extends ActivityStampService {
+			override async releaseMovedDeal(
+				...args: Parameters<ActivityStampService["releaseMovedDeal"]>
+			): Promise<void> {
+				await super.releaseMovedDeal(...args);
+				if (!paused) {
+					paused = true;
+					released();
+					await Bun.sleep(400);
+				}
+			}
+		}
+		const slow = new DealsService(
+			db,
+			agent,
+			new SlowRelease(db),
+			new ConversionService(db),
+			new FieldsService(db, { fieldBackfill: async () => undefined } as never),
+		);
+
+		async function leavingDeal(key: string, at: Date) {
+			const deal = await deals.create({
+				name: `Leaving ${key} ${suffix}`,
+				companyId: home.id,
+				ownerId: userId,
+			});
+			await db.activity.create({
+				data: {
+					type: ActivityType.NOTE,
+					subject: `Leaving ${key}`,
+					companyId: home.id,
+					dealId: deal.id,
+					createdById: userId,
+					createdAt: at,
+				},
+			});
+			return deal;
+		}
+		const newerDeal = await leavingDeal("newer", newer);
+		const olderDeal = await leavingDeal("older", older);
+		await db.company.update({
+			where: { id: home.id },
+			data: { lastActivityAt: newer },
+		});
+
+		const first = slow.update(newerDeal.id, { companyId: north.id });
+		await firstReleased;
+		const second = slow.update(olderDeal.id, { companyId: south.id });
+		await Promise.all([first, second]);
+
+		const stored = await db.company.findUniqueOrThrow({
+			where: { id: home.id },
+			select: { lastActivityAt: true },
+		});
+		expect(stored.lastActivityAt).toBeNull();
+	});
+});
+
 describe("attaching a contact while the deal moves", () => {
 	it("never leaves a contact of the old company on the deal", async () => {
 		const from = await company("attach-from");

@@ -797,9 +797,11 @@ picker reads.
   moves cannot stamp a company the deal already left. The old company drops to the
   newest activity it still has (null with none), but only when its stamp is not
   newer than the moved deal's newest activity
-  (`ActivityStampService.releaseMovedDeal`, one `UPDATE`). A newer stamp came from
-  something that stayed, such as a research brief the agent stamps itself, so it
-  stays.
+  (`ActivityStampService.releaseMovedDeal`, one `UPDATE`). A newer stamp came
+  from something that stayed, such as a research brief the agent stamps itself,
+  so it stays. Before it moves anything the move locks both company rows with
+  `FOR NO KEY UPDATE`, sorted by id, so two deals leaving one company recompute
+  one after the other and never from a stale snapshot.
 - **`attachContact` checks the company under the deal's `FOR UPDATE`**, the same
   row lock a company move takes, and upserts in that transaction. An attach that
   races a move either lands first and is removed by the move, or runs after it

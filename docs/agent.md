@@ -757,13 +757,30 @@ uses it too. **There is no LinkedIn reader**, so nothing on this install can obs
 ## Budget and scheduling
 
 - `lib/focus.ts` — per-session budget in `defineState`; running out is a normal ending.
-  **A unit is one outside call, not one credit.** `spend(2)` is what a Perplexity or
-  social lookup costs. A brand read is free and charges nothing; reading a marketing
+  **A unit is one outside call, not one credit.** `RESEARCH.cost` in
+  `lib/research-config.ts` names each price: a web question costs 1, a deep one 2,
+  `find_contact_socials` 1 per network it searches, and `set_contact_socials` 1 per
+  profile it checks. A brand read is free and charges nothing; reading a marketing
   site for a brief charges 1, because it is a model call and not a vendor one.
+- **A call that did not answer is refunded.** A tool spends before the call and calls
+  `refund(units)` when the source failed: a 429, a 5xx, a timeout, an unreadable
+  answer. A check refused before any call (a URL that is not a profile, an X handle
+  that is not a form of the name) costs nothing either. A GitHub 404 is an answer and
+  keeps its unit.
+- **`find_contact_socials` checks the capability before it charges**, like
+  `research_person`. Without `PERPLEXITY_API_KEY` it returns `unavailable()`. It
+  stamps `socialsCheckedAt` only when at least one network answered, so a contact
+  whose searches all failed is searched again on a later run.
+- `lib/research-config.ts` holds every research number: the default budget, the
+  prices, the Perplexity and GitHub deadlines, the social hosts and reserved paths,
+  the recheck window, the brief length and the lookup limits. Its units come from
+  `lib/dispatch-config.ts`.
 - `lib/tasks.ts` — `claimDue` leases with `FOR UPDATE SKIP LOCKED`.
 - **`schedules/dispatch.ts` is the only schedule and decides nothing.** "Every N
   minutes, the oldest ten contacts" belongs in a `dueAt`.
-- `tools/schedule_recheck.ts` — its `reason` is shown to the rep.
+- `tools/schedule_recheck.ts` — its `reason` is shown to the rep. It loads the
+  contact first and answers `scheduled: false` with a reason for a missing contact,
+  an archived one, a sample record, or a recheck function that is off.
 
 ## Three records, no dead ends
 

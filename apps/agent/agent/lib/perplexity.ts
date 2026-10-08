@@ -1,5 +1,5 @@
-const ENDPOINT = "https://api.perplexity.ai/chat/completions";
-const TIMEOUT_MS = 45_000;
+import { z } from "zod";
+import { RESEARCH } from "./research-config";
 
 export type Answer = {
 	text: string;
@@ -8,15 +8,23 @@ export type Answer = {
 
 type Outcome<T> = { ok: true; data: T } | { ok: false; reason: string };
 
-export function perplexityEnabled(): boolean {
-	return Boolean(process.env.PERPLEXITY_API_KEY);
-}
-
 export type AskOptions = {
 	model?: "sonar" | "sonar-pro";
 	domains?: string[];
 	system?: string;
 };
+
+const perplexityAnswer = z.object({
+	choices: z
+		.array(
+			z.object({
+				message: z.object({ content: z.string().nullish() }).nullish(),
+			}),
+		)
+		.nullish(),
+	citations: z.array(z.string()).nullish(),
+	search_results: z.array(z.object({ url: z.string().nullish() })).nullish(),
+});
 
 export async function ask(
 	question: string,
@@ -25,11 +33,12 @@ export async function ask(
 	const apiKey = process.env.PERPLEXITY_API_KEY;
 	if (!apiKey) return { ok: false, reason: "No PERPLEXITY_API_KEY." };
 
+	const { endpoint, timeoutMs } = RESEARCH.perplexity;
 	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+	const timer = setTimeout(() => controller.abort(), timeoutMs);
 
 	try {
-		const response = await fetch(ENDPOINT, {
+		const response = await fetch(endpoint, {
 			method: "POST",
 			headers: {
 				authorization: `Bearer ${apiKey}`,
@@ -52,18 +61,23 @@ export async function ask(
 			return { ok: false, reason: `HTTP ${response.status}` };
 		}
 
-		const body = (await response.json()) as {
-			choices?: { message?: { content?: string } }[];
-			citations?: string[];
-			search_results?: { url?: string }[];
-		};
+		const parsed = perplexityAnswer.safeParse(await response.json());
+		if (!parsed.success) {
+			return {
+				ok: false,
+				reason: `Unreadable answer: ${parsed.error.issues[0]?.message ?? "wrong shape"}.`,
+			};
+		}
 
+		const body = parsed.data;
 		const text = body.choices?.[0]?.message?.content?.trim() ?? "";
 		if (!text) return { ok: false, reason: "Empty answer." };
 
 		const citations =
 			body.citations ??
-			(body.search_results ?? []).flatMap((r) => (r.url ? [r.url] : []));
+			(body.search_results ?? []).flatMap((result) =>
+				result.url ? [result.url] : [],
+			);
 
 		return { ok: true, data: { text, citations } };
 	} catch (error) {
@@ -71,7 +85,7 @@ export async function ask(
 		return {
 			ok: false,
 			reason: aborted
-				? `Timed out after ${TIMEOUT_MS}ms.`
+				? `Timed out after ${timeoutMs}ms.`
 				: error instanceof Error
 					? error.message
 					: String(error),
@@ -79,32 +93,4 @@ export async function ask(
 	} finally {
 		clearTimeout(timer);
 	}
-}
-
-export async function findProfileUrls(
-	terms: string[],
-	companyName: string,
-): Promise<string[]> {
-	const slugs: string[] = [];
-
-	for (const term of terms) {
-		const answer = await ask(
-			`Find the LinkedIn profile of the person called "${term}" who works at ${companyName}. Reply with their profile URL only.`,
-			{ domains: ["linkedin.com"] },
-		);
-
-		if (!answer.ok) continue;
-
-		const haystack = [answer.data.text, ...answer.data.citations].join(" ");
-		for (const match of haystack.matchAll(
-			/linkedin\.com\/in\/([A-Za-z0-9\-_%]+)/g,
-		)) {
-			const slug = match[1];
-			if (slug && !slugs.includes(slug)) slugs.push(slug);
-		}
-
-		if (slugs.length > 0) break;
-	}
-
-	return slugs;
 }

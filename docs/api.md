@@ -927,7 +927,9 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
   (`tx.contact.delete({ select: { email: true } })`), not a read before it — and the
   404 is that statement's own `P2025` through `translate`.
 - **`contacts.create` never lifts the suppression.** A create on a suppressed address
-  answers 409 and writes nothing; the check runs again inside the write's transaction.
+  answers 409 and writes nothing; the check runs again inside the write's transaction,
+  under `lockContactEmail`, the same advisory lock `purge` takes before it writes the
+  suppression.
   Only `contacts.update` with that address lifts it, via `allowAgain` **inside the
   write's transaction**. Never automatic.
 - **`contacts.create` validates before it writes.** A duplicate address answers 409

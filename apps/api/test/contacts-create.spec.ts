@@ -12,6 +12,7 @@ import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
 import { BackfillService } from "../src/backfill/backfill.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
+import { lockContactEmail } from "../src/contacts/contact-email-lock";
 import { CONTACT_INPUT } from "../src/contacts/contacts.config";
 import { contactCreateInput } from "../src/contacts/contacts.contracts";
 import { ContactsService } from "../src/contacts/contacts.service";
@@ -217,6 +218,25 @@ describe("creating a contact through the service", () => {
 		expect(
 			await db.suppressedContact.findUnique({ where: { email: blocked } }),
 		).not.toBeNull();
+	});
+});
+
+describe("creating a contact while a purge suppresses the address", () => {
+	it("waits for the purge and then answers 409", async () => {
+		const address = `serial@${domain}`;
+		let creating: Promise<number> | undefined;
+
+		await db.$transaction(async (tx) => {
+			await lockContactEmail(tx, address);
+			creating = statusOf(() =>
+				contacts.create({ firstName: "Serial", email: address }),
+			);
+			await Bun.sleep(300);
+			await tx.suppressedContact.create({ data: { email: address } });
+		});
+
+		expect(await creating).toBe(409);
+		expect(await db.contact.count({ where: { email: address } })).toBe(0);
 	});
 });
 

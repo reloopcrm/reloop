@@ -58,6 +58,7 @@ import {
 	resolveOrderBy,
 	splitSentinel,
 } from "../trpc/list-input";
+import { lockContactEmail } from "./contact-email-lock";
 import { CONTACT_MESSAGES } from "./contacts.config";
 import type {
 	ContactBulkCompanyInput,
@@ -528,6 +529,7 @@ export class ContactsService {
 				const suppress = normalizeEmail(contact.email ?? "");
 
 				if (suppress) {
+					await lockContactEmail(tx, suppress);
 					await tx.suppressedContact.upsert({
 						where: { email: suppress },
 						create: {
@@ -765,6 +767,7 @@ export class ContactsService {
 		email: string | null,
 	): Promise<void> {
 		if (!email) return;
+		await lockContactEmail(tx, email);
 		const suppressed = await tx.suppressedContact.findFirst({
 			where: { email: { equals: email, mode: "insensitive" } },
 			select: { email: true },

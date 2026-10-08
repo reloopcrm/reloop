@@ -435,6 +435,76 @@ describe("a calendar event two reps share", () => {
 		expect(await eventsOf("race")).toHaveLength(0);
 	});
 
+	it("keeps a rep's holder when the rep cancels a colleague's Google id", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+		const startsAt = at(37);
+
+		calendar.respond = onePage([
+			meeting("idmix", startsAt, { id: "event-idmix-first" }),
+		]);
+		await sync.sync(first);
+		calendar.respond = onePage([
+			meeting("idmix", startsAt, { id: "event-idmix-second" }),
+		]);
+		await sync.sync(second);
+
+		second = await reload(second);
+		calendar.respond = onePage([
+			{ id: "event-idmix-first", status: "cancelled" },
+		]);
+		const outcome = await sync.sync(second);
+
+		expect(outcome.eventsRemoved).toBe(0);
+		expect(await holdersOf("idmix")).toEqual(
+			[first.userId, second.userId].sort(),
+		);
+	});
+
+	it("keeps the event for a rep who syncs it while the last holder cancels", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		const second = await freshRow();
+
+		calendar.respond = onePage([meeting("handover", at(38))]);
+		await sync.sync(first);
+		const [event] = await eventsOf("handover");
+		const eventId = event?.id ?? "";
+
+		let openGate = () => {};
+		const gate = new Promise<void>((resolve) => {
+			openGate = resolve;
+		});
+		let firstReleased = () => {};
+		const released = new Promise<void>((resolve) => {
+			firstReleased = resolve;
+		});
+		const firstCancel = db.$transaction(
+			async (tx) => {
+				await releaseEvents(tx, first.userId, [eventId]);
+				firstReleased();
+				await gate;
+			},
+			{ timeout: 10_000 },
+		);
+		await released;
+
+		const secondSync = sync.sync(second);
+		await Bun.sleep(200);
+		openGate();
+		await firstCancel;
+		const outcome = await secondSync;
+
+		expect(outcome.status).toBe("synced");
+		const stored = await eventsOf("handover");
+		expect(stored).toHaveLength(1);
+		expect(stored[0]?.activity).not.toBeNull();
+		expect(await holdersOf("handover")).toEqual([second.userId]);
+	});
+
 	it("ignores a cancellation from a calendar that never held the event", async () => {
 		const calendar = new FakeCalendar();
 		const sync = service(calendar);

@@ -488,9 +488,10 @@ the largest attachment upload the conversation contracts accept.
   event without a holder. An event without any holder row counts as held by
   its `syncedByUserId`.
 - **A calendar event is found by its Google id.** A cancelled entry in an
-  incremental sync carries only `id` and `status`, so it is matched by
-  `googleEventId` among the events the syncing rep holds, narrowed by `iCalUid`
-  when the entry has one. The second way
+  incremental sync carries only `id` and `status`, so it is matched by the
+  Google id on the syncing rep's holder row, narrowed by `iCalUid` when the
+  entry has one. Another rep's id on the event row never matches. A sync writes
+  the event and its holder row in one transaction under the event lock. The second way
   is `iCalUid`: for a single event every row without a `recurringEventId`, for
   an instance the row with its `originalStartTime`. Google ids are unique per calendar
   only, so an id that matches events with different `iCalUid`s deletes nothing. A

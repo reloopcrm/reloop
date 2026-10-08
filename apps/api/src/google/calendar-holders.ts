@@ -16,7 +16,7 @@ export async function releaseEvents(
 ): Promise<number> {
 	if (eventIds.length === 0) return 0;
 
-	await tx.$queryRaw`SELECT "id" FROM "calendarEvent" WHERE "id" = ANY(${eventIds}::text[]) ORDER BY "id" FOR UPDATE`;
+	await lockEvents(tx, eventIds);
 	await tx.calendarEventSync.deleteMany({
 		where: { userId, eventId: { in: eventIds } },
 	});
@@ -24,4 +24,14 @@ export async function releaseEvents(
 		where: { id: { in: eventIds }, holders: { none: {} } },
 	});
 	return gone.count;
+}
+
+export async function lockEvents(
+	tx: Prisma.TransactionClient,
+	eventIds: string[],
+): Promise<string[]> {
+	const rows = await tx.$queryRaw<
+		{ id: string }[]
+	>`SELECT "id" FROM "calendarEvent" WHERE "id" = ANY(${eventIds}::text[]) ORDER BY "id" FOR UPDATE`;
+	return rows.map((row) => row.id);
 }

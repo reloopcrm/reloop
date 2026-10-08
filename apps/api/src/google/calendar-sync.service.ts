@@ -23,7 +23,7 @@ import {
 	type GoogleEvent,
 } from "./calendar.client";
 import { CALENDAR } from "./calendar.config";
-import { heldByUser, releaseEvents } from "./calendar-holders";
+import { heldByUser, lockEvents, releaseEvents } from "./calendar-holders";
 import {
 	type CalendarPageCursor,
 	readCalendarPage,
@@ -287,8 +287,12 @@ export class CalendarSyncService {
 						{ iCalUid },
 						{
 							OR: [
-								{ googleEventId: event.id },
 								{ holders: { some: { userId, googleEventId: event.id } } },
+								{
+									holders: { none: {} },
+									syncedByUserId: userId,
+									googleEventId: event.id,
+								},
 							],
 						},
 					],
@@ -337,13 +341,14 @@ export class CalendarSyncService {
 	}
 
 	private async existing(
+		tx: Prisma.TransactionClient,
 		event: GoogleEvent,
 		iCalUid: string,
 	): Promise<{ id: string; googleEventId: string | null } | null> {
 		const select = { id: true, googleEventId: true } as const;
 
 		if (event.id) {
-			const byId = await this.db.calendarEvent.findFirst({
+			const byId = await tx.calendarEvent.findFirst({
 				where: { googleEventId: event.id, iCalUid },
 				orderBy: { createdAt: "asc" },
 				select,
@@ -353,7 +358,7 @@ export class CalendarSyncService {
 
 		if (event.recurringEventId) return null;
 
-		return this.db.calendarEvent.findFirst({
+		return tx.calendarEvent.findFirst({
 			where: { iCalUid, recurringEventId: null },
 			orderBy: { createdAt: "asc" },
 			select,
@@ -412,45 +417,54 @@ export class CalendarSyncService {
 			contactId: match.contactId,
 		};
 
-		const found = await this.existing(event, iCalUid);
+		const record = await this.db.$transaction(async (tx) => {
+			const found = await this.existing(tx, event, iCalUid);
+			const kept =
+				found && (await lockEvents(tx, [found.id])).length > 0 ? found : null;
 
-		const record = found
-			? await this.db.calendarEvent.update({
-					where: { id: found.id },
-					data: {
-						...fields,
-						googleEventId: found.googleEventId ?? event.id ?? null,
-					},
-					select: { id: true },
-				})
-			: await this.db.calendarEvent.upsert({
-					where: {
-						iCalUid_originalStartTime: {
+			const written = kept
+				? await tx.calendarEvent.update({
+						where: { id: kept.id },
+						data: {
+							...fields,
+							googleEventId: kept.googleEventId ?? event.id ?? null,
+						},
+						select: { id: true },
+					})
+				: await tx.calendarEvent.upsert({
+						where: {
+							iCalUid_originalStartTime: {
+								iCalUid,
+								originalStartTime: originalStart.at,
+							},
+						},
+						create: {
+							...fields,
 							iCalUid,
 							originalStartTime: originalStart.at,
+							recurringEventId: event.recurringEventId ?? null,
+							syncedByUserId: row.userId,
+							googleEventId: event.id ?? null,
 						},
-					},
-					create: {
-						...fields,
-						iCalUid,
-						originalStartTime: originalStart.at,
-						recurringEventId: event.recurringEventId ?? null,
-						syncedByUserId: row.userId,
-						googleEventId: event.id ?? null,
-					},
-					update: fields,
-					select: { id: true },
-				});
+						update: fields,
+						select: { id: true },
+					});
 
-		await this.db.calendarEventSync.upsert({
-			where: { eventId_userId: { eventId: record.id, userId: row.userId } },
-			create: {
-				eventId: record.id,
-				userId: row.userId,
-				googleEventId: event.id ?? null,
-			},
-			update: { googleEventId: event.id ?? undefined },
+			await tx.calendarEventSync.upsert({
+				where: {
+					eventId_userId: { eventId: written.id, userId: row.userId },
+				},
+				create: {
+					eventId: written.id,
+					userId: row.userId,
+					googleEventId: event.id ?? null,
+				},
+				update: { googleEventId: event.id ?? undefined },
+			});
+
+			return written;
 		});
+
 		await this.syncAttendees(record.id, event);
 		await this.prep.forEvent(record.id);
 		await this.project(record.id, row.userId, {

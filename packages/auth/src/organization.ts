@@ -1,5 +1,5 @@
 import { type Db, db } from "@crm/db";
-import { WORKSPACE_ID, workspaceSlug } from "@crm/db/workspace";
+import { isUsableSlug, WORKSPACE_ID, workspaceSlug } from "@crm/db/workspace";
 import { toWorkspaceRole, type WorkspaceRole } from "./roles";
 
 export { WORKSPACE_ID };
@@ -23,12 +23,10 @@ export async function ensureWorkspaceMembership(
 				select: { id: true, name: true, slug: true },
 			});
 
-			const slug = workspaceSlug(workspace.name);
-
-			if (workspace.slug !== slug) {
+			if (!isUsableSlug(workspace.slug)) {
 				await tx.organization.update({
 					where: { id: workspace.id },
-					data: { slug },
+					data: { slug: workspaceSlug(workspace.name) },
 				});
 			}
 

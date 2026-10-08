@@ -201,14 +201,16 @@ describe("purging a contact", () => {
 		expect(created?.id).toBe(result.contactId ?? undefined);
 	});
 
-	it("lets a rep add them back by hand, which lifts the suppression", async () => {
-		const readded = await contacts.create({ firstName: "Gone", email });
+	it("refuses to add them back by hand and keeps the suppression", async () => {
+		await expect(contacts.create({ firstName: "Gone", email })).rejects.toThrow(
+			"cannot be added again",
+		);
 
 		expect(
 			await db.suppressedContact.findUnique({ where: { email } }),
-		).toBeNull();
+		).not.toBeNull();
+		expect(await db.contact.findFirst({ where: { email } })).toBeNull();
 
-		await db.contact.delete({ where: { id: readded.id } });
 		await db.suppressedContact.deleteMany({ where: { email } });
 	});
 

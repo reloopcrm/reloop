@@ -300,7 +300,8 @@ describe("deployed Slack actions", () => {
 	});
 
 	it("sends mentions and control sequences as literal text", async () => {
-		const bodies: Array<Record<string, unknown>> = [];
+		const bodies: Array<{ text: string; parse: string; link_names: boolean }> =
+			[];
 		const fetcher = (async (_url: string, init: RequestInit) => {
 			bodies.push(JSON.parse(String(init.body)));
 			return Response.json({ ok: true, channel: "C123", ts: "1.2" });
@@ -316,7 +317,7 @@ describe("deployed Slack actions", () => {
 			{ fetcher },
 		);
 
-		const text = String(bodies[0]?.text);
+		const text = bodies[0]?.text ?? "";
 		expect(text).not.toContain("<");
 		expect(text).not.toContain(">");
 		expect(text).toBe(

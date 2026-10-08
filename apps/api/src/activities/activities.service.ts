@@ -392,7 +392,13 @@ export class ActivitiesService {
 				},
 			});
 			const mine = open.find((task) => isEditable(task, actingUserId));
-			if (!mine) {
+			const moved = mine
+				? await tx.activity.updateMany({
+						where: { ...openSnoozeTask(target, now), id: mine.id },
+						data: { dueAt: data.dueAt, subject: data.subject },
+					})
+				: null;
+			if (!mine || moved?.count !== 1) {
 				return {
 					activity: await tx.activity.create({ data, select: ENTRY_SELECT }),
 					movedFrom: null,
@@ -400,9 +406,8 @@ export class ActivitiesService {
 			}
 
 			return {
-				activity: await tx.activity.update({
+				activity: await tx.activity.findUniqueOrThrow({
 					where: { id: mine.id },
-					data: { dueAt: data.dueAt, subject: data.subject },
 					select: ENTRY_SELECT,
 				}),
 				movedFrom: {

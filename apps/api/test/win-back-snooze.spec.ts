@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { ActivityType, db, EmailDirection } from "@crm/db";
+import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { listReactivationCandidates } from "@crm/db/reactivation";
 import { DEFAULT_WIN_BACK_RULES } from "@crm/db/win-back-rules";
+import { snoozeLockKey } from "@crm/db/win-back-snooze";
 import { ActivitiesService } from "../src/activities/activities.service";
 import { isEditable } from "../src/activities/editable";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
@@ -714,5 +716,29 @@ describe("a Remind me beside a reminder it may not move", () => {
 			daysAgo(1).toISOString(),
 			remindOn.toISOString(),
 		]);
+	});
+});
+
+describe("Bring back while a Remind me is written", () => {
+	it("waits for the reminder that holds the person's lock", async () => {
+		const contactId = ids.alpha ?? "";
+		const order: string[] = [];
+		let taken: () => void = () => {};
+		const locked = new Promise<void>((resolve) => {
+			taken = resolve;
+		});
+		const holder = db.$transaction(async (tx) => {
+			await lockIdempotencyKey(tx, snoozeLockKey({ contactId }));
+			taken();
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			order.push("reminder");
+		});
+
+		await locked;
+		await person.bringBack(contactId, now);
+		order.push("bring back");
+		await holder;
+
+		expect(order).toEqual(["reminder", "bring back"]);
 	});
 });

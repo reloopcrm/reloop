@@ -1,6 +1,7 @@
 import type { Db } from "./client";
 import { Prisma } from "./generated/prisma/client";
 import { ActivityType } from "./generated/prisma/enums";
+import { lockIdempotencyKey } from "./idempotency";
 
 export const WIN_BACK_LATER_META = { winBack: true, later: true } as const;
 
@@ -80,18 +81,35 @@ export async function endSnooze(
 	contactId: string,
 	now: Date,
 ): Promise<number> {
-	const tasks = await db.$queryRaw<{ id: string }[]>`
-		SELECT sa.id
-		FROM contact c
-		JOIN activity sa ON ${openLaterTask(Prisma.sql`c.id`, Prisma.sql`c."companyId"`, now)}
-		WHERE c.id = ${contactId}
-	`;
-	if (tasks.length === 0) return 0;
-
-	const ended = await db.activity.updateMany({
-		where: { id: { in: tasks.map((task) => task.id) }, completedAt: null },
-		data: { completedAt: now },
+	const contact = await db.contact.findUnique({
+		where: { id: contactId },
+		select: { companyId: true },
 	});
+	if (!contact) return 0;
+	const { companyId } = contact;
 
-	return ended.count;
+	return db.$transaction(async (tx) => {
+		if (companyId) {
+			await lockIdempotencyKey(
+				tx,
+				snoozeLockKey({ contactId: null, companyId }),
+			);
+		}
+		await lockIdempotencyKey(tx, snoozeLockKey({ contactId }));
+
+		const tasks = await tx.$queryRaw<{ id: string }[]>`
+			SELECT sa.id
+			FROM contact c
+			JOIN activity sa ON ${openLaterTask(Prisma.sql`c.id`, Prisma.sql`c."companyId"`, now)}
+			WHERE c.id = ${contactId}
+		`;
+		if (tasks.length === 0) return 0;
+
+		const ended = await tx.activity.updateMany({
+			where: { id: { in: tasks.map((task) => task.id) }, completedAt: null },
+			data: { completedAt: now },
+		});
+
+		return ended.count;
+	});
 }

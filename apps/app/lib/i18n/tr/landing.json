@@ -238,5 +238,8 @@
 	"Reloop Win back person: the story of one quiet customer, from the first order to the unanswered request": "Reloop Geri kazan, bir kişi: sessizleşen bir müşterinin hikâyesi, ilk siparişten yanıtsız kalan talebe kadar",
 	"Reloop Win back story: the gist, your time together and the quote where it stopped": "Reloop Geri kazan, hikâye: özet, birlikte geçen zamanınız ve her şeyin durduğu andaki alıntı",
 	"Reloop Win back person, the emails: the unanswered request with the passage the story builds on marked": "Reloop Geri kazan, bir kişi, e-postalar: yanıtsız kalan talep, hikâyenin dayandığı bölüm işaretli",
-	"Reloop Win back person after Send: the message is in your own mail program": "Reloop Geri kazan, Gönder'den sonra bir kişi: mesaj kendi e-posta programında"
+	"Reloop Win back person after Send: the message is in your own mail program": "Reloop Geri kazan, Gönder'den sonra bir kişi: mesaj kendi e-posta programında",
+	"Google gave no access to Gmail and Calendar. Grant access again and tick both boxes.": "Google, Gmail ve Calendar için erişim vermedi. Erişimi yeniden ver ve iki kutuyu da işaretle.",
+	"Microsoft gave no access to your mail. Grant access again and accept the mail permission.": "Microsoft, e-postalarına erişim vermedi. Erişimi yeniden ver ve e-posta iznini kabul et.",
+	"The provider gave no access to your mail. Grant access again and accept every permission it asks for.": "Sağlayıcı, e-postalarına erişim vermedi. Erişimi yeniden ver ve istediği her izni kabul et."
 }

@@ -11,9 +11,11 @@ import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import { Button } from "@crm/ui/components/button";
 import { Spinner } from "@crm/ui/components/spinner";
+import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import type { FC, SVGProps } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { GRANT_ACCESS, grantAccessReturnPath } from "@/lib/grant-access-copy";
 import { useT } from "@/lib/i18n/client";
 import { signInFailureText } from "@/lib/sign-in-errors";
 import { signOutAndRedirect } from "@/lib/sign-out";
@@ -45,6 +47,14 @@ export function GrantAccess({
 	const t = useT();
 	const [pending, setPending] = useState<MailboxProviderId | null>(null);
 
+	useMountEffect(() => {
+		const reset = (event: PageTransitionEvent) => {
+			if (event.persisted) setPending(null);
+		};
+		window.addEventListener("pageshow", reset);
+		return () => window.removeEventListener("pageshow", reset);
+	});
+
 	function fail(failure?: { code?: string; status?: number }) {
 		setPending(null);
 
@@ -63,8 +73,8 @@ export function GrantAccess({
 		const { error } = await authClient.linkSocial({
 			provider,
 			scopes: [...PROVIDERS[provider].scopes],
-			callbackURL: `${origin}/`,
-			errorCallbackURL: `${origin}/grant-access`,
+			callbackURL: `${origin}${grantAccessReturnPath()}`,
+			errorCallbackURL: `${origin}${GRANT_ACCESS.path}`,
 		});
 
 		if (error) fail(error);

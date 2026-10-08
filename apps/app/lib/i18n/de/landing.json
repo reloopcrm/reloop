@@ -238,5 +238,8 @@
 	"Reloop Win back person: the story of one quiet customer, from the first order to the unanswered request": "Reloop Zurückgewinnen, eine Person: die Geschichte eines stillen Kunden, von der ersten Bestellung bis zur unbeantworteten Anfrage",
 	"Reloop Win back story: the gist, your time together and the quote where it stopped": "Reloop Zurückgewinnen, die Geschichte: der Kern in einem Satz, eure gemeinsame Zeit und das Zitat, an dem es aufgehört hat",
 	"Reloop Win back person, the emails: the unanswered request with the passage the story builds on marked": "Reloop Zurückgewinnen, eine Person, die Mails: die unbeantwortete Anfrage, markiert ist die Stelle, auf der die Geschichte aufbaut",
-	"Reloop Win back person after Send: the message is in your own mail program": "Reloop Zurückgewinnen, eine Person nach Senden: die Nachricht liegt in deinem eigenen Mail-Programm"
+	"Reloop Win back person after Send: the message is in your own mail program": "Reloop Zurückgewinnen, eine Person nach Senden: die Nachricht liegt in deinem eigenen Mail-Programm",
+	"Google gave no access to Gmail and Calendar. Grant access again and tick both boxes.": "Google hat keinen Zugriff auf Gmail und Kalender gegeben. Erlaube den Zugriff noch einmal und setze beide Haken.",
+	"Microsoft gave no access to your mail. Grant access again and accept the mail permission.": "Microsoft hat keinen Zugriff auf deine Mails gegeben. Erlaube den Zugriff noch einmal und bestätige die Berechtigung für Mails.",
+	"The provider gave no access to your mail. Grant access again and accept every permission it asks for.": "Der Anbieter hat keinen Zugriff auf deine Mails gegeben. Erlaube den Zugriff noch einmal und bestätige jede Berechtigung, nach der er fragt."
 }

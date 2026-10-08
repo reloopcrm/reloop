@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db, EmailDirection } from "@crm/db";
+import { listWinBackFollowUps } from "@crm/db/win-back-outcome";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import {
 	WIN_BACK_FOLLOW_UP_SUBJECT,
@@ -141,5 +142,23 @@ describe("the follow-up task and removed members", () => {
 			select: { createdById: true },
 		});
 		expect(task?.createdById).toBe(activeId);
+	});
+});
+
+describe("the follow-up candidate list and removed members", () => {
+	it("leaves out contacts nobody active can own before the limit applies", async () => {
+		const orphan = await person("orphan-list", removedId, removedId);
+		const kept = await person("kept-list", activeId, removedId);
+
+		const listed = await listWinBackFollowUps(db, {
+			now,
+			afterDays: 14,
+			maxAgeDays: 28,
+			limit: 1000,
+		});
+		const ids = listed.map((entry) => entry.contactId);
+
+		expect(ids).not.toContain(orphan);
+		expect(ids).toContain(kept);
 	});
 });

@@ -1,9 +1,10 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type {
 	Db,
 	ImapAccountModel as ImapAccount,
 	MailboxSyncModel as MailboxSync,
 } from "@crm/db";
+import { actWithoutPlans, actWithTestPlans } from "@crm/db/test-plans";
 import type {
 	ImapClientFactory,
 	ImapFolder,
@@ -235,6 +236,10 @@ const gmail = (options: {
 	},
 ];
 
+beforeAll(actWithTestPlans);
+
+afterAll(actWithoutPlans);
+
 describe("ImapSyncService", () => {
 	it("reads Sent before All Mail and imports the whole history newest first", async () => {
 		const h = harness({
@@ -374,12 +379,12 @@ describe("ImapSyncService", () => {
 			],
 		});
 
-		const h = harness({ folders, sinceUids: [2], plan: "test" });
+		const h = harness({ folders, sinceUids: [2], plan: "small" });
 		const wide = { ...account, importSince: new Date("2015-01-01") };
 		(h.service as unknown as { db: Db }).db = {
 			imapAccount: { findUnique: async () => wide },
 			mailboxSync: { updateMany: async () => ({ count: 1 }) },
-			appSetting: { findUnique: async () => ({ plan: "test" }) },
+			appSetting: { findUnique: async () => ({ plan: "small" }) },
 			emailThread: { count: async () => 0 },
 		} as unknown as Db;
 
@@ -398,7 +403,7 @@ describe("ImapSyncService", () => {
 		);
 		const h = harness({
 			folders: gmail({ sent: [], all }),
-			plan: "test",
+			plan: "small",
 			threads: 496,
 			sinceUids: [1],
 		});

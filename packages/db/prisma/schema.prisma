@@ -1289,6 +1289,8 @@ model ThreadInsight {
   quantityPallets    Int?
   loads              Int?
   outcome            String
+  declineKind        String?
+  declinedAt         DateTime?
   unansweredByUs     Boolean  @default(false)
   summary            String
   language           String?
@@ -1527,7 +1529,8 @@ model SuppressedContact {
 model AppSetting {
   id String @id
 
-  plan String?
+  plan         String?
+  contactLimit Int?
 
   agentModelId String?
 

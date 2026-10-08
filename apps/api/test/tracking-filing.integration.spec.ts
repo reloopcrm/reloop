@@ -324,6 +324,21 @@ describe("refiling a submission the cap held back", () => {
 		});
 	}
 
+	async function filedLater(visitor: string, contactId: string | null) {
+		await db.formSubmission.create({
+			data: {
+				host,
+				path: "/pricing",
+				visitorId: visitor,
+				contactId,
+				fields: {},
+				dedupeKey: `${suffix}-newer-${Math.random().toString(36).slice(2)}`,
+				filedAt: new Date("2026-09-01T12:00:00.000Z"),
+				createdAt: new Date("2026-09-01T12:00:00.000Z"),
+			},
+		});
+	}
+
 	async function spend(value: number) {
 		await db.trackingCounter.upsert({
 			where: { key: contactWindowKey() },
@@ -364,6 +379,7 @@ describe("refiling a submission the cap held back", () => {
 		await db.trackedVisitor.create({
 			data: { id: visitor, lastSource: "Newsletter", lastTouchAt: newer },
 		});
+		await filedLater(visitor, null);
 		const row = await held(email);
 		await db.formSubmission.update({
 			where: { id: row.id },
@@ -401,9 +417,10 @@ describe("refiling a submission the cap held back", () => {
 			data: {
 				id: visitor,
 				contactId,
-				lastTouchAt: new Date("2026-09-01T12:00:00.000Z"),
+				lastTouchAt: new Date("2026-08-10T12:00:00.000Z"),
 			},
 		});
+		await filedLater(visitor, contactId);
 		const row = await held(`older-${suffix}@${domain}`);
 		await db.formSubmission.update({
 			where: { id: row.id },

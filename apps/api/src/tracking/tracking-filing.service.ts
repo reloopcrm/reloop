@@ -65,6 +65,7 @@ export class TrackingFilingService {
 			name: string | null;
 			firstTouch?: Touch;
 			lastTouch?: Touch;
+			deferred?: boolean;
 		},
 		options: { contactLimit: number } = { contactLimit: CONTACTS_PER_HOUR },
 	): Promise<FilingOutcome> {
@@ -172,6 +173,7 @@ export class TrackingFilingService {
 			visitorId: string | null;
 			firstTouch?: Touch;
 			lastTouch?: Touch;
+			deferred?: boolean;
 		},
 	): Promise<void> {
 		const { visitorId } = context;
@@ -184,7 +186,7 @@ export class TrackingFilingService {
 
 		const submission = await this.db.formSubmission.findUniqueOrThrow({
 			where: { id: submissionId },
-			select: { host: true, path: true },
+			select: { host: true, path: true, createdAt: true },
 		});
 
 		const author = await this.author(contactId);
@@ -211,22 +213,22 @@ export class TrackingFilingService {
 		const first = columns(context.firstTouch, "first");
 		const last = columns(context.lastTouch, "last");
 
-		const at = context.lastTouch?.at;
+		const superseded =
+			context.deferred &&
+			(await this.db.formSubmission.findFirst({
+				where: {
+					visitorId,
+					id: { not: submissionId },
+					filedAt: { not: null },
+					createdAt: { gt: submission.createdAt },
+				},
+				select: { id: true },
+			}));
 
 		await this.db.trackedVisitor.upsert({
 			where: { id: visitorId },
 			create: { id: visitorId, contactId, ...first, ...last },
-			update: at ? {} : { contactId },
-		});
-
-		if (!at) return;
-
-		await this.db.trackedVisitor.updateMany({
-			where: {
-				id: visitorId,
-				OR: [{ lastTouchAt: null }, { lastTouchAt: { lte: at } }],
-			},
-			data: { contactId, ...last },
+			update: superseded ? {} : { contactId, ...last },
 		});
 	}
 

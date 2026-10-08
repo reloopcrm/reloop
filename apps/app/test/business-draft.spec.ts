@@ -92,8 +92,11 @@ describe("businessDraftExpected", () => {
 	};
 	const NO_MODEL = { ...MODEL, openrouterKey: false };
 	const NO_MATERIAL = { threads: 0, website: false };
-	const signedOut = async () => false;
-	const hanging = () => new Promise<boolean>(() => {});
+	const signedOut = { chosen: false, admin: true, signedIn: async () => false };
+	const hanging = {
+		...signedOut,
+		signedIn: () => new Promise<boolean>(() => {}),
+	};
 
 	it("waits for a draft with a model and a website", async () => {
 		expect(
@@ -140,9 +143,38 @@ describe("businessDraftExpected", () => {
 			await businessDraftExpected({
 				model: NO_MODEL,
 				material: { ...NO_MATERIAL, website: true },
-				chatgpt: async () => true,
+				chatgpt: { ...signedOut, signedIn: async () => true },
 			}),
 		).toBe(true);
+	});
+
+	it("trusts the chosen ChatGPT provider for a rep, who cannot read the login", async () => {
+		let asked = false;
+		const expected = await businessDraftExpected({
+			model: NO_MODEL,
+			material: { ...NO_MATERIAL, website: true },
+			chatgpt: {
+				chosen: true,
+				admin: false,
+				signedIn: async () => {
+					asked = true;
+					return false;
+				},
+			},
+		});
+
+		expect(expected).toBe(true);
+		expect(asked).toBe(false);
+	});
+
+	it("shows a rep the form at once while ChatGPT is not the chosen provider", async () => {
+		expect(
+			await businessDraftExpected({
+				model: NO_MODEL,
+				material: { ...NO_MATERIAL, website: true },
+				chatgpt: { ...signedOut, admin: false, signedIn: async () => true },
+			}),
+		).toBe(false);
 	});
 
 	it("never asks the agent for the ChatGPT login when no draft can come", async () => {
@@ -150,9 +182,12 @@ describe("businessDraftExpected", () => {
 		await businessDraftExpected({
 			model: NO_MODEL,
 			material: NO_MATERIAL,
-			chatgpt: async () => {
-				asked = true;
-				return true;
+			chatgpt: {
+				...signedOut,
+				signedIn: async () => {
+					asked = true;
+					return true;
+				},
 			},
 		});
 

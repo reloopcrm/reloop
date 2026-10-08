@@ -1,8 +1,13 @@
+import { isWorkspaceAdmin } from "@crm/auth";
 import type { Metadata } from "next";
 import { unstable_rethrow } from "next/navigation";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getT } from "@/lib/i18n/server";
-import { businessDraftMaterial, requireMailboxAccess } from "@/lib/session";
+import {
+	businessDraftMaterial,
+	requireMailboxAccess,
+	workspaceRole,
+} from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { businessDraftExpected } from "./business-draft";
 import { BusinessForm } from "./business-form";
@@ -26,13 +31,14 @@ async function chatgptSignedIn(): Promise<boolean> {
 	}
 }
 
-async function draftPossible(): Promise<boolean> {
+async function draftPossible(userId: string): Promise<boolean> {
 	try {
-		const [provider, material] = await Promise.all([
+		const [provider, material, role] = await Promise.all([
 			getServerQueryClient().fetchQuery(
 				getServerTrpc().settings.agentProvider.queryOptions(),
 			),
 			businessDraftMaterial(),
+			workspaceRole(userId),
 		]);
 
 		return await businessDraftExpected({
@@ -43,7 +49,11 @@ async function draftPossible(): Promise<boolean> {
 				anthropicKey: provider.anthropicKey.configured,
 			},
 			material,
-			chatgpt: chatgptSignedIn,
+			chatgpt: {
+				chosen: provider.provider === "chatgpt",
+				admin: isWorkspaceAdmin(role),
+				signedIn: chatgptSignedIn,
+			},
 		});
 	} catch (error) {
 		unstable_rethrow(error);
@@ -52,8 +62,11 @@ async function draftPossible(): Promise<boolean> {
 }
 
 export default async function BusinessPage() {
-	await requireMailboxAccess();
-	const [t, possible] = await Promise.all([getT(), draftPossible()]);
+	const session = await requireMailboxAccess();
+	const [t, possible] = await Promise.all([
+		getT(),
+		draftPossible(session.user.id),
+	]);
 
 	return (
 		<AuthShell>

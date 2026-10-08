@@ -27,13 +27,20 @@ export async function answeredWithin(
 	}
 }
 
+export type ChatgptDraftCheck = {
+	chosen: boolean;
+	admin: boolean;
+	signedIn: () => Promise<boolean>;
+};
+
 export async function businessDraftExpected(input: {
 	model: Omit<BusinessDraftSource, "chatgpt">;
 	material: BusinessDraftMaterial;
-	chatgpt: () => Promise<boolean>;
+	chatgpt: ChatgptDraftCheck;
 }): Promise<boolean> {
 	if (!hasDraftMaterial(input.material)) return false;
 	if (businessDraftPossible({ ...input.model, chatgpt: false })) return true;
+	if (!input.chatgpt.admin) return input.chatgpt.chosen;
 
-	return answeredWithin(input.chatgpt, BUSINESS_STEP.loginCheckMs);
+	return answeredWithin(input.chatgpt.signedIn, BUSINESS_STEP.loginCheckMs);
 }

@@ -412,5 +412,6 @@
 	"Reply to them": "回复他们",
 	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "对方回复了你的赢回邮件。Reloop 会用你的语气准备回复。",
 	"Reloop has not written the answer yet. Reload the page to try again.": "Reloop 还没有写好回复。请刷新页面再试一次。",
-	"Newer mail has arrived since this draft.": "这份草稿之后来了新邮件。"
+	"Newer mail has arrived since this draft.": "这份草稿之后来了新邮件。",
+	"Wrote back, contacted since {date}": "已回复，自 {date} 起联系"
 }

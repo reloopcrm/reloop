@@ -412,5 +412,6 @@
 	"Reply to them": "Réponds-leur",
 	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "Ils ont répondu à ton mail de reconquête. Reloop prépare la réponse dans ton ton.",
 	"Reloop has not written the answer yet. Reload the page to try again.": "Reloop n'a pas encore écrit la réponse. Recharge la page pour réessayer.",
-	"Newer mail has arrived since this draft.": "Du courrier plus récent est arrivé depuis ce brouillon."
+	"Newer mail has arrived since this draft.": "Du courrier plus récent est arrivé depuis ce brouillon.",
+	"Wrote back, contacted since {date}": "A répondu, contacté depuis le {date}"
 }

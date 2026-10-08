@@ -1,5 +1,6 @@
 import {
 	createLoader,
+	createSerializer,
 	parseAsBoolean,
 	parseAsInteger,
 	parseAsStringLiteral,
@@ -22,6 +23,7 @@ export const winBackScopeParsers = {
 	),
 	quiet: parseAsInteger.withDefault(0),
 	rejected: parseAsBoolean.withDefault(false),
+	replied: parseAsBoolean.withDefault(false),
 };
 
 export const winBackParsers = {
@@ -30,6 +32,12 @@ export const winBackParsers = {
 };
 
 export const winBackSearchParams = createLoader(winBackParsers);
+
+const winBackUrl = createSerializer(winBackScopeParsers);
+
+export function wroteBackListHref(listPath: string, scope: WinBackScope) {
+	return winBackUrl(listPath, { replied: true, scope });
+}
 
 export type WinBackScope = "me" | "everyone";
 
@@ -43,7 +51,12 @@ function bandsOf(values: readonly string[]): Band[] {
 
 export function winBackInput(
 	table: ListInput<never, "potential">,
-	scope: { scope: WinBackScope; quiet: number; rejected: boolean },
+	scope: {
+		scope: WinBackScope;
+		quiet: number;
+		rejected: boolean;
+		replied: boolean;
+	},
 ) {
 	return {
 		q: table.q,
@@ -55,5 +68,6 @@ export function winBackInput(
 		scope: scope.scope,
 		quietForDays: scope.quiet,
 		rejected: scope.rejected,
+		replied: scope.replied,
 	};
 }

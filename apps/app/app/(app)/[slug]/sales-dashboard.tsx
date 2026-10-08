@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@crm/ui/components/button";
 import {
 	DashboardBlock,
 	DashboardEmpty,
@@ -22,6 +23,10 @@ import { dateFormat, numberFormat } from "@/lib/i18n/format";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { useDealStageLabel } from "@/lib/use-deal-stage-label";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+import {
+	type WinBackScope,
+	wroteBackListHref,
+} from "./win-back/win-back-search-params";
 
 type Summary = RouterOutputs["dashboard"]["summary"];
 
@@ -39,7 +44,13 @@ function changeDelta(
 	};
 }
 
-export function SalesDashboard({ summary }: { summary: Summary }) {
+export function SalesDashboard({
+	summary,
+	scope,
+}: {
+	summary: Summary;
+	scope: WinBackScope;
+}) {
 	const workspaceUrl = useWorkspaceUrl();
 	const t = useT();
 	const stageLabel = useDealStageLabel();
@@ -274,7 +285,19 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 						<StatCard
 							label={t("Replied")}
 							value={tally(winBack.answered)}
-							description={t("They wrote back")}
+							description={
+								winBack.answered > 0 ? (
+									<Button asChild variant="link" size="text">
+										<Link
+											href={wroteBackListHref(workspaceUrl("/win-back"), scope)}
+										>
+											{t("See who wrote back")}
+										</Link>
+									</Button>
+								) : (
+									t("They wrote back")
+								)
+							}
 						/>
 						<StatCard
 							label={t("Became a deal")}

@@ -78,10 +78,14 @@ export function needsStory(
 }
 
 export function readsDefaultList(
-	input: Pick<ReactivationListInput, "rejected" | "scope" | "quietForDays">,
+	input: Pick<
+		ReactivationListInput,
+		"rejected" | "replied" | "scope" | "quietForDays"
+	>,
 ): boolean {
 	return (
 		!input.rejected &&
+		!input.replied &&
 		input.scope === "everyone" &&
 		input.quietForDays === REACTIVATION.quietForDays.default
 	);

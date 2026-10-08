@@ -16,6 +16,10 @@ import {
 	stripQuery,
 	type TrackingConfig,
 } from "@crm/db/tracking";
+import type {
+	TrackingBatch,
+	TrackingEvent,
+} from "@crm/validation/tracking-batch";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { normalizeEmail } from "../crm/values";
@@ -29,8 +33,6 @@ const MAX_LABEL = 80;
 const MAX_PATH = 512;
 
 const MAX_HOST = 253;
-
-const KEPT = new Set(["page_view", "click", "form_submit"]);
 
 const BOT = /bot|crawler|spider|crawling|headlesschrome|lighthouse|preview/i;
 
@@ -55,26 +57,8 @@ type StoredTouch = {
 	at: string;
 };
 
-export interface IncomingEvent {
-	type: string;
-	host: string;
-	path: string;
-	referrer?: string;
-	label?: string;
-	at?: number;
-	fields?: FormFields;
-	touch?: RawTouch;
-	firstTouch?: RawTouch;
-}
-
-export interface IncomingBatch {
-	siteId: string;
-	visitorId: string;
-	events: IncomingEvent[];
-}
-
 interface AcceptedEvent {
-	event: IncomingEvent;
+	event: TrackingEvent;
 	host: string;
 }
 
@@ -90,7 +74,7 @@ export class TrackingIngestService {
 	) {}
 
 	async accept(
-		batch: IncomingBatch,
+		batch: TrackingBatch,
 		request: { origin: string | null; userAgent: string | null },
 	): Promise<void> {
 		if (request.userAgent && BOT.test(request.userAgent)) return;
@@ -107,9 +91,7 @@ export class TrackingIngestService {
 		if (scripted(events)) return;
 
 		const accepted = events.flatMap<AcceptedEvent>((event) => {
-			if (!KEPT.has(event.type)) return [];
-
-			const host = event.host?.toLowerCase().trim().slice(0, MAX_HOST);
+			const host = event.host.toLowerCase().trim().slice(0, MAX_HOST);
 
 			return host && hostAllowed(host, compiled.config)
 				? [{ event, host }]
@@ -304,7 +286,7 @@ function stored(touch: Touch): StoredTouch {
 	};
 }
 
-function scripted(events: IncomingEvent[]): boolean {
+function scripted(events: TrackingEvent[]): boolean {
 	if (events.length < 3) return false;
 
 	const stamps = events.flatMap((event) =>

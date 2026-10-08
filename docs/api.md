@@ -716,6 +716,22 @@ the pattern lists in `packages/db/src/message-text.ts`
   `direction = 'INBOUND'` alone for that.
 - **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
   and the follow-up sweep both skip auto-replies and bounces.
+- **"Wrote back" is the same loop.** `reactivation.list` and `nextPerson` take
+  `replied`; the list then keeps only the people in the loop's `answered` set
+  (`wroteBackAfterOutreach`): a real answer after the first mail that followed the
+  verdict. An answer before that mail does not count. The win back rules do not
+  apply to this view, so everyone the card counts can show. The "Replied" card links to
+  the list with `?replied=true` and the dashboard's scope. The card counts this
+  month, the list shows every reply. A filtered list is never the prefetch's default
+  list (`readsDefaultList`).
+- **The person view says when the answer is ours to give.** `wroteBack` comes from
+  `readWinBackReply`: the newest real answer after the win back mail, and `open`
+  while no mail from us to their address followed it, in any conversation they
+  own or are linked to. The next step then reads "Reply to them", and
+  the page promises no follow-up reminder, because the sweep skips anyone who
+  answered. The answer time is their newest real answer in a conversation they own,
+  the same mail the draft agent reads. A draft whose `basedOnUntil` ends before that
+  answer is never shown or sent: opening the message asks the agent for a new one.
 - `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides. A new
   pattern goes in the list and gets a sample there.
 

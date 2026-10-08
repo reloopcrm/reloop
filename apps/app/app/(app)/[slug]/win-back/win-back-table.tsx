@@ -315,7 +315,11 @@ export function WinBackTable() {
 		},
 	];
 
-	const setFilter = (next: { quiet?: number | null; rejected?: boolean }) => {
+	const setFilter = (next: {
+		quiet?: number | null;
+		rejected?: boolean;
+		replied?: boolean;
+	}) => {
 		void setScope(next);
 		table.query.setPage(1);
 	};
@@ -329,7 +333,9 @@ export function WinBackTable() {
 			<DataTable
 				query={table.query}
 				search={<ListSearch placeholder={t("Search by company or person…")} />}
-				onReset={() => setFilter({ quiet: null, rejected: false })}
+				onReset={() =>
+					setFilter({ quiet: null, rejected: false, replied: false })
+				}
 				quickFilters={[
 					{
 						id: "quiet",
@@ -345,6 +351,12 @@ export function WinBackTable() {
 						label: t("Not for us"),
 						active: scope.rejected,
 						onToggle: () => setFilter({ rejected: !scope.rejected }),
+					},
+					{
+						id: "replied",
+						label: t("Wrote back"),
+						active: scope.replied,
+						onToggle: () => setFilter({ replied: !scope.replied }),
 					},
 				]}
 				leadingActions={

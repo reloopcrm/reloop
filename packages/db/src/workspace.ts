@@ -53,6 +53,10 @@ export function workspaceSlug(name: string): string {
 	return RESERVED_SLUGS.includes(base) ? `${base}-crm` : base;
 }
 
+export function isUsableSlug(slug: string): boolean {
+	return slug.length > 0 && !RESERVED_SLUGS.includes(slug);
+}
+
 export const MAX_NARRATIVE = 320;
 
 export const MAX_LINE = 140;

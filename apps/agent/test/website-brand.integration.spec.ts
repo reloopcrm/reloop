@@ -176,7 +176,9 @@ const spies = [
 		};
 	}),
 	spyOn(model, "directModel").mockImplementation(async () => {
-		throw new Error("no model provider is configured here");
+		throw new model.ModelUnconfiguredError(
+			"no model provider is configured here",
+		);
 	}),
 ];
 

@@ -11,7 +11,7 @@ import {
 } from "./jev";
 import { countGate } from "./jev-meter";
 import { language, say } from "./language";
-import { directModel } from "./model";
+import { directModel, ModelUnconfiguredError } from "./model";
 import { WEBSITE } from "./website-config";
 
 const extracted = z.object({
@@ -251,13 +251,21 @@ export async function askPage<Shape extends z.ZodType>(
 	shape: Shape,
 	instructions: string[],
 ): Promise<PageAnswer<z.infer<Shape>>> {
-	const model = await directModel("reading", "brand").catch(() => null);
-	if (!model) {
-		return {
-			ok: false,
-			retryable: false,
-			reason: "no reading model is configured",
-		};
+	let model: LanguageModel;
+	try {
+		model = await directModel("reading", "brand");
+	} catch (error) {
+		return error instanceof ModelUnconfiguredError
+			? {
+					ok: false,
+					retryable: false,
+					reason: "no reading model is configured",
+				}
+			: {
+					ok: false,
+					retryable: true,
+					reason: "no reading model can take a call right now",
+				};
 	}
 
 	const facts = [

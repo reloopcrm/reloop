@@ -759,9 +759,11 @@ uses it too. **There is no LinkedIn reader**, so nothing on this install can obs
 came back as empty text and read as "nothing on the page". It returns
 `{ ok: true, data }` or `{ ok: false, reason, retryable }`:
 
-- No reading model configured: `retryable: false`. The brand read fills the record from
+- No reading model configured (`directModel` throws `ModelUnconfiguredError`):
+  `retryable: false`. The brand read fills the record from
   the page's own metadata and settles COMPLETE, as before.
-- An error or abort part in the stream, or a throw: `retryable: true`. The brand read
+- Every provider cooling down after a 429, an error or abort part in the stream, or
+  any other throw: `retryable: true`. The brand read
   writes nothing, settles FAILED and returns `retryable`, so `dispatch.ts` leaves the
   task for the next lease. It never stamps COMPLETE from the weaker metadata.
   `research_company` refunds its unit and says retrying later can help.

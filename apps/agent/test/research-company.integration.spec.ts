@@ -175,12 +175,24 @@ describe("askPage", () => {
 
 	it("says a missing model is not worth retrying", async () => {
 		reader = async () => {
-			throw new Error("no model provider is configured here");
+			throw new model.ModelUnconfiguredError(
+				"no model provider is configured here",
+			);
 		};
 
 		const answer = await askPage(await page(), shape, ["Read it."]);
 
 		expect(answer).toMatchObject({ ok: false, retryable: false });
+	});
+
+	it("keeps a read retryable while every provider cools down", async () => {
+		reader = async () => {
+			throw new Error("Every model provider is at its limit.");
+		};
+
+		const answer = await askPage(await page(), shape, ["Read it."]);
+
+		expect(answer).toMatchObject({ ok: false, retryable: true });
 	});
 
 	it("hands back the parsed answer", async () => {
@@ -211,6 +223,24 @@ describe("a brand read whose model fails", () => {
 		expect(await db.companyEnrichment.count({ where: { companyId: id } })).toBe(
 			0,
 		);
+	});
+});
+
+describe("a brand read while every provider cools down", () => {
+	it("stays retryable instead of completing from the metadata", async () => {
+		reader = async () => {
+			throw new Error("Every model provider is at its limit.");
+		};
+		const id = await company();
+
+		const result = await runBrand({ companyId: id });
+
+		expect(result).toMatchObject({ enriched: false, retryable: true });
+		const row = await db.company.findUniqueOrThrow({
+			where: { id },
+			select: { enrichmentStatus: true },
+		});
+		expect(row.enrichmentStatus).toBe(EnrichmentStatus.FAILED);
 	});
 });
 

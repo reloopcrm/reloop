@@ -22,7 +22,12 @@ const prefetch = {
 	listRead: () => {},
 } as unknown as WinBackStoryPrefetchService;
 
-const service = new ReactivationService(db, agent, prefetch);
+const service = new ReactivationService(
+	db,
+	agent,
+	prefetch,
+	undefined as never,
+);
 
 async function people(count: number): Promise<string[]> {
 	const ids: string[] = [];

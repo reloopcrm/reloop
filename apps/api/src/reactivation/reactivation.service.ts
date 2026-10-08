@@ -21,6 +21,7 @@ import {
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
+import { ResearchKeyService } from "../agent/research-key.service";
 import { InjectDatabase } from "../database/database.constants";
 import { READING } from "./reactivation.config";
 import type {
@@ -66,6 +67,7 @@ export class ReactivationService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
 		private readonly prefetch: WinBackStoryPrefetchService,
+		private readonly researchKeys: ResearchKeyService,
 	) {}
 
 	private async assertManager(userId: string): Promise<void> {
@@ -388,6 +390,29 @@ export class ReactivationService {
 		return revive;
 	}
 
+	private async canRead(input: {
+		pending: number;
+		paused: boolean;
+		fixed: boolean;
+		setting: Parameters<typeof readingReady>[0]["setting"];
+		functions: Parameters<typeof readingReady>[0]["functions"];
+	}): Promise<boolean> {
+		const { pending, paused, fixed, setting, functions } = input;
+		if (pending === 0) return true;
+
+		if (readingReady({ fixed, setting, chatgptUsable: false, functions })) {
+			return true;
+		}
+		if (fixed || paused) return false;
+		if (!readingReady({ fixed, setting, chatgptUsable: true, functions })) {
+			return false;
+		}
+
+		return (
+			(await this.researchKeys.chatgptLogin("status")).status === "connected"
+		);
+	}
+
 	async progress(): Promise<ReadingProgress> {
 		const since = new Date(Date.now() - READING.rateWindowMs);
 
@@ -432,10 +457,11 @@ export class ReactivationService {
 			provider.primaryUsedPercent >= 100 &&
 			(provider.primaryResetAt?.getTime() ?? 0) > Date.now();
 
-		const canRead = readingReady({
+		const canRead = await this.canRead({
+			pending,
+			paused,
 			fixed,
 			setting,
-			chatgptUsable: provider !== null && !paused,
 			functions,
 		});
 

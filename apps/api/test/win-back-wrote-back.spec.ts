@@ -30,7 +30,7 @@ const prefetch = {
 	nextShown: () => {},
 } as unknown as WinBackStoryPrefetchService;
 
-const list = new ReactivationService(db, agent, prefetch);
+const list = new ReactivationService(db, agent, prefetch, undefined as never);
 const person = new WinBackPersonService(db, agent, prefetch);
 
 const rules = {

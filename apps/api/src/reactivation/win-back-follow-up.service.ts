@@ -92,7 +92,7 @@ export class WinBackFollowUpService {
 		if (ids.length === 0) return new Set();
 
 		const users = await this.db.user.findMany({
-			where: { id: { in: [...new Set(ids)] } },
+			where: { id: { in: [...new Set(ids)] }, removedAt: null },
 			select: { id: true },
 		});
 

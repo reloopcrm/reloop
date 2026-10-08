@@ -29,6 +29,7 @@ import {
 import { Loader } from "@crm/ui/components/loader";
 import { Status } from "@crm/ui/components/mark";
 import { formatMoneyCompact } from "@crm/ui/lib/format";
+import { isWinBackSnooze } from "@crm/validation/win-back-snooze";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useQueryState } from "nuqs";
@@ -98,7 +99,8 @@ export function DashboardSummary() {
 
 	const complete = useMutation(
 		trpc.activities.complete.mutationOptions({
-			onSuccess: () => cache.activity(),
+			onSuccess: (done) =>
+				cache.activity({ winBack: isWinBackSnooze(done.meta) }),
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);

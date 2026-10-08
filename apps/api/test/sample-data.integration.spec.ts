@@ -1,6 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { WORKSPACE_ID } from "@crm/auth";
 import { db } from "@crm/db";
+import type { Locale } from "@crm/db/locale";
+import { z } from "zod";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { DEMO_DATA } from "../src/demo/demo.config";
 import { DemoService } from "../src/demo/demo.service";
@@ -29,6 +31,64 @@ const owner = {
 	name: "Sample Owner",
 	email: `${ownerId}@${domain}`,
 };
+
+const inFlight = new Set<Promise<unknown>>();
+
+function tracked<T>(work: Promise<T>): Promise<T> {
+	inFlight.add(work);
+	return work;
+}
+
+function seed(locale?: Locale): Promise<Record<string, number>> {
+	return tracked(
+		db.$transaction((tx) => seedDemoData(db, tx, owner, locale), {
+			timeout: TEST_TIMEOUT.demoSeedTransactionMs,
+		}),
+	);
+}
+
+const lockAnswer = z
+	.array(z.object({ locked: z.boolean() }))
+	.length(1)
+	.transform((rows) => rows[0]?.locked ?? false);
+
+async function holdDemoLock(): Promise<{ release: () => Promise<void> }> {
+	let open!: () => void;
+	const gate = new Promise<void>((resolve) => {
+		open = resolve;
+	});
+	let held!: () => void;
+	const holding = new Promise<void>((resolve) => {
+		held = resolve;
+	});
+
+	const holder = tracked(
+		db.$transaction(
+			async (tx) => {
+				const locked = lockAnswer.parse(
+					await tx.$queryRaw`
+						SELECT pg_try_advisory_xact_lock(${DEMO_DATA.lock.key}::bigint) AS locked
+					`,
+				);
+				if (!locked) {
+					throw new Error("Another session holds the sample data lock.");
+				}
+				held();
+				await gate;
+			},
+			{ timeout: TEST_TIMEOUT.demoLockHoldMs },
+		),
+	);
+
+	await Promise.race([holding, holder]);
+
+	return {
+		async release() {
+			open();
+			await holder;
+		},
+	};
+}
 
 async function seedActor(id: string, role: string) {
 	await db.user.create({
@@ -78,6 +138,15 @@ beforeAll(async () => {
 	await seedActor(memberId, "member");
 });
 
+afterEach(
+	async () => {
+		await Promise.allSettled(inFlight);
+		inFlight.clear();
+		if (await hasDemoData(db)) await removeDemoData(db);
+	},
+	{ timeout: TEST_TIMEOUT.demoSeedMs },
+);
+
 afterAll(clear);
 
 describe("the sample data", () => {
@@ -86,12 +155,7 @@ describe("the sample data", () => {
 		async () => {
 			expect(await hasDemoData(db)).toBe(false);
 
-			const counts = await db.$transaction(
-				(tx) => seedDemoData(db, tx, owner),
-				{
-					timeout: DEMO_DATA.write.timeoutMs,
-				},
-			);
+			const counts = await seed();
 
 			expect(counts.companies).toBeGreaterThan(20);
 			expect(counts.contacts).toBeGreaterThan(30);
@@ -104,7 +168,7 @@ describe("the sample data", () => {
 				loadable: false,
 			});
 
-			const removed = await service.remove(ownerId);
+			const removed = await tracked(service.remove(ownerId));
 
 			expect(removed.present).toBe(false);
 			expect(removed.rows).toBeGreaterThan(counts.companies ?? 0);
@@ -136,7 +200,7 @@ describe("the sample data", () => {
 
 		expect(await hasRealData(db)).toBe(true);
 		expect(await service.status(ownerId)).toMatchObject({ loadable: false });
-		await expect(service.load(owner, "en")).rejects.toThrow(
+		await expect(tracked(service.load(owner, "en"))).rejects.toThrow(
 			"only loads into an empty CRM",
 		);
 		expect(await hasDemoData(db)).toBe(false);
@@ -171,33 +235,24 @@ describe("the sample data", () => {
 	});
 
 	it("refuses to load a second time while a load holds the lock", async () => {
-		let release = () => {};
-		const held = new Promise<void>((resolve) => {
-			release = resolve;
-		});
+		const lock = await holdDemoLock();
 
-		const holder = db.$transaction(
-			async (tx) => {
-				await tx.$queryRaw`SELECT pg_try_advisory_xact_lock(${DEMO_DATA.lock.key}::bigint)`;
-				await held;
-			},
-			{ timeout: DEMO_DATA.write.timeoutMs },
-		);
-
-		await expect(service.remove(ownerId)).rejects.toThrow(
-			"being written already",
-		);
-
-		release();
-		await holder;
+		try {
+			await expect(tracked(service.load(owner, "en"))).rejects.toThrow(
+				"being written already",
+			);
+			await expect(tracked(service.remove(ownerId))).rejects.toThrow(
+				"being written already",
+			);
+		} finally {
+			await lock.release();
+		}
 	});
 
 	it(
 		"names every row it writes with the demo prefix",
 		async () => {
-			await db.$transaction((tx) => seedDemoData(db, tx, owner), {
-				timeout: DEMO_DATA.write.timeoutMs,
-			});
+			await seed();
 
 			const strays = await db.company.count({
 				where: {
@@ -207,7 +262,9 @@ describe("the sample data", () => {
 			});
 
 			expect(strays).toBe(0);
-			await expect(service.load(owner, "en")).rejects.toThrow("already loaded");
+			await expect(tracked(service.load(owner, "en"))).rejects.toThrow(
+				"already loaded",
+			);
 
 			await removeDemoData(db);
 		},
@@ -217,9 +274,7 @@ describe("the sample data", () => {
 	it(
 		"writes German copy for a German workspace",
 		async () => {
-			await db.$transaction((tx) => seedDemoData(db, tx, owner, "de"), {
-				timeout: DEMO_DATA.write.timeoutMs,
-			});
+			await seed("de");
 
 			const deal = await db.deal.findUniqueOrThrow({
 				where: { id: `${DEMO.prefix}deal-5` },

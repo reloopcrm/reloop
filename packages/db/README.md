@@ -35,7 +35,7 @@ CLI works without any app running.
 
 | Script        | Purpose                                                  |
 | ------------- | -------------------------------------------------------- |
-| `build`       | `prisma generate` — cached by Turborepo, runs via `^build` |
+| `build`       | `scripts/generate-client.ts` (prisma generate without a database) — cached by Turborepo, runs via `^build` |
 | `dev:prepare` | Apply pending local migrations, reject drift, and generate Prisma Client |
 | `db:generate` | Regenerate Prisma Client                                 |
 | `db:migrate`  | Create and apply a migration (development)               |

@@ -233,9 +233,9 @@ self-hoster's admin cannot redeploy.
   key is a session in a header, so a procedure that mints a credential, grants a
   role, registers a sign-in provider, stores an outbound address or deploys code
   must refuse one: revoking the key must undo everything the key did. The list is
-  in `SECURITY.md`. `agents.revise`, `agents.saveFile` and `agents.deploy` are on
-  it: a deployed agent keeps running after the key is gone, so a key may read an
-  agent but never change or deploy its code. A role gate on top of it is still
+  in `SECURITY.md`. `agents.revise`, `agents.saveFile`, `agents.deploy`, `agents.resume`
+  and `agents.restore` are on it: a deployed agent keeps running after the key is
+  gone, so a key may read an agent but never change, deploy, resume or restore it. A role gate on top of it is still
   the service's job.
 - **Routers are thin**: zod in, service call out; Prisma lives in `*.service.ts`.
 - Services throw Nest's `HttpException` family; `DomainErrorMiddleware` maps them.

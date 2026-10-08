@@ -660,11 +660,12 @@ the largest attachment upload the conversation contracts accept.
   with an owned thread whose insight is `DECLINED` with `declineKind` `HARD`, until a
   real answer (`realAnswer`, so no auto reply or bounce) from that person's own
   address arrives after `declinedAt`, in a thread they own or take part in. Mail from
-  us or from a colleague does not bring them back. The list, "Continue with", the
-  story prefetch, the "Wrote back" view and the agent's `list_win_back_candidates`
-  all read it. A soft no, or a null kind, stays and shows "said no". The rejected view and
-  `readReactivationCandidate` do not filter it, so the person page and the Anfrage
-  panel still open.
+  us or from a colleague does not bring them back. The rule is one SQL fragment,
+  `hardNoStands` in `win-back-outcome.ts`. The list, "Continue with", the story
+  prefetch, the "Wrote back" view, the dashboard's "Replied" card and the agent's
+  `list_win_back_candidates` all read it. A soft no, or a null kind, stays and
+  shows "said no". The rejected view and `readReactivationCandidate` do not
+  filter it, so the person page and the Anfrage panel still open.
 - **The links of existing mail are written by a script, once.** `bun run
   thread-participants` in `apps/api` walks every thread by id in batches of
   `THREAD_PARTICIPANTS.backfillBatch` inside `cloud.forEachScope` and prints per
@@ -746,19 +747,27 @@ the pattern lists in `packages/db/src/message-text.ts`
   `emailMessage_realAnswer_missing_idx` holds only the empty rows, so finding
   them does not scan the table. A self-hosted install runs nothing by hand: the
   history is filled a batch per tick after the deploy. The hard no filter in
-  `reactivation.ts` reads `realAnswer` too, so it gains the same.
+  `win-back-outcome.ts` reads `realAnswer` too, so it gains the same.
 - **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
   and the follow-up sweep both skip auto-replies and bounces.
-- **"Wrote back" is the same loop.** `reactivation.list` and `nextPerson` take
-  `replied`; the list then keeps only the people in the loop's `answered` set
-  (`wroteBackAfterOutreach`): a real answer after the first mail that followed the
-  verdict. An answer before that mail does not count. The win back rules do not
-  apply to this view, so everyone the card counts can show, except a person whose
-  answer is a hard no: the hard no filter still applies, and a later answer of
-  their own brings them back to both views. The "Replied" card links to
-  the list with `?replied=true` and the dashboard's scope. The card counts this
-  month, the list shows every reply. A filtered list is never the prefetch's default
-  list (`readsDefaultList`).
+- **"Wrote back" and "Replied" count one set.** The loop's `wrote_back` CTE is
+  the `answered` set without a person whose hard no stands (`hardNoStands`):
+  a real answer after the first mail that followed the verdict, from the person
+  or a colleague in their conversation. An answer before that mail does not
+  count. `readWinBackOutcome` counts the rows whose first mail went out since
+  the start of the month, and `wroteBackAfterOutreach` keeps the same rows in
+  `reactivation.list` and `nextPerson` when they take `replied`, with the window
+  from `since`. Neither applies the win back rules. `answered` itself keeps the
+  hard no, so the follow-up sweep never writes to a person who said no.
+- **The card link carries the window.** The dashboard returns `winBack.since`, the
+  instant its month started on the server, written with the server's offset
+  (`2026-10-01T00:00:00+02:00`). The "Replied" card links to the list with
+  `?replied=true`, the dashboard's scope and `since`, so the list shows exactly
+  the people the card counted. The chip then reads "Wrote back, contacted since"
+  the server's calendar day from that string, whatever the reader's time zone. Turning the chip off or resetting the filters drops
+  `since`, and the plain chip shows every reply. `since` without `replied` does
+  nothing. A filtered list is never the prefetch's default list
+  (`readsDefaultList`).
 - **The person view says when the answer is ours to give.** `wroteBack` comes from
   `readWinBackReply`: the newest real answer after the win back mail, and `open`
   while no mail from us to their address followed it, in any conversation they

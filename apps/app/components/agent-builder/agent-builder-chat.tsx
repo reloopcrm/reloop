@@ -72,6 +72,11 @@ import {
 	type TranscriptItem,
 	toTranscript,
 } from "@/lib/agent-transcript";
+import {
+	BUILDER_FOLLOW_UPS,
+	BUILDER_STEPS,
+	deliveryErrorText,
+} from "@/lib/builder-chat-copy";
 import { isSharedChatToken } from "@/lib/chat-route";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
@@ -97,7 +102,6 @@ import { ShareChatDialog } from "./share-chat-dialog";
 type Conversation = RouterOutputs["conversations"]["builderById"];
 type SharedConversation = RouterOutputs["conversations"]["shared"];
 
-const BUILDER_STEPS = ["Scope", "Instructions", "Manifest", "Review"] as const;
 const BUILDER_STEP_ARTIFACTS = [
 	null,
 	"agent/instructions.md",
@@ -157,7 +161,7 @@ const builderSubmissions = z.array(
 		commandType: z.enum(["CHAT", "CREATE_AGENT"]),
 		message: builderMessage,
 		status: z.string(),
-		errorMessage: z.string().nullable().catch(null),
+		errorCode: z.string().nullable().catch(null),
 	}),
 );
 
@@ -433,7 +437,7 @@ export function AgentBuilderChat({
 										<UserSubmission
 											submission={item.submission}
 											failed={item.submission.status === "FAILED"}
-											error={item.submission.errorMessage}
+											error={item.submission.errorCode}
 										/>
 									) : (
 										<AssistantMessage
@@ -459,7 +463,7 @@ export function AgentBuilderChat({
 											commandType: item.commandType,
 											message: item.message,
 											status: "PENDING",
-											errorMessage: null,
+											errorCode: null,
 										}}
 										failed={false}
 										error={null}
@@ -724,7 +728,7 @@ function SharedAgentChat({
 										<UserSubmission
 											submission={item.submission}
 											failed={item.submission.status === "FAILED"}
-											error={item.submission.errorMessage}
+											error={item.submission.errorCode}
 										/>
 									) : (
 										<AssistantMessage
@@ -809,7 +813,7 @@ function ChatHeader({
 	);
 }
 
-function UserSubmission({
+export function UserSubmission({
 	submission,
 	failed,
 	error,
@@ -875,7 +879,7 @@ function UserSubmission({
 				) : null}
 				{failed ? (
 					<p className="mt-2 text-destructive text-xs">
-						{error ?? t("This message could not be sent.")}
+						{deliveryErrorText(error, t)}
 					</p>
 				) : null}
 			</div>
@@ -1504,7 +1508,7 @@ function DeployedAgentCard({
 				<p className="flex h-7 items-center text-muted-foreground text-sm">
 					{t("Suggested follow-ups")}
 				</p>
-				{["Add another teammate to the notification"].map((suggestion) => (
+				{BUILDER_FOLLOW_UPS.map((suggestion) => (
 					<button
 						key={suggestion}
 						type="button"

@@ -411,5 +411,12 @@
 	"See who wrote back": "Ver quem respondeu",
 	"Reply to them": "Responda a eles",
 	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "Eles responderam ao seu e-mail para reconquistar. O Reloop prepara a resposta no seu tom.",
-	"Reloop has not written the answer yet. Reload the page to try again.": "O Reloop ainda não escreveu a resposta. Recarregue a página para tentar de novo."
+	"Reloop has not written the answer yet. Reload the page to try again.": "O Reloop ainda não escreveu a resposta. Recarregue a página para tentar de novo.",
+	"Last 7 days": "Últimos 7 dias",
+	"Not signed in.": "Você não está conectado.",
+	"Conversation not found.": "A conversa não foi encontrada.",
+	"The research agent is not reachable.": "O agente de pesquisa está inacessível.",
+	"The research agent did not return a session id.": "O agente de pesquisa não devolveu um ID de sessão.",
+	"The research agent is not configured for this install.": "O agente de pesquisa não está configurado para esta instalação.",
+	"The research agent could not answer. Try again.": "O agente de pesquisa não conseguiu responder. Tente de novo."
 }

@@ -22,6 +22,7 @@ import {
 	type PickerChannel,
 } from "@/components/slack/channel-picker";
 import { useSlackChannels } from "@/components/slack/use-slack-channels";
+import { ACTION_LABELS } from "@/lib/agent-action-labels";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import type { Translate } from "@/lib/i18n/locale";
 import { useTRPC } from "@/lib/trpc/client";
@@ -34,12 +35,6 @@ export type Resource = Extract<
 	Capabilities,
 	{ readable: true }
 >["dataScope"]["resources"][number];
-
-const ACTION_LABELS = new Map([
-	["slack.message.post", "Post a message"],
-	["crm.activity.create", "Write a note or task on the record"],
-	["run.summary", "Write a summary of the run"],
-]);
 
 export function AgentCapabilities({
 	agentId,

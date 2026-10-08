@@ -411,5 +411,12 @@
 	"See who wrote back": "Kimin cevap yazdığını gör",
 	"Reply to them": "Onlara cevap ver",
 	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "Geri kazanma mailine cevap yazdılar. Reloop cevabı senin üslubunla hazırlar.",
-	"Reloop has not written the answer yet. Reload the page to try again.": "Reloop cevabı henüz yazmadı. Tekrar denemek için sayfayı yenile."
+	"Reloop has not written the answer yet. Reload the page to try again.": "Reloop cevabı henüz yazmadı. Tekrar denemek için sayfayı yenile.",
+	"Last 7 days": "Son 7 gün",
+	"Not signed in.": "Oturum açmadın.",
+	"Conversation not found.": "Sohbet bulunamadı.",
+	"The research agent is not reachable.": "Araştırma ajanına ulaşılamıyor.",
+	"The research agent did not return a session id.": "Araştırma ajanı bir oturum kimliği döndürmedi.",
+	"The research agent is not configured for this install.": "Araştırma ajanı bu kurulum için yapılandırılmamış.",
+	"The research agent could not answer. Try again.": "Araştırma ajanı yanıt veremedi. Tekrar dene."
 }

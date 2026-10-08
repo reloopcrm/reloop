@@ -11,17 +11,18 @@ import {
 	bridgeConfigured,
 	mintBridgeToken,
 } from "@/lib/agent-bridge";
+import { BRIDGE_ERRORS } from "@/lib/agent-bridge-errors";
 import { getSession } from "@/lib/session";
 
 const NOT_SIGNED_IN = () =>
-	Response.json({ error: "Not signed in." }, { status: 401 });
+	Response.json({ error: BRIDGE_ERRORS.notSignedIn }, { status: 401 });
 
 async function handler(request: Request): Promise<Response> {
 	await connection();
 
 	if (!bridgeConfigured()) {
 		return Response.json(
-			{ error: "The research agent is not configured for this install." },
+			{ error: BRIDGE_ERRORS.notConfigured },
 			{ status: 503 },
 		);
 	}
@@ -72,7 +73,7 @@ async function bridge(request: Request): Promise<Response> {
 		});
 		if (owned === 0) {
 			return Response.json(
-				{ error: "Conversation not found." },
+				{ error: BRIDGE_ERRORS.conversationNotFound },
 				{ status: 404 },
 			);
 		}
@@ -92,7 +93,7 @@ async function bridge(request: Request): Promise<Response> {
 			(requestedSession && conversation.sessionId !== requestedSession)
 		) {
 			return Response.json(
-				{ error: "Conversation not found." },
+				{ error: BRIDGE_ERRORS.conversationNotFound },
 				{ status: 404 },
 			);
 		}
@@ -148,13 +149,8 @@ async function bridge(request: Request): Promise<Response> {
 	try {
 		upstream = await fetch(target, init);
 	} catch (error) {
-		return Response.json(
-			{
-				error: "The research agent is not reachable.",
-				detail: error instanceof Error ? error.message : String(error),
-			},
-			{ status: 502 },
-		);
+		console.error("The research agent is not reachable.", error);
+		return Response.json({ error: BRIDGE_ERRORS.unreachable }, { status: 502 });
 	}
 
 	const responseHeaders = new Headers(upstream.headers);
@@ -173,7 +169,7 @@ async function bridge(request: Request): Promise<Response> {
 			mintedSessionId(text) ?? upstream.headers.get(SESSION_ID_HEADER)?.trim();
 		if (!sessionId) {
 			return Response.json(
-				{ error: "The research agent did not return a session id." },
+				{ error: BRIDGE_ERRORS.noSessionId },
 				{ status: 502 },
 			);
 		}

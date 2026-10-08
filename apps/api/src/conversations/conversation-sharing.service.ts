@@ -117,6 +117,7 @@ export class ConversationSharingService {
 								commandType: true,
 								message: true,
 								status: true,
+								errorCode: true,
 								errorMessage: true,
 								createdAt: true,
 								attachments: {

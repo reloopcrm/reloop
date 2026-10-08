@@ -254,5 +254,13 @@
 	"{count} runs": "{count} execuções",
 	"Brief every deal owner before a renewal call": "Preparar cada responsável por negócio antes de uma ligação de renovação",
 	"Flag deals with no activity for 14 days": "Sinalizar negócios sem atividade há 14 dias",
-	"Hand new customers from Sales to Onboarding": "Passar novos clientes de Vendas para Onboarding"
+	"Hand new customers from Sales to Onboarding": "Passar novos clientes de Vendas para Onboarding",
+	"Instructions": "Instruções",
+	"Manifest": "Manifesto",
+	"Add another teammate to the notification": "Adicione outra pessoa da equipe à notificação",
+	"Post a message": "Publicar uma mensagem",
+	"Write a note or task on the record": "Escrever uma nota ou tarefa no registro",
+	"Write a summary of the run": "Escrever um resumo da execução",
+	"The builder did not receive this message. Send it again in a moment.": "O construtor não recebeu esta mensagem. Envie de novo em instantes.",
+	"The builder could not take this message after three attempts. Send it again.": "O construtor não conseguiu aceitar esta mensagem após três tentativas. Envie de novo."
 }

@@ -254,5 +254,13 @@
 	"{count} runs": "{count} çalıştırma",
 	"Brief every deal owner before a renewal call": "Yenileme görüşmesinden önce her fırsat sahibini bilgilendir",
 	"Flag deals with no activity for 14 days": "14 gündür hareket olmayan fırsatları işaretle",
-	"Hand new customers from Sales to Onboarding": "Yeni müşterileri Satıştan Onboarding'e devret"
+	"Hand new customers from Sales to Onboarding": "Yeni müşterileri Satıştan Onboarding'e devret",
+	"Instructions": "Talimatlar",
+	"Manifest": "Bildirim",
+	"Add another teammate to the notification": "Bildirime ekipten başka birini ekle",
+	"Post a message": "Mesaj gönder",
+	"Write a note or task on the record": "Kayda not veya görev yaz",
+	"Write a summary of the run": "Çalıştırmanın özetini yaz",
+	"The builder did not receive this message. Send it again in a moment.": "Oluşturucu bu mesajı almadı. Birazdan tekrar gönder.",
+	"The builder could not take this message after three attempts. Send it again.": "Oluşturucu bu mesajı üç denemeden sonra kabul edemedi. Tekrar gönder."
 }

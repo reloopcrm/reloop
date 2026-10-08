@@ -1,6 +1,8 @@
 const DAY_MS = 86_400_000;
 
-export type ChatDateGroup = "Today" | "Yesterday" | "Last 7 days";
+export const CHAT_DATE_GROUPS = ["Today", "Yesterday", "Last 7 days"] as const;
+
+export type ChatDateGroup = (typeof CHAT_DATE_GROUPS)[number];
 
 export function chatDateGroup(
 	lastMessageAt: string,

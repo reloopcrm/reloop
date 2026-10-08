@@ -655,6 +655,15 @@ the largest attachment upload the conversation contracts accept.
   newest mail, the win back person view and the agent's memory. **The win back list
   keeps one person per conversation**: `listReactivationCandidates` still groups by
   `emailThread.contactId`, so a thread never lifts a second person onto the list.
+- **A hard no leaves the win back list.** `listReactivationCandidates` drops a person
+  with an owned thread whose insight is `DECLINED` with `declineKind` `HARD`, until a
+  real answer (`realAnswer`, so no auto reply or bounce) from that person's own
+  address arrives after `declinedAt`, in a thread they own or take part in. Mail from
+  us or from a colleague does not bring them back. The list, "Continue with", the
+  story prefetch, the "Wrote back" view and the agent's `list_win_back_candidates`
+  all read it. A soft no, or a null kind, stays and shows "said no". The rejected view and
+  `readReactivationCandidate` do not filter it, so the person page and the Anfrage
+  panel still open.
 - **The links of existing mail are written by a script, once.** `bun run
   thread-participants` in `apps/api` walks every thread by id in batches of
   `THREAD_PARTICIPANTS.backfillBatch` inside `cloud.forEachScope` and prints per
@@ -723,7 +732,9 @@ the pattern lists in `packages/db/src/message-text.ts`
   `replied`; the list then keeps only the people in the loop's `answered` set
   (`wroteBackAfterOutreach`): a real answer after the first mail that followed the
   verdict. An answer before that mail does not count. The win back rules do not
-  apply to this view, so everyone the card counts can show. The "Replied" card links to
+  apply to this view, so everyone the card counts can show, except a person whose
+  answer is a hard no: the hard no filter still applies, and a later answer of
+  their own brings them back to both views. The "Replied" card links to
   the list with `?replied=true` and the dashboard's scope. The card counts this
   month, the list shows every reply. A filtered list is never the prefetch's default
   list (`readsDefaultList`).

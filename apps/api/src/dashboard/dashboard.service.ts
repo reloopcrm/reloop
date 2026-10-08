@@ -309,6 +309,7 @@ export class DashboardService {
 				winBack.verdicts === 0
 					? null
 					: {
+							since: startOfMonth.toISOString(),
 							contacted: winBack.contacted,
 							answered: winBack.answered,
 							deals: winBack.deals,

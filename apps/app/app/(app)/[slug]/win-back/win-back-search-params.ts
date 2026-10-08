@@ -3,6 +3,7 @@ import {
 	createSerializer,
 	parseAsBoolean,
 	parseAsInteger,
+	parseAsIsoDateTime,
 	parseAsStringLiteral,
 } from "nuqs/server";
 import {
@@ -24,6 +25,7 @@ export const winBackScopeParsers = {
 	quiet: parseAsInteger.withDefault(0),
 	rejected: parseAsBoolean.withDefault(false),
 	replied: parseAsBoolean.withDefault(false),
+	since: parseAsIsoDateTime,
 };
 
 export const winBackParsers = {
@@ -35,8 +37,12 @@ export const winBackSearchParams = createLoader(winBackParsers);
 
 const winBackUrl = createSerializer(winBackScopeParsers);
 
-export function wroteBackListHref(listPath: string, scope: WinBackScope) {
-	return winBackUrl(listPath, { replied: true, scope });
+export function wroteBackListHref(
+	listPath: string,
+	scope: WinBackScope,
+	since: string,
+) {
+	return winBackUrl(listPath, { replied: true, scope, since: new Date(since) });
 }
 
 export type WinBackScope = "me" | "everyone";
@@ -56,6 +62,7 @@ export function winBackInput(
 		quiet: number;
 		rejected: boolean;
 		replied: boolean;
+		since: Date | null;
 	},
 ) {
 	return {
@@ -69,5 +76,6 @@ export function winBackInput(
 		quietForDays: scope.quiet,
 		rejected: scope.rejected,
 		replied: scope.replied,
+		since: scope.replied && scope.since ? scope.since.toISOString() : undefined,
 	};
 }

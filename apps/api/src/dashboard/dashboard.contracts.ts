@@ -87,6 +87,7 @@ const recentActivityOutput = z.object({
 });
 
 const winBackOutcomeOutput = z.object({
+	since: z.iso.datetime(),
 	contacted: z.number(),
 	answered: z.number(),
 	deals: z.number(),

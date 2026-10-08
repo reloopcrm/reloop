@@ -13,7 +13,13 @@ let stale = true;
 let refreshing = false;
 const refreshed: { id: string }[] = [];
 const written: { id: string; seen?: string | null }[] = [];
-let fetched: unknown = null;
+type Fetched = {
+	queued: boolean;
+	waitingUntil: string | null;
+	limit: string | null;
+	draft: null;
+};
+let fetched: Fetched | null = null;
 const cacheCalls: string[] = [];
 type Queued = { queued: boolean };
 let refreshSuccess: ((result: Queued) => Promise<void>) | undefined;

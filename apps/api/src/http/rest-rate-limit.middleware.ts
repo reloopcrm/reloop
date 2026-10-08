@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 import { API_KEY_HEADER } from "@crm/auth";
 import { type Db, db } from "@crm/db";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { REST_RATE_LIMIT, type RestRateLimitWindow } from "./http-config";
+import {
+	REQUEST_SIZE,
+	REST_RATE_LIMIT,
+	type RestRateLimitWindow,
+} from "./http-config";
 
 type WindowRow = { count: number; windowStart: bigint };
 
@@ -115,7 +119,10 @@ export function restRateLimit(
 					return;
 				}
 
+				let answered = false;
 				const refuse = (): void => {
+					if (answered) return;
+					answered = true;
 					res
 						.status(429)
 						.set(
@@ -133,6 +140,16 @@ export function restRateLimit(
 					return;
 				}
 
+				let received = 0;
+				req.on("data", (chunk: Buffer) => {
+					received += chunk.length;
+
+					if (received > REQUEST_SIZE.body.maxBytes) {
+						req.pause();
+						res.once("finish", () => req.socket.destroy());
+						refuse();
+					}
+				});
 				req.once("end", refuse);
 				req.resume();
 			})

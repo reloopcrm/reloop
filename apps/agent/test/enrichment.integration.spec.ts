@@ -3,6 +3,7 @@ import { db, EnrichmentStatus } from "@crm/db";
 import { markRunning, settle } from "../agent/lib/enrichment";
 
 const domain = "lifecycle.example.test";
+const FRESH_REQUEST_GAP_MS = 60_000;
 
 async function clear() {
 	await db.agentTask.deleteMany({ where: { reason: "lifecycle" } });
@@ -47,17 +48,20 @@ async function retiredTask(companyId: string) {
 		select: { updatedAt: true },
 	});
 
-	return db.agentTask.create({
+	const finishedAt = new Date(row.updatedAt.getTime() + 1);
+	const task = await db.agentTask.create({
 		data: {
 			companyId,
 			kind: "company-profile",
 			reason: "lifecycle",
 			attempts: 3,
 			dueAt: row.updatedAt,
-			finishedAt: new Date(row.updatedAt.getTime() + 1),
+			finishedAt,
 		},
 		select: { id: true },
 	});
+
+	return { id: task.id, finishedAt };
 }
 
 async function statusOfContact(id: string) {
@@ -171,6 +175,7 @@ describe("the record follows the task", () => {
 			data: {
 				enrichmentStatus: EnrichmentStatus.PENDING,
 				enrichmentError: null,
+				updatedAt: new Date(task.finishedAt.getTime() + FRESH_REQUEST_GAP_MS),
 			},
 		});
 

@@ -173,8 +173,10 @@ every query still resolves through `WORKSPACE_ID`.
 
 - **The slug is the plugin's column**, written by `workspaceSlug(name)`
   (`@crm/db/workspace`) on rename and create. **Never derive it on read.**
-- `ensureWorkspaceMembership` reconciles it; `RESERVED_SLUGS` prevents collision with
-  a real route (a collision gets `-crm`).
+- `ensureWorkspaceMembership` keeps a custom slug the rep chose in onboarding. It
+  replaces the slug with `workspaceSlug(name)` only when it is empty or reserved
+  (`isUsableSlug`). `RESERVED_SLUGS` prevents collision with a real route (a collision
+  gets `-crm`).
 - **The proxy is the only thing that puts the slug on.** Missing or stale slugs are
   redirected with the query string intact, not 404'd; `[slug]/layout.tsx` is the
   backstop.
@@ -470,6 +472,27 @@ the largest attachment upload the conversation contracts accept.
   Graph has no mailbox-wide delta, so the Outlook cursor is re-read with a
   one-second overlap; `rfcMessageId` is unique, so the overlap costs a duplicate
   fetch and never a duplicate row.
+- **The calendar keeps its place between ticks.** `MailboxSync.cursor` is
+  Google's `nextSyncToken`. A pass reads at most `CALENDAR.sync.maxPagesPerTick`
+  pages (`google/calendar.config.ts`). The next page token, the sync token it
+  belongs to and the frozen `timeMin`/`timeMax` window go into the calendar row's
+  `backfill` as `{ v, pageToken, syncToken, timeMin, timeMax }`
+  (`google/calendar-page-cursor.ts`), and the next tick continues there with the
+  same window. The last page writes the new sync token and clears the blob. A
+  page Google rejects for good (`failed`, not retryable) or a 410 clears it, so
+  the next tick starts the pass again; a retryable failure keeps it.
+- **A calendar event is found by its Google id.** A cancelled entry in an
+  incremental sync carries only `id` and `status`, so it is deleted by
+  `googleEventId`, narrowed by `iCalUid` when the entry has one. The second way
+  is `iCalUid`: for a single event every row without a `recurringEventId`, for
+  an instance the row with its `originalStartTime`. Google ids are unique per calendar
+  only, so an id that matches events with different `iCalUid`s deletes nothing. A
+  moved single event keeps its row: the sync finds it by `googleEventId`, or by
+  `iCalUid` without a `recurringEventId`, updates the times and leaves
+  `originalStartTime` as it was, so its `MEETING` activity stays one. The
+  attendee rows follow Google's list, unless Google sets `attendeesOmitted`. An
+  unknown `status` or `responseStatus` reads as absent instead of failing the
+  page.
 - **A message the store rejects is retried, then skipped.** Gmail and Outlook
   keep `failures` (`{ id, attempts, lanes }`) in the backfill blob, IMAP keeps
   it in the folder's cursor entry (`mailbox/message-failures.ts`). The cursor
@@ -937,8 +960,18 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
 - **The address comes from the delete itself**
   (`tx.contact.delete({ select: { email: true } })`), not a read before it — and the
   404 is that statement's own `P2025` through `translate`.
-- **Adding them back lifts the suppression** via `allowAgain` **inside the write's
-  transaction**. Never automatic.
+- **`contacts.create` never lifts the suppression.** A create on a suppressed address
+  answers 409 and writes nothing; the check runs again inside the write's transaction,
+  under `lockContactEmail`, the same advisory lock `purge` takes before it writes the
+  suppression.
+  Only `contacts.update` with that address lifts it, via `allowAgain` **inside the
+  write's transaction**. Never automatic.
+- **`contacts.create` validates before it writes.** A duplicate address answers 409
+  (the pre-check and a `P2002` from a parallel create give the same sentence). An
+  unknown or archived `companyId` and an unknown `ownerId` answer 400. Free-text
+  fields have `.max()` limits from `CONTACT_INPUT` in `contacts/contacts.config.ts`;
+  the messages live in `CONTACT_MESSAGES` there, as fixed English sentences with a
+  key in every `copy.json`, so the app shows them translated.
 - **Purging a company does not suppress its domain** — its people survive with no
   company, and domain suppression stays the explicit Settings → Connections control.
 - **Clear `AgentTask` and `AgentEvent` yourself** — they carry `contactId`/`companyId`

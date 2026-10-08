@@ -23,6 +23,7 @@ import {
 	googleEventsPage,
 } from "../src/google/calendar.client";
 import { CALENDAR } from "../src/google/calendar.config";
+import { releaseEvents } from "../src/google/calendar-holders";
 import { readCalendarPage } from "../src/google/calendar-page-cursor";
 import { CalendarSyncService } from "../src/google/calendar-sync.service";
 import { MeetingPrepService } from "../src/google/meeting-prep.service";
@@ -394,6 +395,46 @@ describe("a calendar event two reps share", () => {
 		expect(await db.activity.count({ where: { id: activityId } })).toBe(0);
 	});
 
+	it("removes the event when both reps cancel it at the same moment", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+
+		calendar.respond = onePage([meeting("race", at(34))]);
+		await sync.sync(first);
+		await sync.sync(second);
+		const [event] = await eventsOf("race");
+		const eventId = event?.id ?? "";
+
+		let openGate = () => {};
+		const gate = new Promise<void>((resolve) => {
+			openGate = resolve;
+		});
+		let firstReleased = () => {};
+		const released = new Promise<void>((resolve) => {
+			firstReleased = resolve;
+		});
+		const firstCancel = db.$transaction(
+			async (tx) => {
+				await releaseEvents(tx, first.userId, [eventId]);
+				firstReleased();
+				await gate;
+			},
+			{ timeout: 10_000 },
+		);
+		await released;
+
+		second = await reload(second);
+		calendar.respond = onePage([{ id: "event-race", status: "cancelled" }]);
+		const secondCancel = sync.sync(second);
+		await Bun.sleep(200);
+		openGate();
+		await Promise.all([firstCancel, secondCancel]);
+
+		expect(await eventsOf("race")).toHaveLength(0);
+	});
+
 	it("ignores a cancellation from a calendar that never held the event", async () => {
 		const calendar = new FakeCalendar();
 		const sync = service(calendar);
@@ -721,11 +762,26 @@ describe("calendar sync window", () => {
 			start.getTime() + CALENDAR.sync.horizonMs - CALENDAR.sync.windowReserveMs,
 		);
 		setSystemTime(renewAt);
-		const late = new Date(start.getTime() + CALENDAR.sync.horizonMs + DAY_MS);
+		const yesterday = new Date(renewAt.getTime() - DAY_MS);
 		row = await reload(row);
 		calendar.calls = [];
 		calendar.respond = onePage(
-			[meeting("window-early", earlyAt), meeting("window-late", late)],
+			[meeting("window-early", yesterday)],
+			"sync-third",
+		);
+		await sync.sync(row);
+
+		expect(calendar.calls[0]?.syncToken).toBe("sync-second");
+		const moved = await eventsOf("window-early");
+		expect(moved[0]?.startsAt.toISOString()).toBe(yesterday.toISOString());
+		row = await reload(row);
+		expect(row.cursor).toBeNull();
+		expect(row.backfill).toBeNull();
+
+		const late = new Date(start.getTime() + CALENDAR.sync.horizonMs + DAY_MS);
+		calendar.calls = [];
+		calendar.respond = onePage(
+			[meeting("window-early", yesterday), meeting("window-late", late)],
 			"sync-renewed",
 		);
 		await sync.sync(row);
@@ -743,7 +799,7 @@ describe("calendar sync window", () => {
 		expect((await reload(row)).cursor).toBe("sync-renewed");
 	});
 
-	it("renews a stored sync token without a known window and resumes its pages", async () => {
+	it("reads a stored sync token without a known window to its end, then renews", async () => {
 		const calendar = new FakeCalendar();
 		const sync = service(calendar);
 		let row = await freshRow();
@@ -758,7 +814,7 @@ describe("calendar sync window", () => {
 			if (page >= 7) {
 				return {
 					outcome: "ok",
-					data: { items: [], nextSyncToken: "sync-fresh" },
+					data: { items: [], nextSyncToken: "sync-drained" },
 				};
 			}
 			return {
@@ -768,17 +824,29 @@ describe("calendar sync window", () => {
 		};
 		await sync.sync(row);
 
-		expect(calendar.calls[0]?.syncToken).toBeUndefined();
-		expect(calendar.calls[0]?.timeMax).toBeDefined();
+		expect(calendar.calls[0]?.syncToken).toBe("sync-legacy");
 		row = await reload(row);
-		expect(row.cursor).toBeNull();
+		expect(row.cursor).toBe("sync-legacy");
 
 		const firstTick = calendar.calls.length;
 		calendar.calls = [];
 		await sync.sync(row);
 
-		expect(calendar.calls[0]?.syncToken).toBeUndefined();
+		expect(calendar.calls[0]?.syncToken).toBe("sync-legacy");
 		expect(calendar.calls[0]?.pageToken).toBe(`page-${firstTick}`);
+		row = await reload(row);
+		expect(row.cursor).toBeNull();
+		expect(row.backfill).toBeNull();
+
+		calendar.calls = [];
+		calendar.respond = onePage([], "sync-fresh");
+		const now = Date.now();
+		await sync.sync(row);
+
+		expect(calendar.calls[0]?.syncToken).toBeUndefined();
+		expect(
+			Date.parse(calendar.calls[0]?.timeMax ?? "") - now,
+		).toBeGreaterThanOrEqual(CALENDAR.sync.horizonMs);
 		expect((await reload(row)).cursor).toBe("sync-fresh");
 	});
 });

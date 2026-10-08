@@ -23,7 +23,7 @@ import {
 	type GoogleEvent,
 } from "./calendar.client";
 import { CALENDAR } from "./calendar.config";
-import { heldByUser } from "./calendar-holders";
+import { heldByUser, releaseEvents } from "./calendar-holders";
 import {
 	type CalendarPageCursor,
 	readCalendarPage,
@@ -99,14 +99,6 @@ export class CalendarSyncService {
 		};
 
 		let pass = this.startPass(row, Date.now());
-		if (pass.syncToken === null && row.cursor) {
-			await this.state.dropCursor(row.id);
-			this.logger.log({
-				message: "Calendar sync window renewed",
-				syncId: row.id,
-				timeMax: pass.timeMax,
-			});
-		}
 		let written = 0;
 		let removed = 0;
 
@@ -176,12 +168,24 @@ export class CalendarSyncService {
 			const nextPageToken = result.data.nextPageToken;
 
 			if (!nextPageToken) {
-				const cursor = result.data.nextSyncToken ?? pass.syncToken;
+				const next = result.data.nextSyncToken ?? pass.syncToken;
+				const renew = next !== null && windowEnding(pass, Date.now());
+				const cursor = renew ? null : next;
 				await this.state.settle(row.id, {
 					cursor,
-					backfill: serialiseCalendarPage(savedPass(pass, null, cursor)),
+					backfill: renew
+						? null
+						: serialiseCalendarPage(savedPass(pass, null, cursor)),
 					status: GoogleSyncStatus.RUNNING,
 				});
+
+				if (renew) {
+					this.logger.log({
+						message: "Calendar sync window ends. The next tick reads a new one",
+						syncId: row.id,
+						timeMax: pass.timeMax,
+					});
+				}
 
 				this.logger.log({
 					message: "Calendar sync complete",
@@ -232,18 +236,27 @@ export class CalendarSyncService {
 			});
 		}
 
-		if (saved.outcome === "ok" && saved.cursor.syncToken === syncToken) {
+		const resumes =
+			saved.outcome === "ok" &&
+			saved.cursor.syncToken === syncToken &&
+			(saved.cursor.pageToken !== null || syncToken !== null);
+		if (resumes) {
 			const { pageToken, timeMin, timeMax } = saved.cursor;
-			if (pageToken) return { syncToken, pageToken, timeMin, timeMax };
+			return { syncToken, pageToken: pageToken ?? undefined, timeMin, timeMax };
+		}
 
-			const renewAt = Date.parse(timeMax) - CALENDAR.sync.windowReserveMs;
-			if (syncToken && now < renewAt) {
-				return { syncToken, pageToken: undefined, timeMin, timeMax };
-			}
+		if (syncToken) {
+			const unknown = new Date(now).toISOString();
+			return {
+				syncToken,
+				pageToken: undefined,
+				timeMin: unknown,
+				timeMax: unknown,
+			};
 		}
 
 		return {
-			syncToken: null,
+			syncToken,
 			pageToken: undefined,
 			timeMin: new Date(now).toISOString(),
 			timeMax: new Date(now + CALENDAR.sync.horizonMs).toISOString(),
@@ -257,14 +270,7 @@ export class CalendarSyncService {
 		const held = await this.heldBy(event, userId);
 		if (held.length === 0) return "ignored";
 
-		await this.db.$transaction([
-			this.db.calendarEventSync.deleteMany({
-				where: { userId, eventId: { in: held } },
-			}),
-			this.db.calendarEvent.deleteMany({
-				where: { id: { in: held }, holders: { none: {} } },
-			}),
-		]);
+		await this.db.$transaction((tx) => releaseEvents(tx, userId, held));
 
 		return "removed";
 	}
@@ -573,6 +579,10 @@ export class CalendarSyncService {
 
 		return people;
 	}
+}
+
+function windowEnding(pass: CalendarPass, now: number): boolean {
+	return now >= Date.parse(pass.timeMax) - CALENDAR.sync.windowReserveMs;
 }
 
 function savedPass(

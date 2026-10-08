@@ -20,7 +20,7 @@ import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
 import { rebuildThreads } from "../mailbox/thread-rebuild";
-import { heldByUser } from "./calendar-holders";
+import { heldByUser, releaseEvents } from "./calendar-holders";
 import {
 	GOOGLE_PROVIDER_ID,
 	GOOGLE_SYNC_SOURCES,
@@ -161,14 +161,17 @@ export class GoogleConnectionService {
 				await rebuildThreads(tx, threadIds);
 				await this.participants.linkThreads(threadIds, context, tx);
 
-				const events = await tx.calendarEvent.deleteMany({
-					where: {
-						AND: [heldByUser(userId), { holders: { every: { userId } } }],
-					},
+				const held = await tx.calendarEvent.findMany({
+					where: heldByUser(userId),
+					select: { id: true },
 				});
-				await tx.calendarEventSync.deleteMany({ where: { userId } });
+				const events = await releaseEvents(
+					tx,
+					userId,
+					held.map((event) => event.id),
+				);
 
-				return messages.count + events.count;
+				return messages.count + events;
 			},
 			{ timeout: PURGE_TIMEOUT_MS },
 		);

@@ -473,15 +473,19 @@ the largest attachment upload the conversation contracts accept.
 - **The calendar window is renewed before it runs out.** A sync token never
   returns an event that starts after the window's `timeMax`. Once now reaches
   `timeMax` minus `CALENDAR.sync.windowReserveMs`, or a sync token has no known
-  window, the sync drops the token and reads a fresh window from now to
-  `CALENDAR.sync.horizonMs`. The fresh pass writes through the same lookups, so
-  it adds no second row, and it deletes nothing that fell out of the window.
+  window, the sync still reads the token's changes to the last page, so a
+  meeting moved into the past is not lost. Then it clears cursor and blob, and
+  the next tick reads a fresh window from now to `CALENDAR.sync.horizonMs`. The
+  fresh pass writes through the same lookups, so it adds no second row, and it
+  deletes nothing that fell out of the window.
 - **A calendar event belongs to every rep whose calendar holds it.** One
   `CalendarEvent` row serves every rep who has the meeting, and
   `CalendarEventSync` records one holder per rep with that rep's Google id. A
   sync that writes an event records its rep. A cancellation or a purge from one
   rep removes only that rep's holder row; the event and its `MEETING` activity
-  go once no rep holds it. An event without any holder row counts as held by
+  go once no rep holds it. The removal locks the event rows first
+  (`google/calendar-holders.ts`), so two reps who cancel at once leave no
+  event without a holder. An event without any holder row counts as held by
   its `syncedByUserId`.
 - **A calendar event is found by its Google id.** A cancelled entry in an
   incremental sync carries only `id` and `status`, so it is matched by

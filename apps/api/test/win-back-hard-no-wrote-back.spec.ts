@@ -113,7 +113,9 @@ const HARD_NO: Mail = {
 	body: "No. We do not want pallets from you, please stop writing.",
 };
 
-const ids: Record<string, string> = {};
+let refused = "";
+let cameBack = "";
+let softNo = "";
 
 beforeAll(async () => {
 	await db.user.upsert({
@@ -127,11 +129,11 @@ beforeAll(async () => {
 		update: {},
 	});
 
-	ids.refused = await personWith("refused", [OLD_ASK, OUTREACH, HARD_NO], {
+	refused = await personWith("refused", [OLD_ASK, OUTREACH, HARD_NO], {
 		kind: DECLINE_KIND.hard,
 		at: HARD_NO.at,
 	});
-	ids.cameBack = await personWith(
+	cameBack = await personWith(
 		"cameback",
 		[
 			OLD_ASK,
@@ -145,7 +147,7 @@ beforeAll(async () => {
 		],
 		{ kind: DECLINE_KIND.hard, at: HARD_NO.at },
 	);
-	ids.softNo = await personWith(
+	softNo = await personWith(
 		"softno",
 		[
 			OLD_ASK,
@@ -184,18 +186,18 @@ async function listed(replied: boolean): Promise<string[]> {
 
 describe("a hard no and the Wrote back filter", () => {
 	it("leaves out a person whose answer to the win back mail is a hard no", async () => {
-		expect(await listed(true)).not.toContain(ids.refused);
-		expect(await listed(false)).not.toContain(ids.refused);
+		expect(await listed(true)).not.toContain(refused);
+		expect(await listed(false)).not.toContain(refused);
 	});
 
 	it("shows a person who wrote again on their own after the hard no in both lists", async () => {
-		expect(await listed(true)).toContain(ids.cameBack);
-		expect(await listed(false)).toContain(ids.cameBack);
+		expect(await listed(true)).toContain(cameBack);
+		expect(await listed(false)).toContain(cameBack);
 	});
 
 	it("keeps a soft no in both lists", async () => {
-		expect(await listed(true)).toContain(ids.softNo);
-		expect(await listed(false)).toContain(ids.softNo);
+		expect(await listed(true)).toContain(softNo);
+		expect(await listed(false)).toContain(softNo);
 	});
 
 	it("lists the same people under Wrote back as Win back does", async () => {

@@ -262,6 +262,7 @@ describe("a hard no in Win back", () => {
 		const next = await service.next("nobody", {
 			contactId: anna,
 			rejected: false,
+			replied: false,
 			quietForDays: 0,
 			scope: "everyone",
 			q: domain,

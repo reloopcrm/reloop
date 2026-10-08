@@ -335,6 +335,7 @@ async function afterAccountWrite(account: {
 	accountId: string;
 	providerId: string;
 	refreshToken?: string | null;
+	scope?: string | null;
 }): Promise<void> {
 	await replaceSlackAccount(account);
 	await clearMailboxReconnect(account);

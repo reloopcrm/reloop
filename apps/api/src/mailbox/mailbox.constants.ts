@@ -1,12 +1,10 @@
 import {
-	CALENDAR_SCOPE,
-	GMAIL_SCOPE,
 	GOOGLE_PROVIDER_ID,
 	GOOGLE_SYNC_SOURCES,
 	type MailboxProviderId,
 	MICROSOFT_PROVIDER_ID,
 	MICROSOFT_SYNC_SOURCES,
-	OUTLOOK_MAIL_SCOPE,
+	SCOPE_FOR_SYNC_SOURCE,
 } from "@crm/auth";
 
 export {
@@ -59,11 +57,10 @@ export function isMicrosoftSyncSource(
 	return (MICROSOFT_SYNC_SOURCES as readonly string[]).includes(source);
 }
 
-export const SCOPE_FOR_SOURCE = {
-	calendar: CALENDAR_SCOPE,
-	gmail: GMAIL_SCOPE,
-	outlook: OUTLOOK_MAIL_SCOPE,
-} satisfies Record<SyncSource, string>;
+export const SCOPE_FOR_SOURCE = SCOPE_FOR_SYNC_SOURCE satisfies Record<
+	SyncSource,
+	string
+>;
 
 export const PROVIDER_FOR_SOURCE = {
 	calendar: GOOGLE_PROVIDER_ID,

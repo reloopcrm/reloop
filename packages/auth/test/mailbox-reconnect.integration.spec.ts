@@ -2,7 +2,13 @@ import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { db, GoogleSyncStatus } from "@crm/db";
 import { setTokenUtil } from "better-auth/oauth2";
 import { auth } from "../src/auth";
-import { GOOGLE_PROVIDER_ID, MICROSOFT_PROVIDER_ID } from "../src/scopes";
+import {
+	CALENDAR_SCOPE,
+	GMAIL_SCOPE,
+	GOOGLE_PROVIDER_ID,
+	MICROSOFT_PROVIDER_ID,
+	OUTLOOK_MAIL_SCOPE,
+} from "../src/scopes";
 
 const suffix = crypto.randomUUID().slice(0, 8);
 const userId = `mailbox-reconnect-${suffix}`;
@@ -15,7 +21,10 @@ async function clean() {
 	await db.user.deleteMany({ where: { id: userId } });
 }
 
-async function account(providerId: string, refreshToken: string | null) {
+const GOOGLE_SCOPE = ["openid", GMAIL_SCOPE, CALENDAR_SCOPE].join(",");
+const MICROSOFT_SCOPE = `openid,https://graph.microsoft.com/${OUTLOOK_MAIL_SCOPE}`;
+
+async function account(providerId: string, scope: string) {
 	const id = `${providerId}-${userId}`;
 	await db.account.create({
 		data: {
@@ -23,7 +32,8 @@ async function account(providerId: string, refreshToken: string | null) {
 			accountId: id,
 			providerId,
 			userId,
-			refreshToken,
+			scope,
+			refreshToken: null,
 		},
 	});
 	return id;
@@ -92,7 +102,7 @@ afterAll(clean);
 
 describe("a fresh mailbox grant stored by Better Auth", () => {
 	it("moves the Google sources out of NEEDS_RECONNECT", async () => {
-		const id = await account(GOOGLE_PROVIDER_ID, null);
+		const id = await account(GOOGLE_PROVIDER_ID, GOOGLE_SCOPE);
 
 		await storeGrant(id, {
 			accessToken: "fresh-access",
@@ -116,7 +126,7 @@ describe("a fresh mailbox grant stored by Better Auth", () => {
 	});
 
 	it("moves the Outlook source out of NEEDS_RECONNECT", async () => {
-		const id = await account(MICROSOFT_PROVIDER_ID, null);
+		const id = await account(MICROSOFT_PROVIDER_ID, MICROSOFT_SCOPE);
 
 		await storeGrant(id, {
 			accessToken: "fresh-access",
@@ -129,8 +139,25 @@ describe("a fresh mailbox grant stored by Better Auth", () => {
 		expect(rows.gmail?.status).toBe(GoogleSyncStatus.NEEDS_RECONNECT);
 	});
 
+	it("keeps a source in NEEDS_RECONNECT when the grant lacks its scope", async () => {
+		const id = await account(
+			GOOGLE_PROVIDER_ID,
+			["openid", CALENDAR_SCOPE].join(","),
+		);
+
+		await storeGrant(id, {
+			accessToken: "fresh-access",
+			refreshToken: "fresh-refresh",
+		});
+
+		const rows = await statusOf();
+		expect(rows.calendar?.status).toBe(GoogleSyncStatus.IDLE);
+		expect(rows.gmail?.status).toBe(GoogleSyncStatus.NEEDS_RECONNECT);
+		expect(rows.gmail?.lastError).toBe(REASON);
+	});
+
 	it("keeps NEEDS_RECONNECT when the account holds no refresh token", async () => {
-		const id = await account(MICROSOFT_PROVIDER_ID, null);
+		const id = await account(MICROSOFT_PROVIDER_ID, MICROSOFT_SCOPE);
 
 		await storeGrant(id, { accessToken: "fresh-access" });
 
@@ -140,7 +167,7 @@ describe("a fresh mailbox grant stored by Better Auth", () => {
 	});
 
 	it("leaves the mailbox alone when another provider stores a token", async () => {
-		const id = await account("github", null);
+		const id = await account("github", GOOGLE_SCOPE);
 
 		await storeGrant(id, {
 			accessToken: "fresh-access",

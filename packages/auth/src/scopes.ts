@@ -27,10 +27,18 @@ export const SYNC_SCOPES_FOR = {
 export const GOOGLE_SYNC_SOURCES = ["calendar", "gmail"] as const;
 export const MICROSOFT_SYNC_SOURCES = ["outlook"] as const;
 
+export const SCOPE_FOR_SYNC_SOURCE = {
+	calendar: CALENDAR_SCOPE,
+	gmail: GMAIL_SCOPE,
+	outlook: OUTLOOK_MAIL_SCOPE,
+} as const;
+
+export type SyncSourceId = keyof typeof SCOPE_FOR_SYNC_SOURCE;
+
 export const SYNC_SOURCES_FOR = {
 	[GOOGLE_PROVIDER_ID]: GOOGLE_SYNC_SOURCES,
 	[MICROSOFT_PROVIDER_ID]: MICROSOFT_SYNC_SOURCES,
-} satisfies Record<MailboxProviderId, readonly string[]>;
+} satisfies Record<MailboxProviderId, readonly SyncSourceId[]>;
 
 export const REQUIRED_SCOPES = [...IDENTITY_SCOPES, ...SYNC_SCOPES] as const;
 

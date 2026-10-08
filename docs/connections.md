@@ -141,8 +141,10 @@ consent prompt, never "sign out and back in".
 - **The server clears the state when the grant is stored.** Better Auth's
   `account` create and update hooks call `clearMailboxReconnect`
   (`packages/auth/src/mailbox-reconnect.ts`). When a Google or Microsoft row now
-  holds a refresh token, that provider's sources (`SYNC_SOURCES_FOR` in
-  `scopes.ts`) leave `NEEDS_RECONNECT` for `IDLE` and lose `lastError`. Only the
+  holds a refresh token, each of that provider's sources (`SYNC_SOURCES_FOR` in
+  `scopes.ts`) whose scope the stored grant holds (`SCOPE_FOR_SYNC_SOURCE`)
+  leaves `NEEDS_RECONNECT` for `IDLE` and loses `lastError`. A partial consent
+  that leaves out Gmail keeps the Gmail row in `NEEDS_RECONNECT`. Only the
   status moves; the settings, the cursor and the backfill stay. A person who
   closes the tab before Check now therefore keeps no broken row: the next sync
   tick reads the mailbox again, and a grant that still fails is marked

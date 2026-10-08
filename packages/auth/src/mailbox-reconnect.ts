@@ -1,10 +1,16 @@
 import { db, GoogleSyncStatus } from "@crm/db";
-import { isMailboxProvider, SYNC_SOURCES_FOR } from "./scopes";
+import {
+	isMailboxProvider,
+	parseScopes,
+	SCOPE_FOR_SYNC_SOURCE,
+	SYNC_SOURCES_FOR,
+} from "./scopes";
 
 export type StoredMailboxGrant = {
 	userId: string;
 	providerId: string;
 	refreshToken?: string | null;
+	scope?: string | null;
 };
 
 export async function clearMailboxReconnect(
@@ -14,11 +20,17 @@ export async function clearMailboxReconnect(
 		return 0;
 	}
 
+	const granted = parseScopes(account.scope);
+	const sources = SYNC_SOURCES_FOR[account.providerId].filter((source) =>
+		granted.has(SCOPE_FOR_SYNC_SOURCE[source]),
+	);
+	if (sources.length === 0) return 0;
+
 	try {
 		const cleared = await db.mailboxSync.updateMany({
 			where: {
 				userId: account.userId,
-				source: { in: [...SYNC_SOURCES_FOR[account.providerId]] },
+				source: { in: sources },
 				status: GoogleSyncStatus.NEEDS_RECONNECT,
 			},
 			data: {

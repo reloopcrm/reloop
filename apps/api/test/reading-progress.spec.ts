@@ -8,7 +8,7 @@ import type { WinBackStoryPrefetchService } from "../src/reactivation/win-back-s
 const suffix = process.env.TEST_RUN_ID ?? "reading-progress-spec";
 const rootMessageId = `thread-${suffix}@reading-progress.test`;
 
-let login: "connected" | "idle" = "idle";
+let login: "connected" | "idle" | "unavailable" = "idle";
 let asked = 0;
 
 const researchKeys = {
@@ -18,12 +18,14 @@ const researchKeys = {
 	},
 } as unknown as ResearchKeyService;
 
-const service = new ReactivationService(
-	db,
-	{} as unknown as AgentTriggerService,
-	{} as unknown as WinBackStoryPrefetchService,
-	researchKeys,
-);
+function build(): ReactivationService {
+	return new ReactivationService(
+		db,
+		{} as unknown as AgentTriggerService,
+		{} as unknown as WinBackStoryPrefetchService,
+		researchKeys,
+	);
+}
 
 const savedKey = process.env.OPENROUTER_API_KEY;
 let threadId = "";
@@ -52,21 +54,36 @@ afterAll(async () => {
 describe("reading progress canRead", () => {
 	it("is false while no provider and no ChatGPT login exist", async () => {
 		login = "idle";
-		const progress = await service.progress();
+		const progress = await build().progress();
 		expect(progress.pending).toBeGreaterThan(0);
 		expect(progress.canRead).toBe(false);
 	});
 
 	it("is true once a ChatGPT login is connected", async () => {
 		login = "connected";
-		const progress = await service.progress();
+		const progress = await build().progress();
 		expect(progress.canRead).toBe(true);
+	});
+
+	it("stays true when the agent cannot report the login", async () => {
+		login = "unavailable";
+		const progress = await build().progress();
+		expect(progress.canRead).toBe(true);
+	});
+
+	it("asks the agent once a minute at most", async () => {
+		login = "idle";
+		const service = build();
+		const before = asked;
+		await service.progress();
+		await service.progress();
+		expect(asked - before).toBe(1);
 	});
 
 	it("is true with the environment key and never asks the agent", async () => {
 		process.env.OPENROUTER_API_KEY = "preview-key";
 		const before = asked;
-		const progress = await service.progress();
+		const progress = await build().progress();
 		delete process.env.OPENROUTER_API_KEY;
 		expect(progress.canRead).toBe(true);
 		expect(asked).toBe(before);

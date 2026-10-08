@@ -390,6 +390,32 @@ export class ReactivationService {
 		return revive;
 	}
 
+	private loginCheck: { at: number; usable: boolean } | null = null;
+
+	private async chatgptLoginUsable(): Promise<boolean> {
+		const now = Date.now();
+		if (
+			this.loginCheck &&
+			now - this.loginCheck.at < READING.loginCheck.cacheMs
+		) {
+			return this.loginCheck.usable;
+		}
+
+		const answer = await Promise.race([
+			this.researchKeys.chatgptLogin("status").then((login) => login.status),
+			new Promise<"unavailable">((resolve) =>
+				setTimeout(
+					() => resolve("unavailable"),
+					READING.loginCheck.timeoutMs,
+				).unref?.(),
+			),
+		]).catch(() => "unavailable" as const);
+
+		const usable = answer === "connected" || answer === "unavailable";
+		this.loginCheck = { at: now, usable };
+		return usable;
+	}
+
 	private async canRead(input: {
 		pending: number;
 		paused: boolean;
@@ -408,9 +434,7 @@ export class ReactivationService {
 			return false;
 		}
 
-		return (
-			(await this.researchKeys.chatgptLogin("status")).status === "connected"
-		);
+		return this.chatgptLoginUsable();
 	}
 
 	async progress(): Promise<ReadingProgress> {

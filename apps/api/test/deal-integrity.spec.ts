@@ -369,7 +369,7 @@ describe("attaching a contact while the deal moves", () => {
 			.attachContact({ dealId: deal.id, contactId: leaving.id })
 			.then(
 				() => null,
-				(error: unknown) => error,
+				(error: Error) => error,
 			);
 		await Bun.sleep(300);
 		release();
@@ -382,6 +382,6 @@ describe("attaching a contact while the deal moves", () => {
 		});
 		expect(people).toEqual([]);
 		expect(refused).toBeInstanceOf(Error);
-		expect((refused as Error).message).toContain("does not work at");
+		expect(refused?.message).toContain("does not work at");
 	});
 });

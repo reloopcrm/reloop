@@ -48,6 +48,24 @@ const samples = {
 	}),
 	nextLineIsNotWhitespace: inbound({ body: "I\u0085am away until Monday." }),
 	autoReplyWithLineSeparator: inbound({ body: "I\u2028am away until Monday." }),
+	autoReplyAfterAccentedLetter: inbound({
+		body: "Caf\u00e9this is an automated reply.",
+	}),
+	vacationAfterGermanUmlaut: inbound({
+		body: "Gr\u00fc\u00dfich bin derzeit nicht im B\u00fcro.",
+	}),
+	autoReplyAfterCedilla: inbound({
+		body: "Fran\u00e7i am away until Monday.",
+	}),
+	bounceAfterAccentedLetter: inbound({
+		body: "Caf\u00e9this is the mail system at host mail.example.com.",
+	}),
+	germanBounceAfterUmlaut: inbound({
+		body: "Gr\u00fc\u00dfihre Nachricht konnte nicht zugestellt werden.",
+	}),
+	autoReplyAfterDigit: inbound({ body: "5this is an automated reply." }),
+	autoReplyAfterUnderscore: inbound({ body: "_this is an automated reply." }),
+	autoReplyAfterHyphen: inbound({ body: "-this is an automated reply." }),
 	mailerDaemon: inbound({
 		fromEmail: "MAILER-DAEMON@example.com",
 		subject: "Re: Pallets",
@@ -176,6 +194,8 @@ describe("the real answer rule", () => {
 
 		expect(real).toEqual(
 			[
+				"autoReplyAfterDigit",
+				"autoReplyAfterUnderscore",
 				"autoReplyPastTheLimit",
 				"deliveryOfGoods",
 				"nextLineIsNotWhitespace",

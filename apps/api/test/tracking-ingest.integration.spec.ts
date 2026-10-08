@@ -439,6 +439,38 @@ describe("the form submission cap", () => {
 		expect(filed).toHaveLength(FORMS_PER_CLIENT_HOUR + 1);
 	});
 
+	it("gives the client and visitor back what a refused form charged", async () => {
+		for (const key of spendableSiteWindows()) {
+			await counters.take(key, FORMS_PER_SITE_HOUR, FORMS_PER_SITE_HOUR);
+		}
+
+		await accept(
+			[
+				{
+					type: "form_submit",
+					host: parent,
+					path: "/contact",
+					at: Date.now(),
+					fields: { email: `refused-${suffix}@acme.test` },
+				},
+			],
+			visitorId(),
+			"client-refused",
+		);
+
+		const charged = await db.trackingCounter.findMany({
+			where: {
+				OR: [
+					{ key: { startsWith: "form-client:" } },
+					{ key: { startsWith: "form-visitor:" } },
+				],
+			},
+			select: { value: true },
+		});
+
+		expect(charged.every((row) => row.value === 0)).toBe(true);
+	});
+
 	it("never stores the client key it was given on the row", async () => {
 		await accept(
 			[

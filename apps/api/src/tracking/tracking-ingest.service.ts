@@ -132,27 +132,33 @@ export class TrackingIngestService {
 		clientKey: string | null,
 	): Promise<boolean> {
 		const at = new Date();
+		const windows = [
+			...(clientKey
+				? [
+						{
+							key: formClientWindowKey(clientKey, at),
+							limit: FORMS_PER_CLIENT_HOUR,
+						},
+					]
+				: []),
+			{
+				key: formVisitorWindowKey(visitorId, at),
+				limit: FORMS_PER_VISITOR_HOUR,
+			},
+			{ key: formSiteWindowKey(siteId, at), limit: FORMS_PER_SITE_HOUR },
+		];
+		const charged: string[] = [];
 
-		if (clientKey) {
-			const perClient = await this.counters.take(
-				formClientWindowKey(clientKey, at),
-				FORMS_PER_CLIENT_HOUR,
-			);
+		for (const window of windows) {
+			if (!(await this.counters.take(window.key, window.limit))) {
+				await Promise.all(charged.map((key) => this.counters.release(key)));
+				return false;
+			}
 
-			if (!perClient) return false;
+			charged.push(window.key);
 		}
 
-		const perVisitor = await this.counters.take(
-			formVisitorWindowKey(visitorId, at),
-			FORMS_PER_VISITOR_HOUR,
-		);
-
-		if (!perVisitor) return false;
-
-		return this.counters.take(
-			formSiteWindowKey(siteId, at),
-			FORMS_PER_SITE_HOUR,
-		);
+		return true;
 	}
 
 	private async events(

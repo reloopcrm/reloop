@@ -371,6 +371,7 @@ export class CalendarSyncService {
 		context: MatchContext,
 	): Promise<"written" | "removed" | "ignored"> {
 		if (event.status === "cancelled") return this.remove(event, row.userId);
+		if (changedBefore(event, row.importSince)) return "ignored";
 
 		const iCalUid = event.iCalUID;
 		if (!iCalUid) return "ignored";
@@ -593,6 +594,11 @@ export class CalendarSyncService {
 
 		return people;
 	}
+}
+
+function changedBefore(event: GoogleEvent, since: Date | null): boolean {
+	if (!since || !event.updated) return false;
+	return Date.parse(event.updated) < since.getTime();
 }
 
 function windowEnding(pass: CalendarPass, now: number): boolean {

@@ -177,6 +177,7 @@ export class GoogleConnectionService {
 		);
 
 		await this.state.stopBackfill(userId, "gmail");
+		await this.state.setImportSince(userId, "calendar", new Date());
 		await this.stamp.recomputeAll();
 
 		this.logger.log({ message: "Google data purged", userId, purged });

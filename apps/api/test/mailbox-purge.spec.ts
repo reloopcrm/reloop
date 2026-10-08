@@ -266,6 +266,20 @@ describe("purging Gmail data", () => {
 		);
 	});
 
+	it("imports no calendar event again that Google last changed before the purge", async () => {
+		await db.mailboxSync.create({
+			data: { userId: gmailRep, source: "calendar", cursor: "sync-kept" },
+		});
+		const before = Date.now();
+
+		await google.purgeSyncedData(gmailRep);
+
+		const calendar = await db.mailboxSync.findUniqueOrThrow({
+			where: { userId_source: { userId: gmailRep, source: "calendar" } },
+		});
+		expect(calendar.importSince?.getTime()).toBeGreaterThanOrEqual(before);
+	});
+
 	it("keeps a calendar event another rep still holds", async () => {
 		const event = await db.calendarEvent.create({
 			data: {

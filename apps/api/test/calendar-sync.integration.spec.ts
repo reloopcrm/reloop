@@ -800,6 +800,31 @@ describe("calendar sync page budget", () => {
 describe("calendar sync window", () => {
 	afterEach(() => setSystemTime());
 
+	it("skips an event Google last changed before the rep deleted the synced data", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		let row = await freshRow();
+		const purgedAt = new Date(Date.now() - DAY_MS);
+		await db.mailboxSync.update({
+			where: { id: row.id },
+			data: { importSince: purgedAt },
+		});
+		row = await reload(row);
+
+		calendar.respond = onePage([
+			meeting("purged", at(30), {
+				updated: new Date(purgedAt.getTime() - DAY_MS).toISOString(),
+			}),
+			meeting("after-purge", at(31), {
+				updated: new Date(purgedAt.getTime() + 60_000).toISOString(),
+			}),
+		]);
+		await sync.sync(row);
+
+		expect(await eventsOf("purged")).toHaveLength(0);
+		expect(await eventsOf("after-purge")).toHaveLength(1);
+	});
+
 	it("starts a fresh window once the reserve before its end is reached", async () => {
 		const calendar = new FakeCalendar();
 		const sync = service(calendar);

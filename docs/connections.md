@@ -107,8 +107,10 @@ day it is connected, and keeps reading new mail at the same time.
   Everything already filed stays.
 - **Deleting synced data ends the backfill.** Google and Outlook promise that
   nothing deleted comes back, so `purgeSyncedData` marks the backfill done
-  (`SyncStateService.stopBackfill`). IMAP promises the opposite and is
-  unchanged.
+  (`SyncStateService.stopBackfill`). The calendar row gets `importSince` set to
+  the purge time, and the calendar sync skips every event that Google last
+  changed (`updated`) before it, so a renewed window does not bring a deleted
+  meeting back. IMAP promises the opposite and is unchanged.
 
 ## A broken grant is fixed where it shows
 

@@ -557,6 +557,36 @@ describe("a calendar event two reps share", () => {
 		expect(await eventsOf("legacy")).toHaveLength(0);
 	});
 
+	it("records a second rep as holder of an older shared event on the first renewed window", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const owner = await freshRow();
+		let colleagueRow = await freshRow();
+		const startsAt = at(39);
+
+		calendar.respond = onePage([meeting("upgrade", startsAt)]);
+		await sync.sync(owner);
+		await db.mailboxSync.update({
+			where: { id: colleagueRow.id },
+			data: { cursor: "sync-before-upgrade", backfill: null },
+		});
+		colleagueRow = await reload(colleagueRow);
+		expect(await holdersOf("upgrade")).toEqual([owner.userId]);
+
+		calendar.respond = onePage([], "sync-drained");
+		await sync.sync(colleagueRow);
+		colleagueRow = await reload(colleagueRow);
+		expect(colleagueRow.cursor).toBeNull();
+
+		calendar.respond = onePage([meeting("upgrade", startsAt)], "sync-new");
+		await sync.sync(colleagueRow);
+
+		expect(await holdersOf("upgrade")).toEqual(
+			[owner.userId, colleagueRow.userId].sort(),
+		);
+		expect(await eventsOf("upgrade")).toHaveLength(1);
+	});
+
 	it("gives every event stored before the migration its syncing rep as holder", async () => {
 		const owner = await freshRow();
 		const startsAt = at(33);

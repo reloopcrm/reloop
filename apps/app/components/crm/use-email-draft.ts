@@ -104,7 +104,10 @@ export function useEmailDraft(
 				trpc.contacts.draft.queryOptions({ id: contactId }),
 			);
 			if (draftToWrite(current, options)) {
-				write.mutate({ id: contactId });
+				write.mutate({
+					id: contactId,
+					seen: current.draft?.writtenAt ?? null,
+				});
 			}
 		} catch (error) {
 			toast.error(
@@ -131,7 +134,7 @@ export function useEmailDraft(
 			write.mutate(
 				instruction
 					? { id: contactId, instruction, oneOff }
-					: { id: contactId },
+					: { id: contactId, seen: state.data?.draft?.writtenAt ?? null },
 			),
 		ensure,
 		refresh: () => refresh.mutate({ id: contactId }),

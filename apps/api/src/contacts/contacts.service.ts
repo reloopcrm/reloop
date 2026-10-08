@@ -931,6 +931,7 @@ export class ContactsService {
 		id: string,
 		instruction?: string,
 		oneOff = false,
+		seen?: string | null,
 		stillWanted?: (tx: Prisma.TransactionClient) => Promise<boolean>,
 	): Promise<ContactDraftState> {
 		const contact = await this.db.contact.findUnique({
@@ -942,15 +943,32 @@ export class ContactsService {
 			throw new NotFoundException(`No contact with id ${id}.`);
 		}
 
+		const wish = instruction?.trim() || null;
+		const unchanged =
+			seen !== undefined && wish === null
+				? (tx: Prisma.TransactionClient) => this.draftUnchanged(id, seen, tx)
+				: undefined;
 		if (!(await this.draftLimitResumesAt(new Date()))) {
 			await this.agent.emailDraftRequested(
 				id,
-				instruction?.trim() || null,
+				wish,
 				oneOff,
-				stillWanted,
+				stillWanted ?? unchanged,
 			);
 		}
 		return this.draft(id);
+	}
+
+	private async draftUnchanged(
+		id: string,
+		seen: string | null,
+		tx: Prisma.TransactionClient,
+	): Promise<boolean> {
+		const stored = await tx.emailDraft.findUnique({
+			where: { contactId: id },
+			select: { updatedAt: true },
+		});
+		return (stored?.updatedAt.toISOString() ?? null) === seen;
 	}
 
 	async refreshDraft(id: string): Promise<ContactDraftState> {
@@ -964,7 +982,7 @@ export class ContactsService {
 			return state;
 		}
 
-		return this.writeDraft(id, undefined, false, async (tx) => {
+		return this.writeDraft(id, undefined, false, undefined, async (tx) => {
 			return !(await this.triedSinceNewestMail(id, tx));
 		});
 	}

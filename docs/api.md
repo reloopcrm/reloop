@@ -1075,6 +1075,13 @@ marked passages and the follow-up delay. It writes nothing but an
   page cancels a draft read in flight before it writes the result, so polling sees
   the queued task. After the win back mail
   goes out, this is how the follow-up replaces the sent text.
+- **A manual write names the draft it saw.** `contacts.writeDraft` takes `seen`, the
+  `writtenAt` of the draft on screen or null for none, and `useEmailDraft` always
+  sends it without a wish. Under the same task lock as `refreshDraft`
+  (`agent-task:email-draft:<contactId>`) the API queues only while the stored draft
+  is still that one, so an open and a click that race write one draft for a mail.
+  Write again on the draft a rep reads still queues. A call without `seen` and a
+  call with a wish behave as before.
 - **The win back follow-up task opens the person page.** The overview's task lists
   read `meta` and the contact of each task, and a task whose `meta` is
   `{ winBack: true }` (`winBackTaskMeta` in `@crm/validation/activity-meta`) links

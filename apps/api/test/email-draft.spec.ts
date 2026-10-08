@@ -644,4 +644,98 @@ describe("a stale draft and a draft written ahead", () => {
 		expect(state.queued).toBe(true);
 		expect(await openTasks(id)).toEqual([{ priority: PRIORITY.emailDraft }]);
 	});
+
+	async function agentWroteFor(contactId: string, until: Date): Promise<void> {
+		const at = new Date();
+		await db.agentTask.create({
+			data: {
+				contactId,
+				kind: DRAFT_KIND,
+				reason: "test",
+				priority: PRIORITY.emailDraft,
+				budget: 1,
+				dueAt: at,
+				startedAt: at,
+				finishedAt: at,
+				outcome: "A draft is ready: Europaletten",
+			},
+		});
+		await db.emailDraft.update({
+			where: { contactId },
+			data: { body: "Danke für Ihre Antwort.", basedOnUntil: until },
+		});
+	}
+
+	it("queues no second draft when a manual write arrives after the open already wrote one", async () => {
+		const id = await person("doppelt");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		const mail = new Date("2026-09-01T00:00:00.000Z");
+		await thread(id, mail);
+		const seen = (await live.draft(id)).draft?.writtenAt ?? null;
+		await agentWroteFor(id, mail);
+
+		const state = await live.writeDraft(id, undefined, false, seen);
+
+		expect(await openTasks(id)).toEqual([]);
+		expect(state.queued).toBe(false);
+		expect(state.draft?.body).toBe("Danke für Ihre Antwort.");
+	});
+
+	it("queues one draft when an open and a manual write arrive together", async () => {
+		const id = await person("zugleich");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		const seen = (await live.draft(id)).draft?.writtenAt ?? null;
+
+		await Promise.all([
+			live.refreshDraft(id),
+			live.writeDraft(id, undefined, false, seen),
+		]);
+
+		expect(await openTasks(id)).toEqual([{ priority: PRIORITY.emailDraft }]);
+	});
+
+	it("still writes again when the rep asks for the draft they are looking at", async () => {
+		const id = await person("nochmal");
+		const mail = new Date("2026-09-01T00:00:00.000Z");
+		await store(id, mail);
+		await thread(id, mail);
+		await agentWroteFor(id, mail);
+		const seen = (await live.draft(id)).draft?.writtenAt ?? null;
+
+		const state = await live.writeDraft(id, undefined, false, seen);
+
+		expect(state.queued).toBe(true);
+		expect(await openTasks(id)).toEqual([{ priority: PRIORITY.emailDraft }]);
+	});
+
+	it("writes the first draft when none was there and none appeared", async () => {
+		const id = await person("erster");
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+
+		const state = await live.writeDraft(id, undefined, false, null);
+
+		expect(state.queued).toBe(true);
+	});
+
+	it("queues no first draft twice when one appeared since the rep looked", async () => {
+		const id = await person("erschienen");
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		await store(id, new Date("2026-09-01T00:00:00.000Z"));
+
+		await live.writeDraft(id, undefined, false, null);
+
+		expect(await openTasks(id)).toEqual([]);
+	});
+
+	it("keeps a write without what the rep saw as it was", async () => {
+		const id = await person("ohne-stand");
+		const mail = new Date("2026-09-01T00:00:00.000Z");
+		await store(id, mail);
+		await thread(id, mail);
+
+		const state = await live.writeDraft(id);
+
+		expect(state.queued).toBe(true);
+	});
 });

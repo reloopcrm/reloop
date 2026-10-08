@@ -136,7 +136,12 @@ export class ContactsRouter {
 		meta: restMeta("POST", "/contacts/{id}/draft", ["Contacts"]),
 	})
 	async writeDraft(@Input() input: z.infer<typeof writeContactDraftInput>) {
-		return this.contacts.writeDraft(input.id, input.instruction, input.oneOff);
+		return this.contacts.writeDraft(
+			input.id,
+			input.instruction,
+			input.oneOff,
+			input.seen,
+		);
 	}
 
 	@Mutation({

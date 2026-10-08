@@ -12,6 +12,8 @@ const SENT_BODY =
 let stale = true;
 let refreshing = false;
 const refreshed: { id: string }[] = [];
+const written: { id: string; seen?: string | null }[] = [];
+let fetched: unknown = null;
 const cacheCalls: string[] = [];
 type Queued = { queued: boolean };
 let refreshSuccess: ((result: Queued) => Promise<void>) | undefined;
@@ -93,13 +95,14 @@ mock.module("@tanstack/react-query", () => ({
 		if (name === "refreshDraft") refreshSuccess = onSuccess;
 		return {
 			isPending: name === "refreshDraft" && refreshing,
-			mutate: (input: { id: string }) => {
+			mutate: (input: { id: string; seen?: string | null }) => {
 				if (name === "refreshDraft") refreshed.push(input);
+				if (name === "writeDraft") written.push(input);
 			},
 		};
 	},
 	useQueryClient: () => ({
-		fetchQuery: async () => null,
+		fetchQuery: async () => fetched,
 		cancelQueries: async () => {
 			cacheCalls.push("cancel");
 		},
@@ -124,6 +127,8 @@ afterEach(async () => {
 	await act(async () => root?.unmount());
 	document.body.innerHTML = "";
 	refreshed.length = 0;
+	written.length = 0;
+	fetched = null;
 	cacheCalls.length = 0;
 	refreshSuccess = undefined;
 	stale = true;
@@ -147,8 +152,11 @@ function viewOf(feedback: string | null, email: string | null): PersonView {
 	} as unknown as PersonView;
 }
 
+let shownStep: ReturnType<typeof useNextStep> | undefined;
+
 function Person({ view }: { view: PersonView }) {
 	const step = useNextStep(view, null, null);
+	shownStep = step;
 	return createElement(NextStepCard, { step, id: "next-step" });
 }
 
@@ -209,5 +217,24 @@ describe("the Win back person opened after the first mail went out", () => {
 		await act(async () => refreshSuccess?.({ queued: true }));
 
 		expect(cacheCalls).toEqual(["cancel", "set queued"]);
+	});
+
+	it("names the draft it shows when the rep writes again", async () => {
+		await open(viewOf(null, "erika@example.com"));
+
+		await act(async () => shownStep?.draft.write());
+
+		expect(written).toEqual([
+			{ id: "erika", seen: "2026-08-01T00:00:00.000Z" },
+		]);
+	});
+
+	it("names no draft when it asks for the first one", async () => {
+		fetched = { queued: false, waitingUntil: null, limit: null, draft: null };
+		await open(viewOf(null, "erika@example.com"));
+
+		await act(async () => shownStep?.draft.ensure());
+
+		expect(written).toEqual([{ id: "erika", seen: null }]);
 	});
 });

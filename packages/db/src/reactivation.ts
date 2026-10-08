@@ -349,9 +349,9 @@ export async function listReactivationCandidates(
 	const snoozed = snoozedAt(Prisma.sql`c.id`, Prisma.sql`c."companyId"`, now);
 	const snoozeFilter = options.snoozed
 		? Prisma.sql`AND ${snoozed}`
-		: options.rejected
-			? Prisma.empty
-			: Prisma.sql`AND NOT ${snoozed}`;
+		: ruled
+			? Prisma.sql`AND NOT ${snoozed}`
+			: Prisma.empty;
 
 	const rows = await db.$queryRaw<Row[]>(
 		rowQuery(

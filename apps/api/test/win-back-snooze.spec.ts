@@ -17,6 +17,7 @@ const suffix = process.env.TEST_RUN_ID ?? "win-back-snooze-spec";
 const domain = `snooze-${suffix}.test`;
 const userId = `user-${suffix}`;
 const colleagueId = `colleague-${suffix}`;
+const replierOwnerId = `replier-${suffix}`;
 
 const DAY_MS = 86_400_000;
 const now = new Date("2026-06-01T10:00:00.000Z");
@@ -207,7 +208,9 @@ afterAll(async () => {
 	});
 	await db.contact.deleteMany({ where: { id: { in: contactIds } } });
 	await db.company.deleteMany({ where: { id: { in: companyIds } } });
-	await db.user.deleteMany({ where: { id: { in: [userId, colleagueId] } } });
+	await db.user.deleteMany({
+		where: { id: { in: [userId, colleagueId, replierOwnerId] } },
+	});
 });
 
 function idsOf(...names: string[]): string[] {
@@ -740,5 +743,102 @@ describe("Bring back while a Remind me is written", () => {
 		await holder;
 
 		expect(order).toEqual(["reminder", "bring back"]);
+	});
+});
+
+describe("a snoozed person who wrote back", () => {
+	const input = reactivationListInput.parse({
+		scope: "me",
+		replied: true,
+		sort: "name",
+		dir: "asc",
+	});
+
+	beforeAll(async () => {
+		await db.user.upsert({
+			where: { id: replierOwnerId },
+			create: {
+				id: replierOwnerId,
+				name: "Replier rep",
+				email: `replier@${domain}`,
+				emailVerified: true,
+			},
+			update: {},
+		});
+		const contactId = await personAt("november", await companyNamed("n"));
+		await db.contact.update({
+			where: { id: contactId },
+			data: { ownerId: replierOwnerId },
+		});
+		await db.potentialFeedback.create({
+			data: {
+				contactId,
+				verdict: "good",
+				userId: replierOwnerId,
+				createdAt: daysAgo(30),
+				updatedAt: daysAgo(30),
+			},
+		});
+		const thread = await db.emailThread.findFirstOrThrow({
+			where: { contactId },
+			select: { id: true },
+		});
+		await db.emailMessage.createMany({
+			data: [
+				{
+					threadId: thread.id,
+					rfcMessageId: `november-out-${suffix}@${domain}`,
+					syncedByUserId: userId,
+					direction: EmailDirection.OUTBOUND,
+					fromEmail: `rep@${domain}`,
+					recipients: [{ email: `november@${domain}` }],
+					subject: "Pallets again?",
+					body: "Do you need pallets again this season?",
+					sentAt: daysAgo(20),
+				},
+				{
+					threadId: thread.id,
+					rfcMessageId: `november-in-${suffix}@${domain}`,
+					syncedByUserId: userId,
+					direction: EmailDirection.INBOUND,
+					fromEmail: `november@${domain}`,
+					recipients: [],
+					subject: "Re: Pallets again?",
+					body: "Yes, send us an offer for two hundred pallets.",
+					sentAt: daysAgo(10),
+				},
+			],
+		});
+		await task({ contactId, dueAt: remindOn, meta: LATER });
+	});
+
+	it("stays out of the default list", async () => {
+		const plain = await list.list(
+			replierOwnerId,
+			reactivationListInput.parse({ scope: "me" }),
+			now,
+		);
+
+		expect(plain.people).toBe(0);
+	});
+
+	it("shows in the Wrote back list, as the Replied card counts them", async () => {
+		const replied = await list.list(replierOwnerId, input, now);
+
+		expect(
+			replied.rows.flatMap((row) => row.people.map((entry) => entry.id)),
+		).toEqual(idsOf("november"));
+	});
+
+	it("keeps a place in Continue with of the Wrote back list", async () => {
+		const next = await person.next(
+			replierOwnerId,
+			{ ...input, contactId: ids.november ?? "" },
+			now,
+		);
+
+		expect(next.position).toBe(1);
+		expect(next.total).toBe(1);
+		expect(next.next).toBeNull();
 	});
 });

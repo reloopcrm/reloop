@@ -476,7 +476,7 @@ export class WinBackPersonService {
 		now: Date,
 	): Promise<ReactivationCandidate | null> {
 		const first = reachable[0];
-		if (!first || input.snoozed || input.rejected) return null;
+		if (!first || input.snoozed || input.rejected || input.replied) return null;
 
 		const snoozed = await snoozedUntil(this.db, [input.contactId], now);
 		return snoozed.has(input.contactId) ? first : null;

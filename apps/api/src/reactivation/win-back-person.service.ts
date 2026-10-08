@@ -15,7 +15,7 @@ import {
 } from "@crm/db/reactivation";
 import { threadsOfContact } from "@crm/db/thread-participants";
 import { readWinBackReply } from "@crm/db/win-back-outcome";
-import { isSnoozed } from "@crm/db/win-back-snooze";
+import { endSnooze, snoozedUntil } from "@crm/db/win-back-snooze";
 import {
 	isAgentFunctionEnabled,
 	readAgentFunctions,
@@ -84,9 +84,12 @@ export class WinBackPersonService {
 		private readonly prefetch: WinBackStoryPrefetchService,
 	) {}
 
-	async person(contactId: string): Promise<WinBackPersonViewOutput> {
+	async person(
+		contactId: string,
+		now = new Date(),
+	): Promise<WinBackPersonViewOutput> {
 		const rules = await readWinBackRules(this.db);
-		const [contact, candidate] = await Promise.all([
+		const [contact, candidate, snoozed] = await Promise.all([
 			this.db.contact.findUnique({
 				where: { id: contactId },
 				select: {
@@ -109,7 +112,8 @@ export class WinBackPersonService {
 					},
 				},
 			}),
-			readReactivationCandidate(this.db, { contactId, rules }),
+			readReactivationCandidate(this.db, { contactId, rules, now }),
+			snoozedUntil(this.db, [contactId], now),
 		]);
 
 		if (!contact) {
@@ -280,6 +284,7 @@ export class WinBackPersonService {
 			firstContactAt: candidate.firstContactAt.toISOString(),
 			lastContactAt: candidate.lastContactAt.toISOString(),
 			feedback: candidate.feedback,
+			snoozedUntil: snoozed.get(contactId)?.toISOString() ?? null,
 			wroteBack: reply
 				? { answeredAt: reply.answeredAt.toISOString(), open: reply.open }
 				: null,
@@ -473,7 +478,22 @@ export class WinBackPersonService {
 		const first = reachable[0];
 		if (!first || input.snoozed || input.rejected) return null;
 
-		return (await isSnoozed(this.db, input.contactId, now)) ? first : null;
+		const snoozed = await snoozedUntil(this.db, [input.contactId], now);
+		return snoozed.has(input.contactId) ? first : null;
+	}
+
+	async bringBack(
+		contactId: string,
+		now = new Date(),
+	): Promise<{ contactId: string; ended: number }> {
+		const ended = await endSnooze(this.db, contactId, now);
+		this.logger.log({
+			message: "Win back snooze ended",
+			contactId,
+			ended,
+		});
+
+		return { contactId, ended };
 	}
 
 	async next(

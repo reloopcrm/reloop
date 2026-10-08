@@ -49,6 +49,25 @@ describe("the Snoozed filter", () => {
 		expect((german as Record<string, string>).Snoozed).toBe("Zurückgestellt");
 		for (const dictionary of dictionaries) {
 			expect(dictionary.Snoozed?.length ?? 0).toBeGreaterThan(0);
+			expect(dictionary["Bring back"]?.length ?? 0).toBeGreaterThan(0);
+			expect(dictionary["Comes back"]?.length ?? 0).toBeGreaterThan(0);
+			expect(dictionary["{name} is back in the list."]).toContain("{name}");
+		}
+		expect((german as Record<string, string>)["Bring back"]).toBe(
+			"Zurückholen",
+		);
+	});
+
+	it("names a group of people in the filter chips", () => {
+		const chips: [Record<string, string>, string, string][] = [
+			[spanish, "Pospuestos", "Han respondido"],
+			[portuguese, "Adiados", "Responderam"],
+			[turkish, "Ertelenenler", "Cevap yazanlar"],
+		];
+
+		for (const [dictionary, snoozed, wroteBack] of chips) {
+			expect(dictionary.Snoozed).toBe(snoozed);
+			expect(dictionary["Wrote back"]).toBe(wroteBack);
 		}
 	});
 });

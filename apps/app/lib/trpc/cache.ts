@@ -9,6 +9,10 @@ type Options = {
 	settle?: Settle;
 };
 
+type ActivityOptions = Options & {
+	winBack?: boolean;
+};
+
 type RecordKind = "company" | "contact" | "deal";
 
 const ENTITY_FOR = {
@@ -31,7 +35,7 @@ export type CrmCache = {
 	removed(record: RemovedRecord): Promise<void>;
 	removedMany(records: RemovedRecords): Promise<void>;
 	conversationRemoved(id: string): Promise<void>;
-	activity(options?: Options): Promise<void>;
+	activity(options?: ActivityOptions): Promise<void>;
 	google(options?: Options): Promise<void>;
 	microsoft(options?: Options): Promise<void>;
 	imap(options?: Options): Promise<void>;
@@ -244,14 +248,19 @@ export function useCrmCache(): CrmCache {
 			return run([trpc.conversations.builderList.pathKey()], []);
 		},
 
-		activity: (options) => {
-			void queryClient.invalidateQueries({
-				queryKey: trpc.reactivation.nextPerson.queryKey(),
-				refetchType: "none",
-			});
-			void queryClient.invalidateQueries({
-				queryKey: trpc.reactivation.list.queryKey(),
-			});
+		activity: ({ winBack = false, ...options } = {}) => {
+			if (winBack) {
+				void queryClient.invalidateQueries({
+					queryKey: trpc.reactivation.nextPerson.queryKey(),
+					refetchType: "none",
+				});
+				void queryClient.invalidateQueries({
+					queryKey: trpc.reactivation.list.queryKey(),
+				});
+				void queryClient.invalidateQueries({
+					queryKey: trpc.reactivation.person.queryKey(),
+				});
+			}
 
 			return run(
 				activityKeys(),

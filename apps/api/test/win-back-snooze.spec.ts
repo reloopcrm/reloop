@@ -16,7 +16,7 @@ const domain = `snooze-${suffix}.test`;
 const userId = `user-${suffix}`;
 
 const DAY_MS = 86_400_000;
-const now = new Date();
+const now = new Date("2026-06-01T10:00:00.000Z");
 const remindOn = new Date(now.getTime() + 7 * DAY_MS);
 const afterwards = new Date(now.getTime() + 8 * DAY_MS);
 
@@ -279,10 +279,12 @@ describe("a snoozed person in the Win back list", () => {
 		const plain = await list.list(
 			userId,
 			reactivationListInput.parse({ scope: "me" }),
+			now,
 		);
 		const snoozed = await list.list(
 			userId,
 			reactivationListInput.parse({ scope: "me", snoozed: true }),
+			now,
 		);
 
 		expect(plain.people).toBe(AWAKE.length);
@@ -305,29 +307,32 @@ describe("Continue with past a snoozed person", () => {
 	});
 
 	it("skips the snoozed person and does not count them", async () => {
-		const first = await person.next(userId, {
-			...input,
-			contactId: ids.alpha ?? "",
-		});
+		const first = await person.next(
+			userId,
+			{ ...input, contactId: ids.alpha ?? "" },
+			now,
+		);
 
 		expect(first.next?.id).toBe(ids.charlie ?? "missing");
 		expect(first.position).toBe(1);
 		expect(first.total).toBe(AWAKE.length);
 
-		const second = await person.next(userId, {
-			...input,
-			contactId: ids.charlie ?? "",
-		});
+		const second = await person.next(
+			userId,
+			{ ...input, contactId: ids.charlie ?? "" },
+			now,
+		);
 
 		expect(second.position).toBe(2);
 		expect(second.total).toBe(AWAKE.length);
 	});
 
 	it("still offers the list from the page of the person just snoozed", async () => {
-		const result = await person.next(userId, {
-			...input,
-			contactId: ids.bravo ?? "",
-		});
+		const result = await person.next(
+			userId,
+			{ ...input, contactId: ids.bravo ?? "" },
+			now,
+		);
 
 		expect(result.position).toBeNull();
 		expect(result.total).toBe(AWAKE.length);
@@ -335,21 +340,22 @@ describe("Continue with past a snoozed person", () => {
 	});
 
 	it("keeps Back to the list for a person the list does not hold", async () => {
-		const result = await person.next(userId, {
-			...input,
-			contactId: ids.juliet ?? "",
-		});
+		const result = await person.next(
+			userId,
+			{ ...input, contactId: ids.juliet ?? "" },
+			now,
+		);
 
 		expect(result.next).toBeNull();
 		expect(result.position).toBeNull();
 	});
 
 	it("counts the snoozed people inside the Snoozed filter", async () => {
-		const result = await person.next(userId, {
-			...input,
-			snoozed: true,
-			contactId: ids.bravo ?? "",
-		});
+		const result = await person.next(
+			userId,
+			{ ...input, snoozed: true, contactId: ids.bravo ?? "" },
+			now,
+		);
 
 		expect(result.position).toBe(1);
 		expect(result.total).toBe(SNOOZED.length);
@@ -426,5 +432,202 @@ describe("the Remind me task", () => {
 
 		expect(stored.meta).toBeNull();
 		await activities.remove(entry.id, userId);
+	});
+});
+
+async function laterTasksOf(where: { contactId?: string; companyId?: string }) {
+	return db.activity.findMany({
+		where: { ...where, type: ActivityType.TASK, meta: { equals: LATER } },
+		select: { id: true, dueAt: true, completedAt: true },
+	});
+}
+
+describe("the person page of a snoozed person", () => {
+	it("names the day the person comes back", async () => {
+		const view = await person.person(ids.bravo ?? "", now);
+
+		expect(view.snoozedUntil).toBe(remindOn.toISOString());
+	});
+
+	it("names the day when the whole company is snoozed", async () => {
+		const view = await person.person(ids.echoone ?? "", now);
+
+		expect(view.snoozedUntil).toBe(remindOn.toISOString());
+	});
+
+	it("names no day for a person in the list", async () => {
+		const awake = await person.person(ids.alpha ?? "", now);
+		const overdue = await person.person(ids.foxtrot ?? "", now);
+
+		expect(awake.snoozedUntil).toBeNull();
+		expect(overdue.snoozedUntil).toBeNull();
+	});
+});
+
+describe("the Snoozed view", () => {
+	it("shows the day each row comes back", async () => {
+		const snoozed = await list.list(
+			userId,
+			reactivationListInput.parse({ scope: "me", snoozed: true }),
+			now,
+		);
+		const people = snoozed.rows.flatMap((row) => row.people);
+
+		expect(people.map((entry) => entry.snoozedUntil)).toEqual(
+			SNOOZED.map(() => remindOn.toISOString()),
+		);
+		expect(snoozed.rows.map((row) => row.snoozedUntil)).toEqual(
+			snoozed.rows.map(() => remindOn.toISOString()),
+		);
+	});
+});
+
+describe("a second Remind me", () => {
+	const later = new Date(now.getTime() + 14 * DAY_MS);
+
+	beforeAll(async () => {
+		await personAt("kilo", await companyNamed("k"));
+		await personAt("lima", await companyNamed("l"));
+	});
+
+	it("moves the open reminder instead of writing a second one", async () => {
+		const contactId = ids.kilo ?? "";
+		const first = await activities.create(
+			{
+				type: ActivityType.TASK,
+				subject: "Get back to kilo",
+				dueAt: remindOn.toISOString(),
+				contactId,
+				winBackLater: true,
+			},
+			userId,
+		);
+		const second = await activities.create(
+			{
+				type: ActivityType.TASK,
+				subject: "Get back to kilo",
+				dueAt: later.toISOString(),
+				contactId,
+				winBackLater: true,
+			},
+			userId,
+		);
+		const tasks = await laterTasksOf({ contactId });
+
+		expect(second.id).toBe(first.id);
+		expect(tasks).toHaveLength(1);
+		expect(tasks[0]?.dueAt?.toISOString()).toBe(later.toISOString());
+		expect((await person.person(contactId, now)).snoozedUntil).toBe(
+			later.toISOString(),
+		);
+	});
+
+	it("moves the company reminder from the list row", async () => {
+		const companyId = companies.l ?? "";
+		for (const dueAt of [remindOn, later]) {
+			await activities.create(
+				{
+					type: ActivityType.TASK,
+					subject: "Get back to Lima",
+					dueAt: dueAt.toISOString(),
+					companyId,
+					winBackLater: true,
+				},
+				userId,
+			);
+		}
+		const tasks = await laterTasksOf({ companyId });
+
+		expect(tasks).toHaveLength(1);
+		expect(tasks[0]?.dueAt?.toISOString()).toBe(later.toISOString());
+	});
+
+	it("leaves a plain task beside it alone", async () => {
+		const contactId = ids.kilo ?? "";
+		const plain = await activities.create(
+			{
+				type: ActivityType.TASK,
+				subject: "Call kilo",
+				dueAt: remindOn.toISOString(),
+				contactId,
+			},
+			userId,
+		);
+		const stored = await db.activity.findUniqueOrThrow({
+			where: { id: plain.id },
+			select: { dueAt: true, meta: true },
+		});
+
+		expect(stored.meta).toBeNull();
+		expect(stored.dueAt?.toISOString()).toBe(remindOn.toISOString());
+		expect(await laterTasksOf({ contactId })).toHaveLength(1);
+		await activities.remove(plain.id, userId);
+	});
+});
+
+describe("Bring back", () => {
+	it("ends the snooze so the person is in the list at once", async () => {
+		const contactId = ids.kilo ?? "";
+		const result = await person.bringBack(contactId, now);
+		const tasks = await laterTasksOf({ contactId });
+		const report = await listReactivationCandidates(db, {
+			ownerId: userId,
+			rules,
+			now,
+		});
+
+		expect(result).toEqual({ contactId, ended: 1 });
+		expect(tasks[0]?.completedAt?.toISOString()).toBe(now.toISOString());
+		expect(listed(report)).toContain(contactId);
+		expect((await person.person(contactId, now)).snoozedUntil).toBeNull();
+	});
+
+	it("ends a snooze that covers the whole company", async () => {
+		const contactId = ids.lima ?? "";
+		const result = await person.bringBack(contactId, now);
+		const report = await listReactivationCandidates(db, {
+			ownerId: userId,
+			rules,
+			now,
+		});
+
+		expect(result.ended).toBe(1);
+		expect(listed(report)).toContain(contactId);
+	});
+
+	it("writes nothing for a person who is not snoozed", async () => {
+		const result = await person.bringBack(ids.alpha ?? "", now);
+
+		expect(result.ended).toBe(0);
+	});
+
+	it("leaves a reminder that is already due open", async () => {
+		const contactId = ids.foxtrot ?? "";
+		await person.bringBack(contactId, now);
+		const tasks = await laterTasksOf({ contactId });
+
+		expect(tasks.map((task) => task.completedAt)).toEqual([null]);
+	});
+
+	it("lets the next Remind me write a fresh reminder", async () => {
+		const contactId = ids.kilo ?? "";
+		await activities.create(
+			{
+				type: ActivityType.TASK,
+				subject: "Get back to kilo",
+				dueAt: remindOn.toISOString(),
+				contactId,
+				winBackLater: true,
+			},
+			userId,
+		);
+		const open = (await laterTasksOf({ contactId })).filter(
+			(task) => task.completedAt === null,
+		);
+
+		expect(open).toHaveLength(1);
+		expect((await person.person(contactId, now)).snoozedUntil).toBe(
+			remindOn.toISOString(),
+		);
 	});
 });

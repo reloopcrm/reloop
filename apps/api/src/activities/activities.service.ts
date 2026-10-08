@@ -1,6 +1,12 @@
 import { ActivityType, type Db, type Prisma } from "@crm/db";
+import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { threadsOfContact } from "@crm/db/thread-participants";
-import { WIN_BACK_LATER_META } from "@crm/db/win-back-snooze";
+import {
+	openSnoozeTask,
+	type SnoozeTarget,
+	snoozeLockKey,
+	WIN_BACK_LATER_META,
+} from "@crm/db/win-back-snooze";
 import { activityMeta } from "@crm/validation/activity-meta";
 import {
 	BadRequestException,
@@ -164,21 +170,22 @@ export class ActivitiesService {
 
 		const isTask = input.type === ActivityType.TASK;
 
-		const activity = await this.db.activity.create({
-			data: {
-				type: input.type,
-				subject: blankToNull(input.subject ?? ""),
-				body: blankToNull(input.body ?? ""),
-				occurredAt: parseDate(input.occurredAt) ?? new Date(),
-				dueAt: isTask ? parseDate(input.dueAt) : null,
-				companyId,
-				contactId: input.contactId ?? null,
-				dealId: input.dealId ?? null,
-				createdById: actingUserId,
-				meta: input.winBackLater ? WIN_BACK_LATER_META : undefined,
-			},
-			select: ENTRY_SELECT,
-		});
+		const data: Prisma.ActivityUncheckedCreateInput = {
+			type: input.type,
+			subject: blankToNull(input.subject ?? ""),
+			body: blankToNull(input.body ?? ""),
+			occurredAt: parseDate(input.occurredAt) ?? new Date(),
+			dueAt: isTask ? parseDate(input.dueAt) : null,
+			companyId,
+			contactId: input.contactId ?? null,
+			dealId: input.dealId ?? null,
+			createdById: actingUserId,
+			meta: input.winBackLater ? WIN_BACK_LATER_META : undefined,
+		};
+		const target = input.winBackLater ? snoozeTargetOf(data) : null;
+		const activity = target
+			? await this.writeSnooze(data, target)
+			: await this.db.activity.create({ data, select: ENTRY_SELECT });
 
 		await this.stamp.touch(
 			{ companyId, contactId: input.contactId, dealId: input.dealId },
@@ -354,6 +361,27 @@ export class ActivitiesService {
 		);
 	}
 
+	private writeSnooze(
+		data: Prisma.ActivityUncheckedCreateInput,
+		target: SnoozeTarget,
+	) {
+		return this.db.$transaction(async (tx) => {
+			await lockIdempotencyKey(tx, snoozeLockKey(target));
+			const open = await tx.activity.findFirst({
+				where: openSnoozeTask(target),
+				orderBy: { dueAt: { sort: "desc", nulls: "last" } },
+				select: { id: true },
+			});
+			if (!open) return tx.activity.create({ data, select: ENTRY_SELECT });
+
+			return tx.activity.update({
+				where: { id: open.id },
+				data: { dueAt: data.dueAt, subject: data.subject },
+				select: ENTRY_SELECT,
+			});
+		});
+	}
+
 	private async resolveCompanyId(
 		input: ActivityCreateInput,
 	): Promise<string | null> {
@@ -423,6 +451,14 @@ function lastMessage(message: ThreadMessage | undefined) {
 		fromEmail: message.fromEmail,
 		source: mailSource(message),
 	};
+}
+
+function snoozeTargetOf(
+	data: Pick<Prisma.ActivityUncheckedCreateInput, "contactId" | "companyId">,
+): SnoozeTarget | null {
+	if (data.contactId) return { contactId: data.contactId };
+	if (data.companyId) return { contactId: null, companyId: data.companyId };
+	return null;
 }
 
 function serializeEntry(entry: Entry, actingUserId: string) {

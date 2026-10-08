@@ -29,7 +29,7 @@ import {
 } from "@/components/data-table/localized-columns";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { DEMO } from "@/components/demo/demo-tour-config";
-import { LocalRelativeTime } from "@/components/local-date-time";
+import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { numberFormat } from "@/lib/i18n/format";
 import { POTENTIAL_FACET_OPTIONS } from "@/lib/record-standing";
@@ -113,6 +113,24 @@ const COLUMNS: LabeledColumn<Group>[] = [
 	},
 ];
 
+const RETURN_COLUMN: LabeledColumn<Group> = {
+	id: "back",
+	header: "Comes back",
+	icon: DateIcon,
+	size: 130,
+	cell: (row) => <ReturnDay date={row.snoozedUntil} />,
+};
+
+const SNOOZED_COLUMNS = COLUMNS.flatMap((column) =>
+	column.id === "last" ? [column, RETURN_COLUMN] : [column],
+);
+
+function ReturnDay({ date }: { date: string | null }) {
+	return date ? (
+		<LocalDateTime date={date} options={WIN_BACK_UI.remindLater.returnDay} />
+	) : null;
+}
+
 function GroupName({ row }: { row: Group }) {
 	const t = useT();
 	const openRecord = useOpenRecord();
@@ -192,6 +210,7 @@ function subCell(person: Person, columnId: string) {
 	if (columnId === "last") {
 		return <LocalRelativeTime date={person.lastContactAt} />;
 	}
+	if (columnId === "back") return <ReturnDay date={person.snoozedUntil} />;
 	if (columnId === "verdict") {
 		return (
 			<WinBackVerdictMenu
@@ -302,7 +321,9 @@ export function WinBackTable() {
 	const facetCounts = query.data?.facetCounts;
 	const people = query.data?.people ?? 0;
 	const shown = rows.reduce((sum, row) => sum + row.people.length, 0);
-	const columns = useLocalizedColumns(COLUMNS);
+	const columns = useLocalizedColumns(
+		scope.snoozed ? SNOOZED_COLUMNS : COLUMNS,
+	);
 	const quietDays = WIN_BACK_UI.quickFilter.quietForDays;
 
 	const facets: DataTableFacet[] = [

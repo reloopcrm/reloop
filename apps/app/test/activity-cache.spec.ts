@@ -47,18 +47,30 @@ afterAll(() => {
 });
 
 describe("a changed activity", () => {
-	it("refreshes the Win back list, because a reminder task hides a person", async () => {
+	it("leaves the Win back list alone for a note, a call or a plain task", async () => {
+		quiet.length = 0;
 		invalidated.length = 0;
 		await useCrmCache().activity();
 
+		expect(invalidated).toContain("activities.myTasks");
+		expect(invalidated).not.toContain("reactivation.list");
+		expect(invalidated).not.toContain("reactivation.person");
+		expect(quiet).not.toContain("reactivation.nextPerson");
+	});
+
+	it("refreshes the Win back list when a reminder hides or shows a person", async () => {
+		invalidated.length = 0;
+		await useCrmCache().activity({ winBack: true });
+
 		expect(invalidated).toContain("reactivation.list");
+		expect(invalidated).toContain("reactivation.person");
 		expect(invalidated).toContain("activities.myTasks");
 	});
 
 	it("marks every Continue with as outdated without moving the open page", async () => {
 		quiet.length = 0;
 		invalidated.length = 0;
-		await useCrmCache().activity();
+		await useCrmCache().activity({ winBack: true });
 
 		expect(quiet).toContain("reactivation.nextPerson");
 		expect(invalidated).not.toContain("reactivation.nextPerson");

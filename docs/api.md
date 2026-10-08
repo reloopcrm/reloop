@@ -724,14 +724,28 @@ the pattern lists in `packages/db/src/message-text.ts`
   `listReactivationCandidates`, so out of the list, its counts, `nextPerson`, the
   prefetch and the agent's list tool. A task on a company with no contact snoozes
   everyone at that company. The person comes back by themselves on the due day, or
-  earlier when the rep completes or deletes the task; no job runs. Any task change
-  can move someone in or out, so `cache.activity()` also refreshes
-  `reactivation.list`, without making the caller wait for it, and marks every
-  `nextPerson` as outdated without refetching it. An open page keeps its "Continue
-  with" until the window regains focus; a page opened again reads anew. The "Not for us"
+  earlier when the rep completes or deletes the task; no job runs. The "Not for us"
   view ignores the snooze. `snoozed: true` on `reactivation.list` and `nextPerson`
-  shows exactly the people the snooze hides, under the same win back rules. A
-  reminder written before this mark existed has no `meta` and hides nobody.
+  shows exactly the people the snooze hides, under the same win back rules, and the
+  list then fills `snoozedUntil` on every person (a company row carries its earliest
+  day). A reminder written before this mark existed has no `meta` and hides nobody.
+- **A person has one snooze.** A second `winBackLater` task for the same target (the
+  contact, or the company when the task names no contact) moves the open one's
+  `dueAt` and subject instead of writing another, under an advisory lock on that
+  target, and returns it. `reactivation.person` returns `snoozedUntil`, the latest
+  `dueAt` that hides the person, so a reloaded page shows the day and "Bring back"
+  instead of "Remind me". `reactivation.bringBack({ contactId })` completes every open
+  snooze task that covers the person (`endSnooze`), a company task included, so that
+  company's people return with them. A reminder that is already due stays open.
+- **Only a snooze change refreshes the list.** `reactivation.list` scans every
+  candidate, and the sidebar count reads it on every page, so `cache.activity()`
+  leaves it alone for notes, calls and plain tasks. `cache.activity({ winBack: true })`
+  refreshes `reactivation.list` and `reactivation.person` without making the caller
+  wait, and marks every `nextPerson` as outdated without refetching it. The person
+  page, the row menu and Bring back always pass it; the timeline and the dashboard
+  pass `isWinBackSnooze(entry.meta)` from `@crm/validation/win-back-snooze`. An open
+  page keeps its "Continue with" until the window regains focus; a page opened again
+  reads anew.
 - **The person view says when the answer is ours to give.** `wroteBack` comes from
   `readWinBackReply`: the newest real answer after the win back mail, and `open`
   while no mail from us to their address followed it, in any conversation they

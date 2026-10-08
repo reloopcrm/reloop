@@ -79,6 +79,13 @@ async function statusOf(run: () => Promise<unknown>): Promise<number> {
 }
 
 async function clean() {
+	const existing = await db.contact.findMany({
+		where: ours,
+		select: { id: true },
+	});
+	const ids = existing.map((row) => row.id);
+	await db.agentTask.deleteMany({ where: { contactId: { in: ids } } });
+	await db.agentEvent.deleteMany({ where: { contactId: { in: ids } } });
 	await db.contact.deleteMany({ where: ours });
 	await db.suppressedContact.deleteMany({ where: ours });
 	await db.company.deleteMany({ where: { domain: { endsWith: domain } } });

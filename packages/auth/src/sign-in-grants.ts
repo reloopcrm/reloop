@@ -47,7 +47,10 @@ export async function isSignInAllowed(
 	return (await readSignInGrants(database)).includes(address);
 }
 
-type GrantStore = Pick<Prisma.TransactionClient, "appSetting" | "$queryRaw">;
+type GrantStore = Pick<
+	Prisma.TransactionClient,
+	"appSetting" | "$queryRaw" | "$executeRaw"
+>;
 
 async function selectGrantsForUpdate(
 	tx: GrantStore,
@@ -65,11 +68,11 @@ async function lockSignInGrants(tx: GrantStore): Promise<readonly string[]> {
 	const granted = await selectGrantsForUpdate(tx);
 	if (granted) return granted;
 
-	await tx.appSetting.upsert({
-		where: { id: SETTINGS_ID },
-		create: { id: SETTINGS_ID },
-		update: {},
-	});
+	await tx.$executeRaw`
+		INSERT INTO "appSetting" (id, "updatedAt")
+		VALUES (${SETTINGS_ID}, now())
+		ON CONFLICT (id) DO NOTHING
+	`;
 
 	return (await selectGrantsForUpdate(tx)) ?? [];
 }

@@ -1,7 +1,7 @@
 import { type Db, Prisma, RecordSource } from "@crm/db";
-import { limitsOf } from "@crm/db/plans";
+import { planLimitsOf } from "@crm/db/plan-usage";
 import { SAMPLE_ID_PATTERN } from "@crm/db/sample-data";
-import { readPlan, SETTINGS_ID } from "@crm/db/settings";
+import { SETTINGS_ID } from "@crm/db/settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
@@ -295,7 +295,7 @@ export class ThreadContactsService {
 			activeContacts: await this.db.contact.count({
 				where: { archivedAt: null },
 			}),
-			contactLimit: limitsOf(await readPlan(this.db)).contacts,
+			contactLimit: (await planLimitsOf(this.db)).contacts,
 		};
 
 		const verdicts = new Map<string, SenderOutcome>();

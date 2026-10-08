@@ -1,4 +1,4 @@
-import type { PlanPurchase } from "@crm/db/pricing";
+import type { PlanPurchase } from "@crm/db/cloud/contract";
 import { HOSTED_ROUTES } from "@/cloud/slots.data";
 import { PRICING } from "@/components/signup/config";
 

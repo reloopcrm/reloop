@@ -1,10 +1,23 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
 import { db, RecordSource } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { budgetTasksWhere, usageWindowOf } from "@crm/db/plan-usage";
-import { forwardReserve, INSIGHT_KIND, PLANS, STORY_KIND } from "@crm/db/plans";
+import { forwardReserve, INSIGHT_KIND, STORY_KIND } from "@crm/db/plans";
 import type { ReactivationGroup } from "@crm/db/reactivation";
 import { readPlan, writePlan } from "@crm/db/settings";
+import {
+	actWithoutPlans,
+	actWithTestPlans,
+	TEST_PLANS,
+} from "@crm/db/test-plans";
 import type { Cache } from "cache-manager";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { PERSON_VIEW } from "../src/reactivation/reactivation.config";
@@ -272,6 +285,10 @@ async function clean(): Promise<void> {
 	await db.contact.deleteMany({ where: { id: { in: ids } } });
 }
 
+beforeAll(actWithTestPlans);
+
+afterAll(actWithoutPlans);
+
 beforeEach(async () => {
 	memory.clear();
 	planBefore = await readPlan(db);
@@ -325,8 +342,8 @@ describe("WinBackStoryPrefetchService.queue", () => {
 	});
 
 	it("stops before the share kept for stories a rep opens", async () => {
-		await writePlan(db, "trial");
-		const limits = PLANS.trial;
+		await writePlan(db, "small");
+		const limits = TEST_PLANS.small;
 		const budget = limits.insightsPerMonth;
 		const ceiling =
 			budget -
@@ -347,8 +364,8 @@ describe("WinBackStoryPrefetchService.queue", () => {
 	});
 
 	it("gives the last prefetch slot to exactly one of several calls that arrive together", async () => {
-		await writePlan(db, "trial");
-		const limits = PLANS.trial;
+		await writePlan(db, "small");
+		const limits = TEST_PLANS.small;
 		const budget = limits.insightsPerMonth;
 		const ceiling =
 			budget -

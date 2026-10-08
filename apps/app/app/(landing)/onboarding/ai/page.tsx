@@ -1,4 +1,4 @@
-import { PLANS } from "@crm/db/plans";
+import { cloud } from "@crm/db/cloud/scope";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { hostedCustomer, pendingPurchase } from "@/cloud/scope.server";
@@ -20,7 +20,7 @@ export const instant = false;
 async function buyingOwnKey(): Promise<boolean> {
 	if (!(await hostedCustomer())) return false;
 	const wanted = await pendingPurchase();
-	return wanted !== null && !PLANS[wanted.plan].aiIncluded;
+	return wanted !== null && !cloud.plans.limitsOf(wanted.plan).aiIncluded;
 }
 
 export default async function AiSetupPage() {

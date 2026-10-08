@@ -267,5 +267,20 @@
 	"You cannot remove yourself from the workspace.": "Você não pode remover a si mesmo do espaço de trabalho.",
 	"Only an owner can remove an owner.": "Só um dono pode remover outro dono.",
 	"Show archived": "Mostrar arquivados",
-	"That deal is archived. Restore it before you change its stage.": "Este negócio está arquivado. Restaure-o antes de mudar a etapa."
+	"That deal is archived. Restore it before you change its stage.": "Este negócio está arquivado. Restaure-o antes de mudar a etapa.",
+	"That API key no longer exists. Reload the page.": "Essa chave de API não existe mais. Recarregue a página.",
+	"Pick one of the expiry options for the key.": "Escolha uma das opções de validade para a chave.",
+	"That key name is too long. Use a shorter one.": "O nome da chave é longo demais. Use um mais curto.",
+	"Give the key a name.": "Dê um nome para a chave.",
+	"Sign in again to manage your API keys.": "Entre de novo para gerenciar suas chaves de API.",
+	"The API key could not be saved.": "Não foi possível salvar a chave de API.",
+	"Sign in to the CRM before you connect Slack.": "Entre no CRM antes de conectar o Slack.",
+	"Only a member of this workspace can connect Slack.": "Só um membro deste workspace pode conectar o Slack.",
+	"Only an owner or an admin can connect Slack. One Slack workspace is shared by everyone here, so ask one of them to connect or reconnect it.": "Só um proprietário ou um admin pode conectar o Slack. Todo mundo aqui compartilha um workspace do Slack, então peça para uma dessas pessoas conectar ou reconectar.",
+	"An API key cannot manage API keys. Sign in to the CRM first.": "Uma chave de API não pode gerenciar chaves de API. Entre no CRM primeiro.",
+	"An API key takes the prefix this CRM gives it.": "Uma chave de API recebe o prefixo que este CRM dá.",
+	"An API key cannot add a sign-in provider. Sign in to the CRM first.": "Uma chave de API não pode adicionar um provedor de login. Entre no CRM primeiro.",
+	"Only an owner or an admin adds a sign-in provider, on Settings then SSO.": "Só um proprietário ou um admin adiciona um provedor de login, em Configurações e depois SSO.",
+	"Change the workspace on Settings, not through the auth API.": "Mude o workspace nas Configurações, não pela API de autenticação.",
+	"No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN=\"acme.com\") and restart.": "Ninguém pode entrar ainda: defina ALLOWED_SIGN_IN no .env com o domínio do seu e-mail (por exemplo ALLOWED_SIGN_IN=\"acme.com\") e reinicie."
 }

@@ -267,5 +267,20 @@
 	"You cannot remove yourself from the workspace.": "你不能把自己移出工作区。",
 	"Only an owner can remove an owner.": "只有所有者能移除所有者。",
 	"Show archived": "显示已归档",
-	"That deal is archived. Restore it before you change its stage.": "这个交易已归档。先恢复它，再更改阶段。"
+	"That deal is archived. Restore it before you change its stage.": "这个交易已归档。先恢复它，再更改阶段。",
+	"That API key no longer exists. Reload the page.": "这个 API 密钥已不存在。请刷新页面。",
+	"Pick one of the expiry options for the key.": "请为密钥选择一个有效期选项。",
+	"That key name is too long. Use a shorter one.": "密钥名称太长。请换一个短一些的。",
+	"Give the key a name.": "请给密钥起个名字。",
+	"Sign in again to manage your API keys.": "请重新登录后再管理你的 API 密钥。",
+	"The API key could not be saved.": "无法保存 API 密钥。",
+	"Sign in to the CRM before you connect Slack.": "连接 Slack 之前，请先登录 CRM。",
+	"Only a member of this workspace can connect Slack.": "只有这个工作区的成员才能连接 Slack。",
+	"Only an owner or an admin can connect Slack. One Slack workspace is shared by everyone here, so ask one of them to connect or reconnect it.": "只有所有者或管理员才能连接 Slack。这里所有人共用一个 Slack 工作区，所以请让他们中的一位来连接或重新连接。",
+	"An API key cannot manage API keys. Sign in to the CRM first.": "API 密钥不能管理 API 密钥。请先登录 CRM。",
+	"An API key takes the prefix this CRM gives it.": "API 密钥使用这个 CRM 分配的前缀。",
+	"An API key cannot add a sign-in provider. Sign in to the CRM first.": "API 密钥不能添加登录提供方。请先登录 CRM。",
+	"Only an owner or an admin adds a sign-in provider, on Settings then SSO.": "只有所有者或管理员才能添加登录提供方，位置在设置，然后 SSO。",
+	"Change the workspace on Settings, not through the auth API.": "请在设置中修改工作区，不要通过认证 API。",
+	"No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN=\"acme.com\") and restart.": "还没有人能登录：在 .env 中把 ALLOWED_SIGN_IN 设为你的邮箱域名（例如 ALLOWED_SIGN_IN=\"acme.com\"），然后重启。"
 }

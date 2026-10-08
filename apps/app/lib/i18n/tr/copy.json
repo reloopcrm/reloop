@@ -267,5 +267,20 @@
 	"You cannot remove yourself from the workspace.": "Kendini çalışma alanından kaldıramazsın.",
 	"Only an owner can remove an owner.": "Bir sahibi sadece bir sahip kaldırır.",
 	"Show archived": "Arşivlenenleri göster",
-	"That deal is archived. Restore it before you change its stage.": "Bu anlaşma arşivlendi. Aşamasını değiştirmeden önce geri yükle."
+	"That deal is archived. Restore it before you change its stage.": "Bu anlaşma arşivlendi. Aşamasını değiştirmeden önce geri yükle.",
+	"That API key no longer exists. Reload the page.": "Bu API anahtarı artık yok. Sayfayı yenile.",
+	"Pick one of the expiry options for the key.": "Anahtar için sunulan sürelerden birini seç.",
+	"That key name is too long. Use a shorter one.": "Anahtar adı çok uzun. Daha kısa bir ad kullan.",
+	"Give the key a name.": "Anahtara bir ad ver.",
+	"Sign in again to manage your API keys.": "API anahtarlarını yönetmek için tekrar giriş yap.",
+	"The API key could not be saved.": "API anahtarı kaydedilemedi.",
+	"Sign in to the CRM before you connect Slack.": "Slack'i bağlamadan önce CRM'e giriş yap.",
+	"Only a member of this workspace can connect Slack.": "Slack'i yalnızca bu çalışma alanının bir üyesi bağlayabilir.",
+	"Only an owner or an admin can connect Slack. One Slack workspace is shared by everyone here, so ask one of them to connect or reconnect it.": "Slack'i yalnızca bir sahip veya yönetici bağlayabilir. Buradaki herkes tek bir Slack çalışma alanını paylaşıyor, bu yüzden onlardan birinden bağlamasını veya yeniden bağlamasını iste.",
+	"An API key cannot manage API keys. Sign in to the CRM first.": "Bir API anahtarı API anahtarlarını yönetemez. Önce CRM'e giriş yap.",
+	"An API key takes the prefix this CRM gives it.": "Bir API anahtarı bu CRM'in verdiği öneki alır.",
+	"An API key cannot add a sign-in provider. Sign in to the CRM first.": "Bir API anahtarı giriş sağlayıcısı ekleyemez. Önce CRM'e giriş yap.",
+	"Only an owner or an admin adds a sign-in provider, on Settings then SSO.": "Giriş sağlayıcısını yalnızca bir sahip veya yönetici ekler, Ayarlar ve ardından SSO altında.",
+	"Change the workspace on Settings, not through the auth API.": "Çalışma alanını kimlik API'si üzerinden değil, Ayarlar'da değiştir.",
+	"No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN=\"acme.com\") and restart.": "Henüz kimse giriş yapamıyor: .env içinde ALLOWED_SIGN_IN değerini e-posta alan adına ayarla (örneğin ALLOWED_SIGN_IN=\"acme.com\") ve yeniden başlat."
 }

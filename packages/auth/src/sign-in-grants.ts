@@ -1,4 +1,4 @@
-import { type Db, db as defaultDb } from "@crm/db";
+import { type Db, db as defaultDb, type Prisma } from "@crm/db";
 import { SETTINGS_ID } from "@crm/db/settings";
 import { canGrantSignIn, type WorkspaceRole } from "./roles";
 import { isWorkspaceEmail } from "./workspace";
@@ -47,8 +47,48 @@ export async function isSignInAllowed(
 	return (await readSignInGrants(database)).includes(address);
 }
 
+type GrantStore = Pick<Prisma.TransactionClient, "appSetting" | "$queryRaw">;
+
+async function selectGrantsForUpdate(
+	tx: GrantStore,
+): Promise<readonly string[] | null> {
+	const rows = await tx.$queryRaw<{ signInAddresses: string[] }[]>`
+		SELECT "signInAddresses" FROM "appSetting"
+		WHERE id = ${SETTINGS_ID}
+		FOR UPDATE
+	`;
+
+	return rows[0]?.signInAddresses ?? null;
+}
+
+async function lockSignInGrants(tx: GrantStore): Promise<readonly string[]> {
+	const granted = await selectGrantsForUpdate(tx);
+	if (granted) return granted;
+
+	await tx.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID },
+		update: {},
+	});
+
+	return (await selectGrantsForUpdate(tx)) ?? [];
+}
+
 export async function grantSignIn(
 	database: Db,
+	email: string,
+	role: WorkspaceRole | null,
+): Promise<boolean> {
+	if (isWorkspaceEmail(email)) return true;
+	if (!canGrantSignIn(role)) return false;
+
+	return database.$transaction((tx) =>
+		grantSignInInTransaction(tx, email, role),
+	);
+}
+
+export async function grantSignInInTransaction(
+	tx: GrantStore,
 	email: string,
 	role: WorkspaceRole | null,
 ): Promise<boolean> {
@@ -58,16 +98,13 @@ export async function grantSignIn(
 	const address = normalizeSignInAddress(email);
 	if (!address) return false;
 
-	const granted = await readSignInGrants(database);
+	const granted = await lockSignInGrants(tx);
 	if (granted.includes(address)) return true;
 	if (granted.length >= SIGN_IN_GRANTS.maxAddresses) return false;
 
-	const signInAddresses = [...granted, address];
-
-	await database.appSetting.upsert({
+	await tx.appSetting.update({
 		where: { id: SETTINGS_ID },
-		create: { id: SETTINGS_ID, signInAddresses },
-		update: { signInAddresses },
+		data: { signInAddresses: [...granted, address] },
 	});
 
 	return true;
@@ -80,10 +117,10 @@ export async function revokeSignIn(
 	const address = normalizeSignInAddress(email);
 	if (!address) return false;
 
-	const granted = await readSignInGrants(database);
-	if (!granted.includes(address)) return false;
+	return database.$transaction(async (tx) => {
+		const granted = await lockSignInGrants(tx);
+		if (!granted.includes(address)) return false;
 
-	await database.$transaction(async (tx) => {
 		await tx.appSetting.update({
 			where: { id: SETTINGS_ID },
 			data: { signInAddresses: granted.filter((entry) => entry !== address) },
@@ -98,9 +135,9 @@ export async function revokeSignIn(
 			tx,
 			people.map((person) => person.id),
 		);
-	});
 
-	return true;
+		return true;
+	});
 }
 
 type CredentialStore = Pick<Db, "session" | "apikey">;

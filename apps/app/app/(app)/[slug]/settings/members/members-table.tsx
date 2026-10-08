@@ -4,6 +4,7 @@ import OverflowMenuHorizontal from "@carbon/icons-react/es/OverflowMenuHorizonta
 import {
 	canAssignRole,
 	canRemoveMember,
+	WORKSPACE_ROLES,
 	type WorkspaceRole,
 } from "@crm/auth/roles";
 import {
@@ -30,6 +31,7 @@ import {
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
 import { Icon } from "@crm/ui/components/icon";
+import { MonoLabel } from "@crm/ui/components/mark";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -42,23 +44,24 @@ import type { Translate } from "@/lib/i18n/locale";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
-import { membersSearchParams } from "./members-search-params";
+import {
+	memberListInputOf,
+	membersSearchParams,
+} from "./members-search-params";
 
 export const ROLE_LABEL = {
 	owner: "Owner",
 	admin: "Admin",
 	member: "Member",
-} as const;
-
-export type Role = keyof typeof ROLE_LABEL;
+} as const satisfies Record<WorkspaceRole, string>;
 
 type MemberRow = RouterOutputs["workspace"]["members"]["rows"][number];
 
 export function assignableRoles(
 	viewerRole: WorkspaceRole | null,
-	current: Role,
-): Role[] {
-	return (Object.keys(ROLE_LABEL) as Role[]).filter((role) =>
+	current: WorkspaceRole,
+): WorkspaceRole[] {
+	return WORKSPACE_ROLES.filter((role) =>
 		canAssignRole(viewerRole, current, role),
 	);
 }
@@ -66,7 +69,7 @@ export function assignableRoles(
 function columns(
 	t: Translate,
 	viewerRole: WorkspaceRole | null,
-	onChangeRole: (member: MemberRow, role: Role) => void,
+	onChangeRole: (member: MemberRow, role: WorkspaceRole) => void,
 	onRemove: (member: MemberRow) => void,
 	pending: boolean,
 ): DataTableColumn<MemberRow>[] {
@@ -85,9 +88,7 @@ function columns(
 						email={row.email}
 					/>
 					<span className="truncate font-medium">{row.name}</span>
-					{row.isViewer ? (
-						<span className="text-muted-foreground text-xs">{t("You")}</span>
-					) : null}
+					{row.isViewer ? <MonoLabel>{t("You")}</MonoLabel> : null}
 				</span>
 			),
 		},
@@ -187,7 +188,7 @@ export function MembersTable({
 	const { query, input } = useTableQuery(membersSearchParams);
 
 	const members = useQuery({
-		...trpc.workspace.members.queryOptions(input),
+		...trpc.workspace.members.queryOptions(memberListInputOf(input)),
 		placeholderData: (previous) => previous,
 	});
 
@@ -219,7 +220,7 @@ export function MembersTable({
 		{
 			id: "role",
 			label: t("Role"),
-			options: (Object.keys(ROLE_LABEL) as Role[]).flatMap((role) =>
+			options: WORKSPACE_ROLES.flatMap((role) =>
 				(facetCounts?.role?.[role] ?? 0) > 0
 					? [{ value: role, label: t(ROLE_LABEL[role]) }]
 					: [],

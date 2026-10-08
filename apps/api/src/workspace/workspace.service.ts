@@ -6,11 +6,11 @@ import {
 	endAccessOf,
 	ensureWorkspaceMembership,
 	generatePassword,
-	grantSignIn,
+	grantSignInInTransaction,
 	hashPassword,
 	isPasswordSignInConfigured,
-	isWorkspaceRole,
 	revokeSignIn,
+	toWorkspaceRole,
 	WORKSPACE_ID,
 	type WorkspaceRole,
 	workspaceRoleOf,
@@ -70,8 +70,33 @@ const SORTABLE: OrderByColumns<Prisma.MemberOrderByWithRelationInput> = {
 	joinedAt: (dir) => ({ createdAt: dir }),
 };
 
-function toRole(value: string): WorkspaceRole {
-	return isWorkspaceRole(value) ? value : "member";
+type LockedMember = { id: string; role: string; userId: string };
+
+type LockedMembers = {
+	role: WorkspaceRole | null;
+	target: LockedMember | null;
+	owners: number;
+};
+
+async function lockMembers(
+	tx: Prisma.TransactionClient,
+	userId: string,
+	memberId: string,
+): Promise<LockedMembers> {
+	const rows = await tx.$queryRaw<LockedMember[]>`
+		SELECT id, role, "userId" FROM "member"
+		WHERE "organizationId" = ${WORKSPACE_ID}
+			AND (id = ${memberId} OR "userId" = ${userId} OR role = 'owner')
+		ORDER BY id
+		FOR UPDATE
+	`;
+	const caller = rows.find((row) => row.userId === userId);
+
+	return {
+		role: caller ? toWorkspaceRole(caller.role) : null,
+		target: rows.find((row) => row.id === memberId) ?? null,
+		owners: rows.filter((row) => row.role === "owner").length,
+	};
 }
 
 @Injectable()
@@ -195,42 +220,33 @@ export class WorkspaceService {
 		userId: string,
 		input: SetMemberRoleInput,
 	): Promise<WorkspaceMember> {
-		const role = await workspaceRoleOf(userId, this.db);
-
-		if (!canChangeRole(role)) {
-			throw new ForbiddenException(
-				"Only an owner or an admin can change a member's role.",
-			);
-		}
-
 		const updated = await this.db.$transaction(async (tx) => {
-			const target = await tx.member.findFirst({
-				where: { id: input.memberId, organizationId: WORKSPACE_ID },
-				select: { id: true, role: true },
-			});
+			const { role, target, owners } = await lockMembers(
+				tx,
+				userId,
+				input.memberId,
+			);
+
+			if (!canChangeRole(role)) {
+				throw new ForbiddenException(
+					"Only an owner or an admin can change a member's role.",
+				);
+			}
 
 			if (!target) {
 				throw new NotFoundException("That person is not in this workspace.");
 			}
 
-			if (!canAssignRole(role, toRole(target.role), input.role)) {
+			if (!canAssignRole(role, toWorkspaceRole(target.role), input.role)) {
 				throw new ForbiddenException(
 					"Only an owner can make someone an owner, or change an owner's role.",
 				);
 			}
 
-			if (target.role === "owner" && input.role !== "owner") {
-				const owners = await tx.$queryRaw<{ id: string }[]>`
-					SELECT id FROM "member"
-					WHERE "organizationId" = ${WORKSPACE_ID} AND role = 'owner'
-					FOR UPDATE
-				`;
-
-				if (owners.length <= 1) {
-					throw new ForbiddenException(
-						"The workspace needs an owner. Make someone else an owner first.",
-					);
-				}
+			if (target.role === "owner" && input.role !== "owner" && owners <= 1) {
+				throw new ForbiddenException(
+					"The workspace needs an owner. Make someone else an owner first.",
+				);
 			}
 
 			return tx.member.update({
@@ -254,24 +270,18 @@ export class WorkspaceService {
 		userId: string,
 		input: RemoveMemberInput,
 	): Promise<RemovedMember> {
-		const role = await workspaceRoleOf(userId, this.db);
-
-		if (!canChangeRole(role)) {
-			throw new ForbiddenException(
-				"Only an owner or an admin can remove a member.",
-			);
-		}
-
 		const removed = await this.db.$transaction(async (tx) => {
-			const target = await tx.member.findFirst({
-				where: { id: input.memberId, organizationId: WORKSPACE_ID },
-				select: {
-					id: true,
-					role: true,
-					userId: true,
-					user: { select: { email: true } },
-				},
-			});
+			const { role, target, owners } = await lockMembers(
+				tx,
+				userId,
+				input.memberId,
+			);
+
+			if (!canChangeRole(role)) {
+				throw new ForbiddenException(
+					"Only an owner or an admin can remove a member.",
+				);
+			}
 
 			if (!target) {
 				throw new NotFoundException("That person is not in this workspace.");
@@ -283,23 +293,20 @@ export class WorkspaceService {
 				);
 			}
 
-			if (!canRemoveMember(role, toRole(target.role))) {
+			if (!canRemoveMember(role, toWorkspaceRole(target.role))) {
 				throw new ForbiddenException("Only an owner can remove an owner.");
 			}
 
-			if (target.role === "owner") {
-				const owners = await tx.$queryRaw<{ id: string }[]>`
-					SELECT id FROM "member"
-					WHERE "organizationId" = ${WORKSPACE_ID} AND role = 'owner'
-					FOR UPDATE
-				`;
-
-				if (owners.length <= 1) {
-					throw new ForbiddenException(
-						"The workspace needs an owner. Make someone else an owner first.",
-					);
-				}
+			if (target.role === "owner" && owners <= 1) {
+				throw new ForbiddenException(
+					"The workspace needs an owner. Make someone else an owner first.",
+				);
 			}
+
+			const user = await tx.user.findUniqueOrThrow({
+				where: { id: target.userId },
+				select: { email: true },
+			});
 
 			await tx.member.delete({ where: { id: target.id } });
 			await tx.user.update({
@@ -308,7 +315,7 @@ export class WorkspaceService {
 			});
 			await endAccessOf(tx, [target.userId]);
 
-			return target;
+			return { id: target.id, user };
 		});
 
 		await revokeSignIn(this.db, removed.user.email);
@@ -368,12 +375,6 @@ export class WorkspaceService {
 			throw new ForbiddenException("Only an owner can make someone an owner.");
 		}
 
-		if (!(await grantSignIn(this.db, input.email, role))) {
-			throw new BadRequestException(
-				`${input.email} is not in ALLOWED_SIGN_IN, so this person could not sign in. Add ${input.email} to ALLOWED_SIGN_IN in deploy/.env, then run docker compose up -d in that folder.`,
-			);
-		}
-
 		const taken = await this.db.user.findFirst({
 			where: { email: input.email },
 			select: { id: true, removedAt: true },
@@ -387,6 +388,12 @@ export class WorkspaceService {
 		const hash = await hashPassword(password);
 
 		const member = await this.db.$transaction(async (tx) => {
+			if (!(await grantSignInInTransaction(tx, input.email, role))) {
+				throw new BadRequestException(
+					`${input.email} is not in ALLOWED_SIGN_IN, so this person could not sign in. Add ${input.email} to ALLOWED_SIGN_IN in deploy/.env, then run docker compose up -d in that folder.`,
+				);
+			}
+
 			const person = taken
 				? await tx.user.update({
 						where: { id: taken.id },
@@ -439,7 +446,7 @@ export class WorkspaceService {
 			name: row.user.name,
 			email: row.user.email,
 			image: row.user.image,
-			role: toRole(row.role),
+			role: toWorkspaceRole(row.role),
 			joinedAt: row.createdAt.toISOString(),
 			isViewer: row.userId === userId,
 		};

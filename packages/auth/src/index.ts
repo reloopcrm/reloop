@@ -85,6 +85,7 @@ export {
 export {
 	endAccessOf,
 	grantSignIn,
+	grantSignInInTransaction,
 	isSignInAllowed,
 	normalizeSignInAddress,
 	readSignInGrants,

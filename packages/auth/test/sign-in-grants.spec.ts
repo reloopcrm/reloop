@@ -13,21 +13,14 @@ let stored: string[] = [];
 const fake = {
 	appSetting: {
 		findUnique: async () => ({ signInAddresses: stored }),
-		upsert: async ({
-			create,
-			update,
-		}: {
-			create: { signInAddresses: string[] };
-			update: { signInAddresses: string[] };
-		}) => {
-			stored = update.signInAddresses ?? create.signInAddresses;
-		},
+		upsert: async () => undefined,
 		update: async ({ data }: { data: { signInAddresses: string[] } }) => {
 			stored = data.signInAddresses;
 		},
 	},
+	$queryRaw: async () => [{ signInAddresses: stored }],
 	user: { findMany: async () => [] },
-	$transaction: async (run: (client: Db) => Promise<void>) => run(fake),
+	$transaction: async <T>(run: (client: Db) => Promise<T>) => run(fake),
 } as unknown as Db;
 
 beforeEach(() => {

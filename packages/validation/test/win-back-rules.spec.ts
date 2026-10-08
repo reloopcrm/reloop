@@ -65,8 +65,11 @@ describe("parseWinBackRules keeps rules that were saved before the side tier", (
 	});
 
 	it("fills missing box fields of an old row with the neutral defaults", () => {
-		const { minBoxes: _minBoxes, boxProducts: _boxProducts, ...business } =
-			tuned.business;
+		const {
+			minBoxes: _minBoxes,
+			boxProducts: _boxProducts,
+			...business
+		} = tuned.business;
 
 		const parsed = winBackRules.parse({ ...tuned, business });
 

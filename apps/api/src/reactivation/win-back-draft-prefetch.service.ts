@@ -4,6 +4,7 @@ import { fixedAiWith } from "@crm/db/plan-usage";
 import { DRAFT_KIND } from "@crm/db/plans";
 import { readProviderUsage } from "@crm/db/provider-usage";
 import { type AgentProviderSetting, readAgentProvider } from "@crm/db/settings";
+import { threadsOfContact } from "@crm/db/thread-participants";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -92,11 +93,15 @@ export class WinBackDraftPrefetchService {
 					where: { contactId: { in: ids } },
 					select: { contactId: true },
 				}),
-				this.db.emailThread.groupBy({
-					by: ["contactId"],
-					where: { contactId: { in: ids } },
-					_max: { lastMessageAt: true },
-				}),
+				Promise.all(
+					ids.map(async (id) => {
+						const row = await this.db.emailThread.aggregate({
+							where: threadsOfContact(id),
+							_max: { lastMessageAt: true },
+						});
+						return [id, row._max.lastMessageAt] as const;
+					}),
+				),
 				this.db.agentTask.findMany({
 					where: { kind: DRAFT_KIND, finishedAt: null, contactId: { in: ids } },
 					select: { contactId: true },
@@ -114,9 +119,7 @@ export class WinBackDraftPrefetchService {
 
 			const reachable = new Set(addressed.map((row) => row.id));
 			const drafted = new Set(drafts.map((row) => row.contactId));
-			const newestOf = new Map(
-				newest.map((row) => [row.contactId, row._max.lastMessageAt]),
-			);
+			const newestOf = new Map(newest);
 			const openIds = new Set(open.map((row) => row.contactId));
 			const finishedOf = new Map(
 				finished.map((row) => [row.contactId, row._max.finishedAt]),

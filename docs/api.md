@@ -1025,7 +1025,8 @@ marked passages and the follow-up delay. It writes nothing but an
   (`reactivation/win-back-draft-prefetch.service.ts`): the first
   `PERSON_VIEW.prefetch.drafts.top` of the list and the next person. It queues
   `email-draft` only for a person with an address, mail, no stored draft and no open
-  draft task, and it checks the stored draft and a finished try again under the lock.
+  draft task. Mail is `threadsOfContact`, so a person who only takes part in a
+  colleague's thread counts, as in the draft agent. It checks the stored draft and a finished try again under the lock.
   A stored draft that is stale is left alone; a rep's open asks for that one. The
   `retryAfterMs` pause holds here as well, so a person whose draft came back empty is
   not queued on every list read.

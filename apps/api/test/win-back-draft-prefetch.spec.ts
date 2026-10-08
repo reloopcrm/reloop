@@ -18,6 +18,7 @@ import {
 	actWithTestPlans,
 	TEST_PLANS,
 } from "@crm/db/test-plans";
+import { THREAD_CONTACT_ROLE } from "@crm/db/thread-participants";
 import type { ConfigService } from "@nestjs/config";
 import type { Cache } from "cache-manager";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
@@ -307,6 +308,37 @@ describe("WinBackDraftPrefetchService.queue", () => {
 
 		expect(await service.queue([missing], REASON)).toBe(0);
 		expect(await draftTasks([missing])).toHaveLength(1);
+	});
+
+	it("queues a draft for a person who only takes part in a colleague's thread", async () => {
+		await writePlan(db, null);
+		const colleague = await person("Dora");
+		const linked = await db.contact.create({
+			data: {
+				firstName: "Ede",
+				email: `${prefix}-ede@example.com`,
+				source: RecordSource.EMAIL,
+			},
+			select: { id: true },
+		});
+		const shared = await db.emailThread.findFirstOrThrow({
+			where: { contactId: colleague },
+			select: { id: true },
+		});
+		await db.emailThreadContact.create({
+			data: {
+				threadId: shared.id,
+				contactId: linked.id,
+				role: THREAD_CONTACT_ROLE.recipient,
+				firstAt: MAIL,
+				lastAt: MAIL,
+			},
+		});
+
+		const queued = await service.queue([linked.id], REASON);
+
+		expect(queued).toBe(1);
+		expect(await draftTasks([linked.id])).toHaveLength(1);
 	});
 
 	it("rechecks a stored draft and a finished try under the lock", async () => {

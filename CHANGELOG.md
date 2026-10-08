@@ -1,5 +1,103 @@
 # Changelog
 
+## [0.22.0](https://github.com/reloopcrm/reloop/compare/v0.21.0...v0.22.0) (2026-10-08)
+
+
+### Features
+
+* **agent:** read quiet customers early so win back fills in the first session ([#203](https://github.com/reloopcrm/reloop/issues/203)) ([6ca1795](https://github.com/reloopcrm/reloop/commit/6ca1795c98871b4c66b97eaf743c33e6c4650226))
+* **connections:** reconnect Google or Microsoft with one button and keep every setting ([#217](https://github.com/reloopcrm/reloop/issues/217)) ([428852d](https://github.com/reloopcrm/reloop/commit/428852dd65f424b49719e8c1e2f913819ee26e92))
+* **mailbox:** link every participant of a thread to its contact ([#180](https://github.com/reloopcrm/reloop/issues/180)) ([539a51c](https://github.com/reloopcrm/reloop/commit/539a51c41db6804b5f23280ed5fe4b1bb69da489))
+* **usage:** warn at 80 percent of a monthly limit ([#200](https://github.com/reloopcrm/reloop/issues/200)) ([ec706a3](https://github.com/reloopcrm/reloop/commit/ec706a3b5232679c55241ac714ca3001421d1dce))
+* **usage:** warn at 80 percent of the contact and mailbox limit ([#220](https://github.com/reloopcrm/reloop/issues/220)) ([b75fe5e](https://github.com/reloopcrm/reloop/commit/b75fe5e3dbe26cdf5e86242f8db048ccf556edca))
+* **win-back:** 'remind me in 7 days' hides the person until then, with a Snoozed filter ([#218](https://github.com/reloopcrm/reloop/issues/218)) ([b0c889b](https://github.com/reloopcrm/reloop/commit/b0c889b97686c1ca76616de6d22cdfaf1a92c837))
+* **win-back:** a 'replied' filter, a dashboard link to it, and 'Reply to them' on the person page ([#209](https://github.com/reloopcrm/reloop/issues/209)) ([cbcd727](https://github.com/reloopcrm/reloop/commit/cbcd727393e706b4eb4b30cd2ec28887f42d4975))
+* **win-back:** a hard no leaves the win-back list, a soft no stays marked as declined ([#212](https://github.com/reloopcrm/reloop/issues/212)) ([9173227](https://github.com/reloopcrm/reloop/commit/9173227888470fae74fcb38040a89c343b79a0f1))
+* **win-back:** continue with never starts over and shows the place in the list ([#197](https://github.com/reloopcrm/reloop/issues/197)) ([61a4cba](https://github.com/reloopcrm/reloop/commit/61a4cba2b235eb0e0a83fc18a9eb11fe9f172636))
+* **win-back:** out-of-office replies and bounces never count as an answer ([#202](https://github.com/reloopcrm/reloop/issues/202)) ([b5bbfd1](https://github.com/reloopcrm/reloop/commit/b5bbfd1a957325f7b8f99d837b6068f0c7ecea8c))
+* **win-back:** prefetch stories for the top of the list and the next person ([#176](https://github.com/reloopcrm/reloop/issues/176)) ([9ceed9b](https://github.com/reloopcrm/reloop/commit/9ceed9bc4e899ba1095613815b3b8b268f35e79f))
+
+
+### Fixes
+
+* **agent:** a research click also upgrades a task that was claimed but never ran ([#219](https://github.com/reloopcrm/reloop/issues/219)) ([3a8be8c](https://github.com/reloopcrm/reloop/commit/3a8be8cf994f79eabbe572a58e89ae099c86d7ea))
+* **agent:** a research click upgrades the waiting automatic task instead of being lost ([#206](https://github.com/reloopcrm/reloop/issues/206)) ([6ebe36d](https://github.com/reloopcrm/reloop/commit/6ebe36d1a7a7d1e6b7eb6c9664cac683b3874106))
+* **agent:** lock a fact field and never overwrite a value that changed under the write ([ad89468](https://github.com/reloopcrm/reloop/commit/ad8946835d0c13ec31ef3820ccfb1de040d76ecc))
+* **agent:** lock a fact field and never overwrite a value that changed under the write ([#193](https://github.com/reloopcrm/reloop/issues/193)) ([ad89468](https://github.com/reloopcrm/reloop/commit/ad8946835d0c13ec31ef3820ccfb1de040d76ecc))
+* **agent:** queue one backfill reading per unread thread instead of moving any open one ([3238368](https://github.com/reloopcrm/reloop/commit/3238368f3ae3cd847dbba046115860673c7c86eb))
+* **agent:** queue one backfill reading per unread thread instead of moving any open one ([#183](https://github.com/reloopcrm/reloop/issues/183)) ([3238368](https://github.com/reloopcrm/reloop/commit/3238368f3ae3cd847dbba046115860673c7c86eb))
+* **agent:** refund failed research calls, check the Perplexity key before charging, honest recheck results, settle a crashed brand read, parse Perplexity answers, cap the website body, one research config ([#231](https://github.com/reloopcrm/reloop/issues/231)) ([89b22f5](https://github.com/reloopcrm/reloop/commit/89b22f5617ffa48a8edf172b7b4f5d187bc8d3ec))
+* **agent:** research active contacts, research every new sync contact, and catch up summary language ([#179](https://github.com/reloopcrm/reloop/issues/179)) ([f8a3f71](https://github.com/reloopcrm/reloop/commit/f8a3f717d02ee5ca9b741bff2d9e6e57f4c7be19))
+* **api:** a rate limit per API key on REST and tRPC ([#247](https://github.com/reloopcrm/reloop/issues/247)) ([2923f2e](https://github.com/reloopcrm/reloop/commit/2923f2e9e917f7fe880048aade853ac31518c770))
+* **api:** agents.resume and agents.restore accept a session only ([#214](https://github.com/reloopcrm/reloop/issues/214)) ([adeae01](https://github.com/reloopcrm/reloop/commit/adeae0157cd76ec9aaa59cb1e95c6007b9b91c26))
+* **api:** check the sign-in allow-list on the export, attachment and profile routes ([29d4fa0](https://github.com/reloopcrm/reloop/commit/29d4fa0faf6e2a96289a6f833becbbfe69a16053))
+* **api:** check the sign-in allow-list on the export, attachment and profile routes ([#190](https://github.com/reloopcrm/reloop/issues/190)) ([29d4fa0](https://github.com/reloopcrm/reloop/commit/29d4fa0faf6e2a96289a6f833becbbfe69a16053))
+* **api:** close every tenant client when a maintenance script ends ([e18fe19](https://github.com/reloopcrm/reloop/commit/e18fe19635a13fa7fb842eac80225d01fbee5b59))
+* **api:** close every tenant client when a maintenance script ends ([#186](https://github.com/reloopcrm/reloop/issues/186)) ([e18fe19](https://github.com/reloopcrm/reloop/commit/e18fe19635a13fa7fb842eac80225d01fbee5b59))
+* **api:** write no dash in API messages so English users see none ([a37b25b](https://github.com/reloopcrm/reloop/commit/a37b25ba689e92bbe4b218c38f179b33653ccff1))
+* **api:** write no dash in API messages so English users see none ([#182](https://github.com/reloopcrm/reloop/issues/182)) ([a37b25b](https://github.com/reloopcrm/reloop/commit/a37b25ba689e92bbe4b218c38f179b33653ccff1))
+* **attention:** let a decline win over a quiet contact so it never reads Write again ([#196](https://github.com/reloopcrm/reloop/issues/196)) ([3400488](https://github.com/reloopcrm/reloop/commit/34004880651a4ac51b28575be4a71e74b6e72223))
+* **auth:** a custom workspace slug survives every sign-in ([#243](https://github.com/reloopcrm/reloop/issues/243)) ([73e55a1](https://github.com/reloopcrm/reloop/commit/73e55a18374fb17de648ff330c7a51a2f0c507e7))
+* **calendar:** cancelled, moved and uninvited Google events update the timeline, and large calendars sync over several ticks ([#240](https://github.com/reloopcrm/reloop/issues/240)) ([2383125](https://github.com/reloopcrm/reloop/commit/238312518fa72cedad874338768611b4c0c06a87))
+* **chat:** a builder message is never sent to the agent twice when the status write fails ([#235](https://github.com/reloopcrm/reloop/issues/235)) ([b5c80a1](https://github.com/reloopcrm/reloop/commit/b5c80a1dc7554f46886e593e0b9af4f39a4ff0ae))
+* **connections:** show a stopped mailbox as needing attention and translate connect and sync errors ([5bc0d21](https://github.com/reloopcrm/reloop/commit/5bc0d211f1823853c0a3f4512fee30e4b5b726b1))
+* **connections:** show a stopped mailbox as needing attention and translate connect and sync errors ([#191](https://github.com/reloopcrm/reloop/issues/191)) ([5bc0d21](https://github.com/reloopcrm/reloop/commit/5bc0d211f1823853c0a3f4512fee30e4b5b726b1))
+* **contacts:** creating a contact returns 409 for a duplicate or suppressed address and 400 for an unknown company or owner ([#246](https://github.com/reloopcrm/reloop/issues/246)) ([fbed9d4](https://github.com/reloopcrm/reloop/commit/fbed9d4e61f55426bb7bd621bfb4427963e931f3))
+* **currency:** hide stale base amounts and stop counting amountless deals as unconverted ([#195](https://github.com/reloopcrm/reloop/issues/195)) ([15c0a86](https://github.com/reloopcrm/reloop/commit/15c0a860ca27cd0dc2ece1b7adf2f5c68a6b21fc))
+* **db:** bun install works in a fresh checkout without .env ([#205](https://github.com/reloopcrm/reloop/issues/205)) ([ab43641](https://github.com/reloopcrm/reloop/commit/ab436411a0a81eac5e22a238e970454e1bc786ce))
+* **db:** count only research sessions that ran in the monthly usage ([29ae624](https://github.com/reloopcrm/reloop/commit/29ae624b523535f66c24c842e4ae030dc0cbf8b2))
+* **db:** count only research sessions that ran in the monthly usage ([#181](https://github.com/reloopcrm/reloop/issues/181)) ([29ae624](https://github.com/reloopcrm/reloop/commit/29ae624b523535f66c24c842e4ae030dc0cbf8b2))
+* **db:** db:generate and build work without DATABASE_URL ([#215](https://github.com/reloopcrm/reloop/issues/215)) ([8731b8e](https://github.com/reloopcrm/reloop/commit/8731b8e8752684ac9d6ebc18dd9e85d012bc0f5a))
+* **db:** load the root .env and resolve prisma without PATH in db:test ([3ff91fe](https://github.com/reloopcrm/reloop/commit/3ff91fe516428320a3ef3dde867ce568762ceb26))
+* **db:** load the root .env and resolve prisma without PATH in db:test ([#189](https://github.com/reloopcrm/reloop/issues/189)) ([3ff91fe](https://github.com/reloopcrm/reloop/commit/3ff91fe516428320a3ef3dde867ce568762ceb26))
+* **db:** run prisma generate through the running bun binary so the image build works without bunx ([#210](https://github.com/reloopcrm/reloop/issues/210)) ([62ea786](https://github.com/reloopcrm/reloop/commit/62ea7865975e55c051c4f4f83e65062bfba212aa))
+* **deals:** leave archived deals out of the dashboard, the unconverted count and the company and contact sheets ([93973ec](https://github.com/reloopcrm/reloop/commit/93973ec2400a7235229624e8d4fbf6fc09be825c))
+* **deals:** leave archived deals out of the dashboard, the unconverted count and the company and contact sheets ([#194](https://github.com/reloopcrm/reloop/issues/194)) ([93973ec](https://github.com/reloopcrm/reloop/commit/93973ec2400a7235229624e8d4fbf6fc09be825c))
+* **deals:** one open deal per quote, clean contacts on company change, reasons on closed stages, no stage change on archived deals ([#224](https://github.com/reloopcrm/reloop/issues/224)) ([38222fc](https://github.com/reloopcrm/reloop/commit/38222fc7a088103870671a2b06c15441413a0d54))
+* **exports:** no formula injection in CSV headers, names for person fields, and a visible failure when the export breaks ([#237](https://github.com/reloopcrm/reloop/issues/237)) ([98fc909](https://github.com/reloopcrm/reloop/commit/98fc909fb3a919963af04c92f54e6928d33d70e7))
+* **imap:** re-read history when a creating rule is turned on ([cac17c4](https://github.com/reloopcrm/reloop/commit/cac17c42b02f74c8d938314fac7b764c86da5b9e))
+* **imap:** re-read history when a creating rule is turned on ([#187](https://github.com/reloopcrm/reloop/issues/187)) ([cac17c4](https://github.com/reloopcrm/reloop/commit/cac17c42b02f74c8d938314fac7b764c86da5b9e))
+* **mailbox:** add every sender of a relevant thread from the company domain as a contact ([#177](https://github.com/reloopcrm/reloop/issues/177)) ([28165bb](https://github.com/reloopcrm/reloop/commit/28165bbc3192117904dbd14a5e07a352d7fb74e0))
+* **mailbox:** count real-answer text in code points and match JS whitespace in SQL ([#232](https://github.com/reloopcrm/reloop/issues/232)) ([0921ae1](https://github.com/reloopcrm/reloop/commit/0921ae1b749a01fe889fc32e3b1b722d2154a25d))
+* **mailbox:** parse Gmail, Calendar and Graph responses with Zod at the client ([83b0fc8](https://github.com/reloopcrm/reloop/commit/83b0fc80369dd60841ce1cdd9ee6afa5f5ed3097))
+* **mailbox:** parse Gmail, Calendar and Graph responses with Zod at the client ([#192](https://github.com/reloopcrm/reloop/issues/192)) ([83b0fc8](https://github.com/reloopcrm/reloop/commit/83b0fc80369dd60841ce1cdd9ee6afa5f5ed3097))
+* **mailbox:** skip a message the store keeps rejecting after three attempts so the cursor moves on ([#188](https://github.com/reloopcrm/reloop/issues/188)) ([c327b83](https://github.com/reloopcrm/reloop/commit/c327b83d61b3e22a4ae8d75e51188dd7bbd26b40))
+* **mailbox:** walk a cursor past relevant threads that are not worth adopting ([700266e](https://github.com/reloopcrm/reloop/commit/700266e92d70db694508d4fc029df683fffe6605))
+* **mailbox:** walk a cursor past relevant threads that are not worth adopting ([#185](https://github.com/reloopcrm/reloop/issues/185)) ([700266e](https://github.com/reloopcrm/reloop/commit/700266e92d70db694508d4fc029df683fffe6605))
+* **onboarding:** explain a cancelled Google grant, open the dashboard for manual records, no spinner without AI, reserve every route slug ([#228](https://github.com/reloopcrm/reloop/issues/228)) ([f1bae44](https://github.com/reloopcrm/reloop/commit/f1bae442f0692f65fd6046ee5ed62e5dd69bd08d))
+* **quotes:** the quotes list is a data table with phone cards and no sideways scroll ([#230](https://github.com/reloopcrm/reloop/issues/230)) ([7c2cec9](https://github.com/reloopcrm/reloop/commit/7c2cec9132154919fada059e0c71b0685dd10ba7))
+* **search:** quick search hides archived records, finds full names, and shows a loading state ([#239](https://github.com/reloopcrm/reloop/issues/239)) ([f2ac600](https://github.com/reloopcrm/reloop/commit/f2ac600680889460db4ad9f9815756d9ad28cfc4))
+* **security:** refuse API keys on agent code changes and end sessions and keys when a sign-in grant is revoked ([#198](https://github.com/reloopcrm/reloop/issues/198)) ([c299e7d](https://github.com/reloopcrm/reloop/commit/c299e7d82da0f5e5b7d9b0a37b07beed6d44af21))
+* **security:** stub the grant lookup in the two session tests and run every security group ([#207](https://github.com/reloopcrm/reloop/issues/207)) ([c261f4d](https://github.com/reloopcrm/reloop/commit/c261f4d24d9071aaff54a98f514c64a3530b80ab))
+* **slack:** the agent can never notify a whole channel or a person through injected text ([#238](https://github.com/reloopcrm/reloop/issues/238)) ([4a28832](https://github.com/reloopcrm/reloop/commit/4a288329ca43057a5ff7075a1863bd6b6254a07c))
+* **test:** hold the demo lock before asserting and close every seed transaction ([#223](https://github.com/reloopcrm/reloop/issues/223)) ([eb43c2b](https://github.com/reloopcrm/reloop/commit/eb43c2b7e7ce815ed8408fadbe5b990c7cf04171))
+* **test:** make the suites that time out under load deterministic ([#221](https://github.com/reloopcrm/reloop/issues/221)) ([237814f](https://github.com/reloopcrm/reloop/commit/237814f244ccca5651accc34bd8e38064ed6b3f3))
+* **test:** the enrichment queue spec finds its own rows behind a full page of other open tasks ([#245](https://github.com/reloopcrm/reloop/issues/245)) ([a6b456d](https://github.com/reloopcrm/reloop/commit/a6b456d8edeb9c4faa9e25ad31ef9166992401dc))
+* **tracking:** parse the collector batch with Zod and drop bad events quietly ([#208](https://github.com/reloopcrm/reloop/issues/208)) ([4a4acf4](https://github.com/reloopcrm/reloop/commit/4a4acf44c63fc1cedbfdfa1cf3ac4dea638bee93))
+* **ui:** open a clickable table row with Enter or Space ([#229](https://github.com/reloopcrm/reloop/issues/229)) ([cb67d88](https://github.com/reloopcrm/reloop/commit/cb67d8839aaf33adc3dff3588a56682019381c4d))
+* **webhooks:** require https for webhook addresses and show no secret characters ([#242](https://github.com/reloopcrm/reloop/issues/242)) ([7fc132b](https://github.com/reloopcrm/reloop/commit/7fc132b35dfba95d34bc18af068c9460019b3325))
+* **win-back:** count only people with an address in the place in the list ([#204](https://github.com/reloopcrm/reloop/issues/204)) ([183189d](https://github.com/reloopcrm/reloop/commit/183189d35ecf9adcd48cf768ea9d5678ee11d182))
+* **win-back:** removed members get no follow-up tasks, and rule defaults come from one place ([#248](https://github.com/reloopcrm/reloop/issues/248)) ([ef69152](https://github.com/reloopcrm/reloop/commit/ef6915214ca236638b5a2adb94ce0d051aa53b4f))
+* **win-back:** show every rejected person in Not for us regardless of the include rules ([e5b7f81](https://github.com/reloopcrm/reloop/commit/e5b7f810e08a7bdb4cd1a7cf5c9c8d75065e8f66))
+* **win-back:** show every rejected person in Not for us regardless of the include rules ([#184](https://github.com/reloopcrm/reloop/issues/184)) ([e5b7f81](https://github.com/reloopcrm/reloop/commit/e5b7f810e08a7bdb4cd1a7cf5c9c8d75065e8f66))
+* **win-back:** the 'answered' card and its filtered list show the same people ([#222](https://github.com/reloopcrm/reloop/issues/222)) ([de3e61f](https://github.com/reloopcrm/reloop/commit/de3e61f88f51dcfa75005c72ccefc49717efc8e1))
+
+
+### Performance
+
+* **win-back:** store a real-answer flag per mail so the replied filter stops running a regex over every mail ([#216](https://github.com/reloopcrm/reloop/issues/216)) ([dbcaaea](https://github.com/reloopcrm/reloop/commit/dbcaaea72b17d088d1c1cb6f880e0cbb26562bcb))
+
+
+### Refactors
+
+* move tunable constants into the area config and drop code comments ([#199](https://github.com/reloopcrm/reloop/issues/199)) ([054baf0](https://github.com/reloopcrm/reloop/commit/054baf038d89ab2d5188bc4737bec89dca79fb78))
+* the open core reads plan limits through a cloud slot ([#211](https://github.com/reloopcrm/reloop/issues/211)) ([a36d3df](https://github.com/reloopcrm/reloop/commit/a36d3df5242115a49599813e4a4cf5bad2141906))
+
+
+### Documentation
+
+* describe the open core, not the hosted cloud ([#201](https://github.com/reloopcrm/reloop/issues/201)) ([97cf785](https://github.com/reloopcrm/reloop/commit/97cf78570162b854b3de4a7406500e826c4ac787))
+
 ## [0.21.0](https://github.com/reloopcrm/reloop/compare/v0.20.0...v0.21.0) (2026-10-03)
 
 

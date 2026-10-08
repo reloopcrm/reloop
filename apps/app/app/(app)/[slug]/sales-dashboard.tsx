@@ -289,7 +289,11 @@ export function SalesDashboard({
 								winBack.answered > 0 ? (
 									<Button asChild variant="link" size="text">
 										<Link
-											href={wroteBackListHref(workspaceUrl("/win-back"), scope)}
+											href={wroteBackListHref(
+												workspaceUrl("/win-back"),
+												scope,
+												winBack.since,
+											)}
 										>
 											{t("See who wrote back")}
 										</Link>

@@ -5,6 +5,7 @@ import ts from "typescript";
 import { HOSTED_ROUTES, MARKETING_ROUTES } from "../cloud/slots.data";
 import { DICTIONARIES } from "../lib/i18n/dictionaries";
 import { PROXY } from "../lib/proxy-config";
+import { TEST_TIMEOUT } from "./timeouts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -209,15 +210,26 @@ describe("every public page", () => {
 		expect(missing).toEqual([]);
 	});
 
-	it("renders German text and German metadata under the German locale", () => {
-		const run = Bun.spawnSync(["bun", "test", RENDER_SPEC], {
-			cwd: root,
-			env: { ...process.env, PUBLIC_PAGES_RENDER: "1" },
-		});
-		const report = `${run.stdout.toString()}\n${run.stderr.toString()}`;
+	it(
+		"renders German text and German metadata under the German locale",
+		async () => {
+			const run = Bun.spawn(["bun", "test", RENDER_SPEC], {
+				cwd: root,
+				env: { ...process.env, PUBLIC_PAGES_RENDER: "1" },
+				stdout: "pipe",
+				stderr: "pipe",
+			});
+			const [stdout, stderr, exitCode] = await Promise.all([
+				new Response(run.stdout).text(),
+				new Response(run.stderr).text(),
+				run.exited,
+			]);
+			const report = `${stdout}\n${stderr}`;
 
-		expect(run.exitCode, report).toBe(0);
-		expect(report, report).toContain(" 0 fail");
-		expect(report, report).not.toContain(" 0 pass");
-	});
+			expect(exitCode, report).toBe(0);
+			expect(report, report).toContain(" 0 fail");
+			expect(report, report).not.toContain(" 0 pass");
+		},
+		TEST_TIMEOUT.coldChildProcessMs,
+	);
 });

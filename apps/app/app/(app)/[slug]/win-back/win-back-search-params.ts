@@ -1,10 +1,12 @@
 import {
 	createLoader,
+	createParser,
 	createSerializer,
 	parseAsBoolean,
 	parseAsInteger,
 	parseAsStringLiteral,
 } from "nuqs/server";
+import { z } from "zod";
 import {
 	createListSearchParams,
 	type ListInput,
@@ -17,6 +19,18 @@ export const winBackTable = createListSearchParams({
 	facetIds: ["potential"] as const,
 });
 
+const windowStart = z.iso.datetime({ offset: true });
+
+const parseAsWindowStart = createParser({
+	parse: (value: string) =>
+		windowStart.safeParse(value).success ? value : null,
+	serialize: (value: string) => value,
+});
+
+export function windowDay(since: string): Date {
+	return new Date(`${since.slice(0, 10)}T00:00:00Z`);
+}
+
 export const winBackScopeParsers = {
 	scope: parseAsStringLiteral(["me", "everyone"] as const).withDefault(
 		"everyone",
@@ -24,6 +38,7 @@ export const winBackScopeParsers = {
 	quiet: parseAsInteger.withDefault(0),
 	rejected: parseAsBoolean.withDefault(false),
 	replied: parseAsBoolean.withDefault(false),
+	since: parseAsWindowStart,
 };
 
 export const winBackParsers = {
@@ -35,8 +50,12 @@ export const winBackSearchParams = createLoader(winBackParsers);
 
 const winBackUrl = createSerializer(winBackScopeParsers);
 
-export function wroteBackListHref(listPath: string, scope: WinBackScope) {
-	return winBackUrl(listPath, { replied: true, scope });
+export function wroteBackListHref(
+	listPath: string,
+	scope: WinBackScope,
+	since: string,
+) {
+	return winBackUrl(listPath, { replied: true, scope, since });
 }
 
 export type WinBackScope = "me" | "everyone";
@@ -56,6 +75,7 @@ export function winBackInput(
 		quiet: number;
 		rejected: boolean;
 		replied: boolean;
+		since: string | null;
 	},
 ) {
 	return {
@@ -69,5 +89,6 @@ export function winBackInput(
 		quietForDays: scope.quiet,
 		rejected: scope.rejected,
 		replied: scope.replied,
+		since: scope.replied && scope.since ? scope.since : undefined,
 	};
 }

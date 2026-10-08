@@ -6,7 +6,7 @@ const reactQuery = { ...(await import("@tanstack/react-query")) };
 const invalidated: string[] = [];
 const quiet: string[] = [];
 
-function procedures(path: string[] = []): unknown {
+function procedures(path: string[] = []) {
 	return new Proxy(() => {}, {
 		get(_target, key) {
 			if (key === "queryKey" || key === "pathKey") {

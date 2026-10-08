@@ -1,6 +1,7 @@
 import { DealStage, db } from "@crm/db";
 import { LOSING_DEAL_STAGES, OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
 import { domainOf, normalise } from "./names";
+import { RESEARCH } from "./research-config";
 
 export type RecordKind = "contact" | "company" | "deal";
 
@@ -58,13 +59,15 @@ export type DealListOptions = {
 
 export async function listDeals(options: DealListOptions = {}) {
 	const status = options.status ?? "open";
-	const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+	const { defaultLimit, maxLimit } = RESEARCH.lookup.deals;
+	const limit = Math.min(Math.max(options.limit ?? defaultLimit, 1), maxLimit);
 	const now = options.now ?? new Date();
 	const cutoff =
 		options.inactiveForDays === undefined
 			? null
 			: new Date(
-					now.getTime() - Math.max(options.inactiveForDays, 0) * 86_400_000,
+					now.getTime() -
+						Math.max(options.inactiveForDays, 0) * RESEARCH.lookup.dayMs,
 				);
 	const stages =
 		status === "open"
@@ -143,7 +146,9 @@ export async function listDeals(options: DealListOptions = {}) {
 				lastActivityAt: deal.lastActivityAt?.toISOString() ?? null,
 				daysSinceLastActivity: Math.max(
 					0,
-					Math.floor((now.getTime() - activityDate.getTime()) / 86_400_000),
+					Math.floor(
+						(now.getTime() - activityDate.getTime()) / RESEARCH.lookup.dayMs,
+					),
 				),
 				neverActive: deal.lastActivityAt === null,
 				expectedCloseDate: deal.expectedCloseDate?.toISOString() ?? null,
@@ -160,7 +165,7 @@ export async function searchCrm(
 ): Promise<SearchResult> {
 	const term = query.trim();
 	const kinds = options.kinds ?? ["contact", "company", "deal"];
-	const limit = options.limit ?? 10;
+	const limit = options.limit ?? RESEARCH.lookup.search.defaultLimit;
 
 	if (term.length < 2) {
 		return { query: term, contacts: [], companies: [], deals: [], total: 0 };

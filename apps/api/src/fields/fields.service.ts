@@ -568,20 +568,21 @@ export class FieldsService {
 		entity: FieldEntity,
 		recordIds: string[],
 	): Promise<Map<string, Record<string, FieldValueJson>>> {
-		return this.valuesByRecord(entity, recordIds, true);
+		return this.valuesByRecord(entity, recordIds, true, false);
 	}
 
 	async exportValuesFor(
 		entity: FieldEntity,
 		recordIds: string[],
 	): Promise<Map<string, Record<string, FieldValueJson>>> {
-		return this.valuesByRecord(entity, recordIds, false);
+		return this.valuesByRecord(entity, recordIds, false, true);
 	}
 
 	private async valuesByRecord(
 		entity: FieldEntity,
 		recordIds: string[],
 		tableOnly: boolean,
+		nameUsers: boolean,
 	): Promise<Map<string, Record<string, FieldValueJson>>> {
 		const byRecord = new Map<string, Record<string, FieldValueJson>>();
 
@@ -625,7 +626,43 @@ export class FieldsService {
 			byRecord.set(recordId, current);
 		}
 
+		if (nameUsers) await this.nameUsers(definitions, byRecord);
+
 		return byRecord;
+	}
+
+	private async nameUsers(
+		definitions: FieldDefinitionWithOptions[],
+		byRecord: Map<string, Record<string, FieldValueJson>>,
+	): Promise<void> {
+		const userKeys = definitions
+			.filter((definition) => definition.type === "USER")
+			.map((definition) => definition.key);
+		if (userKeys.length === 0) return;
+
+		const ids = new Set<string>();
+		for (const values of byRecord.values()) {
+			for (const key of userKeys) {
+				const value = values[key];
+				if (typeof value === "string") ids.add(value);
+			}
+		}
+		if (ids.size === 0) return;
+
+		const users = await this.db.user.findMany({
+			where: { id: { in: [...ids] } },
+			select: { id: true, name: true, email: true },
+		});
+		const names = new Map(
+			users.map((user) => [user.id, user.name || user.email]),
+		);
+
+		for (const values of byRecord.values()) {
+			for (const key of userKeys) {
+				const value = values[key];
+				if (typeof value === "string") values[key] = names.get(value) ?? null;
+			}
+		}
 	}
 
 	/**

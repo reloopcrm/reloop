@@ -45,10 +45,7 @@ export async function runBrand({
 }: {
 	companyId: string;
 }): Promise<BrandResult> {
-	const company = await db.company.findUnique({
-		where: { id: companyId },
-		select: COMPANY_FIELDS,
-	});
+	const company = await findCompany(companyId);
 
 	if (!company) return { enriched: false, reason: say(COPY.brand.noCompany) };
 
@@ -70,7 +67,33 @@ export async function runBrand({
 		},
 	});
 
-	const result = await brandFromWebsite(company.domain);
+	try {
+		return await readBrand(companyId, company.domain, company);
+	} catch (error) {
+		await settle(
+			companyId,
+			EnrichmentStatus.FAILED,
+			error instanceof Error ? error.message : String(error),
+		).catch(() => {});
+		throw error;
+	}
+}
+
+type CompanySnapshot = NonNullable<Awaited<ReturnType<typeof findCompany>>>;
+
+function findCompany(companyId: string) {
+	return db.company.findUnique({
+		where: { id: companyId },
+		select: COMPANY_FIELDS,
+	});
+}
+
+async function readBrand(
+	companyId: string,
+	domain: string,
+	company: CompanySnapshot,
+): Promise<BrandResult> {
+	const result = await brandFromWebsite(domain);
 
 	if (result.outcome === "skipped") {
 		await settle(companyId, EnrichmentStatus.SKIPPED, result.reason);

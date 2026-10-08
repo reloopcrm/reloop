@@ -842,7 +842,6 @@ export class ContactsService {
 			select: {
 				id: true,
 				emailDraft: true,
-				_count: { select: { emailThreads: true } },
 			},
 		});
 
@@ -875,7 +874,9 @@ export class ContactsService {
 			const failed =
 				!queued &&
 				waitingUntil === null &&
-				contact._count.emailThreads > 0 &&
+				(await this.db.emailThread.count({
+					where: threadsOfContact(id),
+				})) > 0 &&
 				(await this.db.agentTask.count({
 					where: {
 						contactId: id,

@@ -17,6 +17,7 @@ import {
 	actWithTestPlans,
 	TEST_PLANS,
 } from "@crm/db/test-plans";
+import { THREAD_CONTACT_ROLE } from "@crm/db/thread-participants";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ContactsService } from "../src/contacts/contacts.service";
 
@@ -263,6 +264,32 @@ describe("the email a rep can send back", () => {
 		expect(state.failed).toBe(true);
 		expect(state.draft).toBeNull();
 		expect(state.queued).toBe(false);
+	});
+
+	it("says the agent failed for a person who only takes part in a colleague's thread", async () => {
+		const id = await person("dabei");
+		const colleague = await person("kollegin");
+		const shared = await thread(
+			colleague,
+			new Date("2026-08-01T00:00:00.000Z"),
+		);
+		await db.emailThreadContact.create({
+			data: {
+				threadId: shared,
+				contactId: id,
+				role: THREAD_CONTACT_ROLE.recipient,
+				firstAt: new Date("2026-08-01T00:00:00.000Z"),
+				lastAt: new Date("2026-08-01T00:00:00.000Z"),
+			},
+		});
+		await doneTask(
+			id,
+			"Gave up after 3 attempts: the session never reported back.",
+		);
+
+		const state = await service.draft(id);
+
+		expect(state.failed).toBe(true);
 	});
 
 	it("blames no failure when the contact simply has no mail", async () => {

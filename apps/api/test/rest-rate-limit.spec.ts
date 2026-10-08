@@ -19,6 +19,7 @@ describe("the REST rate limit", () => {
 	let server: ReturnType<NonNullable<typeof app>["getHttpServer"]>;
 	let firstKey = "";
 	let secondKey = "";
+	let thirdKey = "";
 	let storedKeys: string[] = [];
 	let allowed: string | undefined;
 	const spies: { mockRestore: () => void }[] = [];
@@ -62,6 +63,12 @@ describe("the REST rate limit", () => {
 		secondKey = (
 			await auth.api.createApiKey({
 				body: { name: "rate two", userId, expiresIn: null },
+			})
+		).key;
+
+		thirdKey = (
+			await auth.api.createApiKey({
+				body: { name: "rate three", userId, expiresIn: null },
 			})
 		).key;
 
@@ -136,5 +143,50 @@ describe("the REST rate limit", () => {
 		});
 
 		expect(after).toBeLessThanOrEqual(before);
+	});
+
+	it("counts a key on /api/trpc against the same counter as the REST bridge", async () => {
+		const trpc = () =>
+			request(server)
+				.get("/api/trpc/currency.settings")
+				.set(API_KEY_HEADER, thirdKey);
+
+		expect((await call(thirdKey)).status).toBe(200);
+		expect((await call(thirdKey)).status).toBe(200);
+		expect((await trpc()).status).toBe(200);
+
+		const refused = await trpc();
+
+		expect(refused.status).toBe(429);
+		expect(Number(refused.headers["retry-after"])).toBeGreaterThanOrEqual(1);
+		expect((await call(thirdKey)).status).toBe(429);
+	});
+
+	it("does not limit a session style request on /api/trpc", async () => {
+		for (let i = 0; i < limit.max + 2; i += 1) {
+			const response = await request(server).get("/api/trpc/currency.settings");
+
+			expect(response.status).not.toBe(429);
+		}
+	});
+
+	it("closes the server after an early 429 on a POST with a JSON body", async () => {
+		const refused = await request(server)
+			.post("/api/rest/contacts/search")
+			.set(API_KEY_HEADER, firstKey)
+			.send({ pageSize: 1, search: "x".repeat(20_000) });
+
+		expect(refused.status).toBe(429);
+
+		const closing = app?.close();
+		app = undefined;
+		const closed = await Promise.race([
+			closing?.then(() => true),
+			new Promise<boolean>((resolve) =>
+				setTimeout(() => resolve(false), 3_000),
+			),
+		]);
+
+		expect(closed).toBe(true);
 	});
 });

@@ -336,7 +336,7 @@ reach. `/rest` stays because a Vercel deployment uses it. Both mounts are the sa
 middleware, so neither opens anything the other does not.
 
 **A key is rate limited on the bridge.** `restRateLimit` (`src/http/rest-rate-limit.middleware.ts`)
-runs in front of both mounts. A request with an `x-api-key` header counts against a fixed
+runs in front of both bridge mounts and in front of `/api/trpc`, one shared counter per key. A request with an `x-api-key` header counts against a fixed
 window per key: `REST_RATE_LIMIT.apiKey` in `src/http/http-config.ts` (300 requests per
 minute). Past it the answer is 429 with a `Retry-After` header in seconds. A cookie request
 carries no key header and is never counted. The count lives in the `rateLimit` table
@@ -344,7 +344,7 @@ carries no key header and is never counted. The count lives in the `rateLimit` t
 process shares it. A header that matches no stored key is not counted and writes no row;
 the credential check answers it 401. One upsert counts and reads in one statement. Expired `rest:` rows are
 pruned once per window per process. better-auth's own API key limit stays off. The
-`/internal/*` cron routes, the tracking collector and `/api/trpc` are not on this limit.
+`/internal/*` cron routes and the tracking collector are not on this limit. The 429 waits for the request body to drain before it answers, because Bun, the production runtime, keeps the connection open and blocks shutdown when a response leaves a body unread.
 
 **`GET /api/openapi.json` is the document a self-hoster reads**, and it is the tRPC
 bridge half only, with `baseUrl` pointing at `/api/rest`. It answers 401 without a

@@ -49,6 +49,10 @@ export async function createApp(
 	);
 
 	app.use(requestSizeLimit());
+	const keyRateLimit = restRateLimit(options.restRateLimit);
+	for (const mount of [...REST.bridge.mounts, REQUEST_SIZE.trpc.path]) {
+		app.use(mount, keyRateLimit);
+	}
 	app.use(REQUEST_SIZE.trpc.path, trpcBodyLimit());
 	app.use(
 		BILLING_SEAM.webhook.path,
@@ -67,7 +71,6 @@ export async function createApp(
 
 	let restBridge: ((req: Request, res: Response) => Promise<void>) | undefined;
 	for (const mount of REST.bridge.mounts) {
-		app.use(mount, restRateLimit(options.restRateLimit));
 		app.use(mount, (req: Request, res: Response, next: NextFunction) => {
 			if (!restBridge) {
 				next();

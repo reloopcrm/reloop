@@ -115,16 +115,26 @@ export function restRateLimit(
 					return;
 				}
 
-				res
-					.status(429)
-					.set(
-						REST_RATE_LIMIT.retryAfterHeader,
-						String(decision.retryAfterSeconds),
-					)
-					.json({
-						message: REST_RATE_LIMIT.message,
-						code: "TOO_MANY_REQUESTS",
-					});
+				const refuse = (): void => {
+					res
+						.status(429)
+						.set(
+							REST_RATE_LIMIT.retryAfterHeader,
+							String(decision.retryAfterSeconds),
+						)
+						.json({
+							message: REST_RATE_LIMIT.message,
+							code: "TOO_MANY_REQUESTS",
+						});
+				};
+
+				if (req.readableEnded) {
+					refuse();
+					return;
+				}
+
+				req.once("end", refuse);
+				req.resume();
 			})
 			.catch(next);
 	};

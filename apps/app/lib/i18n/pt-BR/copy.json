@@ -266,5 +266,6 @@
 	"Only an owner or an admin can remove a member.": "Só quem é dono ou admin pode remover um membro.",
 	"You cannot remove yourself from the workspace.": "Você não pode remover a si mesmo do espaço de trabalho.",
 	"Only an owner can remove an owner.": "Só um dono pode remover outro dono.",
-	"Show archived": "Mostrar arquivados"
+	"Show archived": "Mostrar arquivados",
+	"That deal is archived. Restore it before you change its stage.": "Este negócio está arquivado. Restaure-o antes de mudar a etapa."
 }

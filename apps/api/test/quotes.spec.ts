@@ -61,24 +61,27 @@ type Fixture = {
 	daysAgo?: number;
 	openDeal?: boolean;
 	prefix?: string;
+	companyOf?: string;
 };
 
 const ids: Record<string, { threadId: string; companyId: string }> = {};
 
 async function make(fixture: Fixture): Promise<void> {
 	const prefix = fixture.prefix ?? "";
-	const companyId = `${prefix}company-${fixture.key}-${suffix}`;
+	const companyId = `${prefix}company-${fixture.companyOf ?? fixture.key}-${suffix}`;
 	const contactId = `${prefix}contact-${fixture.key}-${suffix}`;
 	const threadId = `${prefix}thread-${fixture.key}-${suffix}`;
 	const sentAt = new Date(Date.now() - (fixture.daysAgo ?? 3) * 86_400_000);
 
-	await db.company.create({
-		data: {
-			id: companyId,
-			name: fixture.company,
-			domain: `${fixture.key}.${domain}`,
-		},
-	});
+	if (!fixture.companyOf) {
+		await db.company.create({
+			data: {
+				id: companyId,
+				name: fixture.company,
+				domain: `${fixture.key}.${domain}`,
+			},
+		});
+	}
 	await db.contact.create({
 		data: {
 			id: contactId,
@@ -266,5 +269,31 @@ describe("quotes waiting for a deal", () => {
 		await expect(
 			quotes.create(userId, ids.waiting?.threadId ?? ""),
 		).rejects.toThrow("That quote is no longer waiting.");
+	});
+
+	it("makes one deal when two threads of one company are turned at once", async () => {
+		await make({ key: "twin-a", company: "Twin Co" });
+		await make({ key: "twin-b", company: "Twin Co", companyOf: "twin-a" });
+		const companyId = ids["twin-a"]?.companyId ?? "";
+
+		const outcomes = await Promise.allSettled([
+			quotes.create(userId, ids["twin-a"]?.threadId ?? ""),
+			quotes.create(userId, ids["twin-b"]?.threadId ?? ""),
+		]);
+
+		const made = outcomes.filter((outcome) => outcome.status === "fulfilled");
+		const refused = outcomes.filter((outcome) => outcome.status === "rejected");
+		expect(made).toHaveLength(1);
+		expect(refused).toHaveLength(1);
+		expect(String((refused[0] as PromiseRejectedResult).reason)).toContain(
+			"That quote is no longer waiting.",
+		);
+
+		expect(await db.deal.count({ where: { companyId } })).toBe(1);
+
+		const handled = await db.emailThread.count({
+			where: { companyId, quoteHandledAt: { not: null } },
+		});
+		expect(handled).toBe(1);
 	});
 });

@@ -58,8 +58,11 @@ has not claimed it (`startedAt` is null), `enqueue` rewrites that row under the 
 idempotency lock: the rep's reason, the higher of the two priorities and the earlier
 of its `dueAt` and now. The click answers `queued: true`, and the pre-check sees the
 rep's reason. A row the agent already claimed stays as it is and the click answers
-`queued: false`. Only `contactRequested` sets `upgradeOpen`; every other caller of
-`enqueue` still skips an open row without a write.
+`queued: false`. A claim the research lane hands back unrun, because the monthly
+budget or a blocked model provider stops it, is waiting again: `returnClaim` clears
+`startedAt` on a first attempt, so the click still takes that row over. Only
+`contactRequested` sets `upgradeOpen`; every other caller of `enqueue` still skips an
+open row without a write.
 
 About to add a vendor client to `apps/api`? You want `apps/agent/agent/lib`. One
 documented exception, for timing: the exchange-rate fetcher, below.

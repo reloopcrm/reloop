@@ -22,10 +22,18 @@ import {
 	eventTime,
 	type GoogleEvent,
 } from "./calendar.client";
+import { CALENDAR } from "./calendar.config";
+import {
+	readCalendarPage,
+	serialiseCalendarPage,
+} from "./calendar-page-cursor";
 
-const MAX_PAGES_PER_TICK = 5;
-
-const HORIZON_DAYS = 180;
+type CalendarPass = {
+	syncToken: string | null;
+	pageToken: string | undefined;
+	timeMin: string;
+	timeMax: string;
+};
 
 export type SyncOutcome = {
 	source: "calendar";
@@ -87,20 +95,20 @@ export class CalendarSyncService {
 			suppressedEmails,
 		};
 
-		let pageToken: string | undefined;
-		let syncToken = row.cursor ?? undefined;
+		let pass = this.startPass(row);
 		let written = 0;
 		let removed = 0;
 
-		for (let page = 0; page < MAX_PAGES_PER_TICK; page += 1) {
+		for (let page = 0; page < CALENDAR.sync.maxPagesPerTick; page += 1) {
 			const result = await this.calendar.listEvents(token.accessToken, {
-				syncToken,
-				pageToken,
-				timeMin: new Date().toISOString(),
-				timeMax: this.horizon().toISOString(),
+				syncToken: pass.syncToken ?? undefined,
+				pageToken: pass.pageToken,
+				timeMin: pass.timeMin,
+				timeMax: pass.timeMax,
 			});
 
 			if (result.outcome === "cursor-invalid") {
+				await this.state.saveBackfill(row.id, null);
 				await this.state.clearCursor(row.id, result.reason);
 				return {
 					source: "calendar",
@@ -133,6 +141,9 @@ export class CalendarSyncService {
 			}
 
 			if (result.outcome === "failed" || result.outcome === "unreadable") {
+				if (result.outcome === "failed" && !result.retryable) {
+					await this.state.saveBackfill(row.id, null);
+				}
 				await this.state.markFailed(row.id, result.reason);
 				return {
 					source: "calendar",
@@ -148,12 +159,12 @@ export class CalendarSyncService {
 				if (applied === "removed") removed += 1;
 			}
 
-			pageToken = result.data.nextPageToken;
+			const nextPageToken = result.data.nextPageToken;
 
-			if (!pageToken) {
-				syncToken = result.data.nextSyncToken ?? syncToken;
+			if (!nextPageToken) {
 				await this.state.settle(row.id, {
-					cursor: syncToken ?? null,
+					cursor: result.data.nextSyncToken ?? pass.syncToken,
+					backfill: null,
 					status: GoogleSyncStatus.RUNNING,
 				});
 
@@ -172,6 +183,18 @@ export class CalendarSyncService {
 					eventsRemoved: removed,
 				};
 			}
+
+			pass = { ...pass, pageToken: nextPageToken };
+			await this.state.saveBackfill(
+				row.id,
+				serialiseCalendarPage({
+					v: 1,
+					pageToken: nextPageToken,
+					syncToken: pass.syncToken,
+					timeMin: pass.timeMin,
+					timeMax: pass.timeMax,
+				}),
+			);
 		}
 
 		await this.state.settle(row.id, {
@@ -188,38 +211,94 @@ export class CalendarSyncService {
 		};
 	}
 
+	private startPass(row: MailboxSync): CalendarPass {
+		const syncToken = row.cursor ?? null;
+		const saved = readCalendarPage(row.backfill);
+
+		if (saved.outcome === "unreadable") {
+			this.logger.warn({
+				message: "Calendar page cursor unreadable. Starting the pass again",
+				syncId: row.id,
+				reason: saved.reason,
+			});
+		}
+
+		if (saved.outcome === "ok" && saved.cursor.syncToken === syncToken) {
+			return {
+				syncToken,
+				pageToken: saved.cursor.pageToken,
+				timeMin: saved.cursor.timeMin,
+				timeMax: saved.cursor.timeMax,
+			};
+		}
+
+		const now = Date.now();
+		return {
+			syncToken,
+			pageToken: undefined,
+			timeMin: new Date(now).toISOString(),
+			timeMax: new Date(now + CALENDAR.sync.horizonMs).toISOString(),
+		};
+	}
+
+	private async remove(event: GoogleEvent): Promise<"removed" | "ignored"> {
+		if (event.id) {
+			const byId = await this.db.calendarEvent.deleteMany({
+				where: { googleEventId: event.id },
+			});
+			if (byId.count > 0) return "removed";
+		}
+
+		const iCalUid = event.iCalUID;
+		const originalStart =
+			eventTime(event.originalStartTime) ?? eventTime(event.start);
+		if (!iCalUid || !originalStart) return "ignored";
+
+		const byKey = await this.db.calendarEvent.deleteMany({
+			where: { iCalUid, originalStartTime: originalStart.at },
+		});
+		return byKey.count > 0 ? "removed" : "ignored";
+	}
+
+	private async existing(
+		event: GoogleEvent,
+		iCalUid: string,
+	): Promise<{ id: string; googleEventId: string | null } | null> {
+		const select = { id: true, googleEventId: true } as const;
+
+		if (event.id) {
+			const byId = await this.db.calendarEvent.findFirst({
+				where: { googleEventId: event.id, iCalUid },
+				orderBy: { createdAt: "asc" },
+				select,
+			});
+			if (byId) return byId;
+		}
+
+		if (event.recurringEventId) return null;
+
+		return this.db.calendarEvent.findFirst({
+			where: { iCalUid, recurringEventId: null },
+			orderBy: { createdAt: "asc" },
+			select,
+		});
+	}
+
 	private async apply(
 		event: GoogleEvent,
 		row: MailboxSync,
 		context: MatchContext,
 	): Promise<"written" | "removed" | "ignored"> {
+		if (event.status === "cancelled") return this.remove(event);
+
 		const iCalUid = event.iCalUID;
 		if (!iCalUid) return "ignored";
 
 		const start = eventTime(event.start);
+		const end = eventTime(event.end);
 		const originalStart = eventTime(event.originalStartTime) ?? start;
 
-		if (!originalStart) return "ignored";
-
-		const key = {
-			iCalUid_originalStartTime: {
-				iCalUid,
-				originalStartTime: originalStart.at,
-			},
-		};
-
-		if (event.status === "cancelled") {
-			const deleted = await this.db.calendarEvent.deleteMany({
-				where: {
-					iCalUid,
-					originalStartTime: originalStart.at,
-				},
-			});
-			return deleted.count > 0 ? "removed" : "ignored";
-		}
-
-		const end = eventTime(event.end);
-		if (!start || !end) return "ignored";
+		if (!start || !end || !originalStart) return "ignored";
 
 		const participants = this.participantsOf(event);
 
@@ -243,41 +322,49 @@ export class CalendarSyncService {
 
 		const organizer = event.organizer?.email?.toLowerCase() ?? null;
 
-		const record = await this.db.calendarEvent.upsert({
-			where: key,
-			create: {
-				iCalUid,
-				originalStartTime: originalStart.at,
-				recurringEventId: event.recurringEventId ?? null,
-				title: event.summary ?? null,
-				description: event.description ?? null,
-				location: event.location ?? null,
-				conferenceUrl: conferenceUrl(event),
-				startsAt: start.at,
-				endsAt: end.at,
-				isAllDay: start.isAllDay,
-				status: event.status ?? "confirmed",
-				organizerEmail: organizer,
-				companyId: match.companyId,
-				contactId: match.contactId,
-				syncedByUserId: row.userId,
-				googleEventId: event.id ?? null,
-			},
-			update: {
-				title: event.summary ?? null,
-				description: event.description ?? null,
-				location: event.location ?? null,
-				conferenceUrl: conferenceUrl(event),
-				startsAt: start.at,
-				endsAt: end.at,
-				isAllDay: start.isAllDay,
-				status: event.status ?? "confirmed",
-				organizerEmail: organizer,
-				companyId: match.companyId,
-				contactId: match.contactId,
-			},
-			select: { id: true },
-		});
+		const fields = {
+			title: event.summary ?? null,
+			description: event.description ?? null,
+			location: event.location ?? null,
+			conferenceUrl: conferenceUrl(event),
+			startsAt: start.at,
+			endsAt: end.at,
+			isAllDay: start.isAllDay,
+			status: event.status ?? "confirmed",
+			organizerEmail: organizer,
+			companyId: match.companyId,
+			contactId: match.contactId,
+		};
+
+		const found = await this.existing(event, iCalUid);
+
+		const record = found
+			? await this.db.calendarEvent.update({
+					where: { id: found.id },
+					data: {
+						...fields,
+						googleEventId: found.googleEventId ?? event.id ?? null,
+					},
+					select: { id: true },
+				})
+			: await this.db.calendarEvent.upsert({
+					where: {
+						iCalUid_originalStartTime: {
+							iCalUid,
+							originalStartTime: originalStart.at,
+						},
+					},
+					create: {
+						...fields,
+						iCalUid,
+						originalStartTime: originalStart.at,
+						recurringEventId: event.recurringEventId ?? null,
+						syncedByUserId: row.userId,
+						googleEventId: event.id ?? null,
+					},
+					update: fields,
+					select: { id: true },
+				});
 
 		await this.syncAttendees(record.id, event);
 		await this.prepareForMeeting(record.id, start.at);
@@ -303,11 +390,17 @@ export class CalendarSyncService {
 				!isMachineAddress(attendee.email.toLowerCase()),
 		);
 
-		if (attendees.length === 0) return;
-
 		const emails = attendees.map((attendee) =>
 			(attendee.email as string).toLowerCase(),
 		);
+
+		if (!event.attendeesOmitted) {
+			await this.db.calendarAttendee.deleteMany({
+				where: { eventId, email: { notIn: emails } },
+			});
+		}
+
+		if (attendees.length === 0) return;
 
 		const contacts = await this.db.contact.findMany({
 			where: { email: { in: emails } },
@@ -345,7 +438,7 @@ export class CalendarSyncService {
 		eventId: string,
 		startsAt: Date,
 	): Promise<void> {
-		const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+		const soon = new Date(Date.now() + CALENDAR.meetingPrep.soonMs);
 		if (startsAt <= new Date() || startsAt > soon) return;
 
 		const attendees = await this.db.calendarAttendee.findMany({
@@ -425,11 +518,5 @@ export class CalendarSyncService {
 		}
 
 		return people;
-	}
-
-	private horizon(): Date {
-		const to = new Date();
-		to.setDate(to.getDate() + HORIZON_DAYS);
-		return to;
 	}
 }

@@ -36,6 +36,14 @@ const procedures = [
 		name: "agents.revise",
 		body: () => ({ id: missingAgent, clientRequestId: crypto.randomUUID() }),
 	},
+	{
+		name: "agents.resume",
+		body: () => ({ id: missingAgent }),
+	},
+	{
+		name: "agents.restore",
+		body: () => ({ id: missingAgent }),
+	},
 ] as const;
 
 describe("agent code changes need a session", () => {
@@ -137,4 +145,15 @@ describe("agent code changes need a session", () => {
 
 		expect([401, 403]).toContain(response.status);
 	});
+
+	for (const action of ["resume", "restore"] as const) {
+		it(`refuses an API key on the REST ${action} route`, async () => {
+			const response = await request(server)
+				.post(`/api/rest/agents/${missingAgent}/${action}`)
+				.set(API_KEY_HEADER, key)
+				.send({});
+
+			expect([401, 403]).toContain(response.status);
+		});
+	}
 });

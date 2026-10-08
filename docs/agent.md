@@ -298,6 +298,10 @@ who asked, so the reason prefix is the signal.
 A skipped row finishes with `startedAt` cleared and its attempt returned, so
 `researchSessionsBetween` never counts it. `closeUncounted` (`lib/tasks.ts`) is that
 write; it clears `startedAt` on a first attempt only, so an earlier run still counts.
+A claim the research lane hands back without a run, because the monthly budget
+(`withinResearchBudget`) or a blocked model provider stops it, goes through
+`returnClaim` (`lib/tasks.ts`) with the same rule. The row reads as waiting again, so
+a rep's Research click still rewrites it before the pre-check sees the sync reason.
 
 **An archived record never reaches the pre-check.** `runResearchLane` hands each
 claimed batch to `releaseArchivedClaims` (`lib/housekeeping.ts`) first. A task whose
@@ -682,8 +686,9 @@ that group, so the queue drains while the subscription window is empty.
   singletons the lane compares by identity.
 - **A conversation that passes the gate goes back to the queue with `postponeTask`.**
   That clears the lease, sets `dueAt` to `resumeAt()`, and gives the attempt back, so
-  waiting for the limit to reset never retires a task. `runResearchLane` releases the
-  same way.
+  waiting for the limit to reset never retires a task. `runResearchLane` releases
+  through `returnClaim`, which also clears `startedAt` on a first attempt, because
+  that claim never ran.
 - **No key, no business text, or a gate that does not answer breaks the lane** and logs
   the ordinary pause line. A Jev outage must not read as "every conversation is
   relevant".

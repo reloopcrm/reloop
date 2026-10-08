@@ -726,8 +726,9 @@ the pattern lists in `packages/db/src/message-text.ts`
   everyone at that company. The person comes back by themselves on the due day, or
   earlier when the rep completes or deletes the task; no job runs. Any task change
   can move someone in or out, so `cache.activity()` also refreshes
-  `reactivation.list` and marks every `nextPerson` as outdated without refetching
-  it, so an open page keeps its "Continue with" and a page opened again reads anew. The "Not for us"
+  `reactivation.list`, without making the caller wait for it, and marks every
+  `nextPerson` as outdated without refetching it. An open page keeps its "Continue
+  with" until the window regains focus; a page opened again reads anew. The "Not for us"
   view ignores the snooze. `snoozed: true` on `reactivation.list` and `nextPerson`
   shows exactly the people the snooze hides, under the same win back rules. A
   reminder written before this mark existed has no `meta` and hides nobody.

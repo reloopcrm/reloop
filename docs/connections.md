@@ -110,6 +110,60 @@ day it is connected, and keeps reading new mail at the same time.
   (`SyncStateService.stopBackfill`). IMAP promises the opposite and is
   unchanged.
 
+## A broken grant is fixed where it shows
+
+A Gmail or Outlook row in `NEEDS_RECONNECT`, or a Google or Microsoft account
+with no refresh token, cannot recover by itself: the sync tick skips the row
+(`dueWhere` in `apps/api/src/mailbox/sync-state.service.ts`). So the card puts
+**Reconnect** where Check now stands, as the one filled button.
+`mailboxNeedsReconnect` in `mailbox-status.ts` decides it, the same way for both
+providers. Google without a refresh token gets the same Reconnect with the
+consent prompt, never "sign out and back in".
+
+- **One hook links a mailbox.** `useMailboxLink` (`use-mailbox-link.ts`) runs
+  `authClient.linkSocial` for Connect and Reconnect alike, and
+  `mailboxLinkRequest` (`mailbox-link.ts`) builds the request from
+  `SYNC_SCOPES_FOR`. A reconnect asks for exactly the scopes a connect asks for,
+  never more.
+- **A Google reconnect asks for consent again.** Google sends a new refresh
+  token only on a consent screen, and the provider sets no `prompt`. Better
+  Auth keeps the old, dead refresh token when none comes back, so the mailbox
+  breaks again within the hour. A reconnect therefore asks Better Auth for the
+  address (`disableRedirect`) and `reconnectAuthorizationUrl` sets
+  `prompt=select_account consent` on it. A sign in and a first connect are
+  unchanged. Microsoft keeps its own `select_account`, because `offline_access`
+  returns a refresh token on every grant.
+- **A reconnect keeps everything.** It does not call `setImportSince`, so the
+  answer to how far back and the backfill stay. Better Auth updates the tokens
+  on the existing `account` row, so Auto create, the cursor and the backfill
+  position stay too.
+  `apps/api/test/mailbox-reconnect-settings.integration.spec.ts` pins it.
+- **The server clears the state when the grant is stored.** Better Auth's
+  `account` create and update hooks call `clearMailboxReconnect`
+  (`packages/auth/src/mailbox-reconnect.ts`). When a Google or Microsoft row now
+  holds a refresh token, each of that provider's sources (`SYNC_SOURCES_FOR` in
+  `scopes.ts`) whose scope the stored grant holds (`SCOPE_FOR_SYNC_SOURCE`)
+  leaves `NEEDS_RECONNECT` for `IDLE` and loses `lastError`. A partial consent
+  that leaves out Gmail keeps the Gmail row in `NEEDS_RECONNECT`. Only the
+  status moves; the settings, the cursor and the backfill stay. A person who
+  closes the tab before Check now therefore keeps no broken row: the next sync
+  tick reads the mailbox again, and a grant that still fails is marked
+  `NEEDS_RECONNECT` again by that tick. A failed clear logs a warning and never
+  breaks the sign in. IMAP rows are never touched.
+  `packages/auth/test/mailbox-reconnect.integration.spec.ts` pins it.
+- **The return checks at once.** The callback carries `?reconnected=<provider>`.
+  The card runs Check now one time and removes only that marker from the
+  address; every other parameter and the hash stay
+  (`withoutReconnectedMarker` in `mailbox-link.ts`). A healthy result says
+  "Google is connected again" or "Microsoft is connected again", and only when
+  the grant holds a refresh token and every mailbox permission
+  (`mailboxReconnected`). A consent that left one out says nothing. A grant that
+  still fails keeps the alert, and the alert pulses.
+- **Both cards give the same feedback.** A Check now that changes nothing makes
+  the alert pulse on Outlook as it does on Gmail (`failureSignature`), and a
+  refused consent shows the "did not finish connecting" alert on the connected
+  card as well as on the Connect card.
+
 ## A webhook is the connection with no vendor
 
 Settings → Connections → Webhooks sends the six events in `@crm/db/crm-events`

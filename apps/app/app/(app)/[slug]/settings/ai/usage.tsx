@@ -26,6 +26,14 @@ export type UsageLine = {
 	level: UsageLevel;
 };
 
+export type CapacityCounter = Extract<UsageCounter, "contacts" | "mailboxes">;
+
+export type CapacityLine = Omit<UsageLine, "counter"> & {
+	counter: CapacityCounter;
+};
+
+type CapacityAlertLevel = Exclude<UsageLevel, "normal">;
+
 export type UsagePlan = {
 	trialEndsAt: string | null;
 	billingHref: string | null;
@@ -116,6 +124,55 @@ export function UsageMeter({ line }: { line: UsageLine }) {
 	);
 }
 
+function CapacityAlert({
+	counter,
+	level,
+}: {
+	counter: CapacityCounter;
+	level: CapacityAlertLevel;
+}) {
+	const t = useT();
+	const copy = {
+		contacts: {
+			warning: {
+				title: t("You have almost reached your contact limit"),
+				body: t("Upgrade your plan or remove contacts you no longer need."),
+			},
+			reached: {
+				title: t("You have reached your contact limit"),
+				body: t(
+					"New people from your mail wait until you upgrade your plan or remove contacts you no longer need.",
+				),
+			},
+		},
+		mailboxes: {
+			warning: {
+				title: t("You have almost reached your mailbox limit"),
+				body: t(
+					"Upgrade your plan or disconnect mailboxes you no longer need.",
+				),
+			},
+			reached: {
+				title: t("You have reached your mailbox limit"),
+				body: t(
+					"Upgrade your plan or disconnect a mailbox to connect another one.",
+				),
+			},
+		},
+	} satisfies Record<
+		CapacityCounter,
+		Record<CapacityAlertLevel, { title: string; body: string }>
+	>;
+	const { title, body } = copy[counter][level];
+
+	return (
+		<Alert variant="warning">
+			<AlertTitle>{title}</AlertTitle>
+			<AlertDescription>{body}</AlertDescription>
+		</Alert>
+	);
+}
+
 export function Usage({
 	label,
 	capacity,
@@ -125,7 +182,7 @@ export function Usage({
 	plan,
 }: {
 	label: string;
-	capacity: UsageLine[];
+	capacity: CapacityLine[];
 	lines: UsageLine[];
 	resetsAt: string;
 	trialEnds: boolean;
@@ -190,6 +247,16 @@ export function Usage({
 					</AlertDescription>
 				</Alert>
 			) : null}
+
+			{capacity.map((line) =>
+				line.level === "normal" ? null : (
+					<CapacityAlert
+						key={line.counter}
+						counter={line.counter}
+						level={line.level}
+					/>
+				),
+			)}
 
 			<ul className="flex flex-col">
 				{capacity.map((line) => (

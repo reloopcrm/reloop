@@ -1,5 +1,12 @@
 import { ActivityType, type Db, type Prisma } from "@crm/db";
+import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { threadsOfContact } from "@crm/db/thread-participants";
+import {
+	openSnoozeTask,
+	type SnoozeTarget,
+	snoozeLockKey,
+	WIN_BACK_LATER_META,
+} from "@crm/db/win-back-snooze";
 import { activityMeta } from "@crm/validation/activity-meta";
 import {
 	BadRequestException,
@@ -12,6 +19,7 @@ import { ActivityStampService } from "../crm/activity-stamp.service";
 import { blankToNull } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
 import type {
+	ActivityCreated,
 	ActivityCreateInput,
 	ActivityEntry,
 	ActivityUpdateInput,
@@ -158,25 +166,34 @@ export class ActivitiesService {
 	async create(
 		input: ActivityCreateInput,
 		actingUserId: string,
-	): Promise<ActivityEntry> {
+		now = new Date(),
+	): Promise<ActivityCreated> {
 		const companyId = await this.resolveCompanyId(input);
 
 		const isTask = input.type === ActivityType.TASK;
 
-		const activity = await this.db.activity.create({
-			data: {
-				type: input.type,
-				subject: blankToNull(input.subject ?? ""),
-				body: blankToNull(input.body ?? ""),
-				occurredAt: parseDate(input.occurredAt) ?? new Date(),
-				dueAt: isTask ? parseDate(input.dueAt) : null,
-				companyId,
-				contactId: input.contactId ?? null,
-				dealId: input.dealId ?? null,
-				createdById: actingUserId,
-			},
-			select: ENTRY_SELECT,
-		});
+		const data: Prisma.ActivityUncheckedCreateInput = {
+			type: input.type,
+			subject: blankToNull(input.subject ?? ""),
+			body: blankToNull(input.body ?? ""),
+			occurredAt: parseDate(input.occurredAt) ?? new Date(),
+			dueAt: isTask ? parseDate(input.dueAt) : null,
+			companyId,
+			contactId: input.contactId ?? null,
+			dealId: input.dealId ?? null,
+			createdById: actingUserId,
+			meta: input.winBackLater ? WIN_BACK_LATER_META : undefined,
+		};
+		const target = input.winBackLater ? snoozeTargetOf(data) : null;
+		const { activity, movedFrom } = target
+			? await this.writeSnooze(data, target, actingUserId, now)
+			: {
+					activity: await this.db.activity.create({
+						data,
+						select: ENTRY_SELECT,
+					}),
+					movedFrom: null,
+				};
 
 		await this.stamp.touch(
 			{ companyId, contactId: input.contactId, dealId: input.dealId },
@@ -189,7 +206,7 @@ export class ActivitiesService {
 			type: activity.type,
 		});
 
-		return serializeEntry(activity, actingUserId);
+		return { ...serializeEntry(activity, actingUserId), movedFrom };
 	}
 
 	async complete(
@@ -352,6 +369,55 @@ export class ActivitiesService {
 		);
 	}
 
+	private writeSnooze(
+		data: Prisma.ActivityUncheckedCreateInput,
+		target: SnoozeTarget,
+		actingUserId: string,
+		now: Date,
+	) {
+		return this.db.$transaction(async (tx) => {
+			await lockIdempotencyKey(tx, snoozeLockKey(target));
+			const open = await tx.activity.findMany({
+				where: openSnoozeTask(target, now),
+				orderBy: { dueAt: "desc" },
+				select: {
+					id: true,
+					type: true,
+					subject: true,
+					dueAt: true,
+					meta: true,
+					emailThreadId: true,
+					calendarEventId: true,
+					createdById: true,
+				},
+			});
+			const mine = open.find((task) => isEditable(task, actingUserId));
+			const moved = mine
+				? await tx.activity.updateMany({
+						where: { ...openSnoozeTask(target, now), id: mine.id },
+						data: { dueAt: data.dueAt, subject: data.subject },
+					})
+				: null;
+			if (!mine || moved?.count !== 1) {
+				return {
+					activity: await tx.activity.create({ data, select: ENTRY_SELECT }),
+					movedFrom: null,
+				};
+			}
+
+			return {
+				activity: await tx.activity.findUniqueOrThrow({
+					where: { id: mine.id },
+					select: ENTRY_SELECT,
+				}),
+				movedFrom: {
+					dueAt: mine.dueAt?.toISOString() ?? null,
+					subject: mine.subject,
+				},
+			};
+		});
+	}
+
 	private async resolveCompanyId(
 		input: ActivityCreateInput,
 	): Promise<string | null> {
@@ -421,6 +487,14 @@ function lastMessage(message: ThreadMessage | undefined) {
 		fromEmail: message.fromEmail,
 		source: mailSource(message),
 	};
+}
+
+function snoozeTargetOf(
+	data: Pick<Prisma.ActivityUncheckedCreateInput, "contactId" | "companyId">,
+): SnoozeTarget | null {
+	if (data.contactId) return { contactId: data.contactId };
+	if (data.companyId) return { contactId: null, companyId: data.companyId };
+	return null;
 }
 
 function serializeEntry(entry: Entry, actingUserId: string) {

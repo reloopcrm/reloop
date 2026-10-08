@@ -96,7 +96,7 @@ export function WinBackVerdictMenu({
 	const reminder = useMutation(
 		trpc.activities.create.mutationOptions({
 			onSuccess: () => {
-				void cache.activity();
+				void cache.activity({ winBack: true });
 				toast.success(
 					t("A task to get back to {name} is due in {count} days.", {
 						name,
@@ -117,6 +117,7 @@ export function WinBackVerdictMenu({
 			type: "TASK",
 			subject: t("Get back to {name}", { name }),
 			dueAt: due.toISOString(),
+			winBackLater: true,
 			...(companyId ? { companyId } : { contactId: contactIds[0] }),
 		});
 	};

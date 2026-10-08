@@ -38,6 +38,7 @@ export const winBackScopeParsers = {
 	quiet: parseAsInteger.withDefault(0),
 	rejected: parseAsBoolean.withDefault(false),
 	replied: parseAsBoolean.withDefault(false),
+	snoozed: parseAsBoolean.withDefault(false),
 	since: parseAsWindowStart,
 };
 
@@ -75,6 +76,7 @@ export function winBackInput(
 		quiet: number;
 		rejected: boolean;
 		replied: boolean;
+		snoozed: boolean;
 		since: string | null;
 	},
 ) {
@@ -89,6 +91,7 @@ export function winBackInput(
 		quietForDays: scope.quiet,
 		rejected: scope.rejected,
 		replied: scope.replied,
+		snoozed: scope.snoozed,
 		since: scope.replied && scope.since ? scope.since : undefined,
 	};
 }

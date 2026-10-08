@@ -30,7 +30,7 @@ import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOut
 import { imapStatusOutput, addImapAccountInput, imapAccountIdInput, imapRemoveOutput, imapPurgeOutput, setImapCreateFromInput } from "../imap/imap.contracts";
 import { oauthAppInput, oauthAppStatusOutput, saveOAuthAppInput, oauthAppRestartOutput } from "../oauth-apps/oauth-apps.contracts";
 import { quoteListOutput, quoteThreadInput, quoteCreatedOutput, quoteDismissedOutput } from "../quotes/quotes.contracts";
-import { winBackPersonViewInput, winBackPersonViewOutput, winBackNextInput, winBackNextOutput, rereadStoryOutput, reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
+import { winBackPersonViewInput, winBackPersonViewOutput, winBackNextInput, winBackNextOutput, rereadStoryOutput, bringBackOutput, reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
 import { quickSearchTerm } from "@crm/validation/search";
 import { businessProposalOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, aiUsageOutput, passwordSignInOutput, setPasswordInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentLanguageOutput, setAgentLanguageInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput, dealStagesOutput, setDealStageNameInput } from "../settings/settings.contracts";
@@ -702,6 +702,10 @@ const appRouter = t.router({
     rereadStory: publicProcedure
       .input(winBackPersonViewInput)
       .output(rereadStoryOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    bringBack: publicProcedure
+      .input(winBackPersonViewInput)
+      .output(bringBackOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     list: publicProcedure
       .input(reactivationListInput)

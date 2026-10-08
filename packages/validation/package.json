@@ -35,7 +35,8 @@
 		"./tenant-signup": "./src/tenant-signup.ts",
 		"./thread-decline": "./src/thread-decline.ts",
 		"./waitlist": "./src/waitlist.ts",
-		"./win-back-rules": "./src/win-back-rules.ts"
+		"./win-back-rules": "./src/win-back-rules.ts",
+		"./win-back-snooze": "./src/win-back-snooze.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

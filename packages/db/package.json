@@ -54,10 +54,10 @@
 		"./workspace": "./src/workspace.ts"
 	},
 	"scripts": {
-		"build": "prisma generate",
+		"build": "bun scripts/generate-client.ts",
 		"check-types": "tsc --noEmit",
 		"db:deploy": "prisma migrate deploy",
-		"db:generate": "prisma generate",
+		"db:generate": "bun scripts/generate-client.ts",
 		"db:migrate": "bun scripts/require-local-db.ts db:migrate && prisma migrate dev",
 		"db:push": "bun scripts/require-local-db.ts db:push && prisma db push",
 		"db:reset": "bun scripts/require-local-db.ts db:reset && prisma migrate reset",

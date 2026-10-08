@@ -1,10 +1,23 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
 import { type Db, db, RecordSource } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { budgetTasksWhere, usageWindowOf } from "@crm/db/plan-usage";
-import { DRAFT_KIND, PLANS } from "@crm/db/plans";
+import { DRAFT_KIND } from "@crm/db/plans";
 import type { ReactivationGroup } from "@crm/db/reactivation";
 import { readPlan, writePlan } from "@crm/db/settings";
+import {
+	actWithoutPlans,
+	actWithTestPlans,
+	TEST_PLANS,
+} from "@crm/db/test-plans";
 import type { ConfigService } from "@nestjs/config";
 import type { Cache } from "cache-manager";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
@@ -240,6 +253,10 @@ async function clean(): Promise<void> {
 	await db.contact.deleteMany({ where: { id: { in: ids } } });
 }
 
+beforeAll(actWithTestPlans);
+
+afterAll(actWithoutPlans);
+
 beforeEach(async () => {
 	planBefore = await readPlan(db);
 	await clean();
@@ -351,8 +368,8 @@ describe("WinBackDraftPrefetchService.queue", () => {
 	});
 
 	it("never takes the drafts the plan keeps for a rep", async () => {
-		await writePlan(db, "trial");
-		const budget = PLANS.trial.draftsPerMonth;
+		await writePlan(db, "small");
+		const budget = TEST_PLANS.small.draftsPerMonth;
 		const ceiling = budget - Math.ceil(budget * DRAFTS.reserveShare);
 		await fill(ceiling - 1 - (await used()), PRIORITY.emailDraft);
 		const ids = [await person("Greta"), await person("Hanno")];
@@ -364,8 +381,8 @@ describe("WinBackDraftPrefetchService.queue", () => {
 	});
 
 	it("gives the last prefetch slot to exactly one of several calls that arrive together", async () => {
-		await writePlan(db, "trial");
-		const budget = PLANS.trial.draftsPerMonth;
+		await writePlan(db, "small");
+		const budget = TEST_PLANS.small.draftsPerMonth;
 		const ceiling = budget - Math.ceil(budget * DRAFTS.reserveShare);
 		await fill(ceiling - 1 - (await used()), PRIORITY.emailDraft);
 		const ids = await Promise.all(

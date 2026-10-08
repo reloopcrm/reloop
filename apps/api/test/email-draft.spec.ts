@@ -1,8 +1,21 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
 import { db, RecordSource } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
-import { DRAFT_KIND, PLANS, startOfMonth } from "@crm/db/plans";
+import { DRAFT_KIND, startOfMonth } from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
+import {
+	actWithoutPlans,
+	actWithTestPlans,
+	TEST_PLANS,
+} from "@crm/db/test-plans";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ContactsService } from "../src/contacts/contacts.service";
 
@@ -121,6 +134,10 @@ async function clean(): Promise<void> {
 	await db.contact.deleteMany({ where: { id: { in: ids } } });
 	await db.agentTask.deleteMany({ where: { contactId: { in: ids } } });
 }
+
+beforeAll(actWithTestPlans);
+
+afterAll(actWithoutPlans);
 
 beforeEach(async () => {
 	await clean();
@@ -421,12 +438,12 @@ describe("a person opened after newer mail", () => {
 		await store(id, new Date("2026-08-01T00:00:00.000Z"));
 		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
 		const planBefore = await readPlan(db);
-		await writePlan(db, "trial");
+		await writePlan(db, "small");
 		try {
 			const used = await db.agentTask.count({
 				where: { kind: DRAFT_KIND, createdAt: { gte: startOfMonth() } },
 			});
-			const room = Math.max(0, PLANS.trial.draftsPerMonth - used);
+			const room = Math.max(0, TEST_PLANS.small.draftsPerMonth - used);
 			await db.agentTask.createMany({
 				data: Array.from({ length: room }, () => ({
 					contactId: id,

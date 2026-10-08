@@ -820,6 +820,12 @@ picker reads.
 
 - **A contact on a deal works at that deal's company**, enforced in the service and
   not merely by the picker — the same rule as `companies.setPrimaryContact`.
+- **Moving a deal to another company keeps that rule.** `deals.update` with a new
+  `companyId` removes every `DealContact` whose contact is not at the new company
+  (a contact with no company included) and moves the deal's activities to the new
+  company, in the same transaction. After commit it raises the new company's
+  `lastActivityAt` to the deal's newest activity; the old company keeps its stamp,
+  because a recompute would drop stamps the agent writes without an activity.
 - **Attaching is an upsert and re-attaching keeps the role already there**, so a
   double click cannot blank what somebody typed.
 - **Detaching removes the row, never the contact.** They stay in the CRM, on the
@@ -886,6 +892,9 @@ row is still there, just filtered out of every list.
 - **`archive`/`restore` are a bare `update({ archivedAt })`, nothing more.** They do
   not touch `AgentTask`, `SuppressedContact`, or `lastActivityAt` — the record is
   unchanged, only hidden.
+- **An archived deal keeps its stage.** `deals.setStage` reads `archivedAt` under
+  its `FOR UPDATE` and refuses, so `bulkSetStage` counts it as failed and no
+  `deal.closed` or `deal.opened` event fires. Restore it first.
 - **`purge` is the old `delete`.** Same transaction, same suppression, same
   `AgentTask`/`AgentEvent` cleanup, same `ActivityStampService.recomputeAfterDelete`.
   Read the rest of this section as `purge`'s contract, not `archive`'s.
@@ -990,7 +999,14 @@ such thread that still has no deal. **It classifies nothing and queues no
   `Deal.ownerId`; there is no guess and no sweep. `quotes.dismiss` is the other
   half, and both write `EmailThread.quoteHandledAt`, so a handled thread never
   returns. The write is an `updateMany` guarded on `quoteHandledAt: null`, which
-  is what stops two clicks making two deals.
+  is what stops two clicks on one thread making two deals.
+- **One open deal per company.** The list shows one row per company, and
+  `create` holds the same line for two threads of one company: inside the deal's
+  own transaction it takes `lockIdempotencyKey(tx, "quote-deal:<companyId>")`,
+  looks again for an open, unarchived deal of that company, and only then claims
+  the thread. A hit answers "no longer waiting", and the rollback leaves the
+  thread unclaimed. `DealsService.create` runs that check through its `guard`
+  option, before the insert.
 - **The deal is created with no amount.** The agent extracts no figures from a
   quote, so `amount`, `baseAmount` and the rate stay null and the rep types the
   number. See `docs/currency.md`.

@@ -1,8 +1,9 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { enabled, unavailable } from "../lib/capabilities";
-import { spend } from "../lib/focus";
+import { refund, spend } from "../lib/focus";
 import { ask } from "../lib/perplexity";
+import { RESEARCH } from "../lib/research-config";
 import { tenantTool } from "../lib/tenant";
 
 const tool = defineTool({
@@ -23,7 +24,10 @@ const tool = defineTool({
 		if (!(await enabled("PERPLEXITY_API_KEY")))
 			return unavailable("PERPLEXITY_API_KEY");
 
-		const charge = spend(deep ? 2 : 1);
+		const cost = deep
+			? RESEARCH.cost.deepWebQuestion
+			: RESEARCH.cost.webQuestion;
+		const charge = spend(cost);
 		if (!charge.ok) return { ok: false as const, reason: charge.reason };
 
 		const answer = await ask(question, {
@@ -34,7 +38,10 @@ const tool = defineTool({
 				"say plainly when you do not know. Never speculate about a person.",
 		});
 
-		if (!answer.ok) return { ok: false as const, reason: answer.reason };
+		if (!answer.ok) {
+			refund(cost);
+			return { ok: false as const, reason: answer.reason };
+		}
 
 		return {
 			ok: true as const,

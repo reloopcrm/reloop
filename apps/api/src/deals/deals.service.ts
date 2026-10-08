@@ -438,10 +438,20 @@ export class DealsService {
 		};
 	}
 
-	async create(input: DealCreateInput) {
+	async create(
+		input: DealCreateInput,
+		options: { guard?: (tx: Prisma.TransactionClient) => Promise<void> } = {},
+	) {
 		const stage = input.stage ?? "DEMO_BOOKED";
 		const closed = isClosedStage(stage);
+		const closedReason = input.closedReason?.trim() || null;
 		const now = new Date();
+
+		if (LOSING.has(stage) && !closedReason) {
+			throw new BadRequestException(
+				"Say why it was lost. A closed-lost deal with no reason teaches nobody anything.",
+			);
+		}
 
 		const currency = normalizeCurrency(
 			input.currency ?? (await this.conversion.reportingCurrency()),
@@ -453,6 +463,7 @@ export class DealsService {
 
 		try {
 			const deal = await this.agent.withCrmEvents(async (tx, emit) => {
+				await options.guard?.(tx);
 				const created = await tx.deal.create({
 					data: {
 						name: input.name.trim(),
@@ -461,6 +472,7 @@ export class DealsService {
 						stage,
 						stageChangedAt: now,
 						closedAt: closed ? now : null,
+						closedReason: closed ? closedReason : null,
 						amount: fromCents(input.amountCents),
 						currency,
 						...fx,
@@ -541,20 +553,93 @@ export class DealsService {
 			Object.assign(data, await this.conversion.dealFields(amount, currency));
 		}
 
+		let outcome: {
+			updated: { id: string; name: string };
+			moved: { from: string; to: string } | null;
+		};
+
 		try {
-			return await this.db.$transaction(async (tx) => {
+			outcome = await this.db.$transaction(async (tx) => {
 				if (input.fields) {
 					await this.fields.applyValues(tx, "DEAL", id, input.fields);
 				}
 
-				return tx.deal.update({
+				const [before] =
+					input.companyId === undefined
+						? []
+						: await tx.$queryRaw<Array<{ companyId: string }>>`
+								SELECT "companyId" FROM deal WHERE id = ${id} FOR UPDATE
+							`;
+
+				const result = await tx.deal.update({
 					where: { id },
 					data,
-					select: { id: true, name: true },
+					select: { id: true, name: true, companyId: true },
 				});
+
+				const updated = { id: result.id, name: result.name };
+
+				if (!before || before.companyId === result.companyId) {
+					return { updated, moved: null };
+				}
+
+				await this.moveToCompany(tx, id, result.companyId);
+
+				return {
+					updated,
+					moved: { from: before.companyId, to: result.companyId },
+				};
 			});
 		} catch (error) {
 			throw this.translate(error, id);
+		}
+
+		if (outcome.moved) await this.restampMove(id, outcome.moved);
+
+		return outcome.updated;
+	}
+
+	private async moveToCompany(
+		tx: Prisma.TransactionClient,
+		dealId: string,
+		companyId: string,
+	): Promise<void> {
+		await tx.dealContact.deleteMany({
+			where: {
+				dealId,
+				contact: {
+					OR: [{ companyId: null }, { companyId: { not: companyId } }],
+				},
+			},
+		});
+		await tx.activity.updateMany({
+			where: { dealId },
+			data: { companyId },
+		});
+	}
+
+	private async restampMove(
+		dealId: string,
+		moved: { from: string; to: string },
+	): Promise<void> {
+		try {
+			const { _max } = await this.db.activity.aggregate({
+				where: { dealId },
+				_max: { createdAt: true },
+			});
+			if (_max.createdAt) {
+				await this.stamp.touch({ companyId: moved.to }, _max.createdAt);
+			}
+		} catch (error) {
+			this.logger.error(
+				{
+					message:
+						"A deal moved company but the new company's activity stamp was not raised",
+					dealId,
+					...moved,
+				},
+				error instanceof Error ? error.stack : String(error),
+			);
 		}
 	}
 
@@ -662,18 +747,31 @@ export class DealsService {
 		const closedReason = input.closedReason?.trim();
 		const closed = isClosedStage(input.stage);
 		const transition = await this.agent.withCrmEvents(async (tx, emit) => {
-			const [deal] = await tx.$queryRaw<
-				Array<{ id: string; stage: DealStage; companyId: string }>
+			const [row] = await tx.$queryRaw<
+				Array<{
+					id: string;
+					stage: DealStage;
+					companyId: string;
+					archivedAt: Date | null;
+				}>
 			>`
-				SELECT id, stage, "companyId"
+				SELECT id, stage, "companyId", "archivedAt"
 				FROM deal
 				WHERE id = ${input.id}
 				FOR UPDATE
 			`;
 
-			if (!deal) {
+			if (!row) {
 				throw new NotFoundException(`No deal with id ${input.id}.`);
 			}
+
+			if (row.archivedAt) {
+				throw new BadRequestException(
+					"That deal is archived. Restore it before you change its stage.",
+				);
+			}
+
+			const deal = { id: row.id, stage: row.stage, companyId: row.companyId };
 
 			if (deal.stage === input.stage) {
 				return {

@@ -1714,12 +1714,14 @@ model FormSubmission {
   dedupeKey  String    @unique
   filedAt    DateTime?
   skipReason String?
+  triedAt    DateTime?
 
   createdAt DateTime @default(now())
 
   @@index([contactId])
   @@index([createdAt])
   @@index([skipReason, createdAt])
+  @@index([visitorId, createdAt])
   @@map("formSubmission")
 }
 

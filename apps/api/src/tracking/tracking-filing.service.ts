@@ -236,8 +236,17 @@ export class TrackingFilingService {
 				"lastSeen" = ${new Date()}${lastColumns}
 			WHERE "id" = ${visitorId}
 				AND (
-					"contactSubmittedAt" IS NULL
-					OR "contactSubmittedAt" <= ${submission.createdAt}
+					"contactSubmittedAt" <= ${submission.createdAt}
+					OR (
+						"contactSubmittedAt" IS NULL
+						AND NOT EXISTS (
+							SELECT 1 FROM "formSubmission"
+							WHERE "visitorId" = ${visitorId}
+								AND "id" <> ${submissionId}
+								AND "filedAt" IS NOT NULL
+								AND "createdAt" > ${submission.createdAt}
+						)
+					)
 				);
 		`;
 	}

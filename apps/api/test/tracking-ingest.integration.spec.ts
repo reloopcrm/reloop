@@ -635,6 +635,24 @@ describe("a submission kept for later", () => {
 		});
 	});
 
+	it("tries every failed row in turn, not the same oldest ones", async () => {
+		const first = await deferred(TRACKING_SKIP.refileFailed, 9);
+		const second = await deferred(TRACKING_SKIP.refileFailed, 10);
+		const seen: string[] = [];
+		const throwing = {
+			file: async (submission: { id: string }) => {
+				seen.push(submission.id);
+				throw new Error("still failing");
+			},
+		} as unknown as TrackingFilingService;
+		const guarded = new TrackingRefileService(db, counters, throwing);
+
+		await guarded.drain(1);
+		await guarded.drain(1);
+
+		expect(seen).toEqual([first.id, second.id]);
+	});
+
 	it("files a newer row before an older row whose filing failed", async () => {
 		const failed = await deferred(TRACKING_SKIP.refileFailed, 7);
 		const waiting = await deferred(TRACKING_SKIP.formCap, 8);

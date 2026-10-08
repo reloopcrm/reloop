@@ -220,7 +220,8 @@ deleted* comes to be true of email and not of forms.
   row whose filing throws is logged and kept with the code `refile_failed`, and
   the pass goes on to the next row. A pass reads waiting rows first and
   `refile_failed` rows only with the room that is left, so a set of rows that
-  keep failing never blocks the rows behind them. The read uses the
+  keep failing never blocks the rows behind them. A failure stamps `triedAt`, and
+  a pass reads the least recently tried rows first, so failed rows take turns. The read uses the
   `(skipReason, createdAt)` index, so a long history of filed rows costs nothing.
 - **A filing never moves a visitor backwards.** `trackedVisitor.contactSubmittedAt`
   holds the `createdAt` of the submission that last set the visitor's contact.
@@ -231,6 +232,9 @@ deleted* comes to be true of email and not of forms.
   touch times, because two forms of one page load share one touch. The guard is
   on the row it updates, so PostgreSQL re-checks it against the newest row
   version after a lock wait, and two filings running at once cannot both win.
+  A visitor written before the column existed has it `null`; for that one the
+  `WHERE` looks for a filed submission of the visitor with a later `createdAt`
+  instead, through the `(visitorId, createdAt)` index. No old row is rewritten.
 - **The trap code calls the DOM prototype**, `Element.prototype.querySelector`
   and `Node.prototype.appendChild`, because a control named `querySelector`
   shadows the form's own method and the call would throw.

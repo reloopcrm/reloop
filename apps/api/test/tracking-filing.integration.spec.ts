@@ -436,6 +436,24 @@ describe("refiling a submission the cap held back", () => {
 		expect(stored?.lastTouchAt?.toISOString()).toBe(NEWER_AT.toISOString());
 	});
 
+	it("keeps a visitor filed before the guard existed on its newer contact", async () => {
+		const visitor = visitorName();
+		const contactId = await fileNewer(visitor, `legacy-${suffix}@${domain}`);
+		await db.trackedVisitor.update({
+			where: { id: visitor },
+			data: { contactSubmittedAt: null },
+		});
+		await olderFor(visitor, `legacy-older-${suffix}@${domain}`);
+
+		expect(await refile.drain(1)).toBe(1);
+
+		const stored = await db.trackedVisitor.findUnique({
+			where: { id: visitor },
+			select: { contactId: true },
+		});
+		expect(stored?.contactId).toBe(contactId);
+	});
+
 	it("keeps the visitor on the newer contact when the tracker resends an older form", async () => {
 		const visitor = visitorName();
 		const contactId = await fileNewer(

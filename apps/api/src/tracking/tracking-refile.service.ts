@@ -127,7 +127,10 @@ export class TrackingRefileService {
 	private queued(reasons: string[], limit: number) {
 		return this.db.formSubmission.findMany({
 			where: { filedAt: null, skipReason: { in: reasons } },
-			orderBy: { createdAt: "asc" },
+			orderBy: [
+				{ triedAt: { sort: "asc", nulls: "first" } },
+				{ createdAt: "asc" },
+			],
 			take: limit,
 			select: {
 				id: true,
@@ -158,7 +161,7 @@ export class TrackingRefileService {
 
 			await this.db.formSubmission.updateMany({
 				where: { id: submissionId, filedAt: null },
-				data: { skipReason: TRACKING_SKIP.refileFailed },
+				data: { skipReason: TRACKING_SKIP.refileFailed, triedAt: new Date() },
 			});
 
 			return null;

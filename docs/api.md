@@ -975,6 +975,26 @@ marked passages and the follow-up delay. It writes nothing but an
   claims it only after the stories reps asked for. When a rep opens a person whose
   prefetched task still waits, `person` lifts it to `PRIORITY.personStory` through
   `personStoryOpened`. A task the budget postponed keeps its date.
+- **The email is written ahead too, for fewer people.** The same two calls hand
+  their people to `WinBackDraftPrefetchService`
+  (`reactivation/win-back-draft-prefetch.service.ts`): the first
+  `PERSON_VIEW.prefetch.drafts.top` of the list and the next person. It queues
+  `email-draft` only for a person with an address, mail, no stored draft and no open
+  draft task, and it checks the stored draft and a finished try again under the lock.
+  A stored draft that is stale is left alone; a rep's open asks for that one. The
+  `retryAfterMs` pause holds here as well, so a person whose draft came back empty is
+  not queued on every list read.
+- **A draft prefetch never spends a rep's last drafts.** The writes go through
+  `AgentTriggerService.emailDraftsPrefetched`, with the same per-contact lock as
+  `enqueue` and one lock for the prefetch budget. It stops at
+  `PERSON_VIEW.prefetch.drafts.perMonth` prefetched drafts in the usage window, and
+  keeps a share of any draft allowance for drafts a rep asks for. Without an AI
+  provider (no stored key, no `OPENROUTER_API_KEY`, no ChatGPT usage the agent has
+  recorded) it queues nothing.
+- **A draft a rep looks at goes first.** A prefetched draft carries
+  `PRIORITY.draftPrefetch`, just below `storyPrefetch`. When `contacts.draft` finds
+  it still waiting, `emailDraftOpened` lifts it to `PRIORITY.emailDraft`. The lifted
+  task no longer counts against the prefetch cap.
 - **A reference to a message that no longer exists is dropped on read**
   (`keepKnownMessages`). A message the story names but older than the newest
   `PERSON_VIEW.mails` is added to the list, so "where Reloop knows this from" always
@@ -1003,6 +1023,20 @@ marked passages and the follow-up delay. It writes nothing but an
   same as taking it off.
 - **`contacts.draft` carries a one-off version beside the draft** (`oneOff`), written
   by `writeDraft` with `oneOff: true`; the stored draft stays as suggested.
+- **Opening a person rewrites a stale draft.** The person page calls
+  `contacts.refreshDraft` once when it mounts, never from a sweep. The API queues a
+  normal `email-draft` task only when the stored draft is `stale`, no draft task is
+  open or held, any draft allowance has room, and no finished draft task
+  was created after the newest mail was stored (the newest `EmailMessage.createdAt`). That last
+  check spends one try per newer mail, so a draft that stays stale does not cost a
+  draft on every open, and mail stored while a draft was written still counts. The
+  page cancels a draft read in flight before it writes the result, so polling sees
+  the queued task. After the win back mail
+  goes out, this is how the follow-up replaces the sent text.
+- **The win back follow-up task opens the person page.** The overview's task lists
+  read `meta` and the contact of each task, and a task whose `meta` is
+  `{ winBack: true }` (`winBackTaskMeta` in `@crm/validation/activity-meta`) links
+  to `/<slug>/win-back/<contactId>` instead of the record sheet.
 - **A stale draft at the draft limit says so.** When `contacts.draft` answers with
   `waitingUntil` and a draft that is `stale`, the page shows "Newer mail has arrived
   since this draft." and the limit text with its date above it (`draftLimitHint` in

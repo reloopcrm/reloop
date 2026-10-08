@@ -8,6 +8,7 @@ import { readPlan, writePlan } from "@crm/db/settings";
 import type { Cache } from "cache-manager";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { PERSON_VIEW } from "../src/reactivation/reactivation.config";
+import type { WinBackDraftPrefetchService } from "../src/reactivation/win-back-draft-prefetch.service";
 import {
 	needsStory,
 	readsDefaultList,
@@ -204,7 +205,10 @@ const cache = {
 		memory.set(key, value);
 	},
 } as unknown as Cache;
-const service = new WinBackStoryPrefetchService(db, trigger, cache);
+const drafts = {
+	queue: async () => 0,
+} as unknown as WinBackDraftPrefetchService;
+const service = new WinBackStoryPrefetchService(db, trigger, cache, drafts);
 
 let planBefore: string | null = null;
 

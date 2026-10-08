@@ -1,5 +1,5 @@
 import { ActivityType } from "@crm/db";
-import { z } from "zod";
+import { isWinBackTask } from "@crm/validation/activity-meta";
 
 export type EditableFacts = {
 	type: ActivityType;
@@ -11,13 +11,10 @@ export type EditableFacts = {
 
 const EDITABLE_TYPES: ActivityType[] = [ActivityType.NOTE, ActivityType.TASK];
 
-const winBackTaskMeta = z.object({ winBack: z.literal(true) }).strict();
-
 function ownMeta(activity: EditableFacts): boolean {
 	return (
 		activity.meta === null ||
-		(activity.type === ActivityType.TASK &&
-			winBackTaskMeta.safeParse(activity.meta).success)
+		(activity.type === ActivityType.TASK && isWinBackTask(activity.meta))
 	);
 }
 

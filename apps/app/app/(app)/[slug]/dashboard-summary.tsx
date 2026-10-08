@@ -33,7 +33,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useQueryState } from "nuqs";
 import { toast } from "sonner";
-import { RecordLink } from "@/components/crm/record-sheet/record-link";
+import {
+	RecordLink,
+	RecordPageLink,
+} from "@/components/crm/record-sheet/record-link";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { contactName } from "@/components/crm/timeline/timeline-entry";
 import {
@@ -54,6 +57,7 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { OVERVIEW } from "./overview-config";
 import { overviewParsers } from "./overview-search-params";
 import { SalesDashboard } from "./sales-dashboard";
+import { winBackTaskLink } from "./task-link";
 
 type Summary = RouterOutputs["dashboard"]["summary"];
 type OpenDeal = Summary["biggestOpen"][number];
@@ -192,6 +196,15 @@ export function DashboardSummary() {
 		},
 	];
 
+	const winBackPage = (task: OverdueTask | MyTask) => {
+		const link = winBackTaskLink(task);
+		return link ? (
+			<RecordPageLink href={workspaceUrl(link.path)}>
+				{contactName(link.contact)}
+			</RecordPageLink>
+		) : null;
+	};
+
 	const overdueColumns: BlockTableColumn<OverdueTask>[] = [
 		{
 			id: "task",
@@ -203,15 +216,16 @@ export function DashboardSummary() {
 						{task.subject ? t(task.subject) : null}
 					</span>
 					<span className="flex min-w-0 text-muted-foreground text-xs">
-						{task.deal ? (
-							<RecordLink kind="deal" id={task.deal.id}>
-								{task.deal.name}
-							</RecordLink>
-						) : task.company ? (
-							<RecordLink kind="company" id={task.company.id}>
-								{task.company.name}
-							</RecordLink>
-						) : null}
+						{winBackPage(task) ??
+							(task.deal ? (
+								<RecordLink kind="deal" id={task.deal.id}>
+									{task.deal.name}
+								</RecordLink>
+							) : task.company ? (
+								<RecordLink kind="company" id={task.company.id}>
+									{task.company.name}
+								</RecordLink>
+							) : null)}
 					</span>
 				</span>
 			),
@@ -239,19 +253,20 @@ export function DashboardSummary() {
 						{task.subject ? t(task.subject) : null}
 					</span>
 					<span className="flex min-w-0 text-muted-foreground text-xs">
-						{task.deal ? (
-							<RecordLink kind="deal" id={task.deal.id}>
-								{task.deal.name}
-							</RecordLink>
-						) : task.contact ? (
-							<RecordLink kind="contact" id={task.contact.id}>
-								{contactName(task.contact)}
-							</RecordLink>
-						) : task.company ? (
-							<RecordLink kind="company" id={task.company.id}>
-								{task.company.name}
-							</RecordLink>
-						) : null}
+						{winBackPage(task) ??
+							(task.deal ? (
+								<RecordLink kind="deal" id={task.deal.id}>
+									{task.deal.name}
+								</RecordLink>
+							) : task.contact ? (
+								<RecordLink kind="contact" id={task.contact.id}>
+									{contactName(task.contact)}
+								</RecordLink>
+							) : task.company ? (
+								<RecordLink kind="company" id={task.company.id}>
+									{task.company.name}
+								</RecordLink>
+							) : null)}
 					</span>
 				</span>
 			),

@@ -8,6 +8,7 @@ import {
 	MAX_ATTEMPTS,
 	postponeTask,
 	retireExhausted,
+	returnClaim,
 	scheduleTask,
 } from "../agent/lib/tasks";
 
@@ -262,5 +263,52 @@ describe("the monthly session count", () => {
 
 		const after = await readMonthlyUsage(db);
 		expect(after.sessions).toBe(before.sessions + 1);
+	});
+});
+
+describe("returnClaim", () => {
+	it("gives a first claim back as work that never started", async () => {
+		const task = await queue();
+		const until = new Date(Date.now() + 60_000);
+
+		const [claimed] = await claimDue(10, RESEARCH);
+		expect(claimed?.id).toBe(task.id);
+		await returnClaim(task.id, until);
+
+		const row = await db.agentTask.findUnique({ where: { id: task.id } });
+		expect(row?.startedAt).toBeNull();
+		expect(row?.leasedUntil).toBeNull();
+		expect(row?.attempts).toBe(0);
+		expect(row?.dueAt.getTime()).toBe(until.getTime());
+		expect(row?.finishedAt).toBeNull();
+	});
+
+	it("keeps the start of an earlier run", async () => {
+		const task = await queue();
+
+		await claimDue(10, RESEARCH);
+		const first = await db.agentTask.findUnique({ where: { id: task.id } });
+		await expire(task.id);
+		await claimDue(10, RESEARCH);
+		await returnClaim(task.id, new Date(Date.now() + 60_000));
+
+		const row = await db.agentTask.findUnique({ where: { id: task.id } });
+		expect(row?.startedAt?.getTime()).toBe(first?.startedAt?.getTime());
+		expect(row?.leasedUntil).toBeNull();
+		expect(row?.attempts).toBe(1);
+	});
+
+	it("leaves a finished task alone", async () => {
+		const task = await queue();
+
+		await claimDue(10, RESEARCH);
+		await completeTask(task.id, "done");
+		const before = await db.agentTask.findUnique({ where: { id: task.id } });
+		await returnClaim(task.id, new Date(Date.now() + 60_000));
+
+		const row = await db.agentTask.findUnique({ where: { id: task.id } });
+		expect(row?.startedAt?.getTime()).toBe(before?.startedAt?.getTime());
+		expect(row?.attempts).toBe(before?.attempts);
+		expect(row?.dueAt.getTime()).toBe(before?.dueAt.getTime());
 	});
 });

@@ -12,6 +12,7 @@ import {
 	removeDemoData,
 	seedDemoData,
 } from "../src/demo/demo-data";
+import { TEST_TIMEOUT } from "./timeouts";
 
 const suffix = process.env.TEST_RUN_ID ?? "sample-data-spec";
 const domain = `sample-${suffix}.example.com`;
@@ -80,33 +81,40 @@ beforeAll(async () => {
 afterAll(clear);
 
 describe("the sample data", () => {
-	it("seeds and removes in process, inside one transaction", async () => {
-		expect(await hasDemoData(db)).toBe(false);
+	it(
+		"seeds and removes in process, inside one transaction",
+		async () => {
+			expect(await hasDemoData(db)).toBe(false);
 
-		const counts = await db.$transaction((tx) => seedDemoData(db, tx, owner), {
-			timeout: DEMO_DATA.write.timeoutMs,
-		});
+			const counts = await db.$transaction(
+				(tx) => seedDemoData(db, tx, owner),
+				{
+					timeout: DEMO_DATA.write.timeoutMs,
+				},
+			);
 
-		expect(counts.companies).toBeGreaterThan(20);
-		expect(counts.contacts).toBeGreaterThan(30);
-		expect(counts.deals).toBeGreaterThan(10);
-		expect(counts.messages).toBeGreaterThan(80);
-		expect(await hasDemoData(db)).toBe(true);
-		expect(await service.status(ownerId)).toMatchObject({
-			present: true,
-			canManage: true,
-			loadable: false,
-		});
+			expect(counts.companies).toBeGreaterThan(20);
+			expect(counts.contacts).toBeGreaterThan(30);
+			expect(counts.deals).toBeGreaterThan(10);
+			expect(counts.messages).toBeGreaterThan(80);
+			expect(await hasDemoData(db)).toBe(true);
+			expect(await service.status(ownerId)).toMatchObject({
+				present: true,
+				canManage: true,
+				loadable: false,
+			});
 
-		const removed = await service.remove(ownerId);
+			const removed = await service.remove(ownerId);
 
-		expect(removed.present).toBe(false);
-		expect(removed.rows).toBeGreaterThan(counts.companies ?? 0);
-		expect(await hasDemoData(db)).toBe(false);
-		expect(Object.values(await demoCounts(db))).toEqual(
-			Object.values(await demoCounts(db)).map(() => 0),
-		);
-	});
+			expect(removed.present).toBe(false);
+			expect(removed.rows).toBeGreaterThan(counts.companies ?? 0);
+			expect(await hasDemoData(db)).toBe(false);
+			expect(Object.values(await demoCounts(db))).toEqual(
+				Object.values(await demoCounts(db)).map(() => 0),
+			);
+		},
+		TEST_TIMEOUT.demoSeedMs,
+	);
 
 	it("refuses a member and leaves the CRM alone", async () => {
 		expect(await service.status(memberId)).toMatchObject({
@@ -184,58 +192,66 @@ describe("the sample data", () => {
 		await holder;
 	});
 
-	it("names every row it writes with the demo prefix", async () => {
-		await db.$transaction((tx) => seedDemoData(db, tx, owner), {
-			timeout: DEMO_DATA.write.timeoutMs,
-		});
+	it(
+		"names every row it writes with the demo prefix",
+		async () => {
+			await db.$transaction((tx) => seedDemoData(db, tx, owner), {
+				timeout: DEMO_DATA.write.timeoutMs,
+			});
 
-		const strays = await db.company.count({
-			where: {
-				ownerId,
-				id: { not: { startsWith: DEMO.prefix } },
-			},
-		});
+			const strays = await db.company.count({
+				where: {
+					ownerId,
+					id: { not: { startsWith: DEMO.prefix } },
+				},
+			});
 
-		expect(strays).toBe(0);
-		await expect(service.load(owner, "en")).rejects.toThrow("already loaded");
+			expect(strays).toBe(0);
+			await expect(service.load(owner, "en")).rejects.toThrow("already loaded");
 
-		await removeDemoData(db);
-	});
+			await removeDemoData(db);
+		},
+		TEST_TIMEOUT.demoSeedMs,
+	);
 
-	it("writes German copy for a German workspace", async () => {
-		await db.$transaction((tx) => seedDemoData(db, tx, owner, "de"), {
-			timeout: DEMO_DATA.write.timeoutMs,
-		});
+	it(
+		"writes German copy for a German workspace",
+		async () => {
+			await db.$transaction((tx) => seedDemoData(db, tx, owner, "de"), {
+				timeout: DEMO_DATA.write.timeoutMs,
+			});
 
-		const deal = await db.deal.findUniqueOrThrow({
-			where: { id: `${DEMO.prefix}deal-5` },
-			select: { name: true },
-		});
-		const contact = await db.contact.findUniqueOrThrow({
-			where: { id: `${DEMO.prefix}ct-lindenhof-1` },
-			select: { title: true, company: { select: { industry: true } } },
-		});
-		const english = await db.emailMessage.count({
-			where: {
-				id: { startsWith: DEMO.prefix },
-				OR: [
-					{ body: { startsWith: "Hello " } },
-					{ body: { startsWith: "Hi " } },
-					{ subject: { startsWith: "Request for quotation" } },
-				],
-			},
-		});
-		const task = await db.activity.findFirstOrThrow({
-			where: { id: `${DEMO.prefix}act-task-lindenhof-1` },
-			select: { subject: true },
-		});
+			const deal = await db.deal.findUniqueOrThrow({
+				where: { id: `${DEMO.prefix}deal-5` },
+				select: { name: true },
+			});
+			const contact = await db.contact.findUniqueOrThrow({
+				where: { id: `${DEMO.prefix}ct-lindenhof-1` },
+				select: { title: true, company: { select: { industry: true } } },
+			});
+			const english = await db.emailMessage.count({
+				where: {
+					id: { startsWith: DEMO.prefix },
+					OR: [
+						{ body: { startsWith: "Hello " } },
+						{ body: { startsWith: "Hi " } },
+						{ subject: { startsWith: "Request for quotation" } },
+					],
+				},
+			});
+			const task = await db.activity.findFirstOrThrow({
+				where: { id: `${DEMO.prefix}act-task-lindenhof-1` },
+				select: { subject: true },
+			});
 
-		expect(deal.name).toBe("Rahmenvertrag Startersets");
-		expect(contact.title).toBe("Leitung Einkauf");
-		expect(contact.company?.industry).toBe("Möbelbau");
-		expect(task.subject).toBe("Q4-Preisliste an Jana schicken");
-		expect(english).toBe(0);
+			expect(deal.name).toBe("Rahmenvertrag Startersets");
+			expect(contact.title).toBe("Leitung Einkauf");
+			expect(contact.company?.industry).toBe("Möbelbau");
+			expect(task.subject).toBe("Q4-Preisliste an Jana schicken");
+			expect(english).toBe(0);
 
-		await removeDemoData(db);
-	});
+			await removeDemoData(db);
+		},
+		TEST_TIMEOUT.demoSeedMs,
+	);
 });

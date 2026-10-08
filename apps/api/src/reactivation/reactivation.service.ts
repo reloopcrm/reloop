@@ -432,7 +432,12 @@ export class ReactivationService {
 			provider.primaryUsedPercent >= 100 &&
 			(provider.primaryResetAt?.getTime() ?? 0) > Date.now();
 
-		const canRead = !paused && readingReady({ fixed, setting, functions });
+		const canRead = readingReady({
+			fixed,
+			setting,
+			chatgptUsable: provider !== null && !paused,
+			functions,
+		});
 
 		return {
 			threads,

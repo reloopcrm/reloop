@@ -11,8 +11,9 @@ export type ReadingReadyInput = {
 	fixed: boolean;
 	setting: Pick<
 		AgentProviderSetting,
-		"provider" | "openrouterKey" | "openaiKey" | "anthropicKey"
+		"openrouterKey" | "openaiKey" | "anthropicKey"
 	>;
+	chatgptUsable: boolean;
 	functions: AgentFunctionSettings;
 	env?: Record<string, string | undefined>;
 };
@@ -20,6 +21,7 @@ export type ReadingReadyInput = {
 export function readingReady({
 	fixed,
 	setting,
+	chatgptUsable,
 	functions,
 	env = process.env,
 }: ReadingReadyInput): boolean {
@@ -32,7 +34,7 @@ export function readingReady({
 		setting.openrouterKey ||
 			setting.openaiKey ||
 			setting.anthropicKey ||
-			setting.provider === "chatgpt" ||
+			chatgptUsable ||
 			(environmentKey && !cloud.customer()),
 	);
 }

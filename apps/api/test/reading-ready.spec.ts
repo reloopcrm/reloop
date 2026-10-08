@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { readingReady } from "../src/reactivation/reading-ready";
 
 const none = {
-	provider: "openrouter" as const,
 	openrouterKey: null,
 	openaiKey: null,
 	anthropicKey: null,
@@ -12,7 +11,13 @@ const key = { OPENROUTER_API_KEY: "preview-key" };
 describe("readingReady", () => {
 	it("is false without any model provider", () => {
 		expect(
-			readingReady({ fixed: false, setting: none, functions: {}, env: {} }),
+			readingReady({
+				fixed: false,
+				setting: none,
+				chatgptUsable: false,
+				functions: {},
+				env: {},
+			}),
 		).toBe(false);
 	});
 
@@ -21,6 +26,7 @@ describe("readingReady", () => {
 			readingReady({
 				fixed: false,
 				setting: { ...none, openaiKey: "sealed" },
+				chatgptUsable: false,
 				functions: {},
 				env: {},
 			}),
@@ -29,15 +35,22 @@ describe("readingReady", () => {
 
 	it("is true with the environment key", () => {
 		expect(
-			readingReady({ fixed: false, setting: none, functions: {}, env: key }),
+			readingReady({
+				fixed: false,
+				setting: none,
+				chatgptUsable: false,
+				functions: {},
+				env: key,
+			}),
 		).toBe(true);
 	});
 
-	it("is true when ChatGPT is the chosen provider", () => {
+	it("is true with a usable ChatGPT login and no key", () => {
 		expect(
 			readingReady({
 				fixed: false,
-				setting: { ...none, provider: "chatgpt" },
+				setting: none,
+				chatgptUsable: true,
 				functions: {},
 				env: {},
 			}),
@@ -49,6 +62,7 @@ describe("readingReady", () => {
 			readingReady({
 				fixed: false,
 				setting: none,
+				chatgptUsable: false,
 				functions: { "thread-insight": false },
 				env: key,
 			}),
@@ -57,10 +71,22 @@ describe("readingReady", () => {
 
 	it("needs the environment key for the included AI", () => {
 		expect(
-			readingReady({ fixed: true, setting: none, functions: {}, env: {} }),
+			readingReady({
+				fixed: true,
+				setting: none,
+				chatgptUsable: false,
+				functions: {},
+				env: {},
+			}),
 		).toBe(false);
 		expect(
-			readingReady({ fixed: true, setting: none, functions: {}, env: key }),
+			readingReady({
+				fixed: true,
+				setting: none,
+				chatgptUsable: false,
+				functions: {},
+				env: key,
+			}),
 		).toBe(true);
 	});
 });

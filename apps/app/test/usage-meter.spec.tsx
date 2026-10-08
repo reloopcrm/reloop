@@ -1,6 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import type { UsageLine } from "../app/(app)/[slug]/settings/ai/usage";
+import type {
+	CapacityLine,
+	UsageLine,
+} from "../app/(app)/[slug]/settings/ai/usage";
 import { meterShare, meterTone } from "../lib/usage-meter";
 
 GlobalRegistrator.register();
@@ -9,6 +12,7 @@ const { createElement } = await import("react");
 const { renderToStaticMarkup } = await import("react-dom/server");
 const { I18nProvider } = await import("../lib/i18n/client");
 const { Usage } = await import("../app/(app)/[slug]/settings/ai/usage");
+const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
 
 afterAll(() => {
 	GlobalRegistrator.unregister();
@@ -221,5 +225,106 @@ describe("the meter tone", () => {
 		expect(meterShare(43, 100)).toBe(43);
 		expect(meterShare(140, 100)).toBe(100);
 		expect(meterShare(1, 0)).toBe(100);
+	});
+});
+
+describe("the capacity warning", () => {
+	const render = (capacity: CapacityLine[]) =>
+		renderToStaticMarkup(
+			createElement(I18nProvider, {
+				locale: "en",
+				children: createElement(Usage, {
+					label: "Small",
+					capacity,
+					lines: [],
+					resetsAt: "2026-11-11T12:00:00.000Z",
+					trialEnds: false,
+				}),
+			}),
+		);
+
+	const contacts = (used: number, level: CapacityLine["level"]) =>
+		({
+			counter: "contacts",
+			used,
+			limit: 100,
+			included: true,
+			level,
+		}) satisfies CapacityLine;
+
+	it("stays away at 79 percent of the contact limit", () => {
+		const markup = render([contacts(79, "normal")]);
+		expect(markup).not.toContain("contact limit");
+		expect(markup).not.toContain('role="alert"');
+	});
+
+	it("warns at 80 percent of the contact limit without a reset day", () => {
+		const markup = render([contacts(80, "warning")]);
+		expect(markup).toContain("You have almost reached your contact limit");
+		expect(markup).toContain(
+			"Upgrade your plan or remove contacts you no longer need.",
+		);
+		expect(markup).not.toContain("waits until");
+		expect(markup).not.toContain("November 11, 2026");
+		expect(markup).not.toContain("monthly limit");
+	});
+
+	it("shows only the reached message at 100 percent of the contact limit", () => {
+		const markup = render([contacts(100, "reached")]);
+		expect(markup).toContain("You have reached your contact limit");
+		expect(markup).not.toContain("almost reached");
+		expect(markup).not.toContain("monthly limit");
+	});
+
+	it("names mailboxes for the mailbox limit", () => {
+		const markup = render([
+			{ ...contacts(10, "normal") },
+			{
+				counter: "mailboxes",
+				used: 4,
+				limit: 5,
+				included: true,
+				level: "warning",
+			},
+		]);
+		expect(markup).toContain("You have almost reached your mailbox limit");
+		expect(markup).toContain(
+			"Upgrade your plan or disconnect mailboxes you no longer need.",
+		);
+		expect(markup).not.toContain("contact limit");
+	});
+
+	it("shows nothing where the install has no limit", () => {
+		const markup = render([
+			{ ...contacts(5_000, "normal"), limit: null },
+			{
+				counter: "mailboxes",
+				used: 3,
+				limit: null,
+				included: true,
+				level: "normal",
+			},
+		]);
+		expect(markup).not.toContain("contact limit");
+		expect(markup).not.toContain("mailbox limit");
+		expect(markup).not.toContain('role="alert"');
+	});
+
+	it("reads the German text", () => {
+		const markup = renderToStaticMarkup(
+			createElement(I18nProvider, {
+				locale: "de",
+				dictionary: DICTIONARIES.de,
+				children: createElement(Usage, {
+					label: "Small",
+					capacity: [contacts(80, "warning")],
+					lines: [],
+					resetsAt: "2026-11-11T12:00:00.000Z",
+					trialEnds: false,
+				}),
+			}),
+		);
+		expect(markup).toContain("Du hast deine Kontaktgrenze fast erreicht");
+		expect(markup).not.toContain("You have almost reached");
 	});
 });

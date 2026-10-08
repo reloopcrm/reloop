@@ -32,6 +32,7 @@ import { oauthAppInput, oauthAppStatusOutput, saveOAuthAppInput, oauthAppRestart
 import { quoteListOutput, quoteThreadInput, quoteCreatedOutput, quoteDismissedOutput } from "../quotes/quotes.contracts";
 import { winBackPersonViewInput, winBackPersonViewOutput, winBackNextInput, winBackNextOutput, rereadStoryOutput, reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
+import { quickSearchTerm } from "@crm/validation/search";
 import { businessProposalOutput, agentProviderOutput, setAgentProviderInput, chatgptLoginOutput, chatgptLoginInput, planOutput, setPlanInput, spendOutput, aiUsageOutput, passwordSignInOutput, setPasswordInput, archiveRetentionOutput, setArchiveRetentionDaysInput, agentLanguageOutput, setAgentLanguageInput, agentFunctionsOutput, setAgentFunctionInput, draftStyleOutput, forgetDraftStyleRuleInput, dealStagesOutput, setDealStageNameInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
@@ -751,11 +752,11 @@ const appRouter = t.router({
     }),
   search: t.router({
     quick: publicProcedure
-      .input(z.object({ q: z.string().default("") }))
+      .input(z.object({ q: quickSearchTerm }))
       .output(z.object({ hits: z.array(z.object({
 	kind: z.enum(["company", "contact", "deal"]),
 	id: z.string(),
-	label: z.string(),
+	label: z.string().nullable(),
 	detail: z.string().nullable(),
 	iconUrl: z.string().nullable(),
 	iconDarkUrl: z.string().nullable(),

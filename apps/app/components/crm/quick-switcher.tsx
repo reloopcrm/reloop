@@ -14,6 +14,7 @@ import {
 	type EntityLogoTone,
 } from "@crm/ui/components/entity-logo";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
+import { SEARCH } from "@crm/validation/search";
 import { useQuery } from "@tanstack/react-query";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
@@ -55,7 +56,7 @@ export function QuickSwitcher() {
 
 	const results = useQuery({
 		...trpc.search.quick.queryOptions({ q: query }),
-		enabled: open && query.trim().length >= 2,
+		enabled: open && query.trim().length >= SEARCH.minLength,
 		placeholderData: (previous) => previous,
 	});
 
@@ -82,7 +83,7 @@ export function QuickSwitcher() {
 				/>
 				<CommandList>
 					<CommandEmpty>
-						{query.trim().length < 2
+						{query.trim().length < SEARCH.minLength
 							? t("Type at least two characters.")
 							: t("Nothing matches.")}
 					</CommandEmpty>
@@ -93,37 +94,42 @@ export function QuickSwitcher() {
 
 						return (
 							<CommandGroup key={kind} heading={t(GROUP_LABEL[kind])}>
-								{group.map((hit) => (
-									<CommandItem
-										key={`${hit.kind}:${hit.id}`}
-										value={`${hit.kind}:${hit.id}`}
-										onSelect={() => go(kind, hit.id)}
-									>
-										{hit.kind === "contact" ? (
-											<PersonAvatar
-												src={hit.imageUrl}
-												name={hit.label}
-												size="sm"
-											/>
-										) : (
-											<EntityLogo
-												src={hit.iconUrl}
-												darkSrc={hit.iconDarkUrl}
-												tone={hit.iconTone as EntityLogoTone | null | undefined}
-												name={hit.label}
-												size="sm"
-											/>
-										)}
-										<span className="flex min-w-0 flex-col">
-											<span className="truncate">{hit.label}</span>
-											{hit.detail ? (
-												<span className="truncate text-muted-foreground text-xs">
-													{hit.detail}
-												</span>
-											) : null}
-										</span>
-									</CommandItem>
-								))}
+								{group.map((hit) => {
+									const label = hit.label ?? t("Unnamed");
+									return (
+										<CommandItem
+											key={`${hit.kind}:${hit.id}`}
+											value={`${hit.kind}:${hit.id}`}
+											onSelect={() => go(kind, hit.id)}
+										>
+											{hit.kind === "contact" ? (
+												<PersonAvatar
+													src={hit.imageUrl}
+													name={label}
+													size="sm"
+												/>
+											) : (
+												<EntityLogo
+													src={hit.iconUrl}
+													darkSrc={hit.iconDarkUrl}
+													tone={
+														hit.iconTone as EntityLogoTone | null | undefined
+													}
+													name={label}
+													size="sm"
+												/>
+											)}
+											<span className="flex min-w-0 flex-col">
+												<span className="truncate">{label}</span>
+												{hit.detail ? (
+													<span className="truncate text-muted-foreground text-xs">
+														{hit.detail}
+													</span>
+												) : null}
+											</span>
+										</CommandItem>
+									);
+								})}
 							</CommandGroup>
 						);
 					})}

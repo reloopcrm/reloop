@@ -12,6 +12,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { inScope } from "@/cloud/scope.server";
+import { GRANT_ACCESS } from "@/lib/grant-access-copy";
 
 export const getSession = cache(
 	async (): Promise<Session | null> =>
@@ -61,7 +62,7 @@ export async function requireMailboxAccess(): Promise<Session> {
 	const session = await requireSession();
 
 	if (needsMailboxGrant(await signInAccounts(session.user.id))) {
-		redirect("/grant-access");
+		redirect(GRANT_ACCESS.path);
 	}
 
 	return session;

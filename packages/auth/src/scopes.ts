@@ -24,6 +24,14 @@ export const SYNC_SCOPES_FOR = {
 	[MICROSOFT_PROVIDER_ID]: MICROSOFT_SYNC_SCOPES,
 } satisfies Record<MailboxProviderId, readonly string[]>;
 
+export const GOOGLE_SYNC_SOURCES = ["calendar", "gmail"] as const;
+export const MICROSOFT_SYNC_SOURCES = ["outlook"] as const;
+
+export const SYNC_SOURCES_FOR = {
+	[GOOGLE_PROVIDER_ID]: GOOGLE_SYNC_SOURCES,
+	[MICROSOFT_PROVIDER_ID]: MICROSOFT_SYNC_SOURCES,
+} satisfies Record<MailboxProviderId, readonly string[]>;
+
 export const REQUIRED_SCOPES = [...IDENTITY_SCOPES, ...SYNC_SCOPES] as const;
 
 const GRAPH_SCOPE_PREFIX = "https://graph.microsoft.com/";

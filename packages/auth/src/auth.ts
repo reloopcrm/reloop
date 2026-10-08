@@ -17,6 +17,7 @@ import {
 } from "./api-keys";
 import { AUTH_COOKIE_PREFIX } from "./cookies";
 import { env } from "./env";
+import { clearMailboxReconnect } from "./mailbox-reconnect";
 import { oauthRedirectUri } from "./oauth-apps";
 import { ensureWorkspaceMembership } from "./organization";
 import { PASSWORD_RULES } from "./password-rules";
@@ -261,10 +262,10 @@ export const auth = betterAuth({
 	databaseHooks: {
 		account: {
 			create: {
-				after: replaceSlackAccount,
+				after: afterAccountWrite,
 			},
 			update: {
-				after: replaceSlackAccount,
+				after: afterAccountWrite,
 			},
 		},
 
@@ -327,6 +328,17 @@ export const auth = betterAuth({
 export type Auth = typeof auth;
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = Session["user"];
+
+async function afterAccountWrite(account: {
+	id: string;
+	userId: string;
+	accountId: string;
+	providerId: string;
+	refreshToken?: string | null;
+}): Promise<void> {
+	await replaceSlackAccount(account);
+	await clearMailboxReconnect(account);
+}
 
 async function replaceSlackAccount(account: {
 	id: string;

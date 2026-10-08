@@ -366,4 +366,48 @@ describe("adding the removed person again", () => {
 		expect(row?.status).toBe(GoogleSyncStatus.NEEDS_RECONNECT);
 		expect(row?.lastError).toBe(MAILBOX_ACCESS_ENDED_REASON);
 	});
+
+	it("refuses a new IMAP mailbox whose sign-in check outlasts a removal", async () => {
+		const newEmail = `preview-new-${RUN}@example.com`;
+		const connections = new ImapConnectionService(
+			db,
+			{
+				connect: async () => {
+					await service.removeMember(ownerId, {
+						memberId: `member-${otherId}`,
+					});
+					return {
+						outcome: "ok",
+						session: { close: async () => undefined },
+					};
+				},
+			} as unknown as ImapClientFactory,
+			{
+				seal: (password: string) => `sealed:${password}`,
+			} as unknown as ImapCredentialService,
+			state,
+			{} as ActivityStampService,
+			{} as ThreadParticipantsService,
+		);
+
+		await expect(
+			connections.add(otherId, {
+				email: newEmail,
+				host: "imap.example.com",
+				port: 993,
+				secure: true,
+				username: newEmail,
+				password: "a-late-password",
+				importSince: null,
+				createFrom: "nobody",
+			}),
+		).rejects.toThrow("That mailbox is not connected.");
+
+		expect(await db.imapAccount.count({ where: { userId: otherId } })).toBe(0);
+		expect(
+			await db.mailboxSync.count({
+				where: { userId: otherId, source: { startsWith: "imap:" } },
+			}),
+		).toBe(0);
+	});
 });

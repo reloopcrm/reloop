@@ -130,7 +130,9 @@ here, what do we sell.
   `MAILBOX_ACCESS_ENDED_REASON`, so cursors, settings and filed mail stay and the
   tick skips the rows. Only connecting the mailbox again resumes it: Google and
   Microsoft through their reconnect, IMAP through `imap.add` with the same address,
-  which writes the new password into the kept row and keeps its cursor. A token
+  which writes the new password into the kept row and keeps its cursor. `imap.add`
+  saves a password under a `FOR UPDATE` lock on the `user` row and refuses a removed
+  user, so a removal during the server sign-in check wins. A token
   refresh that lands after the removal is cleared again in `afterAccountWrite`
   (`forgetGrantOfRemovedUser`) and never clears `NEEDS_RECONNECT`. The Slack
   `account` row holds the workspace bot token and `SlackWorkspaceGrant` the

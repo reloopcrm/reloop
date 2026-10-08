@@ -1,0 +1,117 @@
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { API_KEY_HEADER, auth } from "@crm/auth";
+import { db } from "@crm/db";
+import request from "supertest";
+import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
+import { BackfillService } from "../src/backfill/backfill.service";
+import { createApp } from "../src/create-app";
+import { storeKeyOf } from "../src/http/rest-rate-limit.middleware";
+import { MailboxSyncHeartbeatService } from "../src/sync/mailbox-sync-heartbeat.service";
+
+const runId = process.env.TEST_RUN_ID ?? "spec";
+const userId = `rest-rate-${runId}`;
+const domain = "example.com";
+const email = `rest-rate-${runId}@${domain}`;
+const limit = { max: 3, windowMs: 60_000 };
+
+describe("the REST rate limit", () => {
+	let app: Awaited<ReturnType<typeof createApp>> | undefined;
+	let server: ReturnType<NonNullable<typeof app>["getHttpServer"]>;
+	let firstKey = "";
+	let secondKey = "";
+	let allowed: string | undefined;
+	const spies: { mockRestore: () => void }[] = [];
+
+	beforeAll(async () => {
+		allowed = process.env.ALLOWED_SIGN_IN;
+		process.env.ALLOWED_SIGN_IN = domain;
+
+		spies.push(
+			spyOn(
+				DispatchHeartbeatService.prototype,
+				"onApplicationBootstrap",
+			).mockImplementation(() => {}),
+			spyOn(
+				MailboxSyncHeartbeatService.prototype,
+				"onApplicationBootstrap",
+			).mockImplementation(() => {}),
+			spyOn(BackfillService.prototype, "onModuleInit").mockImplementation(
+				() => {},
+			),
+			spyOn(db, "$disconnect").mockResolvedValue(undefined),
+		);
+
+		await db.user.deleteMany({ where: { id: userId } });
+		await db.user.create({
+			data: {
+				id: userId,
+				email,
+				name: "REST rate limit",
+				emailVerified: true,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			},
+		});
+
+		firstKey = (
+			await auth.api.createApiKey({
+				body: { name: "rate one", userId, expiresIn: null },
+			})
+		).key;
+		secondKey = (
+			await auth.api.createApiKey({
+				body: { name: "rate two", userId, expiresIn: null },
+			})
+		).key;
+
+		app = await createApp({ restRateLimit: limit });
+		server = app.getHttpServer();
+	});
+
+	afterAll(async () => {
+		await app?.close();
+		await db.user.deleteMany({ where: { id: userId } });
+		await db.rateLimit.deleteMany({
+			where: { key: { in: [storeKeyOf(firstKey), storeKeyOf(secondKey)] } },
+		});
+		for (const spy of spies) spy.mockRestore();
+
+		if (allowed === undefined) delete process.env.ALLOWED_SIGN_IN;
+		else process.env.ALLOWED_SIGN_IN = allowed;
+	});
+
+	const call = (key: string, mount = "/api/rest") =>
+		request(server).get(`${mount}/currency/settings`).set(API_KEY_HEADER, key);
+
+	it("passes a key under its limit", async () => {
+		for (let i = 0; i < limit.max; i += 1) {
+			expect((await call(firstKey)).status).toBe(200);
+		}
+	});
+
+	it("answers 429 with Retry-After once a key passes its limit", async () => {
+		const refused = await call(firstKey);
+
+		expect(refused.status).toBe(429);
+		const retry = Number(refused.headers["retry-after"]);
+		expect(Number.isInteger(retry)).toBe(true);
+		expect(retry).toBeGreaterThanOrEqual(1);
+		expect(retry).toBeLessThanOrEqual(limit.windowMs / 1_000);
+		expect((await call(firstKey, "/rest")).status).toBe(429);
+		expect(refused.body.message).toBe(
+			"Too many requests. Wait before you send the next request.",
+		);
+	});
+
+	it("counts a second key on its own", async () => {
+		expect((await call(secondKey)).status).toBe(200);
+	});
+
+	it("does not limit a request without an API key", async () => {
+		for (let i = 0; i < limit.max + 2; i += 1) {
+			const response = await request(server).get("/api/rest/currency/settings");
+
+			expect(response.status).toBe(401);
+		}
+	});
+});

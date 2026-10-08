@@ -22,11 +22,12 @@ import { AppModule } from "./app.module";
 import { BILLING_SEAM } from "./billing-port/billing-port";
 import { cloudMiddleware } from "./cloud/cloud-middleware";
 import { NodeEnv } from "./config/env.validation";
-import { REQUEST_SIZE } from "./http/http-config";
+import { REQUEST_SIZE, type RestRateLimitWindow } from "./http/http-config";
 import {
 	requestSizeLimit,
 	trpcBodyLimit,
 } from "./http/request-size.middleware";
+import { restRateLimit } from "./http/rest-rate-limit.middleware";
 import { ContextLogger } from "./logging/context-logger";
 import { REST } from "./trpc/openapi";
 import { createBaseTrpcContext } from "./trpc/trpc.context";
@@ -38,7 +39,9 @@ type OpenApiDocumentFactory = () => OpenApiDocument;
 const REST_DESCRIPTION =
 	"Every tRPC procedure, reachable over REST for tooling that cannot speak tRPC. Same validation, same middlewares, same services as the tRPC transport. Send an API key in the x-api-key header, or a session cookie.";
 
-export async function createApp(): Promise<NestExpressApplication> {
+export async function createApp(
+	options: { restRateLimit?: RestRateLimitWindow } = {},
+): Promise<NestExpressApplication> {
 	const app = await NestFactory.create<NestExpressApplication>(
 		AppModule,
 		new ExpressAdapter(),
@@ -64,6 +67,7 @@ export async function createApp(): Promise<NestExpressApplication> {
 
 	let restBridge: ((req: Request, res: Response) => Promise<void>) | undefined;
 	for (const mount of REST.bridge.mounts) {
+		app.use(mount, restRateLimit(options.restRateLimit));
 		app.use(mount, (req: Request, res: Response, next: NextFunction) => {
 			if (!restBridge) {
 				next();

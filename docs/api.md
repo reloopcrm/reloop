@@ -335,6 +335,16 @@ in `trpc/openapi.ts`. A Docker install publishes only the app, and the app forwa
 reach. `/rest` stays because a Vercel deployment uses it. Both mounts are the same
 middleware, so neither opens anything the other does not.
 
+**A key is rate limited on the bridge.** `restRateLimit` (`src/http/rest-rate-limit.middleware.ts`)
+runs in front of both mounts. A request with an `x-api-key` header counts against a fixed
+window per key: `REST_RATE_LIMIT.apiKey` in `src/http/http-config.ts` (300 requests per
+minute). Past it the answer is 429 with a `Retry-After` header in seconds. A cookie request
+carries no key header and is never counted. The count lives in the `rateLimit` table
+(better-auth's own table, under the `rest:` prefix and a SHA-256 of the key), so every API
+process shares it. One upsert counts and reads in one statement. Expired `rest:` rows are
+pruned once per window per process. better-auth's own API key limit stays off. The
+`/internal/*` cron routes, the tracking collector and `/api/trpc` are not on this limit.
+
 **`GET /api/openapi.json` is the document a self-hoster reads**, and it is the tRPC
 bridge half only, with `baseUrl` pointing at `/api/rest`. It answers 401 without a
 session or an API key, in development and in production alike. It runs the same check

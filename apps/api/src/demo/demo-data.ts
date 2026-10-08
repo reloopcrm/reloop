@@ -17,7 +17,7 @@ import { convertToBase } from "@crm/db/fx";
 import { POTENTIAL_VERDICT, type PotentialVerdict } from "@crm/db/insights";
 import { DEFAULT_LOCALE, type Locale } from "@crm/db/locale";
 import { isRealAnswer } from "@crm/db/message-text";
-import { SAMPLE_DATA } from "@crm/db/sample-data";
+import { hasOwnRecords, SAMPLE_DATA } from "@crm/db/sample-data";
 import { readReportingCurrency } from "@crm/db/settings";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import {
@@ -2406,16 +2406,8 @@ export async function hasDemoData(db: DemoDb): Promise<boolean> {
 	return row !== null;
 }
 
-export async function hasRealData(db: DemoDb): Promise<boolean> {
-	const real = { id: { not: { startsWith: DEMO.prefix } } };
-	const [companies, contacts, deals, threads] = await Promise.all([
-		db.company.findFirst({ where: real, select: { id: true } }),
-		db.contact.findFirst({ where: real, select: { id: true } }),
-		db.deal.findFirst({ where: real, select: { id: true } }),
-		db.emailThread.findFirst({ where: real, select: { id: true } }),
-	]);
-
-	return [companies, contacts, deals, threads].some((row) => row !== null);
+export function hasRealData(db: DemoDb): Promise<boolean> {
+	return hasOwnRecords(db, { mailThreads: true });
 }
 
 export async function seedDemoData(

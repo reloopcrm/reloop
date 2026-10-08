@@ -140,6 +140,33 @@ describe("the honeypot the tracker puts in every form", () => {
 		expect(trapOf(late)).not.toBeNull();
 	});
 
+	test("still traps a form with a control that shadows querySelector", async () => {
+		beacons.length = 0;
+		const shadowed = form("shadowed");
+		const control = document.createElement("input");
+		control.name = "querySelector";
+		control.value = "x";
+		shadowed.appendChild(control);
+		Object.defineProperty(shadowed, "querySelector", { value: control });
+		Object.defineProperty(shadowed, "appendChild", { value: control });
+		const after = form("after-shadowed");
+		await settle(() => trapOf(after) !== null);
+		const trap = Element.prototype.querySelector.call(
+			shadowed,
+			"[data-crm-hp]",
+		) as HTMLInputElement | null;
+
+		expect(trap).not.toBeNull();
+		expect(trapOf(after)).not.toBeNull();
+		if (trap) trap.value = "https://spam.example.com";
+
+		submit(shadowed);
+
+		const sent = await submissions();
+		expect(sent).toHaveLength(1);
+		expect(sent[0]?.fields?.[HONEYPOT_FIELD]).toBe("1");
+	});
+
 	test("marks a submission whose trap was filled in", async () => {
 		beacons.length = 0;
 		const email = bot.querySelector<HTMLInputElement>("input[name=email]");

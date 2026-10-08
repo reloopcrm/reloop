@@ -390,7 +390,45 @@ describe("refiling a submission the cap held back", () => {
 		});
 		expect(stored?.lastSource).toBe("Newsletter");
 		expect(stored?.lastTouchAt?.toISOString()).toBe(newer.toISOString());
-		expect(stored?.contactId).not.toBeNull();
+	});
+
+	it("keeps the visitor on the contact a newer form filed", async () => {
+		const newerEmail = `newer-${suffix}@${domain}`;
+		const newer = await submit(newerEmail);
+		const contactId = newer.outcome.filed ? newer.outcome.contactId : "";
+		const visitor = `visitor-${Math.random().toString(36).slice(2, 12)}`;
+		await db.trackedVisitor.create({
+			data: {
+				id: visitor,
+				contactId,
+				lastTouchAt: new Date("2026-09-01T12:00:00.000Z"),
+			},
+		});
+		const row = await held(`older-${suffix}@${domain}`);
+		await db.formSubmission.update({
+			where: { id: row.id },
+			data: {
+				visitorId: visitor,
+				lastTouch: {
+					source: "Google",
+					medium: "organic",
+					campaign: null,
+					term: null,
+					content: null,
+					referrer: null,
+					landing: "/pricing",
+					at: "2026-08-10T12:00:00.000Z",
+				},
+			},
+		});
+
+		expect(await refile.drain(1)).toBe(1);
+
+		const stored = await db.trackedVisitor.findUnique({
+			where: { id: visitor },
+			select: { contactId: true },
+		});
+		expect(stored?.contactId).toBe(contactId);
 	});
 
 	it("leaves the hour's last slots to forms that arrive live", async () => {

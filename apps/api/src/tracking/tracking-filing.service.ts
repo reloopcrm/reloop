@@ -211,13 +211,14 @@ export class TrackingFilingService {
 		const first = columns(context.firstTouch, "first");
 		const last = columns(context.lastTouch, "last");
 
+		const at = context.lastTouch?.at;
+
 		await this.db.trackedVisitor.upsert({
 			where: { id: visitorId },
 			create: { id: visitorId, contactId, ...first, ...last },
-			update: { contactId },
+			update: at ? {} : { contactId },
 		});
 
-		const at = context.lastTouch?.at;
 		if (!at) return;
 
 		await this.db.trackedVisitor.updateMany({
@@ -225,7 +226,7 @@ export class TrackingFilingService {
 				id: visitorId,
 				OR: [{ lastTouchAt: null }, { lastTouchAt: { lte: at } }],
 			},
-			data: last,
+			data: { contactId, ...last },
 		});
 	}
 

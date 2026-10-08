@@ -215,10 +215,13 @@ deleted* comes to be true of email and not of forms.
   after every accepted batch, and the `refile` window (`refileWindowKey`) lets
   one pass run per minute. The nightly retention sweep runs one more. A pass
   stops at the first row the contact cap refuses, because the hour is full.
-- **A refile never moves a visitor's last touch backwards.** `attach` writes the
-  `last*` columns only when the submission's touch is at least as new as
-  `lastTouchAt`, so an old deferred form filed after a newer live one leaves the
-  newer campaign in place.
+- **A refile never moves a visitor backwards.** `attach` writes the visitor's
+  `contactId` and `last*` columns only when the submission's touch is at least as
+  new as `lastTouchAt`, so an old deferred form filed after a newer live one
+  leaves the newer contact and the newer campaign in place.
+- **The trap code calls the DOM prototype**, `Element.prototype.querySelector`
+  and `Node.prototype.appendChild`, because a control named `querySelector`
+  shadows the form's own method and the call would throw.
 - **A refile never takes the hour's last slots.** It charges `CONTACTS_PER_HOUR`
   minus `FORM_REFILE.liveReserve`, so a backlog of deferred rows cannot fill the
   hour before a lead that arrives live. The live path keeps the full limit.

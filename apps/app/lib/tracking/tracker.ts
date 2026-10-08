@@ -125,7 +125,7 @@ function onClick(ev){
 function onSubmit(ev){
  var f=ev.target;
  if(!f||f.tagName!=="FORM")return;
- var fields={},n=0,hp=f.querySelector("[data-crm-hp]");
+ var fields={},n=0,hp=hpOf(f);
  if(hp&&hp.value){fields[HP]="1";send({type:"form_submit",path:loc.pathname,fields:fields});flush();return}
  for(var i=0;i<f.elements.length&&n<40;i++){
   var el=f.elements[i],name=el.name||el.id;
@@ -138,16 +138,17 @@ function onSubmit(ev){
  if(!n)return;
  send({type:"form_submit",path:loc.pathname,fields:fields,touch:last,firstTouch:first});
  flush()}
+function hpOf(f){try{return Element.prototype.querySelector.call(f,"[data-crm-hp]")}catch(e){return null}}
 function trap(){
  var fs=d.forms;
  for(var i=0;i<fs.length;i++){
   var f=fs[i];
-  if(f.querySelector("[data-crm-hp]"))continue;
+  if(hpOf(f))continue;
   var t=d.createElement("input");
   t.type="text";t.tabIndex=-1;t.autocomplete="off";
   t.setAttribute("data-crm-hp","");t.setAttribute("aria-hidden","true");
   t.style.cssText="position:absolute;left:-9999px;width:1px;height:1px;opacity:0";
-  f.appendChild(t)}}
+  try{Node.prototype.appendChild.call(f,t)}catch(e){}}}
 function decorate(){
  if(!C.crossDomain)return;
  d.addEventListener("mousedown",function(ev){

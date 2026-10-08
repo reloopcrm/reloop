@@ -82,7 +82,7 @@ export class ExportsController {
 	}
 
 	private abort(error: Error, response: Response) {
-		this.logger.error(`The export stopped: ${error.message}`);
+		this.logger.error({ message: "The export stopped" }, error.stack);
 		if (response.destroyed) return;
 		if (response.headersSent) {
 			response.destroy(error);

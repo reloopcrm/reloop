@@ -629,12 +629,13 @@ export class DealsService {
 			});
 			if (_max.createdAt) {
 				await this.stamp.touch({ companyId: moved.to }, _max.createdAt);
+				await this.stamp.releaseMovedDeal(moved.from, dealId);
 			}
 		} catch (error) {
 			this.logger.error(
 				{
 					message:
-						"A deal moved company but the new company's activity stamp was not raised",
+						"A deal moved company but the activity stamps of both companies were not updated",
 					dealId,
 					...moved,
 				},
@@ -884,33 +885,35 @@ export class DealsService {
 	}
 
 	async attachContact(input: DealAttachContactInput) {
-		const company = await this.companyOf(input.dealId);
-		const contact = await this.db.contact.findUnique({
-			where: { id: input.contactId },
-			select: { companyId: true },
-		});
-
-		if (!contact) {
-			throw new NotFoundException(`No contact with id ${input.contactId}.`);
-		}
-
-		if (contact.companyId !== company.id) {
-			throw new BadRequestException(
-				`That contact does not work at ${company.name}.`,
-			);
-		}
-
 		const role = roleOrNull(input.role ?? null);
 
-		await this.db.dealContact.upsert({
-			where: {
-				dealId_contactId: {
-					dealId: input.dealId,
-					contactId: input.contactId,
+		await this.db.$transaction(async (tx) => {
+			const company = await this.lockedCompanyOf(tx, input.dealId);
+			const contact = await tx.contact.findUnique({
+				where: { id: input.contactId },
+				select: { companyId: true },
+			});
+
+			if (!contact) {
+				throw new NotFoundException(`No contact with id ${input.contactId}.`);
+			}
+
+			if (contact.companyId !== company.id) {
+				throw new BadRequestException(
+					`That contact does not work at ${company.name}.`,
+				);
+			}
+
+			await tx.dealContact.upsert({
+				where: {
+					dealId_contactId: {
+						dealId: input.dealId,
+						contactId: input.contactId,
+					},
 				},
-			},
-			create: { dealId: input.dealId, contactId: input.contactId, role },
-			update: role === null ? {} : { role },
+				create: { dealId: input.dealId, contactId: input.contactId, role },
+				update: role === null ? {} : { role },
+			});
 		});
 
 		this.logger.log({
@@ -1008,17 +1011,19 @@ export class DealsService {
 		return runBulk(ids, (id) => this.purge(id));
 	}
 
-	private async companyOf(dealId: string) {
-		const deal = await this.db.deal.findUnique({
-			where: { id: dealId },
-			select: { company: { select: { id: true, name: true } } },
-		});
+	private async lockedCompanyOf(tx: Prisma.TransactionClient, dealId: string) {
+		const [deal] = await tx.$queryRaw<Array<{ companyId: string }>>`
+			SELECT "companyId" FROM deal WHERE id = ${dealId} FOR UPDATE
+		`;
 
 		if (!deal) {
 			throw new NotFoundException(`No deal with id ${dealId}.`);
 		}
 
-		return deal.company;
+		return tx.company.findUniqueOrThrow({
+			where: { id: deal.companyId },
+			select: { id: true, name: true },
+		});
 	}
 
 	private searchFilter(q: string): Prisma.DealWhereInput {

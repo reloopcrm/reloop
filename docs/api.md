@@ -793,8 +793,16 @@ picker reads.
   `companyId` removes every `DealContact` whose contact is not at the new company
   (a contact with no company included) and moves the deal's activities to the new
   company, in the same transaction. After commit it raises the new company's
-  `lastActivityAt` to the deal's newest activity; the old company keeps its stamp,
-  because a recompute would drop stamps the agent writes without an activity.
+  `lastActivityAt` to the deal's newest activity. The old company drops to the
+  newest activity it still has (null with none), but only when its stamp is not
+  newer than the moved deal's newest activity
+  (`ActivityStampService.releaseMovedDeal`, one `UPDATE`). A newer stamp came from
+  something that stayed, such as a research brief the agent stamps itself, so it
+  stays.
+- **`attachContact` checks the company under the deal's `FOR UPDATE`**, the same
+  row lock a company move takes, and upserts in that transaction. An attach that
+  races a move either lands first and is removed by the move, or runs after it
+  and is refused.
 - **Attaching is an upsert and re-attaching keeps the role already there**, so a
   double click cannot blank what somebody typed.
 - **Detaching removes the row, never the contact.** They stay in the CRM, on the

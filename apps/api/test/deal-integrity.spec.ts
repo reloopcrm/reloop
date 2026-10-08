@@ -256,3 +256,132 @@ describe("an archived deal", () => {
 		expect(events).toEqual([]);
 	});
 });
+
+describe("the old company's activity stamp after a move", () => {
+	const older = new Date("2026-03-01T10:00:00.000Z");
+	const moved = new Date("2026-03-05T10:00:00.000Z");
+	const agentStamp = new Date("2026-03-09T10:00:00.000Z");
+
+	async function movingDeal(key: string, stamp: Date) {
+		const from = await company(`${key}-from`);
+		const to = await company(`${key}-to`);
+		const deal = await deals.create({
+			name: `Stamp ${key} ${suffix}`,
+			companyId: from.id,
+			ownerId: userId,
+		});
+		await db.activity.create({
+			data: {
+				type: ActivityType.NOTE,
+				subject: "Deal call",
+				companyId: from.id,
+				dealId: deal.id,
+				createdById: userId,
+				createdAt: moved,
+			},
+		});
+		await db.company.update({
+			where: { id: from.id },
+			data: { lastActivityAt: stamp },
+		});
+		return { from, to, deal };
+	}
+
+	async function stampOf(id: string) {
+		const stored = await db.company.findUniqueOrThrow({
+			where: { id },
+			select: { lastActivityAt: true },
+		});
+		return stored.lastActivityAt;
+	}
+
+	it("drops to the newest activity the old company still has", async () => {
+		const { from, to, deal } = await movingDeal("lower", moved);
+		await db.activity.create({
+			data: {
+				type: ActivityType.NOTE,
+				subject: "Company call",
+				companyId: from.id,
+				createdById: userId,
+				createdAt: older,
+			},
+		});
+
+		await deals.update(deal.id, { companyId: to.id });
+
+		expect(await stampOf(from.id)).toEqual(older);
+		expect(await stampOf(to.id)).toEqual(moved);
+	});
+
+	it("is empty when the old company has no activity left", async () => {
+		const { from, to, deal } = await movingDeal("empty", moved);
+
+		await deals.update(deal.id, { companyId: to.id });
+
+		expect(await stampOf(from.id)).toBeNull();
+	});
+
+	it("keeps a newer stamp the agent wrote without a moved activity", async () => {
+		const { from, to, deal } = await movingDeal("agent", agentStamp);
+
+		await deals.update(deal.id, { companyId: to.id });
+
+		expect(await stampOf(from.id)).toEqual(agentStamp);
+		expect(await stampOf(to.id)).toEqual(moved);
+	});
+});
+
+describe("attaching a contact while the deal moves", () => {
+	it("never leaves a contact of the old company on the deal", async () => {
+		const from = await company("attach-from");
+		const to = await company("attach-to");
+		const leaving = await db.contact.create({
+			data: { firstName: "Ari", lastName: "Attach", companyId: from.id },
+			select: { id: true },
+		});
+		const deal = await deals.create({
+			name: `Attach race ${suffix}`,
+			companyId: from.id,
+			ownerId: userId,
+		});
+
+		let release = () => {};
+		const held = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let locked = () => {};
+		const lockTaken = new Promise<void>((resolve) => {
+			locked = resolve;
+		});
+		const holder = db.$transaction(
+			async (tx) => {
+				await tx.$queryRaw`SELECT id FROM deal WHERE id = ${deal.id} FOR UPDATE`;
+				locked();
+				await held;
+			},
+			{ timeout: 10_000 },
+		);
+		await lockTaken;
+
+		const move = deals.update(deal.id, { companyId: to.id });
+		await Bun.sleep(300);
+		const attach = deals
+			.attachContact({ dealId: deal.id, contactId: leaving.id })
+			.then(
+				() => null,
+				(error: unknown) => error,
+			);
+		await Bun.sleep(300);
+		release();
+		await holder;
+		const [, refused] = await Promise.all([move, attach]);
+
+		const people = await db.dealContact.findMany({
+			where: { dealId: deal.id },
+			select: { contactId: true },
+		});
+		expect(people).toEqual([]);
+		expect(refused).toBeInstanceOf(Error);
+		expect((refused as Error).message).toContain("does not work at");
+	});
+});

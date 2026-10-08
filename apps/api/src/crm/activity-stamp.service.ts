@@ -158,6 +158,18 @@ export class ActivityStampService {
 		}
 	}
 
+	async releaseMovedDeal(companyId: string, dealId: string): Promise<void> {
+		await this.db.$executeRaw`
+			UPDATE "company" c
+			SET "lastActivityAt" = (
+				SELECT MAX(a."createdAt") FROM "activity" a WHERE a."companyId" = c.id
+			)
+			WHERE c.id = ${companyId}
+			AND c."lastActivityAt" <= (
+				SELECT MAX(a."createdAt") FROM "activity" a WHERE a."dealId" = ${dealId}
+			)`;
+	}
+
 	private restamp(table: string, column: string, ids: string[]) {
 		if (ids.length === 0) return null;
 

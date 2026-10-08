@@ -17,7 +17,12 @@ import type {
 	FieldValueJson,
 } from "@crm/db/fields";
 import { lockFactField } from "@crm/db/idempotency";
-import { fixedAiWith, planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
+import {
+	budgetTasksWhere,
+	fixedAiWith,
+	planLimitsOf,
+	usageWindowOf,
+} from "@crm/db/plan-usage";
 import { DRAFT_KIND, monthlyBudget } from "@crm/db/plans";
 import { threadsOfContact } from "@crm/db/thread-participants";
 import { readAgentTaskOneOff } from "@crm/validation/agent-task-payload";
@@ -1001,7 +1006,7 @@ export class ContactsService {
 
 		const { since, until } = await usageWindowOf(this.db, now);
 		const used = await this.db.agentTask.count({
-			where: { kind: DRAFT_KIND, createdAt: { gte: since } },
+			where: budgetTasksWhere(DRAFT_KIND, since),
 		});
 		return used >= budget ? until : null;
 	}

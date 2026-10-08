@@ -9,7 +9,8 @@ import {
 } from "bun:test";
 import { db, RecordSource } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
-import { DRAFT_KIND, startOfMonth } from "@crm/db/plans";
+import { budgetTasksWhere, usageWindowOf } from "@crm/db/plan-usage";
+import { DRAFT_KIND } from "@crm/db/plans";
 import { readPlan, writePlan } from "@crm/db/settings";
 import {
 	actWithoutPlans,
@@ -314,6 +315,73 @@ describe("the email a rep can send back", () => {
 	});
 });
 
+describe("the draft limit counts what the budget counts", () => {
+	async function drafts(
+		contactId: string,
+		count: number,
+		startedAt: Date | null,
+	): Promise<void> {
+		await db.agentTask.createMany({
+			data: Array.from({ length: count }, () => ({
+				contactId,
+				kind: DRAFT_KIND,
+				reason: "test",
+				priority: PRIORITY.emailDraft,
+				budget: 1,
+				dueAt: new Date(),
+				startedAt,
+				finishedAt: new Date(),
+			})),
+		});
+	}
+
+	async function counted(): Promise<number> {
+		const { since } = await usageWindowOf(db);
+		return db.agentTask.count({ where: budgetTasksWhere(DRAFT_KIND, since) });
+	}
+
+	it("leaves out tasks that finished without ever starting", async () => {
+		const id = await person("nie-gestartet");
+		const planBefore = await readPlan(db);
+		await writePlan(db, "small");
+		try {
+			await drafts(
+				id,
+				Math.max(0, TEST_PLANS.small.draftsPerMonth - 1 - (await counted())),
+				new Date(),
+			);
+			await drafts(id, 3, null);
+
+			const state = await service.draft(id);
+
+			expect(await counted()).toBe(TEST_PLANS.small.draftsPerMonth - 1);
+			expect(state.limit).toBeNull();
+			expect(state.waitingUntil).toBeNull();
+		} finally {
+			await writePlan(db, planBefore);
+		}
+	});
+
+	it("still names the limit once the counted tasks reach it", async () => {
+		const id = await person("voll");
+		const planBefore = await readPlan(db);
+		await writePlan(db, "small");
+		try {
+			await drafts(
+				id,
+				Math.max(0, TEST_PLANS.small.draftsPerMonth - (await counted())),
+				new Date(),
+			);
+
+			const state = await service.draft(id);
+
+			expect(state.limit).toBe("plan");
+		} finally {
+			await writePlan(db, planBefore);
+		}
+	});
+});
+
 describe("a person opened after newer mail", () => {
 	it("asks the agent for a fresh draft once the stored one is stale", async () => {
 		const id = await person("nachfassen");
@@ -440,8 +508,9 @@ describe("a person opened after newer mail", () => {
 		const planBefore = await readPlan(db);
 		await writePlan(db, "small");
 		try {
+			const { since } = await usageWindowOf(db);
 			const used = await db.agentTask.count({
-				where: { kind: DRAFT_KIND, createdAt: { gte: startOfMonth() } },
+				where: budgetTasksWhere(DRAFT_KIND, since),
 			});
 			const room = Math.max(0, TEST_PLANS.small.draftsPerMonth - used);
 			await db.agentTask.createMany({
@@ -452,6 +521,7 @@ describe("a person opened after newer mail", () => {
 					priority: 970,
 					budget: 1,
 					dueAt: new Date(),
+					startedAt: new Date("2026-08-15T00:00:00.000Z"),
 					finishedAt: new Date("2026-08-15T00:00:00.000Z"),
 				})),
 			});

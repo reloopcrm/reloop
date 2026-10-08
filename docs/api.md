@@ -1083,6 +1083,10 @@ marked passages and the follow-up delay. It writes nothing but an
   `waitingUntil` and a draft that is `stale`, the page shows "Newer mail has arrived
   since this draft." and the limit text with its date above it (`draftLimitHint` in
   `win-back/[contactId]/person-view.ts`). The old draft stays readable below.
+- **The draft limit counts what the budget counts.** `draftLimitResumesAt` counts
+  `budgetTasksWhere(DRAFT_KIND, since)`, the set the agent's gate and the usage page
+  count, so a draft task that finished without ever starting never makes the page
+  say the limit is reached.
 - **`followUpDays` is null when the win back follow-up function is off**, so the page
   never promises a reminder the sweep will not write.
 - The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared

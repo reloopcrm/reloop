@@ -244,8 +244,13 @@ export function useCrmCache(): CrmCache {
 			return run([trpc.conversations.builderList.pathKey()], []);
 		},
 
-		activity: (options) =>
-			run(
+		activity: (options) => {
+			void queryClient.invalidateQueries({
+				queryKey: trpc.reactivation.nextPerson.queryKey(),
+				refetchType: "none",
+			});
+
+			return run(
 				activityKeys(),
 				[
 					...listKeys(),
@@ -256,7 +261,8 @@ export function useCrmCache(): CrmCache {
 					trpc.reactivation.list.queryKey(),
 				],
 				options,
-			),
+			);
+		},
 
 		google: (options) =>
 			run(

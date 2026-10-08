@@ -4,6 +4,7 @@ const client = { ...(await import("../lib/trpc/client")) };
 const reactQuery = { ...(await import("@tanstack/react-query")) };
 
 const invalidated: string[] = [];
+const quiet: string[] = [];
 
 function procedures(path: string[] = []): unknown {
 	return new Proxy(() => {}, {
@@ -23,8 +24,16 @@ mock.module("../lib/trpc/client", () => ({
 mock.module("@tanstack/react-query", () => ({
 	...reactQuery,
 	useQueryClient: () => ({
-		invalidateQueries: async ({ queryKey }: { queryKey: string[][] }) => {
-			invalidated.push((queryKey[0] ?? []).join("."));
+		invalidateQueries: async ({
+			queryKey,
+			refetchType,
+		}: {
+			queryKey: string[][];
+			refetchType?: string;
+		}) => {
+			const name = (queryKey[0] ?? []).join(".");
+			if (refetchType === "none") quiet.push(name);
+			else invalidated.push(name);
 		},
 	}),
 }));
@@ -44,5 +53,14 @@ describe("a changed activity", () => {
 
 		expect(invalidated).toContain("reactivation.list");
 		expect(invalidated).toContain("activities.myTasks");
+	});
+
+	it("marks every Continue with as outdated without moving the open page", async () => {
+		quiet.length = 0;
+		invalidated.length = 0;
+		await useCrmCache().activity();
+
+		expect(quiet).toContain("reactivation.nextPerson");
+		expect(invalidated).not.toContain("reactivation.nextPerson");
 	});
 });

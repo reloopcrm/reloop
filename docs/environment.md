@@ -205,8 +205,11 @@ meta tag. The app then writes the tag into every page of the public site.
 
 ## `RELOOP_PLANS`, off by default
 
-The Plan card in Settings names the limits of a hosted plan. A self-hosted
-install has none, so the card only renders when `RELOOP_PLANS` is the literal
+The Plan card in Settings names the limits of the stored plan. The open source
+build carries no tariff catalog: its `cloud.plans` port answers no limit for
+every plan string, so the card then offers only "No plan, no limits". The
+hosted Cloud's private overlay fills the port with its catalog. A self-hosted
+install has no plan, so the card only renders when `RELOOP_PLANS` is the literal
 `"true"`. The operator of a hosted install sets it; nobody else does.
 
 ## `RELOOP_MANAGED`, off by default

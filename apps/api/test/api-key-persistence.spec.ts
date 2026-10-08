@@ -39,6 +39,8 @@ describe("an API key cannot build lasting access", () => {
 		["agents.deploy", AgentsRouter.prototype.deploy],
 		["agents.saveFile", AgentsRouter.prototype.saveFile],
 		["agents.revise", AgentsRouter.prototype.revise],
+		["agents.resume", AgentsRouter.prototype.resume],
+		["agents.restore", AgentsRouter.prototype.restore],
 	] as const;
 
 	for (const [name, handler] of guarded) {

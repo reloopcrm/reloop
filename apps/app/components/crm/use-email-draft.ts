@@ -90,6 +90,7 @@ export function useEmailDraft(
 	const refresh = useMutation(
 		trpc.contacts.refreshDraft.mutationOptions({
 			onSuccess: async (result) => {
+				if (!result.queued) return;
 				const queryKey = trpc.contacts.draft.queryKey({ id: contactId });
 				await queries.cancelQueries({ queryKey });
 				queries.setQueryData(queryKey, result);

@@ -225,6 +225,14 @@ describe("the Win back person opened after the first mail went out", () => {
 		expect(cacheCalls).toEqual(["cancel", "set queued"]);
 	});
 
+	it("keeps a newer state when a late check queued nothing", async () => {
+		await open(viewOf(null, "erika@example.com"));
+
+		await act(async () => refreshSuccess?.({ queued: false }));
+
+		expect(cacheCalls).toEqual([]);
+	});
+
 	it("names the draft it shows when the rep writes again", async () => {
 		await open(viewOf(null, "erika@example.com"));
 

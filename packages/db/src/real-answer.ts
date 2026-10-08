@@ -7,10 +7,17 @@ import {
 
 const SQL_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+const JS_WHITESPACE = String.raw`\u0009-\u000d\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff`;
+
+function postgresSource(source: string): string {
+	return source
+		.replaceAll(String.raw`\b`, String.raw`\y`)
+		.replaceAll(String.raw`\s`, `[${JS_WHITESPACE}]`)
+		.replaceAll(String.raw`\S`, `[^${JS_WHITESPACE}]`);
+}
+
 function alternatives(sources: readonly string[]): string {
-	return sources
-		.map((source) => `(?:${source.replaceAll(String.raw`\b`, String.raw`\y`)})`)
-		.join("|");
+	return sources.map((source) => `(?:${postgresSource(source)})`).join("|");
 }
 
 export function postgresPattern(sources: readonly string[]): string {

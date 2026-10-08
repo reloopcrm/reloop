@@ -90,6 +90,10 @@ describe("the honeypot the tracker puts in every form", () => {
 		expect(human.querySelectorAll("[data-crm-hp]")).toHaveLength(1);
 	});
 
+	test("uses a textarea, so a one field form still submits on Enter", () => {
+		expect(trapOf(human)?.tagName).toBe("TEXTAREA");
+	});
+
 	test("gives the trap no name, so the site's own form never posts it", () => {
 		const trap = trapOf(human);
 

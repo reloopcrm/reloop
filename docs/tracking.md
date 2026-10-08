@@ -55,12 +55,14 @@ somebody else's page. That imposes rules nothing else in this repo has:
 - **Constants come from `@crm/db/tracking`**, interpolated in — `MAX_BODY_BYTES`,
   `MAX_EVENTS_PER_BATCH`, `LINKER_MAX_AGE_SECONDS`, `COOKIE_NAME`. A literal at the
   call site is a client and a server that disagree, and the disagreement is silent.
-- **Every form carries a honeypot.** `trap()` appends one text input to each
+- **Every form carries a honeypot.** `trap()` appends one `textarea` to each
   form on the page, at start, on every SPA view and after a `MutationObserver`
   sees the page insert nodes, so a modal form gets one too: off screen, `tabIndex -1`,
   `aria-hidden`, `autocomplete="off"`, marked `data-crm-hp`. **It has no `name`**,
   so the site's own form never posts it and its backend cannot reject an unknown
-  field. A person never sees it; a script that fills every input does. When it
+  field. It is a `textarea` and not a text input, because a second text input
+  blocks implicit submission: a one field form without a button would stop
+  submitting on Enter. A person never sees it; a script that fills every input does. When it
   holds a value, `onSubmit` checks it **before** the forty-field loop and sends a
   submission that carries only `HONEYPOT_FIELD`, so neither the field cap nor
   `shrink()` can drop the marker.

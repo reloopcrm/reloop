@@ -144,8 +144,8 @@ function trap(){
  for(var i=0;i<fs.length;i++){
   var f=fs[i];
   if(hpOf(f))continue;
-  var t=d.createElement("input");
-  t.type="text";t.tabIndex=-1;t.autocomplete="off";
+  var t=d.createElement("textarea");
+  t.tabIndex=-1;t.setAttribute("autocomplete","off");
   t.setAttribute("data-crm-hp","");t.setAttribute("aria-hidden","true");
   t.style.cssText="position:absolute;left:-9999px;width:1px;height:1px;opacity:0";
   try{Node.prototype.appendChild.call(f,t)}catch(e){}}}

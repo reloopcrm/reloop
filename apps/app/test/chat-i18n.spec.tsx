@@ -78,7 +78,9 @@ describe("a failed builder message", () => {
 			}),
 		);
 
-		expect(markup).toContain(de["This message could not be sent."]);
+		expect(markup).toContain(
+			de["This message could not be sent."] ?? "missing",
+		);
 		expect(markup).not.toContain("fetch failed");
 	});
 
@@ -149,7 +151,7 @@ describe("the record chat failure", () => {
 
 	it("shows the developer hint in development", () => {
 		const saved = process.env.NODE_ENV;
-		process.env.NODE_ENV = "development";
+		Reflect.set(process.env, "NODE_ENV", "development");
 		try {
 			const markup = german(
 				createElement(Failure, { message: BRIDGE_ERRORS.unreachable }),
@@ -157,7 +159,7 @@ describe("the record chat failure", () => {
 
 			expect(markup).toContain("AGENT_URL");
 		} finally {
-			process.env.NODE_ENV = saved;
+			Reflect.set(process.env, "NODE_ENV", saved);
 		}
 	});
 });

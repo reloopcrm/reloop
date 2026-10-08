@@ -251,12 +251,12 @@ describe("the texts that reach t() through a variable", () => {
 		...Object.values(PLAN_LIMIT_MESSAGES),
 		...BUILDER_STEPS,
 		...BUILDER_FOLLOW_UPS,
-		...Object.values(DELIVERY_ERRORS),
+		...DELIVERY_ERRORS.values(),
 		DELIVERY_ERROR_FALLBACK,
 		...CHAT_DATE_GROUPS,
 		...ACTION_LABELS.values(),
 		...Object.values(BRIDGE_ERRORS),
-		...Object.values(BRIDGE_DEVELOPER_HINTS),
+		...BRIDGE_DEVELOPER_HINTS.values(),
 		BRIDGE_ERROR_FALLBACK,
 		BRAND.tagline,
 		DOCS.index.title,
@@ -280,8 +280,8 @@ describe("the texts that reach t() through a variable", () => {
 					(BUILDER_FOLLOW_UPS as readonly string[]).includes(english) ||
 					(CHAT_DATE_GROUPS as readonly string[]).includes(english) ||
 					[...ACTION_LABELS.values()].includes(english) ||
-					Object.values(DELIVERY_ERRORS).includes(english) ||
-					Object.values(BRIDGE_ERRORS).includes(english as never) ||
+					[...DELIVERY_ERRORS.values()].includes(english) ||
+					(Object.values(BRIDGE_ERRORS) as string[]).includes(english) ||
 					english === BRIDGE_ERROR_FALLBACK ||
 					english === DELIVERY_ERROR_FALLBACK,
 			);

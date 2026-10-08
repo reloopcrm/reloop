@@ -11,26 +11,28 @@ export const BRIDGE_ERRORS = {
 export const BRIDGE_ERROR_FALLBACK =
 	"The research agent could not answer. Try again.";
 
-export const BRIDGE_DEVELOPER_HINTS = {
-	[BRIDGE_ERRORS.unreachable]:
+export const BRIDGE_DEVELOPER_HINTS = new Map<string, string>([
+	[
+		BRIDGE_ERRORS.unreachable,
 		"Start it with `bun run dev`, or check AGENT_URL.",
-	[BRIDGE_ERRORS.notConfigured]:
+	],
+	[
+		BRIDGE_ERRORS.notConfigured,
 		"Set AGENT_BRIDGE_SECRET for both the app and the agent.",
-} as const;
+	],
+]);
 
-const BRIDGE_ERROR_TEXTS: ReadonlySet<string> = new Set(
-	Object.values(BRIDGE_ERRORS),
-);
+const BRIDGE_ERROR_TEXTS = new Set<string>(Object.values(BRIDGE_ERRORS));
 
 export function bridgeFailure(
 	message: string,
 	t: Translate,
 	options: { developer: boolean; known?: readonly string[] },
-): { text: string; hint: string | null } {
+) {
 	const shown =
 		BRIDGE_ERROR_TEXTS.has(message) || options.known?.includes(message);
 	const hint = options.developer
-		? (BRIDGE_DEVELOPER_HINTS as Record<string, string>)[message]
+		? BRIDGE_DEVELOPER_HINTS.get(message)
 		: undefined;
 
 	return {

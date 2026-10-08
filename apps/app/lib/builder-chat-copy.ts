@@ -13,17 +13,22 @@ export const BUILDER_FOLLOW_UPS = [
 
 export const DELIVERY_ERROR_FALLBACK = "This message could not be sent.";
 
-export const DELIVERY_ERRORS: Record<string, string> = {
-	DELIVERY_FAILED:
+export const DELIVERY_ERRORS = new Map([
+	[
+		"DELIVERY_FAILED",
 		"The builder did not receive this message. Send it again in a moment.",
-	DELIVERY_EXHAUSTED:
+	],
+	[
+		"DELIVERY_EXHAUSTED",
 		"The builder could not take this message after three attempts. Send it again.",
-};
+	],
+]);
 
 export function deliveryErrorText(
 	code: string | null | undefined,
 	t: Translate,
 ): string {
-	const known = code ? DELIVERY_ERRORS[code] : undefined;
-	return t(known ?? DELIVERY_ERROR_FALLBACK);
+	return t(
+		(code ? DELIVERY_ERRORS.get(code) : undefined) ?? DELIVERY_ERROR_FALLBACK,
+	);
 }

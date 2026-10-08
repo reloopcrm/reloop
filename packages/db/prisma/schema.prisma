@@ -1492,6 +1492,7 @@ model CalendarEvent {
   @@unique([iCalUid, originalStartTime])
   @@index([companyId, startsAt])
   @@index([contactId, startsAt])
+  @@index([googleEventId])
   @@map("calendarEvent")
 }
 

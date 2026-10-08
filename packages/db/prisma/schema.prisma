@@ -1289,6 +1289,8 @@ model ThreadInsight {
   quantityPallets    Int?
   loads              Int?
   outcome            String
+  declineKind        String?
+  declinedAt         DateTime?
   unansweredByUs     Boolean  @default(false)
   summary            String
   language           String?
@@ -1445,6 +1447,7 @@ model EmailMessage {
   body       String?
   summary    String?
   sentAt     DateTime
+  realAnswer Boolean?
 
   createdAt DateTime @default(now())
 
@@ -1452,6 +1455,7 @@ model EmailMessage {
   @@index([imapAccountId])
   @@index([fromEmail])
   @@index([recipients(ops: JsonbPathOps)], type: Gin)
+  @@index([id], map: "emailMessage_realAnswer_missing_idx", where: { realAnswer: null })
   @@map("emailMessage")
 }
 
@@ -1527,7 +1531,8 @@ model SuppressedContact {
 model AppSetting {
   id String @id
 
-  plan String?
+  plan         String?
+  contactLimit Int?
 
   agentModelId String?
 

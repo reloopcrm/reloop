@@ -1,5 +1,4 @@
-import type { WorkspaceScope } from "@crm/db/cloud/contract";
-import type { PlanPurchase } from "@crm/db/pricing";
+import type { PlanPurchase, WorkspaceScope } from "@crm/db/cloud/contract";
 
 export async function requestScope(): Promise<WorkspaceScope | null> {
 	return null;

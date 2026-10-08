@@ -76,8 +76,15 @@ outside the slot folders. The hosted version plugs in here; the open core runs
 without it. In this repository every slot is a no-op: `cloud.hosted()` is false;
 `run`, `hold` and `forEachScope` call the work exactly once; `resolveClient`
 returns the one client of `DATABASE_URL`; the member hooks do nothing. Only
-`current()` and `addOns()` throw, because a self-hosted install has no scope:
-guard them with `cloud.hosted()` or `cloud.customer()`.
+`current()` throws, because a self-hosted install has no scope: guard it with
+`cloud.hosted()` or `cloud.customer()`. `cloud.plans` is the port for limits: the
+open core carries no plan table, so `limitsOf` answers `NO_PLAN` for every plan
+string, `withAddOns` returns its input, `usageWindow` is null and `options` is
+empty. Core code never reads a plan itself; it calls `planLimitsOf(db)`
+(`@crm/db/plan-usage`), which goes through that port, and the hosted version
+fills the port with its own catalog. `writePlan` (`@crm/db/settings`) stores
+`appSetting.contactLimit` from the same port, and the database trigger
+`enforce_contact_plan_limit` reads that column: NULL means no limit.
 
 Keep the port in use. A process-wide cache key that is per workspace goes through
 `cloud.scopedKey()`, a cron route that serves every workspace loops through
@@ -226,9 +233,9 @@ self-hoster's admin cannot redeploy.
   key is a session in a header, so a procedure that mints a credential, grants a
   role, registers a sign-in provider, stores an outbound address or deploys code
   must refuse one: revoking the key must undo everything the key did. The list is
-  in `SECURITY.md`. `agents.revise`, `agents.saveFile` and `agents.deploy` are on
-  it: a deployed agent keeps running after the key is gone, so a key may read an
-  agent but never change or deploy its code. A role gate on top of it is still
+  in `SECURITY.md`. `agents.revise`, `agents.saveFile`, `agents.deploy`, `agents.resume`
+  and `agents.restore` are on it: a deployed agent keeps running after the key is
+  gone, so a key may read an agent but never change, deploy, resume or restore it. A role gate on top of it is still
   the service's job.
 - **Routers are thin**: zod in, service call out; Prisma lives in `*.service.ts`.
 - Services throw Nest's `HttpException` family; `DomainErrorMiddleware` maps them.
@@ -415,7 +422,8 @@ the largest attachment upload the conversation contracts accept.
   of threads that are not worth adopting is reached within one round of the waiting
   threads. An unreadable cursor is logged and starts again from the newest thread.
 - **Old rows follow the identity.** `DirectionRepairService` runs once per sync
-  tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`,
+  tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`
+  and sets their `realAnswer` to `false` in the same statement,
   at most `DIRECTION.repairBatch` per tick, and never the other way. Once a pass
   finds less than a batch, it skips until the identity changes, so a new mailbox
   or a new alias corrects the history by itself. It deletes nothing;
@@ -513,8 +521,9 @@ the largest attachment upload the conversation contracts accept.
   request error) and return no contact. `resolve` answers `limited: true`, `store` keeps
   the thread `PENDING`, and one warning per `LIMIT_WARNING.intervalMs` is logged. The
   mailbox never turns `FAILED` and the cursor moves on. Before `create` makes a new
-  company it counts contacts against `limitsOf(readPlan)`, the trigger's own rule, and at
-  the limit it creates neither the company nor the contact.
+  company it counts contacts against `planLimitsOf(db).contacts`, the same value the
+  trigger reads from `appSetting.contactLimit`, and at the limit it creates neither
+  the company nor the contact.
 - **A contact who writes again comes back.** `store` calls `reviveContact` for a new
   INBOUND message. The sender first passes `externalParticipants` with the same
   `MatchContext` as contact creation, so a colleague, a suppressed or blocked address and
@@ -644,6 +653,15 @@ the largest attachment upload the conversation contracts accept.
   newest mail, the win back person view and the agent's memory. **The win back list
   keeps one person per conversation**: `listReactivationCandidates` still groups by
   `emailThread.contactId`, so a thread never lifts a second person onto the list.
+- **A hard no leaves the win back list.** `listReactivationCandidates` drops a person
+  with an owned thread whose insight is `DECLINED` with `declineKind` `HARD`, until a
+  real answer (`realAnswer`, so no auto reply or bounce) from that person's own
+  address arrives after `declinedAt`, in a thread they own or take part in. Mail from
+  us or from a colleague does not bring them back. The list, "Continue with", the
+  story prefetch, the "Wrote back" view and the agent's `list_win_back_candidates`
+  all read it. A soft no, or a null kind, stays and shows "said no". The rejected view and
+  `readReactivationCandidate` do not filter it, so the person page and the Anfrage
+  panel still open.
 - **The links of existing mail are written by a script, once.** `bun run
   thread-participants` in `apps/api` walks every thread by id in batches of
   `THREAD_PARTICIPANTS.backfillBatch` inside `cloud.forEachScope` and prints per
@@ -706,13 +724,35 @@ the pattern lists in `packages/db/src/message-text.ts`
 - **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same
   lists. Every query that counts a reply uses it; never write
   `direction = 'INBOUND'` alone for that.
+- **The verdict is stored on the message.** `EmailMessage.realAnswer` holds it.
+  `ThreadWriterService.store` writes `isRealAnswer` of exactly the stored sender,
+  subject, body and snippet, and the direction repair writes `false` with every
+  flip to `OUTBOUND`. `realAnswer("m")` is `direction = 'INBOUND'` and the stored
+  flag, and falls back to the pattern lists only while the flag is null, so a
+  count is the same before and after old rows are filled. The pattern lists run
+  over every inbound message in the table; the flag takes that cost away.
+  `realAnswerRule("m")` is the pattern lists alone, for the parity test and the
+  fill.
+- **Old rows fill themselves.** `RealAnswerBackfillService` runs once per sync
+  tick after the direction repair and writes `realAnswerRule` into at most
+  `REAL_ANSWER.backfillBatch` rows whose flag is null (`fillRealAnswers`), with
+  `FOR UPDATE SKIP LOCKED`. It never touches a row that has a value, so it is
+  safe to stop and restart. Once a pass fills less than a batch and no empty
+  flag is left (`realAnswersMissing`), it stops until the API restarts; a row
+  another transaction held is filled on a later tick. The partial index
+  `emailMessage_realAnswer_missing_idx` holds only the empty rows, so finding
+  them does not scan the table. A self-hosted install runs nothing by hand: the
+  history is filled a batch per tick after the deploy. The hard no filter in
+  `reactivation.ts` reads `realAnswer` too, so it gains the same.
 - **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
   and the follow-up sweep both skip auto-replies and bounces.
 - **"Wrote back" is the same loop.** `reactivation.list` and `nextPerson` take
   `replied`; the list then keeps only the people in the loop's `answered` set
   (`wroteBackAfterOutreach`): a real answer after the first mail that followed the
   verdict. An answer before that mail does not count. The win back rules do not
-  apply to this view, so everyone the card counts can show. The "Replied" card links to
+  apply to this view, so everyone the card counts can show, except a person whose
+  answer is a hard no: the hard no filter still applies, and a later answer of
+  their own brings them back to both views. The "Replied" card links to
   the list with `?replied=true` and the dashboard's scope. The card counts this
   month, the list shows every reply. A filtered list is never the prefetch's default
   list (`readsDefaultList`).
@@ -754,8 +794,10 @@ the pattern lists in `packages/db/src/message-text.ts`
   answered. The answer time is their newest real answer in a conversation they own,
   the same mail the draft agent reads. A draft whose `basedOnUntil` ends before that
   answer is never shown or sent: opening the message asks the agent for a new one.
-- `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides. A new
-  pattern goes in the list and gets a sample there.
+- `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides,
+  and through `realAnswer("m")` once with an empty flag and once with the stored
+  one. A new pattern goes in the list and gets a sample there. A changed pattern
+  judges new mail only: a stored flag keeps the verdict it was written with.
 
 ## People on a deal
 

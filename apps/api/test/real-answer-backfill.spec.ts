@@ -150,4 +150,28 @@ describe("filling the real answer flag of stored mail", () => {
 		while ((await restarted.backfill()) > 0) {}
 		expect((await flags()).answer).toBe(true);
 	});
+
+	it("keeps going after a pass that skipped a locked row", async () => {
+		const service = new RealAnswerBackfillService(db);
+		while ((await service.backfill()) > 0) {}
+
+		const fresh = new RealAnswerBackfillService(db);
+		await db.emailMessage.update({
+			where: { rfcMessageId: messageId("answer") },
+			data: { realAnswer: null },
+		});
+
+		await db.$transaction(async (tx) => {
+			await tx.$queryRaw`
+				SELECT id FROM "emailMessage"
+				WHERE "rfcMessageId" = ${messageId("answer")}
+				FOR UPDATE
+			`;
+			while ((await fresh.backfill()) > 0) {}
+		});
+		expect((await flags()).answer).toBeNull();
+
+		while ((await fresh.backfill()) > 0) {}
+		expect((await flags()).answer).toBe(true);
+	});
 });

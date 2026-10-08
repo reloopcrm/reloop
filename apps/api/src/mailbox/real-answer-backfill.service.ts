@@ -1,6 +1,6 @@
 import type { Db } from "@crm/db";
 import { cloud } from "@crm/db/cloud/scope";
-import { fillRealAnswers } from "@crm/db/real-answer";
+import { fillRealAnswers, realAnswersMissing } from "@crm/db/real-answer";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { REAL_ANSWER } from "./mailbox.config";
@@ -17,7 +17,12 @@ export class RealAnswerBackfillService {
 		if (this.settled.has(key)) return 0;
 
 		const count = await fillRealAnswers(this.db, REAL_ANSWER.backfillBatch);
-		if (count < REAL_ANSWER.backfillBatch) this.settled.add(key);
+		if (
+			count < REAL_ANSWER.backfillBatch &&
+			!(await realAnswersMissing(this.db))
+		) {
+			this.settled.add(key);
+		}
 		if (count > 0) {
 			this.logger.log({
 				message: "Stored mail was marked as a real answer or not",

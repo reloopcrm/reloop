@@ -70,3 +70,12 @@ export function fillRealAnswers(db: Db, batch: number): Promise<number> {
 			)
 	`;
 }
+
+export async function realAnswersMissing(db: Db): Promise<boolean> {
+	const rows = await db.$queryRaw<{ missing: boolean }[]>`
+		SELECT EXISTS (
+			SELECT 1 FROM "emailMessage" WHERE "realAnswer" IS NULL
+		) AS missing
+	`;
+	return rows[0]?.missing ?? false;
+}

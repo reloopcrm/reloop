@@ -720,8 +720,9 @@ the pattern lists in `packages/db/src/message-text.ts`
   tick after the direction repair and writes `realAnswerRule` into at most
   `REAL_ANSWER.backfillBatch` rows whose flag is null (`fillRealAnswers`), with
   `FOR UPDATE SKIP LOCKED`. It never touches a row that has a value, so it is
-  safe to stop and restart. Once a pass fills less than a batch, it stops until
-  the API restarts. The partial index `emailMessage_realAnswer_missing_idx` holds
+  safe to stop and restart. Once a pass fills less than a batch and no empty
+  flag is left (`realAnswersMissing`), it stops until the API restarts; a row
+  another transaction held is filled on a later tick. The partial index `emailMessage_realAnswer_missing_idx` holds
   only the empty rows, so finding them does not scan the table. A self-hosted
   install runs nothing by hand: the history is filled a batch per tick after the
   deploy.

@@ -204,6 +204,33 @@ async function createRun(
 	});
 }
 
+function failNextRunWrite() {
+	const delegate = db.agentRun;
+	let pending = 1;
+	Reflect.defineProperty(db, "agentRun", {
+		configurable: true,
+		value: new Proxy(delegate, {
+			get(target, property) {
+				const value = Reflect.get(target, property);
+				if (property !== "updateMany" || typeof value !== "function") {
+					return value;
+				}
+				return (...args: unknown[]) => {
+					if (pending > 0) {
+						pending -= 1;
+						return Promise.reject(new Error("The connection dropped."));
+					}
+					return Reflect.apply(value, target, args);
+				};
+			},
+		}),
+	});
+}
+
+function restoreRunWrites() {
+	Reflect.deleteProperty(db, "agentRun");
+}
+
 async function satisfyRequiredActivity(runId: string, callId: string) {
 	return createRunActivity(runId, callId, {
 		type: "NOTE",
@@ -1038,5 +1065,132 @@ describe("durable custom-agent runtime", () => {
 				where: { idempotencyKey: `${run.id}:unapproved-task` },
 			}),
 		).toBe(0);
+	});
+});
+
+describe("team-agent run delivery", () => {
+	it("keeps a delivered run out of the queue when its session write fails once", async () => {
+		const run = await createRun("QUEUED", null);
+		const sessionId = `durable-session-${suffix}-run-write-failed`;
+		let deliveries = 0;
+		const send = (async () => {
+			deliveries += 1;
+			failNextRunWrite();
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		let failure: Error | null = null;
+		try {
+			await dispatchAgentRun(run.id, send);
+		} catch (error) {
+			failure = error as Error;
+		} finally {
+			restoreRunWrites();
+		}
+		const delivered = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(failure).toBeNull();
+		expect(delivered).toMatchObject({
+			status: "RUNNING",
+			sessionId,
+			errorCode: null,
+		});
+
+		await db.agentRun.update({
+			where: { id: run.id },
+			data: {
+				startedAt: new Date(Date.now() - 2 * DISPATCH.run.deliveryLeaseMs),
+			},
+		});
+		const pending = await pendingAgentRunIds();
+		let redelivery: Error | null = null;
+		try {
+			await dispatchAgentRun(run.id, send);
+		} catch (error) {
+			redelivery = error as Error;
+		}
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(pending).not.toContain(run.id);
+		expect(redelivery?.message).toContain("already claimed");
+		expect(settled).toMatchObject({
+			status: "RUNNING",
+			sessionId,
+			errorCode: null,
+		});
+		expect(deliveries).toBe(1);
+	});
+
+	it("keeps the state a hook wrote when the run's session write fails", async () => {
+		const run = await createRun("QUEUED", null);
+		const sessionId = `durable-session-${suffix}-run-waiting`;
+		const send = (async () => {
+			await db.agentRun.update({
+				where: { id: run.id },
+				data: { status: "WAITING_FOR_APPROVAL", sessionId },
+			});
+			failNextRunWrite();
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		try {
+			await dispatchAgentRun(run.id, send);
+		} finally {
+			restoreRunWrites();
+		}
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(settled).toMatchObject({
+			status: "WAITING_FOR_APPROVAL",
+			sessionId,
+			errorCode: null,
+		});
+	});
+
+	it("keeps a run running when the send rejects after Eve started it", async () => {
+		const run = await createRun("QUEUED", null);
+		const sessionId = `durable-session-${suffix}-run-started`;
+		const send = (async () => {
+			await db.agentRun.update({
+				where: { id: run.id },
+				data: { sessionId },
+			});
+			throw new Error("The send timed out after Eve received the run.");
+		}) as unknown as SendFn;
+
+		let failure: Error | null = null;
+		try {
+			await dispatchAgentRun(run.id, send);
+		} catch (error) {
+			failure = error as Error;
+		}
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(failure?.message).toContain("timed out");
+		expect(settled).toMatchObject({
+			status: "RUNNING",
+			sessionId,
+			errorCode: null,
+		});
+	});
+
+	it("fails a run whose send rejects before Eve started it", async () => {
+		const run = await createRun("QUEUED", null);
+		const send = (async () => {
+			throw new Error("Eve is unreachable.");
+		}) as unknown as SendFn;
+
+		await expect(dispatchAgentRun(run.id, send)).rejects.toThrow("unreachable");
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(settled).toMatchObject({
+			status: "FAILED",
+			errorCode: "DELIVERY_FAILED",
+		});
 	});
 });

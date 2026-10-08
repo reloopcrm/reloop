@@ -10,6 +10,7 @@ import { publicReason } from "./model";
 import { runBlocker } from "./run-preflight";
 import {
 	isTerminalRunStatus,
+	type LockedAgentRun,
 	lockAgentRun,
 	runTerminalEventId,
 } from "./run-state";
@@ -215,49 +216,37 @@ export async function dispatchBuilderSubmission(
 	}
 
 	const sessionId = session.id;
-	try {
-		await db.$transaction(async (tx) => {
-			const conversation = await lockBuilderConversation(tx, conversationId);
-			if (!conversation) return;
-			await tx.agentConversationSubmission.update({
-				where: { id: submission.id },
-				data: { status: "ACCEPTED", acceptedAt: new Date() },
-			});
-			await tx.agentConversation.update({
-				where: { id: conversationId },
-				data: {
-					sessionId,
-					pendingInputRequest: Prisma.DbNull,
-				},
-			});
-		});
-	} catch (error) {
-		console.error(
-			`[agent] builder submission ${submission.id} was delivered but its acceptance could not be recorded: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		);
-		const retries = await Promise.allSettled([
-			db.agentConversationSubmission.updateMany({
-				where: { id: submission.id, status: "SENDING" },
-				data: { status: "ACCEPTED", acceptedAt: new Date() },
+	await recordDelivery(
+		`builder submission ${submission.id}`,
+		() =>
+			db.$transaction(async (tx) => {
+				const conversation = await lockBuilderConversation(tx, conversationId);
+				if (!conversation) return;
+				await tx.agentConversationSubmission.update({
+					where: { id: submission.id },
+					data: { status: "ACCEPTED", acceptedAt: new Date() },
+				});
+				await tx.agentConversation.update({
+					where: { id: conversationId },
+					data: {
+						sessionId,
+						pendingInputRequest: Prisma.DbNull,
+					},
+				});
 			}),
-			db.agentConversation.updateMany({
-				where: { id: conversationId, kind: "BUILDER", sessionId: null },
-				data: { sessionId },
-			}),
-		]);
-		for (const retry of retries) {
-			if (retry.status === "fulfilled") continue;
-			console.error(
-				`[agent] builder submission ${submission.id} could not record its delivery: ${
-					retry.reason instanceof Error
-						? retry.reason.message
-						: String(retry.reason)
-				}`,
-			);
-		}
-	}
+		[
+			() =>
+				db.agentConversationSubmission.updateMany({
+					where: { id: submission.id, status: "SENDING" },
+					data: { status: "ACCEPTED", acceptedAt: new Date() },
+				}),
+			() =>
+				db.agentConversation.updateMany({
+					where: { id: conversationId, kind: "BUILDER", sessionId: null },
+					data: { sessionId },
+				}),
+		],
+	);
 
 	return session;
 }
@@ -548,8 +537,9 @@ export async function dispatchAgentRun(runId: string, send: SendFn) {
 		throw new Error("Agent run was already claimed or is not live.");
 
 	const principalId = run.initiatedById ?? run.agent.createdById;
+	let session: Awaited<ReturnType<SendFn>>;
 	try {
-		const session = await send(`Execute deployed agent run ${run.id}.`, {
+		session = await send(`Execute deployed agent run ${run.id}.`, {
 			auth: {
 				authenticator: run.initiatedById ? "crm-user" : "crm-schedule",
 				principalType: run.initiatedById ? "user" : "runtime",
@@ -568,20 +558,63 @@ export async function dispatchAgentRun(runId: string, send: SendFn) {
 			mode: "task",
 			state: channelState(),
 		});
-
-		await db.agentRun.updateMany({
-			where: { id: run.id, status: "RUNNING" },
-			data: { sessionId: session.id },
-		});
-		return session;
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		await failRun(run.id, "DELIVERY_FAILED", message);
+		await failRun(run.id, "DELIVERY_FAILED", message, isUndeliveredRun);
 		throw error;
+	}
+
+	const sessionId = session.id;
+	const recordSession = () =>
+		db.agentRun.updateMany({
+			where: { id: run.id, status: "RUNNING", sessionId: null },
+			data: { sessionId },
+		});
+	await recordDelivery(`run ${run.id}`, recordSession, [recordSession]);
+	return session;
+}
+
+function isUndeliveredRun(run: LockedAgentRun): boolean {
+	return run.status === "RUNNING" && run.sessionId === null;
+}
+
+async function recordDelivery(
+	subject: string,
+	write: () => Promise<unknown>,
+	fallbacks: Array<() => Promise<unknown>>,
+) {
+	try {
+		await write();
+		return;
+	} catch (error) {
+		console.error(
+			`[agent] ${subject} was delivered but its acceptance could not be recorded: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
+
+	const retries = await Promise.allSettled(
+		fallbacks.map((fallback) => fallback()),
+	);
+	for (const retry of retries) {
+		if (retry.status === "fulfilled") continue;
+		console.error(
+			`[agent] ${subject} could not record its delivery: ${
+				retry.reason instanceof Error
+					? retry.reason.message
+					: String(retry.reason)
+			}`,
+		);
 	}
 }
 
-export async function failRun(runId: string, code: string, reason: string) {
+export async function failRun(
+	runId: string,
+	code: string,
+	reason: string,
+	eligible: (run: LockedAgentRun) => boolean = () => true,
+) {
 	const message = await publicReason(reason);
 	return db.$transaction(async (tx) => {
 		const run = await lockAgentRun(tx, runId);
@@ -591,6 +624,7 @@ export async function failRun(runId: string, code: string, reason: string) {
 		if (run.status === "SUCCEEDED" || run.status === "CANCELLED") {
 			return { id: run.id, status: run.status };
 		}
+		if (!eligible(run)) return { id: run.id, status: run.status };
 
 		const sequence = run.nextEventSequence + 1;
 		const finishedAt = new Date();

@@ -949,8 +949,18 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
 - **The address comes from the delete itself**
   (`tx.contact.delete({ select: { email: true } })`), not a read before it — and the
   404 is that statement's own `P2025` through `translate`.
-- **Adding them back lifts the suppression** via `allowAgain` **inside the write's
-  transaction**. Never automatic.
+- **`contacts.create` never lifts the suppression.** A create on a suppressed address
+  answers 409 and writes nothing; the check runs again inside the write's transaction,
+  under `lockContactEmail`, the same advisory lock `purge` takes before it writes the
+  suppression.
+  Only `contacts.update` with that address lifts it, via `allowAgain` **inside the
+  write's transaction**. Never automatic.
+- **`contacts.create` validates before it writes.** A duplicate address answers 409
+  (the pre-check and a `P2002` from a parallel create give the same sentence). An
+  unknown or archived `companyId` and an unknown `ownerId` answer 400. Free-text
+  fields have `.max()` limits from `CONTACT_INPUT` in `contacts/contacts.config.ts`;
+  the messages live in `CONTACT_MESSAGES` there, as fixed English sentences with a
+  key in every `copy.json`, so the app shows them translated.
 - **Purging a company does not suppress its domain** — its people survive with no
   company, and domain suppression stays the explicit Settings → Connections control.
 - **Clear `AgentTask` and `AgentEvent` yourself** — they carry `contactId`/`companyId`

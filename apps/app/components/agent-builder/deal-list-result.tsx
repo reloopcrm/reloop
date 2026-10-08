@@ -50,7 +50,7 @@ export function DealListResultTable({ result }: { result: DealListResult }) {
 					...column,
 					header: t(column.header),
 				}))}
-				className="min-w-[56rem] table-fixed [&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:first-child]:pl-4 [&_th:last-child]:pr-4"
+				className="table-fixed [&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:first-child]:pl-4 [&_th:last-child]:pr-4"
 				headerHeight="h-11"
 			>
 				{count === 0 ? (

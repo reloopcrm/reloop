@@ -194,6 +194,7 @@ function fromControl(event: MouseEvent<HTMLElement>): boolean {
 function useFittedWidths(
 	container: React.RefObject<HTMLDivElement | null>,
 	sizes: number[],
+	fixed: boolean[],
 	reserved: number,
 ): number[] {
 	const [available, setAvailable] = useState<number | null>(null);
@@ -210,7 +211,7 @@ function useFittedWidths(
 
 	return available === null
 		? sizes
-		: fitColumnWidths(available - reserved, sizes);
+		: fitColumnWidths(available - reserved, sizes, fixed);
 }
 
 function toggle(selected: string[], value: string, checked: boolean): string[] {
@@ -557,8 +558,9 @@ export function DataTable<TRow, TSub = unknown>({
 			? (column.size ?? TABLE.column.controlPx)
 			: (column.size ?? TABLE.column.defaultPx),
 	);
+	const fixed = secondary.map((column) => column.control === true);
 	const reserved = selection ? TABLE.column.selectPx : 0;
-	const widths = useFittedWidths(container, sizes, reserved);
+	const widths = useFittedWidths(container, sizes, fixed, reserved);
 
 	const tabCounts = tabs ? facetCounts?.[tabs.id] : undefined;
 	const activeTabOption =

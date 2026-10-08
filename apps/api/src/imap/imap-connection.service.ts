@@ -1,4 +1,4 @@
-import type { Db, Prisma } from "@crm/db";
+import { type Db, GoogleSyncStatus, type Prisma } from "@crm/db";
 import { planLimitsOf } from "@crm/db/plan-usage";
 import { clampImportSince } from "@crm/db/plans";
 import {
@@ -165,22 +165,46 @@ export class ImapConnectionService {
 	): Promise<ImapStatus> {
 		await this.checkSignIn(input);
 
-		await this.db.imapAccount.update({
-			where: { id },
-			data: {
-				host: input.host,
-				port: input.port,
-				secure: input.secure,
-				username: input.username,
-				secret: this.credentials.seal(input.password),
-			},
-		});
+		const secret = this.credentials.seal(input.password);
+		const source = imapSourceFor(id);
+		const policy = policyOf(input.createFrom);
 
-		await this.state.ensure(
-			userId,
-			imapSourceFor(id),
-			policyOf(input.createFrom),
-		);
+		await this.db.$transaction(async (tx) => {
+			const people = await tx.$queryRaw<{ removedAt: Date | null }[]>`
+				SELECT "removedAt" FROM "user" WHERE id = ${userId} FOR UPDATE
+			`;
+			if (!people[0] || people[0].removedAt) {
+				throw new NotFoundException("That mailbox is not connected.");
+			}
+
+			await tx.imapAccount.update({
+				where: { id },
+				data: {
+					host: input.host,
+					port: input.port,
+					secure: input.secure,
+					username: input.username,
+					secret,
+				},
+			});
+
+			await tx.mailboxSync.upsert({
+				where: { userId_source: { userId, source } },
+				create: {
+					userId,
+					source,
+					status: GoogleSyncStatus.IDLE,
+					autoCreate: policy.autoCreate,
+					createWithoutReply: policy.createWithoutReply,
+					createFrom: policy.createFrom,
+				},
+				update: {
+					status: GoogleSyncStatus.IDLE,
+					lastError: null,
+					retryAfter: null,
+				},
+			});
+		});
 
 		this.logger.log({
 			message: "IMAP mailbox reconnected",

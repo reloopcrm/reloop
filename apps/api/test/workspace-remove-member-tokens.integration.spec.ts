@@ -308,4 +308,62 @@ describe("adding the removed person again", () => {
 		expect(row?.cursor).toBe(`cursor-${imapSourceFor(imapId)}`);
 		expect(row?.autoCreate).toBe(true);
 	});
+
+	it("refuses a reconnect whose sign-in check outlasts a second removal", async () => {
+		const memberOf = async () =>
+			(
+				await db.member.findFirstOrThrow({
+					where: { userId: targetId },
+					select: { id: true },
+				})
+			).id;
+
+		await service.removeMember(ownerId, { memberId: await memberOf() });
+		await service.addPerson(
+			ownerId,
+			{ email: targetEmail, name: targetId, role: "member" },
+			{ createdAt: new Date(), token: "browser-session-token" },
+		);
+		const memberId = await memberOf();
+
+		const connections = new ImapConnectionService(
+			db,
+			{
+				connect: async () => {
+					await service.removeMember(ownerId, { memberId });
+					return {
+						outcome: "ok",
+						session: { close: async () => undefined },
+					};
+				},
+			} as unknown as ImapClientFactory,
+			{
+				seal: (password: string) => `sealed:${password}`,
+			} as unknown as ImapCredentialService,
+			state,
+			{} as ActivityStampService,
+			{} as ThreadParticipantsService,
+		);
+
+		await expect(
+			connections.add(targetId, {
+				email: targetEmail,
+				host: "imap.example.com",
+				port: 993,
+				secure: true,
+				username: targetEmail,
+				password: "a-late-password",
+				importSince: null,
+				createFrom: "nobody",
+			}),
+		).rejects.toThrow("That mailbox is not connected.");
+
+		const imap = await db.imapAccount.findUniqueOrThrow({
+			where: { id: imapId },
+		});
+		expect(imap.secret).toBeNull();
+		const row = await state.get(targetId, imapSourceFor(imapId));
+		expect(row?.status).toBe(GoogleSyncStatus.NEEDS_RECONNECT);
+		expect(row?.lastError).toBe(MAILBOX_ACCESS_ENDED_REASON);
+	});
 });

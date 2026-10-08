@@ -1,3 +1,4 @@
+import { quickSearchTerm } from "@crm/validation/search";
 import { Inject } from "@nestjs/common";
 import { Input, Query, Router, UseMiddlewares } from "nestjs-trpc";
 import { z } from "zod";
@@ -5,12 +6,12 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import { SearchService } from "./search.service";
 
-const quickInput = z.object({ q: z.string().default("") });
+const quickInput = z.object({ q: quickSearchTerm });
 
 const searchHitOutput = z.object({
 	kind: z.enum(["company", "contact", "deal"]),
 	id: z.string(),
-	label: z.string(),
+	label: z.string().nullable(),
 	detail: z.string().nullable(),
 	iconUrl: z.string().nullable(),
 	iconDarkUrl: z.string().nullable(),

@@ -38,6 +38,7 @@
 		"./real-answer": "./src/real-answer.ts",
 		"./win-back-outcome": "./src/win-back-outcome.ts",
 		"./win-back-rules": "./src/win-back-rules.ts",
+		"./win-back-snooze": "./src/win-back-snooze.ts",
 		"./safe-fetch": "./src/safe-fetch.ts",
 		"./sample-data": "./src/sample-data.ts",
 		"./secrets": "./src/secrets.ts",

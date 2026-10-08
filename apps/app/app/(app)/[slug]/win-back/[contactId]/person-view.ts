@@ -14,6 +14,24 @@ export type NextInList = RouterOutputs["reactivation"]["nextPerson"];
 
 export type NextPerson = NextInList["next"];
 
+export type LaterUndo =
+	| { kind: "remove"; id: string }
+	| { kind: "restore"; id: string; dueAt: string | null; subject?: string };
+
+export function undoOfLater(entry: {
+	id: string;
+	movedFrom: { dueAt: string | null; subject: string | null } | null;
+}): LaterUndo {
+	if (!entry.movedFrom) return { kind: "remove", id: entry.id };
+
+	return {
+		kind: "restore",
+		id: entry.id,
+		dueAt: entry.movedFrom.dueAt,
+		subject: entry.movedFrom.subject ?? undefined,
+	};
+}
+
 export function answerIsNext(view: Pick<PersonView, "wroteBack">): boolean {
 	return view.wroteBack?.open === true;
 }

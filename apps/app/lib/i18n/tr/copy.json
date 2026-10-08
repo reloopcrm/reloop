@@ -266,5 +266,6 @@
 	"Only an owner or an admin can remove a member.": "Bir üyeyi sadece sahip veya yönetici kaldırır.",
 	"You cannot remove yourself from the workspace.": "Kendini çalışma alanından kaldıramazsın.",
 	"Only an owner can remove an owner.": "Bir sahibi sadece bir sahip kaldırır.",
-	"Show archived": "Arşivlenenleri göster"
+	"Show archived": "Arşivlenenleri göster",
+	"That deal is archived. Restore it before you change its stage.": "Bu anlaşma arşivlendi. Aşamasını değiştirmeden önce geri yükle."
 }

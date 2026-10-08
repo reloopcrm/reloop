@@ -7,6 +7,7 @@ import {
 	EXPORT_ENUM_WORDS,
 	EXPORT_HEADERS,
 	type ExportContext,
+	ExportsService,
 } from "../src/exports/exports.service";
 import { EXPORTS } from "../src/exports/exports-config";
 import { EXPORT_WORDS, exportWord } from "../src/exports/exports-copy";
@@ -147,5 +148,35 @@ describe("the CSV writer", () => {
 
 	it("uses a byte order mark, so Excel reads UTF-8", () => {
 		expect(EXPORTS.csv.bom).toBe("﻿");
+	});
+});
+
+describe("the header row", () => {
+	it("neutralises a custom field label Excel would read as a formula", async () => {
+		const service = new ExportsService(
+			{} as never,
+			{
+				exportRows: async function* () {
+					yield [];
+				},
+			} as never,
+			{} as never,
+			{} as never,
+			{
+				definitionsFor: async () => [
+					{ key: "sum", label: "=1+1" },
+					{ key: "plain", label: "Plan" },
+				],
+			} as never,
+		);
+
+		const file = await service.file(
+			parseExportRequest("contacts", undefined, "en", undefined),
+		);
+		const first = (await file.lines.next()).value as string;
+
+		expect(first).toContain("'=1+1");
+		expect(first).not.toContain(";=1+1");
+		expect(first).toContain(";Plan");
 	});
 });

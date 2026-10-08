@@ -266,5 +266,6 @@
 	"Only an owner or an admin can remove a member.": "只有所有者或管理员能移除成员。",
 	"You cannot remove yourself from the workspace.": "你不能把自己移出工作区。",
 	"Only an owner can remove an owner.": "只有所有者能移除所有者。",
-	"Show archived": "显示已归档"
+	"Show archived": "显示已归档",
+	"That deal is archived. Restore it before you change its stage.": "这个交易已归档。先恢复它，再更改阶段。"
 }

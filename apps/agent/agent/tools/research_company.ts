@@ -2,6 +2,7 @@ import { ActivityType, db } from "@crm/db";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { spend } from "../lib/focus";
+import { RESEARCH } from "../lib/research-config";
 import { tenantTool } from "../lib/tenant";
 import { askPage, fetchPage } from "../lib/website-brand";
 
@@ -62,7 +63,7 @@ const tool = defineTool({
 			};
 		}
 
-		const charge = spend(1);
+		const charge = spend(RESEARCH.cost.siteBrief);
 		if (!charge.ok) return { written: false as const, reason: charge.reason };
 
 		const page = await fetchPage(domain);

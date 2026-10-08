@@ -8,6 +8,7 @@ import {
 	type ReactivationGroup,
 } from "@crm/db/reactivation";
 import { SETTINGS_ID } from "@crm/db/settings";
+import { snoozedUntil } from "@crm/db/win-back-snooze";
 import {
 	readWinBackRules,
 	readWinBackRulesState,
@@ -76,15 +77,18 @@ export class ReactivationService {
 	async list(
 		userId: string,
 		input: ReactivationListInput,
+		now = new Date(),
 	): Promise<ReactivationListOutput> {
 		const rules = await readWinBackRules(this.db);
 		const report = await listReactivationCandidates(this.db, {
 			rejected: input.rejected,
 			replied: input.replied,
+			snoozed: input.snoozed,
 			repliedSince: input.since ? new Date(input.since) : null,
 			quietForDays: input.quietForDays,
 			limit: REACTIVATION.limit.max,
 			ownerId: input.scope === "me" ? userId : null,
+			now,
 			rules,
 		});
 		this.prefetch.listRead(readsDefaultList(input) ? report.groups : null);
@@ -93,8 +97,19 @@ export class ReactivationService {
 		const matched = filterBands(found, input.potential);
 		const sorted = sortGroups(matched, input.sort, input.dir);
 
+		const page = pageOf(sorted, input.page, input.pageSize);
+		const returns = input.snoozed
+			? await snoozedUntil(
+					this.db,
+					page.flatMap((group) =>
+						group.people.map((person) => person.contact.id),
+					),
+					now,
+				)
+			: new Map<string, Date>();
+
 		return {
-			rows: pageOf(sorted, input.page, input.pageSize).map(groupShape),
+			rows: page.map((group) => groupShape(group, returns)),
 			total: matched.length,
 			people: countPeople(matched),
 			bands: bandTotals(matched),
@@ -432,7 +447,9 @@ function factShape(memory: ReactivationGroup["memory"]) {
 	};
 }
 
-function personShape(person: ReactivationCandidate) {
+type Returns = Map<string, Date>;
+
+function personShape(person: ReactivationCandidate, returns: Returns) {
 	return {
 		id: person.contact.id,
 		firstName: person.contact.firstName,
@@ -446,22 +463,35 @@ function personShape(person: ReactivationCandidate) {
 		quietDays: person.quietDays,
 		waitingOnUs: person.waitingOnUs,
 		feedback: person.feedback,
+		snoozedUntil: returns.get(person.contact.id)?.toISOString() ?? null,
 		memory: factShape(person.memory),
 	};
 }
 
-function groupShape(group: ReactivationGroup) {
+function firstReturn(
+	group: ReactivationGroup,
+	returns: Returns,
+): string | null {
+	const days = group.people
+		.map((person) => returns.get(person.contact.id)?.getTime())
+		.filter((time): time is number => time !== undefined);
+
+	return days.length > 0 ? new Date(Math.min(...days)).toISOString() : null;
+}
+
+function groupShape(group: ReactivationGroup, returns: Returns) {
 	return {
 		key: group.key,
 		name: groupName(group),
 		company: group.company,
-		people: group.people.map(personShape),
+		people: group.people.map((person) => personShape(person, returns)),
 		potential: group.potential,
 		standing: group.standing,
 		lastContactAt: group.lastContactAt.toISOString(),
 		quietDays: group.quietDays,
 		waitingOnUs: group.waitingOnUs,
 		feedback: group.feedback,
+		snoozedUntil: firstReturn(group, returns),
 		memory: factShape(group.memory),
 	};
 }

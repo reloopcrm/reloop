@@ -41,6 +41,7 @@ import {
 	emailPreview,
 	flatPreview,
 } from "@crm/ui/lib/email-text";
+import { isWinBackSnooze } from "@crm/validation/win-back-snooze";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
@@ -200,7 +201,8 @@ export function TimelineEntry({
 
 	const complete = useMutation(
 		trpc.activities.complete.mutationOptions({
-			onSuccess: () => cache.activity(),
+			onSuccess: (done) =>
+				cache.activity({ winBack: isWinBackSnooze(done.meta) }),
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
@@ -328,8 +330,8 @@ function EditableEntry({
 
 	const update = useMutation(
 		trpc.activities.update.mutationOptions({
-			onSuccess: async () => {
-				await cache.activity();
+			onSuccess: async (saved) => {
+				await cache.activity({ winBack: isWinBackSnooze(saved.meta) });
 				setEditing(false);
 			},
 			onError,
@@ -338,7 +340,7 @@ function EditableEntry({
 
 	const remove = useMutation(
 		trpc.activities.remove.mutationOptions({
-			onSuccess: () => cache.activity(),
+			onSuccess: () => cache.activity({ winBack: isWinBackSnooze(entry.meta) }),
 			onError,
 		}),
 	);

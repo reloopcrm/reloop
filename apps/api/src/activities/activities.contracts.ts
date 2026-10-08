@@ -63,6 +63,7 @@ export const activityCreateInput = z
 		companyId: z.string().optional(),
 		contactId: z.string().optional(),
 		dealId: z.string().optional(),
+		winBackLater: z.literal(true).optional(),
 	})
 	.refine((input) => input.companyId || input.contactId || input.dealId, {
 		message: "An activity has to be about a company, a contact or a deal.",
@@ -72,6 +73,15 @@ export const activityCreateInput = z
 		{
 			message: "A task needs a subject. It is the thing to do.",
 			path: ["subject"],
+		},
+	)
+	.refine(
+		(input) =>
+			!input.winBackLater ||
+			(input.type === ActivityType.TASK && Boolean(input.dueAt)),
+		{
+			message: "A win back reminder is a task with a due day.",
+			path: ["winBackLater"],
 		},
 	);
 
@@ -200,7 +210,13 @@ export type TimelineCounts = z.infer<typeof timelineCountsOutput>;
 
 export const myTasksOutput = z.array(activityEntryOutput);
 
-export const activityCreateOutput = activityEntryOutput;
+export const activityCreateOutput = activityEntryOutput.extend({
+	movedFrom: z
+		.object({ dueAt: z.string().nullable(), subject: z.string().nullable() })
+		.nullable(),
+});
+
+export type ActivityCreated = z.infer<typeof activityCreateOutput>;
 
 export const completeOutput = activityEntryOutput;
 

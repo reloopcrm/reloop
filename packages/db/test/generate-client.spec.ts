@@ -1,12 +1,26 @@
 import { describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	GENERATE_PLACEHOLDER_URL,
+	generateCommand,
 	generateEnv,
 } from "../scripts/generate-client-env";
 
 const GENERATE_TIMEOUT_MS = 60_000;
 const DB_DIR = join(import.meta.dir, "..");
+const SYSTEM_PATH = "/usr/bin:/bin";
+
+function imageLikePath() {
+	const dir = mkdtempSync(join(tmpdir(), "generate-client-"));
+	const bin = join(dir, "bin");
+	const home = join(dir, "home");
+	mkdirSync(bin);
+	mkdirSync(home);
+	symlinkSync(process.execPath, join(bin, "bun"));
+	return { dir, home, bun: join(bin, "bun"), path: `${bin}:${SYSTEM_PATH}` };
+}
 
 describe("generate-client environment", () => {
 	it("adds a placeholder when DATABASE_URL is missing", () => {
@@ -26,18 +40,33 @@ describe("generate-client environment", () => {
 		expect(generateEnv({ DATABASE_URL: url }).DATABASE_URL).toBe(url);
 	});
 
+	it("runs prisma through the running bun binary, never bunx", () => {
+		const command = generateCommand();
+		expect(command).toEqual([process.execPath, "x", "prisma", "generate"]);
+		expect(command).not.toContain("bunx");
+	});
+
 	it(
-		"runs prisma generate without DATABASE_URL",
+		"runs prisma generate without DATABASE_URL and without bunx on PATH",
 		() => {
-			const env: Record<string, string> = {};
-			for (const [key, value] of Object.entries(process.env)) {
-				if (value !== undefined && key !== "DATABASE_URL") env[key] = value;
+			const image = imageLikePath();
+			try {
+				const bunx = Bun.spawnSync(["sh", "-c", "command -v bunx"], {
+					env: { PATH: image.path },
+				});
+				expect(bunx.exitCode).not.toBe(0);
+				const result = Bun.spawnSync(
+					[image.bun, "scripts/generate-client.ts"],
+					{
+						cwd: DB_DIR,
+						env: { PATH: image.path, HOME: image.home },
+					},
+				);
+				expect(result.stderr.toString()).not.toContain("bunx");
+				expect(result.exitCode).toBe(0);
+			} finally {
+				rmSync(image.dir, { recursive: true, force: true });
 			}
-			const result = Bun.spawnSync(["bun", "scripts/generate-client.ts"], {
-				cwd: DB_DIR,
-				env,
-			});
-			expect(result.exitCode).toBe(0);
 		},
 		GENERATE_TIMEOUT_MS,
 	);

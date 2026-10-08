@@ -214,7 +214,18 @@ export class TrackingFilingService {
 		await this.db.trackedVisitor.upsert({
 			where: { id: visitorId },
 			create: { id: visitorId, contactId, ...first, ...last },
-			update: { contactId, ...last },
+			update: { contactId },
+		});
+
+		const at = context.lastTouch?.at;
+		if (!at) return;
+
+		await this.db.trackedVisitor.updateMany({
+			where: {
+				id: visitorId,
+				OR: [{ lastTouchAt: null }, { lastTouchAt: { lte: at } }],
+			},
+			data: last,
 		});
 	}
 

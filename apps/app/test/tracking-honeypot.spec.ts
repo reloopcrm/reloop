@@ -49,6 +49,12 @@ function trapOf(element: HTMLFormElement): HTMLInputElement | null {
 	return element.querySelector<HTMLInputElement>("[data-crm-hp]");
 }
 
+async function settle(done: () => boolean) {
+	for (let tries = 0; tries < 50 && !done(); tries += 1) {
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+}
+
 let human: HTMLFormElement;
 let bot: HTMLFormElement;
 
@@ -102,6 +108,36 @@ describe("the honeypot the tracker puts in every form", () => {
 		const sent = await submissions();
 		expect(sent).toHaveLength(1);
 		expect(sent[0]?.fields).toEqual({ email: "preview@example.com" });
+	});
+
+	test("marks a filled trap in a form with forty filled fields", async () => {
+		beacons.length = 0;
+		const crowded = form("crowded");
+		for (let index = 1; index < 40; index += 1) {
+			const field = document.createElement("input");
+			field.name = `field${index}`;
+			field.value = "x".repeat(500);
+			crowded.appendChild(field);
+		}
+		const email = crowded.querySelector<HTMLInputElement>("input[name=email]");
+		if (email) email.value = "preview@example.com";
+		await settle(() => trapOf(crowded) !== null);
+		const trap = trapOf(crowded);
+		if (trap) trap.value = "https://spam.example.com";
+
+		submit(crowded);
+
+		const sent = await submissions();
+		expect(sent).toHaveLength(1);
+		expect(sent[0]?.fields?.[HONEYPOT_FIELD]).toBe("1");
+	});
+
+	test("adds the trap to a form the page inserts later", async () => {
+		const late = form("late");
+
+		await settle(() => trapOf(late) !== null);
+
+		expect(trapOf(late)).not.toBeNull();
 	});
 
 	test("marks a submission whose trap was filled in", async () => {

@@ -125,10 +125,11 @@ function onClick(ev){
 function onSubmit(ev){
  var f=ev.target;
  if(!f||f.tagName!=="FORM")return;
- var fields={},n=0;
+ var fields={},n=0,hp=f.querySelector("[data-crm-hp]");
+ if(hp&&hp.value){fields[HP]="1";send({type:"form_submit",path:loc.pathname,fields:fields});flush();return}
  for(var i=0;i<f.elements.length&&n<40;i++){
   var el=f.elements[i],name=el.name||el.id;
-  if(el.getAttribute&&el.getAttribute("data-crm-hp")!==null){if(el.value)fields[HP]="1";continue}
+  if(el===hp)continue;
   if(!name||!el.value)continue;
   var type=(el.type||"").toLowerCase();
   if(type==="password"||type==="hidden"||type==="file")continue;
@@ -165,6 +166,7 @@ function start(){
  d.addEventListener("visibilitychange",function(){if(d.visibilityState==="hidden")flush()});
  w.addEventListener("pagehide",flush);
  decorate();
+ if(w.MutationObserver){var pend=0;new MutationObserver(function(){if(pend)return;pend=1;setTimeout(function(){pend=0;try{trap()}catch(e){}},0)}).observe(d.documentElement,{childList:!0,subtree:!0})}
  var push=history.pushState,rep=history.replaceState;
  function spa(fn){return function(){var r=fn.apply(this,arguments);setTimeout(view,0);return r}}
  try{history.pushState=spa(push);history.replaceState=spa(rep)}catch(e){}

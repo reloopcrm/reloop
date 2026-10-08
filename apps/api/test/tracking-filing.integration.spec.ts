@@ -357,6 +357,42 @@ describe("refiling a submission the cap held back", () => {
 		expect(queued).toHaveLength(1);
 	});
 
+	it("keeps the visitor's newer last touch when an older form is refiled", async () => {
+		const email = `order-${suffix}@${domain}`;
+		const visitor = `visitor-${Math.random().toString(36).slice(2, 12)}`;
+		const newer = new Date("2026-09-01T12:00:00.000Z");
+		await db.trackedVisitor.create({
+			data: { id: visitor, lastSource: "Newsletter", lastTouchAt: newer },
+		});
+		const row = await held(email);
+		await db.formSubmission.update({
+			where: { id: row.id },
+			data: {
+				visitorId: visitor,
+				lastTouch: {
+					source: "Google",
+					medium: "organic",
+					campaign: null,
+					term: null,
+					content: null,
+					referrer: null,
+					landing: "/pricing",
+					at: "2026-08-10T12:00:00.000Z",
+				},
+			},
+		});
+
+		expect(await refile.drain(1)).toBe(1);
+
+		const stored = await db.trackedVisitor.findUnique({
+			where: { id: visitor },
+			select: { lastSource: true, lastTouchAt: true, contactId: true },
+		});
+		expect(stored?.lastSource).toBe("Newsletter");
+		expect(stored?.lastTouchAt?.toISOString()).toBe(newer.toISOString());
+		expect(stored?.contactId).not.toBeNull();
+	});
+
 	it("leaves the hour's last slots to forms that arrive live", async () => {
 		await spend(CONTACTS_PER_HOUR - FORM_REFILE.liveReserve);
 		const email = `reserve-${suffix}@${domain}`;

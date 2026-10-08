@@ -56,11 +56,14 @@ somebody else's page. That imposes rules nothing else in this repo has:
   `MAX_EVENTS_PER_BATCH`, `LINKER_MAX_AGE_SECONDS`, `COOKIE_NAME`. A literal at the
   call site is a client and a server that disagree, and the disagreement is silent.
 - **Every form carries a honeypot.** `trap()` appends one text input to each
-  form on the page, at start and on every SPA view: off screen, `tabIndex -1`,
+  form on the page, at start, on every SPA view and after a `MutationObserver`
+  sees the page insert nodes, so a modal form gets one too: off screen, `tabIndex -1`,
   `aria-hidden`, `autocomplete="off"`, marked `data-crm-hp`. **It has no `name`**,
   so the site's own form never posts it and its backend cannot reject an unknown
   field. A person never sees it; a script that fills every input does. When it
-  holds a value, `onSubmit` sends `HONEYPOT_FIELD` with the submission.
+  holds a value, `onSubmit` checks it **before** the forty-field loop and sends a
+  submission that carries only `HONEYPOT_FIELD`, so neither the field cap nor
+  `shrink()` can drop the marker.
 - **The client stays inside the body limit the collector enforces.** `flush()`
   measures the packed batch and splits it, then trims a single oversized form's
   fields, rather than posting a body the collector will destroy — a rejected POST is
@@ -110,7 +113,9 @@ The gauntlet, in order, in `TrackingIngestService.accept`:
    `FORMS_PER_SITE_HOUR`, charged on the same counter before a `form_submit` is
    filed. A page view costs nothing here, so a refused flood of forms still leaves
    the real traffic recorded. A form over a limit is **still written**, with
-   `skipReason` `form_cap`, and filed later (see *Filing*).
+   `skipReason` `form_cap`, and filed later (see *Filing*). A refused form gives
+   back the windows it already charged, so a full site hour does not also spend
+   the client's and the visitor's.
 
 > **The client limit counts a keyed hash, never an address.** The `Origin` header
 > is a header, the site id is public and the visitor id is whatever the script
@@ -210,6 +215,10 @@ deleted* comes to be true of email and not of forms.
   after every accepted batch, and the `refile` window (`refileWindowKey`) lets
   one pass run per minute. The nightly retention sweep runs one more. A pass
   stops at the first row the contact cap refuses, because the hour is full.
+- **A refile never moves a visitor's last touch backwards.** `attach` writes the
+  `last*` columns only when the submission's touch is at least as new as
+  `lastTouchAt`, so an old deferred form filed after a newer live one leaves the
+  newer campaign in place.
 - **A refile never takes the hour's last slots.** It charges `CONTACTS_PER_HOUR`
   minus `FORM_REFILE.liveReserve`, so a backlog of deferred rows cannot fill the
   hour before a lead that arrives live. The live path keeps the full limit.

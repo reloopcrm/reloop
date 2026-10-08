@@ -24,6 +24,7 @@ import { readDraftRole } from "@crm/validation/draft-style";
 import type { LimitReason } from "@crm/validation/plan-limit-reason";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
 import {
+	BadRequestException,
 	ConflictException,
 	Injectable,
 	Logger,
@@ -57,6 +58,7 @@ import {
 	resolveOrderBy,
 	splitSentinel,
 } from "../trpc/list-input";
+import { CONTACT_MESSAGES } from "./contacts.config";
 import type {
 	ContactBulkCompanyInput,
 	ContactBulkOwnerInput,
@@ -391,14 +393,20 @@ export class ContactsService {
 					email: { equals: email, mode: "insensitive" },
 					archivedAt: null,
 				},
-				select: { id: true, firstName: true, lastName: true },
+				select: { id: true },
 			});
-			if (existing) {
-				throw new ConflictException(
-					`${[existing.firstName, existing.lastName].filter(Boolean).join(" ")} already uses ${email}.`,
-				);
-			}
+			if (existing) throw new ConflictException(CONTACT_MESSAGES.emailInUse);
+
+			const suppressed = await this.db.suppressedContact.findFirst({
+				where: { email: { equals: email, mode: "insensitive" } },
+				select: { email: true },
+			});
+			if (suppressed)
+				throw new ConflictException(CONTACT_MESSAGES.emailSuppressed);
 		}
+
+		await requireOwner(this.db, input.ownerId ?? null);
+		await this.requireCompany(input.companyId ?? null);
 
 		const companyId =
 			input.companyId ??
@@ -408,41 +416,7 @@ export class ContactsService {
 					})
 				: null);
 
-		const contact = await this.agent.withCrmEvents(async (tx, emit) => {
-			await this.allowAgain(tx, email);
-
-			const created = await tx.contact.create({
-				data: {
-					firstName: input.firstName.trim(),
-					lastName: blankToNull(input.lastName ?? ""),
-					email,
-					phone: blankToNull(input.phone ?? ""),
-					title: blankToNull(input.title ?? ""),
-					companyId,
-					ownerId: input.ownerId ?? null,
-				},
-				select: {
-					id: true,
-					firstName: true,
-					lastName: true,
-					email: true,
-					companyId: true,
-					createdAt: true,
-				},
-			});
-			await emit({
-				type: "contact.created",
-				record: { kind: "contact", id: created.id },
-				occurredAt: created.createdAt,
-				data: {
-					firstName: created.firstName,
-					lastName: created.lastName,
-					email: created.email,
-					companyId: created.companyId,
-				},
-			});
-			return created;
-		});
+		const contact = await this.insertContact(input, email, companyId);
 
 		this.logger.log({ message: "Contact created", contactId: contact.id });
 
@@ -738,6 +712,87 @@ export class ContactsService {
 
 	async bulkPurge(ids: string[]): Promise<BulkResult> {
 		return runBulk(ids, (id) => this.purge(id));
+	}
+
+	private async insertContact(
+		input: ContactCreateInput,
+		email: string | null,
+		companyId: string | null,
+	) {
+		try {
+			return await this.agent.withCrmEvents(async (tx, emit) => {
+				await this.requireNotSuppressed(tx, email);
+
+				const created = await tx.contact.create({
+					data: {
+						firstName: input.firstName.trim(),
+						lastName: blankToNull(input.lastName ?? ""),
+						email,
+						phone: blankToNull(input.phone ?? ""),
+						title: blankToNull(input.title ?? ""),
+						companyId,
+						ownerId: input.ownerId ?? null,
+					},
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						email: true,
+						companyId: true,
+						createdAt: true,
+					},
+				});
+				await emit({
+					type: "contact.created",
+					record: { kind: "contact", id: created.id },
+					occurredAt: created.createdAt,
+					data: {
+						firstName: created.firstName,
+						lastName: created.lastName,
+						email: created.email,
+						companyId: created.companyId,
+					},
+				});
+				return created;
+			});
+		} catch (error) {
+			this.translateCreate(error);
+		}
+	}
+
+	private async requireNotSuppressed(
+		tx: Prisma.TransactionClient,
+		email: string | null,
+	): Promise<void> {
+		if (!email) return;
+		const suppressed = await tx.suppressedContact.findFirst({
+			where: { email: { equals: email, mode: "insensitive" } },
+			select: { email: true },
+		});
+		if (suppressed)
+			throw new ConflictException(CONTACT_MESSAGES.emailSuppressed);
+	}
+
+	private async requireCompany(companyId: string | null): Promise<void> {
+		if (!companyId) return;
+		const company = await this.db.company.findFirst({
+			where: { id: companyId, archivedAt: null },
+			select: { id: true },
+		});
+		if (!company)
+			throw new BadRequestException(CONTACT_MESSAGES.companyMissing);
+	}
+
+	private translateCreate(cause: unknown): never {
+		if (cause instanceof PrismaNamespace.PrismaClientKnownRequestError) {
+			if (cause.code === "P2002") {
+				throw new ConflictException(CONTACT_MESSAGES.emailInUse);
+			}
+			if (cause.code === "P2003") {
+				throw new BadRequestException(CONTACT_MESSAGES.companyMissing);
+			}
+		}
+		throw cause;
 	}
 
 	private async allowAgain(
@@ -1212,9 +1267,7 @@ export class ContactsService {
 				throw new NotFoundException(`No contact with id ${id}.`);
 			}
 			if (cause.code === "P2002") {
-				throw new ConflictException(
-					"Another contact already uses that email address.",
-				);
+				throw new ConflictException(CONTACT_MESSAGES.emailInUse);
 			}
 		}
 		throw cause;

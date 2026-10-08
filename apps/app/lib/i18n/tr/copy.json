@@ -81,6 +81,8 @@
 	"The workspace needs an owner. Make someone else an owner first.": "Çalışma alanının bir sahibi olmalı. Önce başka birini sahip yap.",
 	"That suggestion has already been settled.": "Bu öneri zaten sonuçlandı.",
 	"Another contact already uses that email address.": "Bu e-posta adresini başka bir kişi kullanıyor.",
+	"That address belongs to a person who was deleted for good, so it cannot be added again.": "Bu adres kalıcı olarak silinmiş bir kişiye ait, bu yüzden yeniden eklenemez.",
+	"That company does not exist or is archived.": "Bu şirket yok ya da arşivlenmiş.",
 	"That is our own domain. It is already excluded.": "Bu bizim kendi alan adımız. Zaten dışarıda.",
 	"You already have a view with that name.": "Bu isimde bir görünümün zaten var.",
 	"Pruning is not configured.": "Temizleme kurulu değil.",

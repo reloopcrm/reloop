@@ -81,6 +81,8 @@
 	"The workspace needs an owner. Make someone else an owner first.": "工作区需要一个所有者。先把别人设为所有者。",
 	"That suggestion has already been settled.": "这个建议已经处理过了。",
 	"Another contact already uses that email address.": "另一个联系人已经在用这个邮箱地址。",
+	"That address belongs to a person who was deleted for good, so it cannot be added again.": "这个地址属于一位已被永久删除的联系人，因此无法再次添加。",
+	"That company does not exist or is archived.": "这家公司不存在或已归档。",
 	"That is our own domain. It is already excluded.": "这是我们自己的域名。它已经被排除了。",
 	"You already have a view with that name.": "你已经有一个同名视图了。",
 	"Pruning is not configured.": "归档清理没有配置。",

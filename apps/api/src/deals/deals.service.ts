@@ -555,10 +555,6 @@ export class DealsService {
 
 		try {
 			return await this.db.$transaction(async (tx) => {
-				if (input.fields) {
-					await this.fields.applyValues(tx, "DEAL", id, input.fields);
-				}
-
 				const [before] =
 					input.companyId === undefined
 						? []
@@ -568,6 +564,10 @@ export class DealsService {
 
 				if (before && input.companyId && before.companyId !== input.companyId) {
 					await this.lockCompanies(tx, [before.companyId, input.companyId]);
+				}
+
+				if (input.fields) {
+					await this.fields.applyValues(tx, "DEAL", id, input.fields);
 				}
 
 				const result = await tx.deal.update({

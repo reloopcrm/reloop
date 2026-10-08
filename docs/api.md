@@ -801,7 +801,9 @@ picker reads.
   from something that stayed, such as a research brief the agent stamps itself,
   so it stays. Before it moves anything the move locks both company rows with
   `FOR NO KEY UPDATE`, sorted by id, so two deals leaving one company recompute
-  one after the other and never from a stale snapshot.
+  one after the other and never from a stale snapshot. The deal's `FOR UPDATE`
+  comes first, before `fields.applyValues`: a `FieldValue` insert takes a key
+  share on the deal, and two moves holding one each would deadlock.
 - **`attachContact` checks the company under the deal's `FOR UPDATE`**, the same
   row lock a company move takes, and upserts in that transaction. An attach that
   races a move either lands first and is removed by the move, or runs after it

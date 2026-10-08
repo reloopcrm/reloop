@@ -12,6 +12,7 @@ import { FieldsService } from "../src/fields/fields.service";
 const suffix = process.env.TEST_RUN_ID ?? "deal-integrity-spec";
 const userId = `user-${suffix}-deal-integrity`;
 const domain = `deal-integrity-${suffix}.test`;
+const fieldPrefix = `deal_integrity_${suffix}_`;
 
 const events: CrmEventInput[] = [];
 
@@ -48,6 +49,9 @@ async function clean() {
 		where: { company: { domain: { endsWith: domain } } },
 	});
 	await db.company.deleteMany({ where: { domain: { endsWith: domain } } });
+	await db.fieldDefinition.deleteMany({
+		where: { key: { startsWith: fieldPrefix } },
+	});
 	await db.user.deleteMany({ where: { id: userId } });
 }
 
@@ -466,6 +470,71 @@ describe("two deals leaving one company at once", () => {
 			select: { lastActivityAt: true },
 		});
 		expect(stored.lastActivityAt).toBeNull();
+	});
+});
+
+describe("two moves that also write custom fields", () => {
+	it("both land without a deadlock", async () => {
+		const home = await company("fields-home");
+		const east = await company("fields-east");
+		const west = await company("fields-west");
+		const [eastKey, westKey] = [`${fieldPrefix}east`, `${fieldPrefix}west`];
+		await db.fieldDefinition.createMany({
+			data: [eastKey, westKey].map((key, position) => ({
+				entity: "DEAL" as const,
+				key,
+				label: key,
+				type: "TEXT" as const,
+				agentFilled: false,
+				position: 900 + position,
+			})),
+		});
+
+		let arrived = 0;
+		let bothArrived = () => {};
+		const barrier = new Promise<void>((resolve) => {
+			bothArrived = resolve;
+		});
+		class MeetingFields extends FieldsService {
+			override async applyValues(
+				...args: Parameters<FieldsService["applyValues"]>
+			): Promise<void> {
+				await super.applyValues(...args);
+				arrived += 1;
+				if (arrived === 2) bothArrived();
+				await Promise.race([barrier, Bun.sleep(500)]);
+			}
+		}
+		const meeting = new DealsService(
+			db,
+			agent,
+			new ActivityStampService(db),
+			new ConversionService(db),
+			new MeetingFields(db, { fieldBackfill: async () => undefined } as never),
+		);
+
+		const deal = await deals.create({
+			name: `Fields race ${suffix}`,
+			companyId: home.id,
+			ownerId: userId,
+		});
+
+		await Promise.all([
+			meeting.update(deal.id, {
+				companyId: east.id,
+				fields: { [eastKey]: "east" },
+			}),
+			meeting.update(deal.id, {
+				companyId: west.id,
+				fields: { [westKey]: "west" },
+			}),
+		]);
+
+		const values = await db.fieldValue.count({ where: { dealId: deal.id } });
+		await db.fieldDefinition.deleteMany({
+			where: { key: { in: [eastKey, westKey] } },
+		});
+		expect(values).toBe(2);
 	});
 });
 

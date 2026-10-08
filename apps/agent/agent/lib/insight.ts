@@ -1,5 +1,6 @@
 import { db } from "@crm/db";
 import {
+	DECLINE_KIND,
 	INSIGHT_OUTCOMES,
 	INSIGHT_SIDES,
 	MEMORY,
@@ -622,11 +623,18 @@ export type ReadPlan = "stored" | "classify" | "keepRelevant";
 
 export function readPlan(
 	reread: boolean,
-	insight: { relevant: boolean; lastMessageAt: Date } | null,
+	insight: {
+		relevant: boolean;
+		lastMessageAt: Date;
+		declineKind?: string | null;
+	} | null,
 	lastMessageAt: Date,
 ): ReadPlan {
 	if (!insight) return "classify";
-	if (reread) return insight.relevant ? "keepRelevant" : "stored";
+	if (reread && insight.relevant) return "keepRelevant";
+	if (reread) {
+		return insight.declineKind === DECLINE_KIND.hard ? "classify" : "stored";
+	}
 	return insight.lastMessageAt.getTime() === lastMessageAt.getTime()
 		? "stored"
 		: "classify";

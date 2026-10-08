@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { DECLINE_KIND } from "@crm/db/insights";
 import {
 	readPlan,
 	refreshedSummary,
@@ -40,6 +41,23 @@ describe("a reread keeps the relevance it found", () => {
 		expect(readPlan(true, { relevant: false, lastMessageAt: AT }, LATER)).toBe(
 			"stored",
 		);
+	});
+
+	it("reads an off topic thread again when it keeps a hard no, so a repair can clear it", () => {
+		expect(
+			readPlan(
+				true,
+				{ relevant: false, lastMessageAt: AT, declineKind: DECLINE_KIND.hard },
+				LATER,
+			),
+		).toBe("classify");
+		expect(
+			readPlan(
+				true,
+				{ relevant: false, lastMessageAt: AT, declineKind: DECLINE_KIND.soft },
+				LATER,
+			),
+		).toBe("stored");
 	});
 
 	it("runs the normal read only for new mail or a thread never read", () => {

@@ -222,7 +222,9 @@ language in Settings > General. The API stores and serves the value and does not
   hard no survives a new read until the person answers after `declinedAt`
   (`keptDecline`), so a thread whose refusal slid out of the transcript keeps it. It
   survives only while the mail at `declinedAt` is still their real answer, so a
-  direction repair that turns it into our mail clears it. The
+  direction repair that turns it into our mail clears it. A repair reread of an
+  off topic thread that keeps a hard no reads it again (`readPlan`) instead of
+  copying the stored row, so the check runs there too. The
   columns are `ThreadInsight.declineKind` and `ThreadInsight.declinedAt`, read through
   `parseDeclineKind` (`@crm/validation/thread-decline`). A row read before this field
   is null and counts as soft; nothing rereads old threads for it, the next normal

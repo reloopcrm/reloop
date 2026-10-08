@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { db, Prisma } from "@crm/db";
 import { type AnswerCandidate, isRealAnswer } from "@crm/db/message-text";
-import { realAnswer } from "@crm/db/real-answer";
+import { realAnswer, realAnswerRule } from "@crm/db/real-answer";
 
 const person = "anna@example.com";
 
@@ -101,31 +101,55 @@ function inbound(overrides: Partial<AnswerCandidate>): AnswerCandidate {
 	};
 }
 
-async function sqlVerdicts(): Promise<Map<string, boolean>> {
+async function sqlVerdicts(
+	verdict: Prisma.Sql,
+	flag: (message: AnswerCandidate) => boolean | null = () => null,
+): Promise<Map<string, boolean>> {
 	const rows = Object.entries(samples).map(
 		([name, message]) =>
-			Prisma.sql`(${name}, ${message.direction}, ${message.fromEmail}, ${message.subject}::text, ${message.body}::text, ${message.snippet}::text)`,
+			Prisma.sql`(${name}, ${message.direction}, ${message.fromEmail}, ${message.subject}::text, ${message.body}::text, ${message.snippet}::text, ${flag(message)}::boolean)`,
 	);
 
 	const result = await db.$queryRaw<{ name: string; real: boolean }[]>`
-		SELECT m.name, ${realAnswer("m")} AS real
+		SELECT m.name, ${verdict} AS real
 		FROM (VALUES ${Prisma.join(rows)})
-			AS m(name, "direction", "fromEmail", "subject", "body", "snippet")
+			AS m(name, "direction", "fromEmail", "subject", "body", "snippet", "realAnswer")
 	`;
 
 	return new Map(result.map((row) => [row.name, row.real]));
 }
 
+function expectTypeScriptVerdicts(sql: Map<string, boolean>): void {
+	for (const [name, message] of Object.entries(samples)) {
+		expect({ name, real: sql.get(name) }).toEqual({
+			name,
+			real: isRealAnswer(message),
+		});
+	}
+}
+
 describe("the real answer rule", () => {
 	it("gives the same verdict in SQL as in TypeScript", async () => {
-		const sql = await sqlVerdicts();
+		expectTypeScriptVerdicts(await sqlVerdicts(realAnswerRule("m")));
+	});
 
-		for (const [name, message] of Object.entries(samples)) {
-			expect({ name, real: sql.get(name) }).toEqual({
-				name,
-				real: isRealAnswer(message),
-			});
-		}
+	it("falls back to the rule while the stored flag is empty", async () => {
+		expectTypeScriptVerdicts(await sqlVerdicts(realAnswer("m")));
+	});
+
+	it("reads the stored flag once it is written", async () => {
+		expectTypeScriptVerdicts(await sqlVerdicts(realAnswer("m"), isRealAnswer));
+	});
+
+	it("trusts the stored flag over the rule, but never for mail we sent", async () => {
+		const flipped = await sqlVerdicts(
+			realAnswer("m"),
+			(message) => !isRealAnswer(message),
+		);
+
+		expect(flipped.get("realReply")).toBe(false);
+		expect(flipped.get("outOfOfficeBody")).toBe(true);
+		expect(flipped.get("outbound")).toBe(false);
 	});
 
 	it("counts only a person writing back", () => {
@@ -153,5 +177,6 @@ describe("the real answer rule", () => {
 
 	it("refuses an alias that is not a plain name", () => {
 		expect(() => realAnswer("m; DROP TABLE contact")).toThrow();
+		expect(() => realAnswerRule("m; DROP TABLE contact")).toThrow();
 	});
 });

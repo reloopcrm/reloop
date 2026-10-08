@@ -1445,6 +1445,7 @@ model EmailMessage {
   body       String?
   summary    String?
   sentAt     DateTime
+  realAnswer Boolean?
 
   createdAt DateTime @default(now())
 

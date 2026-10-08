@@ -4,10 +4,9 @@ import type { Evidence, EvidenceKind } from "../lib/evidence";
 import { WEIGHTS } from "../lib/evidence";
 import { writeBrief } from "../lib/facts";
 import { focusOn } from "../lib/focus";
+import { RESEARCH } from "../lib/research-config";
 import { assertResearchPurpose } from "../lib/session-purpose";
 import { tenantTool } from "../lib/tenant";
-
-const MAX_NARRATIVE = 400;
 
 const tool = defineTool({
 	description:
@@ -16,7 +15,7 @@ const tool = defineTool({
 		contactId: z.string(),
 		narrative: z
 			.string()
-			.max(MAX_NARRATIVE)
+			.max(RESEARCH.brief.narrativeMaxChars)
 			.describe(
 				"Two or three sentences, third person, present tense, their name first. " +
 					"Current role and employer, then the previous roles worth knowing. " +
@@ -55,7 +54,7 @@ const tool = defineTool({
 
 		const narrative = input.narrative.trim();
 
-		if (narrative.length < 40) {
+		if (narrative.length < RESEARCH.brief.narrativeMinChars) {
 			return {
 				written: false as const,
 				reason:

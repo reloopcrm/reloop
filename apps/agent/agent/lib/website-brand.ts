@@ -1,4 +1,4 @@
-import { safeFetch } from "@crm/db/safe-fetch";
+import { readCapped, safeFetch } from "@crm/db/safe-fetch";
 import { streamText } from "ai";
 import { z } from "zod";
 import type { Brand, BrandLookup } from "./brand-mapping";
@@ -144,7 +144,11 @@ export async function fetchPage(domain: string): Promise<Page | null> {
 		const type = fetched.response.headers.get("content-type") ?? "";
 		if (!type.includes("html")) continue;
 
-		const html = (await fetched.response.text()).slice(0, WEBSITE.htmlMaxChars);
+		const html = await readCapped(
+			fetched.response,
+			WEBSITE.htmlMaxBytes,
+			WEBSITE.timeoutMs,
+		);
 		return parsePage(fetched.url, html);
 	}
 

@@ -21,6 +21,7 @@ import { DOCS } from "../components/docs/docs-config";
 import { SHOTS } from "../components/site/site-config";
 import { ACTION_LABELS } from "../lib/agent-action-labels";
 import {
+	BRIDGE_ADMIN_HINTS,
 	BRIDGE_DEVELOPER_HINTS,
 	BRIDGE_ERROR_FALLBACK,
 	BRIDGE_ERRORS,
@@ -257,6 +258,7 @@ describe("the texts that reach t() through a variable", () => {
 		...ACTION_LABELS.values(),
 		...Object.values(BRIDGE_ERRORS),
 		...BRIDGE_DEVELOPER_HINTS.values(),
+		...BRIDGE_ADMIN_HINTS.values(),
 		BRIDGE_ERROR_FALLBACK,
 		BRAND.tagline,
 		DOCS.index.title,

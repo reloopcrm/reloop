@@ -419,5 +419,7 @@
 	"The research agent did not return a session id.": "Araştırma ajanı bir oturum kimliği döndürmedi.",
 	"The research agent is not configured for this install.": "Araştırma ajanı bu kurulum için yapılandırılmamış.",
 	"The research agent could not answer. Try again.": "Araştırma ajanı yanıt veremedi. Tekrar dene.",
-	"Wrote back, contacted since {date}": "Cevap yazdı, {date} tarihinden beri yazıldı"
+	"Wrote back, contacted since {date}": "Cevap yazdı, {date} tarihinden beri yazıldı",
+	"The research agent service is not running. Start it on your server.": "Araştırma ajanı hizmeti çalışmıyor. Onu sunucunda başlat.",
+	"The research agent service is not set up. Finish its setup on your server.": "Araştırma ajanı hizmeti kurulmamış. Kurulumunu sunucunda tamamla."
 }

@@ -33,7 +33,7 @@ describe("the German explanation for a failed run", () => {
 		});
 
 		it(`reads as German for ${code}`, () => {
-			expect(runFailureReason(code, null, german)).toBe(de[english] ?? "");
+			expect(runFailureReason(code, german)).toBe(de[english] ?? "");
 		});
 
 		it(`uses no dash character for ${code}`, () => {
@@ -42,7 +42,7 @@ describe("the German explanation for a failed run", () => {
 	}
 
 	it("falls back to the German sentence when no code is given", () => {
-		expect(runFailureReason(null, null, german)).toBe(
+		expect(runFailureReason(null, german)).toBe(
 			de[RUN_FAILED_WITHOUT_REASON] ?? "",
 		);
 	});
@@ -50,8 +50,14 @@ describe("the German explanation for a failed run", () => {
 	it("keeps the English sentence in English", () => {
 		const english = translator({});
 
-		expect(runFailureReason("MODEL_UNAVAILABLE", null, english)).toBe(
+		expect(runFailureReason("MODEL_UNAVAILABLE", english)).toBe(
 			REASONS.MODEL_UNAVAILABLE ?? "",
 		);
+	});
+
+	it("shows the default sentence for an unknown code, never the raw text", () => {
+		const text = runFailureReason("SOME_NEW_CODE", german);
+
+		expect(text).toBe(de[RUN_FAILED_WITHOUT_REASON] ?? "");
 	});
 });

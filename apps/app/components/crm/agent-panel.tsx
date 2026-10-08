@@ -57,6 +57,7 @@ import {
 	ConversationPicker,
 	useConversations,
 } from "@/components/crm/agent-conversations";
+import { useCanSeeAgentDiagnostics } from "@/components/crm/agent-diagnostics";
 import { contactName } from "@/components/crm/contact-name";
 import { EMAIL_DRAFT } from "@/components/crm/email-draft-config";
 import { EmailDraftDialog } from "@/components/crm/email-draft-dialog";
@@ -361,8 +362,10 @@ function Idle({ kind }: { kind: AgentRecord["kind"] }) {
 
 export function Failure({ message }: { message: string }) {
 	const t = useT();
+	const admin = useCanSeeAgentDiagnostics();
 	const { text, hint } = bridgeFailure(message, t, {
 		developer: process.env.NODE_ENV === "development",
+		admin,
 		known: Object.values(PLAN_LIMIT_MESSAGES),
 	});
 

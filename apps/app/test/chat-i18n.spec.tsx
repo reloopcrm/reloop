@@ -28,9 +28,11 @@ const { UserSubmission } = await import(
 	"../components/agent-builder/agent-builder-chat"
 );
 const { Failure } = await import("../components/crm/agent-panel");
-const { BRIDGE_ERRORS, BRIDGE_ERROR_FALLBACK } = await import(
-	"../lib/agent-bridge-errors"
+const { AgentDiagnosticsProvider } = await import(
+	"../components/crm/agent-diagnostics"
 );
+const { BRIDGE_ERRORS, BRIDGE_ERROR_FALLBACK, BRIDGE_ADMIN_HINTS } =
+	await import("../lib/agent-bridge-errors");
 
 afterAll(() => {
 	mock.restore();
@@ -156,6 +158,52 @@ describe("the record chat failure", () => {
 			const markup = german(
 				createElement(Failure, { message: BRIDGE_ERRORS.unreachable }),
 			);
+
+			expect(markup).toContain("AGENT_URL");
+		} finally {
+			Reflect.set(process.env, "NODE_ENV", saved);
+		}
+	});
+
+	const hintFor = (canManage: boolean, message: string) =>
+		german(
+			createElement(AgentDiagnosticsProvider, {
+				canManage,
+				children: createElement(Failure, { message }),
+			}),
+		);
+
+	for (const [message, hint] of BRIDGE_ADMIN_HINTS) {
+		it(`shows an administrator the translated hint for ${message.slice(0, 30)}`, () => {
+			const markup = hintFor(true, message);
+
+			expect(de[hint]).toBeString();
+			expect(markup).toContain(de[hint] ?? "missing");
+			expect(markup).not.toContain("bun run dev");
+			expect(markup).not.toContain("AGENT_URL");
+			expect(markup).not.toContain("AGENT_BRIDGE_SECRET");
+		});
+
+		it(`shows a member only the sentence for ${message.slice(0, 30)}`, () => {
+			const markup = hintFor(false, message);
+
+			expect(markup).toContain(de[message] ?? "missing");
+			expect(markup).not.toContain(de[hint] ?? "missing");
+		});
+	}
+
+	it("shows an administrator no hint for an unknown message", () => {
+		const markup = hintFor(true, "connect ECONNREFUSED 127.0.0.1:4000");
+
+		expect(markup).toContain(de[BRIDGE_ERROR_FALLBACK] ?? "missing");
+		expect(markup).not.toContain("ECONNREFUSED");
+	});
+
+	it("keeps the developer hint in development for a member", () => {
+		const saved = process.env.NODE_ENV;
+		Reflect.set(process.env, "NODE_ENV", "development");
+		try {
+			const markup = hintFor(false, BRIDGE_ERRORS.unreachable);
 
 			expect(markup).toContain("AGENT_URL");
 		} finally {

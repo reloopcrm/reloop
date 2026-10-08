@@ -419,5 +419,7 @@
 	"The research agent did not return a session id.": "L'agent de recherche n'a pas renvoyé d'identifiant de session.",
 	"The research agent is not configured for this install.": "L'agent de recherche n'est pas configuré pour cette installation.",
 	"The research agent could not answer. Try again.": "L'agent de recherche n'a pas pu répondre. Réessaie.",
-	"Wrote back, contacted since {date}": "A répondu, contacté depuis le {date}"
+	"Wrote back, contacted since {date}": "A répondu, contacté depuis le {date}",
+	"The research agent service is not running. Start it on your server.": "Le service de l'agent de recherche ne tourne pas. Démarre-le sur ton serveur.",
+	"The research agent service is not set up. Finish its setup on your server.": "Le service de l'agent de recherche n'est pas configuré. Termine sa configuration sur ton serveur."
 }

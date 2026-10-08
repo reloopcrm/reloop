@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AgentDiagnosticsProvider } from "@/components/crm/agent-diagnostics";
 import { FieldsSheetHost } from "@/components/crm/fields/fields-sheet";
 import { CloseReasonDialog } from "@/components/crm/stage-change";
 import { DetailSheet } from "@/components/detail-sheet";
@@ -9,7 +10,7 @@ import { ContactSheet } from "./contact-sheet";
 import { DealSheet } from "./deal-sheet";
 import { type RecordRef, recordKey, useRecordStack } from "./record-stack";
 
-export function RecordSheetHost() {
+export function RecordSheetHost({ canManage }: { canManage: boolean }) {
 	const { stack, top, closeAll } = useRecordStack();
 
 	const [shown, setShown] = useState<RecordRef | null>(top);
@@ -18,7 +19,7 @@ export function RecordSheetHost() {
 	}
 
 	return (
-		<>
+		<AgentDiagnosticsProvider canManage={canManage}>
 			<DetailSheet
 				open={stack.length > 0}
 				onOpenChange={(next) => {
@@ -41,6 +42,6 @@ export function RecordSheetHost() {
 			<FieldsSheetHost />
 
 			<CloseReasonDialog />
-		</>
+		</AgentDiagnosticsProvider>
 	);
 }

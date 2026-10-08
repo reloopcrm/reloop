@@ -161,7 +161,7 @@ export function AgentRuns({
 											className="mt-px size-3.5 shrink-0 text-destructive"
 										/>
 										<span className="min-w-0 wrap-break-word text-destructive text-xs leading-5">
-											{runFailureReason(run.errorCode, run.errorMessage, t)}
+											{runFailureReason(run.errorCode, t)}
 										</span>
 									</span>
 								) : null}

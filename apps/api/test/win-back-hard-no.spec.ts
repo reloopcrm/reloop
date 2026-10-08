@@ -263,6 +263,7 @@ describe("a hard no in Win back", () => {
 			contactId: anna,
 			rejected: false,
 			replied: false,
+			snoozed: false,
 			quietForDays: 0,
 			scope: "everyone",
 			q: domain,

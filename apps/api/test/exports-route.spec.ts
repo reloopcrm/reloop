@@ -4,6 +4,7 @@ import { testDatabaseUrl } from "@crm/db/test-database";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
+import { TEST_TIMEOUT } from "./timeouts";
 
 const fallback = (key: string, value: string) => {
 	if (!process.env[key]) process.env[key] = value;
@@ -156,7 +157,7 @@ describe("the export route", () => {
 				signInAddresses: granted.filter((entry) => entry !== revokedEmail),
 			},
 		});
-	});
+	}, TEST_TIMEOUT.nestColdStartMs);
 
 	afterAll(async () => {
 		const { db } = await import("@crm/db");

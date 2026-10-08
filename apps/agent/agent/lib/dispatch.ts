@@ -89,6 +89,7 @@ import {
 	type LeasedTask,
 	noteSession,
 	postponeTask,
+	returnClaim,
 	taskKindEnabled,
 } from "./tasks";
 import { tenantAttributes, tenantState } from "./tenant";
@@ -613,7 +614,7 @@ export async function runResearchLane(
 	if (blocked) {
 		const until = await resumeAt();
 		for (const task of tasks) {
-			await postponeTask(
+			await returnClaim(
 				task.id,
 				until ?? new Date(Date.now() + DISPATCH.blocked.retryMs),
 			);
@@ -656,7 +657,7 @@ async function withinResearchBudget(
 			kept.push(task);
 			continue;
 		}
-		await postponeTask(task.id, until);
+		await returnClaim(task.id, until);
 		deferred += 1;
 	}
 

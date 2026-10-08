@@ -10,10 +10,12 @@ import { forwardReserve, monthlyBudget, STORY_KIND } from "@crm/db/plans";
 import {
 	listReactivationCandidates,
 	REACTIVATION,
+	type ReactivationCandidate,
 	readReactivationCandidate,
 } from "@crm/db/reactivation";
 import { threadsOfContact } from "@crm/db/thread-participants";
 import { readWinBackReply } from "@crm/db/win-back-outcome";
+import { endSnooze, snoozedUntil } from "@crm/db/win-back-snooze";
 import {
 	isAgentFunctionEnabled,
 	readAgentFunctions,
@@ -82,9 +84,12 @@ export class WinBackPersonService {
 		private readonly prefetch: WinBackStoryPrefetchService,
 	) {}
 
-	async person(contactId: string): Promise<WinBackPersonViewOutput> {
+	async person(
+		contactId: string,
+		now = new Date(),
+	): Promise<WinBackPersonViewOutput> {
 		const rules = await readWinBackRules(this.db);
-		const [contact, candidate] = await Promise.all([
+		const [contact, candidate, snoozed] = await Promise.all([
 			this.db.contact.findUnique({
 				where: { id: contactId },
 				select: {
@@ -107,7 +112,8 @@ export class WinBackPersonService {
 					},
 				},
 			}),
-			readReactivationCandidate(this.db, { contactId, rules }),
+			readReactivationCandidate(this.db, { contactId, rules, now }),
+			snoozedUntil(this.db, [contactId], now),
 		]);
 
 		if (!contact) {
@@ -278,6 +284,7 @@ export class WinBackPersonService {
 			firstContactAt: candidate.firstContactAt.toISOString(),
 			lastContactAt: candidate.lastContactAt.toISOString(),
 			feedback: candidate.feedback,
+			snoozedUntil: snoozed.get(contactId)?.toISOString() ?? null,
 			wroteBack: reply
 				? { answeredAt: reply.answeredAt.toISOString(), open: reply.open }
 				: null,
@@ -463,17 +470,47 @@ export class WinBackPersonService {
 		return [...known, ...found.map((row) => row.id)];
 	}
 
+	private async firstAfterSnooze(
+		input: WinBackNextInput,
+		reachable: ReactivationCandidate[],
+		now: Date,
+	): Promise<ReactivationCandidate | null> {
+		const first = reachable[0];
+		if (!first || input.snoozed || input.rejected || input.replied) return null;
+
+		const snoozed = await snoozedUntil(this.db, [input.contactId], now);
+		return snoozed.has(input.contactId) ? first : null;
+	}
+
+	async bringBack(
+		contactId: string,
+		now = new Date(),
+	): Promise<{ contactId: string; ended: number }> {
+		const ended = await endSnooze(this.db, contactId, now);
+		this.logger.log({
+			message: "Win back snooze ended",
+			contactId,
+			ended,
+		});
+
+		return { contactId, ended };
+	}
+
 	async next(
 		userId: string,
 		input: WinBackNextInput,
+		now = new Date(),
 	): Promise<WinBackNextOutput> {
 		const rules = await readWinBackRules(this.db);
 		const report = await listReactivationCandidates(this.db, {
 			rejected: input.rejected,
 			replied: input.replied,
+			snoozed: input.snoozed,
+			repliedSince: input.since ? new Date(input.since) : null,
 			quietForDays: input.quietForDays,
 			limit: REACTIVATION.limit.max,
 			ownerId: input.scope === "me" ? userId : null,
+			now,
 			rules,
 		});
 		const groups = sortGroups(
@@ -487,7 +524,17 @@ export class WinBackPersonService {
 		);
 		const reachable = order.filter((person) => person.contact.email !== null);
 		const total = reachable.length;
-		if (index === -1) return { next: null, position: null, total };
+		if (index === -1) {
+			const first = await this.firstAfterSnooze(input, reachable, now);
+			if (first) this.prefetch.nextShown(first.contact.id);
+			return {
+				next: first
+					? { id: first.contact.id, name: nameOf(first.contact) }
+					: null,
+				position: null,
+				total,
+			};
+		}
 
 		const place = reachable.findIndex(
 			(person) => person.contact.id === input.contactId,

@@ -233,10 +233,24 @@ export async function dispatchBuilderSubmission(
 		});
 	} catch (error) {
 		console.error(
-			`[agent] builder submission ${submission.id} was delivered but could not be marked accepted: ${
+			`[agent] builder submission ${submission.id} was delivered but its session could not be recorded: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
 		);
+		await db.agentConversationSubmission
+			.updateMany({
+				where: { id: submission.id, status: "SENDING" },
+				data: { status: "ACCEPTED", acceptedAt: new Date() },
+			})
+			.catch((retryError) => {
+				console.error(
+					`[agent] builder submission ${submission.id} was delivered but could not be marked accepted: ${
+						retryError instanceof Error
+							? retryError.message
+							: String(retryError)
+					}`,
+				);
+			});
 	}
 
 	return session;

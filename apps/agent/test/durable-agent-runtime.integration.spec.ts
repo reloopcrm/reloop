@@ -13,6 +13,7 @@ import {
 	queueDueAgentRuns,
 	queueEventAgentRuns,
 } from "../agent/lib/custom-agent-dispatch";
+import { DISPATCH } from "../agent/lib/dispatch-config";
 import {
 	createRunActivity,
 	finishRun,
@@ -516,17 +517,26 @@ describe("durable custom-agent runtime", () => {
 			}),
 		]);
 		expect(session.id).toBe(takenSessionId);
-		expect(submission.status).toBe("SENDING");
+		expect(submission.status).toBe("ACCEPTED");
 		expect(submission.errorCode).toBeNull();
 		expect(settled.continuationToken).toBeNull();
 
+		await db.agentConversationSubmission.update({
+			where: { id: submissionId },
+			data: { sentAt: new Date(Date.now() - 2 * DISPATCH.builder.leaseMs) },
+		});
+		await pendingBuilderSubmissionIds();
 		let redelivery: Error | null = null;
 		try {
 			await dispatchBuilderSubmission(submissionId, send);
 		} catch (error) {
 			redelivery = error as Error;
 		}
+		const recovered = await db.agentConversationSubmission.findUniqueOrThrow({
+			where: { id: submissionId },
+		});
 		expect(redelivery?.message).toContain("already claimed or is out of order");
+		expect(recovered.status).toBe("ACCEPTED");
 		expect(deliveries).toBe(1);
 	});
 

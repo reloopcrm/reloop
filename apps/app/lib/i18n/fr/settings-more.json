@@ -502,5 +502,6 @@
 	"Google returned no access token.": "Google n'a renvoyé aucun jeton d'accès.",
 	"Google would not refresh the access token.": "Google n'a pas voulu renouveler le jeton d'accès.",
 	"Microsoft returned no access token.": "Microsoft n'a renvoyé aucun jeton d'accès.",
-	"Microsoft would not refresh the access token.": "Microsoft n'a pas voulu renouveler le jeton d'accès."
+	"Microsoft would not refresh the access token.": "Microsoft n'a pas voulu renouveler le jeton d'accès.",
+	"This mailbox stopped when its owner lost access to the workspace. Connect it again to resume.": "Cette boîte mail s'est arrêtée quand son propriétaire a perdu l'accès à l'espace de travail. Connectez-la à nouveau pour reprendre."
 }

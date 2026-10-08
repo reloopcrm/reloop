@@ -502,5 +502,6 @@
 	"Google returned no access token.": "Google 没有返回访问令牌。",
 	"Google would not refresh the access token.": "Google 没有刷新访问令牌。",
 	"Microsoft returned no access token.": "Microsoft 没有返回访问令牌。",
-	"Microsoft would not refresh the access token.": "Microsoft 没有刷新访问令牌。"
+	"Microsoft would not refresh the access token.": "Microsoft 没有刷新访问令牌。",
+	"This mailbox stopped when its owner lost access to the workspace. Connect it again to resume.": "此邮箱的所有者已失去工作区的访问权限，因此邮箱已停止。请重新连接以继续。"
 }

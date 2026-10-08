@@ -502,5 +502,6 @@
 	"Google returned no access token.": "Google erişim jetonu döndürmedi.",
 	"Google would not refresh the access token.": "Google erişim jetonunu yenilemedi.",
 	"Microsoft returned no access token.": "Microsoft erişim jetonu döndürmedi.",
-	"Microsoft would not refresh the access token.": "Microsoft erişim jetonunu yenilemedi."
+	"Microsoft would not refresh the access token.": "Microsoft erişim jetonunu yenilemedi.",
+	"This mailbox stopped when its owner lost access to the workspace. Connect it again to resume.": "Bu posta kutusu, sahibi çalışma alanına erişimini kaybettiğinde durdu. Devam etmek için yeniden bağla."
 }

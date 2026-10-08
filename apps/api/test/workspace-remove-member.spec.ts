@@ -26,6 +26,12 @@ function workspace(actorRole: string | null, target: Target) {
 		},
 		session: { deleteMany: async () => writes.push("session") },
 		apikey: { deleteMany: async () => writes.push("apikey") },
+		account: {
+			findMany: async () => [],
+			updateMany: async () => writes.push("account"),
+		},
+		imapAccount: { updateMany: async () => writes.push("imapAccount") },
+		mailboxSync: { updateMany: async () => writes.push("mailboxSync") },
 		$queryRaw: async (sql: TemplateStringsArray) => {
 			const query = sql.join("?");
 			if (query.includes('"appSetting"')) return [{ signInAddresses: [] }];
@@ -114,7 +120,15 @@ describe("removing a member: the rules", () => {
 		});
 
 		await service.removeMember(ACTOR, { memberId: "target" });
-		expect(writes).toEqual(["member", "user", "session", "apikey"]);
+		expect(writes).toEqual([
+			"member",
+			"user",
+			"session",
+			"apikey",
+			"account",
+			"imapAccount",
+			"mailboxSync",
+		]);
 	});
 
 	it("lets an owner remove another owner", async () => {
@@ -124,7 +138,15 @@ describe("removing a member: the rules", () => {
 		});
 
 		await service.removeMember(ACTOR, { memberId: "target" });
-		expect(writes).toEqual(["member", "user", "session", "apikey"]);
+		expect(writes).toEqual([
+			"member",
+			"user",
+			"session",
+			"apikey",
+			"account",
+			"imapAccount",
+			"mailboxSync",
+		]);
 	});
 });
 

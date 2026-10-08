@@ -1214,7 +1214,7 @@ model ImapAccount {
   port     Int     @default(993)
   secure   Boolean @default(true)
   username String
-  secret   String
+  secret   String?
 
   importSince DateTime?
 

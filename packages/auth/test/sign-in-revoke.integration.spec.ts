@@ -36,6 +36,25 @@ async function credentialsOf(userId: string) {
 			updatedAt: now,
 		},
 	});
+	await db.account.create({
+		data: {
+			id: `google-${userId}`,
+			accountId: `google-${userId}`,
+			providerId: "google",
+			userId,
+			accessToken: `access-${userId}`,
+			refreshToken: `refresh-${userId}`,
+			scope: "gmail",
+			updatedAt: now,
+		},
+	});
+}
+
+async function tokensOf(userId: string) {
+	return db.account.findUniqueOrThrow({
+		where: { id: `google-${userId}` },
+		select: { accessToken: true, refreshToken: true, scope: true },
+	});
 }
 
 async function counts(userId: string) {
@@ -82,6 +101,16 @@ describe("revoking a granted address", () => {
 
 		expect(await counts(revokedId)).toEqual({ sessions: 0, apiKeys: 0 });
 		expect(await counts(bystanderId)).toEqual({ sessions: 1, apiKeys: 1 });
+		expect(await tokensOf(revokedId)).toEqual({
+			accessToken: null,
+			refreshToken: null,
+			scope: "gmail",
+		});
+		expect(await tokensOf(bystanderId)).toEqual({
+			accessToken: `access-${bystanderId}`,
+			refreshToken: `refresh-${bystanderId}`,
+			scope: "gmail",
+		});
 		expect(await readSignInGrants(db)).not.toContain(revokedEmail);
 		expect(await readSignInGrants(db)).toContain(bystanderEmail);
 	});

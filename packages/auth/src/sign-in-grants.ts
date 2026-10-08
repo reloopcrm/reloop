@@ -1,6 +1,13 @@
-import { type Db, db as defaultDb, type Prisma } from "@crm/db";
+import {
+	type Db,
+	db as defaultDb,
+	GoogleSyncStatus,
+	type Prisma,
+} from "@crm/db";
 import { SETTINGS_ID } from "@crm/db/settings";
+import { MAILBOX_ACCESS_ENDED_REASON } from "@crm/validation/mailbox-reasons";
 import { canGrantSignIn, type WorkspaceRole } from "./roles";
+import { SLACK_PROVIDER_ID } from "./scopes";
 import { isWorkspaceEmail } from "./workspace";
 
 export const SIGN_IN_GRANTS = {
@@ -143,7 +150,15 @@ export async function revokeSignIn(
 	});
 }
 
-type CredentialStore = Pick<Db, "session" | "apikey">;
+type CredentialStore = Pick<
+	Db,
+	| "session"
+	| "apikey"
+	| "account"
+	| "imapAccount"
+	| "mailboxSync"
+	| "slackInstallation"
+>;
 
 export async function endAccessOf(
 	database: CredentialStore,
@@ -151,10 +166,53 @@ export async function endAccessOf(
 ): Promise<void> {
 	if (userIds.length === 0) return;
 
+	const people = [...userIds];
+
 	await database.session.deleteMany({
-		where: { userId: { in: [...userIds] } },
+		where: { userId: { in: people } },
 	});
 	await database.apikey.deleteMany({
-		where: { referenceId: { in: [...userIds] } },
+		where: { referenceId: { in: people } },
+	});
+	await forgetStoredGrantsOf(database, people);
+}
+
+async function forgetStoredGrantsOf(
+	database: CredentialStore,
+	people: string[],
+): Promise<void> {
+	const slack = await database.account.findMany({
+		where: { userId: { in: people }, providerId: SLACK_PROVIDER_ID },
+		select: { accountId: true },
+	});
+
+	await database.account.updateMany({
+		where: { userId: { in: people }, providerId: { not: SLACK_PROVIDER_ID } },
+		data: {
+			accessToken: null,
+			refreshToken: null,
+			idToken: null,
+			accessTokenExpiresAt: null,
+			refreshTokenExpiresAt: null,
+		},
+	});
+	await database.imapAccount.updateMany({
+		where: { userId: { in: people } },
+		data: { secret: null },
+	});
+	await database.mailboxSync.updateMany({
+		where: { userId: { in: people } },
+		data: {
+			status: GoogleSyncStatus.NEEDS_RECONNECT,
+			lastError: MAILBOX_ACCESS_ENDED_REASON,
+			retryAfter: null,
+		},
+	});
+
+	if (slack.length === 0) return;
+
+	await database.slackInstallation.updateMany({
+		where: { installerId: { in: slack.map((account) => account.accountId) } },
+		data: { userToken: null },
 	});
 }

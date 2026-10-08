@@ -7,6 +7,7 @@ import {
 import { planLimitsOf } from "@crm/db/plan-usage";
 import { clampImportSince } from "@crm/db/plans";
 import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
+import { MAILBOX_ACCESS_ENDED_REASON } from "@crm/validation/mailbox-reasons";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { importCapRemaining } from "../mailbox/import-cap";
@@ -111,6 +112,16 @@ export class ImapSyncService {
 				userId: row.userId,
 				status: "skipped",
 				reason: "The mailbox was removed.",
+			};
+		}
+
+		if (!account.secret) {
+			await this.state.markNeedsReconnect(row.id, MAILBOX_ACCESS_ENDED_REASON);
+			return {
+				source,
+				userId: row.userId,
+				status: "reconnect",
+				reason: MAILBOX_ACCESS_ENDED_REASON,
 			};
 		}
 

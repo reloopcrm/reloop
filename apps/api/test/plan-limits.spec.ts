@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { GMAIL_SCOPE, GOOGLE_PROVIDER_ID } from "@crm/auth";
 import { db } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import { budgetTasksWhere } from "@crm/db/plan-usage";
 import {
 	DRAFT_KIND,
@@ -13,10 +14,12 @@ import {
 	actWithoutPlans,
 	actWithTestPlans,
 	TEST_PLANS,
+	testPlans,
 } from "@crm/db/test-plans";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import {
 	countMailboxes,
+	readCapacityUsage,
 	SyncStateService,
 } from "../src/mailbox/sync-state.service";
 import { SettingsService } from "../src/settings/settings.service";
@@ -24,6 +27,7 @@ import { SettingsService } from "../src/settings/settings.service";
 const suffix = process.env.TEST_RUN_ID ?? "plan-limits";
 const email = `plan.limits.${suffix}@example.test`;
 const reps = [`plan-rep-a-${suffix}`, `plan-rep-b-${suffix}`];
+const padding = `plan.capacity.${suffix}`;
 
 let contactId: string;
 let planBefore: string | null;
@@ -38,6 +42,16 @@ async function clean(): Promise<void> {
 	await db.mailboxSync.deleteMany({ where: { userId: { in: reps } } });
 	await db.user.deleteMany({ where: { id: { in: reps } } });
 	await db.contact.deleteMany({ where: { email } });
+	await db.contact.deleteMany({ where: { email: { startsWith: padding } } });
+}
+
+function actWithContactLimit(contacts: number): void {
+	Object.assign(cloud, {
+		plans: {
+			...testPlans,
+			limitsOf: () => ({ ...TEST_PLANS.wide, contacts }),
+		},
+	});
 }
 
 beforeAll(async () => {
@@ -202,5 +216,58 @@ describe("plan limits in the API", () => {
 		);
 		expect(plan.usage.mailboxes).toBeGreaterThanOrEqual(0);
 		expect(plan.usage.insightsThisMonth).toBeGreaterThanOrEqual(0);
+	});
+
+	it("rates the contact row against the limit the plans port gives", async () => {
+		await writePlan(db, "wide");
+		const counted = (await readCapacityUsage(db)).contacts;
+		const missing = counted === 0 ? 4 : (4 - (counted % 4)) % 4;
+		await db.contact.createMany({
+			data: Array.from({ length: missing }, (_, index) => ({
+				firstName: "Capacity",
+				lastName: `${index}`,
+				email: `${padding}.${index}@example.test`,
+			})),
+		});
+		const used = (await readCapacityUsage(db)).contacts;
+		expect(used % 4).toBe(0);
+
+		const contactRow = async (limit: number) => {
+			actWithContactLimit(limit);
+			try {
+				const usage = await settings.aiUsage();
+				return usage.capacity.find((row) => row.counter === "contacts");
+			} finally {
+				actWithTestPlans();
+			}
+		};
+
+		expect(await contactRow((used * 5) / 4 + 1)).toMatchObject({
+			used,
+			limit: (used * 5) / 4 + 1,
+			level: "normal",
+		});
+		expect(await contactRow((used * 5) / 4)).toMatchObject({
+			used,
+			limit: (used * 5) / 4,
+			level: "warning",
+		});
+		expect(await contactRow(used)).toMatchObject({
+			used,
+			limit: used,
+			level: "reached",
+		});
+
+		actWithoutPlans();
+		try {
+			const selfHosted = await settings.aiUsage();
+			expect(selfHosted.capacity.map((row) => row.level)).toEqual([
+				"normal",
+				"normal",
+			]);
+			expect(selfHosted.capacity.map((row) => row.limit)).toEqual([null, null]);
+		} finally {
+			actWithTestPlans();
+		}
 	});
 });

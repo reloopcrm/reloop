@@ -20,6 +20,7 @@ import { parseAsBoolean, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { useT } from "@/lib/i18n/client";
+import { quickSearchEmpty } from "@/lib/quick-search";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -60,6 +61,13 @@ export function QuickSwitcher() {
 		placeholderData: (previous) => previous,
 	});
 
+	const empty = quickSearchEmpty(query, results.isFetching);
+	const emptyText = {
+		short: t("Type at least two characters."),
+		searching: t("Searching…"),
+		none: t("Nothing matches."),
+	}[empty];
+
 	const hits = results.data?.hits ?? [];
 
 	const go = (kind: (typeof KINDS)[number], id: string) => {
@@ -79,14 +87,11 @@ export function QuickSwitcher() {
 				<CommandInput
 					placeholder={t("Search companies, contacts and deals…")}
 					value={query}
+					maxLength={SEARCH.maxLength}
 					onValueChange={setQuery}
 				/>
 				<CommandList>
-					<CommandEmpty>
-						{query.trim().length < SEARCH.minLength
-							? t("Type at least two characters.")
-							: t("Nothing matches.")}
-					</CommandEmpty>
+					<CommandEmpty>{emptyText}</CommandEmpty>
 
 					{KINDS.map((kind) => {
 						const group = hits.filter((hit) => hit.kind === kind);

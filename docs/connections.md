@@ -190,8 +190,13 @@ It is the answer to "can you integrate with X" when X is not worth a module.
 - **The body is signed, not authenticated.** `x-reloop-signature` is
   `v1=HMAC-SHA256(timestamp + "." + body)` with the webhook's own secret, and
   `x-reloop-timestamp` is what the receiver signs with. The secret is sealed with
-  `sealWebhookSecret` the same way the IMAP password is, and the page shows a
-  masked hint, never the value.
+  `sealWebhookSecret` the same way the IMAP password is, and the page shows
+  eight dots, never a character of the value.
+- **An address is https.** The contract refuses plain http unless
+  `allowPrivateHost` is on, and the agent refuses to send plain http to a host that
+  resolves to a public address. A webhook saved with such an address before this
+  rule stays in the table. Its deliveries fail with a `lastError` that names the
+  problem, and the card shows it. Nothing is sent.
 - **Only an owner or an admin writes a webhook, or reads its address.**
   `canManageConnections`, the same predicate Slack uses, in the service and on
   the button. `webhooks.status` returns `url` and `secretHint` as null to a

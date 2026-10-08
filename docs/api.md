@@ -461,6 +461,27 @@ the largest attachment upload the conversation contracts accept.
   Graph has no mailbox-wide delta, so the Outlook cursor is re-read with a
   one-second overlap; `rfcMessageId` is unique, so the overlap costs a duplicate
   fetch and never a duplicate row.
+- **The calendar keeps its place between ticks.** `MailboxSync.cursor` is
+  Google's `nextSyncToken`. A pass reads at most `CALENDAR.sync.maxPagesPerTick`
+  pages (`google/calendar.config.ts`). The next page token, the sync token it
+  belongs to and the frozen `timeMin`/`timeMax` window go into the calendar row's
+  `backfill` as `{ v, pageToken, syncToken, timeMin, timeMax }`
+  (`google/calendar-page-cursor.ts`), and the next tick continues there with the
+  same window. The last page writes the new sync token and clears the blob. A
+  page Google rejects for good (`failed`, not retryable) or a 410 clears it, so
+  the next tick starts the pass again; a retryable failure keeps it.
+- **A calendar event is found by its Google id.** A cancelled entry in an
+  incremental sync carries only `id` and `status`, so it is deleted by
+  `googleEventId`, narrowed by `iCalUid` when the entry has one. The second way
+  is `iCalUid`: for a single event every row without a `recurringEventId`, for
+  an instance the row with its `originalStartTime`. Google ids are unique per calendar
+  only, so an id that matches events with different `iCalUid`s deletes nothing. A
+  moved single event keeps its row: the sync finds it by `googleEventId`, or by
+  `iCalUid` without a `recurringEventId`, updates the times and leaves
+  `originalStartTime` as it was, so its `MEETING` activity stays one. The
+  attendee rows follow Google's list, unless Google sets `attendeesOmitted`. An
+  unknown `status` or `responseStatus` reads as absent instead of failing the
+  page.
 - **A message the store rejects is retried, then skipped.** Gmail and Outlook
   keep `failures` (`{ id, attempts, lanes }`) in the backfill blob, IMAP keeps
   it in the folder's cursor entry (`mailbox/message-failures.ts`). The cursor
@@ -724,7 +745,7 @@ the pattern lists in `packages/db/src/message-text.ts`
 
 - **TypeScript asks `isRealAnswer`**, which is `isAutoReply` and `isBounce` beside
   it. `EmailMessage` stores no headers, so they read the sender, the subject and the
-  first `AUTO_REPLY_BODY_CHARS` of the body (the snippet when there is no body).
+  first `AUTO_REPLY_BODY_CHARS` characters of the body (the snippet when there is no body). TypeScript and SQL both count code points, and the SQL patterns use the JavaScript `\s` set.
   The body is cut at the first quote marker or `>` line after its first character
   (`authoredText`), so a real reply that quotes an out-of-office still counts.
 - **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same

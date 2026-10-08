@@ -739,10 +739,11 @@ the pattern lists in `packages/db/src/message-text.ts`
   `FOR UPDATE SKIP LOCKED`. It never touches a row that has a value, so it is
   safe to stop and restart. Once a pass fills less than a batch and no empty
   flag is left (`realAnswersMissing`), it stops until the API restarts; a row
-  another transaction held is filled on a later tick. The partial index `emailMessage_realAnswer_missing_idx` holds
-  only the empty rows, so finding them does not scan the table. A self-hosted
-  install runs nothing by hand: the history is filled a batch per tick after the
-  deploy.
+  another transaction held is filled on a later tick. The partial index
+  `emailMessage_realAnswer_missing_idx` holds only the empty rows, so finding
+  them does not scan the table. A self-hosted install runs nothing by hand: the
+  history is filled a batch per tick after the deploy. The hard no filter in
+  `reactivation.ts` reads `realAnswer` too, so it gains the same.
 - **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
   and the follow-up sweep both skip auto-replies and bounces.
 - **"Wrote back" is the same loop.** `reactivation.list` and `nextPerson` take

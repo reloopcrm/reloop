@@ -3,9 +3,7 @@ import { isBoxThread } from "./contact-worth";
 import { OPEN_DEAL_STAGES } from "./deal-stage";
 import { Prisma } from "./generated/prisma/client";
 import { DealStage } from "./generated/prisma/enums";
-import { DECLINE_KIND, DECLINED_OUTCOME } from "./insights";
-import { realAnswer } from "./real-answer";
-import { wroteBackAfterOutreach } from "./win-back-outcome";
+import { hardNoStands, wroteBackAfterOutreach } from "./win-back-outcome";
 import { DEFAULT_WIN_BACK_RULES, type WinBackRuleSet } from "./win-back-rules";
 
 const DAY_MS = 86_400_000;
@@ -19,6 +17,7 @@ export const REACTIVATION = {
 export type ReactivationOptions = {
 	rejected?: boolean;
 	replied?: boolean;
+	repliedSince?: Date | null;
 	quietForDays?: number;
 	limit?: number;
 	ownerId?: string | null;
@@ -343,7 +342,7 @@ export async function listReactivationCandidates(
 	const includeFilter = ruled ? ruleFilter(rules) : Prisma.empty;
 	const hardNoFilter = options.rejected ? Prisma.empty : HARD_NO_FILTER;
 	const repliedFilter = options.replied
-		? Prisma.sql`AND ${wroteBackAfterOutreach(Prisma.sql`c.id`)}`
+		? Prisma.sql`AND ${wroteBackAfterOutreach(Prisma.sql`c.id`, options.repliedSince ?? null)}`
 		: Prisma.empty;
 
 	const rows = await db.$queryRaw<Row[]>(
@@ -386,24 +385,7 @@ export async function listReactivationCandidates(
 	};
 }
 
-const HARD_NO_FILTER = Prisma.sql`AND NOT EXISTS (
-	SELECT 1 FROM "emailThread" ht
-	JOIN "threadInsight" hi ON hi."threadId" = ht.id
-	WHERE ht."contactId" = c.id
-		AND hi.outcome = ${DECLINED_OUTCOME}
-		AND hi."declineKind" = ${DECLINE_KIND.hard}
-		AND NOT EXISTS (
-			SELECT 1 FROM "emailMessage" rm
-			WHERE ${realAnswer("rm")}
-				AND rm."sentAt" > COALESCE(hi."declinedAt", hi."lastMessageAt")
-				AND (c.email IS NULL OR lower(rm."fromEmail") = lower(c.email))
-				AND rm."threadId" IN (
-					SELECT rt.id FROM "emailThread" rt WHERE rt."contactId" = c.id
-					UNION
-					SELECT rl."threadId" FROM "emailThreadContact" rl WHERE rl."contactId" = c.id
-				)
-		)
-)`;
+const HARD_NO_FILTER = Prisma.sql`AND NOT ${hardNoStands(Prisma.sql`c`)}`;
 
 function ruleFilter(rules: WinBackRuleSet): Prisma.Sql {
 	const topicFilter = rules.include.requireTopic

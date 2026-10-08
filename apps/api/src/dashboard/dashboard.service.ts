@@ -27,6 +27,16 @@ function monthStart(from: Date, offset: number): Date {
 	return new Date(from.getFullYear(), from.getMonth() + offset, 1);
 }
 
+function withLocalOffset(date: Date): string {
+	const pad = (value: number) => String(Math.abs(value)).padStart(2, "0");
+	const offset = -date.getTimezoneOffset();
+	const sign = offset >= 0 ? "+" : "-";
+	const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+	const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+	const zone = `${sign}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`;
+	return `${day}T${time}${zone}`;
+}
+
 function monthTag(date: Date): string {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
@@ -309,6 +319,7 @@ export class DashboardService {
 				winBack.verdicts === 0
 					? null
 					: {
+							since: withLocalOffset(startOfMonth),
 							contacted: winBack.contacted,
 							answered: winBack.answered,
 							deals: winBack.deals,

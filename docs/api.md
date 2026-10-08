@@ -422,7 +422,8 @@ the largest attachment upload the conversation contracts accept.
   of threads that are not worth adopting is reached within one round of the waiting
   threads. An unreadable cursor is logged and starts again from the newest thread.
 - **Old rows follow the identity.** `DirectionRepairService` runs once per sync
-  tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`,
+  tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`
+  and sets their `realAnswer` to `false` in the same statement,
   at most `DIRECTION.repairBatch` per tick, and never the other way. Once a pass
   finds less than a batch, it skips until the identity changes, so a new mailbox
   or a new alias corrects the history by itself. It deletes nothing;
@@ -723,6 +724,26 @@ the pattern lists in `packages/db/src/message-text.ts`
 - **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same
   lists. Every query that counts a reply uses it; never write
   `direction = 'INBOUND'` alone for that.
+- **The verdict is stored on the message.** `EmailMessage.realAnswer` holds it.
+  `ThreadWriterService.store` writes `isRealAnswer` of exactly the stored sender,
+  subject, body and snippet, and the direction repair writes `false` with every
+  flip to `OUTBOUND`. `realAnswer("m")` is `direction = 'INBOUND'` and the stored
+  flag, and falls back to the pattern lists only while the flag is null, so a
+  count is the same before and after old rows are filled. The pattern lists run
+  over every inbound message in the table; the flag takes that cost away.
+  `realAnswerRule("m")` is the pattern lists alone, for the parity test and the
+  fill.
+- **Old rows fill themselves.** `RealAnswerBackfillService` runs once per sync
+  tick after the direction repair and writes `realAnswerRule` into at most
+  `REAL_ANSWER.backfillBatch` rows whose flag is null (`fillRealAnswers`), with
+  `FOR UPDATE SKIP LOCKED`. It never touches a row that has a value, so it is
+  safe to stop and restart. Once a pass fills less than a batch and no empty
+  flag is left (`realAnswersMissing`), it stops until the API restarts; a row
+  another transaction held is filled on a later tick. The partial index
+  `emailMessage_realAnswer_missing_idx` holds only the empty rows, so finding
+  them does not scan the table. A self-hosted install runs nothing by hand: the
+  history is filled a batch per tick after the deploy. The hard no filter in
+  `reactivation.ts` reads `realAnswer` too, so it gains the same.
 - **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
   and the follow-up sweep both skip auto-replies and bounces.
 - **"Wrote back" is the same loop.** `reactivation.list` and `nextPerson` take
@@ -743,8 +764,10 @@ the pattern lists in `packages/db/src/message-text.ts`
   answered. The answer time is their newest real answer in a conversation they own,
   the same mail the draft agent reads. A draft whose `basedOnUntil` ends before that
   answer is never shown or sent: opening the message asks the agent for a new one.
-- `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides. A new
-  pattern goes in the list and gets a sample there.
+- `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides,
+  and through `realAnswer("m")` once with an empty flag and once with the stored
+  one. A new pattern goes in the list and gets a sample there. A changed pattern
+  judges new mail only: a stored flag keeps the verdict it was written with.
 
 ## People on a deal
 

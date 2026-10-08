@@ -150,6 +150,14 @@ export async function revokeSignIn(
 	});
 }
 
+const CLEARED_TOKENS = {
+	accessToken: null,
+	refreshToken: null,
+	idToken: null,
+	accessTokenExpiresAt: null,
+	refreshTokenExpiresAt: null,
+} as const;
+
 type CredentialStore = Pick<
 	Db,
 	| "session"
@@ -188,13 +196,7 @@ async function forgetStoredGrantsOf(
 
 	await database.account.updateMany({
 		where: { userId: { in: people }, providerId: { not: SLACK_PROVIDER_ID } },
-		data: {
-			accessToken: null,
-			refreshToken: null,
-			idToken: null,
-			accessTokenExpiresAt: null,
-			refreshTokenExpiresAt: null,
-		},
+		data: CLEARED_TOKENS,
 	});
 	await database.imapAccount.updateMany({
 		where: { userId: { in: people } },
@@ -215,4 +217,24 @@ async function forgetStoredGrantsOf(
 		where: { installerId: { in: slack.map((account) => account.accountId) } },
 		data: { userToken: null },
 	});
+}
+
+export async function forgetGrantOfRemovedUser(
+	account: { id: string; userId: string; providerId: string },
+	database: Pick<Db, "user" | "account"> = defaultDb,
+): Promise<boolean> {
+	if (account.providerId === SLACK_PROVIDER_ID) return false;
+
+	const user = await database.user.findUnique({
+		where: { id: account.userId },
+		select: { removedAt: true },
+	});
+	if (!user?.removedAt) return false;
+
+	await database.account.updateMany({
+		where: { id: account.id },
+		data: CLEARED_TOKENS,
+	});
+
+	return true;
 }

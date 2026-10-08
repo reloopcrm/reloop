@@ -108,11 +108,13 @@ export class ImapConnectionService {
 
 		const existing = await this.db.imapAccount.findUnique({
 			where: { userId_email: { userId, email } },
-			select: { id: true },
+			select: { id: true, secret: true },
 		});
-		if (existing) {
+		if (existing?.secret) {
 			throw new BadRequestException(`${email} is already connected.`);
 		}
+
+		if (existing) return this.reconnect(userId, existing.id, input);
 
 		const limits = await planLimitsOf(this.db);
 
@@ -125,19 +127,7 @@ export class ImapConnectionService {
 			new Date(),
 		);
 
-		const connected = await this.clients.connect({
-			host: input.host,
-			port: input.port,
-			secure: input.secure,
-			username: input.username,
-			password: input.password,
-		});
-
-		if (connected.outcome !== "ok") {
-			throw new BadRequestException(connected.reason);
-		}
-
-		await connected.session.close();
+		await this.checkSignIn(input);
 
 		const account = await this.db.imapAccount.create({
 			data: {
@@ -166,6 +156,55 @@ export class ImapConnectionService {
 		});
 
 		return this.status(userId);
+	}
+
+	private async reconnect(
+		userId: string,
+		id: string,
+		input: AddImapAccountInput,
+	): Promise<ImapStatus> {
+		await this.checkSignIn(input);
+
+		await this.db.imapAccount.update({
+			where: { id },
+			data: {
+				host: input.host,
+				port: input.port,
+				secure: input.secure,
+				username: input.username,
+				secret: this.credentials.seal(input.password),
+			},
+		});
+
+		await this.state.ensure(
+			userId,
+			imapSourceFor(id),
+			policyOf(input.createFrom),
+		);
+
+		this.logger.log({
+			message: "IMAP mailbox reconnected",
+			userId,
+			accountId: id,
+		});
+
+		return this.status(userId);
+	}
+
+	private async checkSignIn(input: AddImapAccountInput): Promise<void> {
+		const connected = await this.clients.connect({
+			host: input.host,
+			port: input.port,
+			secure: input.secure,
+			username: input.username,
+			password: input.password,
+		});
+
+		if (connected.outcome !== "ok") {
+			throw new BadRequestException(connected.reason);
+		}
+
+		await connected.session.close();
 	}
 
 	async reconcileAll(): Promise<void> {

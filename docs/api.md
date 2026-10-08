@@ -128,7 +128,11 @@ here, what do we sell.
   and the user token of a pending `slackInstallation` of that person. Every
   `mailboxSync` row of the person turns `NEEDS_RECONNECT` with
   `MAILBOX_ACCESS_ENDED_REASON`, so cursors, settings and filed mail stay and the
-  tick skips the rows. Only connecting the mailbox again resumes it. The Slack
+  tick skips the rows. Only connecting the mailbox again resumes it: Google and
+  Microsoft through their reconnect, IMAP through `imap.add` with the same address,
+  which writes the new password into the kept row and keeps its cursor. A token
+  refresh that lands after the removal is cleared again in `afterAccountWrite`
+  (`forgetGrantOfRemovedUser`) and never clears `NEEDS_RECONNECT`. The Slack
   `account` row holds the workspace bot token and `SlackWorkspaceGrant` the
   workspace user token; neither is the person's, so both stay. The gate is `removedAt` in
   `databaseHooks.session.create.before`, not the allow-list: a domain on

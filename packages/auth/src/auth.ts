@@ -28,7 +28,7 @@ import {
 	SLACK_PROVIDER_ID,
 	SYNC_SCOPES,
 } from "./scopes";
-import { isSignInAllowed } from "./sign-in-grants";
+import { forgetGrantOfRemovedUser, isSignInAllowed } from "./sign-in-grants";
 import { notifySignedIn } from "./signed-in";
 import { rememberSlackInstall, replaceSlackConnection } from "./slack-grant";
 import { SLACK_REQUESTED_SCOPES, SLACK_USER_SCOPES } from "./slack-scopes";
@@ -338,6 +338,7 @@ async function afterAccountWrite(account: {
 	scope?: string | null;
 }): Promise<void> {
 	await replaceSlackAccount(account);
+	if (await forgetGrantOfRemovedUser(account)) return;
 	await clearMailboxReconnect(account);
 }
 

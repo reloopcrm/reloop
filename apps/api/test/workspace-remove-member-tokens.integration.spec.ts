@@ -3,11 +3,14 @@ import { WORKSPACE_ID } from "@crm/auth";
 import { db, GoogleSyncStatus } from "@crm/db";
 import { MAILBOX_ACCESS_ENDED_REASON } from "@crm/validation/mailbox-reasons";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import type { ActivityStampService } from "../src/crm/activity-stamp.service";
 import type { ImapClientFactory } from "../src/imap/imap.client";
+import { ImapConnectionService } from "../src/imap/imap-connection.service";
 import type { ImapCredentialService } from "../src/imap/imap-credentials";
 import { ImapSyncService } from "../src/imap/imap-sync.service";
 import { imapSourceFor } from "../src/mailbox/mailbox.constants";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
+import type { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import type { ThreadWriterService } from "../src/mailbox/thread-writer.service";
 import { WorkspaceService } from "../src/workspace/workspace.service";
 
@@ -263,5 +266,46 @@ describe("adding the removed person again", () => {
 		const row = await state.get(targetId, imapSourceFor(imapId));
 		expect(row?.status).toBe(GoogleSyncStatus.NEEDS_RECONNECT);
 		expect(row?.lastError).toBe(MAILBOX_ACCESS_ENDED_REASON);
+	});
+
+	it("connects the IMAP mailbox again with a new password and keeps its state", async () => {
+		const connections = new ImapConnectionService(
+			db,
+			{
+				connect: async () => ({
+					outcome: "ok",
+					session: { close: async () => undefined },
+				}),
+			} as unknown as ImapClientFactory,
+			{
+				seal: (password: string) => `sealed:${password}`,
+			} as unknown as ImapCredentialService,
+			state,
+			{} as ActivityStampService,
+			{} as ThreadParticipantsService,
+		);
+
+		const status = await connections.add(targetId, {
+			email: targetEmail,
+			host: "imap.example.com",
+			port: 993,
+			secure: true,
+			username: targetEmail,
+			password: "a-new-password",
+			importSince: null,
+			createFrom: "nobody",
+		});
+
+		expect(status.accounts.map((account) => account.id)).toEqual([imapId]);
+		const imap = await db.imapAccount.findUniqueOrThrow({
+			where: { id: imapId },
+		});
+		expect(imap.secret).toBe("sealed:a-new-password");
+
+		const row = await state.get(targetId, imapSourceFor(imapId));
+		expect(row?.status).toBe(GoogleSyncStatus.IDLE);
+		expect(row?.lastError).toBeNull();
+		expect(row?.cursor).toBe(`cursor-${imapSourceFor(imapId)}`);
+		expect(row?.autoCreate).toBe(true);
 	});
 });

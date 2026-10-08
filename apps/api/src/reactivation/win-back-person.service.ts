@@ -506,6 +506,7 @@ export class WinBackPersonService {
 			rejected: input.rejected,
 			replied: input.replied,
 			snoozed: input.snoozed,
+			repliedSince: input.since ? new Date(input.since) : null,
 			quietForDays: input.quietForDays,
 			limit: REACTIVATION.limit.max,
 			ownerId: input.scope === "me" ? userId : null,

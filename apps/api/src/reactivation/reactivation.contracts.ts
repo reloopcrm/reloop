@@ -15,6 +15,7 @@ export const reactivationListInput = z.object({
 	rejected: z.boolean().default(false),
 	replied: z.boolean().default(false),
 	snoozed: z.boolean().default(false),
+	since: z.iso.datetime({ offset: true }).optional(),
 	quietForDays: z
 		.number()
 		.int()

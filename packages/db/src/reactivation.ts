@@ -3,7 +3,7 @@ import { isBoxThread } from "./contact-worth";
 import { OPEN_DEAL_STAGES } from "./deal-stage";
 import { Prisma } from "./generated/prisma/client";
 import { DealStage } from "./generated/prisma/enums";
-import { wroteBackAfterOutreach } from "./win-back-outcome";
+import { hardNoStands, wroteBackAfterOutreach } from "./win-back-outcome";
 import { DEFAULT_WIN_BACK_RULES, type WinBackRuleSet } from "./win-back-rules";
 import { snoozedAt } from "./win-back-snooze";
 
@@ -19,6 +19,7 @@ export type ReactivationOptions = {
 	rejected?: boolean;
 	replied?: boolean;
 	snoozed?: boolean;
+	repliedSince?: Date | null;
 	quietForDays?: number;
 	limit?: number;
 	ownerId?: string | null;
@@ -341,8 +342,9 @@ export async function listReactivationCandidates(
 		: Prisma.empty;
 	const ruled = !options.rejected && !options.replied;
 	const includeFilter = ruled ? ruleFilter(rules) : Prisma.empty;
+	const hardNoFilter = options.rejected ? Prisma.empty : HARD_NO_FILTER;
 	const repliedFilter = options.replied
-		? Prisma.sql`AND ${wroteBackAfterOutreach(Prisma.sql`c.id`)}`
+		? Prisma.sql`AND ${wroteBackAfterOutreach(Prisma.sql`c.id`, options.repliedSince ?? null)}`
 		: Prisma.empty;
 	const snoozed = snoozedAt(Prisma.sql`c.id`, Prisma.sql`c."companyId"`, now);
 	const snoozeFilter = options.snoozed
@@ -356,6 +358,7 @@ export async function listReactivationCandidates(
 			Prisma.sql`${standingFilter}
 			${quietFilter}
 			${includeFilter}
+			${hardNoFilter}
 			${ownerFilter}
 			${repliedFilter}
 			${snoozeFilter}`,
@@ -390,6 +393,8 @@ export async function listReactivationCandidates(
 		rules,
 	};
 }
+
+const HARD_NO_FILTER = Prisma.sql`AND NOT ${hardNoStands(Prisma.sql`c`)}`;
 
 function ruleFilter(rules: WinBackRuleSet): Prisma.Sql {
 	const topicFilter = rules.include.requireTopic

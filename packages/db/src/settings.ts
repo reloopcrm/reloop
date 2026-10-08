@@ -1,4 +1,5 @@
 import type { Db } from "./client";
+import { cloud } from "./cloud/scope";
 import {
 	DEFAULT_REPORTING_CURRENCY,
 	isCurrencyCode,
@@ -341,10 +342,11 @@ export async function writePlan(
 	db: Db,
 	plan: string | null,
 ): Promise<string | null> {
+	const contactLimit = cloud.plans.limitsOf(plan).contacts;
 	await db.appSetting.upsert({
 		where: { id: SETTINGS_ID },
-		create: { id: SETTINGS_ID, plan },
-		update: { plan },
+		create: { id: SETTINGS_ID, plan, contactLimit },
+		update: { plan, contactLimit },
 	});
 
 	return plan;

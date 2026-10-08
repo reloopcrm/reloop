@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { usageLines } from "@crm/db/plan-usage";
-import { PLANS } from "@crm/db/plans";
+import { TEST_PLANS } from "@crm/db/test-plans";
 import { aiUsageOutput } from "../src/settings/settings.contracts";
 
 const USAGE = {
@@ -15,12 +15,12 @@ const USAGE = {
 describe("the ai usage contract", () => {
 	const parsed = aiUsageOutput.parse({
 		fixed: false,
-		label: "Trial",
+		label: "Small",
 		month: "2026-10-01T00:00:00.000Z",
 		resetsAt: "2026-11-01T00:00:00.000Z",
 		trialEnds: false,
 		capacity: [{ counter: "contacts", used: 10, limit: 100, level: "normal" }],
-		lines: usageLines(USAGE, PLANS.trial),
+		lines: usageLines(USAGE, TEST_PLANS.small),
 	});
 
 	it("keeps reached on every line for older readers", () => {

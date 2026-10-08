@@ -31,7 +31,7 @@ import { useTableQuery } from "@/components/data-table/use-table-query";
 import { DEMO } from "@/components/demo/demo-tour-config";
 import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
-import { numberFormat } from "@/lib/i18n/format";
+import { dateFormat, numberFormat } from "@/lib/i18n/format";
 import { POTENTIAL_FACET_OPTIONS } from "@/lib/record-standing";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -44,6 +44,7 @@ import {
 	winBackInput,
 	winBackScopeParsers,
 	winBackTable,
+	windowDay,
 } from "./win-back-search-params";
 import { factTitle, shortFact } from "./win-back-verdict";
 import { WinBackVerdictMenu } from "./win-back-verdict-menu";
@@ -341,6 +342,7 @@ export function WinBackTable() {
 		rejected?: boolean;
 		replied?: boolean;
 		snoozed?: boolean;
+		since?: null;
 	}) => {
 		void setScope(next);
 		table.query.setPage(1);
@@ -361,6 +363,7 @@ export function WinBackTable() {
 						rejected: false,
 						replied: false,
 						snoozed: false,
+						since: null,
 					})
 				}
 				quickFilters={[
@@ -381,9 +384,17 @@ export function WinBackTable() {
 					},
 					{
 						id: "replied",
-						label: t("Wrote back"),
+						label:
+							scope.replied && scope.since
+								? t("Wrote back, contacted since {date}", {
+										date: dateFormat(
+											locale,
+											WIN_BACK_UI.quickFilter.sinceDate,
+										).format(windowDay(scope.since)),
+									})
+								: t("Wrote back"),
 						active: scope.replied,
-						onToggle: () => setFilter({ replied: !scope.replied }),
+						onToggle: () => setFilter({ replied: !scope.replied, since: null }),
 					},
 					{
 						id: "snoozed",

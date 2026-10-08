@@ -415,5 +415,6 @@
 	"Snoozed": "Pospuestos",
 	"Bring back": "Traer de vuelta",
 	"{name} is back in the list.": "{name} vuelve a estar en la lista.",
-	"Comes back": "Vuelve"
+	"Comes back": "Vuelve",
+	"Wrote back, contacted since {date}": "Ha respondido, contactado desde el {date}"
 }

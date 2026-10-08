@@ -2,7 +2,10 @@ const DAY_MS = 86_400_000;
 
 export const WIN_BACK_UI = {
 	remindLater: { afterDays: 7, returnDay: { day: "numeric", month: "long" } },
-	quickFilter: { quietForDays: 30 },
+	quickFilter: {
+		quietForDays: 30,
+		sinceDate: { day: "numeric", month: "short", timeZone: "UTC" },
+	},
 	bulkVerdict: { maxContactsPerCall: 200 },
 	person: {
 		pollMs: 3_000,

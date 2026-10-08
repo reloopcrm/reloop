@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import pg from "pg";
-import { CONTACT_LIMIT_MESSAGE, PLANS } from "../src/plans";
+import { CONTACT_LIMIT_MESSAGE } from "../src/plans";
 import { testDatabaseUrl } from "../src/test-database";
 
 const MIGRATIONS = [
@@ -11,7 +11,11 @@ const MIGRATIONS = [
 	"20260921120000_plan_ids",
 	"20261001090000_mailbox_profile",
 	"20261001100000_contact_limit_revive",
+	"20261008090000_contact_limit_column",
+	"20261008100000_contact_limit_from_column",
 ];
+
+const LIMIT = 2_500;
 
 const schema = `plan_limit_${randomUUID().replaceAll("-", "")}`;
 const client = new pg.Client({
@@ -68,6 +72,24 @@ async function archive(total: number): Promise<void> {
 	);
 }
 
+async function setLimit(limit: number | null): Promise<void> {
+	await client.query(
+		`UPDATE "appSetting" SET "contactLimit" = $1 WHERE id = 'app'`,
+		[limit],
+	);
+}
+
+async function failure(
+	work: () => Promise<unknown>,
+): Promise<{ code?: string; message?: string } | null> {
+	try {
+		await work();
+		return null;
+	} catch (error) {
+		return error as { code?: string; message?: string };
+	}
+}
+
 beforeAll(async () => {
 	await client.connect();
 	await client.query(`CREATE SCHEMA "${schema}"`);
@@ -80,7 +102,7 @@ beforeAll(async () => {
 	);
 	await client.query('CREATE TABLE "mailboxSync" (id text PRIMARY KEY)');
 	await client.query('CREATE TABLE "threadInsight" (id text PRIMARY KEY)');
-	await client.query(`INSERT INTO "appSetting" VALUES ('app', 'handel')`);
+	await client.query(`INSERT INTO "appSetting" VALUES ('app', 'erfunden')`);
 
 	for (const migration of MIGRATIONS) {
 		await client.query(
@@ -100,76 +122,68 @@ afterAll(async () => {
 	await client.end();
 });
 
-describe("the contact trigger after the plan migration", () => {
-	it("moves an old handel row to standard", async () => {
-		const row = await client.query<{ plan: string }>(
-			`SELECT plan FROM "appSetting" WHERE id = 'app'`,
-		);
-		expect(row.rows[0]?.plan).toBe("standard");
+describe("the contact trigger after the column migration", () => {
+	it("ignores the plan name and enforces nothing while the column is empty", async () => {
+		await fillTo(LIMIT + 10);
+		await insertOne("plan-name-only");
+		expect(await contacts()).toBe(LIMIT + 11);
+		await client.query("DELETE FROM contact");
 	});
 
-	it("lets a standard workspace pass two thousand contacts", async () => {
+	it("lets a workspace pass two thousand contacts under a wider limit", async () => {
+		await setLimit(LIMIT);
 		await fillTo(2_000);
 		await insertOne("contact-2001");
 		expect(await contacts()).toBe(2_001);
 	});
 
-	it("stops a standard workspace at its own limit", async () => {
-		await fillTo(PLANS.standard.contacts);
-		expect(await contacts()).toBe(PLANS.standard.contacts);
+	it("stops a workspace at its stored limit", async () => {
+		await fillTo(LIMIT);
+		expect(await contacts()).toBe(LIMIT);
 
-		let failure: { code?: string; message?: string } | null = null;
-		try {
-			await insertOne("one-too-many");
-		} catch (error) {
-			failure = error as { code?: string; message?: string };
-		}
-		expect(failure?.code).toBe("23514");
-		expect(failure?.message).toBe(CONTACT_LIMIT_MESSAGE);
-		expect(await contacts()).toBe(PLANS.standard.contacts);
+		const refused = await failure(() => insertOne("one-too-many"));
+		expect(refused?.code).toBe("23514");
+		expect(refused?.message).toBe(CONTACT_LIMIT_MESSAGE);
+		expect(await contacts()).toBe(LIMIT);
 	});
 
 	it("does not count archived contacts against the limit", async () => {
 		await archive(100);
 		await insertOne("after-archive");
-		expect(await contacts()).toBe(PLANS.standard.contacts + 1);
+		expect(await contacts()).toBe(LIMIT + 1);
 
-		await fillTo(PLANS.standard.contacts + 100);
-		let failure: { code?: string } | null = null;
-		try {
-			await insertOne("active-over-limit");
-		} catch (error) {
-			failure = error as { code?: string };
-		}
-		expect(failure?.code).toBe("23514");
-		expect(await contacts()).toBe(PLANS.standard.contacts + 100);
+		await fillTo(LIMIT + 100);
+		const refused = await failure(() => insertOne("active-over-limit"));
+		expect(refused?.code).toBe("23514");
+		expect(await contacts()).toBe(LIMIT + 100);
 	});
 
 	it("rejects a revive that passes the limit", async () => {
-		let failure: { code?: string; message?: string } | null = null;
-		try {
-			await revive(await archivedId());
-		} catch (error) {
-			failure = error as { code?: string; message?: string };
-		}
-		expect(failure?.code).toBe("23514");
-		expect(failure?.message).toBe(CONTACT_LIMIT_MESSAGE);
-		expect(await active()).toBe(PLANS.standard.contacts);
+		const refused = await failure(async () => revive(await archivedId()));
+		expect(refused?.code).toBe("23514");
+		expect(refused?.message).toBe(CONTACT_LIMIT_MESSAGE);
+		expect(await active()).toBe(LIMIT);
 	});
 
 	it("always allows archiving", async () => {
 		await archive(1);
-		expect(await active()).toBe(PLANS.standard.contacts - 1);
+		expect(await active()).toBe(LIMIT - 1);
 	});
 
 	it("allows a revive under the limit", async () => {
 		await revive(await archivedId());
-		expect(await active()).toBe(PLANS.standard.contacts);
+		expect(await active()).toBe(LIMIT);
 	});
 
-	it("keeps an install without a plan unlimited", async () => {
-		await client.query(`UPDATE "appSetting" SET plan = NULL WHERE id = 'app'`);
-		await insertOne("no-plan");
-		expect(await contacts()).toBe(PLANS.standard.contacts + 101);
+	it("follows a raised limit at once", async () => {
+		await setLimit(LIMIT + 200);
+		await insertOne("after-raise");
+		expect(await active()).toBe(LIMIT + 1);
+	});
+
+	it("keeps an install without a limit unlimited", async () => {
+		await setLimit(null);
+		await insertOne("no-limit");
+		expect(await active()).toBe(LIMIT + 2);
 	});
 });

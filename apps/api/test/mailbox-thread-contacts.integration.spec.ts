@@ -1,7 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db, type MailboxSyncModel as MailboxSync } from "@crm/db";
-import { PLANS } from "@crm/db/plans";
 import { SETTINGS_ID } from "@crm/db/settings";
+import {
+	actWithoutPlans,
+	actWithTestPlans,
+	TEST_PLANS,
+} from "@crm/db/test-plans";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
@@ -43,13 +47,13 @@ const agent = {
 const fullDb = new Proxy(db, {
 	get(target, key) {
 		if (key === "appSetting") {
-			return { findUnique: async () => ({ plan: "trial" }) };
+			return { findUnique: async () => ({ plan: "small" }) };
 		}
 		if (key === "contact") {
 			return new Proxy(target.contact, {
 				get: (inner, name) =>
 					name === "count"
-						? async () => PLANS.trial.contacts
+						? async () => TEST_PLANS.small.contacts
 						: Reflect.get(inner, name),
 			});
 		}
@@ -221,6 +225,7 @@ async function clean() {
 }
 
 beforeAll(async () => {
+	actWithTestPlans();
 	await clean();
 	await db.user.create({
 		data: { id: userId, name: "Preview Rep", email: mailbox },
@@ -250,14 +255,20 @@ beforeAll(async () => {
 	await pass.addFromRelevantThreads();
 });
 
-afterAll(clean);
+afterAll(async () => {
+	await clean();
+	actWithoutPlans();
+});
 
 describe("senders of a relevant thread", () => {
 	it("adds a second sender of the company and keeps the thread contact", async () => {
 		const a = await contactA("anna");
 		const threadId = await relevantThread({
 			contactId: a.id,
-			messages: [{ from: `anna@${domain}` }, { from: `bert@${domain}` }],
+			messages: [
+				{ from: `anna@${domain}`, sentAt: new Date("2026-09-17T09:00:00Z") },
+				{ from: `bert@${domain}`, sentAt: new Date("2026-09-17T10:00:00Z") },
+			],
 		});
 
 		expect(await pass.addFromRelevantThreads()).toBe(1);

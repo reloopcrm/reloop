@@ -28,13 +28,7 @@ import {
 	usageLines,
 	usageWindowOf,
 } from "@crm/db/plan-usage";
-import {
-	DRAFT_KIND,
-	INSIGHT_KIND,
-	isPlanId,
-	PLAN_IDS,
-	PLANS,
-} from "@crm/db/plans";
+import { DRAFT_KIND, INSIGHT_KIND } from "@crm/db/plans";
 import { readProviderUsage } from "@crm/db/provider-usage";
 import { openSecret, sealSecret, secretKey } from "@crm/db/secrets";
 import {
@@ -246,8 +240,10 @@ export class SettingsService {
 				usedThisMonth(DRAFT_KIND),
 			]);
 
+		const options = cloud.plans.options();
+
 		return {
-			plan: isPlanId(plan) ? plan : null,
+			plan: options.some((option) => option.id === plan) ? plan : null,
 			label: limits.label,
 			limits: {
 				contacts: limits.contacts,
@@ -262,7 +258,7 @@ export class SettingsService {
 				researchPerMonth: limits.researchPerMonth,
 			},
 			usage: { contacts, mailboxes, insightsThisMonth, draftsThisMonth },
-			options: PLAN_IDS.map((id) => ({ id, label: PLANS[id].label })),
+			options: [...options],
 		};
 	}
 

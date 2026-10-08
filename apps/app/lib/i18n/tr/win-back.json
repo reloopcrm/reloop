@@ -415,5 +415,6 @@
 	"Snoozed": "Ertelenenler",
 	"Bring back": "Geri getir",
 	"{name} is back in the list.": "{name} listeye geri döndü.",
-	"Comes back": "Geri dönüş"
+	"Comes back": "Geri dönüş",
+	"Wrote back, contacted since {date}": "Cevap yazdı, {date} tarihinden beri yazıldı"
 }

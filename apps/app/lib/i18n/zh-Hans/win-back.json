@@ -415,5 +415,6 @@
 	"Snoozed": "已推迟",
 	"Bring back": "放回列表",
 	"{name} is back in the list.": "{name} 已回到列表。",
-	"Comes back": "回归日期"
+	"Comes back": "回归日期",
+	"Wrote back, contacted since {date}": "已回复，自 {date} 起联系"
 }

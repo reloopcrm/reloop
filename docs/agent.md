@@ -265,7 +265,9 @@ the row finishes with `COPY.precheck.unlikely` and the contact settles `SKIPPED`
 the sign-in backfill does not queue it again. No key, no business description, no
 answer or an error all run the research as before. A reason that starts with
 `REP_ASKED_REASON` (`@crm/db/agent-tasks`), which the Re-enrich click in
-`ContactsService.enrich` writes, never asks. `AgentTask` has no field that names
+`ContactsService.enrich` writes at `requested`, never asks. The click also rewrites a
+waiting automatic `identify` row to that reason, so a row the agent has not claimed
+yet never meets the pre-check with the sync reason. `AgentTask` has no field that names
 who asked, so the reason prefix is the signal.
 
 A skipped row finishes with `startedAt` cleared and its attempt returned, so
@@ -312,6 +314,18 @@ the backfill claim above. Self-hosting with an own key has no bucket.
 too, at the backfill priority with origin `backfill`: it is a catch-up sweep, and
 nobody is waiting on a row it writes. The forward task a stored thread gets is what
 carries a person's wait.
+
+**Quiet customers are read beside the newest mail.** Win back scores only a person
+whose conversations are read, and a history read newest first leaves the old, quiet
+cases for last. `DISPATCH.read.quiet` holds a share and an age (90 days). A thread is
+quiet when its last message is at least that old and it has mail in both directions.
+`queueUnreadThreads` gives that share of its batch (`DISPATCH.read.batch`) to the
+newest quiet unread threads and the rest to the newest unread threads, and the slow
+lane in `runInsightLane` claims the same share of every backfill batch from waiting
+tasks on quiet unread threads (`lib/quiet-reads.ts`). With fewer quiet threads the
+newest part takes the rest, so a batch never shrinks. A sync stores every thread with
+its own task, so the slow lane claim is the part
+that moves quiet cases forward.
 
 **`claimDue` sorts what it claims** — Postgres does not order `UPDATE … RETURNING` by
 its sub-select's `ORDER BY`.

@@ -1,11 +1,19 @@
-import { afterEach, expect, it } from "bun:test";
+import { afterEach, beforeEach, expect, it } from "bun:test";
+import { db } from "@crm/db";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import { accessGuard } from "../src/access-guard";
 import { API_KEY_HEADER, API_KEY_PREFIX } from "../src/api-keys";
 import { isFreshPasswordSession, PASSWORD_RULES } from "../src/password-rules";
 
 const original = process.env.ALLOWED_SIGN_IN;
+beforeEach(() => {
+	Object.defineProperty(db, "appSetting", {
+		value: { findUnique: async () => null },
+		configurable: true,
+	});
+});
 afterEach(() => {
+	Reflect.deleteProperty(db, "appSetting");
 	if (original === undefined) delete process.env.ALLOWED_SIGN_IN;
 	else process.env.ALLOWED_SIGN_IN = original;
 });

@@ -29,9 +29,19 @@ export function startOfUtcDay(date: Date): Date {
 	);
 }
 
-function loop(ownerId: string | null | undefined): Prisma.Sql {
-	const owner = ownerId
-		? Prisma.sql`AND c."ownerId" = ${ownerId}`
+export type WinBackReply = {
+	answeredAt: Date;
+	open: boolean;
+};
+
+type LoopScope = { ownerId?: string | null; contactId?: string };
+
+function loop(scope: LoopScope = {}): Prisma.Sql {
+	const owner = scope.ownerId
+		? Prisma.sql`AND c."ownerId" = ${scope.ownerId}`
+		: Prisma.empty;
+	const contact = scope.contactId
+		? Prisma.sql`AND c.id = ${scope.contactId}`
 		: Prisma.empty;
 
 	return Prisma.sql`
@@ -46,6 +56,7 @@ function loop(ownerId: string | null | undefined): Prisma.Sql {
 			WHERE fb.verdict <> 'bad'
 				AND c."archivedAt" IS NULL
 				${owner}
+				${contact}
 		),
 		outreach AS (
 			SELECT
@@ -60,7 +71,7 @@ function loop(ownerId: string | null | undefined): Prisma.Sql {
 			HAVING MIN(m."sentAt") FILTER (WHERE m.direction = 'OUTBOUND') IS NOT NULL
 		),
 		answered AS (
-			SELECT o.contact_id
+			SELECT o.contact_id, MAX(m."sentAt") AS answered_at
 			FROM outreach o
 			JOIN "emailThread" t ON t."contactId" = o.contact_id
 			JOIN "emailMessage" m ON m."threadId" = t.id
@@ -68,6 +79,70 @@ function loop(ownerId: string | null | undefined): Prisma.Sql {
 			GROUP BY o.contact_id
 		)
 	`;
+}
+
+export function wroteBackAfterOutreach(contactColumn: Prisma.Sql): Prisma.Sql {
+	return Prisma.sql`${contactColumn} IN (
+		WITH ${loop()}
+		SELECT contact_id FROM answered
+	)`;
+}
+
+export async function readWinBackReply(
+	db: Db,
+	contactId: string,
+): Promise<WinBackReply | null> {
+	const rows = await db.$queryRaw<{ answeredAt: Date; open: boolean }[]>`
+		WITH ${loop({ contactId })},
+		own AS (
+			SELECT t.id, t."contactId" = ${contactId} AS owned
+			FROM "emailThread" t
+			WHERE t."contactId" = ${contactId}
+				OR EXISTS (
+					SELECT 1 FROM "emailThreadContact" l
+					WHERE l."threadId" = t.id AND l."contactId" = ${contactId}
+				)
+		),
+		reply AS (
+			SELECT
+				c.email,
+				COALESCE(
+					(
+						SELECT MAX(m."sentAt")
+						FROM own
+						JOIN "emailMessage" m ON m."threadId" = own.id
+						WHERE own.owned
+							AND m."sentAt" > o.contacted_at
+							AND c.email IS NOT NULL
+							AND lower(m."fromEmail") = lower(trim(c.email))
+							AND ${realAnswer("m")}
+					),
+					a.answered_at
+				) AS answered_at
+			FROM answered a
+			JOIN outreach o ON o.contact_id = a.contact_id
+			JOIN contact c ON c.id = a.contact_id
+		)
+		SELECT
+			r.answered_at AS "answeredAt",
+			NOT EXISTS (
+				SELECT 1
+				FROM own
+				JOIN "emailMessage" m ON m."threadId" = own.id
+				WHERE m.direction = 'OUTBOUND'
+					AND m."sentAt" > r.answered_at
+					AND (
+						r.email IS NULL
+						OR m.recipients @> jsonb_build_array(
+							jsonb_build_object('email', lower(trim(r.email)))
+						)
+					)
+			) AS open
+		FROM reply r
+	`;
+	const row = rows[0];
+
+	return row ? { answeredAt: row.answeredAt, open: row.open } : null;
 }
 
 export async function readWinBackOutcome(
@@ -84,7 +159,7 @@ export async function readWinBackOutcome(
 			unconverted: bigint;
 		}[]
 	>`
-		WITH ${loop(options.ownerId)},
+		WITH ${loop({ ownerId: options.ownerId })},
 		reached AS (
 			SELECT * FROM outreach WHERE contacted_at >= ${options.since}
 		),
@@ -146,7 +221,7 @@ export async function listWinBackFollowUps(
 			companyId: string | null;
 		}[]
 	>`
-		WITH ${loop(null)}
+		WITH ${loop()}
 		SELECT
 			o.contact_id AS "contactId",
 			o.contacted_at AS "contactedAt",

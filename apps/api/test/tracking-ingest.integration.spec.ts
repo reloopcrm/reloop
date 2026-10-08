@@ -14,13 +14,11 @@ import {
 	formSiteWindowKey,
 	type TrackingConfig,
 } from "@crm/db/tracking";
+import type { TrackingEvent } from "@crm/validation/tracking-batch";
 import type { TrackingConfigService } from "../src/tracking/tracking-config.service";
 import { TrackingCounterService } from "../src/tracking/tracking-counter.service";
 import type { TrackingFilingService } from "../src/tracking/tracking-filing.service";
-import {
-	type IncomingEvent,
-	TrackingIngestService,
-} from "../src/tracking/tracking-ingest.service";
+import { TrackingIngestService } from "../src/tracking/tracking-ingest.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "ingest-spec";
 const parent = `sites-${suffix}.test`;
@@ -83,7 +81,7 @@ function visitorId(): string {
 	return `ingest${suffix.replace(/[^a-zA-Z0-9]/g, "")}${visitor}`;
 }
 
-async function accept(events: IncomingEvent[], id = visitorId()) {
+async function accept(events: TrackingEvent[], id = visitorId()) {
 	await ingest.accept({ siteId: SITE_ID, visitorId: id, events }, REQUEST);
 
 	return id;
@@ -91,7 +89,7 @@ async function accept(events: IncomingEvent[], id = visitorId()) {
 
 let tick = 0;
 
-function view(host: string, path = "/pricing"): IncomingEvent {
+function view(host: string, path = "/pricing"): TrackingEvent {
 	tick += 1;
 
 	return { type: "page_view", host, path, at: Date.now() - tick };
@@ -250,7 +248,7 @@ describe("what a stored event keeps", () => {
 describe("a batch delivered twice", () => {
 	it("files the second delivery when the first left the row unfiled", async () => {
 		const at = Date.now();
-		const submission: IncomingEvent = {
+		const submission: TrackingEvent = {
 			type: "form_submit",
 			host: parent,
 			path: "/contact",
@@ -275,7 +273,7 @@ describe("a batch delivered twice", () => {
 
 	it("files once when both deliveries arrive together", async () => {
 		const at = Date.now();
-		const submission: IncomingEvent = {
+		const submission: TrackingEvent = {
 			type: "form_submit",
 			host: parent,
 			path: "/contact",
@@ -292,7 +290,7 @@ describe("a batch delivered twice", () => {
 
 	it("leaves a submission alone once it has been filed", async () => {
 		const at = Date.now();
-		const submission: IncomingEvent = {
+		const submission: TrackingEvent = {
 			type: "form_submit",
 			host: parent,
 			path: "/contact",

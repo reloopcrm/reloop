@@ -268,7 +268,7 @@ export function MicrosoftConnection({
 		.at(-1);
 
 	const healthy = failing.length === 0 && hasRefreshToken;
-	const needsReconnect = mailboxNeedsReconnect("microsoft", {
+	const needsReconnect = mailboxNeedsReconnect({
 		hasRefreshToken,
 		sources,
 	});

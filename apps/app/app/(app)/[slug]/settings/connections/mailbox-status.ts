@@ -1,4 +1,3 @@
-import type { MailboxProviderId } from "@crm/auth/scopes";
 import type { Translate } from "@/lib/i18n/locale";
 import type { ImportProgress } from "@/lib/import-progress";
 
@@ -33,13 +32,12 @@ export type MailboxConnectionHealth = {
 };
 
 export function mailboxNeedsReconnect(
-	provider: MailboxProviderId,
 	health: MailboxConnectionHealth,
 ): boolean {
-	if (health.sources.some((source) => source.status === "NEEDS_RECONNECT")) {
-		return true;
-	}
-	return provider === "microsoft" && !health.hasRefreshToken;
+	return (
+		!health.hasRefreshToken ||
+		health.sources.some((source) => source.status === "NEEDS_RECONNECT")
+	);
 }
 
 export function mailboxReconnected(health: MailboxConnectionHealth): boolean {

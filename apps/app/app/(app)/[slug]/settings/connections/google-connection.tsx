@@ -324,7 +324,7 @@ export function GoogleConnection({
 		.at(-1);
 
 	const healthy = failing.length === 0 && hasRefreshToken;
-	const needsReconnect = mailboxNeedsReconnect("google", {
+	const needsReconnect = mailboxNeedsReconnect({
 		hasRefreshToken,
 		sources,
 	});
@@ -407,7 +407,9 @@ export function GoogleConnection({
 						<AlertTitle>
 							{t("Google did not return a refresh token")}
 						</AlertTitle>
-						<AlertDescription>{t("Sign out and back in.")}</AlertDescription>
+						<AlertDescription>
+							{t("Reconnect to ask again. You lose nothing.")}
+						</AlertDescription>
 					</Alert>
 				) : failing.length > 0 ? (
 					failing.map((source) => {

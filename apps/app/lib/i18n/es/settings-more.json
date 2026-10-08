@@ -50,7 +50,6 @@
 	"Checking…": "Comprobando…",
 	"Check now": "Comprobar ahora",
 	"Google did not return a refresh token": "Google no devolvió ningún token de actualización",
-	"Sign out and back in.": "Cierra la sesión y vuelve a entrar.",
 	"Google needs reconnecting.": "Hay que volver a conectar Google.",
 	"{source} sync failed": "La sincronización de {source} falló",
 	"Resolve": "Resolver",

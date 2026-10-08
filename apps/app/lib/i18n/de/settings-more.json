@@ -50,7 +50,6 @@
 	"Checking…": "Wird abgeglichen…",
 	"Check now": "Jetzt abgleichen",
 	"Google did not return a refresh token": "Google hat kein Refresh-Token geliefert",
-	"Sign out and back in.": "Melde dich ab und wieder an.",
 	"Google needs reconnecting.": "Google muss neu verbunden werden.",
 	"{source} sync failed": "Abgleich von {source} fehlgeschlagen",
 	"Resolve": "Beheben",

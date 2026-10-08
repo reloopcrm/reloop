@@ -55,51 +55,31 @@ describe("mailboxNeedsReconnect", () => {
 	const reconnect = { status: "NEEDS_RECONNECT", lastError: "Revoked." };
 	const failed = { status: "FAILED", lastError: "Gmail failed." };
 
-	for (const provider of ["google", "microsoft"] as const) {
-		it(`asks ${provider} to reconnect a revoked grant`, () => {
-			expect(
-				mailboxNeedsReconnect(provider, {
-					hasRefreshToken: true,
-					sources: [healthy, reconnect],
-				}),
-			).toBe(true);
-		});
-
-		it(`leaves a healthy ${provider} mailbox alone`, () => {
-			expect(
-				mailboxNeedsReconnect(provider, {
-					hasRefreshToken: true,
-					sources: [healthy],
-				}),
-			).toBe(false);
-		});
-
-		it(`does not offer ${provider} a reconnect for a failed sync`, () => {
-			expect(
-				mailboxNeedsReconnect(provider, {
-					hasRefreshToken: true,
-					sources: [failed],
-				}),
-			).toBe(false);
-		});
-	}
-
-	it("asks Microsoft to reconnect without a refresh token", () => {
+	it("asks to reconnect a revoked grant", () => {
 		expect(
-			mailboxNeedsReconnect("microsoft", {
-				hasRefreshToken: false,
-				sources: [healthy],
+			mailboxNeedsReconnect({
+				hasRefreshToken: true,
+				sources: [healthy, reconnect],
 			}),
 		).toBe(true);
 	});
 
-	it("keeps Google without a refresh token on its own advice", () => {
+	it("leaves a healthy mailbox alone", () => {
 		expect(
-			mailboxNeedsReconnect("google", {
-				hasRefreshToken: false,
-				sources: [healthy],
-			}),
+			mailboxNeedsReconnect({ hasRefreshToken: true, sources: [healthy] }),
 		).toBe(false);
+	});
+
+	it("does not offer a reconnect for a failed sync", () => {
+		expect(
+			mailboxNeedsReconnect({ hasRefreshToken: true, sources: [failed] }),
+		).toBe(false);
+	});
+
+	it("asks Google and Microsoft alike to reconnect without a refresh token", () => {
+		expect(
+			mailboxNeedsReconnect({ hasRefreshToken: false, sources: [healthy] }),
+		).toBe(true);
 	});
 });
 

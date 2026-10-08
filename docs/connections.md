@@ -112,12 +112,13 @@ day it is connected, and keeps reading new mail at the same time.
 
 ## A broken grant is fixed where it shows
 
-A Gmail or Outlook row in `NEEDS_RECONNECT`, or a Microsoft account with no
-refresh token, cannot recover by itself: the sync tick skips the row
+A Gmail or Outlook row in `NEEDS_RECONNECT`, or a Google or Microsoft account
+with no refresh token, cannot recover by itself: the sync tick skips the row
 (`dueWhere` in `apps/api/src/mailbox/sync-state.service.ts`). So the card puts
 **Reconnect** where Check now stands, as the one filled button.
-`mailboxNeedsReconnect` in `mailbox-status.ts` decides it. Google without a
-refresh token keeps its own advice, Sign out and back in.
+`mailboxNeedsReconnect` in `mailbox-status.ts` decides it, the same way for both
+providers. Google without a refresh token gets the same Reconnect with the
+consent prompt, never "sign out and back in".
 
 - **One hook links a mailbox.** `useMailboxLink` (`use-mailbox-link.ts`) runs
   `authClient.linkSocial` for Connect and Reconnect alike, and
@@ -134,12 +135,24 @@ refresh token keeps its own advice, Sign out and back in.
   returns a refresh token on every grant.
 - **A reconnect keeps everything.** It does not call `setImportSince`, so the
   answer to how far back and the backfill stay. Better Auth updates the tokens
-  on the existing `account` row and never touches `MailboxSync`, so Auto create,
-  the cursor and the backfill position stay too.
+  on the existing `account` row, so Auto create, the cursor and the backfill
+  position stay too.
   `apps/api/test/mailbox-reconnect-settings.integration.spec.ts` pins it.
+- **The server clears the state when the grant is stored.** Better Auth's
+  `account` create and update hooks call `clearMailboxReconnect`
+  (`packages/auth/src/mailbox-reconnect.ts`). When a Google or Microsoft row now
+  holds a refresh token, that provider's sources (`SYNC_SOURCES_FOR` in
+  `scopes.ts`) leave `NEEDS_RECONNECT` for `IDLE` and lose `lastError`. Only the
+  status moves; the settings, the cursor and the backfill stay. A person who
+  closes the tab before Check now therefore keeps no broken row: the next sync
+  tick reads the mailbox again, and a grant that still fails is marked
+  `NEEDS_RECONNECT` again by that tick. A failed clear logs a warning and never
+  breaks the sign in. IMAP rows are never touched.
+  `packages/auth/test/mailbox-reconnect.integration.spec.ts` pins it.
 - **The return checks at once.** The callback carries `?reconnected=<provider>`.
-  The card runs Check now one time, which clears `NEEDS_RECONNECT` when the new
-  grant works, and removes the marker from the address. A healthy result says
+  The card runs Check now one time and removes only that marker from the
+  address; every other parameter and the hash stay
+  (`withoutReconnectedMarker` in `mailbox-link.ts`). A healthy result says
   "Google is connected again" or "Microsoft is connected again". A grant that
   still fails keeps the alert, and the alert pulses.
 - **Both cards give the same feedback.** A Check now that changes nothing makes

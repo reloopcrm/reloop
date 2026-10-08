@@ -1,6 +1,6 @@
-import { generateEnv } from "./generate-client-env";
+import { generateCommand, generateEnv } from "./generate-client-env";
 
-const result = Bun.spawnSync(["bunx", "prisma", "generate"], {
+const result = Bun.spawnSync(generateCommand(), {
 	env: generateEnv(process.env),
 	stdout: "inherit",
 	stderr: "inherit",

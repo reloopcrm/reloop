@@ -173,8 +173,10 @@ every query still resolves through `WORKSPACE_ID`.
 
 - **The slug is the plugin's column**, written by `workspaceSlug(name)`
   (`@crm/db/workspace`) on rename and create. **Never derive it on read.**
-- `ensureWorkspaceMembership` reconciles it; `RESERVED_SLUGS` prevents collision with
-  a real route (a collision gets `-crm`).
+- `ensureWorkspaceMembership` keeps a custom slug the rep chose in onboarding. It
+  replaces the slug with `workspaceSlug(name)` only when it is empty or reserved
+  (`isUsableSlug`). `RESERVED_SLUGS` prevents collision with a real route (a collision
+  gets `-crm`).
 - **The proxy is the only thing that puts the slug on.** Missing or stale slugs are
   redirected with the query string intact, not 404'd; `[slug]/layout.tsx` is the
   backstop.

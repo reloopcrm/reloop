@@ -1,5 +1,5 @@
 import type { Db } from "../client";
-import type { AddOnQuantities } from "../plans";
+import type { PlanLimits } from "../plans";
 
 declare const workspaceScope: unique symbol;
 
@@ -26,14 +26,32 @@ export type ScopeLoopOptions = {
 
 export type CreateClient = (connectionString: string, max?: number) => Db;
 
+export type PlanOption = { id: string; label: string };
+
+export type UsageWindow = { since: Date; until: Date; trialEnds: boolean };
+
+export type CloudPlans = {
+	limitsOf(plan: string | null | undefined): PlanLimits;
+	withAddOns(limits: PlanLimits): PlanLimits;
+	usageWindow(plan: string | null | undefined, now: Date): UsageWindow | null;
+	isTrial(plan: string | null | undefined): boolean;
+	options(): readonly PlanOption[];
+};
+
+export const BILLING_INTERVALS = ["month", "year"] as const;
+
+export type BillingInterval = (typeof BILLING_INTERVALS)[number];
+
+export type PlanPurchase = { plan: string; interval: BillingInterval };
+
 export type CloudScope = {
 	readonly loop: { readonly budgetMs: number };
+	readonly plans: CloudPlans;
 	hosted(): boolean;
 	customer(): boolean;
 	operatorId(): string | null;
 	scopeId(): string | null;
 	current(): WorkspaceScope;
-	addOns(): Readonly<AddOnQuantities>;
 	scopedKey(key: string): string;
 	hold<T>(fn: () => T): T;
 	run<T>(scope: WorkspaceScope, fn: () => T): T;

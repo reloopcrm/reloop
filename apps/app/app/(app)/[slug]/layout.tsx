@@ -1,5 +1,5 @@
 import { isWorkspaceAdmin } from "@crm/auth";
-import { limitsOf, PLANS } from "@crm/db/plans";
+import { cloud } from "@crm/db/cloud/scope";
 import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
@@ -110,7 +110,10 @@ async function CheckoutNotice() {
 
 	return (
 		<div className="px-4 pt-4 md:px-(--spacing-page-inline) md:pt-(--spacing-page-top)">
-			<CheckoutBanner wanted={wanted} label={PLANS[wanted.plan].label} />
+			<CheckoutBanner
+				wanted={wanted}
+				label={cloud.plans.limitsOf(wanted.plan).label}
+			/>
 		</div>
 	);
 }
@@ -157,7 +160,7 @@ async function planLabel(): Promise<string | null> {
 	await connection();
 	if (!(await hostedCustomer())) return null;
 	const tenant = await requestScope();
-	return tenant ? limitsOf(tenant.plan).label : null;
+	return tenant ? cloud.plans.limitsOf(tenant.plan).label : null;
 }
 
 async function WorkspaceSidebar({

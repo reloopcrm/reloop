@@ -155,7 +155,9 @@ consent prompt, never "sign out and back in".
   The card runs Check now one time and removes only that marker from the
   address; every other parameter and the hash stay
   (`withoutReconnectedMarker` in `mailbox-link.ts`). A healthy result says
-  "Google is connected again" or "Microsoft is connected again". A grant that
+  "Google is connected again" or "Microsoft is connected again", and only when
+  the grant holds a refresh token and every mailbox permission
+  (`mailboxReconnected`). A consent that left one out says nothing. A grant that
   still fails keeps the alert, and the alert pulses.
 - **Both cards give the same feedback.** A Check now that changes nothing makes
   the alert pulse on Outlook as it does on Gmail (`failureSignature`), and a

@@ -84,9 +84,15 @@ describe("mailboxNeedsReconnect", () => {
 });
 
 describe("mailboxReconnected", () => {
+	const granted = { ...healthy, connected: true };
+
 	it("reports a healthy mailbox with a refresh token", () => {
 		expect(
-			mailboxReconnected({ hasRefreshToken: true, sources: [healthy] }),
+			mailboxReconnected({
+				hasRefreshToken: true,
+				linked: true,
+				sources: [granted],
+			}),
 		).toBe(true);
 	});
 
@@ -94,11 +100,35 @@ describe("mailboxReconnected", () => {
 		expect(
 			mailboxReconnected({
 				hasRefreshToken: true,
-				sources: [{ status: "NEEDS_RECONNECT", lastError: "Revoked." }],
+				linked: true,
+				sources: [
+					{ status: "NEEDS_RECONNECT", lastError: "Revoked.", connected: true },
+				],
 			}),
 		).toBe(false);
 		expect(
-			mailboxReconnected({ hasRefreshToken: false, sources: [healthy] }),
+			mailboxReconnected({
+				hasRefreshToken: false,
+				linked: true,
+				sources: [granted],
+			}),
+		).toBe(false);
+	});
+
+	it("reports no success when the grant left out a mailbox permission", () => {
+		expect(
+			mailboxReconnected({
+				hasRefreshToken: true,
+				linked: false,
+				sources: [{ ...healthy, connected: false }],
+			}),
+		).toBe(false);
+		expect(
+			mailboxReconnected({
+				hasRefreshToken: true,
+				linked: true,
+				sources: [granted, { ...healthy, connected: false }],
+			}),
 		).toBe(false);
 	});
 });

@@ -40,8 +40,19 @@ export function mailboxNeedsReconnect(
 	);
 }
 
-export function mailboxReconnected(health: MailboxConnectionHealth): boolean {
-	return health.hasRefreshToken && !mailboxNeedsAttention(health.sources);
+export type MailboxReconnectResult = {
+	hasRefreshToken: boolean;
+	linked: boolean;
+	sources: readonly (MailboxSourceHealth & { connected: boolean })[];
+};
+
+export function mailboxReconnected(result: MailboxReconnectResult): boolean {
+	return (
+		result.hasRefreshToken &&
+		result.linked &&
+		result.sources.every((source) => source.connected) &&
+		!mailboxNeedsAttention(result.sources)
+	);
 }
 
 export function failureSignature(

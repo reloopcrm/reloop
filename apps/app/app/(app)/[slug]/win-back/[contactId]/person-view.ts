@@ -14,6 +14,29 @@ export type NextInList = RouterOutputs["reactivation"]["nextPerson"];
 
 export type NextPerson = NextInList["next"];
 
+export function answerIsNext(view: Pick<PersonView, "wroteBack">): boolean {
+	return view.wroteBack?.open === true;
+}
+
+export function replyDraftOutdated(
+	view: Pick<PersonView, "wroteBack">,
+	draft: { basedOnUntil: string | null } | null,
+): boolean {
+	const answeredAt = view.wroteBack?.answeredAt;
+	if (!answerIsNext(view) || !answeredAt || !draft) return false;
+
+	return (
+		draft.basedOnUntil === null ||
+		new Date(draft.basedOnUntil) < new Date(answeredAt)
+	);
+}
+
+export function followUpDaysOf(
+	view: Pick<PersonView, "wroteBack" | "followUpDays">,
+): number | null {
+	return view.wroteBack === null ? view.followUpDays : null;
+}
+
 export function nextLabel(next: NextPerson, t: Translate): string {
 	return next
 		? t("Continue with {name}", { name: next.name })

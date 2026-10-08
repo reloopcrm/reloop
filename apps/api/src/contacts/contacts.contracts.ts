@@ -281,6 +281,7 @@ export const contactDraftOutput = z.object({
 	role: draftRole.nullable(),
 	modelId: z.string().nullable(),
 	writtenAt: z.string(),
+	basedOnUntil: z.string().nullable(),
 	stale: z.boolean(),
 	oneOff: z
 		.object({ subject: z.string(), body: z.string(), writtenAt: z.string() })

@@ -904,6 +904,7 @@ export class ContactsService {
 				role: readDraftRole(stored.role),
 				modelId: (await fixedAiWith(this.db)) ? null : stored.modelId,
 				writtenAt: stored.updatedAt.toISOString(),
+				basedOnUntil: stored.basedOnUntil?.toISOString() ?? null,
 				stale:
 					since !== null &&
 					(stored.basedOnUntil === null || since > stored.basedOnUntil),

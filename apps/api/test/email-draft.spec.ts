@@ -523,14 +523,16 @@ describe("a stale draft and a draft written ahead", () => {
 					contactId: string,
 					instruction?: string | null,
 					oneOff?: boolean,
-					stillWanted?: unknown,
+					stillWanted?: Parameters<
+						AgentTriggerService["emailDraftRequested"]
+					>[3],
 				) => {
 					await doneTask(contactId, "A draft is ready: Europaletten");
 					return new AgentTriggerService(db).emailDraftRequested(
 						contactId,
 						instruction,
 						oneOff,
-						stillWanted as never,
+						stillWanted,
 					);
 				},
 			} as unknown as AgentTriggerService as Deps[2],

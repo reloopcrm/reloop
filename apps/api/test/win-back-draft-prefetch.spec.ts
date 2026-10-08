@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { db, RecordSource } from "@crm/db";
+import { type Db, db, RecordSource } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { budgetTasksWhere, usageWindowOf } from "@crm/db/plan-usage";
 import { DRAFT_KIND, PLANS } from "@crm/db/plans";
@@ -33,6 +33,20 @@ function config(key: string | undefined) {
 	return {
 		get: () => key,
 	} as unknown as ConfigService<EnvironmentVariables, true>;
+}
+
+function withoutAiSetup(real: Db): Db {
+	return new Proxy(real, {
+		get(target, property, receiver) {
+			if (property === "providerUsage") {
+				return { findUnique: async () => null };
+			}
+			if (property === "appSetting") {
+				return { findUnique: async () => null };
+			}
+			return Reflect.get(target, property, receiver);
+		},
+	});
 }
 
 function check(overrides: Partial<DraftCheck> = {}): DraftCheck {
@@ -313,7 +327,7 @@ describe("WinBackDraftPrefetchService.queue", () => {
 	it("queues nothing without an AI key", async () => {
 		await writePlan(db, null);
 		const keyless = new WinBackDraftPrefetchService(
-			db,
+			withoutAiSetup(db),
 			trigger,
 			config(undefined),
 		);

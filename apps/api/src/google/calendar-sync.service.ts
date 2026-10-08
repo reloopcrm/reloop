@@ -246,7 +246,7 @@ export class CalendarSyncService {
 
 		if (event.id) {
 			const rows = await this.db.calendarEvent.findMany({
-				where: { googleEventId: event.id, ...(iCalUid ? { iCalUid } : {}) },
+				where: { googleEventId: event.id, iCalUid },
 				select: { id: true, iCalUid: true },
 			});
 			const uids = new Set(rows.map((found) => found.iCalUid));

@@ -1,21 +1,22 @@
 import { canManageConnections } from "@crm/auth";
 import type { Db, WebhookModel } from "@crm/db";
 import { isCrmEventType } from "@crm/db/crm-events";
-import { maskKey } from "@crm/db/settings";
-import { openWebhookSecret, sealWebhookSecret } from "@crm/db/webhooks";
+import { isPlainHttpUrl, sealWebhookSecret, WEBHOOKS } from "@crm/db/webhooks";
 import {
+	BadRequestException,
 	ForbiddenException,
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
 import { AgentAccessService } from "../agent/agent-access.service";
 import { InjectDatabase } from "../database/database.constants";
-import type {
-	CreateWebhookInput,
-	UpdateWebhookInput,
-	WebhookOutput,
-	WebhookRemoveOutput,
-	WebhooksStatus,
+import {
+	type CreateWebhookInput,
+	type UpdateWebhookInput,
+	WEBHOOK_HTTPS_REQUIRED,
+	type WebhookOutput,
+	type WebhookRemoveOutput,
+	type WebhooksStatus,
 } from "./webhooks.contracts";
 
 @Injectable()
@@ -63,6 +64,19 @@ export class WebhooksService {
 	): Promise<WebhooksStatus> {
 		await this.assertManager(userId);
 
+		if (
+			input.url !== undefined &&
+			input.allowPrivateHost === undefined &&
+			isPlainHttpUrl(input.url)
+		) {
+			const current = await this.db.webhook.findUnique({
+				where: { id: input.id },
+				select: { allowPrivateHost: true },
+			});
+			if (current && !current.allowPrivateHost)
+				throw new BadRequestException(WEBHOOK_HTTPS_REQUIRED);
+		}
+
 		const { count } = await this.db.webhook.updateMany({
 			where: { id: input.id },
 			data: {
@@ -106,18 +120,10 @@ function present(webhook: WebhookModel, canManage: boolean): WebhookOutput {
 		events: webhook.events.filter(isCrmEventType),
 		enabled: webhook.enabled,
 		allowPrivateHost: webhook.allowPrivateHost,
-		secretHint: canManage ? hintOf(webhook.secret) : null,
+		secretHint: canManage ? WEBHOOKS.secret.hint : null,
 		lastDeliveryAt: webhook.lastDeliveryAt?.toISOString() ?? null,
 		lastStatus: webhook.lastStatus,
 		lastError: webhook.lastError,
 		createdAt: webhook.createdAt.toISOString(),
 	};
-}
-
-function hintOf(secret: string): string {
-	try {
-		return maskKey(openWebhookSecret(secret));
-	} catch {
-		return maskKey("");
-	}
 }

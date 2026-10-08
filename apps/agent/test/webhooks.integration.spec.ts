@@ -17,6 +17,7 @@ import {
 	webhookRetryDelayMs,
 } from "@crm/db/webhooks";
 import { runDirect } from "../agent/lib/dispatch";
+import { cancelArchivedWork } from "../agent/lib/housekeeping";
 import type { LeasedTask } from "../agent/lib/tasks";
 import {
 	deliverTask,
@@ -451,4 +452,50 @@ describe("a delivery for a record that is purged", () => {
 			expect(await deliveriesOf(webhook.id)).toHaveLength(0);
 		});
 	}
+});
+
+describe("a delivery waiting for a retry on an archived record", () => {
+	it("stays open, because the event is not research about the record", async () => {
+		const contactId = `webhook-spec-contact-${crypto.randomUUID()}`;
+		const email = `${contactId}@example.com`;
+		await db.contact.create({
+			data: {
+				id: contactId,
+				firstName: "Preview",
+				email,
+				archivedAt: new Date(),
+			},
+		});
+
+		try {
+			const url = await listening((_received, answer) => answer(500));
+			const webhook = await aWebhook({ url, events: ["contact.created"] });
+			const task = await db.agentTask.create({
+				data: {
+					kind: "agent-event",
+					contactId,
+					reason: REASON,
+					priority: 700,
+					budget: 1,
+					dueAt: new Date(),
+					payload: {
+						type: "contact.created",
+						record: { kind: "contact", id: contactId },
+						occurredAt: new Date().toISOString(),
+						data: { name: "Preview Person", email },
+					},
+				},
+				select: { id: true, payload: true },
+			});
+			await queueWebhookDeliveries(task);
+			await runWebhookLane(undefined, TIMEOUT_MS);
+
+			await cancelArchivedWork();
+
+			const [delivery] = await deliveriesOf(webhook.id);
+			expect(delivery?.finishedAt).toBeNull();
+		} finally {
+			await db.contact.deleteMany({ where: { id: contactId } });
+		}
+	});
 });

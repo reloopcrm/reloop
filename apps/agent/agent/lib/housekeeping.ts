@@ -6,6 +6,7 @@ import {
 	SAMPLE_DATA,
 	SAMPLE_ID_PATTERN,
 } from "@crm/db/sample-data";
+import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskThreadPayload,
@@ -51,6 +52,7 @@ export async function cancelArchivedWork(): Promise<number> {
 	const gone = await db.agentTask.updateMany({
 		where: {
 			finishedAt: null,
+			kind: { not: WEBHOOKS.kind },
 			OR: [
 				{ contactId: { in: contacts.map((row) => row.id) } },
 				{ companyId: { in: companies.map((row) => row.id) } },

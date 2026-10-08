@@ -194,7 +194,9 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   `MAX_ATTEMPTS` of 3 does not end it early. The sixth failure
   (`WEBHOOKS.deliver.maxAttempts`) completes the task with what the receiver
   said. The card reads the last status, never a log. A receiver outage of a few
-  hours no longer loses the event.
+  hours no longer loses the event. Archiving the record does not cancel a
+  waiting delivery (`cancelArchivedWork` skips `webhook-delivery`); only
+  "Delete forever" removes it.
 - **Receivers must dedupe.** Every attempt for one event carries the same
   `x-reloop-delivery` header (and the same `id` in the body). A receiver that
   answered 2xx late, or whose answer got lost, sees the event again. It must

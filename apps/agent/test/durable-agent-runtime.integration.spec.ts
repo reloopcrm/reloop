@@ -211,16 +211,13 @@ function failNextRunWrite() {
 		configurable: true,
 		value: new Proxy(delegate, {
 			get(target, property) {
-				const value = Reflect.get(target, property);
-				if (property !== "updateMany" || typeof value !== "function") {
-					return value;
-				}
+				if (property !== "updateMany") return Reflect.get(target, property);
 				return (...args: unknown[]) => {
 					if (pending > 0) {
 						pending -= 1;
 						return Promise.reject(new Error("The connection dropped."));
 					}
-					return Reflect.apply(value, target, args);
+					return Reflect.apply(target.updateMany, target, args);
 				};
 			},
 		}),

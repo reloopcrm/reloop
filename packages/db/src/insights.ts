@@ -9,6 +9,17 @@ export const INSIGHT_OUTCOMES = [
 
 export type InsightOutcome = (typeof INSIGHT_OUTCOMES)[number];
 
+export const DECLINED_OUTCOME = "DECLINED" satisfies InsightOutcome;
+
+export const DECLINE_KIND = {
+	hard: "HARD",
+	soft: "SOFT",
+} as const;
+
+export const DECLINE_KINDS = [DECLINE_KIND.hard, DECLINE_KIND.soft] as const;
+
+export type DeclineKind = (typeof DECLINE_KINDS)[number];
+
 export const INSIGHT_SIDES = [
 	"THEY_BUY",
 	"THEY_SELL",

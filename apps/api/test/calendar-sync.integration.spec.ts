@@ -661,7 +661,7 @@ describe("meeting preparation", () => {
 		const sync = service(calendar);
 		const accepted = `rep-accepted@${repDomain}`;
 		const declined = `rep-declining@${repDomain}`;
-		const attendees = (self: string) => [
+		const attendees = (self: string): GoogleEvent["attendees"] => [
 			{ email: buyer, displayName: "Anna Preview", responseStatus: "accepted" },
 			{
 				email: accepted,

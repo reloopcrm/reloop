@@ -1003,6 +1003,10 @@ marked passages and the follow-up delay. It writes nothing but an
   same as taking it off.
 - **`contacts.draft` carries a one-off version beside the draft** (`oneOff`), written
   by `writeDraft` with `oneOff: true`; the stored draft stays as suggested.
+- **A stale draft at the draft limit says so.** When `contacts.draft` answers with
+  `waitingUntil` and a draft that is `stale`, the page shows "Newer mail has arrived
+  since this draft." and the limit text with its date above it (`draftLimitHint` in
+  `win-back/[contactId]/person-view.ts`). The old draft stays readable below.
 - **`followUpDays` is null when the win back follow-up function is off**, so the page
   never promises a reminder the sweep will not write.
 - The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared

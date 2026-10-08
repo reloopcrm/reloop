@@ -44,6 +44,7 @@ import {
 	useEmailDraft,
 } from "@/components/crm/use-email-draft";
 import { DEMO } from "@/components/demo/demo-tour-config";
+import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
 import { dateFormat } from "@/lib/i18n/format";
 import { useCrmCache } from "@/lib/trpc/cache";
@@ -53,6 +54,7 @@ import { WIN_BACK_UI } from "../win-back-config";
 import {
 	answerIsNext,
 	type CardStep,
+	draftLimitHint,
 	followUpDaysOf,
 	type NextPerson,
 	nextLabel,
@@ -338,14 +340,26 @@ function DraftState({ step }: { step: NextStep }) {
 	const t = useT();
 	const { draft } = step;
 
-	if (draft.held && (!draft.draft || step.outdated)) {
+	const hint = draftLimitHint(draft.held, draft.draft, step.outdated);
+	if (draft.held && hint) {
 		return (
 			<p className="text-muted-foreground text-sm">
-				{draft.planLimit
-					? t(PLAN_LIMIT_MESSAGES.drafts)
-					: t(
+				{hint === "stale" ? (
+					<>{t("Newer mail has arrived since this draft.")} </>
+				) : null}
+				{draft.planLimit ? (
+					<>
+						{t(PLAN_LIMIT_MESSAGES.drafts)}{" "}
+						<LocalDateTime date={draft.held} options={LONG_DAY} />.
+					</>
+				) : (
+					<>
+						{t(
 							"The subscription limit is reached. The agent writes this draft when the limit resets, in",
-						)}
+						)}{" "}
+						<LocalRelativeTime date={draft.held} />
+					</>
+				)}
 			</p>
 		);
 	}

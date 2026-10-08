@@ -31,6 +31,18 @@ export function replyDraftOutdated(
 	);
 }
 
+export type DraftLimitHint = "missing" | "stale";
+
+export function draftLimitHint(
+	held: string | null,
+	draft: { stale: boolean } | null,
+	outdated: boolean,
+): DraftLimitHint | null {
+	if (held === null) return null;
+	if (!draft || outdated) return "missing";
+	return draft.stale ? "stale" : null;
+}
+
 export function followUpDaysOf(
 	view: Pick<PersonView, "wroteBack" | "followUpDays">,
 ): number | null {

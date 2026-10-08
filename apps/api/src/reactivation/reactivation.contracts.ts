@@ -13,6 +13,7 @@ export const winBackBand = z.enum(["high", "medium", "low"]);
 
 export const reactivationListInput = z.object({
 	rejected: z.boolean().default(false),
+	replied: z.boolean().default(false),
 	quietForDays: z
 		.number()
 		.int()
@@ -183,6 +184,7 @@ export const winBackPersonViewOutput = z.object({
 	firstContactAt: z.string(),
 	lastContactAt: z.string(),
 	feedback: z.string().nullable(),
+	wroteBack: z.object({ answeredAt: z.string(), open: z.boolean() }).nullable(),
 	facts: z.object({
 		orders: z.number(),
 		maxPallets: z.number().nullable(),

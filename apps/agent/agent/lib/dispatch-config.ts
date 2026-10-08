@@ -104,17 +104,7 @@ export const DISPATCH = {
 		fastReserve: 0.3,
 		waitMaxMs: 30 * SECOND_MS,
 		minuteMs: MINUTE_MS,
-		share: {
-			byPlan: {
-				trial: 0.05,
-				start: 0.1,
-				standard: 0.15,
-				plus: 0.2,
-				team: 0.3,
-				office: 0.4,
-			},
-			other: 0.1,
-		},
+		share: { other: 0.1 },
 	},
 
 	housekeeping: {

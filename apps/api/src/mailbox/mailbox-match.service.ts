@@ -3,8 +3,9 @@ import { workspaceDomains } from "@crm/auth/workspace";
 import { type Db, RecordSource } from "@crm/db";
 import { isFreeEmailDomain } from "@crm/db/email-domains";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { CONTACT_LIMIT_MESSAGE, limitsOf } from "@crm/db/plans";
-import { readPlan, SETTINGS_ID } from "@crm/db/settings";
+import { planLimitsOf } from "@crm/db/plan-usage";
+import { CONTACT_LIMIT_MESSAGE } from "@crm/db/plans";
+import { SETTINGS_ID } from "@crm/db/settings";
 import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
@@ -375,7 +376,7 @@ export class MailboxMatchService {
 	}
 
 	private async atContactLimit(): Promise<boolean> {
-		const limit = limitsOf(await readPlan(this.db)).contacts;
+		const limit = (await planLimitsOf(this.db)).contacts;
 		if (limit === null) return false;
 
 		return (

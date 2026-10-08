@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db, type MailboxSyncModel as MailboxSync, Prisma } from "@crm/db";
-import { CONTACT_LIMIT_MESSAGE, PLANS } from "@crm/db/plans";
+import { CONTACT_LIMIT_MESSAGE } from "@crm/db/plans";
+import {
+	actWithoutPlans,
+	actWithTestPlans,
+	TEST_PLANS,
+} from "@crm/db/test-plans";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
@@ -45,13 +50,13 @@ const limitedAgent = {
 const fullDb = new Proxy(db, {
 	get(target, key) {
 		if (key === "appSetting") {
-			return { findUnique: async () => ({ plan: "trial" }) };
+			return { findUnique: async () => ({ plan: "small" }) };
 		}
 		if (key === "contact") {
 			return new Proxy(target.contact, {
 				get: (inner, name) =>
 					name === "count"
-						? async () => PLANS.trial.contacts
+						? async () => TEST_PLANS.small.contacts
 						: Reflect.get(inner, name),
 			});
 		}
@@ -143,6 +148,7 @@ async function clean() {
 }
 
 beforeAll(async () => {
+	actWithTestPlans();
 	await clean();
 	await db.user.create({
 		data: { id: userId, name: "Limit Rep", email: mailbox },
@@ -168,7 +174,10 @@ beforeAll(async () => {
 	});
 });
 
-afterAll(clean);
+afterAll(async () => {
+	await clean();
+	actWithoutPlans();
+});
 
 describe("the contact limit during a mailbox sync", () => {
 	it("stores the mail as a pending thread and does not throw", async () => {

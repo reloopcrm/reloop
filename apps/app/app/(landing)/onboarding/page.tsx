@@ -1,5 +1,5 @@
 import { DEFAULT_WORKSPACE_NAME, isWorkspaceAdmin } from "@crm/auth";
-import { PLANS } from "@crm/db/plans";
+import { cloud } from "@crm/db/cloud/scope";
 import type { Metadata } from "next";
 import type { CheckoutNotice } from "@/cloud/contract";
 import { hostedCustomer, pendingPurchase } from "@/cloud/scope.server";
@@ -34,7 +34,7 @@ export default async function OnboardingPage({
 			{notice?.kind === "resume" ? (
 				<CheckoutBanner
 					wanted={notice.wanted}
-					label={PLANS[notice.wanted.plan].label}
+					label={cloud.plans.limitsOf(notice.wanted.plan).label}
 				/>
 			) : null}
 			<AuthHeading

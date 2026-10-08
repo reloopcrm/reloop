@@ -274,6 +274,11 @@ export async function listWinBackFollowUps(
 			AND a.contact_id IS NULL
 			AND o.contacted_at <= ${due}
 			AND o.contacted_at >= ${floor}
+			AND EXISTS (
+				SELECT 1 FROM "user" u
+				WHERE u.id IN (o.decided_by, c."ownerId")
+					AND u."removedAt" IS NULL
+			)
 		ORDER BY o.contacted_at ASC
 		LIMIT ${options.limit}
 	`;

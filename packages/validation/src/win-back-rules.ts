@@ -25,13 +25,18 @@ export const winBackRules: z.ZodType<WinBackRuleSet> = z.object({
 		sideProducts: z
 			.array(z.string().trim().min(1).max(60))
 			.max(50)
-			.default(["CP-Palette", "CP1", "CP2", "CP3", "Einwegpalette"]),
+			.default(DEFAULT_WIN_BACK_RULES.business.sideProducts),
 		minPallets: z.number().int().min(0).max(1_000_000),
-		minBoxes: z.number().int().min(0).max(1_000_000).default(15),
+		minBoxes: z
+			.number()
+			.int()
+			.min(0)
+			.max(1_000_000)
+			.default(DEFAULT_WIN_BACK_RULES.business.minBoxes),
 		boxProducts: z
 			.array(z.string().trim().min(1).max(60))
 			.max(50)
-			.default(["Gitterbox"]),
+			.default(DEFAULT_WIN_BACK_RULES.business.boxProducts),
 		unit: z
 			.string()
 			.trim()

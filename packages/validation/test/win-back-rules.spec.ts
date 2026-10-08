@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	DEFAULT_WIN_BACK_RULES,
 	parseWinBackRules,
+	winBackRules,
 } from "../src/win-back-rules";
 
 const tuned = {
@@ -52,19 +53,40 @@ describe("parseWinBackRules keeps rules that were saved before the side tier", (
 		expect(parsed).not.toEqual(DEFAULT_WIN_BACK_RULES);
 	});
 
-	it("fills the side tier of an old row exactly as before", () => {
+	it("fills the side tier of an old row with the neutral defaults", () => {
 		const parsed = parseWinBackRules(tuned);
 
-		expect(parsed.business.sideProducts).toEqual([
-			"CP-Palette",
-			"CP1",
-			"CP2",
-			"CP3",
-			"Einwegpalette",
-		]);
+		expect(parsed.business.sideProducts).toEqual(
+			DEFAULT_WIN_BACK_RULES.business.sideProducts,
+		);
 		expect(parsed.points.sideProductMatch).toBe(
 			DEFAULT_WIN_BACK_RULES.points.sideProductMatch,
 		);
+	});
+
+	it("fills missing box fields of an old row with the neutral defaults", () => {
+		const {
+			minBoxes: _minBoxes,
+			boxProducts: _boxProducts,
+			...business
+		} = tuned.business;
+
+		const parsed = winBackRules.parse({ ...tuned, business });
+
+		expect(parsed.business.minBoxes).toBe(
+			DEFAULT_WIN_BACK_RULES.business.minBoxes,
+		);
+		expect(parsed.business.boxProducts).toEqual(
+			DEFAULT_WIN_BACK_RULES.business.boxProducts,
+		);
+		expect(parsed.business.sideProducts).toEqual(
+			DEFAULT_WIN_BACK_RULES.business.sideProducts,
+		);
+	});
+
+	it("parses an empty or unreadable stored row to the neutral defaults", () => {
+		expect(parseWinBackRules({})).toEqual(DEFAULT_WIN_BACK_RULES);
+		expect(parseWinBackRules(null)).toEqual(DEFAULT_WIN_BACK_RULES);
 	});
 
 	it("keeps a side tier that is already saved", () => {

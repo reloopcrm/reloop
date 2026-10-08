@@ -418,5 +418,6 @@
 	"The research agent is not reachable.": "Araştırma ajanına ulaşılamıyor.",
 	"The research agent did not return a session id.": "Araştırma ajanı bir oturum kimliği döndürmedi.",
 	"The research agent is not configured for this install.": "Araştırma ajanı bu kurulum için yapılandırılmamış.",
-	"The research agent could not answer. Try again.": "Araştırma ajanı yanıt veremedi. Tekrar dene."
+	"The research agent could not answer. Try again.": "Araştırma ajanı yanıt veremedi. Tekrar dene.",
+	"Wrote back, contacted since {date}": "Cevap yazdı, {date} tarihinden beri yazıldı"
 }

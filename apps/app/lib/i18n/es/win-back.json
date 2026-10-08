@@ -418,5 +418,6 @@
 	"The research agent is not reachable.": "El agente de investigación no está disponible.",
 	"The research agent did not return a session id.": "El agente de investigación no devolvió un ID de sesión.",
 	"The research agent is not configured for this install.": "El agente de investigación no está configurado para esta instalación.",
-	"The research agent could not answer. Try again.": "El agente de investigación no pudo responder. Inténtalo de nuevo."
+	"The research agent could not answer. Try again.": "El agente de investigación no pudo responder. Inténtalo de nuevo.",
+	"Wrote back, contacted since {date}": "Ha respondido, contactado desde el {date}"
 }

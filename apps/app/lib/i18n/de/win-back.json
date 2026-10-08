@@ -418,5 +418,6 @@
 	"The research agent is not reachable.": "Der Recherche-Agent ist nicht erreichbar.",
 	"The research agent did not return a session id.": "Der Recherche-Agent hat keine Sitzungs-ID zurückgegeben.",
 	"The research agent is not configured for this install.": "Der Recherche-Agent ist für diese Installation nicht eingerichtet.",
-	"The research agent could not answer. Try again.": "Der Recherche-Agent konnte nicht antworten. Versuche es noch einmal."
+	"The research agent could not answer. Try again.": "Der Recherche-Agent konnte nicht antworten. Versuche es noch einmal.",
+	"Wrote back, contacted since {date}": "Hat geantwortet, angeschrieben seit {date}"
 }

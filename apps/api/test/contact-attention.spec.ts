@@ -130,29 +130,7 @@ let bare: string;
 let quiet: string;
 let declined: string;
 
-beforeAll(async () => {
-	await db.user.createMany({
-		data: [{ id: rep, name: "Rep", email: `${rep}@${domain}`, updatedAt: now }],
-	});
-
-	waiting = await person("Waiting", [inbound(13), outbound(8)], OFFER);
-	owing = await person("Owing", [outbound(11), inbound(3)], {
-		...OFFER,
-		outcome: "OPEN_INQUIRY_THEIRS",
-		unansweredByUs: true,
-	});
-	bare = await person("Bare", [inbound(2)], null);
-	quiet = await person("Quiet", [inbound(244), outbound(241)], {
-		...OFFER,
-		outcome: "DEAL_DONE",
-	});
-	declined = await person("Declined", [outbound(244), inbound(241)], {
-		...OFFER,
-		outcome: "DECLINED",
-	});
-});
-
-afterAll(async () => {
+async function clear() {
 	await db.contactMemory.deleteMany({
 		where: { contact: { email: { endsWith: `@${domain}` } } },
 	});
@@ -161,7 +139,34 @@ afterAll(async () => {
 	});
 	await db.contact.deleteMany({ where: { email: { endsWith: `@${domain}` } } });
 	await db.user.deleteMany({ where: { id: rep } });
+}
+
+beforeAll(async () => {
+	await clear();
+	await db.user.createMany({
+		data: [{ id: rep, name: "Rep", email: `${rep}@${domain}`, updatedAt: now }],
+	});
+
+	[waiting, owing, bare, quiet, declined] = await Promise.all([
+		person("Waiting", [inbound(13), outbound(8)], OFFER),
+		person("Owing", [outbound(11), inbound(3)], {
+			...OFFER,
+			outcome: "OPEN_INQUIRY_THEIRS",
+			unansweredByUs: true,
+		}),
+		person("Bare", [inbound(2)], null),
+		person("Quiet", [inbound(244), outbound(241)], {
+			...OFFER,
+			outcome: "DEAL_DONE",
+		}),
+		person("Declined", [outbound(244), inbound(241)], {
+			...OFFER,
+			outcome: "DECLINED",
+		}),
+	]);
 });
+
+afterAll(clear);
 
 function read(contactId: string) {
 	return readContactAttention(db, { contactId, now, rules });

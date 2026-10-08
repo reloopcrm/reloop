@@ -1,5 +1,6 @@
 import type { Db } from "./client";
 import { Prisma } from "./generated/prisma/client";
+import { DECLINE_KIND, DECLINED_OUTCOME } from "./insights";
 import { realAnswer } from "./real-answer";
 
 export type WinBackOutcome = {
@@ -35,6 +36,27 @@ export type WinBackReply = {
 };
 
 type LoopScope = { ownerId?: string | null; contactId?: string };
+
+export function hardNoStands(contact: Prisma.Sql): Prisma.Sql {
+	return Prisma.sql`EXISTS (
+		SELECT 1 FROM "emailThread" ht
+		JOIN "threadInsight" hi ON hi."threadId" = ht.id
+		WHERE ht."contactId" = ${contact}.id
+			AND hi.outcome = ${DECLINED_OUTCOME}
+			AND hi."declineKind" = ${DECLINE_KIND.hard}
+			AND NOT EXISTS (
+				SELECT 1 FROM "emailMessage" rm
+				WHERE ${realAnswer("rm")}
+					AND rm."sentAt" > COALESCE(hi."declinedAt", hi."lastMessageAt")
+					AND (${contact}.email IS NULL OR lower(rm."fromEmail") = lower(${contact}.email))
+					AND rm."threadId" IN (
+						SELECT rt.id FROM "emailThread" rt WHERE rt."contactId" = ${contact}.id
+						UNION
+						SELECT rl."threadId" FROM "emailThreadContact" rl WHERE rl."contactId" = ${contact}.id
+					)
+			)
+	)`;
+}
 
 function loop(scope: LoopScope = {}): Prisma.Sql {
 	const owner = scope.ownerId
@@ -77,14 +99,32 @@ function loop(scope: LoopScope = {}): Prisma.Sql {
 			JOIN "emailMessage" m ON m."threadId" = t.id
 			WHERE m."sentAt" > o.contacted_at AND ${realAnswer("m")}
 			GROUP BY o.contact_id
+		),
+		wrote_back AS (
+			SELECT a.contact_id, o.contacted_at
+			FROM answered a
+			JOIN outreach o ON o.contact_id = a.contact_id
+			JOIN contact wc ON wc.id = a.contact_id
+			WHERE NOT ${hardNoStands(Prisma.sql`wc`)}
 		)
 	`;
 }
 
-export function wroteBackAfterOutreach(contactColumn: Prisma.Sql): Prisma.Sql {
+function wroteBackSince(since: Date | null): Prisma.Sql {
+	const window = since
+		? Prisma.sql`WHERE contacted_at >= ${since}`
+		: Prisma.empty;
+
+	return Prisma.sql`SELECT contact_id FROM wrote_back ${window}`;
+}
+
+export function wroteBackAfterOutreach(
+	contactColumn: Prisma.Sql,
+	since: Date | null = null,
+): Prisma.Sql {
 	return Prisma.sql`${contactColumn} IN (
 		WITH ${loop()}
-		SELECT contact_id FROM answered
+		${wroteBackSince(since)}
 	)`;
 }
 
@@ -173,10 +213,7 @@ export async function readWinBackOutcome(
 		SELECT
 			(SELECT COUNT(*) FROM verdict) AS verdicts,
 			(SELECT COUNT(*) FROM reached) AS contacted,
-			(
-				SELECT COUNT(*) FROM reached r
-				JOIN answered a ON a.contact_id = r.contact_id
-			) AS answered,
+			(SELECT COUNT(*) FROM (${wroteBackSince(options.since)}) w) AS answered,
 			(SELECT COUNT(*) FROM won) AS deals,
 			(
 				SELECT SUM("baseAmount") FROM won

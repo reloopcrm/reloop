@@ -341,6 +341,22 @@ describe("WinBackDraftPrefetchService.queue", () => {
 		expect(await draftTasks([linked.id])).toHaveLength(1);
 	});
 
+	it("writes nothing ahead for a person marked not for us or archived", async () => {
+		await writePlan(db, null);
+		const rejected = await person("Frank");
+		const archived = await person("Gerd");
+		await db.potentialFeedback.create({
+			data: { contactId: rejected, verdict: "bad" },
+		});
+		await db.contact.update({
+			where: { id: archived },
+			data: { archivedAt: new Date() },
+		});
+
+		expect(await service.queue([rejected, archived], REASON)).toBe(0);
+		expect(await draftTasks([rejected, archived])).toEqual([]);
+	});
+
 	it("rechecks a stored draft and a finished try under the lock", async () => {
 		await writePlan(db, null);
 		const checkedAt = new Date();

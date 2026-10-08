@@ -14,6 +14,8 @@ import { PERSON_VIEW } from "./reactivation.config";
 
 const DRAFTS = PERSON_VIEW.prefetch.drafts;
 
+const REJECTED_VERDICT = "bad";
+
 export type DraftCheck = {
 	hasDraft: boolean;
 	hasAddress: boolean;
@@ -86,7 +88,12 @@ export class WinBackDraftPrefetchService {
 			const now = new Date();
 			const [addressed, drafts, newest, open, finished] = await Promise.all([
 				this.db.contact.findMany({
-					where: { id: { in: ids }, email: { not: null } },
+					where: {
+						id: { in: ids },
+						email: { not: null },
+						archivedAt: null,
+						NOT: { potential: { verdict: REJECTED_VERDICT } },
+					},
 					select: { id: true },
 				}),
 				this.db.emailDraft.findMany({

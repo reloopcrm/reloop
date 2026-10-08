@@ -1077,8 +1077,10 @@ marked passages and the follow-up delay. It writes nothing but an
   check spends one try per newer mail, so a draft that stays stale does not cost a
   draft on every open, and mail stored while a draft was written still counts. When the
   call queued a task, the page cancels a draft read in flight before it writes the
-  result, so polling sees the queued task. A call that queued nothing leaves the
-  page's state alone, so a late answer never hides a write a click queued. After the win back mail
+  result, so polling sees the queued task. A call that queued nothing makes the page
+  read the state again instead of writing its own answer, so a late answer never
+  hides a write a click queued and a draft written meanwhile shows. A manual write
+  cancels a read in flight the same way before it stores its answer. After the win back mail
   goes out, this is how the follow-up replaces the sent text.
 - **A manual write names the draft it saw.** `contacts.writeDraft` takes `seen`, the
   `writtenAt` of the draft on screen or null for none, and `useEmailDraft` always

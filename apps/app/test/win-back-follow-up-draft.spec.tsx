@@ -23,6 +23,7 @@ let fetched: Fetched | null = null;
 const cacheCalls: string[] = [];
 type Queued = { queued: boolean };
 let refreshSuccess: ((result: Queued) => Promise<void>) | undefined;
+let writeSuccess: ((result: Queued) => Promise<void>) | undefined;
 
 const sonner = { ...(await import("sonner")) };
 const navigation = { ...(await import("next/navigation")) };
@@ -99,6 +100,7 @@ mock.module("@tanstack/react-query", () => ({
 		onSuccess?: (result: Queued) => Promise<void>;
 	}) => {
 		if (name === "refreshDraft") refreshSuccess = onSuccess;
+		if (name === "writeDraft") writeSuccess = onSuccess;
 		return {
 			isPending: name === "refreshDraft" && refreshing,
 			mutate: (input: { id: string; seen?: string | null }) => {
@@ -111,6 +113,9 @@ mock.module("@tanstack/react-query", () => ({
 		fetchQuery: async () => fetched,
 		cancelQueries: async () => {
 			cacheCalls.push("cancel");
+		},
+		invalidateQueries: async () => {
+			cacheCalls.push("reread");
 		},
 		setQueryData: (_key: string[], value: Queued) => {
 			cacheCalls.push(value.queued ? "set queued" : "set");
@@ -137,6 +142,7 @@ afterEach(async () => {
 	fetched = null;
 	cacheCalls.length = 0;
 	refreshSuccess = undefined;
+	writeSuccess = undefined;
 	stale = true;
 	refreshing = false;
 });
@@ -225,12 +231,20 @@ describe("the Win back person opened after the first mail went out", () => {
 		expect(cacheCalls).toEqual(["cancel", "set queued"]);
 	});
 
-	it("keeps a newer state when a late check queued nothing", async () => {
+	it("reads the state again when the check queued nothing, instead of writing its snapshot", async () => {
 		await open(viewOf(null, "erika@example.com"));
 
 		await act(async () => refreshSuccess?.({ queued: false }));
 
-		expect(cacheCalls).toEqual([]);
+		expect(cacheCalls).toEqual(["reread"]);
+	});
+
+	it("stops an older draft read before a manual write sets its queued state", async () => {
+		await open(viewOf(null, "erika@example.com"));
+
+		await act(async () => writeSuccess?.({ queued: true }));
+
+		expect(cacheCalls).toEqual(["cancel", "set queued"]);
 	});
 
 	it("names the draft it shows when the rep writes again", async () => {

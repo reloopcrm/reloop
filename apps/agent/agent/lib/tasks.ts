@@ -136,10 +136,7 @@ export async function postponeTask(taskId: string, until: Date): Promise<void> {
 	`;
 }
 
-export async function returnClaim(
-	taskId: string,
-	until: Date,
-): Promise<void> {
+export async function returnClaim(taskId: string, until: Date): Promise<void> {
 	await db.$executeRaw`
 		UPDATE "agentTask"
 		SET "dueAt" = ${until},

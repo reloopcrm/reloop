@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	symlinkSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -63,6 +69,34 @@ describe("generate-client environment", () => {
 					},
 				);
 				expect(result.stderr.toString()).not.toContain("bunx");
+				expect(result.exitCode).toBe(0);
+			} finally {
+				rmSync(image.dir, { recursive: true, force: true });
+			}
+		},
+		GENERATE_TIMEOUT_MS,
+	);
+
+	it.each(["build", "db:generate"])(
+		"routes the %s script through generate-client",
+		(name) => {
+			const pkg = JSON.parse(
+				readFileSync(join(DB_DIR, "package.json"), "utf8"),
+			) as { scripts: Record<string, string> };
+			expect(pkg.scripts[name]).toBe("bun scripts/generate-client.ts");
+		},
+	);
+
+	it(
+		"runs the build script without DATABASE_URL",
+		() => {
+			const image = imageLikePath();
+			try {
+				const result = Bun.spawnSync([image.bun, "run", "build"], {
+					cwd: DB_DIR,
+					env: { PATH: image.path, HOME: image.home },
+				});
+				expect(result.stderr.toString()).not.toContain("DATABASE_URL");
 				expect(result.exitCode).toBe(0);
 			} finally {
 				rmSync(image.dir, { recursive: true, force: true });

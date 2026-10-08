@@ -5,7 +5,7 @@ import request from "supertest";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
 import { BackfillService } from "../src/backfill/backfill.service";
 import { createApp } from "../src/create-app";
-import { storeKeyOf } from "../src/http/rest-rate-limit.middleware";
+import { REST_RATE_LIMIT } from "../src/http/http-config";
 import { MailboxSyncHeartbeatService } from "../src/sync/mailbox-sync-heartbeat.service";
 
 const runId = process.env.TEST_RUN_ID ?? "spec";
@@ -19,6 +19,7 @@ describe("the REST rate limit", () => {
 	let server: ReturnType<NonNullable<typeof app>["getHttpServer"]>;
 	let firstKey = "";
 	let secondKey = "";
+	let storedKeys: string[] = [];
 	let allowed: string | undefined;
 	const spies: { mockRestore: () => void }[] = [];
 
@@ -64,6 +65,14 @@ describe("the REST rate limit", () => {
 			})
 		).key;
 
+		const rows = await db.apikey.findMany({
+			where: { referenceId: userId },
+			select: { id: true },
+		});
+		storedKeys = rows.map(
+			(row) => `${REST_RATE_LIMIT.storeKeyPrefix}${row.id}`,
+		);
+
 		app = await createApp({ restRateLimit: limit });
 		server = app.getHttpServer();
 	});
@@ -71,9 +80,7 @@ describe("the REST rate limit", () => {
 	afterAll(async () => {
 		await app?.close();
 		await db.user.deleteMany({ where: { id: userId } });
-		await db.rateLimit.deleteMany({
-			where: { key: { in: [storeKeyOf(firstKey), storeKeyOf(secondKey)] } },
-		});
+		await db.rateLimit.deleteMany({ where: { key: { in: storedKeys } } });
 		for (const spy of spies) spy.mockRestore();
 
 		if (allowed === undefined) delete process.env.ALLOWED_SIGN_IN;
@@ -113,5 +120,21 @@ describe("the REST rate limit", () => {
 
 			expect(response.status).toBe(401);
 		}
+	});
+
+	it("stores nothing for a key that does not exist and refuses it", async () => {
+		const before = await db.rateLimit.count({
+			where: { key: { startsWith: REST_RATE_LIMIT.storeKeyPrefix } },
+		});
+
+		for (let i = 0; i < limit.max + 2; i += 1) {
+			expect((await call(`not-a-key-${runId}-${i}`)).status).toBe(401);
+		}
+
+		const after = await db.rateLimit.count({
+			where: { key: { startsWith: REST_RATE_LIMIT.storeKeyPrefix } },
+		});
+
+		expect(after).toBeLessThanOrEqual(before);
 	});
 });

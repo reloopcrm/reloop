@@ -340,8 +340,9 @@ runs in front of both mounts. A request with an `x-api-key` header counts agains
 window per key: `REST_RATE_LIMIT.apiKey` in `src/http/http-config.ts` (300 requests per
 minute). Past it the answer is 429 with a `Retry-After` header in seconds. A cookie request
 carries no key header and is never counted. The count lives in the `rateLimit` table
-(better-auth's own table, under the `rest:` prefix and a SHA-256 of the key), so every API
-process shares it. One upsert counts and reads in one statement. Expired `rest:` rows are
+(better-auth's own table, under the `rest:` prefix and the key's row id), so every API
+process shares it. A header that matches no stored key is not counted and writes no row;
+the credential check answers it 401. One upsert counts and reads in one statement. Expired `rest:` rows are
 pruned once per window per process. better-auth's own API key limit stays off. The
 `/internal/*` cron routes, the tracking collector and `/api/trpc` are not on this limit.
 

@@ -18,8 +18,21 @@ function keyHeaderOf(req: Request): string | null {
 	return header ? header : null;
 }
 
-export function storeKeyOf(apiKey: string): string {
-	return `${REST_RATE_LIMIT.storeKeyPrefix}${createHash("sha256").update(apiKey).digest("hex")}`;
+export function storeKeyOf(apiKeyId: string): string {
+	return `${REST_RATE_LIMIT.storeKeyPrefix}${apiKeyId}`;
+}
+
+async function apiKeyIdOf(
+	client: Pick<Db, "apikey">,
+	apiKey: string,
+): Promise<string | null> {
+	const hashed = createHash("sha256").update(apiKey).digest("base64url");
+	const row = await client.apikey.findFirst({
+		where: { key: hashed },
+		select: { id: true },
+	});
+
+	return row?.id ?? null;
 }
 
 export async function countRestRequest(
@@ -70,7 +83,7 @@ async function pruneExpired(
 
 export function restRateLimit(
 	limit: RestRateLimitWindow = REST_RATE_LIMIT.apiKey,
-	client: Pick<Db, "$queryRaw" | "$executeRaw"> = db,
+	client: Pick<Db, "$queryRaw" | "$executeRaw" | "apikey"> = db,
 ): RequestHandler {
 	let prunedAt = 0;
 
@@ -90,7 +103,12 @@ export function restRateLimit(
 		const prune = due ? pruneExpired(client, limit, now) : Promise.resolve();
 
 		prune
-			.then(() => countRestRequest(client, storeKeyOf(apiKey), limit, now))
+			.then(() => apiKeyIdOf(client, apiKey))
+			.then((apiKeyId) =>
+				apiKeyId
+					? countRestRequest(client, storeKeyOf(apiKeyId), limit, now)
+					: { allowed: true, retryAfterSeconds: 0 },
+			)
 			.then((decision) => {
 				if (decision.allowed) {
 					next();

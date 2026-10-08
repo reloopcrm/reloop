@@ -771,6 +771,15 @@ export const COPY = {
 			tr: `Dolduruldu: ${fields}.${copied > 0 ? ` ${copied} görsel kendi depomuza kopyalandı.` : ""}`,
 			"zh-Hans": `已填写：${fields}。${copied > 0 ? `已将 ${copied} 张图片复制到自有存储。` : ""}`,
 		}),
+		modelSilent: (domain: string): Lines => ({
+			en: `The website ${domain} was read, but the reading model did not answer. It is tried again later.`,
+			de: `Die Website ${domain} wurde gelesen, aber das Lesemodell hat nicht geantwortet. Es wird später erneut versucht.`,
+			es: `Se leyó el sitio web ${domain}, pero el modelo de lectura no respondió. Se volverá a intentar más tarde.`,
+			fr: `Le site ${domain} a été lu, mais le modèle de lecture n'a pas répondu. Une nouvelle tentative aura lieu plus tard.`,
+			"pt-BR": `O site ${domain} foi lido, mas o modelo de leitura não respondeu. Uma nova tentativa será feita mais tarde.`,
+			tr: `${domain} web sitesi okundu, ancak okuma modeli yanıt vermedi. Daha sonra yeniden denenecek.`,
+			"zh-Hans": `已读取网站 ${domain}，但读取模型没有回应。稍后会重试。`,
+		}),
 		siteSilent: (domain: string): Lines => ({
 			en: `The website ${domain} did not answer with a page to read.`,
 			de: `Die Website ${domain} hat keine lesbare Seite geliefert.`,

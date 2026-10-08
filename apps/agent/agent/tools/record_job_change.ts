@@ -2,7 +2,13 @@ import { db } from "@crm/db";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { sensitiveWrite } from "../lib/approval";
-import { writeTimelineNote } from "../lib/crm";
+import {
+	LIVE,
+	liveCompany,
+	liveContact,
+	NOT_LIVE,
+	writeTimelineNote,
+} from "../lib/crm";
 import { lastEmployerChange } from "../lib/facts";
 import { focusOn } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
@@ -27,6 +33,21 @@ const tool = defineTool({
 		assertResearchPurpose(ctx);
 		focusOn({ contactId });
 
+		const contact = await liveContact(contactId, {
+			firstName: true,
+			lastName: true,
+			ownerId: true,
+			companyId: true,
+		});
+		if (!contact) return { raised: false as const, reason: NOT_LIVE.contact };
+
+		if (
+			moveToCompanyId &&
+			!(await liveCompany(moveToCompanyId, { id: true }))
+		) {
+			return { raised: false as const, reason: NOT_LIVE.company };
+		}
+
 		const change = await lastEmployerChange(contactId);
 		if (!change) {
 			return {
@@ -34,17 +55,6 @@ const tool = defineTool({
 				reason: "No employer change on the facts for this contact.",
 			};
 		}
-
-		const contact = await db.contact.findUnique({
-			where: { id: contactId },
-			select: {
-				firstName: true,
-				lastName: true,
-				ownerId: true,
-				companyId: true,
-			},
-		});
-		if (!contact) return { raised: false as const, reason: "No such contact." };
 
 		const name = [contact.firstName, contact.lastName]
 			.filter(Boolean)
@@ -67,8 +77,8 @@ const tool = defineTool({
 		);
 
 		if (moveToCompanyId) {
-			await db.contact.update({
-				where: { id: contactId },
+			await db.contact.updateMany({
+				where: { id: contactId, ...LIVE },
 				data: { companyId: moveToCompanyId },
 			});
 		}

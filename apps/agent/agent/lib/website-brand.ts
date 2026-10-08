@@ -1,5 +1,5 @@
 import { readCapped, safeFetch } from "@crm/db/safe-fetch";
-import { streamText } from "ai";
+import { type LanguageModel, streamText } from "ai";
 import { z } from "zod";
 import type { Brand, BrandLookup } from "./brand-mapping";
 import { COPY } from "./copy";
@@ -159,13 +159,106 @@ function social(links: string[], host: RegExp): string | null {
 	return links.find((href) => host.test(href)) ?? null;
 }
 
+export type PageAnswer<T> =
+	| { ok: true; data: T }
+	| { ok: false; reason: string; retryable: boolean };
+
+type PageText =
+	| { ok: true; text: string }
+	| { ok: false; reason: string; retryable: true };
+
+const modelFailure = z
+	.object({
+		name: z.string().catch("Error"),
+		statusCode: z.number().optional().catch(undefined),
+	})
+	.catch({ name: "Error" });
+
+type ModelFailure = z.infer<typeof modelFailure>;
+
+function failureOf(failure: ModelFailure): string {
+	return failure.statusCode === undefined
+		? `the model call failed with ${failure.name}`
+		: `the model answered HTTP ${failure.statusCode}`;
+}
+
+async function readPage(
+	model: LanguageModel,
+	system: string,
+	prompt: string,
+): Promise<PageText> {
+	try {
+		const result = streamText({
+			model,
+			abortSignal: AbortSignal.timeout(WEBSITE.modelTimeoutMs),
+			system,
+			prompt,
+			onError: () => {},
+		});
+
+		let text = "";
+		for await (const part of result.fullStream) {
+			if (part.type === "text-delta") text += part.text;
+			if (part.type === "error") {
+				return {
+					ok: false,
+					retryable: true,
+					reason: failureOf(modelFailure.parse(part.error)),
+				};
+			}
+			if (part.type === "abort") {
+				return {
+					ok: false,
+					retryable: true,
+					reason: "the model call was cut off before it answered",
+				};
+			}
+		}
+
+		return { ok: true, text };
+	} catch (error) {
+		return {
+			ok: false,
+			retryable: true,
+			reason: failureOf(modelFailure.parse(error)),
+		};
+	}
+}
+
+function parseAnswer<Shape extends z.ZodType>(
+	shape: Shape,
+	text: string,
+): z.infer<Shape> | null {
+	const cleaned = text.replace(/```(?:json)?/gi, "").trim();
+	const json = cleaned.slice(
+		cleaned.indexOf("{"),
+		cleaned.lastIndexOf("}") + 1,
+	);
+
+	let value: unknown;
+	try {
+		value = JSON.parse(json);
+	} catch {
+		return null;
+	}
+
+	const parsed = shape.safeParse(value);
+	return parsed.success ? parsed.data : null;
+}
+
 export async function askPage<Shape extends z.ZodType>(
 	page: Page,
 	shape: Shape,
 	instructions: string[],
-): Promise<z.infer<Shape> | null> {
+): Promise<PageAnswer<z.infer<Shape>>> {
 	const model = await directModel("reading", "brand").catch(() => null);
-	if (!model) return null;
+	if (!model) {
+		return {
+			ok: false,
+			retryable: false,
+			reason: "no reading model is configured",
+		};
+	}
 
 	const facts = [
 		`URL: ${page.url.toString()}`,
@@ -177,33 +270,25 @@ export async function askPage<Shape extends z.ZodType>(
 		`Page text: ${page.text}`,
 	].join("\n");
 
+	const system = [
+		...instructions,
+		"Answer with one JSON object only, no prose, no code fences, matching this JSON schema:",
+		JSON.stringify(z.toJSONSchema(shape, { io: "input" })),
+	].join("\n");
+
 	for (let attempt = 0; attempt < WEBSITE.jsonAttempts; attempt += 1) {
-		const result = streamText({
-			model,
-			abortSignal: AbortSignal.timeout(WEBSITE.modelTimeoutMs),
-			system: [
-				...instructions,
-				"Answer with one JSON object only, no prose, no code fences, matching this JSON schema:",
-				JSON.stringify(z.toJSONSchema(shape)),
-			].join("\n"),
-			prompt: facts,
-		});
+		const read = await readPage(model, system, facts);
+		if (!read.ok) return read;
 
-		let text = "";
-		for await (const part of result.textStream) text += part;
-
-		try {
-			const cleaned = text.replace(/```(?:json)?/gi, "").trim();
-			const parsed = shape.safeParse(
-				JSON.parse(
-					cleaned.slice(cleaned.indexOf("{"), cleaned.lastIndexOf("}") + 1),
-				),
-			);
-			if (parsed.success) return parsed.data;
-		} catch {}
+		const data = parseAnswer(shape, read.text);
+		if (data !== null) return { ok: true, data };
 	}
 
-	return null;
+	return {
+		ok: false,
+		retryable: false,
+		reason: "the model answered, but not with the facts asked for",
+	};
 }
 
 export const BRAND_GATE = "brand-industry";
@@ -262,8 +347,12 @@ export async function askIndustry(
 	return chosen ? answer.choice : null;
 }
 
-async function extract(page: Page, ask: JevChoiceAsk): Promise<Extracted> {
-	const [facts, industry] = await Promise.all([
+type Extraction =
+	| { ok: true; facts: Extracted }
+	| { ok: false; reason: string };
+
+async function extract(page: Page, ask: JevChoiceAsk): Promise<Extraction> {
+	const [answer, industry] = await Promise.all([
 		askPage(page, extracted, [
 			"You read a company's homepage and report facts about the company.",
 			"Report only what the page states. Unknown values are null. Never guess a city or country from the language alone.",
@@ -275,9 +364,13 @@ async function extract(page: Page, ask: JevChoiceAsk): Promise<Extracted> {
 		askIndustry(page, ask),
 	]);
 
-	const read = facts ?? fromMetadata(page);
+	if (!answer.ok && answer.retryable) {
+		return { ok: false, reason: answer.reason };
+	}
 
-	return industry ? { ...read, industry } : read;
+	const read = answer.ok ? answer.data : fromMetadata(page);
+
+	return { ok: true, facts: industry ? { ...read, industry } : read };
 }
 
 function fromMetadata(page: Page): Extracted {
@@ -306,7 +399,16 @@ export async function brandFromWebsite(
 		};
 	}
 
-	const facts = await extract(page, ask);
+	const extraction = await extract(page, ask);
+	if (!extraction.ok) {
+		return {
+			outcome: "failed",
+			reason: say(COPY.brand.modelSilent(domain)),
+			retryable: true,
+		};
+	}
+
+	const facts = extraction.facts;
 
 	const logos: NonNullable<Brand["logos"]> = [];
 	const icon =

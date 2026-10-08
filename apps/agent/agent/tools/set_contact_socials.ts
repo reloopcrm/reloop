@@ -1,6 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { personForVerification } from "../lib/crm";
+import { enabled, unavailable } from "../lib/capabilities";
+import { NOT_LIVE, personForVerification } from "../lib/crm";
 import type { Evidence } from "../lib/evidence";
 import { recordFact } from "../lib/facts";
 import { focusOn, refund, spend } from "../lib/focus";
@@ -31,7 +32,15 @@ const tool = defineTool({
 
 		const person = await personForVerification(contactId);
 		if (!person) {
-			return { written: false as const, reason: "No such contact." };
+			return { written: false as const, reason: NOT_LIVE.contact };
+		}
+
+		const xAvailable = await enabled("PERPLEXITY_API_KEY");
+		if (twitterUrl && !githubUrl && !xAvailable) {
+			return {
+				written: false as const,
+				...unavailable("PERPLEXITY_API_KEY"),
+			};
 		}
 
 		const rejected: string[] = [];
@@ -59,6 +68,11 @@ const tool = defineTool({
 				rejected.push(
 					`${candidate.raw} is not a ${candidate.network} profile URL.`,
 				);
+				continue;
+			}
+
+			if (candidate.network === "x" && !xAvailable) {
+				rejected.push(unavailable("PERPLEXITY_API_KEY").reason);
 				continue;
 			}
 

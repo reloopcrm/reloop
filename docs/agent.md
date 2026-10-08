@@ -754,6 +754,28 @@ model for the facts on the page. `askPage()` is the one reader; `tools/research_
 uses it too. **There is no LinkedIn reader**, so nothing on this install can observe
 `linkedin.employer-and-name`.
 
+**`askPage()` tells a failed model from a missing one.** It reads `fullStream`, not
+`textStream`, because ai@7 drops error parts from `textStream`: a 429 or a timeout
+came back as empty text and read as "nothing on the page". It returns
+`{ ok: true, data }` or `{ ok: false, reason, retryable }`:
+
+- No reading model configured: `retryable: false`. The brand read fills the record from
+  the page's own metadata and settles COMPLETE, as before.
+- An error or abort part in the stream, or a throw: `retryable: true`. The brand read
+  writes nothing, settles FAILED and returns `retryable`, so `dispatch.ts` leaves the
+  task for the next lease. It never stamps COMPLETE from the weaker metadata.
+  `research_company` refunds its unit and says retrying later can help.
+- Answers that never parse after `WEBSITE.jsonAttempts`: `retryable: false`.
+
+The JSON schema it sends is the schema's input side (`io: "input"`). The research brief
+schema has `.catch` and `.transform`, and the output side cannot be written as JSON
+Schema, so before this every `research_company` call with a model threw.
+
+**`research_company` keeps one brief per company and source.** It locks
+`research-brief:<companyId>:website`, finds the ENRICHMENT activity with that `source`,
+and updates it. An identical body changes nothing and answers `written: false`. The
+company is checked live before any outside call and again inside the write.
+
 ## Budget and scheduling
 
 - `lib/focus.ts` — per-session budget in `defineState`; running out is a normal ending.
@@ -768,7 +790,10 @@ uses it too. **There is no LinkedIn reader**, so nothing on this install can obs
   that is not a form of the name) costs nothing either. A GitHub 404 is an answer and
   keeps its unit.
 - **`find_contact_socials` checks the capability before it charges**, like
-  `research_person`. Without `PERPLEXITY_API_KEY` it returns `unavailable()`. It
+  `research_person`. Without `PERPLEXITY_API_KEY` it returns `unavailable()`.
+  `set_contact_socials` does the same for an X profile, the one check that needs
+  Perplexity: an X URL alone returns `unavailable()`, and beside a GitHub URL the X
+  check is rejected with that reason while GitHub is still checked. It
   stamps `socialsCheckedAt` only when at least one network answered, so a contact
   whose searches all failed is searched again on a later run.
 - `lib/research-config.ts` holds every research number: the default budget, the
@@ -781,6 +806,33 @@ uses it too. **There is no LinkedIn reader**, so nothing on this install can obs
 - `tools/schedule_recheck.ts` — its `reason` is shown to the rep. It loads the
   contact first and answers `scheduled: false` with a reason for a missing contact,
   an archived one, a sample record, or a recheck function that is off.
+
+## Archived records are invisible to the agent
+
+`lib/crm.ts` owns `LIVE` (`archivedAt: null`) and the helpers `liveContact`,
+`liveCompany` and `liveDeal`. Each takes a select and an optional transaction client,
+and answers `null` for a missing row and for an archived one alike.
+
+- **Lookups hide archived rows completely.** `search_crm`, `list_deals` and
+  `list_outstanding_work` filter on `LIVE`. A deal of an archived company is hidden,
+  a contact's archived company reads as `null`, and the counts on a company hit count
+  live rows only.
+- **Every writing tool refuses a record that is not live, with a clean result.**
+  `write_brief`, `record_fact`, `fetch_contact_photo`, `find_contact_socials`,
+  `set_contact_socials`, `record_job_change` (also for `moveToCompanyId`),
+  `research_company` and `set_field_value` answer with `NOT_LIVE.contact`,
+  `NOT_LIVE.company` or `NOT_LIVE.deal`, never with a Prisma error.
+  `stampSocialsChecked` answers `false`.
+- **Only the research agent may use the research tools.** `research_person`,
+  `research_company`, `find_contact_socials` and `set_field_value` call
+  `assertResearchPurpose(ctx)` like the other writing tools. A builder or team-agent
+  session gets a refusal.
+
+**The author of a research note is chosen by one rule.** `researchAuthor` in
+`lib/crm.ts` takes the record owner. Without one it takes the oldest `owner` member of
+the workspace, then the oldest member, then the oldest user that is not removed. The
+order is `createdAt`, then `id`, so the same install always picks the same person. A
+plain `findFirst()` without an order picked whichever row Postgres returned first.
 
 ## Three records, no dead ends
 
@@ -1200,6 +1252,10 @@ the finish reason and token spend of each step, and any failure with its code.
   whatever a rep typed, which is the "nothing sensitive logged" rule above, so
   they are gated on `NODE_ENV`. In production the durable record is an
   `AgentEvent` row, not a log drain.
+- **A failure prints its code, never its message, in every environment.** A failed
+  tool call, step, turn or session logs eve's error code and a Prisma code
+  (`P2002`) when the message names one. The message itself is not printed: a
+  unique-constraint error quotes the address it collided on.
 - **It is not the audit trail.** `hooks/audit.ts` writes every event to
   `AgentEvent` whatever this prints, and the panel's transcript is read back from
   there. A change to one is not a change to the other.

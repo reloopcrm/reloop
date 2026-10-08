@@ -1,5 +1,6 @@
 import { db, FactBand, FactStatus, type Prisma, RecordSource } from "@crm/db";
 import { lockFactField } from "@crm/db/idempotency";
+import { liveContact, NOT_LIVE } from "./crm";
 import { type Evidence, scoreEvidence, selfAssertedOnly } from "./evidence";
 import { currentFocus } from "./focus";
 import { isDerivedName, shortensName, splitName } from "./names";
@@ -143,7 +144,7 @@ async function settleFact(
 			...base,
 			stored: false,
 			applied: false,
-			reason: "No such contact.",
+			reason: NOT_LIVE.contact,
 		};
 	}
 
@@ -287,10 +288,7 @@ export function readFactSubject(
 	tx: Prisma.TransactionClient,
 	contactId: string,
 ): Promise<FactSubject | null> {
-	return tx.contact.findUnique({
-		where: { id: contactId },
-		select: FACT_SUBJECT_SELECT,
-	});
+	return liveContact(contactId, FACT_SUBJECT_SELECT, tx);
 }
 
 export async function writeFactValue(
@@ -403,6 +401,10 @@ export async function writeBrief(input: {
 			score: scored.score,
 			reason: "Nothing here is sourced well enough to put on the record.",
 		};
+	}
+
+	if (!(await liveContact(input.contactId, { id: true }))) {
+		return { written: false, score: scored.score, reason: NOT_LIVE.contact };
 	}
 
 	const data = {

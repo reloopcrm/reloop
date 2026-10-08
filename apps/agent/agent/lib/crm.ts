@@ -1,7 +1,73 @@
 import { db, EnrichmentStatus, type Prisma } from "@crm/db";
+import { WORKSPACE_ID } from "@crm/db/workspace";
 import { domainOf, isDerivedName } from "./names";
 import type { Person } from "./socials";
 import { untrusted } from "./untrusted";
+
+type Client = Prisma.TransactionClient | typeof db;
+
+export const LIVE = { archivedAt: null } as const;
+
+export const NOT_LIVE = {
+	contact: "No such contact, or it is archived. Nothing was written.",
+	company: "No such company, or it is archived. Nothing was written.",
+	deal: "No such deal, or it is archived. Nothing was written.",
+} as const;
+
+export function liveContact<S extends Prisma.ContactSelect>(
+	id: string,
+	select: S,
+	client: Client = db,
+): Promise<Prisma.ContactGetPayload<{ select: S }> | null> {
+	return client.contact.findFirst({ where: { id, ...LIVE }, select });
+}
+
+export function liveCompany<S extends Prisma.CompanySelect>(
+	id: string,
+	select: S,
+	client: Client = db,
+): Promise<Prisma.CompanyGetPayload<{ select: S }> | null> {
+	return client.company.findFirst({ where: { id, ...LIVE }, select });
+}
+
+export function liveDeal<S extends Prisma.DealSelect>(
+	id: string,
+	select: S,
+	client: Client = db,
+): Promise<Prisma.DealGetPayload<{ select: S }> | null> {
+	return client.deal.findFirst({ where: { id, ...LIVE }, select });
+}
+
+export async function researchAuthor(
+	recordOwnerId: string | null,
+): Promise<string | null> {
+	if (recordOwnerId) return recordOwnerId;
+
+	const oldest = {
+		orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+	};
+	const owner =
+		(await db.member.findFirst({
+			where: { organizationId: WORKSPACE_ID, role: "owner" },
+			...oldest,
+			select: { userId: true },
+		})) ??
+		(await db.member.findFirst({
+			where: { organizationId: WORKSPACE_ID },
+			...oldest,
+			select: { userId: true },
+		}));
+
+	if (owner) return owner.userId;
+
+	const user = await db.user.findFirst({
+		where: { removedAt: null },
+		...oldest,
+		select: { id: true },
+	});
+
+	return user?.id ?? null;
+}
 
 export type WorkItem = {
 	id: string;
@@ -21,6 +87,7 @@ export type WorkItem = {
 export async function contactsNeedingWork(limit: number): Promise<WorkItem[]> {
 	const rows = await db.contact.findMany({
 		where: {
+			...LIVE,
 			OR: [
 				{ brief: { is: null } },
 				{ socialsCheckedAt: null },
@@ -62,15 +129,12 @@ export async function contactsNeedingWork(limit: number): Promise<WorkItem[]> {
 export async function personForVerification(
 	contactId: string,
 ): Promise<Person | null> {
-	const contact = await db.contact.findUnique({
-		where: { id: contactId },
-		select: {
-			firstName: true,
-			lastName: true,
-			title: true,
-			email: true,
-			company: { select: { name: true, domain: true } },
-		},
+	const contact = await liveContact(contactId, {
+		firstName: true,
+		lastName: true,
+		title: true,
+		email: true,
+		company: { select: { name: true, domain: true } },
 	});
 
 	if (!contact) return null;
@@ -304,11 +368,12 @@ export async function readCrmHistory(
 	};
 }
 
-export async function stampSocialsChecked(contactId: string): Promise<void> {
-	await db.contact.update({
-		where: { id: contactId },
+export async function stampSocialsChecked(contactId: string): Promise<boolean> {
+	const { count } = await db.contact.updateMany({
+		where: { id: contactId, ...LIVE },
 		data: { socialsCheckedAt: new Date() },
 	});
+	return count === 1;
 }
 
 export async function setEnrichmentStatus(
@@ -332,16 +397,13 @@ export async function writeTimelineNote(
 	body: string,
 	meta: Prisma.InputJsonObject = {},
 ): Promise<string | null> {
-	const contact = await db.contact.findUnique({
-		where: { id: contactId },
-		select: { companyId: true, ownerId: true },
+	const contact = await liveContact(contactId, {
+		companyId: true,
+		ownerId: true,
 	});
 	if (!contact) return null;
 
-	const author =
-		contact.ownerId ??
-		(await db.user.findFirst({ select: { id: true } }))?.id ??
-		null;
+	const author = await researchAuthor(contact.ownerId);
 	if (!author) return null;
 
 	const activity = await db.activity.create({

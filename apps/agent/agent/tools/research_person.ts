@@ -4,6 +4,7 @@ import { enabled, unavailable } from "../lib/capabilities";
 import { refund, spend } from "../lib/focus";
 import { ask } from "../lib/perplexity";
 import { RESEARCH } from "../lib/research-config";
+import { assertResearchPurpose } from "../lib/session-purpose";
 import { tenantTool } from "../lib/tenant";
 
 const tool = defineTool({
@@ -20,7 +21,8 @@ const tool = defineTool({
 			.default(false)
 			.describe("Reason over more sources. Slower, better for prep briefs."),
 	}),
-	async execute({ question, deep }) {
+	async execute({ question, deep }, ctx) {
+		assertResearchPurpose(ctx);
 		if (!(await enabled("PERPLEXITY_API_KEY")))
 			return unavailable("PERPLEXITY_API_KEY");
 

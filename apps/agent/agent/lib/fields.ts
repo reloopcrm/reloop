@@ -1,4 +1,4 @@
-import { db } from "@crm/db";
+import { db, type Prisma } from "@crm/db";
 import type { FieldEntity, FieldType } from "@crm/db/enums";
 import {
 	attachValues,
@@ -16,6 +16,7 @@ import {
 	writeValues,
 } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { liveCompany, liveContact, liveDeal, NOT_LIVE } from "./crm";
 import { currentFocus } from "./focus";
 
 const WITH_OPTIONS = { options: { orderBy: { position: "asc" } } } as const;
@@ -53,6 +54,27 @@ export async function readFields(
 	return attachValues(definitions, rows);
 }
 
+async function isLive(
+	entity: FieldEntity,
+	recordId: string,
+	tx: Prisma.TransactionClient,
+): Promise<boolean> {
+	const select = { id: true } as const;
+	const row =
+		entity === "CONTACT"
+			? await liveContact(recordId, select, tx)
+			: entity === "COMPANY"
+				? await liveCompany(recordId, select, tx)
+				: await liveDeal(recordId, select, tx);
+	return row !== null;
+}
+
+const NOT_LIVE_RECORD = {
+	CONTACT: NOT_LIVE.contact,
+	COMPANY: NOT_LIVE.company,
+	DEAL: NOT_LIVE.deal,
+} as const satisfies Record<FieldEntity, string>;
+
 export type WriteResult =
 	| { written: true; key: string; value: unknown }
 	| { written: false; reason: string };
@@ -84,6 +106,10 @@ export async function writeField(input: {
 
 	try {
 		return await db.$transaction(async (tx) => {
+			if (!(await isLive(input.entity, input.recordId, tx))) {
+				return { written: false, reason: NOT_LIVE_RECORD[input.entity] };
+			}
+
 			if (isBackfill) {
 				const column = recordColumn(input.entity);
 				await lockIdempotencyKey(

@@ -1,10 +1,15 @@
 import { z } from "zod";
 
+export const LIST = {
+	maxPage: 10_000,
+	maxSortLength: 64,
+} as const;
+
 export const listInput = z.object({
 	q: z.string().default(""),
-	sort: z.string().default(""),
+	sort: z.string().max(LIST.maxSortLength).default(""),
 	dir: z.enum(["asc", "desc"]).default("asc"),
-	page: z.number().int().min(1).default(1),
+	page: z.number().int().min(1).max(LIST.maxPage).default(1),
 	pageSize: z.number().int().min(1).max(100).default(25),
 });
 

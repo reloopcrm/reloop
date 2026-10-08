@@ -14,7 +14,10 @@ import {
 	readStoredTouch,
 } from "./stored-submission";
 import { TrackingCounterService } from "./tracking-counter.service";
-import { TrackingFilingService } from "./tracking-filing.service";
+import {
+	type FilingOutcome,
+	TrackingFilingService,
+} from "./tracking-filing.service";
 
 const CONTACT_CAPPED = new Set<string>(CONTACT_CAP_REASONS);
 
@@ -88,18 +91,22 @@ export class TrackingRefileService {
 				});
 			}
 
-			const outcome = await this.filing.file(
-				{
-					id: row.id,
-					email: row.email,
-					host: row.host,
-					visitorId: row.visitorId,
-					name: fields.ok ? nameFrom(fields.value) : null,
-					firstTouch: firstTouch.ok ? firstTouch.value : undefined,
-					lastTouch: lastTouch.ok ? lastTouch.value : undefined,
-				},
-				{ contactLimit: CONTACTS_PER_HOUR - FORM_REFILE.liveReserve },
+			const outcome = await this.fileOne(row.id, () =>
+				this.filing.file(
+					{
+						id: row.id,
+						email: row.email,
+						host: row.host,
+						visitorId: row.visitorId,
+						name: fields.ok ? nameFrom(fields.value) : null,
+						firstTouch: firstTouch.ok ? firstTouch.value : undefined,
+						lastTouch: lastTouch.ok ? lastTouch.value : undefined,
+					},
+					{ contactLimit: CONTACTS_PER_HOUR - FORM_REFILE.liveReserve },
+				),
 			);
+
+			if (!outcome) continue;
 
 			if (outcome.filed) {
 				filed += 1;
@@ -118,5 +125,24 @@ export class TrackingRefileService {
 		}
 
 		return filed;
+	}
+
+	private async fileOne(
+		submissionId: string,
+		file: () => Promise<FilingOutcome>,
+	): Promise<FilingOutcome | null> {
+		try {
+			return await file();
+		} catch (error) {
+			this.logger.error(
+				{
+					message: "A deferred form submission could not be filed",
+					submissionId,
+				},
+				error instanceof Error ? error.stack : String(error),
+			);
+
+			return null;
+		}
 	}
 }

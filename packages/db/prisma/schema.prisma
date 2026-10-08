@@ -1717,6 +1717,7 @@ model FormSubmission {
 
   @@index([contactId])
   @@index([createdAt])
+  @@index([skipReason, createdAt])
   @@map("formSubmission")
 }
 

@@ -609,6 +609,29 @@ describe("a submission kept for later", () => {
 		expect([...filed].sort()).toEqual(rows.map((row) => row.id).sort());
 	});
 
+	it("keeps going past a row whose filing throws", async () => {
+		const broken = await deferred(TRACKING_SKIP.formCap, 5);
+		const next = await deferred(TRACKING_SKIP.formCap, 6);
+		const throwing = {
+			file: async (
+				submission: Parameters<TrackingFilingService["file"]>[0],
+			) => {
+				if (submission.id === broken.id) throw new Error("contact limit");
+				return filing.file(submission);
+			},
+		} as unknown as TrackingFilingService;
+		const guarded = new TrackingRefileService(db, counters, throwing);
+
+		expect(await guarded.drain(2)).toBe(1);
+		expect(filed).toEqual([next.id]);
+
+		const kept = await db.formSubmission.findUnique({
+			where: { id: broken.id },
+			select: { filedAt: true, skipReason: true },
+		});
+		expect(kept).toEqual({ filedAt: null, skipReason: TRACKING_SKIP.formCap });
+	});
+
 	it("is filed when the tracker resends it", async () => {
 		const at = Date.now();
 		const submission: TrackingEvent = {

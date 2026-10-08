@@ -216,7 +216,10 @@ deleted* comes to be true of email and not of forms.
   at a time, and hands each to `file()` again. The collector calls `drainDue`
   after every accepted batch, and the `refile` window (`refileWindowKey`) lets
   one pass run per minute. The nightly retention sweep runs one more. A pass
-  stops at the first row the contact cap refuses, because the hour is full.
+  stops at the first row the contact cap refuses, because the hour is full. A
+  row whose filing throws is logged and kept with its code, and the pass goes on
+  to the next row, so one broken row never blocks the queue. The read uses the
+  `(skipReason, createdAt)` index, so a long history of filed rows costs nothing.
 - **A filing never moves a visitor backwards.** `attach` writes the visitor's
   `contactId` and `last*` columns in one `UPDATE` whose `WHERE` refuses when a
   filed submission of the same visitor has a later `createdAt`. So an old

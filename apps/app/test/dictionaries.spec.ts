@@ -22,6 +22,8 @@ import { SHOTS } from "../components/site/site-config";
 import {
 	GRANT_ACCESS_COPY,
 	GRANT_ACCESS_COPY_BOTH,
+	GRANT_ACCESS_INCOMPLETE,
+	GRANT_ACCESS_INCOMPLETE_BOTH,
 } from "../lib/grant-access-copy";
 import { DICTIONARIES, DICTIONARY_MODULES } from "../lib/i18n/dictionaries";
 import { translator } from "../lib/i18n/locale";
@@ -234,6 +236,8 @@ describe("the texts that reach t() through a variable", () => {
 			.filter((note) => note.length > 0),
 		...Object.values(GRANT_ACCESS_COPY),
 		GRANT_ACCESS_COPY_BOTH,
+		...Object.values(GRANT_ACCESS_INCOMPLETE),
+		GRANT_ACCESS_INCOMPLETE_BOTH,
 		...Object.values(USAGE_PROBE_OUTCOMES),
 		...Object.values(PLAN_LIMIT_MESSAGES),
 		BRAND.tagline,

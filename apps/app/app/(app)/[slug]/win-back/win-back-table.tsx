@@ -39,6 +39,7 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { withListState } from "./[contactId]/person-view";
 import { WinBackBulkVerdict } from "./win-back-bulk-verdict";
 import { WIN_BACK_UI } from "./win-back-config";
+import { winBackEmptyText } from "./win-back-empty";
 import {
 	winBackInput,
 	winBackScopeParsers,
@@ -289,6 +290,7 @@ export function WinBackTable() {
 		...trpc.reactivation.list.queryOptions(winBackInput(table.input, scope)),
 		placeholderData: (previous) => previous,
 	});
+	const reading = useQuery(trpc.reactivation.progress.queryOptions());
 
 	const rows = query.data?.rows ?? [];
 	const selection = useTableSelection(
@@ -429,7 +431,7 @@ export function WinBackTable() {
 						),
 					label: (row) => t("Show the people at {name}", { name: row.name }),
 				}}
-				empty={t("Nobody has gone quiet.")}
+				empty={winBackEmptyText(reading.data, t)}
 			/>
 			<ReadingProgress />
 		</div>

@@ -283,6 +283,7 @@
 	"No verdict": "Em aberto",
 	"Remove verdict": "Tirar a avaliação",
 	"Nobody has gone quiet.": "Ninguém ficou em silêncio.",
+	"Reloop is still reading your mail. Quiet customers show up here as soon as their conversations are read.": "O Reloop ainda está lendo seus e-mails. Clientes que ficaram em silêncio aparecem aqui assim que as conversas deles forem lidas.",
 	"Search by company or person…": "Buscar por empresa ou pessoa…",
 	"Take {name} off the list?": "Tirar {name} da lista?",
 	"This person leaves Win back at once. The agent archives them on its next pass, and their company when nobody else stays there.": "A pessoa sai de Reconquistar na hora. O agente arquiva ela na próxima passada, e a empresa dela quando não sobrar mais ninguém lá.",

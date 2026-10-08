@@ -97,7 +97,6 @@ export class TrackingRefileService {
 					name: fields.ok ? nameFrom(fields.value) : null,
 					firstTouch: firstTouch.ok ? firstTouch.value : undefined,
 					lastTouch: lastTouch.ok ? lastTouch.value : undefined,
-					deferred: true,
 				},
 				{ contactLimit: CONTACTS_PER_HOUR - FORM_REFILE.liveReserve },
 			);

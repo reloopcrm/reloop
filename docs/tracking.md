@@ -215,12 +215,14 @@ deleted* comes to be true of email and not of forms.
   after every accepted batch, and the `refile` window (`refileWindowKey`) lets
   one pass run per minute. The nightly retention sweep runs one more. A pass
   stops at the first row the contact cap refuses, because the hour is full.
-- **A refile never moves a visitor backwards.** When `attach` files a deferred
-  row, it looks for a filed submission of the same visitor with a later
-  `createdAt`. If one exists, the visitor keeps its `contactId` and `last*`
-  columns, so an old deferred form filed after a newer live one leaves the newer
-  contact and the newer campaign in place. It compares submission times, not
-  touch times, because two forms of one page load share one touch.
+- **A filing never moves a visitor backwards.** `attach` writes the visitor's
+  `contactId` and `last*` columns in one `UPDATE` whose `WHERE` refuses when a
+  filed submission of the same visitor has a later `createdAt`. So an old
+  deferred form, refiled or resent after a newer one, leaves the newer contact
+  and the newer campaign in place. It compares submission times, not touch
+  times, because two forms of one page load share one touch. The check and the
+  write are one statement, and a live filing claims its row before it writes the
+  visitor, so a refile running beside it cannot win with a stale answer.
 - **The trap code calls the DOM prototype**, `Element.prototype.querySelector`
   and `Node.prototype.appendChild`, because a control named `querySelector`
   shadows the form's own method and the call would throw.

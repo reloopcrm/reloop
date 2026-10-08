@@ -65,7 +65,6 @@ export class TrackingFilingService {
 			name: string | null;
 			firstTouch?: Touch;
 			lastTouch?: Touch;
-			deferred?: boolean;
 		},
 		options: { contactLimit: number } = { contactLimit: CONTACTS_PER_HOUR },
 	): Promise<FilingOutcome> {
@@ -173,7 +172,6 @@ export class TrackingFilingService {
 			visitorId: string | null;
 			firstTouch?: Touch;
 			lastTouch?: Touch;
-			deferred?: boolean;
 		},
 	): Promise<void> {
 		const { visitorId } = context;
@@ -211,25 +209,39 @@ export class TrackingFilingService {
 		if (!visitorId) return;
 
 		const first = columns(context.firstTouch, "first");
-		const last = columns(context.lastTouch, "last");
-
-		const superseded =
-			context.deferred &&
-			(await this.db.formSubmission.findFirst({
-				where: {
-					visitorId,
-					id: { not: submissionId },
-					filedAt: { not: null },
-					createdAt: { gt: submission.createdAt },
-				},
-				select: { id: true },
-			}));
 
 		await this.db.trackedVisitor.upsert({
 			where: { id: visitorId },
-			create: { id: visitorId, contactId, ...first, ...last },
-			update: superseded ? {} : { contactId, ...last },
+			create: { id: visitorId, ...first },
+			update: {},
 		});
+
+		const touch = context.lastTouch;
+		const lastColumns = touch
+			? Prisma.sql`,
+				"lastSource" = ${touch.source},
+				"lastMedium" = ${touch.medium},
+				"lastCampaign" = ${touch.campaign},
+				"lastTerm" = ${touch.term},
+				"lastContent" = ${touch.content},
+				"lastReferrer" = ${touch.referrer},
+				"lastLanding" = ${touch.landing},
+				"lastTouchAt" = ${touch.at}`
+			: Prisma.empty;
+
+		await this.db.$executeRaw`
+			UPDATE "trackedVisitor" SET
+				"contactId" = ${contactId},
+				"lastSeen" = ${new Date()}${lastColumns}
+			WHERE "id" = ${visitorId}
+				AND NOT EXISTS (
+					SELECT 1 FROM "formSubmission"
+					WHERE "visitorId" = ${visitorId}
+						AND "id" <> ${submissionId}
+						AND "filedAt" IS NOT NULL
+						AND "createdAt" > ${submission.createdAt}
+				);
+		`;
 	}
 
 	private async author(contactId: string): Promise<string | null> {

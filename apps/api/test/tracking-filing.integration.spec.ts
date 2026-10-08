@@ -448,6 +448,68 @@ describe("refiling a submission the cap held back", () => {
 		expect(stored?.contactId).toBe(contactId);
 	});
 
+	it("keeps the visitor on the newer contact when the tracker resends an older form", async () => {
+		const newer = await submit(`resent-newer-${suffix}@${domain}`);
+		const contactId = newer.outcome.filed ? newer.outcome.contactId : "";
+		const visitor = `visitor-${Math.random().toString(36).slice(2, 12)}`;
+		await db.trackedVisitor.create({ data: { id: visitor, contactId } });
+		await filedLater(visitor, contactId);
+		const email = `resent-older-${suffix}@${domain}`;
+		const row = await held(email);
+
+		const outcome = await filing.file({
+			id: row.id,
+			email,
+			host,
+			visitorId: visitor,
+			name: null,
+		});
+
+		expect(outcome.filed).toBe(true);
+		const stored = await db.trackedVisitor.findUnique({
+			where: { id: visitor },
+			select: { contactId: true },
+		});
+		expect(stored?.contactId).toBe(contactId);
+	});
+
+	it("writes the refiled form's last touch on a visitor it is the newest for", async () => {
+		const visitor = `visitor-${Math.random().toString(36).slice(2, 12)}`;
+		const row = await held(`touch-${suffix}@${domain}`);
+		await db.formSubmission.update({
+			where: { id: row.id },
+			data: {
+				visitorId: visitor,
+				lastTouch: {
+					source: "Google",
+					medium: "organic",
+					campaign: "spring",
+					term: null,
+					content: null,
+					referrer: null,
+					landing: "/pricing",
+					at: "2026-08-10T12:00:00.000Z",
+				},
+			},
+		});
+
+		expect(await refile.drain(1)).toBe(1);
+
+		const stored = await db.trackedVisitor.findUnique({
+			where: { id: visitor },
+			select: {
+				contactId: true,
+				firstSource: true,
+				lastCampaign: true,
+				lastTouchAt: true,
+			},
+		});
+		expect(stored?.contactId).not.toBeNull();
+		expect(stored?.firstSource).toBe("Google");
+		expect(stored?.lastCampaign).toBe("spring");
+		expect(stored?.lastTouchAt?.toISOString()).toBe("2026-08-10T12:00:00.000Z");
+	});
+
 	it("leaves the hour's last slots to forms that arrive live", async () => {
 		await spend(CONTACTS_PER_HOUR - FORM_REFILE.liveReserve);
 		const email = `reserve-${suffix}@${domain}`;

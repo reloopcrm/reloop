@@ -211,6 +211,31 @@ language in Settings > General. The API stores and serves the value and does not
   other stored text keeps the language it was written in. The business unit and
   description are edited by hand in Win back, Rules, because business setup keeps a
   value that is already set.
+- **A decline is hard or soft, and the agent decides.** `classifyWithModel` asks for
+  `declineKind` beside `outcome`: `HARD` is a no without interest shown first (no
+  price or offer asked, no talk about needs, only "no interest", "stop writing" or an
+  unsubscribe), `SOFT` is a no after interest (too expensive, no need right now,
+  another supplier). The same call names `stopRequest`, the number of their message
+  that asks us to stop; it is never stored. `insightAnswerFor(thread)` turns it into
+  `DECLINED` and `HARD`, whatever the model said, but only when that message is the
+  person's latest real answer in the transcript (`isTheirAnswer` in
+  `lib/thread-decline.ts`: their own address, no auto reply, no bounce), so a later
+  mail from them outweighs it. The model also names `declineMessage`, the number of
+  the message that says no. A `HARD` answer counts only when that message is the
+  person's latest real answer, so a colleague's no never hides the thread's owner;
+  otherwise, and when no kind is given, a `DECLINED` answer is `SOFT`. Any other
+  outcome has no kind. A hard no stores `declinedAt`, the time of the person's
+  latest real answer in the thread, so a later mail from us never moves it. A stored
+  hard no survives a new read until the person answers after `declinedAt`
+  (`keptDecline`), so a thread whose refusal slid out of the transcript keeps it. It
+  survives only while the mail at `declinedAt` is still their real answer, so a
+  direction repair that turns it into our mail clears it. A repair reread of an
+  off topic thread that keeps a hard no reads it again (`readPlan`) instead of
+  copying the stored row, so the check runs there too. The
+  columns are `ThreadInsight.declineKind` and `ThreadInsight.declinedAt`, read through
+  `parseDeclineKind` (`@crm/validation/thread-decline`). A row read before this field
+  is null and counts as soft; nothing rereads old threads for it, the next normal
+  read fills it.
 - **The record sheet shows the brief, not the memory.** `ContactMemory.summary` is the
   long running memory a draft and the win back list read, at most
   `MEMORY.summaryMaxChars`. `ContactMemory.brief` is written in the same call, at most

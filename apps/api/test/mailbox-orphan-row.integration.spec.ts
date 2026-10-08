@@ -14,6 +14,7 @@ import {
 } from "@crm/auth";
 import { db, GoogleSyncStatus } from "@crm/db";
 import { readPlan, writePlan } from "@crm/db/settings";
+import { actWithoutPlans, actWithTestPlans } from "@crm/db/test-plans";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
@@ -90,6 +91,7 @@ async function grant(id: string, providerId: string, scope: string) {
 }
 
 beforeAll(async () => {
+	actWithTestPlans();
 	planBefore = await readPlan(db);
 });
 
@@ -105,6 +107,7 @@ beforeEach(async () => {
 afterAll(async () => {
 	await clean();
 	await writePlan(db, planBefore);
+	actWithoutPlans();
 });
 
 describe("a mailbox row whose OAuth never finished", () => {
@@ -164,7 +167,7 @@ describe("a mailbox row whose OAuth never finished", () => {
 
 describe("an unfinished mailbox connection that finishes", () => {
 	it("stays when the plan has room for it", async () => {
-		await writePlan(db, "trial");
+		await writePlan(db, "small");
 		expect(await countMailboxes(db)).toBe(0);
 		await google.setImportSince(userId, null);
 		await grant(userId, GOOGLE_PROVIDER_ID, GMAIL_SCOPE);
@@ -176,7 +179,7 @@ describe("an unfinished mailbox connection that finishes", () => {
 	});
 
 	it("keeps two Gmail connections inside a one-mailbox plan", async () => {
-		await writePlan(db, "trial");
+		await writePlan(db, "small");
 		expect(await countMailboxes(db)).toBe(0);
 		for (const id of users) await google.setImportSince(id, null);
 		for (const id of users) await grant(id, GOOGLE_PROVIDER_ID, GMAIL_SCOPE);
@@ -191,7 +194,7 @@ describe("an unfinished mailbox connection that finishes", () => {
 	});
 
 	it("keeps two Outlook connections inside a one-mailbox plan", async () => {
-		await writePlan(db, "trial");
+		await writePlan(db, "small");
 		expect(await countMailboxes(db)).toBe(0);
 		for (const id of users) await microsoft.setImportSince(id, null);
 		for (const id of users)
@@ -207,7 +210,7 @@ describe("an unfinished mailbox connection that finishes", () => {
 	});
 
 	it("keeps a row a sync tick is running on", async () => {
-		await writePlan(db, "trial");
+		await writePlan(db, "small");
 		for (const id of users) await google.setImportSince(id, null);
 		for (const id of users) await grant(id, GOOGLE_PROVIDER_ID, GMAIL_SCOPE);
 		const row = await state.get(userId, "gmail");

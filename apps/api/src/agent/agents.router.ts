@@ -168,6 +168,7 @@ export class AgentsRouter {
 		output: agentResumeOutput,
 		meta: restMeta("POST", "/agents/{id}/resume", ["Agents"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async resume(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
 		return this.agents.resume(id, ctx.user.id);
 	}
@@ -186,6 +187,7 @@ export class AgentsRouter {
 		output: agentRestoreOutput,
 		meta: restMeta("POST", "/agents/{id}/restore", ["Agents"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	async restore(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
 		return this.agents.restore(id, ctx.user.id);
 	}

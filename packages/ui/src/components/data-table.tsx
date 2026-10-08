@@ -37,6 +37,7 @@ import {
 import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import type { TableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useUiT } from "@crm/ui/lib/i18n";
+import { ROW_FOCUS } from "@crm/ui/lib/row-accent";
 import { insideRow } from "@crm/ui/lib/row-click";
 import {
 	fitColumnWidths,
@@ -669,8 +670,7 @@ export function DataTable<TRow, TSub = unknown>({
 					className={cn(
 						"group/row",
 						CARD_ROW,
-						clickable &&
-							"cursor-pointer outline-none focus-visible:bg-active focus-visible:shadow-[inset_2px_0_0_var(--ring)]",
+						clickable && ["cursor-pointer", ROW_FOCUS],
 						isOpen && "bg-muted",
 					)}
 				>

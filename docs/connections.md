@@ -178,8 +178,9 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   the event queues nothing twice. The task carries the event's record id in
   `contactId`, `companyId` or `dealId` (`crmEventRecordIds`), so "Delete forever"
   removes an open delivery with the record and nothing about them is sent after.
-  The queued badge and the enrichment queue leave `webhook-delivery` out, because
-  a delivery is not research about the person. There is no second delivery path and no
+  The queued badge, the enrichment queue and the open-request check that settles
+  a record's enrichment status (`hasOpenRequest`) leave `webhook-delivery` out,
+  because a delivery is not research about the person. There is no second delivery path and no
   outbound call in Nest.
 - **Delivery has its own lane.** `runWebhookLane` runs beside the visible,
   insight and research lanes, and `webhook-delivery` is filtered out of

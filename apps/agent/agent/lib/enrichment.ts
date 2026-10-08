@@ -1,5 +1,6 @@
 import { db, EnrichmentStatus, type Prisma } from "@crm/db";
 import { ownsCompanyStatus, ownsContactStatus } from "@crm/db/agent-tasks";
+import { WEBHOOKS } from "@crm/db/webhooks";
 import { publicReason } from "./model";
 import type { TaskSubject } from "./tasks";
 
@@ -151,7 +152,12 @@ async function hasOpenRequest(subject: TaskSubject): Promise<boolean> {
 	if (owners.length === 0) return false;
 
 	const open = await db.agentTask.findFirst({
-		where: { id: { not: subject.id }, finishedAt: null, OR: owners },
+		where: {
+			id: { not: subject.id },
+			kind: { not: WEBHOOKS.kind },
+			finishedAt: null,
+			OR: owners,
+		},
 		select: { id: true },
 	});
 

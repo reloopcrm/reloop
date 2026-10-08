@@ -257,7 +257,10 @@ describe("senders of a relevant thread", () => {
 		const a = await contactA("anna");
 		const threadId = await relevantThread({
 			contactId: a.id,
-			messages: [{ from: `anna@${domain}` }, { from: `bert@${domain}` }],
+			messages: [
+				{ from: `anna@${domain}`, sentAt: new Date("2026-09-17T09:00:00Z") },
+				{ from: `bert@${domain}`, sentAt: new Date("2026-09-17T10:00:00Z") },
+			],
 		});
 
 		expect(await pass.addFromRelevantThreads()).toBe(1);

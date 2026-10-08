@@ -8,15 +8,17 @@ import {
 } from "bun:test";
 import { db } from "@crm/db";
 import {
-	CONTACT_CAP_REASON,
 	CONTACTS_PER_HOUR,
 	contactWindowKey,
+	FORM_REFILE,
+	TRACKING_SKIP,
 } from "@crm/db/tracking";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { CompanyDirectoryService } from "../src/companies/company-directory.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import { TrackingCounterService } from "../src/tracking/tracking-counter.service";
 import { TrackingFilingService } from "../src/tracking/tracking-filing.service";
+import { TrackingRefileService } from "../src/tracking/tracking-refile.service";
 import { withDiscardedCrmEvents } from "./agent-trigger.stub";
 
 const suffix = process.env.TEST_RUN_ID ?? "filing-spec";
@@ -39,6 +41,7 @@ const stamp = new ActivityStampService(db);
 const counters = new TrackingCounterService(db);
 const directory = new CompanyDirectoryService(agent);
 const filing = new TrackingFilingService(db, counters, directory, agent, stamp);
+const refile = new TrackingRefileService(db, counters, filing);
 
 let userId: string;
 
@@ -290,7 +293,88 @@ describe("filing a form submission", () => {
 
 		expect(outcome.filed).toBe(false);
 		expect(stored?.contactId).toBeNull();
-		expect(stored?.skipReason).toBe(CONTACT_CAP_REASON);
+		expect(stored?.skipReason).toBe(TRACKING_SKIP.contactCap);
+	});
+});
+
+describe("refiling a submission the cap held back", () => {
+	async function held(email: string) {
+		return db.formSubmission.create({
+			data: {
+				host,
+				path: "/pricing",
+				email,
+				visitorId: `visitor-${Math.random().toString(36).slice(2, 12)}`,
+				fields: { name: "Dana Reed", email },
+				firstTouch: {
+					source: "Google",
+					medium: "organic",
+					campaign: null,
+					term: null,
+					content: null,
+					referrer: "https://www.google.com/",
+					landing: "/pricing",
+					at: "2026-08-10T12:00:00.000Z",
+				},
+				dedupeKey: `${suffix}-held-${Math.random().toString(36).slice(2)}`,
+				skipReason: TRACKING_SKIP.contactCap,
+				createdAt: new Date(Date.UTC(2000, 0, 1)),
+			},
+			select: { id: true },
+		});
+	}
+
+	async function spend(value: number) {
+		await db.trackingCounter.upsert({
+			where: { key: contactWindowKey() },
+			create: {
+				key: contactWindowKey(),
+				value,
+				expiresAt: new Date(Date.now() + 3_600_000),
+			},
+			update: { value },
+		});
+	}
+
+	it("files it as a contact once the hour has room", async () => {
+		const email = `held-${suffix}@${domain}`;
+		const row = await held(email);
+
+		expect(await refile.drain(1)).toBe(1);
+
+		const stored = await db.formSubmission.findUnique({
+			where: { id: row.id },
+			select: { filedAt: true, skipReason: true, contactId: true },
+		});
+		const contact = await db.contact.findFirst({
+			where: { email },
+			select: { firstName: true, lastName: true },
+		});
+
+		expect(stored?.filedAt).not.toBeNull();
+		expect(stored?.skipReason).toBeNull();
+		expect(contact).toEqual({ firstName: "Dana", lastName: "Reed" });
+		expect(queued).toHaveLength(1);
+	});
+
+	it("leaves the hour's last slots to forms that arrive live", async () => {
+		await spend(CONTACTS_PER_HOUR - FORM_REFILE.liveReserve);
+		const email = `reserve-${suffix}@${domain}`;
+		const row = await held(email);
+
+		expect(await refile.drain(1)).toBe(0);
+
+		const stored = await db.formSubmission.findUnique({
+			where: { id: row.id },
+			select: { filedAt: true, skipReason: true },
+		});
+		expect(stored).toEqual({
+			filedAt: null,
+			skipReason: TRACKING_SKIP.contactCap,
+		});
+
+		const live = await submit(`live-${suffix}@${domain}`);
+		expect(live.outcome.filed).toBe(true);
 	});
 });
 

@@ -137,6 +137,39 @@ describe("Tracking collector", () => {
 			expect(rows).toEqual([{ path: "/kept" }]);
 		});
 
+		it("limits forms by a keyed hash of the client address, never the address", async () => {
+			forSite();
+			const address = "203.0.113.77";
+
+			const response = await post(
+				JSON.stringify({
+					siteId: SITE_ID,
+					visitorId: "collector00005",
+					events: [
+						{
+							type: "form_submit",
+							host: HOST,
+							path: "/contact",
+							at: Date.now(),
+							fields: { topic: "pricing" },
+						},
+					],
+				}),
+			).set("x-forwarded-for", address);
+
+			expect(response.status).toBe(204);
+
+			const keys = await db.trackingCounter.findMany({
+				where: { key: { startsWith: "form-client:" } },
+				select: { key: true },
+			});
+
+			expect(keys.length).toBeGreaterThan(0);
+			expect(JSON.stringify(keys)).not.toContain(address);
+
+			await db.formSubmission.deleteMany({ where: { host: HOST } });
+		});
+
 		it("still stores a batch shaped like the tracking script's", async () => {
 			forSite();
 

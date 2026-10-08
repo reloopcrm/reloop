@@ -2,9 +2,9 @@ import { workspaceDomains } from "@crm/auth";
 import { ActivityType, type Db, Prisma, RecordSource } from "@crm/db";
 import type { Touch } from "@crm/db/attribution";
 import {
-	CONTACT_CAP_REASON,
 	CONTACTS_PER_HOUR,
 	contactWindowKey,
+	TRACKING_SKIP,
 } from "@crm/db/tracking";
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -56,15 +56,18 @@ export class TrackingFilingService {
 		private readonly stamp: ActivityStampService,
 	) {}
 
-	async file(submission: {
-		id: string;
-		email: string | null;
-		host: string;
-		visitorId: string | null;
-		name: string | null;
-		firstTouch?: Touch;
-		lastTouch?: Touch;
-	}): Promise<FilingOutcome> {
+	async file(
+		submission: {
+			id: string;
+			email: string | null;
+			host: string;
+			visitorId: string | null;
+			name: string | null;
+			firstTouch?: Touch;
+			lastTouch?: Touch;
+		},
+		options: { contactLimit: number } = { contactLimit: CONTACTS_PER_HOUR },
+	): Promise<FilingOutcome> {
 		const email = normalizeEmail(submission.email ?? "");
 		if (!email) return this.skip(submission.id, "No email address");
 
@@ -98,8 +101,8 @@ export class TrackingFilingService {
 
 		const window = contactWindowKey();
 
-		if (!(await this.counters.take(window, CONTACTS_PER_HOUR))) {
-			return this.skip(submission.id, CONTACT_CAP_REASON);
+		if (!(await this.counters.take(window, options.contactLimit))) {
+			return this.skip(submission.id, TRACKING_SKIP.contactCap);
 		}
 
 		const companyId = await this.companies.companyForEmail(email);

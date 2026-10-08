@@ -12,6 +12,7 @@ import { TrackingConfigService } from "./tracking-config.service";
 import { TrackingCounterService } from "./tracking-counter.service";
 import { TrackingFilingService } from "./tracking-filing.service";
 import { TrackingIngestService } from "./tracking-ingest.service";
+import { TrackingRefileService } from "./tracking-refile.service";
 import { TrackingRollupService } from "./tracking-rollup.service";
 
 @Module({
@@ -22,6 +23,7 @@ import { TrackingRollupService } from "./tracking-rollup.service";
 		TrackingCounterService,
 		TrackingFilingService,
 		TrackingIngestService,
+		TrackingRefileService,
 		TrackingRollupService,
 		TrackingService,
 		TrackingRouter,

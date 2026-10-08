@@ -9,7 +9,7 @@ import {
 } from "@crm/db";
 import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import { chatModelFor, readAgentProvider } from "@crm/db/settings";
-import { CONTACT_CAP_REASON } from "@crm/db/tracking";
+import { CONTACT_CAP_REASONS } from "@crm/db/tracking";
 import { WORKSPACE_ID } from "@crm/db/workspace";
 import {
 	bucket,
@@ -519,7 +519,10 @@ export class RollupService {
 				where: { createdAt: { gte: since }, source: RecordSource.TRACKING },
 			}),
 			this.db.formSubmission.count({
-				where: { createdAt: { gte: since }, skipReason: CONTACT_CAP_REASON },
+				where: {
+					createdAt: { gte: since },
+					skipReason: { in: [...CONTACT_CAP_REASONS] },
+				},
 			}),
 			this.db.appSetting.count({ where: { trackingPaused: true } }),
 		]);

@@ -136,6 +136,17 @@ export async function postponeTask(taskId: string, until: Date): Promise<void> {
 	`;
 }
 
+export async function returnClaim(taskId: string, until: Date): Promise<void> {
+	await db.$executeRaw`
+		UPDATE "agentTask"
+		SET "dueAt" = ${until},
+			"leasedUntil" = NULL,
+			"startedAt" = CASE WHEN "attempts" <= 1 THEN NULL ELSE "startedAt" END,
+			"attempts" = GREATEST("attempts" - 1, 0)
+		WHERE id = ${taskId} AND "finishedAt" IS NULL
+	`;
+}
+
 export async function completeTask(
 	taskId: string,
 	outcome: string,

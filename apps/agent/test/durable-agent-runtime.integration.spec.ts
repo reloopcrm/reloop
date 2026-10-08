@@ -1235,3 +1235,56 @@ describe("team-agent run delivery", () => {
 		});
 	});
 });
+
+describe("builder delivery", () => {
+	it("clears the answered builder question when only the acceptance write fails", async () => {
+		const sessionId = `durable-session-${suffix}-answered`;
+		const created = await db.agentConversation.create({
+			data: {
+				kind: "BUILDER",
+				userId,
+				sessionId,
+				pendingInputRequest: {
+					requestId: "durable-answered",
+					prompt: "Which day?",
+				},
+			},
+			select: { id: true },
+		});
+		builderConversationIds.push(created.id);
+		const conversation = await db.agentConversation.update({
+			where: { id: created.id },
+			data: {
+				continuationToken: builderToken(created.id),
+				submissions: {
+					create: {
+						submittedById: userId,
+						clientRequestId: crypto.randomUUID(),
+						message: {
+							text: "Monday",
+							inputResponse: {
+								requestId: "durable-answered",
+								text: "Monday",
+							},
+						},
+					},
+				},
+			},
+			select: { id: true, submissions: { select: { id: true } } },
+		});
+		const submissionId = conversation.submissions[0]?.id ?? "";
+		const send = (async () => {
+			await db.agentConversationSubmission.deleteMany({
+				where: { id: submissionId },
+			});
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		await dispatchBuilderSubmission(submissionId, send);
+		const settled = await db.agentConversation.findUniqueOrThrow({
+			where: { id: conversation.id },
+		});
+		expect(settled.sessionId).toBe(sessionId);
+		expect(settled.pendingInputRequest).toBeNull();
+	});
+});

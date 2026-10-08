@@ -245,10 +245,27 @@ export async function dispatchBuilderSubmission(
 					where: { id: conversationId, kind: "BUILDER", sessionId: null },
 					data: { sessionId },
 				}),
+			() => clearAnsweredQuestion(conversationId, submission.message),
 		],
 	);
 
 	return session;
+}
+
+async function clearAnsweredQuestion(
+	conversationId: string,
+	message: Prisma.JsonValue,
+) {
+	const { requestId } = builderSubmissionMessage.parse(message).inputResponse;
+	if (!requestId) return;
+	await db.agentConversation.updateMany({
+		where: {
+			id: conversationId,
+			kind: "BUILDER",
+			pendingInputRequest: { path: ["requestId"], equals: requestId },
+		},
+		data: { pendingInputRequest: Prisma.DbNull },
+	});
 }
 
 export async function queueDueAgentRuns(now = new Date()): Promise<number> {

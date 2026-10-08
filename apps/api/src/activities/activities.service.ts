@@ -19,6 +19,7 @@ import { ActivityStampService } from "../crm/activity-stamp.service";
 import { blankToNull } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
 import type {
+	ActivityCreated,
 	ActivityCreateInput,
 	ActivityEntry,
 	ActivityUpdateInput,
@@ -165,7 +166,8 @@ export class ActivitiesService {
 	async create(
 		input: ActivityCreateInput,
 		actingUserId: string,
-	): Promise<ActivityEntry> {
+		now = new Date(),
+	): Promise<ActivityCreated> {
 		const companyId = await this.resolveCompanyId(input);
 
 		const isTask = input.type === ActivityType.TASK;
@@ -183,9 +185,15 @@ export class ActivitiesService {
 			meta: input.winBackLater ? WIN_BACK_LATER_META : undefined,
 		};
 		const target = input.winBackLater ? snoozeTargetOf(data) : null;
-		const activity = target
-			? await this.writeSnooze(data, target)
-			: await this.db.activity.create({ data, select: ENTRY_SELECT });
+		const { activity, movedFrom } = target
+			? await this.writeSnooze(data, target, actingUserId, now)
+			: {
+					activity: await this.db.activity.create({
+						data,
+						select: ENTRY_SELECT,
+					}),
+					movedFrom: null,
+				};
 
 		await this.stamp.touch(
 			{ companyId, contactId: input.contactId, dealId: input.dealId },
@@ -198,7 +206,7 @@ export class ActivitiesService {
 			type: activity.type,
 		});
 
-		return serializeEntry(activity, actingUserId);
+		return { ...serializeEntry(activity, actingUserId), movedFrom };
 	}
 
 	async complete(
@@ -364,21 +372,44 @@ export class ActivitiesService {
 	private writeSnooze(
 		data: Prisma.ActivityUncheckedCreateInput,
 		target: SnoozeTarget,
+		actingUserId: string,
+		now: Date,
 	) {
 		return this.db.$transaction(async (tx) => {
 			await lockIdempotencyKey(tx, snoozeLockKey(target));
-			const open = await tx.activity.findFirst({
-				where: openSnoozeTask(target),
-				orderBy: { dueAt: { sort: "desc", nulls: "last" } },
-				select: { id: true },
+			const open = await tx.activity.findMany({
+				where: openSnoozeTask(target, now),
+				orderBy: { dueAt: "desc" },
+				select: {
+					id: true,
+					type: true,
+					subject: true,
+					dueAt: true,
+					meta: true,
+					emailThreadId: true,
+					calendarEventId: true,
+					createdById: true,
+				},
 			});
-			if (!open) return tx.activity.create({ data, select: ENTRY_SELECT });
+			const mine = open.find((task) => isEditable(task, actingUserId));
+			if (!mine) {
+				return {
+					activity: await tx.activity.create({ data, select: ENTRY_SELECT }),
+					movedFrom: null,
+				};
+			}
 
-			return tx.activity.update({
-				where: { id: open.id },
-				data: { dueAt: data.dueAt, subject: data.subject },
-				select: ENTRY_SELECT,
-			});
+			return {
+				activity: await tx.activity.update({
+					where: { id: mine.id },
+					data: { dueAt: data.dueAt, subject: data.subject },
+					select: ENTRY_SELECT,
+				}),
+				movedFrom: {
+					dueAt: mine.dueAt?.toISOString() ?? null,
+					subject: mine.subject,
+				},
+			};
 		});
 	}
 

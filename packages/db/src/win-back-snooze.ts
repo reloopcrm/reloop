@@ -56,10 +56,12 @@ export async function snoozedUntil(
 
 export function openSnoozeTask(
 	target: SnoozeTarget,
+	now: Date,
 ): Prisma.ActivityWhereInput {
 	return {
 		type: ActivityType.TASK,
 		completedAt: null,
+		dueAt: { gt: now },
 		meta: { equals: WIN_BACK_LATER_META },
 		...(target.contactId === null
 			? { contactId: null, companyId: target.companyId }

@@ -54,10 +54,12 @@ import {
 	answerIsNext,
 	type CardStep,
 	followUpDaysOf,
+	type LaterUndo,
 	type NextPerson,
 	nextLabel,
 	type PersonView,
 	replyDraftOutdated,
+	undoOfLater,
 	withListState,
 } from "./person-view";
 
@@ -68,7 +70,7 @@ type Variant = "full" | "short";
 type Verdict = "good" | "bad" | "later" | null;
 
 type Done =
-	| { kind: "later"; reminderId: string }
+	| { kind: "later"; undo: LaterUndo }
 	| { kind: "skip"; previous: Verdict }
 	| { kind: "sent"; previous: Verdict; marked: boolean };
 
@@ -148,6 +150,12 @@ export function useNextStep(
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
+	const restore = useMutation(
+		trpc.activities.update.mutationOptions({
+			onSuccess: () => void cache.activity({ winBack: true }),
+			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
 	const wake = useMutation(
 		trpc.reactivation.bringBack.mutationOptions({
 			onSuccess: () => {
@@ -168,7 +176,17 @@ export function useNextStep(
 	};
 
 	const revert = (entry: Done | null) => {
-		if (entry?.kind === "later") unremind.mutate({ id: entry.reminderId });
+		if (entry?.kind === "later") {
+			const { undo } = entry;
+			if (undo.kind === "remove") unremind.mutate({ id: undo.id });
+			else {
+				restore.mutate({
+					id: undo.id,
+					dueAt: undo.dueAt,
+					subject: undo.subject,
+				});
+			}
+		}
 		if (entry?.kind === "skip" || (entry?.kind === "sent" && entry.marked)) {
 			feedback.mutate({ contactIds: [contactId], verdict: entry.previous });
 		}
@@ -218,7 +236,7 @@ export function useNextStep(
 				onSuccess: (entry) =>
 					finish(
 						"later",
-						{ kind: "later", reminderId: entry.id },
+						{ kind: "later", undo: undoOfLater(entry) },
 						t("Reloop reminds you of {name} on {date}.", {
 							name: first,
 							date: remindText,

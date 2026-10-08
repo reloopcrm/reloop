@@ -14,6 +14,7 @@ import type { WinBackStoryPrefetchService } from "../src/reactivation/win-back-s
 const suffix = process.env.TEST_RUN_ID ?? "win-back-snooze-spec";
 const domain = `snooze-${suffix}.test`;
 const userId = `user-${suffix}`;
+const colleagueId = `colleague-${suffix}`;
 
 const DAY_MS = 86_400_000;
 const now = new Date("2026-06-01T10:00:00.000Z");
@@ -204,7 +205,7 @@ afterAll(async () => {
 	});
 	await db.contact.deleteMany({ where: { id: { in: contactIds } } });
 	await db.company.deleteMany({ where: { id: { in: companyIds } } });
-	await db.user.deleteMany({ where: { id: userId } });
+	await db.user.deleteMany({ where: { id: { in: [userId, colleagueId] } } });
 });
 
 function idsOf(...names: string[]): string[] {
@@ -501,6 +502,7 @@ describe("a second Remind me", () => {
 				winBackLater: true,
 			},
 			userId,
+			now,
 		);
 		const second = await activities.create(
 			{
@@ -511,10 +513,16 @@ describe("a second Remind me", () => {
 				winBackLater: true,
 			},
 			userId,
+			now,
 		);
 		const tasks = await laterTasksOf({ contactId });
 
 		expect(second.id).toBe(first.id);
+		expect(first.movedFrom).toBeNull();
+		expect(second.movedFrom).toEqual({
+			dueAt: remindOn.toISOString(),
+			subject: "Get back to kilo",
+		});
 		expect(tasks).toHaveLength(1);
 		expect(tasks[0]?.dueAt?.toISOString()).toBe(later.toISOString());
 		expect((await person.person(contactId, now)).snoozedUntil).toBe(
@@ -534,6 +542,7 @@ describe("a second Remind me", () => {
 					winBackLater: true,
 				},
 				userId,
+				now,
 			);
 		}
 		const tasks = await laterTasksOf({ companyId });
@@ -552,6 +561,7 @@ describe("a second Remind me", () => {
 				contactId,
 			},
 			userId,
+			now,
 		);
 		const stored = await db.activity.findUniqueOrThrow({
 			where: { id: plain.id },
@@ -620,6 +630,7 @@ describe("Bring back", () => {
 				winBackLater: true,
 			},
 			userId,
+			now,
 		);
 		const open = (await laterTasksOf({ contactId })).filter(
 			(task) => task.completedAt === null,
@@ -629,5 +640,79 @@ describe("Bring back", () => {
 		expect((await person.person(contactId, now)).snoozedUntil).toBe(
 			remindOn.toISOString(),
 		);
+	});
+});
+
+describe("a Remind me beside a reminder it may not move", () => {
+	beforeAll(async () => {
+		await db.user.upsert({
+			where: { id: colleagueId },
+			create: {
+				id: colleagueId,
+				name: "Snooze colleague",
+				email: `colleague@${domain}`,
+				emailVerified: true,
+			},
+			update: {},
+		});
+		await personAt("mike", await companyNamed("m"));
+		await db.activity.create({
+			data: {
+				type: ActivityType.TASK,
+				subject: "Get back to mike",
+				occurredAt: now,
+				dueAt: remindOn,
+				contactId: ids.mike ?? null,
+				createdById: colleagueId,
+				meta: LATER,
+			},
+		});
+	});
+
+	it("writes its own reminder and leaves a colleague's alone", async () => {
+		const contactId = ids.mike ?? "";
+		const later = new Date(now.getTime() + 14 * DAY_MS);
+		const mine = await activities.create(
+			{
+				type: ActivityType.TASK,
+				subject: "Get back to mike",
+				dueAt: later.toISOString(),
+				contactId,
+				winBackLater: true,
+			},
+			userId,
+			now,
+		);
+		const colleague = await db.activity.findFirstOrThrow({
+			where: { contactId, createdById: colleagueId },
+			select: { id: true, dueAt: true },
+		});
+
+		expect(mine.movedFrom).toBeNull();
+		expect(mine.id).not.toBe(colleague.id);
+		expect(colleague.dueAt?.toISOString()).toBe(remindOn.toISOString());
+	});
+
+	it("writes a new reminder next to one that is already due", async () => {
+		const contactId = ids.foxtrot ?? "";
+		const fresh = await activities.create(
+			{
+				type: ActivityType.TASK,
+				subject: "Get back to foxtrot",
+				dueAt: remindOn.toISOString(),
+				contactId,
+				winBackLater: true,
+			},
+			userId,
+			now,
+		);
+		const tasks = await laterTasksOf({ contactId });
+
+		expect(fresh.movedFrom).toBeNull();
+		expect(tasks).toHaveLength(2);
+		expect(tasks.map((task) => task.dueAt?.toISOString()).sort()).toEqual([
+			daysAgo(1).toISOString(),
+			remindOn.toISOString(),
+		]);
 	});
 });

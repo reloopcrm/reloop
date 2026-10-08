@@ -210,7 +210,13 @@ export type TimelineCounts = z.infer<typeof timelineCountsOutput>;
 
 export const myTasksOutput = z.array(activityEntryOutput);
 
-export const activityCreateOutput = activityEntryOutput;
+export const activityCreateOutput = activityEntryOutput.extend({
+	movedFrom: z
+		.object({ dueAt: z.string().nullable(), subject: z.string().nullable() })
+		.nullable(),
+});
+
+export type ActivityCreated = z.infer<typeof activityCreateOutput>;
 
 export const completeOutput = activityEntryOutput;
 

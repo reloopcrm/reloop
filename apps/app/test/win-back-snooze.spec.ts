@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { undoOfLater } from "@/app/(app)/[slug]/win-back/[contactId]/person-view";
 import {
 	winBackInput,
 	winBackSearchParams,
@@ -69,5 +70,31 @@ describe("the Snoozed filter", () => {
 			expect(dictionary.Snoozed).toBe(snoozed);
 			expect(dictionary["Wrote back"]).toBe(wroteBack);
 		}
+	});
+});
+
+describe("Undo after Remind me", () => {
+	it("deletes a reminder it just wrote", () => {
+		expect(undoOfLater({ id: "task-1", movedFrom: null })).toEqual({
+			kind: "remove",
+			id: "task-1",
+		});
+	});
+
+	it("puts a moved reminder back on its old day and subject", () => {
+		expect(
+			undoOfLater({
+				id: "task-1",
+				movedFrom: {
+					dueAt: "2026-06-08T00:00:00.000Z",
+					subject: "Get back to Ada",
+				},
+			}),
+		).toEqual({
+			kind: "restore",
+			id: "task-1",
+			dueAt: "2026-06-08T00:00:00.000Z",
+			subject: "Get back to Ada",
+		});
 	});
 });

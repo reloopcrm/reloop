@@ -130,6 +130,63 @@ describe("moving a deal to another company", () => {
 	});
 });
 
+describe("two moves of one deal at once", () => {
+	it("leaves the activities at the company the deal ends at", async () => {
+		const first = await company("first");
+		const second = await company("second");
+		const deal = await deals.create({
+			name: `Racing ${suffix}`,
+			companyId: first.id,
+			ownerId: userId,
+		});
+		await db.activity.create({
+			data: {
+				type: ActivityType.NOTE,
+				subject: "Race notes",
+				companyId: first.id,
+				dealId: deal.id,
+				createdById: userId,
+			},
+		});
+
+		let release = () => {};
+		const held = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let locked = () => {};
+		const lockTaken = new Promise<void>((resolve) => {
+			locked = resolve;
+		});
+		const holder = db.$transaction(
+			async (tx) => {
+				await tx.$queryRaw`SELECT id FROM deal WHERE id = ${deal.id} FOR UPDATE`;
+				locked();
+				await held;
+			},
+			{ timeout: 10_000 },
+		);
+		await lockTaken;
+
+		const away = deals.update(deal.id, { companyId: second.id });
+		await Bun.sleep(300);
+		const back = deals.update(deal.id, { companyId: first.id });
+		await Bun.sleep(300);
+		release();
+		await holder;
+		await Promise.all([away, back]);
+
+		const stored = await db.deal.findUniqueOrThrow({
+			where: { id: deal.id },
+			select: { companyId: true },
+		});
+		const activities = await db.activity.findMany({
+			where: { dealId: deal.id },
+			select: { companyId: true },
+		});
+		expect(activities.map((row) => row.companyId)).toEqual([stored.companyId]);
+	});
+});
+
 describe("creating a deal that is already lost", () => {
 	it("refuses a losing stage without a reason", async () => {
 		const owner = await company("lost");

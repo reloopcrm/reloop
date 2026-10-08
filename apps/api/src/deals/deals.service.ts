@@ -564,13 +564,12 @@ export class DealsService {
 					await this.fields.applyValues(tx, "DEAL", id, input.fields);
 				}
 
-				const before =
+				const [before] =
 					input.companyId === undefined
-						? null
-						: await tx.deal.findUnique({
-								where: { id },
-								select: { companyId: true },
-							});
+						? []
+						: await tx.$queryRaw<Array<{ companyId: string }>>`
+								SELECT "companyId" FROM deal WHERE id = ${id} FOR UPDATE
+							`;
 
 				const result = await tx.deal.update({
 					where: { id },

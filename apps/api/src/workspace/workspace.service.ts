@@ -5,6 +5,7 @@ import {
 	canRenameWorkspace,
 	endAccessOf,
 	ensureWorkspaceMembership,
+	forgetStoredGrantsOf,
 	generatePassword,
 	grantSignInInTransaction,
 	hashPassword,
@@ -314,6 +315,7 @@ export class WorkspaceService {
 				data: { removedAt: new Date() },
 			});
 			await endAccessOf(tx, [target.userId]);
+			await forgetStoredGrantsOf(tx, [target.userId]);
 
 			return { id: target.id, user };
 		});

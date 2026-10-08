@@ -122,10 +122,10 @@ here, what do we sell.
   `FOR UPDATE` count as a demotion. The `user` row stays, because contacts, deals,
   activities, agent runs and more than twenty other relations point at it; it gets
   `removedAt`. The `member` row, every `session` and every `apikey` of the person are
-  deleted; no other table points at them. In the same transaction `endAccessOf`
-  clears the stored grants and keeps their rows: the access, refresh and id tokens
-  and their expiry on every `account` except Slack, the sealed `imapAccount.secret`,
-  and the user token of a pending `slackInstallation` of that person. Every
+  deleted; no other table points at them. In the same transaction
+  `forgetStoredGrantsOf` clears the stored grants and keeps their rows: the access,
+  refresh and id tokens and their expiry on every `account` except Slack, the sealed
+  `imapAccount.secret`, and the user token of a pending `slackInstallation` of that person. Every
   `mailboxSync` row of the person turns `NEEDS_RECONNECT` with
   `MAILBOX_ACCESS_ENDED_REASON`, so cursors, settings and filed mail stay and the
   tick skips the rows. Only connecting the mailbox again resumes it: Google and
@@ -241,8 +241,7 @@ self-hoster's admin cannot redeploy.
   transaction, so two grants, or a grant and a revoke, never overwrite each other.
 - **`revokeSignIn` ends access, not only the grant.** In one transaction it takes the
   address off `AppSetting.signInAddresses` and runs `endAccessOf`, which deletes every
-  `session` and every `apikey` of the account with that address and clears its stored
-  mailbox grants (see removing a member). `removeMember` runs the
+  `session` and every `apikey` of the account with that address. `removeMember` runs the
   same `endAccessOf`. A row left behind would come back to life the day the address is
   granted again. With no account for the address, only the list changes.
 - `organizationProvisioning: { disabled: true }` — `ensureWorkspaceMembership` already

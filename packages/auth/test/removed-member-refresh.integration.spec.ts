@@ -4,7 +4,7 @@ import { MAILBOX_ACCESS_ENDED_REASON } from "@crm/validation/mailbox-reasons";
 import { setTokenUtil } from "better-auth/oauth2";
 import { auth } from "../src/auth";
 import { GMAIL_SCOPE, GOOGLE_PROVIDER_ID } from "../src/scopes";
-import { endAccessOf } from "../src/sign-in-grants";
+import { forgetStoredGrantsOf } from "../src/sign-in-grants";
 
 const suffix = crypto.randomUUID().slice(0, 8);
 const removedId = `refresh-removed-${suffix}`;
@@ -76,7 +76,7 @@ beforeAll(async () => {
 			where: { id: removedId },
 			data: { removedAt: new Date() },
 		});
-		await endAccessOf(tx, [removedId]);
+		await forgetStoredGrantsOf(tx, [removedId]);
 	});
 });
 

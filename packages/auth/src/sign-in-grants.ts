@@ -158,15 +158,7 @@ const CLEARED_TOKENS = {
 	refreshTokenExpiresAt: null,
 } as const;
 
-type CredentialStore = Pick<
-	Db,
-	| "session"
-	| "apikey"
-	| "account"
-	| "imapAccount"
-	| "mailboxSync"
-	| "slackInstallation"
->;
+type CredentialStore = Pick<Db, "session" | "apikey">;
 
 export async function endAccessOf(
 	database: CredentialStore,
@@ -174,21 +166,26 @@ export async function endAccessOf(
 ): Promise<void> {
 	if (userIds.length === 0) return;
 
-	const people = [...userIds];
-
 	await database.session.deleteMany({
-		where: { userId: { in: people } },
+		where: { userId: { in: [...userIds] } },
 	});
 	await database.apikey.deleteMany({
-		where: { referenceId: { in: people } },
+		where: { referenceId: { in: [...userIds] } },
 	});
-	await forgetStoredGrantsOf(database, people);
 }
 
-async function forgetStoredGrantsOf(
-	database: CredentialStore,
-	people: string[],
+type StoredGrantStore = Pick<
+	Db,
+	"account" | "imapAccount" | "mailboxSync" | "slackInstallation"
+>;
+
+export async function forgetStoredGrantsOf(
+	database: StoredGrantStore,
+	userIds: readonly string[],
 ): Promise<void> {
+	if (userIds.length === 0) return;
+
+	const people = [...userIds];
 	const slack = await database.account.findMany({
 		where: { userId: { in: people }, providerId: SLACK_PROVIDER_ID },
 		select: { accountId: true },

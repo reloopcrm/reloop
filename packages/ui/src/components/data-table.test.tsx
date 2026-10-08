@@ -215,6 +215,21 @@ describe("fitColumnWidths", () => {
 		const widths = fitColumnWidths(400, [200, 200, 200, 200, 200]);
 		expect(sum(widths)).toBeLessThanOrEqual(400 - TABLE.column.primaryMinPx);
 	});
+
+	it("keeps a control column at its width and shrinks the text columns", () => {
+		const widths = fitColumnWidths(
+			736,
+			[160, 240, 120, 130, 190],
+			[false, false, false, false, true],
+		);
+		expect(widths[4]).toBe(190);
+		expect(sum(widths)).toBeLessThanOrEqual(736 - TABLE.column.primaryMinPx);
+	});
+
+	it("shrinks a control column too when the controls alone do not fit", () => {
+		const widths = fitColumnWidths(300, [100, 190], [false, true]);
+		expect(sum(widths)).toBeLessThanOrEqual(300 - TABLE.column.primaryMinPx);
+	});
 });
 
 describe("a page past the end", () => {

@@ -37,6 +37,7 @@ import {
 import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import type { TableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useUiT } from "@crm/ui/lib/i18n";
+import { ROW_FOCUS } from "@crm/ui/lib/row-accent";
 import { insideRow } from "@crm/ui/lib/row-click";
 import {
 	fitColumnWidths,
@@ -193,6 +194,7 @@ function fromControl(event: MouseEvent<HTMLElement>): boolean {
 function useFittedWidths(
 	container: React.RefObject<HTMLDivElement | null>,
 	sizes: number[],
+	fixed: boolean[],
 	reserved: number,
 ): number[] {
 	const [available, setAvailable] = useState<number | null>(null);
@@ -209,7 +211,7 @@ function useFittedWidths(
 
 	return available === null
 		? sizes
-		: fitColumnWidths(available - reserved, sizes);
+		: fitColumnWidths(available - reserved, sizes, fixed);
 }
 
 function toggle(selected: string[], value: string, checked: boolean): string[] {
@@ -556,8 +558,9 @@ export function DataTable<TRow, TSub = unknown>({
 			? (column.size ?? TABLE.column.controlPx)
 			: (column.size ?? TABLE.column.defaultPx),
 	);
+	const fixed = secondary.map((column) => column.control === true);
 	const reserved = selection ? TABLE.column.selectPx : 0;
-	const widths = useFittedWidths(container, sizes, reserved);
+	const widths = useFittedWidths(container, sizes, fixed, reserved);
 
 	const tabCounts = tabs ? facetCounts?.[tabs.id] : undefined;
 	const activeTabOption =
@@ -669,8 +672,7 @@ export function DataTable<TRow, TSub = unknown>({
 					className={cn(
 						"group/row",
 						CARD_ROW,
-						clickable &&
-							"cursor-pointer outline-none focus-visible:bg-active focus-visible:shadow-[inset_2px_0_0_var(--ring)]",
+						clickable && ["cursor-pointer", ROW_FOCUS],
 						isOpen && "bg-muted",
 					)}
 				>

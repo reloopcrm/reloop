@@ -73,11 +73,11 @@ async function offerAModel(): Promise<void> {
 	forgetProviderCache();
 }
 
-async function queueOne(): Promise<string> {
+async function queueOne(kind = "company-profile"): Promise<string> {
 	const row = await db.agentTask.create({
 		data: {
 			companyId: null,
-			kind: "company-profile",
+			kind,
 			reason,
 			priority: 40,
 			budget: 1,
@@ -167,6 +167,30 @@ describe("the research lane while no model works", () => {
 		});
 
 		expect(first?.attempts).toBe(0);
+	});
+
+	it("hands a claimed identify task back as waiting, so a rep's click can still take it over", async () => {
+		await spendTheModelWindow();
+		const id = await queueOne("identify");
+
+		await runResearchLane(start);
+
+		const task = await db.agentTask.findUnique({
+			where: { id },
+			select: {
+				startedAt: true,
+				leasedUntil: true,
+				attempts: true,
+				finishedAt: true,
+				dueAt: true,
+			},
+		});
+
+		expect(task?.finishedAt).toBeNull();
+		expect(task?.dueAt.getTime()).toBeGreaterThan(Date.now() + 60_000);
+		expect(task?.startedAt).toBeNull();
+		expect(task?.leasedUntil).toBeNull();
+		expect(task?.attempts).toBe(0);
 	});
 
 	it("starts the session again once a model is back", async () => {

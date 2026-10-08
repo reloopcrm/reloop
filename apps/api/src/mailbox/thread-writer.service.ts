@@ -8,7 +8,11 @@ import {
 	RecordSource,
 } from "@crm/db";
 import { THREAD_CLASSIFICATION } from "@crm/db/insights";
-import { isAutoReply, isReplySubject } from "@crm/db/message-text";
+import {
+	isAutoReply,
+	isRealAnswer,
+	isReplySubject,
+} from "@crm/db/message-text";
 import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -165,6 +169,15 @@ export class ThreadWriterService {
 						});
 
 				if (!repair) {
+					const content = {
+						direction: outbound
+							? EmailDirection.OUTBOUND
+							: EmailDirection.INBOUND,
+						fromEmail: parsed.from.email,
+						subject: parsed.subject,
+						snippet: snippetOf(parsed.body),
+						body: parsed.body || null,
+					};
 					await tx.emailMessage.create({
 						data: {
 							threadId: record.id,
@@ -174,16 +187,11 @@ export class ThreadWriterService {
 							outlookMessageId: parsed.outlookMessageId ?? null,
 							outlookWebLink: parsed.outlookWebLink ?? null,
 							imapAccountId: parsed.imapAccountId ?? null,
-							direction: outbound
-								? EmailDirection.OUTBOUND
-								: EmailDirection.INBOUND,
-							fromEmail: parsed.from.email,
+							...content,
 							fromName: parsed.from.name,
 							recipients: parsed.recipients,
-							subject: parsed.subject,
-							snippet: snippetOf(parsed.body),
-							body: parsed.body || null,
 							sentAt: parsed.sentAt,
+							realAnswer: isRealAnswer(content),
 						},
 					});
 				}

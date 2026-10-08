@@ -58,8 +58,11 @@ has not claimed it (`startedAt` is null), `enqueue` rewrites that row under the 
 idempotency lock: the rep's reason, the higher of the two priorities and the earlier
 of its `dueAt` and now. The click answers `queued: true`, and the pre-check sees the
 rep's reason. A row the agent already claimed stays as it is and the click answers
-`queued: false`. Only `contactRequested` sets `upgradeOpen`; every other caller of
-`enqueue` still skips an open row without a write.
+`queued: false`. A claim the research lane hands back unrun, because the monthly
+budget or a blocked model provider stops it, is waiting again: `returnClaim` clears
+`startedAt` on a first attempt, so the click still takes that row over. Only
+`contactRequested` sets `upgradeOpen`; every other caller of `enqueue` still skips an
+open row without a write.
 
 About to add a vendor client to `apps/api`? You want `apps/agent/agent/lib`. One
 documented exception, for timing: the exchange-rate fetcher, below.
@@ -422,7 +425,8 @@ the largest attachment upload the conversation contracts accept.
   of threads that are not worth adopting is reached within one round of the waiting
   threads. An unreadable cursor is logged and starts again from the newest thread.
 - **Old rows follow the identity.** `DirectionRepairService` runs once per sync
-  tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`,
+  tick after adoption. It flips `INBOUND` rows whose sender is own to `OUTBOUND`
+  and sets their `realAnswer` to `false` in the same statement,
   at most `DIRECTION.repairBatch` per tick, and never the other way. Once a pass
   finds less than a batch, it skips until the identity changes, so a new mailbox
   or a new alias corrects the history by itself. It deletes nothing;
@@ -656,11 +660,12 @@ the largest attachment upload the conversation contracts accept.
   with an owned thread whose insight is `DECLINED` with `declineKind` `HARD`, until a
   real answer (`realAnswer`, so no auto reply or bounce) from that person's own
   address arrives after `declinedAt`, in a thread they own or take part in. Mail from
-  us or from a colleague does not bring them back. The list, "Continue with", the
-  story prefetch, the "Wrote back" view and the agent's `list_win_back_candidates`
-  all read it. A soft no, or a null kind, stays and shows "said no". The rejected view and
-  `readReactivationCandidate` do not filter it, so the person page and the Anfrage
-  panel still open.
+  us or from a colleague does not bring them back. The rule is one SQL fragment,
+  `hardNoStands` in `win-back-outcome.ts`. The list, "Continue with", the story
+  prefetch, the "Wrote back" view, the dashboard's "Replied" card and the agent's
+  `list_win_back_candidates` all read it. A soft no, or a null kind, stays and
+  shows "said no". The rejected view and `readReactivationCandidate` do not
+  filter it, so the person page and the Anfrage panel still open.
 - **The links of existing mail are written by a script, once.** `bun run
   thread-participants` in `apps/api` walks every thread by id in batches of
   `THREAD_PARTICIPANTS.backfillBatch` inside `cloud.forEachScope` and prints per
@@ -723,18 +728,77 @@ the pattern lists in `packages/db/src/message-text.ts`
 - **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same
   lists. Every query that counts a reply uses it; never write
   `direction = 'INBOUND'` alone for that.
+- **The verdict is stored on the message.** `EmailMessage.realAnswer` holds it.
+  `ThreadWriterService.store` writes `isRealAnswer` of exactly the stored sender,
+  subject, body and snippet, and the direction repair writes `false` with every
+  flip to `OUTBOUND`. `realAnswer("m")` is `direction = 'INBOUND'` and the stored
+  flag, and falls back to the pattern lists only while the flag is null, so a
+  count is the same before and after old rows are filled. The pattern lists run
+  over every inbound message in the table; the flag takes that cost away.
+  `realAnswerRule("m")` is the pattern lists alone, for the parity test and the
+  fill.
+- **Old rows fill themselves.** `RealAnswerBackfillService` runs once per sync
+  tick after the direction repair and writes `realAnswerRule` into at most
+  `REAL_ANSWER.backfillBatch` rows whose flag is null (`fillRealAnswers`), with
+  `FOR UPDATE SKIP LOCKED`. It never touches a row that has a value, so it is
+  safe to stop and restart. Once a pass fills less than a batch and no empty
+  flag is left (`realAnswersMissing`), it stops until the API restarts; a row
+  another transaction held is filled on a later tick. The partial index
+  `emailMessage_realAnswer_missing_idx` holds only the empty rows, so finding
+  them does not scan the table. A self-hosted install runs nothing by hand: the
+  history is filled a batch per tick after the deploy. The hard no filter in
+  `win-back-outcome.ts` reads `realAnswer` too, so it gains the same.
 - **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
   and the follow-up sweep both skip auto-replies and bounces.
-- **"Wrote back" is the same loop.** `reactivation.list` and `nextPerson` take
-  `replied`; the list then keeps only the people in the loop's `answered` set
-  (`wroteBackAfterOutreach`): a real answer after the first mail that followed the
-  verdict. An answer before that mail does not count. The win back rules do not
-  apply to this view, so everyone the card counts can show, except a person whose
-  answer is a hard no: the hard no filter still applies, and a later answer of
-  their own brings them back to both views. The "Replied" card links to
-  the list with `?replied=true` and the dashboard's scope. The card counts this
-  month, the list shows every reply. A filtered list is never the prefetch's default
-  list (`readsDefaultList`).
+- **"Wrote back" and "Replied" count one set.** The loop's `wrote_back` CTE is
+  the `answered` set without a person whose hard no stands (`hardNoStands`):
+  a real answer after the first mail that followed the verdict, from the person
+  or a colleague in their conversation. An answer before that mail does not
+  count. `readWinBackOutcome` counts the rows whose first mail went out since
+  the start of the month, and `wroteBackAfterOutreach` keeps the same rows in
+  `reactivation.list` and `nextPerson` when they take `replied`, with the window
+  from `since`. Neither applies the win back rules. `answered` itself keeps the
+  hard no, so the follow-up sweep never writes to a person who said no.
+- **The card link carries the window.** The dashboard returns `winBack.since`, the
+  instant its month started on the server, written with the server's offset
+  (`2026-10-01T00:00:00+02:00`). The "Replied" card links to the list with
+  `?replied=true`, the dashboard's scope and `since`, so the list shows exactly
+  the people the card counted. The chip then reads "Wrote back, contacted since"
+  the server's calendar day from that string, whatever the reader's time zone. Turning the chip off or resetting the filters drops
+  `since`, and the plain chip shows every reply. `since` without `replied` does
+  nothing. A filtered list is never the prefetch's default list
+  (`readsDefaultList`).
+- **"Remind me in 7 days" hides the person until that day.** The date is the
+  reminder task's own `dueAt`; nothing else stores it. `activities.create` with
+  `winBackLater: true` writes the task with `meta` `{ winBack: true, later: true }`
+  (`WIN_BACK_LATER_META`, `@crm/db/win-back-snooze`). While such a task is open and
+  its `dueAt` lies after now, `snoozedAt` keeps the person out of
+  `listReactivationCandidates`, so out of the list, its counts, `nextPerson`, the
+  prefetch and the agent's list tool. A task on a company with no contact snoozes
+  everyone at that company. The person comes back by themselves on the due day, or
+  earlier when the rep completes or deletes the task; no job runs. The "Not for us"
+  and "Wrote back" views ignore the snooze, so "Wrote back" still shows everyone the
+  "Replied" card counts. `snoozed: true` on `reactivation.list` and `nextPerson`
+  shows exactly the people the snooze hides, under the same win back rules, and the
+  list then fills `snoozedUntil` on every person (a company row carries its earliest
+  day). A reminder written before this mark existed has no `meta` and hides nobody.
+- **A person has one snooze.** A second `winBackLater` task for the same target (the
+  contact, or the company when the task names no contact) moves the open one's
+  `dueAt` and subject instead of writing another, under an advisory lock on that
+  target, and returns it. `reactivation.person` returns `snoozedUntil`, the latest
+  `dueAt` that hides the person, so a reloaded page shows the day and "Bring back"
+  instead of "Remind me". `reactivation.bringBack({ contactId })` completes every open
+  snooze task that covers the person (`endSnooze`), a company task included, so that
+  company's people return with them. A reminder that is already due stays open.
+- **Only a snooze change refreshes the list.** `reactivation.list` scans every
+  candidate, and the sidebar count reads it on every page, so `cache.activity()`
+  leaves it alone for notes, calls and plain tasks. `cache.activity({ winBack: true })`
+  refreshes `reactivation.list` and `reactivation.person` without making the caller
+  wait, and marks every `nextPerson` as outdated without refetching it. The person
+  page, the row menu and Bring back always pass it; the timeline and the dashboard
+  pass `isWinBackSnooze(entry.meta)` from `@crm/validation/win-back-snooze`. An open
+  page keeps its "Continue with" until the window regains focus; a page opened again
+  reads anew.
 - **The person view says when the answer is ours to give.** `wroteBack` comes from
   `readWinBackReply`: the newest real answer after the win back mail, and `open`
   while no mail from us to their address followed it, in any conversation they
@@ -743,8 +807,10 @@ the pattern lists in `packages/db/src/message-text.ts`
   answered. The answer time is their newest real answer in a conversation they own,
   the same mail the draft agent reads. A draft whose `basedOnUntil` ends before that
   answer is never shown or sent: opening the message asks the agent for a new one.
-- `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides. A new
-  pattern goes in the list and gets a sample there.
+- `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides,
+  and through `realAnswer("m")` once with an empty flag and once with the stored
+  one. A new pattern goes in the list and gets a sample there. A changed pattern
+  judges new mail only: a stored flag keeps the verdict it was written with.
 
 ## People on a deal
 
@@ -766,9 +832,10 @@ picker reads.
 `activities.update` changes the subject, the body, and for a task the due day.
 `activities.remove` deletes the row. Both go through `isEditable`
 (`activities/editable.ts`): kind `NOTE` or `TASK`, `meta` is null, and
-`createdById` is the signed-in user. The one exception to null `meta` is the win
-back follow up task (`{ winBack: true }`): it is assigned to the rep, so the rep
-moves it. A synced mail, a meeting, and anything the agent or tracking wrote stay
+`createdById` is the signed-in user. The one exception to null `meta` is a win
+back task: the follow up task (`{ winBack: true }`), assigned to the rep, so the rep
+moves it, and the "Remind me" task (`{ winBack: true, later: true }`), which the rep
+wrote and may undo. A synced mail, a meeting, and anything the agent or tracking wrote stay
 read only. `Activity` has no `archivedAt`,
 so a delete is final. After it, `lastActivityAt` is recomputed for the company,
 contact and deal; a failure there is logged, never thrown.
@@ -1011,7 +1078,9 @@ marked passages and the follow-up delay. It writes nothing but an
   not hold gets a null `position` and no next person. Both count only people with an
   address, the same people `next` can reach, so the last of them reads "Person 87 of
   87" beside "Back to the list". A person without an address gets a null `position`
-  and still a next person.
+  and still a next person. A snoozed person outside the list also
+  gets a null `position`, but `next` is the first person of the list, so the page
+  of someone just snoozed still continues after a reload.
 - **A story past the plan's budget is held back, not an error.** `storyState.limitUntil`
   names the end of the usage window when the conversation budget, which stories share
   (`budgetKinds`) and of which they leave the new-mail reserve alone, is spent. A story

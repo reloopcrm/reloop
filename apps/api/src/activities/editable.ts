@@ -11,7 +11,9 @@ export type EditableFacts = {
 
 const EDITABLE_TYPES: ActivityType[] = [ActivityType.NOTE, ActivityType.TASK];
 
-const winBackTaskMeta = z.object({ winBack: z.literal(true) }).strict();
+const winBackTaskMeta = z
+	.object({ winBack: z.literal(true), later: z.literal(true).optional() })
+	.strict();
 
 function ownMeta(activity: EditableFacts): boolean {
 	return (

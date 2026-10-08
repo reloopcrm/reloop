@@ -186,10 +186,21 @@ It is the answer to "can you integrate with X" when X is not worth a module.
   insight and research lanes, and `webhook-delivery` is filtered out of
   `VISIBLE_KINDS`. A receiver that never answers therefore delays no agent work,
   and the event task is already finished before the first POST goes out.
-- **Three attempts, then it stops.** A failed attempt leaves the task open, the
-  lease expires, and the next tick claims it again. `claimDue` refuses a fourth
-  attempt because of `MAX_ATTEMPTS`, and the third failure completes the task
-  with what the receiver said. The card reads the last status, never a log.
+- **Six attempts with a backoff, then it stops.** A failed attempt leaves the
+  task open and sets `dueAt` to the next step: 1 minute, 10 minutes, then 2
+  hours, and 2 hours again for every later retry
+  (`WEBHOOKS.deliver.backoffMs`, `webhookRetryDelayMs`). The task counts its own
+  failures in `payload.failures` and resets `attempts`, so the shared
+  `MAX_ATTEMPTS` of 3 does not end it early. The sixth failure
+  (`WEBHOOKS.deliver.maxAttempts`) completes the task with what the receiver
+  said. The card reads the last status, never a log. A receiver outage of a few
+  hours no longer loses the event.
+- **Receivers must dedupe.** Every attempt for one event carries the same
+  `x-reloop-delivery` header (and the same `id` in the body). A receiver that
+  answered 2xx late, or whose answer got lost, sees the event again. It must
+  keep the delivery ids it handled and ignore a repeat. If the CRM cannot write
+  the webhook's status after a 2xx, it still settles the delivery as
+  delivered and never sends it a second time.
 - **Ten seconds per call**, `WEBHOOKS.deliver.timeoutMs` in
   `packages/db/src/webhooks.ts`, which holds every webhook constant.
 - **The body is signed, not authenticated.** `x-reloop-signature` is

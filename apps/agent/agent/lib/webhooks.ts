@@ -1,9 +1,13 @@
 import { db } from "@crm/db";
-import { MAX_ATTEMPTS } from "@crm/db/agent-tasks";
 import { crmEventRecordIds } from "@crm/db/crm-events";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { safeFetch } from "@crm/db/safe-fetch";
-import { openWebhookSecret, signWebhookBody, WEBHOOKS } from "@crm/db/webhooks";
+import {
+	openWebhookSecret,
+	signWebhookBody,
+	WEBHOOKS,
+	webhookRetryDelayMs,
+} from "@crm/db/webhooks";
 import { crmEventTask } from "@crm/validation/agent-events";
 import { z } from "zod";
 import { COPY } from "./copy";
@@ -15,6 +19,7 @@ const webhookDelivery = z.object({
 	deliveryKey: z.string().trim().min(1),
 	webhookId: z.string().trim().min(1),
 	event: crmEventTask,
+	failures: z.number().int().min(0).default(0),
 });
 
 type WebhookDelivery = z.infer<typeof webhookDelivery>;
@@ -59,7 +64,7 @@ export async function queueWebhookDeliveries(
 						deliveryKey,
 						webhookId: webhook.id,
 						event: event.data,
-					} satisfies WebhookDelivery,
+					} satisfies z.input<typeof webhookDelivery>,
 				},
 			});
 			return true;
@@ -139,26 +144,44 @@ export async function deliverTask(
 		timeoutMs,
 	);
 
-	await db.webhook.update({
-		where: { id: webhook.id },
-		data: {
-			lastDeliveryAt: new Date(),
-			lastStatus: outcome.status,
-			lastError: outcome.delivered ? null : outcome.reason,
-		},
-	});
+	try {
+		await db.webhook.update({
+			where: { id: webhook.id },
+			data: {
+				lastDeliveryAt: new Date(),
+				lastStatus: outcome.status,
+				lastError: outcome.delivered ? null : outcome.reason,
+			},
+		});
+	} catch (error) {
+		console.error(
+			`[agent] ⨯ webhook ${task.id} status: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
 
 	if (outcome.delivered) {
 		await completeTask(task.id, say(COPY.webhooks.answered(outcome.status)));
 		return;
 	}
 
-	if (task.attempts >= MAX_ATTEMPTS) {
+	const failures = parsed.data.failures + 1;
+	if (failures >= WEBHOOKS.deliver.maxAttempts) {
 		await completeTask(
 			task.id,
-			say(COPY.webhooks.gaveUp(MAX_ATTEMPTS, outcome.reason)),
+			say(COPY.webhooks.gaveUp(failures, outcome.reason)),
 		);
+		return;
 	}
+
+	await db.agentTask.updateMany({
+		where: { id: task.id, finishedAt: null },
+		data: {
+			payload: { ...parsed.data, failures } satisfies WebhookDelivery,
+			dueAt: new Date(Date.now() + webhookRetryDelayMs(failures)),
+			leasedUntil: null,
+			attempts: 0,
+		},
+	});
 }
 
 type SendOutcome =

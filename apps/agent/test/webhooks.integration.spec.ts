@@ -1,9 +1,21 @@
-import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	setSystemTime,
+} from "bun:test";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { db } from "@crm/db";
-import { MAX_ATTEMPTS } from "@crm/db/agent-tasks";
-import { sealWebhookSecret, signWebhookBody, WEBHOOKS } from "@crm/db/webhooks";
+import {
+	sealWebhookSecret,
+	signWebhookBody,
+	WEBHOOKS,
+	webhookRetryDelayMs,
+} from "@crm/db/webhooks";
 import { runDirect } from "../agent/lib/dispatch";
 import type { LeasedTask } from "../agent/lib/tasks";
 import {
@@ -236,37 +248,132 @@ describe("a receiver that never answers", () => {
 });
 
 describe("a receiver that keeps failing", () => {
-	it("stops after three attempts", async () => {
+	const MINUTE = 60_000;
+	const HOUR = 60 * MINUTE;
+
+	afterEach(() => setSystemTime());
+
+	async function queued(webhookId: string) {
+		const [delivery] = await deliveriesOf(webhookId);
+		if (!delivery) throw new Error("Nothing was queued.");
+		return delivery;
+	}
+
+	it("retries after one minute, not at once, and delivers on the third attempt", async () => {
+		let calls = 0;
+		const deliveryIds: Array<string | undefined> = [];
+		const url = await listening((received, answer) => {
+			calls += 1;
+			deliveryIds.push(received.headers[WEBHOOKS.headers.delivery]);
+			answer(calls <= 2 ? 500 : 200);
+		});
+		const webhook = await aWebhook({ url });
+		await queueWebhookDeliveries(await anEvent());
+		const start = Date.now();
+
+		try {
+			await runWebhookLane(undefined, TIMEOUT_MS);
+			expect(calls).toBe(1);
+			expect((await queued(webhook.id)).dueAt.getTime()).toBeGreaterThanOrEqual(
+				start + MINUTE,
+			);
+
+			await runWebhookLane(undefined, TIMEOUT_MS);
+			expect(calls).toBe(1);
+
+			setSystemTime(new Date(start + 2 * MINUTE));
+			await runWebhookLane(undefined, TIMEOUT_MS);
+			expect(calls).toBe(2);
+			expect((await queued(webhook.id)).finishedAt).toBeNull();
+
+			setSystemTime(new Date(start + 2 * MINUTE + 5 * MINUTE));
+			await runWebhookLane(undefined, TIMEOUT_MS);
+			expect(calls).toBe(2);
+
+			setSystemTime(new Date(start + 2 * MINUTE + 11 * MINUTE));
+			await runWebhookLane(undefined, TIMEOUT_MS);
+			expect(calls).toBe(3);
+		} finally {
+			setSystemTime();
+		}
+
+		const delivery = await queued(webhook.id);
+		expect(delivery.finishedAt).not.toBeNull();
+		expect(delivery.outcome).not.toContain("Gave up");
+		expect(new Set(deliveryIds).size).toBe(1);
+	});
+
+	it("stops after six attempts and waits the backoff between them", async () => {
 		let calls = 0;
 		const url = await listening((_received, answer) => {
 			calls += 1;
 			answer(500);
 		});
 		const webhook = await aWebhook({ url });
-		const event = await anEvent();
-		await queueWebhookDeliveries(event);
+		await queueWebhookDeliveries(await anEvent());
+		let clock = Date.now();
 
-		const [queued] = await deliveriesOf(webhook.id);
-		if (!queued) throw new Error("Nothing was queued.");
-
-		for (let attempt = 1; attempt <= MAX_ATTEMPTS + 1; attempt += 1) {
-			await db.agentTask.updateMany({
-				where: { id: queued.id, finishedAt: null },
-				data: { leasedUntil: null },
-			});
-			await runWebhookLane(undefined, TIMEOUT_MS);
+		try {
+			for (let attempt = 1; attempt <= 8; attempt += 1) {
+				setSystemTime(new Date(clock));
+				await runWebhookLane(undefined, TIMEOUT_MS);
+				const delivery = await queued(webhook.id);
+				if (delivery.finishedAt) break;
+				expect(delivery.dueAt.getTime()).toBeGreaterThanOrEqual(
+					clock + webhookRetryDelayMs(attempt),
+				);
+				clock = delivery.dueAt.getTime() + 1;
+			}
+		} finally {
+			setSystemTime();
 		}
 
-		expect(calls).toBe(MAX_ATTEMPTS);
-
-		const [delivery] = await deliveriesOf(webhook.id);
-		expect(delivery?.attempts).toBe(MAX_ATTEMPTS);
-		expect(delivery?.finishedAt).not.toBeNull();
-		expect(delivery?.outcome).toContain("Gave up");
+		expect(calls).toBe(WEBHOOKS.deliver.maxAttempts);
+		const delivery = await queued(webhook.id);
+		expect(delivery.finishedAt).not.toBeNull();
+		expect(delivery.outcome).toContain("Gave up after 6");
 		expect(
 			(await db.webhook.findUniqueOrThrow({ where: { id: webhook.id } }))
 				.lastStatus,
 		).toBe(500);
+	});
+
+	it("steps the delay 1 minute, 10 minutes, 2 hours and keeps the last", () => {
+		expect([1, 2, 3, 4, 5].map(webhookRetryDelayMs)).toEqual([
+			MINUTE,
+			10 * MINUTE,
+			2 * HOUR,
+			2 * HOUR,
+			2 * HOUR,
+		]);
+	});
+});
+
+describe("a webhook that disappears while a delivery is in flight", () => {
+	it("settles the event as delivered and does not send it again", async () => {
+		let calls = 0;
+		const webhook = { id: "" };
+		const url = await listening(async (_received, answer) => {
+			calls += 1;
+			await db.webhook.delete({ where: { id: webhook.id } });
+			answer(200);
+		});
+		webhook.id = (await aWebhook({ url })).id;
+		await queueWebhookDeliveries(await anEvent());
+		const [queuedDelivery] = await deliveriesOf(webhook.id);
+		if (!queuedDelivery) throw new Error("Nothing was queued.");
+
+		await deliverTask(await leaseOf(queuedDelivery.id), TIMEOUT_MS);
+
+		const delivery = await db.agentTask.findUniqueOrThrow({
+			where: { id: queuedDelivery.id },
+		});
+		expect(calls).toBe(1);
+		expect(delivery.finishedAt).not.toBeNull();
+		expect(delivery.outcome).not.toContain("Gave up");
+
+		await runWebhookLane(undefined, TIMEOUT_MS);
+		expect(calls).toBe(1);
 	});
 });
 

@@ -8,6 +8,7 @@ import {
 } from "./secrets";
 
 const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
 
 export const WEBHOOKS = {
 	kind: "webhook-delivery",
@@ -18,6 +19,8 @@ export const WEBHOOKS = {
 		leaseMs: MINUTE_MS,
 		batch: 20,
 		concurrency: 4,
+		maxAttempts: 6,
+		backoffMs: [MINUTE_MS, 10 * MINUTE_MS, 2 * HOUR_MS],
 	},
 	secret: {
 		minLength: 16,
@@ -35,6 +38,13 @@ export const WEBHOOKS = {
 	},
 	signatureVersion: "v1",
 } as const;
+
+export function webhookRetryDelayMs(failures: number): number {
+	const steps = WEBHOOKS.deliver.backoffMs;
+	const step = Math.min(Math.max(failures, 1), steps.length) - 1;
+
+	return steps[step] ?? WEBHOOKS.deliver.leaseMs;
+}
 
 export function sealWebhookSecret(secret: string): string {
 	return sealSecret(secret, appSecretKey(WEBHOOKS.purpose));

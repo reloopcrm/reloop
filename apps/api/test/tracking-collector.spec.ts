@@ -8,7 +8,7 @@ import {
 	spyOn,
 } from "bun:test";
 import { db } from "@crm/db";
-import type { TrackingConfig } from "@crm/db/tracking";
+import { refileWindowKey, type TrackingConfig } from "@crm/db/tracking";
 import { type INestApplication, Logger } from "@nestjs/common";
 import request from "supertest";
 import { TrackingConfigService } from "../src/tracking/tracking-config.service";
@@ -42,6 +42,16 @@ describe("Tracking collector", () => {
 
 		app = await createApp();
 		await app.init();
+
+		const now = Date.now();
+		for (const at of [now, now + 60_000]) {
+			const key = refileWindowKey(new Date(at));
+			await db.trackingCounter.upsert({
+				where: { key },
+				create: { key, value: 1, expiresAt: new Date(at + 120_000) },
+				update: { value: 1 },
+			});
+		}
 	});
 
 	afterAll(async () => {

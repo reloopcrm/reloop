@@ -206,6 +206,7 @@ describe("the rate limit", () => {
 
 	it("stops writing once the window is spent", async () => {
 		await db.trackingCounter.deleteMany({ where: {} });
+		await holdRefile();
 
 		for (const key of spendableWindows()) {
 			await counters.take(key, EVENTS_PER_MINUTE, EVENTS_PER_MINUTE);
@@ -218,6 +219,7 @@ describe("the rate limit", () => {
 
 	it("does not spend the window on a batch it refuses", async () => {
 		await db.trackingCounter.deleteMany({ where: {} });
+		await holdRefile();
 
 		for (const key of spendableWindows()) {
 			await counters.take(key, EVENTS_PER_MINUTE, EVENTS_PER_MINUTE - 1);

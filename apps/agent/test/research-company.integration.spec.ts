@@ -271,6 +271,45 @@ describe("research_company keeps one brief per company", () => {
 	});
 });
 
+describe("a refreshed brief stays in the company history", () => {
+	it("lists the refreshed brief even after ten newer notes", async () => {
+		const id = await company();
+		const run = (positioning: string) => {
+			reader = async () => answering(BRIEF(positioning));
+			return inEveContext(() =>
+				researchCompany.execute({ companyId: id }, ctx),
+			);
+		};
+
+		await run("Pooled pallets for European shippers.");
+
+		for (let index = 0; index < 10; index += 1) {
+			await db.activity.create({
+				data: {
+					type: "NOTE",
+					subject: `Note ${index}`,
+					body: "A call note.",
+					occurredAt: new Date(),
+					companyId: id,
+					createdById: ownerId,
+				},
+			});
+		}
+
+		await run("Pooled and one-way pallets across Europe.");
+
+		const { readCompanyHistory } = await import("../agent/lib/accounts");
+		const history = await readCompanyHistory(id);
+		const bodies = history?.notes.map((note) => note.body ?? "") ?? [];
+
+		expect(
+			bodies.some((body) =>
+				body.includes("Pooled and one-way pallets across Europe."),
+			),
+		).toBe(true);
+	});
+});
+
 describe("the author of a research note", () => {
 	const plainId = `plain-${suffix}`;
 	const ownerOfAllId = `workspace-owner-${suffix}`;

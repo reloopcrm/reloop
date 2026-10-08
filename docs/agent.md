@@ -773,7 +773,9 @@ Schema, so before this every `research_company` call with a model threw.
 
 **`research_company` keeps one brief per company and source.** It locks
 `research-brief:<companyId>:website`, finds the ENRICHMENT activity with that `source`,
-and updates it. An identical body changes nothing and answers `written: false`. The
+and updates it. An identical body changes nothing and answers `written: false`.
+`read_company_history` and `read_deal_history` list the ten notes changed last
+(`updatedAt`), so a refreshed brief stays in the list after ten newer notes. The
 company is checked live before any outside call and again inside the write.
 
 ## Budget and scheduling

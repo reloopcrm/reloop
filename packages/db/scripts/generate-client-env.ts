@@ -9,3 +9,7 @@ export function generateEnv(source: Record<string, string | undefined>) {
 	);
 	return { ...env, DATABASE_URL: env.DATABASE_URL || GENERATE_PLACEHOLDER_URL };
 }
+
+export function generateCommand(execPath: string = process.execPath) {
+	return [execPath, "x", "prisma", "generate"];
+}

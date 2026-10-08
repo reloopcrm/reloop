@@ -46,6 +46,7 @@ export const dealCreateInput = z.object({
 	companyId: z.string().min(1, "A deal belongs to a company."),
 	ownerId: z.string().min(1, "A deal needs an owner."),
 	stage: stageEnum.optional(),
+	closedReason: z.string().trim().optional(),
 	amountCents,
 	currency: currencyCode.optional(),
 	expectedCloseDate: z.string().nullable().optional(),

@@ -1623,6 +1623,8 @@ model TrackedVisitor {
   contactId String?
   contact   Contact? @relation("VisitorContact", fields: [contactId], references: [id], onDelete: SetNull)
 
+  contactSubmittedAt DateTime?
+
   firstSource   String?
   firstMedium   String?
   firstCampaign String?

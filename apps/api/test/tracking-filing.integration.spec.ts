@@ -324,19 +324,67 @@ describe("refiling a submission the cap held back", () => {
 		});
 	}
 
-	async function filedLater(visitor: string, contactId: string | null) {
-		await db.formSubmission.create({
+	const NEWER_AT = new Date("2026-09-01T12:00:00.000Z");
+
+	async function fileNewer(visitor: string, email: string) {
+		const row = await db.formSubmission.create({
 			data: {
 				host,
 				path: "/pricing",
+				email,
 				visitorId: visitor,
-				contactId,
-				fields: {},
+				fields: { email },
 				dedupeKey: `${suffix}-newer-${Math.random().toString(36).slice(2)}`,
-				filedAt: new Date("2026-09-01T12:00:00.000Z"),
-				createdAt: new Date("2026-09-01T12:00:00.000Z"),
+				createdAt: NEWER_AT,
+			},
+			select: { id: true },
+		});
+
+		const outcome = await filing.file({
+			id: row.id,
+			email,
+			host,
+			visitorId: visitor,
+			name: null,
+			lastTouch: {
+				source: "Newsletter",
+				medium: "email",
+				campaign: null,
+				term: null,
+				content: null,
+				referrer: null,
+				landing: "/pricing",
+				at: NEWER_AT,
 			},
 		});
+
+		return outcome.filed ? outcome.contactId : "";
+	}
+
+	async function olderFor(visitor: string, email: string) {
+		const row = await held(email);
+		await db.formSubmission.update({
+			where: { id: row.id },
+			data: {
+				visitorId: visitor,
+				lastTouch: {
+					source: "Google",
+					medium: "organic",
+					campaign: null,
+					term: null,
+					content: null,
+					referrer: null,
+					landing: "/pricing",
+					at: "2026-08-10T12:00:00.000Z",
+				},
+			},
+		});
+
+		return row;
+	}
+
+	function visitorName() {
+		return `visitor-${Math.random().toString(36).slice(2, 12)}`;
 	}
 
 	async function spend(value: number) {
@@ -372,90 +420,30 @@ describe("refiling a submission the cap held back", () => {
 		expect(queued).toHaveLength(1);
 	});
 
-	it("keeps the visitor's newer last touch when an older form is refiled", async () => {
-		const email = `order-${suffix}@${domain}`;
-		const visitor = `visitor-${Math.random().toString(36).slice(2, 12)}`;
-		const newer = new Date("2026-09-01T12:00:00.000Z");
-		await db.trackedVisitor.create({
-			data: { id: visitor, lastSource: "Newsletter", lastTouchAt: newer },
-		});
-		await filedLater(visitor, null);
-		const row = await held(email);
-		await db.formSubmission.update({
-			where: { id: row.id },
-			data: {
-				visitorId: visitor,
-				lastTouch: {
-					source: "Google",
-					medium: "organic",
-					campaign: null,
-					term: null,
-					content: null,
-					referrer: null,
-					landing: "/pricing",
-					at: "2026-08-10T12:00:00.000Z",
-				},
-			},
-		});
+	it("keeps the visitor's newer contact and touch when an older form is refiled", async () => {
+		const visitor = visitorName();
+		const contactId = await fileNewer(visitor, `newer-${suffix}@${domain}`);
+		await olderFor(visitor, `older-${suffix}@${domain}`);
 
 		expect(await refile.drain(1)).toBe(1);
 
 		const stored = await db.trackedVisitor.findUnique({
 			where: { id: visitor },
-			select: { lastSource: true, lastTouchAt: true, contactId: true },
-		});
-		expect(stored?.lastSource).toBe("Newsletter");
-		expect(stored?.lastTouchAt?.toISOString()).toBe(newer.toISOString());
-	});
-
-	it("keeps the visitor on the contact a newer form filed", async () => {
-		const newerEmail = `newer-${suffix}@${domain}`;
-		const newer = await submit(newerEmail);
-		const contactId = newer.outcome.filed ? newer.outcome.contactId : "";
-		const visitor = `visitor-${Math.random().toString(36).slice(2, 12)}`;
-		await db.trackedVisitor.create({
-			data: {
-				id: visitor,
-				contactId,
-				lastTouchAt: new Date("2026-08-10T12:00:00.000Z"),
-			},
-		});
-		await filedLater(visitor, contactId);
-		const row = await held(`older-${suffix}@${domain}`);
-		await db.formSubmission.update({
-			where: { id: row.id },
-			data: {
-				visitorId: visitor,
-				lastTouch: {
-					source: "Google",
-					medium: "organic",
-					campaign: null,
-					term: null,
-					content: null,
-					referrer: null,
-					landing: "/pricing",
-					at: "2026-08-10T12:00:00.000Z",
-				},
-			},
-		});
-
-		expect(await refile.drain(1)).toBe(1);
-
-		const stored = await db.trackedVisitor.findUnique({
-			where: { id: visitor },
-			select: { contactId: true },
+			select: { contactId: true, lastSource: true, lastTouchAt: true },
 		});
 		expect(stored?.contactId).toBe(contactId);
+		expect(stored?.lastSource).toBe("Newsletter");
+		expect(stored?.lastTouchAt?.toISOString()).toBe(NEWER_AT.toISOString());
 	});
 
 	it("keeps the visitor on the newer contact when the tracker resends an older form", async () => {
-		const newer = await submit(`resent-newer-${suffix}@${domain}`);
-		const contactId = newer.outcome.filed ? newer.outcome.contactId : "";
-		const visitor = `visitor-${Math.random().toString(36).slice(2, 12)}`;
-		await db.trackedVisitor.create({ data: { id: visitor, contactId } });
-		await filedLater(visitor, contactId);
+		const visitor = visitorName();
+		const contactId = await fileNewer(
+			visitor,
+			`resent-newer-${suffix}@${domain}`,
+		);
 		const email = `resent-older-${suffix}@${domain}`;
-		const row = await held(email);
+		const row = await olderFor(visitor, email);
 
 		const outcome = await filing.file({
 			id: row.id,

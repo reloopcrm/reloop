@@ -222,14 +222,15 @@ deleted* comes to be true of email and not of forms.
   `refile_failed` rows only with the room that is left, so a set of rows that
   keep failing never blocks the rows behind them. The read uses the
   `(skipReason, createdAt)` index, so a long history of filed rows costs nothing.
-- **A filing never moves a visitor backwards.** `attach` writes the visitor's
-  `contactId` and `last*` columns in one `UPDATE` whose `WHERE` refuses when a
-  filed submission of the same visitor has a later `createdAt`. So an old
-  deferred form, refiled or resent after a newer one, leaves the newer contact
-  and the newer campaign in place. It compares submission times, not touch
-  times, because two forms of one page load share one touch. The check and the
-  write are one statement, and a live filing claims its row before it writes the
-  visitor, so a refile running beside it cannot win with a stale answer.
+- **A filing never moves a visitor backwards.** `trackedVisitor.contactSubmittedAt`
+  holds the `createdAt` of the submission that last set the visitor's contact.
+  `attach` writes `contactId`, that column and the `last*` columns in one `UPDATE`
+  whose `WHERE` refuses when the stored time is later than this submission's. So
+  an old deferred form, refiled or resent after a newer one, leaves the newer
+  contact and the newer campaign in place. It compares submission times, not
+  touch times, because two forms of one page load share one touch. The guard is
+  on the row it updates, so PostgreSQL re-checks it against the newest row
+  version after a lock wait, and two filings running at once cannot both win.
 - **The trap code calls the DOM prototype**, `Element.prototype.querySelector`
   and `Node.prototype.appendChild`, because a control named `querySelector`
   shadows the form's own method and the call would throw.

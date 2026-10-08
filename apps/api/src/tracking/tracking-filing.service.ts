@@ -232,14 +232,12 @@ export class TrackingFilingService {
 		await this.db.$executeRaw`
 			UPDATE "trackedVisitor" SET
 				"contactId" = ${contactId},
+				"contactSubmittedAt" = ${submission.createdAt},
 				"lastSeen" = ${new Date()}${lastColumns}
 			WHERE "id" = ${visitorId}
-				AND NOT EXISTS (
-					SELECT 1 FROM "formSubmission"
-					WHERE "visitorId" = ${visitorId}
-						AND "id" <> ${submissionId}
-						AND "filedAt" IS NOT NULL
-						AND "createdAt" > ${submission.createdAt}
+				AND (
+					"contactSubmittedAt" IS NULL
+					OR "contactSubmittedAt" <= ${submission.createdAt}
 				);
 		`;
 	}

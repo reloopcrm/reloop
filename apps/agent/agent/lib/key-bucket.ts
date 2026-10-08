@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { canonicalPlanId } from "@crm/db/plans";
+import { cloud } from "@crm/db/cloud/scope";
 import type { LanguageModel, LanguageModelMiddleware } from "ai";
 import { wrapLanguageModel } from "ai";
 import { z } from "zod";
@@ -24,9 +24,9 @@ export function perMinuteFrom(env: NodeJS.ProcessEnv = process.env): number {
 }
 
 export function slowShareOf(plan: string | null | undefined): number {
-	const id = canonicalPlanId(plan);
-	const byPlan: Record<string, number> = DISPATCH.bucket.share.byPlan;
-	return (id && byPlan[id]) ?? DISPATCH.bucket.share.other;
+	return (
+		cloud.plans.limitsOf(plan).sharedKeyShare ?? DISPATCH.bucket.share.other
+	);
 }
 
 const lanes = new AsyncLocalStorage<Lane>();

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { cloud } from "../src/cloud/scope";
+import { NO_PLAN } from "../src/plans";
 
 const saved = { ...process.env };
 
@@ -63,6 +64,15 @@ describe("the cloud slot on a self-hosted install", () => {
 
 	it("throws only when asked for the current scope, which does not exist", () => {
 		expect(() => cloud.current()).toThrow();
-		expect(() => cloud.addOns()).toThrow();
+	});
+
+	it("knows no plan without a plan string, and no add-ons outside a scope", () => {
+		for (const plan of [null, undefined, ""]) {
+			expect(cloud.plans.limitsOf(plan)).toBe(NO_PLAN);
+			expect(cloud.plans.isTrial(plan)).toBe(false);
+			expect(cloud.plans.usageWindow(plan, new Date())).toBeNull();
+		}
+		const limits = { ...NO_PLAN, contacts: 3 };
+		expect(cloud.plans.withAddOns(limits)).toEqual(limits);
 	});
 });

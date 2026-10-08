@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { Db, MailboxSyncModel as MailboxSync } from "@crm/db";
+import { actWithoutPlans, actWithTestPlans } from "@crm/db/test-plans";
 import type { z } from "zod";
 import {
 	planBackfill,
@@ -244,6 +245,10 @@ function message(overrides: Partial<GraphMessage> = {}): GraphMessage {
 	};
 }
 
+beforeAll(actWithTestPlans);
+
+afterAll(actWithoutPlans);
+
 describe("OutlookSyncService threading", () => {
 	it("keeps a conversation together when Graph returns unrelated headers", async () => {
 		const kit = harness({
@@ -434,7 +439,7 @@ describe("OutlookSyncService budget", () => {
 	it("cuts a backfill page to the threads the plan still allows", async () => {
 		const kit = harness({
 			backfillPages: [bulk(200, 0), bulk(200, 200)],
-			plan: "test",
+			plan: "small",
 			threads: 470,
 		});
 

@@ -1,5 +1,6 @@
+import { NO_PLAN } from "../plans";
 import { CLOUD } from "./cloud-config";
-import type { CloudScope } from "./contract";
+import type { CloudPlans, CloudScope } from "./contract";
 
 class NoWorkspaceScope extends Error {
 	constructor() {
@@ -14,14 +15,22 @@ function noScope(): never {
 	throw new NoWorkspaceScope();
 }
 
+const noPlans: CloudPlans = {
+	limitsOf: () => NO_PLAN,
+	withAddOns: (limits) => limits,
+	usageWindow: () => null,
+	isTrial: () => false,
+	options: () => [],
+};
+
 export const cloud: CloudScope = {
 	loop: CLOUD.selfHost.loop,
+	plans: noPlans,
 	hosted: () => false,
 	customer: () => false,
 	operatorId: () => null,
 	scopeId: () => null,
 	current: noScope,
-	addOns: noScope,
 	scopedKey: (key) => key,
 	hold: (fn) => fn(),
 	run: (_scope, fn) => fn(),

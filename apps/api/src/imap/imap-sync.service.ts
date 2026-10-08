@@ -4,8 +4,8 @@ import {
 	type ImapAccountModel as ImapAccount,
 	type MailboxSyncModel as MailboxSync,
 } from "@crm/db";
-import { clampImportSince, limitsOf } from "@crm/db/plans";
-import { readPlan } from "@crm/db/settings";
+import { planLimitsOf } from "@crm/db/plan-usage";
+import { clampImportSince } from "@crm/db/plans";
 import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -236,7 +236,7 @@ export class ImapSyncService {
 		let budget = IMAP.sync.maxMessagesPerTick;
 		let written = 0;
 
-		const limits = limitsOf(await readPlan(this.db));
+		const limits = await planLimitsOf(this.db);
 		const importSince = clampImportSince(
 			account.importSince,
 			limits,

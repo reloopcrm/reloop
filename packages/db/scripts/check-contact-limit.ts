@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import pg from "pg";
-import { CONTACT_LIMIT_MESSAGE, PLANS } from "../src/plans";
+import { CONTACT_LIMIT_MESSAGE } from "../src/plans";
+
+const LIMIT = 2_000;
 
 if (!process.argv.includes("--authorized-disposable-database")) {
 	throw new Error(
@@ -43,17 +45,19 @@ try {
 	await first.query('CREATE TABLE "threadInsight" (id text PRIMARY KEY)');
 	await first.query('INSERT INTO "appSetting" VALUES ($1, $2)', [
 		"app",
-		"trial",
+		"limited",
 	]);
 	await first.query(
 		"INSERT INTO contact (id) SELECT generate_series(1, $1)::text",
-		[PLANS.trial.contacts - 1],
+		[LIMIT - 1],
 	);
 	for (const migration of [
 		"20260913000000_enforce_contact_plan_limit",
 		"20260921120000_plan_ids",
 		"20261001090000_mailbox_profile",
 		"20261001100000_contact_limit_revive",
+		"20261008090000_contact_limit_column",
+		"20261008100000_contact_limit_from_column",
 	]) {
 		await first.query(
 			await readFile(
@@ -65,6 +69,10 @@ try {
 			),
 		);
 	}
+	await first.query(
+		'UPDATE "appSetting" SET "contactLimit" = $1 WHERE id = $2',
+		[LIMIT, "app"],
+	);
 	const results = await Promise.allSettled(
 		clients.map((client, index) =>
 			client.query("INSERT INTO contact (id) VALUES ($1)", [
@@ -81,7 +89,7 @@ try {
 	assert.equal(rejected.reason.code, "23514");
 	assert.equal(rejected.reason.message, CONTACT_LIMIT_MESSAGE);
 	const count = await first.query("SELECT count(*)::int AS total FROM contact");
-	assert.equal(count.rows[0].total, PLANS.trial.contacts);
+	assert.equal(count.rows[0].total, LIMIT);
 	await first.query(
 		"INSERT INTO contact (id) VALUES ('1') ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id",
 	);
@@ -92,7 +100,7 @@ try {
 	assert.equal(
 		(await first.query("SELECT count(*)::int AS total FROM contact")).rows[0]
 			.total,
-		PLANS.trial.contacts,
+		LIMIT,
 	);
 	console.log(
 		`Parallel contact limit check passes. Test records remain in schema ${schema}.`,

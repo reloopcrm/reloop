@@ -1,6 +1,6 @@
 import type { Db, Prisma } from "@crm/db";
-import { clampImportSince, limitsOf } from "@crm/db/plans";
-import { readPlan } from "@crm/db/settings";
+import { planLimitsOf } from "@crm/db/plan-usage";
+import { clampImportSince } from "@crm/db/plans";
 import {
 	BadRequestException,
 	Injectable,
@@ -114,7 +114,7 @@ export class ImapConnectionService {
 			throw new BadRequestException(`${email} is already connected.`);
 		}
 
-		const limits = limitsOf(await readPlan(this.db));
+		const limits = await planLimitsOf(this.db);
 
 		const reached = await this.state.mailboxLimitReached();
 		if (reached) throw new BadRequestException(mailboxLimitMessage(reached));

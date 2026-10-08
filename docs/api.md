@@ -76,8 +76,15 @@ outside the slot folders. The hosted version plugs in here; the open core runs
 without it. In this repository every slot is a no-op: `cloud.hosted()` is false;
 `run`, `hold` and `forEachScope` call the work exactly once; `resolveClient`
 returns the one client of `DATABASE_URL`; the member hooks do nothing. Only
-`current()` and `addOns()` throw, because a self-hosted install has no scope:
-guard them with `cloud.hosted()` or `cloud.customer()`.
+`current()` throws, because a self-hosted install has no scope: guard it with
+`cloud.hosted()` or `cloud.customer()`. `cloud.plans` is the port for limits: the
+open core carries no plan table, so `limitsOf` answers `NO_PLAN` for every plan
+string, `withAddOns` returns its input, `usageWindow` is null and `options` is
+empty. Core code never reads a plan itself; it calls `planLimitsOf(db)`
+(`@crm/db/plan-usage`), which goes through that port, and the hosted version
+fills the port with its own catalog. `writePlan` (`@crm/db/settings`) stores
+`appSetting.contactLimit` from the same port, and the database trigger
+`enforce_contact_plan_limit` reads that column: NULL means no limit.
 
 Keep the port in use. A process-wide cache key that is per workspace goes through
 `cloud.scopedKey()`, a cron route that serves every workspace loops through
@@ -514,8 +521,9 @@ the largest attachment upload the conversation contracts accept.
   request error) and return no contact. `resolve` answers `limited: true`, `store` keeps
   the thread `PENDING`, and one warning per `LIMIT_WARNING.intervalMs` is logged. The
   mailbox never turns `FAILED` and the cursor moves on. Before `create` makes a new
-  company it counts contacts against `limitsOf(readPlan)`, the trigger's own rule, and at
-  the limit it creates neither the company nor the contact.
+  company it counts contacts against `planLimitsOf(db).contacts`, the same value the
+  trigger reads from `appSetting.contactLimit`, and at the limit it creates neither
+  the company nor the contact.
 - **A contact who writes again comes back.** `store` calls `reviveContact` for a new
   INBOUND message. The sender first passes `externalParticipants` with the same
   `MatchContext` as contact creation, so a colleague, a suppressed or blocked address and

@@ -1,5 +1,5 @@
 import { isWorkspaceAdmin } from "@crm/auth";
-import { canonicalPlanId } from "@crm/db/plans";
+import { cloud } from "@crm/db/cloud/scope";
 import { Button } from "@crm/ui/components/button";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -96,7 +96,7 @@ async function audience() {
 		requestScope(),
 	]);
 	const admin = isWorkspaceAdmin(await workspaceRole(session.user.id));
-	const trial = canonicalPlanId(tenant?.plan) === "trial";
+	const trial = cloud.plans.isTrial(tenant?.plan);
 	return {
 		admin,
 		trial,

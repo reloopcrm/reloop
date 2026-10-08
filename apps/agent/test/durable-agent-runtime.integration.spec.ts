@@ -540,6 +540,38 @@ describe("durable custom-agent runtime", () => {
 		expect(deliveries).toBe(1);
 	});
 
+	it("records the builder session when only the acceptance write fails", async () => {
+		const conversation = await db.agentConversation.create({
+			data: {
+				kind: "BUILDER",
+				userId,
+				submissions: {
+					create: {
+						submittedById: userId,
+						clientRequestId: crypto.randomUUID(),
+						message: { text: "Build a third agent" },
+					},
+				},
+			},
+			select: { id: true, submissions: { select: { id: true } } },
+		});
+		builderConversationIds.push(conversation.id);
+		const submissionId = conversation.submissions[0]?.id ?? "";
+		const sessionId = `durable-session-${suffix}-recorded`;
+		const send = (async () => {
+			await db.agentConversationSubmission.deleteMany({
+				where: { id: submissionId },
+			});
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		await dispatchBuilderSubmission(submissionId, send);
+		const settled = await db.agentConversation.findUniqueOrThrow({
+			where: { id: conversation.id },
+		});
+		expect(settled.sessionId).toBe(sessionId);
+	});
+
 	it("keeps a builder message accepted when the send rejects after Eve received it", async () => {
 		const conversation = await db.agentConversation.create({
 			data: {

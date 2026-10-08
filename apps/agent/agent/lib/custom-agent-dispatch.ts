@@ -233,24 +233,30 @@ export async function dispatchBuilderSubmission(
 		});
 	} catch (error) {
 		console.error(
-			`[agent] builder submission ${submission.id} was delivered but its session could not be recorded: ${
+			`[agent] builder submission ${submission.id} was delivered but its acceptance could not be recorded: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
 		);
-		await db.agentConversationSubmission
-			.updateMany({
+		const retries = await Promise.allSettled([
+			db.agentConversationSubmission.updateMany({
 				where: { id: submission.id, status: "SENDING" },
 				data: { status: "ACCEPTED", acceptedAt: new Date() },
-			})
-			.catch((retryError) => {
-				console.error(
-					`[agent] builder submission ${submission.id} was delivered but could not be marked accepted: ${
-						retryError instanceof Error
-							? retryError.message
-							: String(retryError)
-					}`,
-				);
-			});
+			}),
+			db.agentConversation.updateMany({
+				where: { id: conversationId, kind: "BUILDER" },
+				data: { sessionId, pendingInputRequest: Prisma.DbNull },
+			}),
+		]);
+		for (const retry of retries) {
+			if (retry.status === "fulfilled") continue;
+			console.error(
+				`[agent] builder submission ${submission.id} could not record its delivery: ${
+					retry.reason instanceof Error
+						? retry.reason.message
+						: String(retry.reason)
+				}`,
+			);
+		}
 	}
 
 	return session;

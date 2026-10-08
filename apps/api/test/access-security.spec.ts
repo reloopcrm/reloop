@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { API_KEY_HEADER } from "@crm/auth";
+import { db } from "@crm/db";
 import { CONTACT_LIMIT_MESSAGE } from "@crm/db/plans";
 import type { MiddlewareOptions } from "nestjs-trpc";
 import { AuthMiddleware } from "../src/trpc/middlewares/auth.middleware";
@@ -7,7 +8,14 @@ import { DomainErrorMiddleware } from "../src/trpc/middlewares/domain-error.midd
 import { SessionOnlyMiddleware } from "../src/trpc/middlewares/session-only.middleware";
 
 const allowed = process.env.ALLOWED_SIGN_IN;
+beforeEach(() => {
+	Object.defineProperty(db, "appSetting", {
+		value: { findUnique: async () => null },
+		configurable: true,
+	});
+});
 afterEach(() => {
+	Reflect.deleteProperty(db, "appSetting");
 	if (allowed === undefined) delete process.env.ALLOWED_SIGN_IN;
 	else process.env.ALLOWED_SIGN_IN = allowed;
 });

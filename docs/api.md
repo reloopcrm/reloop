@@ -51,6 +51,16 @@ never takes a place of the pass. A task that finished without ever starting neve
 counts against a monthly limit: `planAllows` and every other budget count use
 `budgetTasksWhere` (`@crm/db/plan-usage`).
 
+**A rep's Research click is never lost behind a waiting task.** `ContactsService.enrich`
+queues through `contactRequested`, at `PRIORITY.requested` with a reason that starts
+with `REP_ASKED_REASON`. When an automatic `identify` row already waits and the agent
+has not claimed it (`startedAt` is null), `enqueue` rewrites that row under the same
+idempotency lock: the rep's reason, the higher of the two priorities and the earlier
+of its `dueAt` and now. The click answers `queued: true`, and the pre-check sees the
+rep's reason. A row the agent already claimed stays as it is and the click answers
+`queued: false`. Only `contactRequested` sets `upgradeOpen`; every other caller of
+`enqueue` still skips an open row without a write.
+
 About to add a vendor client to `apps/api`? You want `apps/agent/agent/lib`. One
 documented exception, for timing: the exchange-rate fetcher, below.
 

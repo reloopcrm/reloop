@@ -572,6 +572,48 @@ describe("durable custom-agent runtime", () => {
 		expect(settled.sessionId).toBe(sessionId);
 	});
 
+	it("keeps a newer builder question when only the acceptance write fails", async () => {
+		const sessionId = `durable-session-${suffix}-asking`;
+		const created = await db.agentConversation.create({
+			data: { kind: "BUILDER", userId, sessionId },
+			select: { id: true },
+		});
+		builderConversationIds.push(created.id);
+		const conversation = await db.agentConversation.update({
+			where: { id: created.id },
+			data: {
+				continuationToken: builderToken(created.id),
+				submissions: {
+					create: {
+						submittedById: userId,
+						clientRequestId: crypto.randomUUID(),
+						message: { text: "Change the schedule" },
+					},
+				},
+			},
+			select: { id: true, submissions: { select: { id: true } } },
+		});
+		const submissionId = conversation.submissions[0]?.id ?? "";
+		const question = { requestId: "durable-question", prompt: "Which day?" };
+		const send = (async () => {
+			await db.agentConversationSubmission.deleteMany({
+				where: { id: submissionId },
+			});
+			await db.agentConversation.update({
+				where: { id: conversation.id },
+				data: { pendingInputRequest: question },
+			});
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		await dispatchBuilderSubmission(submissionId, send);
+		const settled = await db.agentConversation.findUniqueOrThrow({
+			where: { id: conversation.id },
+		});
+		expect(settled.sessionId).toBe(sessionId);
+		expect(settled.pendingInputRequest).toEqual(question);
+	});
+
 	it("keeps a builder message accepted when the send rejects after Eve received it", async () => {
 		const conversation = await db.agentConversation.create({
 			data: {

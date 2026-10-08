@@ -243,8 +243,8 @@ export async function dispatchBuilderSubmission(
 				data: { status: "ACCEPTED", acceptedAt: new Date() },
 			}),
 			db.agentConversation.updateMany({
-				where: { id: conversationId, kind: "BUILDER" },
-				data: { sessionId, pendingInputRequest: Prisma.DbNull },
+				where: { id: conversationId, kind: "BUILDER", sessionId: null },
+				data: { sessionId },
 			}),
 		]);
 		for (const retry of retries) {

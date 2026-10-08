@@ -16,7 +16,7 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useTRPC } from "@/lib/trpc/client";
-import { BUSINESS_STEP } from "./business-config";
+import { BUSINESS_STEP, readingBusinessDraft } from "./business-config";
 
 type Draft = {
 	description: string;
@@ -33,7 +33,7 @@ function lines(value: string): string[] {
 		.filter(Boolean);
 }
 
-export function BusinessForm() {
+export function BusinessForm({ draftPossible }: { draftPossible: boolean }) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
@@ -45,6 +45,7 @@ export function BusinessForm() {
 	const rules = useQuery(
 		trpc.reactivation.rules.queryOptions(undefined, {
 			refetchInterval: (query) =>
+				draftPossible &&
 				query.state.data?.business.description === "" &&
 				Date.now() - openedAt < BUSINESS_STEP.waitMs + BUSINESS_STEP.pollMs
 					? BUSINESS_STEP.pollMs
@@ -61,10 +62,12 @@ export function BusinessForm() {
 		unit: business?.unit ?? "units",
 	};
 	const draft: Draft = { ...proposed, ...edited };
-	const reading =
-		rules.isPending ||
-		(business?.description === "" &&
-			Date.now() - openedAt < BUSINESS_STEP.waitMs);
+	const reading = readingBusinessDraft({
+		possible: draftPossible,
+		pending: rules.isPending,
+		description: business?.description,
+		elapsedMs: Date.now() - openedAt,
+	});
 
 	const edit = (key: keyof Draft) => (value: string) =>
 		setEdited((current) => ({ ...current, [key]: value }));

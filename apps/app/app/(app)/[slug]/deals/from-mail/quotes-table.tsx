@@ -4,6 +4,7 @@ import { CardTableEmpty } from "@crm/ui/components/card-table";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
@@ -20,6 +21,7 @@ export function QuotesTable() {
 	const stageLabel = useDealStageLabel();
 	const [busy, setBusy] = useState<string | null>(null);
 	const { query } = useTableQuery(quotesSearchParams);
+	const openRecord = useOpenRecord();
 
 	const quotes = useQuery(trpc.quotes.list.queryOptions());
 
@@ -71,6 +73,7 @@ export function QuotesTable() {
 				rows={data.rows}
 				unit={data.unit}
 				busy={busy}
+				onOpen={(row) => openRecord({ kind: "company", id: row.company.id })}
 				onCreate={(row) => {
 					setBusy(row.threadId);
 					createDeal.mutate({ threadId: row.threadId });

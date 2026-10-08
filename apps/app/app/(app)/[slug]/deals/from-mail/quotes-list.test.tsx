@@ -59,6 +59,7 @@ function render(busy: string | null = null) {
 			busy={busy}
 			onCreate={() => {}}
 			onDismiss={() => {}}
+			onOpen={() => {}}
 		/>,
 	);
 }

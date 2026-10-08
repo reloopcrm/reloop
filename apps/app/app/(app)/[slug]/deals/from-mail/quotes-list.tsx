@@ -23,6 +23,8 @@ type QuoteActions = {
 	onDismiss: (row: Quote) => void;
 };
 
+type QuoteOpen = { onOpen: (row: Quote) => void };
+
 export function quotesPage<T>(
 	rows: readonly T[],
 	page: number,
@@ -125,12 +127,14 @@ export function QuotesList({
 	query,
 	rows,
 	unit,
+	onOpen,
 	...actions
-}: QuoteActions & {
-	query: TableQueryState;
-	rows: Quote[];
-	unit: string;
-}) {
+}: QuoteActions &
+	QuoteOpen & {
+		query: TableQueryState;
+		rows: Quote[];
+		unit: string;
+	}) {
 	const t = useT();
 
 	return (
@@ -140,6 +144,7 @@ export function QuotesList({
 			rows={quotesPage(rows, query.page, query.pageSize)}
 			total={rows.length}
 			getRowId={(row) => row.threadId}
+			onRowClick={onOpen}
 		/>
 	);
 }

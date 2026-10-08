@@ -80,6 +80,7 @@ export class ReactivationService {
 		const rules = await readWinBackRules(this.db);
 		const report = await listReactivationCandidates(this.db, {
 			rejected: input.rejected,
+			replied: input.replied,
 			quietForDays: input.quietForDays,
 			limit: REACTIVATION.limit.max,
 			ownerId: input.scope === "me" ? userId : null,

@@ -51,10 +51,13 @@ import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { WIN_BACK_UI } from "../win-back-config";
 import {
+	answerIsNext,
 	type CardStep,
+	followUpDaysOf,
 	type NextPerson,
 	nextLabel,
 	type PersonView,
+	replyDraftOutdated,
 	withListState,
 } from "./person-view";
 
@@ -111,8 +114,10 @@ export function useNextStep(
 	const draft = useEmailDraft(contactId, true);
 	const email = view.contact.email;
 	const shortVersion = draft.draft?.oneOff ?? null;
-	const shown =
-		variant === "short"
+	const outdated = replyDraftOutdated(view, draft.draft);
+	const shown = outdated
+		? null
+		: variant === "short"
 			? shortVersion
 			: draft.draft
 				? { subject: draft.draft.subject, body: draft.draft.body }
@@ -176,7 +181,13 @@ export function useNextStep(
 
 	const open = () => {
 		setStep("open");
-		void draft.ensure();
+		if (outdated) {
+			setBody(null);
+			setEditing(false);
+		}
+		void draft.ensure({
+			covering: answerIsNext(view) ? view.wroteBack?.answeredAt : undefined,
+		});
 	};
 
 	const later = () => {
@@ -277,6 +288,7 @@ export function useNextStep(
 		next,
 		place,
 		shown,
+		outdated,
 		step,
 		first,
 		days,
@@ -326,7 +338,7 @@ function DraftState({ step }: { step: NextStep }) {
 	const t = useT();
 	const { draft } = step;
 
-	if (draft.held && !draft.draft) {
+	if (draft.held && (!draft.draft || step.outdated)) {
 		return (
 			<p className="text-muted-foreground text-sm">
 				{draft.planLimit
@@ -361,6 +373,15 @@ function DraftState({ step }: { step: NextStep }) {
 			</p>
 		);
 	}
+	if (step.outdated) {
+		return (
+			<p className="text-muted-foreground text-sm">
+				{t(
+					"Reloop has not written the answer yet. Reload the page to try again.",
+				)}
+			</p>
+		);
+	}
 	return null;
 }
 
@@ -381,7 +402,7 @@ function OpenMail({ step }: { step: NextStep }) {
 					type="single"
 					size="sm"
 					value={step.variant}
-					disabled={!draft.draft || draft.blocked}
+					disabled={!draft.draft || draft.blocked || step.outdated}
 					onValueChange={(value) => {
 						if (value === "full" || value === "short")
 							step.changeVariant(value);
@@ -426,19 +447,26 @@ function CardBody({ step }: { step: NextStep }) {
 	const { first, draft } = step;
 
 	if (step.step === "read") {
-		const preview = draft.draft
-			? paragraphs(draft.draft.body).slice(1, 3).join(" ")
-			: "";
+		const preview =
+			draft.draft && !step.outdated
+				? paragraphs(draft.draft.body).slice(1, 3).join(" ")
+				: "";
 		return (
 			<>
 				<CardEyebrow>{t("Your next step")}</CardEyebrow>
 				<DraftCardTitle>
-					{step.email
-						? t("Send {name} a short email", { name: first })
-						: t("{name} has no email address", { name: first })}
+					{!step.email
+						? t("{name} has no email address", { name: first })
+						: answerIsNext(step.view)
+							? t("Reply to them")
+							: t("Send {name} a short email", { name: first })}
 				</DraftCardTitle>
 				<DraftCardDescription>
-					{t("Reloop prepares it in your tone, with what the story says.")}
+					{step.email && answerIsNext(step.view)
+						? t(
+								"They wrote back after your win back mail. Reloop prepares the answer in your tone.",
+							)
+						: t("Reloop prepares it in your tone, with what the story says.")}
 				</DraftCardDescription>
 				{preview ? (
 					<DraftCardPreview>
@@ -494,7 +522,7 @@ function CardBody({ step }: { step: NextStep }) {
 					<Button
 						variant="link"
 						size="text"
-						disabled={!draft.draft}
+						disabled={!step.shown}
 						onClick={() => void step.copy()}
 					>
 						{t("Copy")}
@@ -512,6 +540,7 @@ function CardBody({ step }: { step: NextStep }) {
 		);
 	}
 
+	const followUpDays = followUpDaysOf(step.view);
 	const done = {
 		sent: {
 			eyebrow: t("Completed"),
@@ -549,13 +578,13 @@ function CardBody({ step }: { step: NextStep }) {
 					<CheckItem>
 						{t("Your mail program opened with this text. Send it from there.")}
 					</CheckItem>
-					{step.view.followUpDays !== null ? (
+					{followUpDays !== null ? (
 						<CheckItem>
 							{t(
 								"If {name} does not answer, Reloop reminds you in {count} days.",
 								{
 									name: first,
-									count: step.view.followUpDays,
+									count: followUpDays,
 								},
 							)}
 						</CheckItem>

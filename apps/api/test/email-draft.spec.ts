@@ -155,6 +155,15 @@ describe("the email a rep can send back", () => {
 		expect(state.draft?.stale).toBe(true);
 	});
 
+	it("names the newest mail the draft was written from", async () => {
+		const id = await person("gelesen");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+
+		const state = await service.draft(id);
+
+		expect(state.draft?.basedOnUntil).toBe("2026-08-01T00:00:00.000Z");
+	});
+
 	it("leaves a draft alone while no newer mail arrives", async () => {
 		const id = await person("aktuell");
 		await store(id, new Date("2026-09-01T00:00:00.000Z"));

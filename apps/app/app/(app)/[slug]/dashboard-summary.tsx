@@ -316,7 +316,7 @@ export function DashboardSummary() {
 
 	return (
 		<div className="flex flex-col gap-8">
-			<SalesDashboard summary={summary} />
+			<SalesDashboard summary={summary} scope={scope} />
 
 			<DashboardRow>
 				<DashboardBlock

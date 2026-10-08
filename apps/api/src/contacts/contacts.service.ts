@@ -907,6 +907,7 @@ export class ContactsService {
 				role: readDraftRole(stored.role),
 				modelId: (await fixedAiWith(this.db)) ? null : stored.modelId,
 				writtenAt: stored.updatedAt.toISOString(),
+				basedOnUntil: stored.basedOnUntil?.toISOString() ?? null,
 				stale:
 					since !== null &&
 					(stored.basedOnUntil === null || since > stored.basedOnUntil),
@@ -969,12 +970,11 @@ export class ContactsService {
 			throw new NotFoundException(`No contact with id ${id}.`);
 		}
 
-		const queued = await this.agent.contactCreated(
+		const queued = await this.agent.contactRequested(
 			id,
 			contact.linkedinUrl && !contact.imageUrl
 				? `${REP_ASKED_REASON}. They have a LinkedIn profile on file but no picture`
 				: REP_ASKED_REASON,
-			true,
 		);
 
 		if (queued) {

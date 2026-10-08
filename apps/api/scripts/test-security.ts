@@ -16,6 +16,8 @@ const env = {
 	REDIS_URL: "",
 };
 
+const failed: string[] = [];
+
 async function run(args: string[], cwd = root) {
 	const child = Bun.spawn([process.execPath, ...args], {
 		cwd,
@@ -24,10 +26,11 @@ async function run(args: string[], cwd = root) {
 		stderr: "inherit",
 	});
 	const code = await child.exited;
-	if (code !== 0) process.exit(code);
+	if (code !== 0) failed.push(`${args.join(" ")} (exit ${code})`);
+	return code;
 }
 
-await run(["run", "build"], api);
+if ((await run(["run", "build"], api)) !== 0) process.exit(1);
 await run([
 	"test",
 	"--preload",
@@ -55,3 +58,8 @@ await run([
 	"apps/api/test/built-startup.spec.ts",
 ]);
 await run(["test", "apps/app/test/email-draft-security.spec.tsx"]);
+
+if (failed.length > 0) {
+	console.error(`Security groups failed:\n${failed.join("\n")}`);
+	process.exit(1);
+}

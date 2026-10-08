@@ -3,6 +3,7 @@ import { isBoxThread } from "./contact-worth";
 import { OPEN_DEAL_STAGES } from "./deal-stage";
 import { Prisma } from "./generated/prisma/client";
 import { DealStage } from "./generated/prisma/enums";
+import { wroteBackAfterOutreach } from "./win-back-outcome";
 import { DEFAULT_WIN_BACK_RULES, type WinBackRuleSet } from "./win-back-rules";
 
 const DAY_MS = 86_400_000;
@@ -15,6 +16,7 @@ export const REACTIVATION = {
 
 export type ReactivationOptions = {
 	rejected?: boolean;
+	replied?: boolean;
 	quietForDays?: number;
 	limit?: number;
 	ownerId?: string | null;
@@ -335,21 +337,26 @@ export async function listReactivationCandidates(
 	const ownerFilter = options.ownerId
 		? Prisma.sql`AND c."ownerId" = ${options.ownerId}`
 		: Prisma.empty;
-	const includeFilter = options.rejected ? Prisma.empty : ruleFilter(rules);
+	const ruled = !options.rejected && !options.replied;
+	const includeFilter = ruled ? ruleFilter(rules) : Prisma.empty;
+	const repliedFilter = options.replied
+		? Prisma.sql`AND ${wroteBackAfterOutreach(Prisma.sql`c.id`)}`
+		: Prisma.empty;
 
 	const rows = await db.$queryRaw<Row[]>(
 		rowQuery(
 			Prisma.sql`${standingFilter}
 			${quietFilter}
 			${includeFilter}
-			${ownerFilter}`,
+			${ownerFilter}
+			${repliedFilter}`,
 			REACTIVATION.scan.maxRows,
 		),
 	);
 
 	const scored = rows
 		.map((row) => candidateOf(row, now, rules))
-		.filter((candidate) => options.rejected || passesRules(candidate, rules))
+		.filter((candidate) => !ruled || passesRules(candidate, rules))
 		.sort(
 			(a, b) =>
 				b.points - a.points ||

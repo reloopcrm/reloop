@@ -1255,6 +1255,7 @@ model EmailThread {
   @@index([contactId, lastMessageAt])
   @@index([classification])
   @@index([quoteHandledAt])
+  @@index([lastMessageAt])
   @@map("emailThread")
 }
 

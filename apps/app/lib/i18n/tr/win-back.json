@@ -283,6 +283,7 @@
 	"No verdict": "Karar yok",
 	"Remove verdict": "Kararı kaldır",
 	"Nobody has gone quiet.": "Kimse sessizleşmedi.",
+	"Reloop is still reading your mail. Quiet customers show up here as soon as their conversations are read.": "Reloop hâlâ e-postalarını okuyor. Sessizleşen müşteriler, konuşmaları okunur okunmaz burada görünür.",
 	"Search by company or person…": "Şirkete veya kişiye göre ara…",
 	"Take {name} off the list?": "{name} listeden çıkarılsın mı?",
 	"This person leaves Win back at once. The agent archives them on its next pass, and their company when nobody else stays there.": "Bu kişi Geri kazan listesinden hemen çıkar. Agent bir sonraki turunda onu arşivler, başka kimse kalmazsa şirketini de arşivler.",
@@ -405,5 +406,10 @@
 	"Reloop has not written a shorter version.": "Reloop henüz daha kısa bir sürüm yazmadı.",
 	"The suggested version comes back. Your changes to the text are lost.": "Önerilen sürüm geri gelir. Metindeki değişikliklerin kaybolur.",
 	"Show the suggestion": "Öneriyi göster",
-	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop {name} ile e-postaları az önce okudu. {time} sonrasında yeniden iste."
+	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop {name} ile e-postaları az önce okudu. {time} sonrasında yeniden iste.",
+	"Wrote back": "Cevap yazdı",
+	"See who wrote back": "Kimin cevap yazdığını gör",
+	"Reply to them": "Onlara cevap ver",
+	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "Geri kazanma mailine cevap yazdılar. Reloop cevabı senin üslubunla hazırlar.",
+	"Reloop has not written the answer yet. Reload the page to try again.": "Reloop cevabı henüz yazmadı. Tekrar denemek için sayfayı yenile."
 }

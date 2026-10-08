@@ -33,6 +33,30 @@ export async function copyText(text: string, t: Translate): Promise<boolean> {
 	}
 }
 
+type DraftCheck = {
+	queued: boolean;
+	waitingUntil: string | null;
+	limit: string | null;
+	draft: { basedOnUntil: string | null } | null;
+};
+
+export function draftToWrite(
+	current: DraftCheck,
+	options: { covering?: string } = {},
+): boolean {
+	if (current.queued || current.waitingUntil || current.limit !== null) {
+		return false;
+	}
+	if (!current.draft) return true;
+
+	if (options.covering === undefined) return false;
+
+	return (
+		current.draft.basedOnUntil === null ||
+		new Date(current.draft.basedOnUntil) < new Date(options.covering)
+	);
+}
+
 export function useEmailDraft(
 	contactId: string,
 	enabled: boolean,
@@ -74,17 +98,12 @@ export function useEmailDraft(
 		}),
 	);
 
-	const ensure = async () => {
+	const ensure = async (options: { covering?: string } = {}) => {
 		try {
 			const current = await queries.fetchQuery(
 				trpc.contacts.draft.queryOptions({ id: contactId }),
 			);
-			if (
-				!current.draft &&
-				!current.queued &&
-				!current.waitingUntil &&
-				current.limit === null
-			) {
+			if (draftToWrite(current, options)) {
 				write.mutate({ id: contactId });
 			}
 		} catch (error) {

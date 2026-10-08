@@ -73,6 +73,15 @@ else's marketing site, so Chrome blocks the reply with
 The header is set on the response, not switched off in `helmet`, so the exception
 stays with the route that needs it.
 
+The body is parsed at the boundary by `parseTrackingBatch`
+(`packages/validation/src/tracking-batch.ts`), before the gauntlet. The envelope
+(`siteId`, `visitorId`, an `events` array) must match, or the whole batch is dropped
+with 204 and no log line. Each event is then parsed on its own: an event that does
+not match the tracker's shape (a null, a non-string host, an unknown type) is
+dropped and the valid events of the same batch are still ingested, so an old cached
+tracker never loses good events. A malformed `touch` or `firstTouch` reads as
+absent.
+
 The gauntlet, in order, in `TrackingIngestService.accept`:
 
 1. **User agent** — the `BOT` pattern.

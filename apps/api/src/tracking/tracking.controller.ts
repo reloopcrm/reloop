@@ -6,6 +6,7 @@ import {
 	isSiteId,
 	MAX_BODY_BYTES,
 } from "@crm/db/tracking";
+import { parseTrackingBatch } from "@crm/validation/tracking-batch";
 import {
 	Controller,
 	ForbiddenException,
@@ -38,10 +39,7 @@ import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
 import { TrackingConfigService } from "./tracking-config.service";
 import { TrackingCounterService } from "./tracking-counter.service";
-import {
-	type IncomingBatch,
-	TrackingIngestService,
-} from "./tracking-ingest.service";
+import { TrackingIngestService } from "./tracking-ingest.service";
 import { TrackingRollupService } from "./tracking-rollup.service";
 
 const SWEEP_BATCH = 10_000;
@@ -110,14 +108,8 @@ export class TrackingController {
 		const raw = await read(request, MAX_BODY_BYTES);
 		if (!raw) return;
 
-		let batch: IncomingBatch;
-		try {
-			batch = JSON.parse(raw) as IncomingBatch;
-		} catch {
-			return;
-		}
-
-		if (!isSiteId(batch?.siteId) || !Array.isArray(batch?.events)) return;
+		const batch = parseTrackingBatch(raw);
+		if (!batch || !isSiteId(batch.siteId)) return;
 
 		const accept = () =>
 			this.ingest.accept(batch, {

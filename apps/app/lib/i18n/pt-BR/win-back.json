@@ -283,6 +283,7 @@
 	"No verdict": "Em aberto",
 	"Remove verdict": "Tirar a avaliação",
 	"Nobody has gone quiet.": "Ninguém ficou em silêncio.",
+	"Reloop is still reading your mail. Quiet customers show up here as soon as their conversations are read.": "O Reloop ainda está lendo seus e-mails. Clientes que ficaram em silêncio aparecem aqui assim que as conversas deles forem lidas.",
 	"Search by company or person…": "Buscar por empresa ou pessoa…",
 	"Take {name} off the list?": "Tirar {name} da lista?",
 	"This person leaves Win back at once. The agent archives them on its next pass, and their company when nobody else stays there.": "A pessoa sai de Reconquistar na hora. O agente arquiva ela na próxima passada, e a empresa dela quando não sobrar mais ninguém lá.",
@@ -405,5 +406,10 @@
 	"Reloop has not written a shorter version.": "O Reloop ainda não escreveu uma versão mais curta.",
 	"The suggested version comes back. Your changes to the text are lost.": "A versão sugerida volta. Suas alterações no texto se perdem.",
 	"Show the suggestion": "Mostrar a sugestão",
-	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "O Reloop acabou de ler os e-mails com {name}. Peça de novo depois das {time}."
+	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "O Reloop acabou de ler os e-mails com {name}. Peça de novo depois das {time}.",
+	"Wrote back": "Respondeu",
+	"See who wrote back": "Ver quem respondeu",
+	"Reply to them": "Responda a eles",
+	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "Eles responderam ao seu e-mail para reconquistar. O Reloop prepara a resposta no seu tom.",
+	"Reloop has not written the answer yet. Reload the page to try again.": "O Reloop ainda não escreveu a resposta. Recarregue a página para tentar de novo."
 }

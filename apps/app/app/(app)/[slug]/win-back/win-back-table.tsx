@@ -39,6 +39,7 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { withListState } from "./[contactId]/person-view";
 import { WinBackBulkVerdict } from "./win-back-bulk-verdict";
 import { WIN_BACK_UI } from "./win-back-config";
+import { winBackEmptyText } from "./win-back-empty";
 import {
 	winBackInput,
 	winBackScopeParsers,
@@ -289,6 +290,7 @@ export function WinBackTable() {
 		...trpc.reactivation.list.queryOptions(winBackInput(table.input, scope)),
 		placeholderData: (previous) => previous,
 	});
+	const reading = useQuery(trpc.reactivation.progress.queryOptions());
 
 	const rows = query.data?.rows ?? [];
 	const selection = useTableSelection(
@@ -313,7 +315,11 @@ export function WinBackTable() {
 		},
 	];
 
-	const setFilter = (next: { quiet?: number | null; rejected?: boolean }) => {
+	const setFilter = (next: {
+		quiet?: number | null;
+		rejected?: boolean;
+		replied?: boolean;
+	}) => {
 		void setScope(next);
 		table.query.setPage(1);
 	};
@@ -327,7 +333,9 @@ export function WinBackTable() {
 			<DataTable
 				query={table.query}
 				search={<ListSearch placeholder={t("Search by company or person…")} />}
-				onReset={() => setFilter({ quiet: null, rejected: false })}
+				onReset={() =>
+					setFilter({ quiet: null, rejected: false, replied: false })
+				}
 				quickFilters={[
 					{
 						id: "quiet",
@@ -343,6 +351,12 @@ export function WinBackTable() {
 						label: t("Not for us"),
 						active: scope.rejected,
 						onToggle: () => setFilter({ rejected: !scope.rejected }),
+					},
+					{
+						id: "replied",
+						label: t("Wrote back"),
+						active: scope.replied,
+						onToggle: () => setFilter({ replied: !scope.replied }),
 					},
 				]}
 				leadingActions={
@@ -417,7 +431,7 @@ export function WinBackTable() {
 						),
 					label: (row) => t("Show the people at {name}", { name: row.name }),
 				}}
-				empty={t("Nobody has gone quiet.")}
+				empty={winBackEmptyText(reading.data, t)}
 			/>
 			<ReadingProgress />
 		</div>

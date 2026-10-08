@@ -51,6 +51,16 @@ never takes a place of the pass. A task that finished without ever starting neve
 counts against a monthly limit: `planAllows` and every other budget count use
 `budgetTasksWhere` (`@crm/db/plan-usage`).
 
+**A rep's Research click is never lost behind a waiting task.** `ContactsService.enrich`
+queues through `contactRequested`, at `PRIORITY.requested` with a reason that starts
+with `REP_ASKED_REASON`. When an automatic `identify` row already waits and the agent
+has not claimed it (`startedAt` is null), `enqueue` rewrites that row under the same
+idempotency lock: the rep's reason, the higher of the two priorities and the earlier
+of its `dueAt` and now. The click answers `queued: true`, and the pre-check sees the
+rep's reason. A row the agent already claimed stays as it is and the click answers
+`queued: false`. Only `contactRequested` sets `upgradeOpen`; every other caller of
+`enqueue` still skips an open row without a write.
+
 About to add a vendor client to `apps/api`? You want `apps/agent/agent/lib`. One
 documented exception, for timing: the exchange-rate fetcher, below.
 
@@ -698,6 +708,22 @@ the pattern lists in `packages/db/src/message-text.ts`
   `direction = 'INBOUND'` alone for that.
 - **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
   and the follow-up sweep both skip auto-replies and bounces.
+- **"Wrote back" is the same loop.** `reactivation.list` and `nextPerson` take
+  `replied`; the list then keeps only the people in the loop's `answered` set
+  (`wroteBackAfterOutreach`): a real answer after the first mail that followed the
+  verdict. An answer before that mail does not count. The win back rules do not
+  apply to this view, so everyone the card counts can show. The "Replied" card links to
+  the list with `?replied=true` and the dashboard's scope. The card counts this
+  month, the list shows every reply. A filtered list is never the prefetch's default
+  list (`readsDefaultList`).
+- **The person view says when the answer is ours to give.** `wroteBack` comes from
+  `readWinBackReply`: the newest real answer after the win back mail, and `open`
+  while no mail from us to their address followed it, in any conversation they
+  own or are linked to. The next step then reads "Reply to them", and
+  the page promises no follow-up reminder, because the sweep skips anyone who
+  answered. The answer time is their newest real answer in a conversation they own,
+  the same mail the draft agent reads. A draft whose `basedOnUntil` ends before that
+  answer is never shown or sent: opening the message asks the agent for a new one.
 - `apps/api/test/real-answer-parity.spec.ts` runs the same samples through both sides. A new
   pattern goes in the list and gets a sample there.
 
@@ -983,7 +1009,10 @@ marked passages and the follow-up delay. It writes nothing but an
   It never starts over at the top: after the last person `next` is null and the page
   offers "Back to the list". It also returns the person's `position` and the list's
   `total` in the same order and filters, for "Person 12 of 87". A person the list does
-  not hold gets a null `position` and no next person.
+  not hold gets a null `position` and no next person. Both count only people with an
+  address, the same people `next` can reach, so the last of them reads "Person 87 of
+  87" beside "Back to the list". A person without an address gets a null `position`
+  and still a next person.
 - **A story past the plan's budget is held back, not an error.** `storyState.limitUntil`
   names the end of the usage window when the conversation budget, which stories share
   (`budgetKinds`) and of which they leave the new-mail reserve alone, is spent. A story

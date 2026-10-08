@@ -488,6 +488,63 @@ describe("a stale draft and a draft written ahead", () => {
 		expect(await openTasks(id)).toEqual([{ priority: PRIORITY.emailDraft }]);
 	});
 
+	it("still rewrites the main draft after a one-off revision of the short version", async () => {
+		const id = await person("kurzfassung");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		await db.agentTask.create({
+			data: {
+				contactId: id,
+				kind: DRAFT_KIND,
+				reason: "test",
+				priority: PRIORITY.emailDraft,
+				budget: 1,
+				dueAt: new Date(),
+				finishedAt: new Date(),
+				payload: { instruction: "Shorter, please", oneOff: true },
+			},
+		});
+
+		const state = await live.refreshDraft(id);
+
+		expect(state.queued).toBe(true);
+		expect(await openTasks(id)).toEqual([{ priority: PRIORITY.emailDraft }]);
+	});
+
+	it("queues no second rewrite when a parallel open already tried for this mail", async () => {
+		const id = await person("parallel");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		await thread(id, new Date("2026-09-01T00:00:00.000Z"));
+		const racing = new ContactsService(
+			db,
+			unused,
+			{
+				emailDraftRequested: async (
+					contactId: string,
+					instruction?: string | null,
+					oneOff?: boolean,
+					stillWanted?: unknown,
+				) => {
+					await doneTask(contactId, "A draft is ready: Europaletten");
+					return new AgentTriggerService(db).emailDraftRequested(
+						contactId,
+						instruction,
+						oneOff,
+						stillWanted as never,
+					);
+				},
+			} as unknown as AgentTriggerService as Deps[2],
+			unused,
+			unused,
+			unused,
+			unused,
+		);
+
+		await racing.refreshDraft(id);
+
+		expect(await openTasks(id)).toEqual([]);
+	});
+
 	it("queues one rewrite at the front when nothing was written ahead", async () => {
 		const id = await person("ohne-vorab");
 		await store(id, new Date("2026-08-01T00:00:00.000Z"));

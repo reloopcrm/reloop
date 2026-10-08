@@ -361,9 +361,11 @@ export class AgentTriggerService {
 		contactId: string,
 		instruction?: string | null,
 		oneOff = false,
+		stillWanted?: (tx: Prisma.TransactionClient) => Promise<boolean>,
 	): Promise<boolean> {
 		return this.enqueue({
 			contactId,
+			stillWanted,
 			kind: "email-draft",
 			reason: instruction
 				? "A rep said what they want different in their email"
@@ -1113,6 +1115,7 @@ export class AgentTriggerService {
 			subject?: { path: string[]; value: string };
 			origin?: AgentTaskOrigin;
 			upgradeOpen?: boolean;
+			stillWanted?: (tx: Prisma.TransactionClient) => Promise<boolean>;
 		},
 		required = false,
 		client?: Prisma.TransactionClient,
@@ -1129,6 +1132,7 @@ export class AgentTriggerService {
 					tx,
 					`agent-task:${task.kind}:${task.contactId ?? ""}:${task.companyId ?? ""}:${task.subject?.value ?? ""}`,
 				);
+				if (task.stillWanted && !(await task.stillWanted(tx))) return false;
 				const pending = await tx.agentTask.findFirst({
 					where: {
 						kind: task.kind,

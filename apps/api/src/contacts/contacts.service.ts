@@ -20,6 +20,7 @@ import { lockFactField } from "@crm/db/idempotency";
 import { fixedAiWith, planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
 import { DRAFT_KIND, monthlyBudget } from "@crm/db/plans";
 import { threadsOfContact } from "@crm/db/thread-participants";
+import { readAgentTaskOneOff } from "@crm/validation/agent-task-payload";
 import { readDraftRole } from "@crm/validation/draft-style";
 import type { LimitReason } from "@crm/validation/plan-limit-reason";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
@@ -925,6 +926,7 @@ export class ContactsService {
 		id: string,
 		instruction?: string,
 		oneOff = false,
+		stillWanted?: (tx: Prisma.TransactionClient) => Promise<boolean>,
 	): Promise<ContactDraftState> {
 		const contact = await this.db.contact.findUnique({
 			where: { id },
@@ -940,6 +942,7 @@ export class ContactsService {
 				id,
 				instruction?.trim() || null,
 				oneOff,
+				stillWanted,
 			);
 		}
 		return this.draft(id);
@@ -956,7 +959,9 @@ export class ContactsService {
 			return state;
 		}
 
-		return this.writeDraft(id);
+		return this.writeDraft(id, undefined, false, async (tx) => {
+			return !(await this.triedSinceNewestMail(id, tx));
+		});
 	}
 
 	private async newestMailAt(id: string): Promise<Date | null> {
@@ -967,24 +972,27 @@ export class ContactsService {
 		return newest._max.lastMessageAt;
 	}
 
-	private async triedSinceNewestMail(id: string): Promise<boolean> {
-		const stored = await this.db.emailMessage.aggregate({
+	private async triedSinceNewestMail(
+		id: string,
+		client: Pick<Db, "emailMessage" | "agentTask"> = this.db,
+	): Promise<boolean> {
+		const stored = await client.emailMessage.aggregate({
 			where: { thread: threadsOfContact(id) },
 			_max: { createdAt: true },
 		});
 		const newest = stored._max.createdAt;
 		if (newest === null) return false;
 
-		const tried = await this.db.agentTask.findFirst({
+		const tries = await client.agentTask.findMany({
 			where: {
 				contactId: id,
 				kind: DRAFT_KIND,
 				createdAt: { gte: newest },
 				finishedAt: { not: null },
 			},
-			select: { id: true },
+			select: { payload: true },
 		});
-		return tried !== null;
+		return tries.some((row) => !readAgentTaskOneOff(row.payload));
 	}
 
 	private async draftLimitResumesAt(now: Date): Promise<Date | null> {

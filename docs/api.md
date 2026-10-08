@@ -1085,7 +1085,8 @@ marked passages and the follow-up delay. It writes nothing but an
   (`agent-task:email-draft:<contactId>`) the API queues only while the stored draft
   is still that one, so an open and a click that race write one draft for a mail.
   Write again on the draft a rep reads still queues. A call without `seen` and a
-  call with a wish behave as before.
+  call with a wish behave as before. `refreshDraft` makes the same check with the
+  draft it found stale, so a draft another task stored meanwhile is not rewritten.
 - **The win back follow-up task opens the person page.** The overview's task lists
   read `meta` and the contact of each task, and a task whose `meta` is
   `{ winBack: true }` (`winBackTaskMeta` in `@crm/validation/activity-meta`) links

@@ -983,8 +983,12 @@ export class ContactsService {
 			return state;
 		}
 
+		const seen = state.draft.writtenAt;
 		return this.writeDraft(id, undefined, false, undefined, async (tx) => {
-			return !(await this.triedSinceNewestMail(id, tx));
+			return (
+				(await this.draftUnchanged(id, seen, tx)) &&
+				!(await this.triedSinceNewestMail(id, tx))
+			);
 		});
 	}
 

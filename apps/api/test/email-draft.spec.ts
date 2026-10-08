@@ -661,6 +661,46 @@ describe("a stale draft and a draft written ahead", () => {
 		expect(await openTasks(id)).toEqual([]);
 	});
 
+	it("queues no rewrite when an earlier task stored a fresh draft while the open checked", async () => {
+		const id = await person("frisch");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		const mail = new Date("2026-09-01T00:00:00.000Z");
+		await thread(id, mail);
+		const racing = new ContactsService(
+			db,
+			unused,
+			{
+				emailDraftRequested: async (
+					contactId: string,
+					instruction?: string | null,
+					oneOff?: boolean,
+					stillWanted?: Parameters<
+						AgentTriggerService["emailDraftRequested"]
+					>[3],
+				) => {
+					await db.emailDraft.update({
+						where: { contactId },
+						data: { body: "Schon neu geschrieben.", basedOnUntil: mail },
+					});
+					return new AgentTriggerService(db).emailDraftRequested(
+						contactId,
+						instruction,
+						oneOff,
+						stillWanted,
+					);
+				},
+			} as unknown as AgentTriggerService as Deps[2],
+			unused,
+			unused,
+			unused,
+			unused,
+		);
+
+		await racing.refreshDraft(id);
+
+		expect(await openTasks(id)).toEqual([]);
+	});
+
 	it("queues one rewrite at the front when nothing was written ahead", async () => {
 		const id = await person("ohne-vorab");
 		await store(id, new Date("2026-08-01T00:00:00.000Z"));

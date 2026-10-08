@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const calendarPageCursor = z.object({
 	v: z.literal(1),
-	pageToken: z.string().min(1),
+	pageToken: z.string().min(1).nullable(),
 	syncToken: z.string().nullable(),
 	timeMin: z.iso.datetime(),
 	timeMax: z.iso.datetime(),

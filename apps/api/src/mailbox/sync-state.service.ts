@@ -226,6 +226,13 @@ export class SyncStateService {
 		});
 	}
 
+	async dropCursor(id: string): Promise<void> {
+		await this.db.mailboxSync.update({
+			where: { id },
+			data: { cursor: null },
+		});
+	}
+
 	async clearCursor(id: string, reason: string): Promise<void> {
 		this.logger.warn({
 			message: "Sync cursor invalidated. Resuming from now",

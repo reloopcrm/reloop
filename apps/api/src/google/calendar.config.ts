@@ -8,6 +8,7 @@ export const CALENDAR = {
 		maxPagesPerTick: 5,
 		pageSize: 250,
 		horizonMs: 180 * DAY_MS,
+		windowReserveMs: 30 * DAY_MS,
 	},
 	meetingPrep: {
 		soonMs: 7 * DAY_MS,

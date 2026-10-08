@@ -20,6 +20,7 @@ import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
 import { rebuildThreads } from "../mailbox/thread-rebuild";
+import { heldByUser } from "./calendar-holders";
 import {
 	GOOGLE_PROVIDER_ID,
 	GOOGLE_SYNC_SOURCES,
@@ -161,8 +162,11 @@ export class GoogleConnectionService {
 				await this.participants.linkThreads(threadIds, context, tx);
 
 				const events = await tx.calendarEvent.deleteMany({
-					where: { syncedByUserId: userId },
+					where: {
+						AND: [heldByUser(userId), { holders: { every: { userId } } }],
+					},
 				});
+				await tx.calendarEventSync.deleteMany({ where: { userId } });
 
 				return messages.count + events.count;
 			},

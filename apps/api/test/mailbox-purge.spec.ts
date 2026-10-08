@@ -266,6 +266,33 @@ describe("purging Gmail data", () => {
 		);
 	});
 
+	it("keeps a calendar event another rep still holds", async () => {
+		const event = await db.calendarEvent.create({
+			data: {
+				iCalUid: `ical-held-${suffix}`,
+				originalStartTime: at(14),
+				startsAt: at(14),
+				endsAt: at(15),
+				status: "confirmed",
+				syncedByUserId: gmailRep,
+				holders: {
+					create: [{ userId: gmailRep }, { userId: otherRep }],
+				},
+			},
+		});
+
+		await google.purgeSyncedData(gmailRep);
+
+		const holders = await db.calendarEventSync.findMany({
+			where: { eventId: event.id },
+			select: { userId: true },
+		});
+		expect(holders).toEqual([{ userId: otherRep }]);
+		expect(
+			await db.calendarEvent.count({ where: { iCalUid: `ical-${suffix}` } }),
+		).toBe(0);
+	});
+
 	it("cannot reach a thread the caller never synced into", async () => {
 		await google.purgeSyncedData(gmailRep);
 

@@ -565,13 +565,36 @@ export async function dispatchAgentRun(runId: string, send: SendFn) {
 	}
 
 	const sessionId = session.id;
-	const recordSession = () =>
-		db.agentRun.updateMany({
-			where: { id: run.id, status: "RUNNING", sessionId: null },
-			data: { sessionId },
-		});
-	await recordDelivery(`run ${run.id}`, recordSession, [recordSession]);
+	const recordSession = () => recordRunSession(run.id, sessionId);
+	const recorded = await recordDelivery(`run ${run.id}`, recordSession, [
+		recordSession,
+	]);
+	if (!recorded) unrecordedRunSessions.set(run.id, sessionId);
 	return session;
+}
+
+const unrecordedRunSessions = new Map<string, string>();
+
+function recordRunSession(runId: string, sessionId: string) {
+	return db.agentRun.updateMany({
+		where: { id: runId, status: "RUNNING", sessionId: null },
+		data: { sessionId },
+	});
+}
+
+async function recordUnrecordedRunSessions() {
+	for (const [runId, sessionId] of unrecordedRunSessions) {
+		try {
+			await recordRunSession(runId, sessionId);
+			unrecordedRunSessions.delete(runId);
+		} catch (error) {
+			console.error(
+				`[agent] run ${runId} still could not record its delivery: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
+	}
 }
 
 function isUndeliveredRun(run: LockedAgentRun): boolean {
@@ -582,10 +605,10 @@ async function recordDelivery(
 	subject: string,
 	write: () => Promise<unknown>,
 	fallbacks: Array<() => Promise<unknown>>,
-) {
+): Promise<boolean> {
 	try {
 		await write();
-		return;
+		return true;
 	} catch (error) {
 		console.error(
 			`[agent] ${subject} was delivered but its acceptance could not be recorded: ${
@@ -607,6 +630,7 @@ async function recordDelivery(
 			}`,
 		);
 	}
+	return retries.every((retry) => retry.status === "fulfilled");
 }
 
 export async function failRun(
@@ -838,6 +862,7 @@ async function timeOutOverrunningRuns() {
 
 async function recoverAgentRuns() {
 	await timeOutOverrunningRuns();
+	await recordUnrecordedRunSessions();
 
 	const stale = new Date(Date.now() - RUN_DELIVERY_LEASE_MS);
 	const rows = await db.agentRun.findMany({
@@ -852,6 +877,7 @@ async function recoverAgentRuns() {
 	});
 
 	for (const row of rows) {
+		if (unrecordedRunSessions.has(row.id)) continue;
 		await db.$transaction(async (tx) => {
 			const [agent] = await tx.$queryRaw<Array<{ status: string }>>`
 				SELECT status

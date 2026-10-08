@@ -204,9 +204,9 @@ async function createRun(
 	});
 }
 
-function failNextRunWrite() {
+function failNextRunWrite(failures = 1) {
 	const delegate = db.agentRun;
-	let pending = 1;
+	let pending = failures;
 	Reflect.defineProperty(db, "agentRun", {
 		configurable: true,
 		value: new Proxy(delegate, {
@@ -1117,6 +1117,50 @@ describe("team-agent run delivery", () => {
 			sessionId,
 			errorCode: null,
 		});
+		expect(deliveries).toBe(1);
+	});
+
+	it("records a delivered run's session on recovery when both session writes fail", async () => {
+		const run = await createRun("QUEUED", null);
+		const sessionId = `durable-session-${suffix}-run-writes-failed`;
+		let deliveries = 0;
+		const send = (async () => {
+			deliveries += 1;
+			failNextRunWrite(2);
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		try {
+			await dispatchAgentRun(run.id, send);
+		} finally {
+			restoreRunWrites();
+		}
+		const unrecorded = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(unrecorded).toMatchObject({ status: "RUNNING", sessionId: null });
+
+		await db.agentRun.update({
+			where: { id: run.id },
+			data: {
+				startedAt: new Date(Date.now() - 2 * DISPATCH.run.deliveryLeaseMs),
+			},
+		});
+		const pending = await pendingAgentRunIds();
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(pending).not.toContain(run.id);
+		expect(settled).toMatchObject({
+			status: "RUNNING",
+			sessionId,
+			errorCode: null,
+		});
+		expect(
+			await db.agentRunEvent.count({
+				where: { runId: run.id, type: "run.delivery_recovered" },
+			}),
+		).toBe(0);
 		expect(deliveries).toBe(1);
 	});
 

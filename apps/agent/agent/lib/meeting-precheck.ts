@@ -22,16 +22,20 @@ export async function meetingPrecheck(
 			status: true,
 			startsAt: true,
 			attendees: {
-				where: { isSelf: true, responseStatus: "declined" },
-				select: { id: true },
-				take: 1,
+				where: { isSelf: true },
+				select: { responseStatus: true },
 			},
 		},
 	});
 
 	if (!event) return "gone";
 	if (event.status === "cancelled") return "cancelled";
-	if (event.attendees.length > 0) return "declined";
+	if (
+		event.attendees.length > 0 &&
+		event.attendees.every((self) => self.responseStatus === "declined")
+	) {
+		return "declined";
+	}
 	if (event.startsAt <= now) return "past";
 	return "run";
 }

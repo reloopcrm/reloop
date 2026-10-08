@@ -455,7 +455,7 @@ export class CalendarSyncService {
 					name: attendee.displayName ?? null,
 					responseStatus: attendee.responseStatus ?? null,
 					isOrganizer: attendee.organizer ?? false,
-					isSelf: attendee.self ?? false,
+					isSelf: attendee.self ? true : undefined,
 					contactId: contactByEmail.get(email) ?? null,
 				},
 			});

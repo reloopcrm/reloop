@@ -145,6 +145,26 @@ describe("the meeting pre-check", () => {
 		).toBe("declined");
 	});
 
+	it("runs when another rep on the same event still takes part", async () => {
+		const eventId = await anEvent(
+			"shared",
+			new Date(Date.now() + 24 * HOUR_MS),
+			{ declined: true },
+		);
+		await db.calendarAttendee.create({
+			data: {
+				eventId,
+				email: `rep-other@precheck-${suffix}.example.com`,
+				isSelf: true,
+				responseStatus: "accepted",
+			},
+		});
+
+		expect(
+			await meetingPrecheck({ kind: "meeting-prep", payload: { eventId } }),
+		).toBe("run");
+	});
+
 	it("leaves every other kind alone", async () => {
 		expect(
 			await meetingPrecheck({ kind: "identify", payload: { eventId: "x" } }),

@@ -4,12 +4,37 @@ import { readAgentTaskMeetingEventId } from "@crm/validation/agent-task-payload"
 import { Injectable } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
+import { NO_DEADLINE } from "../mailbox/mailbox.config";
 import { CALENDAR } from "./calendar.config";
+
+export type MeetingPrepSweep = {
+	now?: Date;
+	deadlineAt?: number;
+	signal?: AbortSignal;
+};
+
+type SweepLimit = { deadlineAt: number; signal?: AbortSignal };
 
 const UNPREPARED_ATTENDEE = {
 	contactId: { not: null },
 	contact: { brief: { is: null } },
 } satisfies Prisma.CalendarAttendeeWhereInput;
+
+const DECLINED = "declined";
+
+const NOT_DECLINED_BY_US = {
+	OR: [
+		{ attendees: { none: { isSelf: true, responseStatus: DECLINED } } },
+		{
+			attendees: {
+				some: {
+					isSelf: true,
+					OR: [{ responseStatus: null }, { responseStatus: { not: DECLINED } }],
+				},
+			},
+		},
+	],
+} satisfies Prisma.CalendarEventWhereInput;
 
 @Injectable()
 export class MeetingPrepService {
@@ -19,16 +44,20 @@ export class MeetingPrepService {
 	) {}
 
 	forEvent(eventId: string, now: Date = new Date()): Promise<number> {
-		return this.queue({ id: eventId }, now);
+		return this.queue({ id: eventId }, now, { deadlineAt: NO_DEADLINE });
 	}
 
-	sweep(now: Date = new Date()): Promise<number> {
-		return this.queue({}, now);
+	sweep(options: MeetingPrepSweep = {}): Promise<number> {
+		return this.queue({}, options.now ?? new Date(), {
+			deadlineAt: options.deadlineAt ?? NO_DEADLINE,
+			signal: options.signal,
+		});
 	}
 
 	private async queue(
 		scope: Prisma.CalendarEventWhereInput,
 		now: Date,
+		limit: SweepLimit,
 	): Promise<number> {
 		const until = new Date(now.getTime() + CALENDAR.meetingPrep.soonMs);
 
@@ -39,14 +68,9 @@ export class MeetingPrepService {
 					{
 						startsAt: { gt: now, lte: until },
 						status: { not: "cancelled" },
-						attendees: {
-							some: UNPREPARED_ATTENDEE,
-							none: {
-								isSelf: true,
-								responseStatus: "declined",
-							},
-						},
+						attendees: { some: UNPREPARED_ATTENDEE },
 					},
+					NOT_DECLINED_BY_US,
 				],
 			},
 			orderBy: { startsAt: "asc" },
@@ -89,6 +113,8 @@ export class MeetingPrepService {
 		let queued = 0;
 
 		for (const event of events) {
+			if (limit.signal?.aborted || Date.now() > limit.deadlineAt) break;
+
 			for (const attendee of event.attendees) {
 				if (!attendee.contactId) continue;
 				if (prepared.has(`${attendee.contactId}:${event.id}`)) continue;

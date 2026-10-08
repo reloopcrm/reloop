@@ -566,6 +566,12 @@ describe("calendar event status values", () => {
 });
 
 describe("meeting preparation", () => {
+	afterEach(async () => {
+		await db.calendarEvent.deleteMany({
+			where: { iCalUid: { endsWith: `-${suffix}@google.com` } },
+		});
+	});
+
 	it("queues prep once an event far ahead comes within the lead time", async () => {
 		const calendar = new FakeCalendar();
 		const sync = service(calendar);
@@ -576,14 +582,14 @@ describe("meeting preparation", () => {
 		expect(await prepTasksFor("ahead")).toHaveLength(0);
 
 		const later = new Date(Date.now() + 14 * DAY_MS);
-		await prep.sweep(later);
+		await prep.sweep({ now: later });
 
 		const [event] = await eventsOf("ahead");
 		const tasks = await prepTasksFor("ahead");
 		expect(tasks).toHaveLength(1);
 		expect(tasks[0]?.payload).toEqual({ eventId: event?.id });
 
-		await prep.sweep(later);
+		await prep.sweep({ now: later });
 		expect(await prepTasksFor("ahead")).toHaveLength(1);
 	});
 
@@ -650,6 +656,55 @@ describe("meeting preparation", () => {
 		expect(await prepTasksFor("declined")).toHaveLength(0);
 	});
 
+	it("keeps prep for a rep who accepted when a colleague declined the same event", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const accepted = `rep-accepted@${repDomain}`;
+		const declined = `rep-declining@${repDomain}`;
+		const attendees = (self: string) => [
+			{ email: buyer, displayName: "Anna Preview", responseStatus: "accepted" },
+			{
+				email: accepted,
+				self: self === accepted,
+				responseStatus: "accepted",
+			},
+			{
+				email: declined,
+				self: self === declined,
+				responseStatus: "declined",
+			},
+		];
+
+		calendar.respond = onePage([
+			meeting("shared", at(3), { attendees: attendees(accepted) }),
+		]);
+		await sync.sync(await freshRow());
+		await cleanTasks();
+
+		calendar.respond = onePage([
+			meeting("shared", at(3), { attendees: attendees(declined) }),
+		]);
+		await sync.sync(await freshRow());
+
+		expect(await prepTasksFor("shared")).toHaveLength(1);
+	});
+
+	it("stops the sweep at its deadline", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const row = await freshRow();
+
+		calendar.respond = onePage([meeting("deadline", at(3))]);
+		await sync.sync(row);
+		await cleanTasks();
+
+		await prep.sweep({ deadlineAt: Date.now() - 1 });
+		expect(await prepTasksFor("deadline")).toHaveLength(0);
+
+		await prep.sweep();
+		expect(await prepTasksFor("deadline")).toHaveLength(1);
+	});
+
 	it("prepares nothing for a meeting that already started", async () => {
 		const calendar = new FakeCalendar();
 		const sync = service(calendar);
@@ -659,7 +714,7 @@ describe("meeting preparation", () => {
 		await sync.sync(row);
 		await cleanTasks();
 
-		await prep.sweep(new Date(Date.now() + 4 * DAY_MS));
+		await prep.sweep({ now: new Date(Date.now() + 4 * DAY_MS) });
 		expect(await prepTasksFor("started")).toHaveLength(0);
 	});
 });

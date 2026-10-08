@@ -11,6 +11,7 @@ import { db, type Prisma } from "@crm/db";
 import { writeProviderUsage } from "@crm/db/provider-usage";
 import { appSecretKey, sealSecret } from "@crm/db/secrets";
 import { SETTINGS_ID, writeAgentProvider } from "@crm/db/settings";
+import { COPY } from "../agent/lib/copy";
 import { runResearchLane } from "../agent/lib/dispatch";
 import { forgetProviderCache } from "../agent/lib/model";
 import { MODEL } from "../agent/lib/model-config";
@@ -232,8 +233,14 @@ describe("the research lane and a meeting that is over", () => {
 		expect(starts).toBe(0);
 		const task = await db.agentTask.findUnique({
 			where: { id },
-			select: { finishedAt: true, attempts: true, startedAt: true },
+			select: {
+				finishedAt: true,
+				attempts: true,
+				startedAt: true,
+				outcome: true,
+			},
 		});
+		expect(Object.values(COPY.meetingPrep.past)).toContain(task?.outcome ?? "");
 		expect(task?.finishedAt).not.toBeNull();
 		expect(task?.attempts).toBe(0);
 		expect(task?.startedAt).toBeNull();

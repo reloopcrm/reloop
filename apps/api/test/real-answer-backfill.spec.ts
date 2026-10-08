@@ -15,7 +15,7 @@ type Seed = {
 	realAnswer: boolean | null;
 };
 
-const seeds: Record<string, Seed> = {
+const seeds = {
 	answer: {
 		direction: EmailDirection.INBOUND,
 		subject: "Re: Pallets",
@@ -46,7 +46,7 @@ const seeds: Record<string, Seed> = {
 		body: "I am currently out of the office until Monday.",
 		realAnswer: true,
 	},
-};
+} satisfies Record<string, Seed>;
 
 function messageId(name: string): string {
 	return `<${name}-${suffix}@${domain}>`;

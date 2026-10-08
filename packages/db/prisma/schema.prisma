@@ -1453,6 +1453,7 @@ model EmailMessage {
   @@index([imapAccountId])
   @@index([fromEmail])
   @@index([recipients(ops: JsonbPathOps)], type: Gin)
+  @@index([id], map: "emailMessage_realAnswer_missing_idx", where: { realAnswer: null })
   @@map("emailMessage")
 }
 

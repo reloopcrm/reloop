@@ -164,6 +164,10 @@ beforeAll(async () => {
 		verdict: "good",
 		mails: [outreach(lastMonth(5)), answer(thisMonth(3))],
 	});
+	ids.longAgo = await seed("longago", {
+		verdict: "good",
+		mails: [outreach(lastMonth(25)), answer(lastMonth(24))],
+	});
 	ids.refused = await seed("refused", {
 		verdict: "good",
 		mails: [
@@ -241,6 +245,13 @@ async function linkedList(since: string | undefined) {
 }
 
 describe("the Replied card and the Wrote back list", () => {
+	it("count the same number of people", async () => {
+		const winBack = await card();
+		const linked = await linkedList(winBack.since);
+
+		expect(linked.people).toBe(winBack.answered);
+	});
+
 	it("counts this month's reach-outs that got an answer, without a standing hard no", async () => {
 		const winBack = await card();
 
@@ -266,6 +277,7 @@ describe("the Replied card and the Wrote back list", () => {
 		const linked = await linkedList(winBack.since);
 
 		expect(linked.ids).not.toContain(ids.lastMonth);
+		expect(linked.ids).not.toContain(ids.longAgo);
 		expect(linked.ids).not.toContain(ids.refused);
 		expect(linked.ids).not.toContain(ids.notForUs);
 	});
@@ -274,7 +286,7 @@ describe("the Replied card and the Wrote back list", () => {
 		const linked = await linkedList(undefined);
 
 		expect(linked.ids).toEqual(
-			[...expected(), ids.lastMonth].map(String).sort(),
+			[...expected(), ids.lastMonth, ids.longAgo].map(String).sort(),
 		);
 	});
 

@@ -1,10 +1,13 @@
 import type { Translate } from "@/lib/i18n/locale";
 import type { RouterOutputs } from "@/lib/trpc/types";
 
-type Reading = Pick<RouterOutputs["reactivation"]["progress"], "pending">;
+type Reading = Pick<
+	RouterOutputs["reactivation"]["progress"],
+	"pending" | "canRead"
+>;
 
 export function stillReading(progress: Reading | undefined): boolean {
-	return (progress?.pending ?? 0) > 0;
+	return (progress?.pending ?? 0) > 0 && progress?.canRead === true;
 }
 
 export function winBackEmptyText(

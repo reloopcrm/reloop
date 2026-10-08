@@ -267,7 +267,7 @@ function ReadingProgress() {
 
 	return (
 		<p className="text-muted-foreground text-xs">
-			{data.pending > 0
+			{data.pending > 0 && (data.canRead || data.paused)
 				? `${t("Reading your mail in the background: {read} of {threads} conversations read, {relevant} about your business", { read, threads, relevant })}${eta ? `, ${eta}` : ""}${data.paused ? t(". Paused until the subscription limit resets.") : t(". Keeps running when you close this page.")}`
 				: t(
 						"{read} conversations read, {relevant} about your business. The list updates when new mail arrives.",

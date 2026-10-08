@@ -12,13 +12,22 @@ const t = (text: string) => text;
 
 describe("the Win back empty state", () => {
 	it("says the mail is still being read while conversations wait", () => {
-		expect(stillReading({ pending: 12 })).toBe(true);
-		expect(winBackEmptyText({ pending: 12 }, t)).toBe(READING);
+		expect(stillReading({ pending: 12, canRead: true })).toBe(true);
+		expect(winBackEmptyText({ pending: 12, canRead: true }, t)).toBe(READING);
+	});
+
+	it("says nobody has gone quiet while the mail waits and reading cannot run", () => {
+		expect(stillReading({ pending: 12, canRead: false })).toBe(false);
+		expect(winBackEmptyText({ pending: 12, canRead: false }, t)).toBe(
+			"Nobody has gone quiet.",
+		);
 	});
 
 	it("says nobody has gone quiet once every conversation is read", () => {
-		expect(stillReading({ pending: 0 })).toBe(false);
-		expect(winBackEmptyText({ pending: 0 }, t)).toBe("Nobody has gone quiet.");
+		expect(stillReading({ pending: 0, canRead: true })).toBe(false);
+		expect(winBackEmptyText({ pending: 0, canRead: true }, t)).toBe(
+			"Nobody has gone quiet.",
+		);
 	});
 
 	it("says nobody has gone quiet before the progress has loaded", () => {

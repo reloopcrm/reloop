@@ -1,5 +1,6 @@
 import { isWorkspaceAdmin, workspaceRoleOf } from "@crm/auth";
 import { type Db, type Prisma, RecordSource } from "@crm/db";
+import { fixedAiWith } from "@crm/db/plan-usage";
 import { readProviderUsage } from "@crm/db/provider-usage";
 import {
 	listReactivationCandidates,
@@ -7,7 +8,8 @@ import {
 	type ReactivationCandidate,
 	type ReactivationGroup,
 } from "@crm/db/reactivation";
-import { SETTINGS_ID } from "@crm/db/settings";
+import { readAgentProvider, SETTINGS_ID } from "@crm/db/settings";
+import { readAgentFunctions } from "@crm/validation/agent-functions";
 import {
 	readWinBackRules,
 	readWinBackRulesState,
@@ -28,6 +30,7 @@ import type {
 	SetPotentialFeedbackInput,
 	WinBackRulesState,
 } from "./reactivation.contracts";
+import { readingReady } from "./reading-ready";
 import {
 	bandTotals,
 	continuedBand,
@@ -388,17 +391,29 @@ export class ReactivationService {
 	async progress(): Promise<ReadingProgress> {
 		const since = new Date(Date.now() - READING.rateWindowMs);
 
-		const [threads, read, queued, relevant, readRecently, provider] =
-			await Promise.all([
-				this.db.emailThread.count(),
-				this.db.threadInsight.count(),
-				this.db.agentTask.count({
-					where: { kind: "thread-insight", finishedAt: null },
-				}),
-				this.db.threadInsight.count({ where: { relevant: true } }),
-				this.db.threadInsight.count({ where: { createdAt: { gte: since } } }),
-				readProviderUsage(this.db, "chatgpt"),
-			]);
+		const [
+			threads,
+			read,
+			queued,
+			relevant,
+			readRecently,
+			provider,
+			fixed,
+			setting,
+			functions,
+		] = await Promise.all([
+			this.db.emailThread.count(),
+			this.db.threadInsight.count(),
+			this.db.agentTask.count({
+				where: { kind: "thread-insight", finishedAt: null },
+			}),
+			this.db.threadInsight.count({ where: { relevant: true } }),
+			this.db.threadInsight.count({ where: { createdAt: { gte: since } } }),
+			readProviderUsage(this.db, "chatgpt"),
+			fixedAiWith(this.db),
+			readAgentProvider(this.db),
+			readAgentFunctions(this.db),
+		]);
 
 		const pending = Math.max(threads - read, queued > 0 ? 1 : 0);
 		const perHour = Math.round(
@@ -417,7 +432,18 @@ export class ReactivationService {
 			provider.primaryUsedPercent >= 100 &&
 			(provider.primaryResetAt?.getTime() ?? 0) > Date.now();
 
-		return { threads, read, pending, relevant, perHour, etaMinutes, paused };
+		const canRead = !paused && readingReady({ fixed, setting, functions });
+
+		return {
+			threads,
+			read,
+			pending,
+			relevant,
+			perHour,
+			etaMinutes,
+			paused,
+			canRead,
+		};
 	}
 }
 

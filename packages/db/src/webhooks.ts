@@ -25,6 +25,7 @@ export const WEBHOOKS = {
 	secret: {
 		minLength: 16,
 		maxLength: 200,
+		hint: "••••••••",
 	},
 	url: {
 		maxLength: 2000,
@@ -44,6 +45,14 @@ export function webhookRetryDelayMs(failures: number): number {
 	const step = Math.min(Math.max(failures, 1), steps.length) - 1;
 
 	return steps[step] ?? WEBHOOKS.deliver.leaseMs;
+}
+
+export function isPlainHttpUrl(url: string): boolean {
+	try {
+		return new URL(url).protocol === "http:";
+	} catch {
+		return false;
+	}
 }
 
 export function sealWebhookSecret(secret: string): string {

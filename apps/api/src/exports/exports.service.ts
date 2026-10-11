@@ -286,7 +286,7 @@ export class ExportsService {
 		yield EXPORTS.csv.bom +
 			csvLine([
 				...columns.map((column) => exportWord(context.locale, column.header)),
-				...fields.map((field) => field.label),
+				...fields.map((field) => neutralizeFormula(field.label)),
 			]);
 
 		for await (const page of pages) {

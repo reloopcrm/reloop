@@ -10,6 +10,12 @@ describe("where an overview task leads", () => {
 		).toEqual({ path: "/win-back/erika", contact: erika });
 	});
 
+	it("leads the remind me task to the Win back person page", () => {
+		expect(
+			winBackTaskLink({ meta: { winBack: true, later: true }, contact: erika }),
+		).toEqual({ path: "/win-back/erika", contact: erika });
+	});
+
 	it("leaves an ordinary task to the record sheet", () => {
 		expect(winBackTaskLink({ meta: null, contact: erika })).toBeNull();
 		expect(

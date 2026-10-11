@@ -821,6 +821,9 @@ and answers `null` for a missing row and for an archived one alike.
   `list_outstanding_work` filter on `LIVE`. A deal of an archived company is hidden,
   a contact's archived company reads as `null`, and the counts on a company hit count
   live rows only.
+- **The blank-field sweep skips archived contacts.** `sweepBlankFacts` counts and
+  selects suggestions of live contacts only. An archived contact's suggestions stay
+  `PROPOSED` and never fill the scan limit ahead of a live contact.
 - **Every writing tool refuses a record that is not live, with a clean result.**
   `write_brief`, `record_fact`, `fetch_contact_photo`, `find_contact_socials`,
   `set_contact_socials`, `record_job_change` (also for `moveToCompanyId`),

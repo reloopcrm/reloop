@@ -14,6 +14,7 @@ const { QuotesTable } = await import(
 const { I18nProvider } = await import("../lib/i18n/client");
 const { DICTIONARIES } = await import("../lib/i18n/dictionaries");
 const { TRPCReactProvider, useTRPC } = await import("../lib/trpc/client");
+const { NuqsTestingAdapter } = await import("nuqs/adapters/testing");
 
 afterAll(() => GlobalRegistrator.unregister());
 
@@ -59,11 +60,13 @@ function Probe({ stages }: { stages: StageRow[] }) {
 
 function pageText(locale: "en" | "de", stages: StageRow[]): string {
 	const markup = renderToString(
-		createElement(TRPCReactProvider, {
-			children: createElement(I18nProvider, {
-				locale,
-				dictionary: DICTIONARIES[locale],
-				children: createElement(Probe, { stages }),
+		createElement(NuqsTestingAdapter, {
+			children: createElement(TRPCReactProvider, {
+				children: createElement(I18nProvider, {
+					locale,
+					dictionary: DICTIONARIES[locale],
+					children: createElement(Probe, { stages }),
+				}),
 			}),
 		}),
 	);

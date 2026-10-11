@@ -81,6 +81,8 @@
 	"The workspace needs an owner. Make someone else an owner first.": "Der Arbeitsbereich benötigt einen Eigentümer. Ernenne zuerst eine andere Person zum Eigentümer.",
 	"That suggestion has already been settled.": "Dieser Vorschlag ist bereits bearbeitet.",
 	"Another contact already uses that email address.": "Ein anderer Kontakt verwendet diese E-Mail-Adresse bereits.",
+	"That address belongs to a person who was deleted for good, so it cannot be added again.": "Diese Adresse gehört zu einer Person, die endgültig gelöscht wurde. Sie kann nicht erneut hinzugefügt werden.",
+	"That company does not exist or is archived.": "Diese Firma existiert nicht oder ist archiviert.",
 	"That is our own domain. It is already excluded.": "Das ist die eigene Domain. Sie ist bereits ausgeschlossen.",
 	"You already have a view with that name.": "Du hast bereits eine Ansicht mit diesem Namen.",
 	"Pruning is not configured.": "Die Archivbereinigung ist nicht eingerichtet.",
@@ -266,5 +268,6 @@
 	"Only an owner or an admin can remove a member.": "Nur Eigentümer und Administratoren dürfen ein Mitglied entfernen.",
 	"You cannot remove yourself from the workspace.": "Du kannst dich nicht selbst aus dem Arbeitsbereich entfernen.",
 	"Only an owner can remove an owner.": "Nur ein Eigentümer darf einen Eigentümer entfernen.",
-	"Show archived": "Archivierte zeigen"
+	"Show archived": "Archivierte zeigen",
+	"That deal is archived. Restore it before you change its stage.": "Dieser Deal ist archiviert. Stell ihn wieder her, bevor du seine Phase änderst."
 }

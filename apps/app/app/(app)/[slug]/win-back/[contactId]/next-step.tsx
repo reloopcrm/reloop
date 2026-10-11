@@ -57,10 +57,12 @@ import {
 	type CardStep,
 	draftLimitHint,
 	followUpDaysOf,
+	type LaterUndo,
 	type NextPerson,
 	nextLabel,
 	type PersonView,
 	replyDraftOutdated,
+	undoOfLater,
 	withListState,
 } from "./person-view";
 
@@ -71,7 +73,7 @@ type Variant = "full" | "short";
 type Verdict = "good" | "bad" | "later" | null;
 
 type Done =
-	| { kind: "later"; reminderId: string }
+	| { kind: "later"; undo: LaterUndo }
 	| { kind: "skip"; previous: Verdict }
 	| { kind: "sent"; previous: Verdict; marked: boolean };
 
@@ -132,6 +134,9 @@ export function useNextStep(
 	const text = body ?? shown?.body ?? "";
 	const remindOn = new Date(Date.now() + days * WIN_BACK_UI.person.dayMs);
 	const remindText = dateFormat(locale, LONG_DAY).format(remindOn);
+	const returnText = view.snoozedUntil
+		? dateFormat(locale, LONG_DAY).format(new Date(view.snoozedUntil))
+		: null;
 
 	const feedback = useMutation(
 		trpc.reactivation.setFeedback.mutationOptions({
@@ -141,13 +146,28 @@ export function useNextStep(
 	);
 	const reminder = useMutation(
 		trpc.activities.create.mutationOptions({
-			onSuccess: () => void cache.activity(),
+			onSuccess: () => void cache.activity({ winBack: true }),
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
 	const unremind = useMutation(
 		trpc.activities.remove.mutationOptions({
-			onSuccess: () => void cache.activity(),
+			onSuccess: () => void cache.activity({ winBack: true }),
+			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
+	const restore = useMutation(
+		trpc.activities.update.mutationOptions({
+			onSuccess: () => void cache.activity({ winBack: true }),
+			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
+	const wake = useMutation(
+		trpc.reactivation.bringBack.mutationOptions({
+			onSuccess: () => {
+				void cache.activity({ winBack: true });
+				toast(t("{name} is back in the list.", { name: first }));
+			},
 			onError: (error) => toast.error(errorMessage(error.message)),
 		}),
 	);
@@ -162,7 +182,17 @@ export function useNextStep(
 	};
 
 	const revert = (entry: Done | null) => {
-		if (entry?.kind === "later") unremind.mutate({ id: entry.reminderId });
+		if (entry?.kind === "later") {
+			const { undo } = entry;
+			if (undo.kind === "remove") unremind.mutate({ id: undo.id });
+			else {
+				restore.mutate({
+					id: undo.id,
+					dueAt: undo.dueAt,
+					subject: undo.subject,
+				});
+			}
+		}
 		if (entry?.kind === "skip" || (entry?.kind === "sent" && entry.marked)) {
 			feedback.mutate({ contactIds: [contactId], verdict: entry.previous });
 		}
@@ -206,12 +236,13 @@ export function useNextStep(
 				subject: t("Get back to {name}", { name: first }),
 				dueAt: due.toISOString(),
 				contactId,
+				winBackLater: true,
 			},
 			{
 				onSuccess: (entry) =>
 					finish(
 						"later",
-						{ kind: "later", reminderId: entry.id },
+						{ kind: "later", undo: undoOfLater(entry) },
 						t("Reloop reminds you of {name} on {date}.", {
 							name: first,
 							date: remindText,
@@ -219,6 +250,11 @@ export function useNextStep(
 					),
 			},
 		);
+	};
+
+	const bringBack = () => {
+		if (wake.isPending) return;
+		wake.mutate({ contactId });
 	};
 
 	const skip = () => {
@@ -299,6 +335,7 @@ export function useNextStep(
 		first,
 		days,
 		remindText,
+		returnText,
 		draft,
 		email,
 		subject,
@@ -310,6 +347,7 @@ export function useNextStep(
 		setBody,
 		open,
 		later,
+		bringBack,
 		skip,
 		send,
 		copy,
@@ -318,7 +356,7 @@ export function useNextStep(
 		toggleEdit,
 		changeVariant,
 		applyVariant,
-		busy: feedback.isPending || reminder.isPending,
+		busy: feedback.isPending || reminder.isPending || wake.isPending,
 	};
 }
 
@@ -337,6 +375,30 @@ function NextButton({ step }: { step: NextStep }) {
 				<span className="text-2sm text-muted-foreground">{step.place}</span>
 			) : null}
 		</>
+	);
+}
+
+function LaterLink({ step, label }: { step: NextStep; label: string }) {
+	const t = useT();
+
+	return step.returnText ? (
+		<Button
+			variant="link"
+			size="text"
+			disabled={step.busy}
+			onClick={step.bringBack}
+		>
+			{t("Bring back")}
+		</Button>
+	) : (
+		<Button
+			variant="link"
+			size="text"
+			disabled={step.busy}
+			onClick={step.later}
+		>
+			{label}
+		</Button>
 	);
 }
 
@@ -496,6 +558,14 @@ function CardBody({ step }: { step: NextStep }) {
 						<p>{preview}</p>
 					</DraftCardPreview>
 				) : null}
+				{step.returnText ? (
+					<p className="text-muted-foreground text-sm">
+						{t("{name} comes back on {date}", {
+							name: first,
+							date: step.returnText,
+						})}
+					</p>
+				) : null}
 				<DraftCardActions>
 					{step.email ? (
 						<Button onClick={step.open} data-demo={DEMO.mark.personMessage}>
@@ -503,14 +573,10 @@ function CardBody({ step }: { step: NextStep }) {
 							{t("View message")}
 						</Button>
 					) : null}
-					<Button
-						variant="link"
-						size="text"
-						disabled={step.busy}
-						onClick={step.later}
-					>
-						{t("Remind me in {count} days", { count: step.days })}
-					</Button>
+					<LaterLink
+						step={step}
+						label={t("Remind me in {count} days", { count: step.days })}
+					/>
 					<Button
 						variant="link"
 						size="text"
@@ -550,14 +616,7 @@ function CardBody({ step }: { step: NextStep }) {
 					>
 						{t("Copy")}
 					</Button>
-					<Button
-						variant="link"
-						size="text"
-						disabled={step.busy}
-						onClick={step.later}
-					>
-						{t("Later")}
-					</Button>
+					<LaterLink step={step} label={t("Later")} />
 				</DraftCardActions>
 			</>
 		);
@@ -694,14 +753,7 @@ export function NextStepBar({
 						{t("View message")}
 					</Button>
 				) : null}
-				<Button
-					variant="link"
-					size="text"
-					disabled={step.busy}
-					onClick={step.later}
-				>
-					{t("Later")}
-				</Button>
+				<LaterLink step={step} label={t("Later")} />
 			</ActionBar>
 		);
 	}
@@ -716,14 +768,7 @@ export function NextStepBar({
 					<MailIcon data-icon="inline-start" />
 					{t("Send")}
 				</Button>
-				<Button
-					variant="link"
-					size="text"
-					disabled={step.busy}
-					onClick={step.later}
-				>
-					{t("Later")}
-				</Button>
+				<LaterLink step={step} label={t("Later")} />
 			</ActionBar>
 		);
 	}

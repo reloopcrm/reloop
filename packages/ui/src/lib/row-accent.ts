@@ -19,3 +19,6 @@ export const ROW_ACCENT_EXPANDABLE = [
 	"[&>td:nth-child(2)]:transition-[padding] [&>td:nth-child(2)]:duration-200 [&>td:nth-child(2)]:ease-out",
 	"[&:hover>td:nth-child(2)]:pl-5",
 ].join(" ");
+
+export const ROW_FOCUS =
+	"outline-none focus-visible:bg-active focus-visible:shadow-[inset_2px_0_0_var(--ring)]";

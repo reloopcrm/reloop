@@ -238,5 +238,8 @@
 	"Reloop Win back person: the story of one quiet customer, from the first order to the unanswered request": "Reloop 赢回中的一位联系人：一位不再来信的客户的故事，从第一笔订单到无人回复的询价",
 	"Reloop Win back story: the gist, your time together and the quote where it stopped": "Reloop 赢回中的故事：一句话概要、你们共同的时间，以及停止联系时的那句原话",
 	"Reloop Win back person, the emails: the unanswered request with the passage the story builds on marked": "Reloop 赢回中一位联系人的邮件：无人回复的询价，标出了故事所依据的段落",
-	"Reloop Win back person after Send: the message is in your own mail program": "Reloop 赢回中点击发送之后：消息已在你自己的邮件程序中"
+	"Reloop Win back person after Send: the message is in your own mail program": "Reloop 赢回中点击发送之后：消息已在你自己的邮件程序中",
+	"Google gave no access to Gmail and Calendar. Grant access again and tick both boxes.": "Google 没有授予 Gmail 和日历的访问权限。请重新授予访问权限，并勾选两个复选框。",
+	"Microsoft gave no access to your mail. Grant access again and accept the mail permission.": "Microsoft 没有授予你邮件的访问权限。请重新授予访问权限，并接受邮件权限。",
+	"The provider gave no access to your mail. Grant access again and accept every permission it asks for.": "服务商没有授予你邮件的访问权限。请重新授予访问权限，并接受它请求的每一项权限。"
 }

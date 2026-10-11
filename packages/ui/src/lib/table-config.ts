@@ -21,9 +21,26 @@ export function isPageSize(value: number): value is PageSize {
 export function fitColumnWidths(
 	available: number,
 	sizes: readonly number[],
+	fixed: readonly boolean[] = [],
 ): number[] {
-	const total = sizes.reduce((sum, size) => sum + size, 0);
 	const room = Math.max(available - TABLE.column.primaryMinPx, 0);
+	const kept = sizes.reduce(
+		(sum, size, index) => (fixed[index] ? sum + size : sum),
+		0,
+	);
+	if (kept === 0 || kept > room) return fitSizes(room, sizes);
+
+	const flexible = fitSizes(
+		room - kept,
+		sizes.filter((_, index) => !fixed[index]),
+	);
+	return sizes.map((size, index) =>
+		fixed[index] ? size : (flexible.shift() ?? size),
+	);
+}
+
+function fitSizes(room: number, sizes: readonly number[]): number[] {
+	const total = sizes.reduce((sum, size) => sum + size, 0);
 	if (total <= room) return [...sizes];
 
 	const scale = total > 0 ? room / total : 1;

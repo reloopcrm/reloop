@@ -1,5 +1,5 @@
 import { CRM_EVENT_TYPES } from "@crm/db/crm-events";
-import { WEBHOOKS } from "@crm/db/webhooks";
+import { isPlainHttpUrl, WEBHOOKS } from "@crm/db/webhooks";
 import { z } from "zod";
 
 const webhookUrl = z
@@ -16,6 +16,9 @@ const webhookUrl = z
 		);
 	}, "A webhook address is an http or https address without a user name in it.");
 
+export const WEBHOOK_HTTPS_REQUIRED =
+	"A webhook address starts with https. Plain http is allowed only for an address on your own network, with that switch on.";
+
 const webhookEvents = z.array(z.enum(CRM_EVENT_TYPES)).min(1).max(20);
 
 const webhookSecret = z
@@ -26,21 +29,34 @@ const webhookSecret = z
 
 export const webhookIdInput = z.object({ id: z.string().min(1) });
 
-export const createWebhookInput = z.object({
-	url: webhookUrl,
-	events: webhookEvents,
-	secret: webhookSecret,
-	allowPrivateHost: z.boolean(),
-});
+export const createWebhookInput = z
+	.object({
+		url: webhookUrl,
+		events: webhookEvents,
+		secret: webhookSecret,
+		allowPrivateHost: z.boolean(),
+	})
+	.refine((input) => input.allowPrivateHost || !isPlainHttpUrl(input.url), {
+		path: ["url"],
+		message: WEBHOOK_HTTPS_REQUIRED,
+	});
 
-export const updateWebhookInput = z.object({
-	id: z.string().min(1),
-	url: webhookUrl.optional(),
-	events: webhookEvents.optional(),
-	secret: webhookSecret.optional(),
-	enabled: z.boolean().optional(),
-	allowPrivateHost: z.boolean().optional(),
-});
+export const updateWebhookInput = z
+	.object({
+		id: z.string().min(1),
+		url: webhookUrl.optional(),
+		events: webhookEvents.optional(),
+		secret: webhookSecret.optional(),
+		enabled: z.boolean().optional(),
+		allowPrivateHost: z.boolean().optional(),
+	})
+	.refine(
+		(input) =>
+			input.allowPrivateHost !== false ||
+			input.url === undefined ||
+			!isPlainHttpUrl(input.url),
+		{ path: ["url"], message: WEBHOOK_HTTPS_REQUIRED },
+	);
 
 export const webhookOutput = z.object({
 	id: z.string(),

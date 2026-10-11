@@ -248,7 +248,9 @@ counted or held back.
 names a number of days. Then it deletes `agentEvent` rows and finished `agentTask`
 rows older than that, `DISPATCH.retention.batch` rows a pass. The panel's offline
 transcript therefore reaches back that far and no further. A self-hosted install
-leaves the variable unset and keeps everything.
+leaves the variable unset and keeps everything. A finished `meeting-prep` row stays
+while the event in its `payload.eventId` still lies ahead: the row is the marker
+that stops the sweep from preparing the same meeting again.
 
 ## Two lanes
 

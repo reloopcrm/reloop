@@ -173,8 +173,10 @@ every query still resolves through `WORKSPACE_ID`.
 
 - **The slug is the plugin's column**, written by `workspaceSlug(name)`
   (`@crm/db/workspace`) on rename and create. **Never derive it on read.**
-- `ensureWorkspaceMembership` reconciles it; `RESERVED_SLUGS` prevents collision with
-  a real route (a collision gets `-crm`).
+- `ensureWorkspaceMembership` keeps a custom slug the rep chose in onboarding. It
+  replaces the slug with `workspaceSlug(name)` only when it is empty or reserved
+  (`isUsableSlug`). `RESERVED_SLUGS` prevents collision with a real route (a collision
+  gets `-crm`).
 - **The proxy is the only thing that puts the slug on.** Missing or stale slugs are
   redirected with the query string intact, not 404'd; `[slug]/layout.tsx` is the
   backstop.
@@ -334,6 +336,17 @@ in `trpc/openapi.ts`. A Docker install publishes only the app, and the app forwa
 `/api/*` to the API, so `/api/rest` is the one address a caller on the internet can
 reach. `/rest` stays because a Vercel deployment uses it. Both mounts are the same
 middleware, so neither opens anything the other does not.
+
+**A key is rate limited on the bridge.** `restRateLimit` (`src/http/rest-rate-limit.middleware.ts`)
+runs in front of both bridge mounts and in front of `/api/trpc`, one shared counter per key. A request with an `x-api-key` header counts against a fixed
+window per key: `REST_RATE_LIMIT.apiKey` in `src/http/http-config.ts` (300 requests per
+minute). Past it the answer is 429 with a `Retry-After` header in seconds. A cookie request
+carries no key header and is never counted. The count lives in the `rateLimit` table
+(better-auth's own table, under the `rest:` prefix and the key's row id), so every API
+process shares it. A header that matches no stored key is not counted and writes no row;
+the credential check answers it 401. One upsert counts and reads in one statement. Expired `rest:` rows are
+pruned once per window per process. better-auth's own API key limit stays off. The
+`/internal/*` cron routes and the tracking collector are not on this limit. The 429 waits for the request body to drain before it answers, because Bun, the production runtime, keeps the connection open and blocks shutdown when a response leaves a body unread.
 
 **`GET /api/openapi.json` is the document a self-hoster reads**, and it is the tRPC
 bridge half only, with `baseUrl` pointing at `/api/rest`. It answers 401 without a
@@ -508,7 +521,10 @@ the largest attachment upload the conversation contracts accept.
   The calendar sync calls it for each written event, and every mailbox sync tick
   sweeps all events, so a meeting stored weeks ahead is prepared once it comes
   close. The task carries `payload.eventId`; an event that already had a task
-  for that contact is not queued again, finished or not.
+  for that contact is not queued again, finished or not. An incremental sync
+  never returns an unchanged event, so the migration that added `isSelf` is
+  followed by one that sets it on every stored attendee whose address belongs to
+  a user with a calendar sync: the user's email or one of their mailbox addresses.
 - **The `MEETING` activity stores the event's own title and no body.** An event
   without a title stores `subject` null, and the location stays on the event.
   The timeline renders "Meeting" and the location through `t()`.
@@ -775,7 +791,7 @@ the pattern lists in `packages/db/src/message-text.ts`
 
 - **TypeScript asks `isRealAnswer`**, which is `isAutoReply` and `isBounce` beside
   it. `EmailMessage` stores no headers, so they read the sender, the subject and the
-  first `AUTO_REPLY_BODY_CHARS` of the body (the snippet when there is no body).
+  first `AUTO_REPLY_BODY_CHARS` characters of the body (the snippet when there is no body). TypeScript and SQL both count code points, and the SQL patterns use the JavaScript `\s` set.
   The body is cut at the first quote marker or `>` line after its first character
   (`authoredText`), so a real reply that quotes an out-of-office still counts.
 - **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same
@@ -979,8 +995,18 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
 - **The address comes from the delete itself**
   (`tx.contact.delete({ select: { email: true } })`), not a read before it — and the
   404 is that statement's own `P2025` through `translate`.
-- **Adding them back lifts the suppression** via `allowAgain` **inside the write's
-  transaction**. Never automatic.
+- **`contacts.create` never lifts the suppression.** A create on a suppressed address
+  answers 409 and writes nothing; the check runs again inside the write's transaction,
+  under `lockContactEmail`, the same advisory lock `purge` takes before it writes the
+  suppression.
+  Only `contacts.update` with that address lifts it, via `allowAgain` **inside the
+  write's transaction**. Never automatic.
+- **`contacts.create` validates before it writes.** A duplicate address answers 409
+  (the pre-check and a `P2002` from a parallel create give the same sentence). An
+  unknown or archived `companyId` and an unknown `ownerId` answer 400. Free-text
+  fields have `.max()` limits from `CONTACT_INPUT` in `contacts/contacts.config.ts`;
+  the messages live in `CONTACT_MESSAGES` there, as fixed English sentences with a
+  key in every `copy.json`, so the app shows them translated.
 - **Purging a company does not suppress its domain** — its people survive with no
   company, and domain suppression stays the explicit Settings → Connections control.
 - **Clear `AgentTask` and `AgentEvent` yourself** — they carry `contactId`/`companyId`

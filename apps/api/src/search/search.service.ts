@@ -1,11 +1,14 @@
 import type { Db } from "@crm/db";
+import { SEARCH } from "@crm/validation/search";
 import { Injectable } from "@nestjs/common";
+import { contactSearchFilter } from "../contacts/contacts.service";
 import { InjectDatabase } from "../database/database.constants";
+import { archivedFilter } from "../trpc/list-input";
 
 export type SearchHit = {
 	kind: "company" | "contact" | "deal";
 	id: string;
-	label: string;
+	label: string | null;
 	detail: string | null;
 	iconUrl: string | null;
 	iconDarkUrl: string | null;
@@ -13,25 +16,28 @@ export type SearchHit = {
 	imageUrl: string | null;
 };
 
-const PER_KIND = 5;
-
 @Injectable()
 export class SearchService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
 
 	async quick(q: string): Promise<{ hits: SearchHit[] }> {
 		const term = q.trim();
-		if (term.length < 2) return { hits: [] };
+		if (term.length < SEARCH.minLength) return { hits: [] };
 
 		const [companies, contacts, deals] = await Promise.all([
 			this.db.company.findMany({
 				where: {
-					OR: [
-						{ name: { contains: term, mode: "insensitive" } },
-						{ domain: { contains: term, mode: "insensitive" } },
+					AND: [
+						{
+							OR: [
+								{ name: { contains: term, mode: "insensitive" } },
+								{ domain: { contains: term, mode: "insensitive" } },
+							],
+						},
+						archivedFilter(false),
 					],
 				},
-				take: PER_KIND,
+				take: SEARCH.perKind,
 				orderBy: { name: "asc" },
 				select: {
 					id: true,
@@ -43,14 +49,8 @@ export class SearchService {
 				},
 			}),
 			this.db.contact.findMany({
-				where: {
-					OR: [
-						{ firstName: { contains: term, mode: "insensitive" } },
-						{ lastName: { contains: term, mode: "insensitive" } },
-						{ email: { contains: term, mode: "insensitive" } },
-					],
-				},
-				take: PER_KIND,
+				where: { AND: [contactSearchFilter(term), archivedFilter(false)] },
+				take: SEARCH.perKind,
 				orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
 				select: {
 					id: true,
@@ -62,8 +62,13 @@ export class SearchService {
 				},
 			}),
 			this.db.deal.findMany({
-				where: { name: { contains: term, mode: "insensitive" } },
-				take: PER_KIND,
+				where: {
+					AND: [
+						{ name: { contains: term, mode: "insensitive" } },
+						archivedFilter(false),
+					],
+				},
+				take: SEARCH.perKind,
 				orderBy: [{ stage: "asc" }, { name: "asc" }],
 				select: {
 					id: true,
@@ -100,7 +105,7 @@ export class SearchService {
 						id: contact.id,
 						label:
 							[contact.firstName, contact.lastName].filter(Boolean).join(" ") ||
-							(contact.email ?? "Unnamed"),
+							(contact.email ?? null),
 						detail: contact.company?.name ?? contact.email,
 						iconUrl: null,
 						iconDarkUrl: null,

@@ -945,6 +945,17 @@ export const COPY = {
 			tr: "Kayıtlı gizli anahtar okunamıyor. Yeniden gir.",
 			"zh-Hans": "无法读取已保存的密钥。请重新输入。",
 		},
+		insecure: {
+			en: "The address uses plain http on a public host. Nothing was sent. Change it to https.",
+			de: "Die Adresse nutzt einfaches http auf einem öffentlichen Host. Es wurde nichts gesendet. Ändere sie auf https.",
+			es: "La dirección usa http sin cifrar en un host público. No se envió nada. Cámbiala a https.",
+			fr: "L'adresse utilise du http simple sur un hôte public. Rien n'a été envoyé. Passe-la en https.",
+			"pt-BR":
+				"O endereço usa http simples em um host público. Nada foi enviado. Mude para https.",
+			tr: "Adres, herkese açık bir ana makinede düz http kullanıyor. Hiçbir şey gönderilmedi. Adresi https olarak değiştir.",
+			"zh-Hans":
+				"该地址在公共主机上使用明文 http。未发送任何内容。请改为 https。",
+		},
 		noAnswer: {
 			en: "The receiver did not answer in time.",
 			de: "Der Empfänger hat nicht rechtzeitig geantwortet.",

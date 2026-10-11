@@ -77,6 +77,8 @@ export class TrackingRefileService {
 		let filed = 0;
 
 		for (const row of rows) {
+			if (!(await this.lease(row))) continue;
+
 			const fields = readStoredFields(row.fields);
 			const firstTouch = readStoredTouch(row.firstTouch);
 			const lastTouch = readStoredTouch(row.lastTouch);
@@ -93,13 +95,7 @@ export class TrackingRefileService {
 
 			const visitorWindow = await this.chargeVisitor(row);
 
-			if (visitorWindow === false) {
-				await this.db.formSubmission.updateMany({
-					where: { id: row.id, filedAt: null },
-					data: { triedAt: new Date() },
-				});
-				continue;
-			}
+			if (visitorWindow === false) continue;
 
 			const outcome = await this.fileOne(row.id, () =>
 				this.filing.file(
@@ -141,6 +137,18 @@ export class TrackingRefileService {
 		return filed;
 	}
 
+	private async lease(row: {
+		id: string;
+		triedAt: Date | null;
+	}): Promise<boolean> {
+		const leased = await this.db.formSubmission.updateMany({
+			where: { id: row.id, filedAt: null, triedAt: row.triedAt },
+			data: { triedAt: new Date() },
+		});
+
+		return leased.count === 1;
+	}
+
 	private async chargeVisitor(row: {
 		visitorId: string | null;
 	}): Promise<string | null | false> {
@@ -179,6 +187,7 @@ export class TrackingRefileService {
 				email: true,
 				host: true,
 				visitorId: true,
+				triedAt: true,
 				fields: true,
 				firstTouch: true,
 				lastTouch: true,

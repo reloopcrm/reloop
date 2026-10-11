@@ -220,16 +220,19 @@ deleted* comes to be true of email and not of forms.
   row whose filing throws is logged and kept with the code `refile_failed`, and
   the pass goes on to the next row. A pass reads waiting rows first and
   `refile_failed` rows only with the room that is left, so a set of rows that
-  keep failing never blocks the rows behind them. A failure stamps `triedAt`, and
-  a pass reads the least recently tried rows first, so failed rows take turns. The read uses the
+  keep failing never blocks the rows behind them. Every attempt stamps `triedAt`,
+  and a pass reads the least recently tried rows first, so failed rows take turns.
+  The stamp is also the lease: a pass takes a row only while `triedAt` still holds
+  the value it read, so two passes that overlap never file or charge one row twice.
+  The read uses the
   `(skipReason, createdAt)` index, so a long history of filed rows costs nothing.
 - **A `form_cap` row waits until its hour is over.** A pass reads it only once
   `formWindowStart` has moved past its `createdAt`.
 - **Every refiled row pays its visitor's form window.** Before it files a row with
   a `visitorId`, a pass charges `FORMS_PER_VISITOR_HOUR` for that visitor in the
   current hour, whatever the row's `skipReason`, because the contact cap or a
-  failure can replace `form_cap` on the row. A refused charge stamps `triedAt` and
-  the row waits for a later pass. A row that does not file gives the charge back.
+  failure can replace `form_cap` on the row. After a refused charge the row waits
+  for a later pass. A row that does not file gives the charge back.
   A `contact_cap` row refiled in its own hour therefore counts twice for its
   visitor. The client window is not charged again, because the client key is
   never on a row.

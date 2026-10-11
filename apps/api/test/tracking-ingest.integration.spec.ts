@@ -664,6 +664,32 @@ describe("a submission kept for later", () => {
 		expect(filed).toHaveLength(0);
 	});
 
+	it("is filed and charged once when two passes overlap", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 16);
+		const calls: string[] = [];
+		const counting = {
+			file: async (
+				submission: Parameters<TrackingFilingService["file"]>[0],
+			) => {
+				calls.push(submission.id);
+				return filing.file(submission);
+			},
+		} as unknown as TrackingFilingService;
+		const passes = [
+			new TrackingRefileService(db, counters, counting),
+			new TrackingRefileService(db, counters, counting),
+		];
+
+		await Promise.all(passes.map((pass) => pass.drain(1)));
+
+		expect(calls).toEqual([row.id]);
+		const window = await db.trackingCounter.findUnique({
+			where: { key: formVisitorWindowKey(row.visitorId ?? "") },
+			select: { value: true },
+		});
+		expect(window?.value).toBe(1);
+	});
+
 	it("waits until the hour it was capped in is over", async () => {
 		const row = await deferred(TRACKING_SKIP.formCap, 12);
 		await db.formSubmission.update({

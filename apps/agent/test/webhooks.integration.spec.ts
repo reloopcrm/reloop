@@ -206,7 +206,7 @@ describe("an event reaching a webhook", () => {
 describe("a webhook with a plain http address on a public host", () => {
 	it("fails with a clear error and sends nothing", async () => {
 		const webhook = await aWebhook({
-			url: `http://203.0.113.9/${REASON}`,
+			url: `http://1.1.1.1/${REASON}`,
 			allowPrivateHost: true,
 		});
 		const event = await anEvent();

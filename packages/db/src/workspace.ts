@@ -20,13 +20,23 @@ export const RESERVED_SLUGS: readonly string[] = [
 	"agents",
 	"chat",
 	"companies",
+	"contact",
 	"contacts",
 	"deals",
+	"docs",
 	"eve",
+	"get-started",
 	"grant-access",
+	"imprint",
 	"onboarding",
+	"opengraph-image",
+	"paused",
+	"privacy",
 	"settings",
 	"sign-in",
+	"t",
+	"twitter-image",
+	"win-back",
 ];
 
 export function workspaceSlug(name: string): string {
@@ -41,6 +51,10 @@ export function workspaceSlug(name: string): string {
 	if (!base) return DEFAULT_WORKSPACE_SLUG;
 
 	return RESERVED_SLUGS.includes(base) ? `${base}-crm` : base;
+}
+
+export function isUsableSlug(slug: string): boolean {
+	return slug.length > 0 && !RESERVED_SLUGS.includes(slug);
 }
 
 export const MAX_NARRATIVE = 320;

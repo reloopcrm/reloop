@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
+import { workspaceSlug } from "@crm/db/workspace";
 import { ensureWorkspaceMembership, WORKSPACE_ID } from "../src/organization";
 
 const suffix = process.env.TEST_RUN_ID ?? "organization-spec";
@@ -118,5 +119,49 @@ describe("ensureWorkspaceMembership", () => {
 		});
 
 		expect(owners).toBe(1);
+	});
+	describe("workspace slug", () => {
+		const slugOf = async (): Promise<string | undefined> =>
+			(
+				await db.organization.findUnique({
+					where: { id: WORKSPACE_ID },
+					select: { slug: true },
+				})
+			)?.slug ?? undefined;
+
+		const setWorkspace = async (name: string, slug: string) => {
+			await db.organization.update({
+				where: { id: WORKSPACE_ID },
+				data: { name, slug },
+			});
+		};
+
+		it("keeps a custom slug on every sign-in", async () => {
+			await ensureWorkspaceMembership(secondId);
+			await setWorkspace("Acme", "acme-eu");
+
+			await ensureWorkspaceMembership(secondId);
+			await ensureWorkspaceMembership(firstId);
+
+			expect(await slugOf()).toBe("acme-eu");
+		});
+
+		it("replaces a reserved slug with one built from the name", async () => {
+			await ensureWorkspaceMembership(secondId);
+			await setWorkspace("Acme", "docs");
+
+			await ensureWorkspaceMembership(secondId);
+
+			expect(await slugOf()).toBe(workspaceSlug("Acme"));
+		});
+
+		it("fills an empty slug from the name", async () => {
+			await ensureWorkspaceMembership(secondId);
+			await setWorkspace("Acme Corp", "");
+
+			await ensureWorkspaceMembership(secondId);
+
+			expect(await slugOf()).toBe("acme-corp");
+		});
 	});
 });

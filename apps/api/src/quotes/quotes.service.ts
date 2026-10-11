@@ -1,6 +1,7 @@
 import type { Db, Prisma } from "@crm/db";
 import type { QuantityRule, ThreadSignal } from "@crm/db/contact-worth";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
+import { lockIdempotencyKey } from "@crm/db/idempotency";
 import {
 	QUOTE_DEAL_STAGE,
 	QUOTE_DEALS,
@@ -132,33 +133,17 @@ export class QuotesService {
 			throw new NotFoundException("That quote is no longer waiting.");
 		}
 
-		const claimed = await this.db.emailThread.updateMany({
-			where: { id: threadId, quoteHandledAt: null },
-			data: { quoteHandledAt: now },
-		});
-
-		if (claimed.count === 0) {
-			throw new NotFoundException("That quote is no longer waiting.");
-		}
-
 		const company = thread.company;
 
-		let deal: { id: string };
-
-		try {
-			deal = await this.deals.create({
+		const deal = await this.deals.create(
+			{
 				name: thread.subject?.trim() || company.name,
 				companyId: company.id,
 				ownerId: userId,
 				stage: QUOTE_DEAL_STAGE,
-			});
-		} catch (error) {
-			await this.db.emailThread.update({
-				where: { id: threadId },
-				data: { quoteHandledAt: null },
-			});
-			throw error;
-		}
+			},
+			{ guard: (tx) => claim(tx, threadId, company.id, now) },
+		);
 
 		const contact = attachable(thread);
 		let contactId: string | null = null;
@@ -204,6 +189,37 @@ export class QuotesService {
 		this.logger.log({ message: "Quote dismissed", threadId });
 
 		return { threadId };
+	}
+}
+
+async function claim(
+	tx: Prisma.TransactionClient,
+	threadId: string,
+	companyId: string,
+	now: Date,
+): Promise<void> {
+	await lockIdempotencyKey(tx, `quote-deal:${companyId}`);
+
+	const open = await tx.deal.findFirst({
+		where: {
+			companyId,
+			archivedAt: null,
+			stage: { in: [...OPEN_DEAL_STAGES] },
+		},
+		select: { id: true },
+	});
+
+	if (open) {
+		throw new NotFoundException("That quote is no longer waiting.");
+	}
+
+	const claimed = await tx.emailThread.updateMany({
+		where: { id: threadId, quoteHandledAt: null },
+		data: { quoteHandledAt: now },
+	});
+
+	if (claimed.count === 0) {
+		throw new NotFoundException("That quote is no longer waiting.");
 	}
 }
 

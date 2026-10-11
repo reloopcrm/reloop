@@ -10,10 +10,11 @@ import {
 import {
 	ROW_ACCENT,
 	ROW_ACCENT_EXPANDABLE,
+	ROW_FOCUS,
 } from "@crm/ui/lib/row-accent";
 import { insideRow } from "@crm/ui/lib/row-click";
 import { cn } from "@crm/ui/lib/utils";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, KeyboardEvent, ReactNode } from "react";
 
 export type SimpleTableColumn = {
 	id: string;
@@ -104,16 +105,27 @@ export function SimpleTableRow({
 	expandable,
 	className,
 	onClick,
+	onKeyDown,
 	...props
 }: ComponentProps<typeof TableRow> & {
 	clickable?: boolean;
 	expandable?: boolean;
 }) {
+	const handleKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
+		onKeyDown?.(event);
+		if (event.defaultPrevented || event.target !== event.currentTarget) return;
+		if (event.key !== "Enter" && event.key !== " ") return;
+		event.preventDefault();
+		event.currentTarget.click();
+	};
+
 	return (
 		<TableRow
+			tabIndex={onClick ? 0 : undefined}
 			className={cn(
 				"hover:bg-transparent",
 				clickable && (expandable ? ROW_ACCENT_EXPANDABLE : ROW_ACCENT),
+				onClick && ROW_FOCUS,
 				className,
 			)}
 			onClick={
@@ -124,6 +136,7 @@ export function SimpleTableRow({
 						}
 					: undefined
 			}
+			onKeyDown={onClick ? handleKeyDown : onKeyDown}
 			{...props}
 		/>
 	);

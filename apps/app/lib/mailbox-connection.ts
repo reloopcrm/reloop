@@ -1,4 +1,5 @@
 import { db } from "@crm/db";
+import { hasOwnRecords } from "@crm/db/sample-data";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
 import { inScope } from "@/cloud/scope.server";
@@ -19,12 +20,22 @@ const hasMailboxConnection = cache(async (): Promise<boolean> => {
 	return (rows ?? 0) > 0;
 });
 
-export const hasRecordsToShow = cache(async (): Promise<boolean> => {
+const hasOwnRecordsHere = cache(
+	async (): Promise<boolean> =>
+		(await inScope(() => hasOwnRecords(db))) ?? false,
+);
+
+export const hasMailboxRecords = cache(async (): Promise<boolean> => {
 	if (demoOffered()) return true;
 	if (await hasMailboxConnection()) return true;
 
 	return hasSampleData();
 });
+
+export const hasRecordsToShow = cache(
+	async (): Promise<boolean> =>
+		(await hasMailboxRecords()) || (await hasOwnRecordsHere()),
+);
 
 async function hasSampleData(): Promise<boolean> {
 	try {

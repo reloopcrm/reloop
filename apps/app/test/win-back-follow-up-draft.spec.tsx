@@ -64,10 +64,14 @@ mock.module("../lib/trpc/client", () => ({
 			writeDraft: { mutationOptions: named("writeDraft") },
 			refreshDraft: { mutationOptions: named("refreshDraft") },
 		},
-		reactivation: { setFeedback: { mutationOptions: named("setFeedback") } },
+		reactivation: {
+			setFeedback: { mutationOptions: named("setFeedback") },
+			bringBack: { mutationOptions: named("bringBack") },
+		},
 		activities: {
 			create: { mutationOptions: named("create") },
 			remove: { mutationOptions: named("remove") },
+			update: { mutationOptions: named("update") },
 		},
 	}),
 }));

@@ -22,6 +22,7 @@ export const WEBHOOKS = {
 	secret: {
 		minLength: 16,
 		maxLength: 200,
+		hint: "••••••••",
 	},
 	url: {
 		maxLength: 2000,
@@ -35,6 +36,14 @@ export const WEBHOOKS = {
 	},
 	signatureVersion: "v1",
 } as const;
+
+export function isPlainHttpUrl(url: string): boolean {
+	try {
+		return new URL(url).protocol === "http:";
+	} catch {
+		return false;
+	}
+}
 
 export function sealWebhookSecret(secret: string): string {
 	return sealSecret(secret, appSecretKey(WEBHOOKS.purpose));

@@ -3,6 +3,9 @@ import {
 	CONTACT_CAP_REASONS,
 	CONTACTS_PER_HOUR,
 	FORM_REFILE,
+	FORMS_PER_VISITOR_HOUR,
+	formVisitorWindowKey,
+	formWindowStart,
 	REFILABLE_REASONS,
 	refileWindowKey,
 	TRACKING_SKIP,
@@ -88,6 +91,16 @@ export class TrackingRefileService {
 				});
 			}
 
+			const visitorWindow = await this.chargeVisitor(row);
+
+			if (visitorWindow === false) {
+				await this.db.formSubmission.updateMany({
+					where: { id: row.id, filedAt: null },
+					data: { triedAt: new Date() },
+				});
+				continue;
+			}
+
 			const outcome = await this.fileOne(row.id, () =>
 				this.filing.file(
 					{
@@ -102,6 +115,10 @@ export class TrackingRefileService {
 					{ contactLimit: CONTACTS_PER_HOUR - FORM_REFILE.liveReserve },
 				),
 			);
+
+			if (visitorWindow && !outcome?.filed) {
+				await this.counters.release(visitorWindow);
+			}
 
 			if (!outcome) continue;
 
@@ -124,9 +141,37 @@ export class TrackingRefileService {
 		return filed;
 	}
 
+	private async chargeVisitor(row: {
+		skipReason: string | null;
+		visitorId: string | null;
+	}): Promise<string | null | false> {
+		if (row.skipReason !== TRACKING_SKIP.formCap || !row.visitorId) {
+			return null;
+		}
+
+		const key = formVisitorWindowKey(row.visitorId);
+
+		return (await this.counters.take(key, FORMS_PER_VISITOR_HOUR))
+			? key
+			: false;
+	}
+
 	private queued(reasons: string[], limit: number) {
+		const others = reasons.filter((reason) => reason !== TRACKING_SKIP.formCap);
+		const formCapped = reasons.includes(TRACKING_SKIP.formCap)
+			? [
+					{
+						skipReason: TRACKING_SKIP.formCap,
+						createdAt: { lt: formWindowStart() },
+					},
+				]
+			: [];
+
 		return this.db.formSubmission.findMany({
-			where: { filedAt: null, skipReason: { in: reasons } },
+			where: {
+				filedAt: null,
+				OR: [{ skipReason: { in: others } }, ...formCapped],
+			},
 			orderBy: [
 				{ triedAt: { sort: "asc", nulls: "first" } },
 				{ createdAt: "asc" },
@@ -137,6 +182,7 @@ export class TrackingRefileService {
 				email: true,
 				host: true,
 				visitorId: true,
+				skipReason: true,
 				fields: true,
 				firstTouch: true,
 				lastTouch: true,

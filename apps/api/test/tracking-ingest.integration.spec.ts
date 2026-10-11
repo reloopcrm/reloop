@@ -13,6 +13,7 @@ import {
 	FORMS_PER_SITE_HOUR,
 	FORMS_PER_VISITOR_HOUR,
 	formSiteWindowKey,
+	formVisitorWindowKey,
 	HONEYPOT_FIELD,
 	LEGACY_CONTACT_CAP_REASON,
 	refileWindowKey,
@@ -370,6 +371,36 @@ describe("the form submission cap", () => {
 		).toBe(2);
 	});
 
+	it("keeps the capped forms unfiled when the same batch runs a refile pass", async () => {
+		await db.trackingCounter.deleteMany({
+			where: { key: { endsWith: ":refile" } },
+		});
+		const id = visitorId();
+		const at = Date.now();
+
+		await accept(
+			Array.from({ length: FORMS_PER_VISITOR_HOUR + 2 }, (_value, index) => ({
+				type: "form_submit",
+				host: parent,
+				path: `/refile-${index}`,
+				at: at - index,
+				fields: { email: `refile-flood-${index}-${suffix}@acme.test` },
+			})),
+			id,
+		);
+
+		expect(filed).toHaveLength(FORMS_PER_VISITOR_HOUR);
+		expect(
+			await db.formSubmission.count({
+				where: {
+					host: parent,
+					filedAt: null,
+					skipReason: TRACKING_SKIP.formCap,
+				},
+			}),
+		).toBe(2);
+	});
+
 	it("keeps a form the site's spent hour refused, unfiled", async () => {
 		for (const key of spendableSiteWindows()) {
 			await counters.take(key, FORMS_PER_SITE_HOUR, FORMS_PER_SITE_HOUR);
@@ -594,9 +625,51 @@ describe("a submission kept for later", () => {
 				skipReason,
 				createdAt: new Date(Date.UTC(2000, 0, 1, 0, index)),
 			},
-			select: { id: true },
+			select: { id: true, visitorId: true },
 		});
 	}
+
+	it("waits while its visitor's form hour is spent", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 11);
+		await counters.take(
+			formVisitorWindowKey(row.visitorId ?? ""),
+			FORMS_PER_VISITOR_HOUR,
+			FORMS_PER_VISITOR_HOUR,
+		);
+
+		expect(await refile.drain(1)).toBe(0);
+
+		const kept = await db.formSubmission.findUnique({
+			where: { id: row.id },
+			select: { filedAt: true, skipReason: true, triedAt: true },
+		});
+		expect(kept?.filedAt).toBeNull();
+		expect(kept?.skipReason).toBe(TRACKING_SKIP.formCap);
+		expect(kept?.triedAt).not.toBeNull();
+	});
+
+	it("waits until the hour it was capped in is over", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 12);
+		await db.formSubmission.update({
+			where: { id: row.id },
+			data: { createdAt: new Date() },
+		});
+
+		expect(await refile.drain(1)).toBe(0);
+		expect(filed).toHaveLength(0);
+	});
+
+	it("charges the visitor's form hour when it is filed", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 13);
+
+		expect(await refile.drain(1)).toBe(1);
+
+		const window = await db.trackingCounter.findUnique({
+			where: { key: formVisitorWindowKey(row.visitorId ?? "") },
+			select: { value: true },
+		});
+		expect(window?.value).toBe(1);
+	});
 
 	it("is filed by the next refile pass", async () => {
 		const rows = [

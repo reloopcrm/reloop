@@ -137,6 +137,10 @@ export function formClientWindowKey(
 	return `form-client:${Math.floor(at.getTime() / 3_600_000)}:${clientKey}`;
 }
 
+export function formWindowStart(at: Date = new Date()): Date {
+	return new Date(Math.floor(at.getTime() / 3_600_000) * 3_600_000);
+}
+
 export function refileWindowKey(at: Date = new Date()): string {
 	return `${rateWindowKey(at)}:refile`;
 }

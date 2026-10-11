@@ -223,11 +223,16 @@ deleted* comes to be true of email and not of forms.
   keep failing never blocks the rows behind them. A failure stamps `triedAt`, and
   a pass reads the least recently tried rows first, so failed rows take turns. The read uses the
   `(skipReason, createdAt)` index, so a long history of filed rows costs nothing.
-- **A `form_cap` row waits until its hour is over, and then pays its visitor's
-  window again.** A pass reads it only once `formWindowStart` has moved past its
-  `createdAt`, and charges `FORMS_PER_VISITOR_HOUR` for the visitor before it files.
-  A refused charge stamps `triedAt` and the row waits for a later pass. The client
-  window is not charged again, because the client key is never on a row.
+- **A `form_cap` row waits until its hour is over.** A pass reads it only once
+  `formWindowStart` has moved past its `createdAt`.
+- **Every refiled row pays its visitor's form window.** Before it files a row with
+  a `visitorId`, a pass charges `FORMS_PER_VISITOR_HOUR` for that visitor in the
+  current hour, whatever the row's `skipReason`, because the contact cap or a
+  failure can replace `form_cap` on the row. A refused charge stamps `triedAt` and
+  the row waits for a later pass. A row that does not file gives the charge back.
+  A `contact_cap` row refiled in its own hour therefore counts twice for its
+  visitor. The client window is not charged again, because the client key is
+  never on a row.
 - **A filing never moves a visitor backwards.** `trackedVisitor.contactSubmittedAt`
   holds the `createdAt` of the submission that last set the visitor's contact.
   `attach` writes `contactId`, that column and the `last*` columns in one `UPDATE`

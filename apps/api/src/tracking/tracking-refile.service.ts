@@ -142,12 +142,9 @@ export class TrackingRefileService {
 	}
 
 	private async chargeVisitor(row: {
-		skipReason: string | null;
 		visitorId: string | null;
 	}): Promise<string | null | false> {
-		if (row.skipReason !== TRACKING_SKIP.formCap || !row.visitorId) {
-			return null;
-		}
+		if (!row.visitorId) return null;
 
 		const key = formVisitorWindowKey(row.visitorId);
 
@@ -182,7 +179,6 @@ export class TrackingRefileService {
 				email: true,
 				host: true,
 				visitorId: true,
-				skipReason: true,
 				fields: true,
 				firstTouch: true,
 				lastTouch: true,

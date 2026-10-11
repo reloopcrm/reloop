@@ -648,6 +648,22 @@ describe("a submission kept for later", () => {
 		expect(kept?.triedAt).not.toBeNull();
 	});
 
+	it("waits on a spent visitor hour after the contact cap or a failure changed its reason", async () => {
+		const capped = await deferred(TRACKING_SKIP.contactCap, 14);
+		const failed = await deferred(TRACKING_SKIP.refileFailed, 15);
+
+		for (const row of [capped, failed]) {
+			await counters.take(
+				formVisitorWindowKey(row.visitorId ?? ""),
+				FORMS_PER_VISITOR_HOUR,
+				FORMS_PER_VISITOR_HOUR,
+			);
+		}
+
+		expect(await refile.drain(2)).toBe(0);
+		expect(filed).toHaveLength(0);
+	});
+
 	it("waits until the hour it was capped in is over", async () => {
 		const row = await deferred(TRACKING_SKIP.formCap, 12);
 		await db.formSubmission.update({

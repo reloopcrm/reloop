@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	DEFAULT_WORKSPACE_SLUG,
+	isUsableSlug,
 	MAX_SLUG,
 	RESERVED_SLUGS,
 	workspaceSlug,
@@ -28,6 +29,9 @@ describe("workspaceSlug", () => {
 
 		expect(workspaceSlug("Settings")).toBe("settings-crm");
 		expect(workspaceSlug("Sign In")).toBe("sign-in-crm");
+		expect(workspaceSlug("Docs")).toBe("docs-crm");
+		expect(workspaceSlug("Win Back")).toBe("win-back-crm");
+		expect(workspaceSlug("T")).toBe("t-crm");
 	});
 
 	it("falls back rather than producing an empty segment", () => {
@@ -46,5 +50,16 @@ describe("workspaceSlug", () => {
 
 	it("gives one name one answer, whoever asks", () => {
 		expect(workspaceSlug("Reloop CRM")).toBe(workspaceSlug("reloop  crm"));
+	});
+});
+
+describe("isUsableSlug", () => {
+	it("accepts a custom slug and rejects an empty or reserved one", () => {
+		expect(isUsableSlug("acme-eu")).toBe(true);
+		expect(isUsableSlug("")).toBe(false);
+
+		for (const reserved of RESERVED_SLUGS) {
+			expect(isUsableSlug(reserved)).toBe(false);
+		}
 	});
 });

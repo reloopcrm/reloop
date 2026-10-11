@@ -1,10 +1,15 @@
 import { Suspense } from "react";
 import { ConnectionPage, ConnectionPageLoading } from "./connection-page";
+import { reconnectedOf } from "./mailbox-link";
 
 export type ConnectionQuery = Record<string, string | string[] | undefined>;
 
 type OAuthConnectionPageProps = {
-	connection: React.ComponentType<{ slug: string; connectError?: string }>;
+	connection: React.ComponentType<{
+		slug: string;
+		connectError?: string;
+		reconnected?: boolean;
+	}>;
 	params: Promise<{ slug: string }>;
 	provider: string;
 	searchParams: Promise<ConnectionQuery>;
@@ -32,7 +37,11 @@ async function OAuthConnectionPageContent({
 
 	return (
 		<ConnectionPage>
-			<Connection connectError={connectErrorOf(query, provider)} slug={slug} />
+			<Connection
+				connectError={connectErrorOf(query, provider)}
+				reconnected={reconnectedOf(query, provider)}
+				slug={slug}
+			/>
 		</ConnectionPage>
 	);
 }

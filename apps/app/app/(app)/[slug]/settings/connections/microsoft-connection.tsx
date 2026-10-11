@@ -1,8 +1,6 @@
 "use client";
 
 import Warning from "@carbon/icons-react/es/Warning";
-import { authClient } from "@crm/auth/client";
-import { MICROSOFT_SYNC_SCOPES } from "@crm/auth/scopes";
 import { Alert, AlertDescription, AlertTitle } from "@crm/ui/components/alert";
 import {
 	AlertDialog,
@@ -31,7 +29,7 @@ import { Label } from "@crm/ui/components/label";
 import { Spinner } from "@crm/ui/components/spinner";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { Switch } from "@crm/ui/components/switch";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -54,7 +52,13 @@ import {
 	ImportProgress,
 	importSinceFor,
 } from "./import-history";
+import {
+	failureSignature,
+	mailboxNeedsReconnect,
+	mailboxReconnected,
+} from "./mailbox-status";
 import { OAuthAppCard } from "./oauth-app-card";
+import { useMailboxLink, useReconnectedCheck } from "./use-mailbox-link";
 
 const AUTO_CREATE = "Add the company and contact when you reply to someone new";
 
@@ -68,36 +72,12 @@ function ConnectMicrosoft({
 	const t = useT();
 	const trpc = useTRPC();
 	const historyId = useId();
-	const [pending, setPending] = useState(false);
 	const [history, setHistory] = useState<ImportHistoryValue>(
 		DEFAULT_IMPORT_HISTORY,
 	);
+	const { pending, link } = useMailboxLink("microsoft", slug);
 
 	const remember = useMutation(trpc.microsoft.setImportSince.mutationOptions());
-
-	function fail(message?: string) {
-		setPending(false);
-		toast.error(
-			message ?? t("Could not reach Microsoft. Try again in a minute."),
-		);
-	}
-
-	async function handleConnect() {
-		setPending(true);
-
-		await remember.mutateAsync({ importSince: importSinceFor(history) });
-
-		const origin = window.location.origin;
-
-		const { error } = await authClient.linkSocial({
-			provider: "microsoft",
-			scopes: [...MICROSOFT_SYNC_SCOPES],
-			callbackURL: `${origin}/${slug}/settings/connections/microsoft`,
-			errorCallbackURL: `${origin}/${slug}/settings/connections/microsoft?provider=microsoft`,
-		});
-
-		if (error) fail(error.message);
-	}
 
 	return (
 		<Card>
@@ -126,7 +106,9 @@ function ConnectMicrosoft({
 						size="sm"
 						disabled={pending}
 						onClick={() => {
-							handleConnect().catch(() => fail());
+							link("connect", () =>
+								remember.mutateAsync({ importSince: importSinceFor(history) }),
+							);
 						}}
 						type="button"
 					>
@@ -168,16 +150,20 @@ function ConnectMicrosoft({
 export function MicrosoftConnection({
 	slug,
 	connectError,
+	reconnected = false,
 }: {
 	slug: string;
 	connectError?: string;
+	reconnected?: boolean;
 }) {
 	const t = useT();
 	const errorMessage = useErrorMessage();
 	const trpc = useTRPC();
 	const cache = useCrmCache();
+	const queryClient = useQueryClient();
 
 	const historyId = useId();
+	const reconnect = useMailboxLink("microsoft", slug);
 
 	const status = useQuery({
 		...trpc.microsoft.status.queryOptions(),
@@ -226,10 +212,34 @@ export function MicrosoftConnection({
 		}),
 	);
 
+	const [insistence, setInsistence] = useState(0);
+
 	const syncNow = useMutation(
 		trpc.microsoft.syncNow.mutationOptions({
-			onSuccess: () => cache.microsoft(),
+			onSuccess: async () => {
+				const before = failureSignature(status.data?.sources ?? []);
+				await cache.microsoft();
+
+				const after = failureSignature(
+					queryClient.getQueryData(trpc.microsoft.status.queryKey())?.sources ??
+						[],
+				);
+
+				if (after && after === before) setInsistence((count) => count + 1);
+			},
 			onError: (error) => toast.error(errorMessage(error.message)),
+		}),
+	);
+
+	useReconnectedCheck(reconnected, () =>
+		syncNow.mutate(undefined, {
+			onSuccess: (result) => {
+				if (mailboxReconnected(result)) {
+					toast.success(
+						t("{provider} is connected again.", { provider: "Microsoft" }),
+					);
+				}
+			},
 		}),
 	);
 
@@ -258,6 +268,10 @@ export function MicrosoftConnection({
 		.at(-1);
 
 	const healthy = failing.length === 0 && hasRefreshToken;
+	const needsReconnect = mailboxNeedsReconnect({
+		hasRefreshToken,
+		sources,
+	});
 	const mail = sources.find((source) => source.source === "outlook");
 	const progress = importProgressOf(mail?.backfill);
 	const reading = healthy && mail?.backfill?.state === "running";
@@ -286,29 +300,66 @@ export function MicrosoftConnection({
 				</CardDescription>
 
 				<CardAction>
-					<Button
-						variant="contrast"
-						size="sm"
-						disabled={syncNow.isPending}
-						onClick={() => syncNow.mutate()}
-					>
-						{syncNow.isPending ? t("Checking…") : t("Check now")}
-					</Button>
+					{needsReconnect ? (
+						<Button
+							size="sm"
+							disabled={reconnect.pending}
+							onClick={() => {
+								reconnect.link("reconnect");
+							}}
+							type="button"
+						>
+							{reconnect.pending ? (
+								<Spinner data-icon="inline-start" />
+							) : (
+								<MicrosoftLogo data-icon="inline-start" className="size-4" />
+							)}
+							{t("Reconnect")}
+						</Button>
+					) : (
+						<Button
+							variant="contrast"
+							size="sm"
+							disabled={syncNow.isPending}
+							onClick={() => syncNow.mutate()}
+						>
+							{syncNow.isPending ? t("Checking…") : t("Check now")}
+						</Button>
+					)}
 				</CardAction>
 			</CardHeader>
 
 			<CardContent>
-				{!hasRefreshToken ? (
+				{connectError ? (
 					<Alert variant="destructive">
+						<Icon icon={Warning} />
+						<AlertTitle>{t("Microsoft did not finish connecting")}</AlertTitle>
+						<AlertDescription>
+							{t(
+								MICROSOFT_CONNECT_ERRORS.get(connectError) ??
+									MICROSOFT_CONNECT_ERROR_FALLBACK,
+							)}
+						</AlertDescription>
+					</Alert>
+				) : null}
+
+				{!hasRefreshToken ? (
+					<Alert variant="destructive" attention={insistence}>
 						<Icon icon={Warning} />
 						<AlertTitle>
 							{t("Microsoft did not return a refresh token")}
 						</AlertTitle>
-						<AlertDescription>{t("Sign out and back in.")}</AlertDescription>
+						<AlertDescription>
+							{t("Reconnect to ask again. You lose nothing.")}
+						</AlertDescription>
 					</Alert>
 				) : failing.length > 0 ? (
 					failing.map((source) => (
-						<Alert key={source.source} variant="destructive">
+						<Alert
+							key={source.source}
+							variant="destructive"
+							attention={insistence}
+						>
 							<Icon icon={Warning} />
 							<AlertTitle>{t("Email sync failed")}</AlertTitle>
 							<AlertDescription>

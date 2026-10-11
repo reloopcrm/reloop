@@ -215,3 +215,67 @@ describe("storing a synced email", () => {
 		expect(repaired?.activity).not.toBeNull();
 	});
 });
+
+describe("the real answer flag", () => {
+	function reply(name: string, overrides: Partial<IncomingMessage>) {
+		return {
+			...message(
+				`<${name}-${suffix}@mail.test>`,
+				new Date("2026-01-03T10:00:00Z"),
+			),
+			from: { email: person, name: "A Buyer" },
+			recipients: [{ email: mailbox, name: "Test Rep", kind: "to" as const }],
+			...overrides,
+		};
+	}
+
+	async function flagOf(name: string) {
+		const stored = await db.emailMessage.findUniqueOrThrow({
+			where: { rfcMessageId: `<${name}-${suffix}@mail.test>` },
+			select: { realAnswer: true },
+		});
+		return stored.realAnswer;
+	}
+
+	it("stores the verdict of the rule with every new message", async () => {
+		const context = await threads.context();
+		const cases = [
+			[
+				"sent",
+				message(`<sent-${suffix}@mail.test>`, new Date("2026-01-03T09:00:00Z")),
+				false,
+			],
+			[
+				"answer",
+				reply("answer", { body: "Yes, 500 pallets. What do you pay?" }),
+				true,
+			],
+			[
+				"away",
+				reply("away", { subject: "Automatische Antwort: Pricing" }),
+				false,
+			],
+			[
+				"away-body",
+				reply("away-body", {
+					body: "I am currently out of the office until Monday.",
+				}),
+				false,
+			],
+			["empty", reply("empty", { subject: null, body: "" }), true],
+		] as const;
+
+		for (const [, parsed] of cases) {
+			await threads.store(
+				row,
+				{ origin: "gmail", lane: "forward" },
+				parsed,
+				context,
+			);
+		}
+
+		for (const [name, , real] of cases) {
+			expect({ name, real: await flagOf(name) }).toEqual({ name, real });
+		}
+	});
+});

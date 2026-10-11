@@ -29,9 +29,9 @@ import {
 } from "@/components/data-table/localized-columns";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { DEMO } from "@/components/demo/demo-tour-config";
-import { LocalRelativeTime } from "@/components/local-date-time";
+import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
 import { useLocale, useT } from "@/lib/i18n/client";
-import { numberFormat } from "@/lib/i18n/format";
+import { dateFormat, numberFormat } from "@/lib/i18n/format";
 import { POTENTIAL_FACET_OPTIONS } from "@/lib/record-standing";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -44,6 +44,7 @@ import {
 	winBackInput,
 	winBackScopeParsers,
 	winBackTable,
+	windowDay,
 } from "./win-back-search-params";
 import { factTitle, shortFact } from "./win-back-verdict";
 import { WinBackVerdictMenu } from "./win-back-verdict-menu";
@@ -112,6 +113,24 @@ const COLUMNS: LabeledColumn<Group>[] = [
 		),
 	},
 ];
+
+const RETURN_COLUMN: LabeledColumn<Group> = {
+	id: "back",
+	header: "Comes back",
+	icon: DateIcon,
+	size: 130,
+	cell: (row) => <ReturnDay date={row.snoozedUntil} />,
+};
+
+const SNOOZED_COLUMNS = COLUMNS.flatMap((column) =>
+	column.id === "last" ? [column, RETURN_COLUMN] : [column],
+);
+
+function ReturnDay({ date }: { date: string | null }) {
+	return date ? (
+		<LocalDateTime date={date} options={WIN_BACK_UI.remindLater.returnDay} />
+	) : null;
+}
 
 function GroupName({ row }: { row: Group }) {
 	const t = useT();
@@ -192,6 +211,7 @@ function subCell(person: Person, columnId: string) {
 	if (columnId === "last") {
 		return <LocalRelativeTime date={person.lastContactAt} />;
 	}
+	if (columnId === "back") return <ReturnDay date={person.snoozedUntil} />;
 	if (columnId === "verdict") {
 		return (
 			<WinBackVerdictMenu
@@ -302,7 +322,9 @@ export function WinBackTable() {
 	const facetCounts = query.data?.facetCounts;
 	const people = query.data?.people ?? 0;
 	const shown = rows.reduce((sum, row) => sum + row.people.length, 0);
-	const columns = useLocalizedColumns(COLUMNS);
+	const columns = useLocalizedColumns(
+		scope.snoozed ? SNOOZED_COLUMNS : COLUMNS,
+	);
 	const quietDays = WIN_BACK_UI.quickFilter.quietForDays;
 
 	const facets: DataTableFacet[] = [
@@ -319,6 +341,8 @@ export function WinBackTable() {
 		quiet?: number | null;
 		rejected?: boolean;
 		replied?: boolean;
+		snoozed?: boolean;
+		since?: null;
 	}) => {
 		void setScope(next);
 		table.query.setPage(1);
@@ -334,7 +358,13 @@ export function WinBackTable() {
 				query={table.query}
 				search={<ListSearch placeholder={t("Search by company or person…")} />}
 				onReset={() =>
-					setFilter({ quiet: null, rejected: false, replied: false })
+					setFilter({
+						quiet: null,
+						rejected: false,
+						replied: false,
+						snoozed: false,
+						since: null,
+					})
 				}
 				quickFilters={[
 					{
@@ -354,9 +384,23 @@ export function WinBackTable() {
 					},
 					{
 						id: "replied",
-						label: t("Wrote back"),
+						label:
+							scope.replied && scope.since
+								? t("Wrote back, contacted since {date}", {
+										date: dateFormat(
+											locale,
+											WIN_BACK_UI.quickFilter.sinceDate,
+										).format(windowDay(scope.since)),
+									})
+								: t("Wrote back"),
 						active: scope.replied,
-						onToggle: () => setFilter({ replied: !scope.replied }),
+						onToggle: () => setFilter({ replied: !scope.replied, since: null }),
+					},
+					{
+						id: "snoozed",
+						label: t("Snoozed"),
+						active: scope.snoozed,
+						onToggle: () => setFilter({ snoozed: !scope.snoozed }),
 					},
 				]}
 				leadingActions={

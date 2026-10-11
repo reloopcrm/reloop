@@ -81,6 +81,14 @@ async function directionOf(name: string) {
 	return message?.direction;
 }
 
+async function realAnswerOf(name: string) {
+	const message = await db.emailMessage.findUnique({
+		where: { rfcMessageId: root(name) },
+		select: { realAnswer: true },
+	});
+	return message?.realAnswer;
+}
+
 async function clean() {
 	await db.activity.deleteMany({
 		where: { createdById: { in: [userA, userB] } },
@@ -227,7 +235,7 @@ describe("repairing mail stored with the wrong direction", () => {
 		);
 		await db.emailMessage.update({
 			where: { rfcMessageId: root("wrong") },
-			data: { direction: EmailDirection.INBOUND },
+			data: { direction: EmailDirection.INBOUND, realAnswer: true },
 		});
 
 		const wrong = await db.emailMessage.findUniqueOrThrow({
@@ -274,7 +282,9 @@ describe("repairing mail stored with the wrong direction", () => {
 			).repair(),
 		).toBe(1);
 		expect(await directionOf("wrong")).toBe(EmailDirection.OUTBOUND);
+		expect(await realAnswerOf("wrong")).toBe(false);
 		expect(await directionOf("customer")).toBe(EmailDirection.INBOUND);
+		expect(await realAnswerOf("customer")).toBe(true);
 		expect(requested).toEqual([
 			[
 				wrong.threadId,

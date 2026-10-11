@@ -7,6 +7,7 @@ import {
 	readAgentFunctions,
 } from "@crm/validation/agent-functions";
 import { DISPATCH } from "./dispatch-config";
+import { RESEARCH } from "./research-config";
 
 export type LeasedTask = {
 	id: string;
@@ -132,6 +133,17 @@ export async function postponeTask(taskId: string, until: Date): Promise<void> {
 	await db.$executeRaw`
 		UPDATE "agentTask"
 		SET "dueAt" = ${until}, "leasedUntil" = NULL, "attempts" = GREATEST("attempts" - 1, 0)
+		WHERE id = ${taskId} AND "finishedAt" IS NULL
+	`;
+}
+
+export async function returnClaim(taskId: string, until: Date): Promise<void> {
+	await db.$executeRaw`
+		UPDATE "agentTask"
+		SET "dueAt" = ${until},
+			"leasedUntil" = NULL,
+			"startedAt" = CASE WHEN "attempts" <= 1 THEN NULL ELSE "startedAt" END,
+			"attempts" = GREATEST("attempts" - 1, 0)
 		WHERE id = ${taskId} AND "finishedAt" IS NULL
 	`;
 }
@@ -262,7 +274,7 @@ export async function scheduleTask(input: {
 				payload: input.payload ?? undefined,
 				dueAt: input.dueAt,
 				priority: input.priority ?? 0,
-				budget: input.budget ?? 4,
+				budget: input.budget ?? RESEARCH.budget.defaultUnits,
 			},
 			select: { id: true },
 		});

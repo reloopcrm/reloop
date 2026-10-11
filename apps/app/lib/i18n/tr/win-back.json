@@ -407,9 +407,14 @@
 	"The suggested version comes back. Your changes to the text are lost.": "Önerilen sürüm geri gelir. Metindeki değişikliklerin kaybolur.",
 	"Show the suggestion": "Öneriyi göster",
 	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "Reloop {name} ile e-postaları az önce okudu. {time} sonrasında yeniden iste.",
-	"Wrote back": "Cevap yazdı",
+	"Wrote back": "Cevap yazanlar",
 	"See who wrote back": "Kimin cevap yazdığını gör",
 	"Reply to them": "Onlara cevap ver",
 	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "Geri kazanma mailine cevap yazdılar. Reloop cevabı senin üslubunla hazırlar.",
-	"Reloop has not written the answer yet. Reload the page to try again.": "Reloop cevabı henüz yazmadı. Tekrar denemek için sayfayı yenile."
+	"Reloop has not written the answer yet. Reload the page to try again.": "Reloop cevabı henüz yazmadı. Tekrar denemek için sayfayı yenile.",
+	"Snoozed": "Ertelenenler",
+	"Bring back": "Geri getir",
+	"{name} is back in the list.": "{name} listeye geri döndü.",
+	"Comes back": "Geri dönüş",
+	"Wrote back, contacted since {date}": "Cevap yazdı, {date} tarihinden beri yazıldı"
 }

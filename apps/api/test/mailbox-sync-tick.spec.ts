@@ -10,6 +10,7 @@ import type { ImapConnectionService } from "../src/imap/imap-connection.service"
 import type { ImapSyncService } from "../src/imap/imap-sync.service";
 import type { DirectionRepairService } from "../src/mailbox/direction-repair.service";
 import { SYNC_LEASE, SYNC_TICK } from "../src/mailbox/mailbox.config";
+import type { RealAnswerBackfillService } from "../src/mailbox/real-answer-backfill.service";
 import type { SyncStateService } from "../src/mailbox/sync-state.service";
 import type { ThreadAdoptionService } from "../src/mailbox/thread-adoption.service";
 import type { ThreadContactsService } from "../src/mailbox/thread-contacts.service";
@@ -147,6 +148,12 @@ function build(
 		} as unknown as AgentTriggerService,
 		{ repair: async () => 0 } as unknown as DirectionRepairService,
 		{ addFromRelevantThreads } as unknown as ThreadContactsService,
+		{
+			backfill: async () => {
+				asked.push("real-answers");
+				return 0;
+			},
+		} as unknown as RealAnswerBackfillService,
 	);
 }
 
@@ -211,6 +218,17 @@ describe("the thread contacts pass", () => {
 		}
 
 		expect(calls).toEqual([]);
+	});
+});
+
+describe("the real answer backfill", () => {
+	it("runs once per tick, even with no mailbox due", async () => {
+		asked.length = 0;
+		const service = build(state, async () => null);
+
+		await service.runDue();
+
+		expect(asked).toEqual(["business-setup", "real-answers"]);
 	});
 });
 

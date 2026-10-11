@@ -13,6 +13,7 @@ import {
 	isImapSyncSource,
 	isMicrosoftSyncSource,
 } from "../mailbox/mailbox.constants";
+import { RealAnswerBackfillService } from "../mailbox/real-answer-backfill.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { ThreadAdoptionService } from "../mailbox/thread-adoption.service";
 import { ThreadContactsService } from "../mailbox/thread-contacts.service";
@@ -56,6 +57,7 @@ export class MailboxSyncService {
 		private readonly agent: AgentTriggerService,
 		private readonly direction: DirectionRepairService,
 		private readonly threadContacts: ThreadContactsService,
+		private readonly realAnswers: RealAnswerBackfillService,
 	) {}
 
 	async runDue(signal?: AbortSignal): Promise<TickSummary> {
@@ -94,6 +96,14 @@ export class MailboxSyncService {
 		} catch (error) {
 			this.logger.error(
 				{ message: "Mail direction repair failed" },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
+		try {
+			await this.realAnswers.backfill();
+		} catch (error) {
+			this.logger.error(
+				{ message: "Real answer backfill failed" },
 				error instanceof Error ? error.stack : String(error),
 			);
 		}

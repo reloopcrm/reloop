@@ -1,19 +1,21 @@
 import {
-	CALENDAR_SCOPE,
-	GMAIL_SCOPE,
 	GOOGLE_PROVIDER_ID,
+	GOOGLE_SYNC_SOURCES,
 	type MailboxProviderId,
 	MICROSOFT_PROVIDER_ID,
-	OUTLOOK_MAIL_SCOPE,
+	MICROSOFT_SYNC_SOURCES,
+	SCOPE_FOR_SYNC_SOURCE,
 } from "@crm/auth";
 
 export {
 	CALENDAR_SCOPE,
 	GMAIL_SCOPE,
 	GOOGLE_PROVIDER_ID,
+	GOOGLE_SYNC_SOURCES,
 	type MailboxProviderId,
 	MICROSOFT_PROVIDER_ID,
 	MICROSOFT_SYNC_SCOPES,
+	MICROSOFT_SYNC_SOURCES,
 	OUTLOOK_MAIL_SCOPE,
 	SYNC_SCOPES,
 } from "@crm/auth";
@@ -42,9 +44,6 @@ export function imapAccountIdOf(source: ImapSyncSource): string {
 	return source.slice(IMAP_SOURCE_PREFIX.length);
 }
 
-export const GOOGLE_SYNC_SOURCES = ["calendar", "gmail"] as const;
-export const MICROSOFT_SYNC_SOURCES = ["outlook"] as const;
-
 export type GoogleSyncSource = (typeof GOOGLE_SYNC_SOURCES)[number];
 export type MicrosoftSyncSource = (typeof MICROSOFT_SYNC_SOURCES)[number];
 
@@ -58,11 +57,10 @@ export function isMicrosoftSyncSource(
 	return (MICROSOFT_SYNC_SOURCES as readonly string[]).includes(source);
 }
 
-export const SCOPE_FOR_SOURCE = {
-	calendar: CALENDAR_SCOPE,
-	gmail: GMAIL_SCOPE,
-	outlook: OUTLOOK_MAIL_SCOPE,
-} satisfies Record<SyncSource, string>;
+export const SCOPE_FOR_SOURCE = SCOPE_FOR_SYNC_SOURCE satisfies Record<
+	SyncSource,
+	string
+>;
 
 export const PROVIDER_FOR_SOURCE = {
 	calendar: GOOGLE_PROVIDER_ID,

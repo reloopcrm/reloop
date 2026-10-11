@@ -14,6 +14,8 @@ export const winBackBand = z.enum(["high", "medium", "low"]);
 export const reactivationListInput = z.object({
 	rejected: z.boolean().default(false),
 	replied: z.boolean().default(false),
+	snoozed: z.boolean().default(false),
+	since: z.iso.datetime({ offset: true }).optional(),
 	quietForDays: z
 		.number()
 		.int()
@@ -51,6 +53,7 @@ export const winBackPersonOutput = z.object({
 	quietDays: z.number(),
 	waitingOnUs: z.boolean(),
 	feedback: z.string().nullable(),
+	snoozedUntil: z.string().nullable(),
 	memory: winBackFactsOutput,
 });
 
@@ -65,6 +68,7 @@ export const winBackGroupOutput = z.object({
 	quietDays: z.number(),
 	waitingOnUs: z.boolean(),
 	feedback: z.string().nullable(),
+	snoozedUntil: z.string().nullable(),
 	memory: winBackFactsOutput,
 });
 
@@ -184,6 +188,7 @@ export const winBackPersonViewOutput = z.object({
 	firstContactAt: z.string(),
 	lastContactAt: z.string(),
 	feedback: z.string().nullable(),
+	snoozedUntil: z.string().nullable(),
 	wroteBack: z.object({ answeredAt: z.string(), open: z.boolean() }).nullable(),
 	facts: z.object({
 		orders: z.number(),
@@ -212,6 +217,11 @@ export const winBackPersonViewOutput = z.object({
 });
 
 export type WinBackPersonViewOutput = z.infer<typeof winBackPersonViewOutput>;
+
+export const bringBackOutput = z.object({
+	contactId: z.string(),
+	ended: z.number().int().nonnegative(),
+});
 
 export const rereadStoryOutput = z.object({
 	queued: z.boolean(),

@@ -1190,6 +1190,8 @@ marked passages and the follow-up delay. It writes nothing but an
   sends it without a wish. Under the same task lock as `refreshDraft`
   (`agent-task:email-draft:<contactId>`) the API queues only while the stored draft
   is still that one, so an open and a click that race write one draft for a mail.
+  It looks for an open draft task first and reads the stored draft after, because a
+  draft task stores its draft before it finishes and does not take the lock.
   Write again on the draft a rep reads still queues. A call without `seen` and a
   call with a wish behave as before. `refreshDraft` makes the same check with the
   draft it found stale, so a draft another task stored meanwhile is not rewritten.

@@ -1132,7 +1132,6 @@ export class AgentTriggerService {
 					tx,
 					`agent-task:${task.kind}:${task.contactId ?? ""}:${task.companyId ?? ""}:${task.subject?.value ?? ""}`,
 				);
-				if (task.stillWanted && !(await task.stillWanted(tx))) return false;
 				const pending = await tx.agentTask.findFirst({
 					where: {
 						kind: task.kind,
@@ -1158,6 +1157,7 @@ export class AgentTriggerService {
 					});
 					return count > 0;
 				}
+				if (task.stillWanted && !(await task.stillWanted(tx))) return false;
 
 				await tx.agentTask.create({
 					data: {

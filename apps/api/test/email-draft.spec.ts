@@ -712,6 +712,41 @@ describe("a stale draft and a draft written ahead", () => {
 		expect(await openTasks(id)).toEqual([{ priority: PRIORITY.emailDraft }]);
 	});
 
+	it("queues no rewrite when the open draft task finishes right after the draft was read", async () => {
+		const id = await person("abschluss");
+		await store(id, new Date("2026-08-01T00:00:00.000Z"));
+		const mail = new Date("2026-09-01T00:00:00.000Z");
+		await thread(id, mail);
+		await task(id, new Date());
+		const seen = (await live.draft(id)).draft?.writtenAt ?? null;
+
+		const queued = await new AgentTriggerService(db).emailDraftRequested(
+			id,
+			null,
+			false,
+			async (tx) => {
+				const stored = await tx.emailDraft.findUnique({
+					where: { contactId: id },
+					select: { updatedAt: true },
+				});
+				await db.emailDraft.update({
+					where: { contactId: id },
+					data: { body: "Danke für Ihre Antwort.", basedOnUntil: mail },
+				});
+				await db.agentTask.updateMany({
+					where: { contactId: id, kind: DRAFT_KIND, finishedAt: null },
+					data: { finishedAt: new Date(), outcome: "A draft is ready" },
+				});
+				return (stored?.updatedAt.toISOString() ?? null) === seen;
+			},
+		);
+
+		expect(queued).toBe(false);
+		expect(
+			await db.agentTask.count({ where: { contactId: id, kind: DRAFT_KIND } }),
+		).toBe(1);
+	});
+
 	async function agentWroteFor(contactId: string, until: Date): Promise<void> {
 		const at = new Date();
 		await db.agentTask.create({

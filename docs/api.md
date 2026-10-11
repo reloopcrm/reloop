@@ -58,8 +58,11 @@ has not claimed it (`startedAt` is null), `enqueue` rewrites that row under the 
 idempotency lock: the rep's reason, the higher of the two priorities and the earlier
 of its `dueAt` and now. The click answers `queued: true`, and the pre-check sees the
 rep's reason. A row the agent already claimed stays as it is and the click answers
-`queued: false`. Only `contactRequested` sets `upgradeOpen`; every other caller of
-`enqueue` still skips an open row without a write.
+`queued: false`. A claim the research lane hands back unrun, because the monthly
+budget or a blocked model provider stops it, is waiting again: `returnClaim` clears
+`startedAt` on a first attempt, so the click still takes that row over. Only
+`contactRequested` sets `upgradeOpen`; every other caller of `enqueue` still skips an
+open row without a write.
 
 About to add a vendor client to `apps/api`? You want `apps/agent/agent/lib`. One
 documented exception, for timing: the exchange-rate fetcher, below.
@@ -170,8 +173,10 @@ every query still resolves through `WORKSPACE_ID`.
 
 - **The slug is the plugin's column**, written by `workspaceSlug(name)`
   (`@crm/db/workspace`) on rename and create. **Never derive it on read.**
-- `ensureWorkspaceMembership` reconciles it; `RESERVED_SLUGS` prevents collision with
-  a real route (a collision gets `-crm`).
+- `ensureWorkspaceMembership` keeps a custom slug the rep chose in onboarding. It
+  replaces the slug with `workspaceSlug(name)` only when it is empty or reserved
+  (`isUsableSlug`). `RESERVED_SLUGS` prevents collision with a real route (a collision
+  gets `-crm`).
 - **The proxy is the only thing that puts the slug on.** Missing or stale slugs are
   redirected with the query string intact, not 404'd; `[slug]/layout.tsx` is the
   backstop.
@@ -332,6 +337,17 @@ in `trpc/openapi.ts`. A Docker install publishes only the app, and the app forwa
 reach. `/rest` stays because a Vercel deployment uses it. Both mounts are the same
 middleware, so neither opens anything the other does not.
 
+**A key is rate limited on the bridge.** `restRateLimit` (`src/http/rest-rate-limit.middleware.ts`)
+runs in front of both bridge mounts and in front of `/api/trpc`, one shared counter per key. A request with an `x-api-key` header counts against a fixed
+window per key: `REST_RATE_LIMIT.apiKey` in `src/http/http-config.ts` (300 requests per
+minute). Past it the answer is 429 with a `Retry-After` header in seconds. A cookie request
+carries no key header and is never counted. The count lives in the `rateLimit` table
+(better-auth's own table, under the `rest:` prefix and the key's row id), so every API
+process shares it. A header that matches no stored key is not counted and writes no row;
+the credential check answers it 401. One upsert counts and reads in one statement. Expired `rest:` rows are
+pruned once per window per process. better-auth's own API key limit stays off. The
+`/internal/*` cron routes and the tracking collector are not on this limit. The 429 waits for the request body to drain before it answers, because Bun, the production runtime, keeps the connection open and blocks shutdown when a response leaves a body unread.
+
 **`GET /api/openapi.json` is the document a self-hoster reads**, and it is the tRPC
 bridge half only, with `baseUrl` pointing at `/api/rest`. It answers 401 without a
 session or an API key, in development and in production alike. It runs the same check
@@ -456,6 +472,27 @@ the largest attachment upload the conversation contracts accept.
   Graph has no mailbox-wide delta, so the Outlook cursor is re-read with a
   one-second overlap; `rfcMessageId` is unique, so the overlap costs a duplicate
   fetch and never a duplicate row.
+- **The calendar keeps its place between ticks.** `MailboxSync.cursor` is
+  Google's `nextSyncToken`. A pass reads at most `CALENDAR.sync.maxPagesPerTick`
+  pages (`google/calendar.config.ts`). The next page token, the sync token it
+  belongs to and the frozen `timeMin`/`timeMax` window go into the calendar row's
+  `backfill` as `{ v, pageToken, syncToken, timeMin, timeMax }`
+  (`google/calendar-page-cursor.ts`), and the next tick continues there with the
+  same window. The last page writes the new sync token and clears the blob. A
+  page Google rejects for good (`failed`, not retryable) or a 410 clears it, so
+  the next tick starts the pass again; a retryable failure keeps it.
+- **A calendar event is found by its Google id.** A cancelled entry in an
+  incremental sync carries only `id` and `status`, so it is deleted by
+  `googleEventId`, narrowed by `iCalUid` when the entry has one. The second way
+  is `iCalUid`: for a single event every row without a `recurringEventId`, for
+  an instance the row with its `originalStartTime`. Google ids are unique per calendar
+  only, so an id that matches events with different `iCalUid`s deletes nothing. A
+  moved single event keeps its row: the sync finds it by `googleEventId`, or by
+  `iCalUid` without a `recurringEventId`, updates the times and leaves
+  `originalStartTime` as it was, so its `MEETING` activity stays one. The
+  attendee rows follow Google's list, unless Google sets `attendeesOmitted`. An
+  unknown `status` or `responseStatus` reads as absent instead of failing the
+  page.
 - **A message the store rejects is retried, then skipped.** Gmail and Outlook
   keep `failures` (`{ id, attempts, lanes }`) in the backfill blob, IMAP keeps
   it in the folder's cursor entry (`mailbox/message-failures.ts`). The cursor
@@ -657,11 +694,12 @@ the largest attachment upload the conversation contracts accept.
   with an owned thread whose insight is `DECLINED` with `declineKind` `HARD`, until a
   real answer (`realAnswer`, so no auto reply or bounce) from that person's own
   address arrives after `declinedAt`, in a thread they own or take part in. Mail from
-  us or from a colleague does not bring them back. The list, "Continue with", the
-  story prefetch, the "Wrote back" view and the agent's `list_win_back_candidates`
-  all read it. A soft no, or a null kind, stays and shows "said no". The rejected view and
-  `readReactivationCandidate` do not filter it, so the person page and the Anfrage
-  panel still open.
+  us or from a colleague does not bring them back. The rule is one SQL fragment,
+  `hardNoStands` in `win-back-outcome.ts`. The list, "Continue with", the story
+  prefetch, the "Wrote back" view, the dashboard's "Replied" card and the agent's
+  `list_win_back_candidates` all read it. A soft no, or a null kind, stays and
+  shows "said no". The rejected view and `readReactivationCandidate` do not
+  filter it, so the person page and the Anfrage panel still open.
 - **The links of existing mail are written by a script, once.** `bun run
   thread-participants` in `apps/api` walks every thread by id in batches of
   `THREAD_PARTICIPANTS.backfillBatch` inside `cloud.forEachScope` and prints per
@@ -718,7 +756,7 @@ the pattern lists in `packages/db/src/message-text.ts`
 
 - **TypeScript asks `isRealAnswer`**, which is `isAutoReply` and `isBounce` beside
   it. `EmailMessage` stores no headers, so they read the sender, the subject and the
-  first `AUTO_REPLY_BODY_CHARS` of the body (the snippet when there is no body).
+  first `AUTO_REPLY_BODY_CHARS` characters of the body (the snippet when there is no body). TypeScript and SQL both count code points, and the SQL patterns use the JavaScript `\s` set.
   The body is cut at the first quote marker or `>` line after its first character
   (`authoredText`), so a real reply that quotes an out-of-office still counts.
 - **SQL uses `realAnswer("m")`** from `@crm/db/real-answer`, built from the same
@@ -743,19 +781,58 @@ the pattern lists in `packages/db/src/message-text.ts`
   `emailMessage_realAnswer_missing_idx` holds only the empty rows, so finding
   them does not scan the table. A self-hosted install runs nothing by hand: the
   history is filled a batch per tick after the deploy. The hard no filter in
-  `reactivation.ts` reads `realAnswer` too, so it gains the same.
+  `win-back-outcome.ts` reads `realAnswer` too, so it gains the same.
 - **The win back loop reads it** (`win-back-outcome.ts`): "Replied" on the dashboard
   and the follow-up sweep both skip auto-replies and bounces.
-- **"Wrote back" is the same loop.** `reactivation.list` and `nextPerson` take
-  `replied`; the list then keeps only the people in the loop's `answered` set
-  (`wroteBackAfterOutreach`): a real answer after the first mail that followed the
-  verdict. An answer before that mail does not count. The win back rules do not
-  apply to this view, so everyone the card counts can show, except a person whose
-  answer is a hard no: the hard no filter still applies, and a later answer of
-  their own brings them back to both views. The "Replied" card links to
-  the list with `?replied=true` and the dashboard's scope. The card counts this
-  month, the list shows every reply. A filtered list is never the prefetch's default
-  list (`readsDefaultList`).
+- **"Wrote back" and "Replied" count one set.** The loop's `wrote_back` CTE is
+  the `answered` set without a person whose hard no stands (`hardNoStands`):
+  a real answer after the first mail that followed the verdict, from the person
+  or a colleague in their conversation. An answer before that mail does not
+  count. `readWinBackOutcome` counts the rows whose first mail went out since
+  the start of the month, and `wroteBackAfterOutreach` keeps the same rows in
+  `reactivation.list` and `nextPerson` when they take `replied`, with the window
+  from `since`. Neither applies the win back rules. `answered` itself keeps the
+  hard no, so the follow-up sweep never writes to a person who said no.
+- **The card link carries the window.** The dashboard returns `winBack.since`, the
+  instant its month started on the server, written with the server's offset
+  (`2026-10-01T00:00:00+02:00`). The "Replied" card links to the list with
+  `?replied=true`, the dashboard's scope and `since`, so the list shows exactly
+  the people the card counted. The chip then reads "Wrote back, contacted since"
+  the server's calendar day from that string, whatever the reader's time zone. Turning the chip off or resetting the filters drops
+  `since`, and the plain chip shows every reply. `since` without `replied` does
+  nothing. A filtered list is never the prefetch's default list
+  (`readsDefaultList`).
+- **"Remind me in 7 days" hides the person until that day.** The date is the
+  reminder task's own `dueAt`; nothing else stores it. `activities.create` with
+  `winBackLater: true` writes the task with `meta` `{ winBack: true, later: true }`
+  (`WIN_BACK_LATER_META`, `@crm/db/win-back-snooze`). While such a task is open and
+  its `dueAt` lies after now, `snoozedAt` keeps the person out of
+  `listReactivationCandidates`, so out of the list, its counts, `nextPerson`, the
+  prefetch and the agent's list tool. A task on a company with no contact snoozes
+  everyone at that company. The person comes back by themselves on the due day, or
+  earlier when the rep completes or deletes the task; no job runs. The "Not for us"
+  and "Wrote back" views ignore the snooze, so "Wrote back" still shows everyone the
+  "Replied" card counts. `snoozed: true` on `reactivation.list` and `nextPerson`
+  shows exactly the people the snooze hides, under the same win back rules, and the
+  list then fills `snoozedUntil` on every person (a company row carries its earliest
+  day). A reminder written before this mark existed has no `meta` and hides nobody.
+- **A person has one snooze.** A second `winBackLater` task for the same target (the
+  contact, or the company when the task names no contact) moves the open one's
+  `dueAt` and subject instead of writing another, under an advisory lock on that
+  target, and returns it. `reactivation.person` returns `snoozedUntil`, the latest
+  `dueAt` that hides the person, so a reloaded page shows the day and "Bring back"
+  instead of "Remind me". `reactivation.bringBack({ contactId })` completes every open
+  snooze task that covers the person (`endSnooze`), a company task included, so that
+  company's people return with them. A reminder that is already due stays open.
+- **Only a snooze change refreshes the list.** `reactivation.list` scans every
+  candidate, and the sidebar count reads it on every page, so `cache.activity()`
+  leaves it alone for notes, calls and plain tasks. `cache.activity({ winBack: true })`
+  refreshes `reactivation.list` and `reactivation.person` without making the caller
+  wait, and marks every `nextPerson` as outdated without refetching it. The person
+  page, the row menu and Bring back always pass it; the timeline and the dashboard
+  pass `isWinBackSnooze(entry.meta)` from `@crm/validation/win-back-snooze`. An open
+  page keeps its "Continue with" until the window regains focus; a page opened again
+  reads anew.
 - **The person view says when the answer is ours to give.** `wroteBack` comes from
   `readWinBackReply`: the newest real answer after the win back mail, and `open`
   while no mail from us to their address followed it, in any conversation they
@@ -777,6 +854,12 @@ picker reads.
 
 - **A contact on a deal works at that deal's company**, enforced in the service and
   not merely by the picker — the same rule as `companies.setPrimaryContact`.
+- **Moving a deal to another company keeps that rule.** `deals.update` with a new
+  `companyId` removes every `DealContact` whose contact is not at the new company
+  (a contact with no company included) and moves the deal's activities to the new
+  company, in the same transaction. After commit it raises the new company's
+  `lastActivityAt` to the deal's newest activity; the old company keeps its stamp,
+  because a recompute would drop stamps the agent writes without an activity.
 - **Attaching is an upsert and re-attaching keeps the role already there**, so a
   double click cannot blank what somebody typed.
 - **Detaching removes the row, never the contact.** They stay in the CRM, on the
@@ -789,9 +872,10 @@ picker reads.
 `activities.update` changes the subject, the body, and for a task the due day.
 `activities.remove` deletes the row. Both go through `isEditable`
 (`activities/editable.ts`): kind `NOTE` or `TASK`, `meta` is null, and
-`createdById` is the signed-in user. The one exception to null `meta` is the win
-back follow up task (`{ winBack: true }`): it is assigned to the rep, so the rep
-moves it. A synced mail, a meeting, and anything the agent or tracking wrote stay
+`createdById` is the signed-in user. The one exception to null `meta` is a win
+back task: the follow up task (`{ winBack: true }`), assigned to the rep, so the rep
+moves it, and the "Remind me" task (`{ winBack: true, later: true }`), which the rep
+wrote and may undo. A synced mail, a meeting, and anything the agent or tracking wrote stay
 read only. `Activity` has no `archivedAt`,
 so a delete is final. After it, `lastActivityAt` is recomputed for the company,
 contact and deal; a failure there is logged, never thrown.
@@ -842,6 +926,9 @@ row is still there, just filtered out of every list.
 - **`archive`/`restore` are a bare `update({ archivedAt })`, nothing more.** They do
   not touch `AgentTask`, `SuppressedContact`, or `lastActivityAt` — the record is
   unchanged, only hidden.
+- **An archived deal keeps its stage.** `deals.setStage` reads `archivedAt` under
+  its `FOR UPDATE` and refuses, so `bulkSetStage` counts it as failed and no
+  `deal.closed` or `deal.opened` event fires. Restore it first.
 - **`purge` is the old `delete`.** Same transaction, same suppression, same
   `AgentTask`/`AgentEvent` cleanup, same `ActivityStampService.recomputeAfterDelete`.
   Read the rest of this section as `purge`'s contract, not `archive`'s.
@@ -873,8 +960,18 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
 - **The address comes from the delete itself**
   (`tx.contact.delete({ select: { email: true } })`), not a read before it — and the
   404 is that statement's own `P2025` through `translate`.
-- **Adding them back lifts the suppression** via `allowAgain` **inside the write's
-  transaction**. Never automatic.
+- **`contacts.create` never lifts the suppression.** A create on a suppressed address
+  answers 409 and writes nothing; the check runs again inside the write's transaction,
+  under `lockContactEmail`, the same advisory lock `purge` takes before it writes the
+  suppression.
+  Only `contacts.update` with that address lifts it, via `allowAgain` **inside the
+  write's transaction**. Never automatic.
+- **`contacts.create` validates before it writes.** A duplicate address answers 409
+  (the pre-check and a `P2002` from a parallel create give the same sentence). An
+  unknown or archived `companyId` and an unknown `ownerId` answer 400. Free-text
+  fields have `.max()` limits from `CONTACT_INPUT` in `contacts/contacts.config.ts`;
+  the messages live in `CONTACT_MESSAGES` there, as fixed English sentences with a
+  key in every `copy.json`, so the app shows them translated.
 - **Purging a company does not suppress its domain** — its people survive with no
   company, and domain suppression stays the explicit Settings → Connections control.
 - **Clear `AgentTask` and `AgentEvent` yourself** — they carry `contactId`/`companyId`
@@ -946,7 +1043,14 @@ such thread that still has no deal. **It classifies nothing and queues no
   `Deal.ownerId`; there is no guess and no sweep. `quotes.dismiss` is the other
   half, and both write `EmailThread.quoteHandledAt`, so a handled thread never
   returns. The write is an `updateMany` guarded on `quoteHandledAt: null`, which
-  is what stops two clicks making two deals.
+  is what stops two clicks on one thread making two deals.
+- **One open deal per company.** The list shows one row per company, and
+  `create` holds the same line for two threads of one company: inside the deal's
+  own transaction it takes `lockIdempotencyKey(tx, "quote-deal:<companyId>")`,
+  looks again for an open, unarchived deal of that company, and only then claims
+  the thread. A hit answers "no longer waiting", and the rollback leaves the
+  thread unclaimed. `DealsService.create` runs that check through its `guard`
+  option, before the insert.
 - **The deal is created with no amount.** The agent extracts no figures from a
   quote, so `amount`, `baseAmount` and the rate stay null and the rep types the
   number. See `docs/currency.md`.
@@ -1034,7 +1138,9 @@ marked passages and the follow-up delay. It writes nothing but an
   not hold gets a null `position` and no next person. Both count only people with an
   address, the same people `next` can reach, so the last of them reads "Person 87 of
   87" beside "Back to the list". A person without an address gets a null `position`
-  and still a next person.
+  and still a next person. A snoozed person outside the list also
+  gets a null `position`, but `next` is the first person of the list, so the page
+  of someone just snoozed still continues after a reload.
 - **A story past the plan's budget is held back, not an error.** `storyState.limitUntil`
   names the end of the usage window when the conversation budget, which stories share
   (`budgetKinds`) and of which they leave the new-mail reserve alone, is spent. A story

@@ -1,13 +1,24 @@
 import { bumpCounter, COUNTERS } from "@crm/telemetry";
 import { defineState } from "eve/context";
+import { RESEARCH } from "./research-config";
 
-export const focus = defineState("crm.focus", () => ({
-	contactId: null as string | null,
-	companyId: null as string | null,
-	sessionId: null as string | null,
-	taskKind: null as string | null,
+type FocusState = {
+	contactId: string | null;
+	companyId: string | null;
+	sessionId: string | null;
+	taskKind: string | null;
+	spent: number;
+	budget: number;
+	exhausted: boolean;
+};
+
+export const focus = defineState<FocusState>("crm.focus", () => ({
+	contactId: null,
+	companyId: null,
+	sessionId: null,
+	taskKind: null,
 	spent: 0,
-	budget: 4,
+	budget: RESEARCH.budget.defaultUnits,
 	exhausted: false,
 }));
 
@@ -64,6 +75,13 @@ export function spend(units = 1): { ok: true } | { ok: false; reason: string } {
 
 	focus.update((current) => ({ ...current, spent: current.spent + units }));
 	return { ok: true };
+}
+
+export function refund(units: number): void {
+	focus.update((current) => ({
+		...current,
+		spent: Math.max(0, current.spent - units),
+	}));
 }
 
 export function setBudget(budget: number): void {

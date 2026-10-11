@@ -415,6 +415,7 @@
 	"Only an owner or an admin can change a webhook.": "只有所有者或管理员能改 webhook。",
 	"No webhook with that id.": "没有这个 id 的 webhook。",
 	"A webhook address is an http or https address without a user name in it.": "webhook 地址是不带用户名的 http 或 https 地址。",
+	"A webhook address starts with https. Plain http is allowed only for an address on your own network, with that switch on.": "webhook 地址以 https 开头。仅当地址位于你自己的网络且该开关已开启时，才允许使用明文 http。",
 	"Address hidden": "地址已隐藏",
 	"Too many sign-ups from here. Wait a minute and try again.": "来自此处的注册过多。请等待一分钟后重试。",
 	"The waitlist is taking more sign-ups than it can store. Try again in a minute.": "候补名单收到的注册超出了可存储的数量。请一分钟后重试。",

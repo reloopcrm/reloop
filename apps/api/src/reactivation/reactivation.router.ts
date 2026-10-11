@@ -12,6 +12,7 @@ import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
+	bringBackOutput,
 	potentialFeedbackOutput,
 	reactivationListInput,
 	reactivationListOutput,
@@ -70,6 +71,17 @@ export class ReactivationRouter {
 	})
 	async rereadStory(@Input("contactId") contactId: string) {
 		return this.people.rereadStory(contactId);
+	}
+
+	@Mutation({
+		input: winBackPersonViewInput,
+		output: bringBackOutput,
+		meta: restMeta("POST", "/reactivation/people/{contactId}/bring-back", [
+			"Reactivation",
+		]),
+	})
+	async bringBack(@Input("contactId") contactId: string) {
+		return this.people.bringBack(contactId);
 	}
 
 	@Query({

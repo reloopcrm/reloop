@@ -407,7 +407,7 @@
 	"The suggested version comes back. Your changes to the text are lost.": "A versão sugerida volta. Suas alterações no texto se perdem.",
 	"Show the suggestion": "Mostrar a sugestão",
 	"Reloop read the emails with {name} a moment ago. Ask again after {time}.": "O Reloop acabou de ler os e-mails com {name}. Peça de novo depois das {time}.",
-	"Wrote back": "Respondeu",
+	"Wrote back": "Responderam",
 	"See who wrote back": "Ver quem respondeu",
 	"Reply to them": "Responda a eles",
 	"They wrote back after your win back mail. Reloop prepares the answer in your tone.": "Eles responderam ao seu e-mail para reconquistar. O Reloop prepara a resposta no seu tom.",
@@ -418,5 +418,10 @@
 	"The research agent is not reachable.": "O agente de pesquisa está inacessível.",
 	"The research agent did not return a session id.": "O agente de pesquisa não devolveu um ID de sessão.",
 	"The research agent is not configured for this install.": "O agente de pesquisa não está configurado para esta instalação.",
-	"The research agent could not answer. Try again.": "O agente de pesquisa não conseguiu responder. Tente de novo."
+	"The research agent could not answer. Try again.": "O agente de pesquisa não conseguiu responder. Tente de novo.",
+	"Snoozed": "Adiados",
+	"Bring back": "Trazer de volta",
+	"{name} is back in the list.": "{name} está de volta na lista.",
+	"Comes back": "Volta",
+	"Wrote back, contacted since {date}": "Respondeu, contatado desde {date}"
 }

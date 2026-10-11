@@ -500,7 +500,10 @@ the largest attachment upload the conversation contracts accept.
   The calendar sync calls it for each written event, and every mailbox sync tick
   sweeps all events, so a meeting stored weeks ahead is prepared once it comes
   close. The task carries `payload.eventId`; an event that already had a task
-  for that contact is not queued again, finished or not.
+  for that contact is not queued again, finished or not. An incremental sync
+  never returns an unchanged event, so the migration that added `isSelf` is
+  followed by one that sets it on every stored attendee whose address belongs to
+  a user with a calendar sync: the user's email or one of their mailbox addresses.
 - **The `MEETING` activity stores the event's own title and no body.** An event
   without a title stores `subject` null, and the location stays on the event.
   The timeline renders "Meeting" and the location through `t()`.

@@ -203,6 +203,41 @@ describe("an event reaching a webhook", () => {
 	});
 });
 
+describe("a webhook with a plain http address on a public host", () => {
+	it("fails with a clear error and sends nothing", async () => {
+		const webhook = await aWebhook({
+			url: `http://203.0.113.9/${REASON}`,
+			allowPrivateHost: true,
+		});
+		const event = await anEvent();
+		await queueWebhookDeliveries(event);
+
+		await runWebhookLane(undefined, TIMEOUT_MS);
+
+		const row = await db.webhook.findUniqueOrThrow({
+			where: { id: webhook.id },
+		});
+		expect(row.lastError).toContain("https");
+		expect(row.lastStatus).toBeNull();
+		expect(row.lastDeliveryAt).not.toBeNull();
+	});
+
+	it("still delivers over http to an address on the own network when allowed", async () => {
+		let calls = 0;
+		const url = await listening((_received, answer) => {
+			calls += 1;
+			answer(200);
+		});
+		await aWebhook({ url, allowPrivateHost: true });
+		const event = await anEvent();
+		await queueWebhookDeliveries(event);
+
+		await runWebhookLane(undefined, TIMEOUT_MS);
+
+		expect(calls).toBe(1);
+	});
+});
+
 describe("a receiver that never answers", () => {
 	it("does not hold the event lane", async () => {
 		const url = await listening(() => {});

@@ -2,8 +2,13 @@ import { db } from "@crm/db";
 import { MAX_ATTEMPTS } from "@crm/db/agent-tasks";
 import { crmEventRecordIds } from "@crm/db/crm-events";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { safeFetch } from "@crm/db/safe-fetch";
-import { openWebhookSecret, signWebhookBody, WEBHOOKS } from "@crm/db/webhooks";
+import { resolvePublicHost, safeFetch } from "@crm/db/safe-fetch";
+import {
+	isPlainHttpUrl,
+	openWebhookSecret,
+	signWebhookBody,
+	WEBHOOKS,
+} from "@crm/db/webhooks";
 import { crmEventTask } from "@crm/validation/agent-events";
 import { z } from "zod";
 import { COPY } from "./copy";
@@ -181,6 +186,17 @@ async function send(
 		};
 	}
 
+	if (
+		isPlainHttpUrl(webhook.url) &&
+		(await resolvePublicHost(new URL(webhook.url).hostname, timeoutMs))
+	) {
+		return {
+			delivered: false,
+			status: null,
+			reason: say(COPY.webhooks.insecure),
+		};
+	}
+
 	const body = JSON.stringify({
 		id: delivery.deliveryKey,
 		type: delivery.event.type,
@@ -195,6 +211,7 @@ async function send(
 		body,
 		timeoutMs,
 		allowPrivateHost: webhook.allowPrivateHost,
+		httpsOnly: true,
 		headers: {
 			"content-type": "application/json",
 			[WEBHOOKS.headers.event]: delivery.event.type,

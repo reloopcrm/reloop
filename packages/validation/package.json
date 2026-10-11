@@ -28,6 +28,7 @@
 		"./field-templates": "./src/field-templates.ts",
 		"./mailbox-profile": "./src/mailbox-profile.ts",
 		"./saved-view": "./src/saved-view.ts",
+		"./search": "./src/search.ts",
 		"./tracking-batch": "./src/tracking-batch.ts",
 		"./summary-language": "./src/summary-language.ts",
 		"./summary-text": "./src/summary-text.ts",

@@ -92,20 +92,48 @@ beforeAll(async () => {
 			},
 		});
 	}
+
+	const ahead = await db.contact.create({
+		data: {
+			firstName: "Queue",
+			lastName: "Ahead",
+			email: `ahead-${suffix}@example.test`,
+		},
+		select: { id: true },
+	});
+
+	await db.agentTask.createMany({
+		data: Array.from({ length: ENRICHMENT_PAGE }, () => [
+			{
+				kind,
+				reason: "due since yesterday",
+				dueAt: new Date(Date.now() - DAY_MS),
+				budget: 4,
+				contactId: ahead.id,
+			},
+			{
+				kind,
+				reason: "booked for tomorrow",
+				dueAt: new Date(Date.now() + DAY_MS),
+				budget: 4,
+				contactId: ahead.id,
+			},
+		]).flat(),
+	});
 });
 
 afterAll(clean);
 
 describe("what the enrichment widget reads", () => {
 	it("lists work that is due now", async () => {
-		const queue = await enrichment.queue();
+		const queue = await enrichment.queue(ENRICHMENT_PAGE_MAX);
 
 		expect(queue.rows.map((row) => row.id)).toContain(dueId);
 		expect(queue.total).toBeGreaterThanOrEqual(1);
 	});
 
 	it("keeps work booked for a later day out of the count", async () => {
-		const queue = await enrichment.queue();
+		const queue = await enrichment.queue(ENRICHMENT_PAGE_MAX);
 
 		expect(queue.rows.map((row) => row.id)).not.toContain(scheduledId);
 		expect(queue.scheduled.map((row) => row.id)).toContain(scheduledId);
@@ -113,7 +141,7 @@ describe("what the enrichment widget reads", () => {
 	});
 
 	it("says when a booked record is looked at again", async () => {
-		const queue = await enrichment.queue();
+		const queue = await enrichment.queue(ENRICHMENT_PAGE_MAX);
 		const booked = queue.scheduled.find((row) => row.id === scheduledId);
 
 		expect(booked?.due).toEqual({ text: "In {count} months", count: 3 });
@@ -122,7 +150,7 @@ describe("what the enrichment widget reads", () => {
 	});
 
 	it("names the company a due row is about", async () => {
-		const queue = await enrichment.queue();
+		const queue = await enrichment.queue(ENRICHMENT_PAGE_MAX);
 		const row = queue.rows.find((entry) => entry.id === dueId);
 
 		expect(row?.subject.id).toBe(companyId);

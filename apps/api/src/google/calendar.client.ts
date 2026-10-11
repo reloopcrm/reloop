@@ -4,6 +4,7 @@ import {
 	MailboxApiClient,
 	type MailboxResult,
 } from "../mailbox/mailbox-api.client";
+import { CALENDAR } from "./calendar.config";
 
 const EVENTS_URL =
 	"https://www.googleapis.com/calendar/v3/calendars/primary/events";
@@ -22,10 +23,33 @@ const googlePerson = z.object({
 	self: z.boolean().optional(),
 });
 
+export const GOOGLE_EVENT_STATUSES = [
+	"confirmed",
+	"tentative",
+	"cancelled",
+] as const;
+
+export const GOOGLE_RESPONSE_STATUSES = [
+	"needsAction",
+	"declined",
+	"tentative",
+	"accepted",
+] as const;
+
+const googleEventStatus = z
+	.enum(GOOGLE_EVENT_STATUSES)
+	.optional()
+	.catch(undefined);
+
+const googleResponseStatus = z
+	.enum(GOOGLE_RESPONSE_STATUSES)
+	.optional()
+	.catch(undefined);
+
 export const googleEvent = z.object({
 	id: z.string().optional(),
 	iCalUID: z.string().optional(),
-	status: z.string().optional(),
+	status: googleEventStatus,
 	summary: z.string().optional(),
 	description: z.string().optional(),
 	location: z.string().optional(),
@@ -40,12 +64,13 @@ export const googleEvent = z.object({
 	attendees: z
 		.array(
 			googlePerson.extend({
-				responseStatus: z.string().optional(),
+				responseStatus: googleResponseStatus,
 				organizer: z.boolean().optional(),
 				resource: z.boolean().optional(),
 			}),
 		)
 		.optional(),
+	attendeesOmitted: z.boolean().optional(),
 	conferenceData: z
 		.object({
 			entryPoints: z
@@ -93,7 +118,7 @@ export class CalendarClient {
 		return this.api.get(EVENTS_URL, accessToken, googleEventsPage, {
 			singleEvents: true,
 			showDeleted: true,
-			maxResults: query.maxResults ?? 250,
+			maxResults: query.maxResults ?? CALENDAR.sync.pageSize,
 			syncToken: query.syncToken,
 			pageToken: query.pageToken,
 			...window,

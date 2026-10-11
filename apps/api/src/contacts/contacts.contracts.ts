@@ -21,6 +21,7 @@ import {
 } from "../crm/standing";
 import { recordFieldValues } from "../fields/fields.contracts";
 import { activityFacetInput, listInput } from "../trpc/list-input";
+import { CONTACT_INPUT } from "./contacts.config";
 
 export const contactListInput = listInput.extend({
 	owner: z.array(z.string()).default([]),
@@ -39,13 +40,21 @@ export const contactListInput = listInput.extend({
 export type ContactListInput = z.infer<typeof contactListInput>;
 
 export const contactCreateInput = z.object({
-	firstName: z.string().trim().min(1, "A contact needs a first name."),
-	lastName: z.string().trim().optional(),
-	email: z.email("That is not an email address.").optional().or(z.literal("")),
-	phone: z.string().trim().optional(),
-	title: z.string().trim().optional(),
-	companyId: z.string().nullable().optional(),
-	ownerId: z.string().nullable().optional(),
+	firstName: z
+		.string()
+		.trim()
+		.min(1, "A contact needs a first name.")
+		.max(CONTACT_INPUT.maxNameChars),
+	lastName: z.string().trim().max(CONTACT_INPUT.maxNameChars).optional(),
+	email: z
+		.email("That is not an email address.")
+		.max(CONTACT_INPUT.maxEmailChars)
+		.optional()
+		.or(z.literal("")),
+	phone: z.string().trim().max(CONTACT_INPUT.maxPhoneChars).optional(),
+	title: z.string().trim().max(CONTACT_INPUT.maxTitleChars).optional(),
+	companyId: z.string().max(CONTACT_INPUT.maxIdChars).nullable().optional(),
+	ownerId: z.string().max(CONTACT_INPUT.maxIdChars).nullable().optional(),
 });
 
 export type ContactCreateInput = z.infer<typeof contactCreateInput>;

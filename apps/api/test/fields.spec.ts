@@ -565,6 +565,33 @@ describe("a select option that was taken away", () => {
 	});
 });
 
+describe("the export values of a person field", () => {
+	it("name the person, not the user id", async () => {
+		const record = await makeCompany("export-user");
+
+		await fields.create(ownerId, {
+			entity: "COMPANY",
+			label: "Spec reviewer",
+			type: "USER",
+			options: [],
+			agentFilled: false,
+			agentBrief: null,
+			required: false,
+			showOnSheet: true,
+			showOnTable: false,
+			showOnFilter: false,
+		});
+
+		await fields.applyValues(db, "COMPANY", record, {
+			spec_reviewer: ownerId,
+		});
+
+		const exported = await fields.exportValuesFor("COMPANY", [record]);
+
+		expect(exported.get(record)?.spec_reviewer).toBe("Fields Rep");
+	});
+});
+
 describe("a record update that fails", () => {
 	it("leaves a company's field values as they were", async () => {
 		const record = await makeCompany("company-rollback");

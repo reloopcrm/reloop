@@ -1,12 +1,14 @@
+import { db } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
+import { isSampleRecordId } from "@crm/db/sample-data";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { RESEARCH } from "../lib/research-config";
 import { assertResearchPurpose } from "../lib/session-purpose";
-import { scheduleTask } from "../lib/tasks";
+import { scheduleTask, taskKindEnabled } from "../lib/tasks";
 import { tenantTool } from "../lib/tenant";
 
-const MIN_DAYS = 1;
-const MAX_DAYS = 730;
+const KIND = "recheck";
 
 const tool = defineTool({
 	description:
@@ -16,8 +18,8 @@ const tool = defineTool({
 		days: z
 			.number()
 			.int()
-			.min(MIN_DAYS)
-			.max(MAX_DAYS)
+			.min(RESEARCH.recheck.minDays)
+			.max(RESEARCH.recheck.maxDays)
 			.describe(
 				"14 for a champion on an open deal; 90 for a named contact with no deal; 365 when two attempts have found nothing.",
 			),
@@ -31,22 +33,61 @@ const tool = defineTool({
 			.number()
 			.int()
 			.min(1)
-			.max(20)
-			.default(4)
+			.max(RESEARCH.budget.maxUnits)
+			.default(RESEARCH.budget.defaultUnits)
 			.describe("Vendor calls the next run may spend."),
 	}),
 	async execute({ contactId, days, reason, budget }, ctx) {
 		assertResearchPurpose(ctx);
-		const dueAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
-		await scheduleTask({
+		const contact = await db.contact.findUnique({
+			where: { id: contactId },
+			select: { archivedAt: true },
+		});
+
+		if (!contact) {
+			return { scheduled: false as const, reason: "No such contact." };
+		}
+
+		if (contact.archivedAt) {
+			return {
+				scheduled: false as const,
+				reason: "This contact is archived. Nothing is rechecked on it.",
+			};
+		}
+
+		if (isSampleRecordId(contactId)) {
+			return {
+				scheduled: false as const,
+				reason: "This is sample data. Sample records are never rechecked.",
+			};
+		}
+
+		if (!(await taskKindEnabled(KIND))) {
+			return {
+				scheduled: false as const,
+				reason:
+					"The recheck function is turned off in Settings. Nothing was scheduled.",
+			};
+		}
+
+		const dueAt = new Date(Date.now() + days * RESEARCH.recheck.dayMs);
+
+		const task = await scheduleTask({
 			contactId,
-			kind: "recheck",
+			kind: KIND,
 			reason,
 			dueAt,
 			budget,
 			priority: PRIORITY.recheck,
 		});
+
+		if (!task) {
+			return {
+				scheduled: false as const,
+				reason: "The recheck could not be scheduled. Nothing was written.",
+			};
+		}
 
 		return { scheduled: true as const, dueAt: dueAt.toISOString(), reason };
 	},

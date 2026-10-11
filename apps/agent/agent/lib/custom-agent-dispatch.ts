@@ -160,8 +160,9 @@ export async function dispatchBuilderSubmission(
 	});
 	const conversationId = submission.conversation.id;
 
+	let session: Awaited<ReturnType<SendFn>>;
 	try {
-		const session = await send(
+		session = await send(
 			builderDeliveryMessage(
 				submission.id,
 				submission.message,
@@ -190,7 +191,31 @@ export async function dispatchBuilderSubmission(
 				state: channelState(),
 			},
 		);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		const retry = submission.attemptCount < MAX_BUILDER_ATTEMPTS;
+		await db.$transaction(async (tx) => {
+			const conversation = await lockBuilderConversation(tx, conversationId);
+			if (!conversation) return;
+			const released = await tx.agentConversationSubmission.updateMany({
+				where: { id: submission.id, status: "SENDING" },
+				data: {
+					status: retry ? "PENDING" : "FAILED",
+					errorCode: "DELIVERY_FAILED",
+					errorMessage: message,
+				},
+			});
+			if (released.count === 0) return;
+			await tx.agentConversation.update({
+				where: { id: conversationId },
+				data: { continuationToken: builderToken(conversationId) },
+			});
+		});
+		throw error;
+	}
 
+	const sessionId = session.id;
+	try {
 		await db.$transaction(async (tx) => {
 			const conversation = await lockBuilderConversation(tx, conversationId);
 			if (!conversation) return;
@@ -201,34 +226,40 @@ export async function dispatchBuilderSubmission(
 			await tx.agentConversation.update({
 				where: { id: conversationId },
 				data: {
-					sessionId: session.id,
+					sessionId,
 					pendingInputRequest: Prisma.DbNull,
 				},
 			});
 		});
-
-		return session;
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		const retry = submission.attemptCount < MAX_BUILDER_ATTEMPTS;
-		await db.$transaction(async (tx) => {
-			const conversation = await lockBuilderConversation(tx, conversationId);
-			if (!conversation) return;
-			await tx.agentConversationSubmission.update({
-				where: { id: submission.id },
-				data: {
-					status: retry ? "PENDING" : "FAILED",
-					errorCode: "DELIVERY_FAILED",
-					errorMessage: message,
-				},
-			});
-			await tx.agentConversation.update({
-				where: { id: conversationId },
-				data: { continuationToken: builderToken(conversationId) },
-			});
-		});
-		throw error;
+		console.error(
+			`[agent] builder submission ${submission.id} was delivered but its acceptance could not be recorded: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+		const retries = await Promise.allSettled([
+			db.agentConversationSubmission.updateMany({
+				where: { id: submission.id, status: "SENDING" },
+				data: { status: "ACCEPTED", acceptedAt: new Date() },
+			}),
+			db.agentConversation.updateMany({
+				where: { id: conversationId, kind: "BUILDER", sessionId: null },
+				data: { sessionId },
+			}),
+		]);
+		for (const retry of retries) {
+			if (retry.status === "fulfilled") continue;
+			console.error(
+				`[agent] builder submission ${submission.id} could not record its delivery: ${
+					retry.reason instanceof Error
+						? retry.reason.message
+						: String(retry.reason)
+				}`,
+			);
+		}
 	}
+
+	return session;
 }
 
 export async function queueDueAgentRuns(now = new Date()): Promise<number> {

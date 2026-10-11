@@ -3,7 +3,8 @@ import { z } from "zod";
 import { personForVerification } from "../lib/crm";
 import type { Evidence } from "../lib/evidence";
 import { recordFact } from "../lib/facts";
-import { focusOn } from "../lib/focus";
+import { focusOn, refund, spend } from "../lib/focus";
+import { RESEARCH } from "../lib/research-config";
 import { assertResearchPurpose } from "../lib/session-purpose";
 import { parseSocialUrl, verifyGithub, verifyX } from "../lib/socials";
 import { tenantTool } from "../lib/tenant";
@@ -61,12 +62,20 @@ const tool = defineTool({
 				continue;
 			}
 
+			const cost = RESEARCH.cost.socialCheck;
+			const charge = spend(cost);
+			if (!charge.ok) {
+				rejected.push(charge.reason);
+				continue;
+			}
+
 			const verdict =
 				candidate.network === "x"
 					? await verifyX(parsed, person)
 					: await verifyGithub(parsed, person);
 
 			if (!verdict.accepted) {
+				if (!verdict.answered) refund(cost);
 				rejected.push(verdict.reason);
 				continue;
 			}

@@ -187,6 +187,7 @@ describe("readsDefaultList", () => {
 		const base = {
 			rejected: false,
 			replied: false,
+			snoozed: false,
 			scope: "everyone",
 			quietForDays: 0,
 		} as const;
@@ -195,6 +196,7 @@ describe("readsDefaultList", () => {
 		expect(readsDefaultList({ ...base, scope: "me" })).toBe(false);
 		expect(readsDefaultList({ ...base, rejected: true })).toBe(false);
 		expect(readsDefaultList({ ...base, quietForDays: 30 })).toBe(false);
+		expect(readsDefaultList({ ...base, snoozed: true })).toBe(false);
 	});
 
 	it("never hands the people who wrote back to the prefetch as the default list", () => {
@@ -202,6 +204,7 @@ describe("readsDefaultList", () => {
 			readsDefaultList({
 				rejected: false,
 				replied: true,
+				snoozed: false,
 				scope: "everyone",
 				quietForDays: 0,
 			}),

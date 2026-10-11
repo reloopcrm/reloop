@@ -13,6 +13,7 @@ import {
 	queueDueAgentRuns,
 	queueEventAgentRuns,
 } from "../agent/lib/custom-agent-dispatch";
+import { DISPATCH } from "../agent/lib/dispatch-config";
 import {
 	createRunActivity,
 	finishRun,
@@ -469,6 +470,193 @@ describe("durable custom-agent runtime", () => {
 			{ id: first.id, status: "ACCEPTED" },
 			{ id: second.id, status: "PENDING" },
 		]);
+	});
+
+	it("keeps a delivered builder message out of the queue when the accept write fails", async () => {
+		const takenSessionId = `durable-session-${suffix}-taken`;
+		const [taken, conversation] = await Promise.all([
+			db.agentConversation.create({
+				data: { kind: "BUILDER", userId, sessionId: takenSessionId },
+				select: { id: true },
+			}),
+			db.agentConversation.create({
+				data: {
+					kind: "BUILDER",
+					userId,
+					submissions: {
+						create: {
+							submittedById: userId,
+							clientRequestId: crypto.randomUUID(),
+							message: { text: "Build me an agent" },
+						},
+					},
+				},
+				select: { id: true, submissions: { select: { id: true } } },
+			}),
+		]);
+		builderConversationIds.push(taken.id, conversation.id);
+		const submissionId = conversation.submissions[0]?.id ?? "";
+		let deliveries = 0;
+		const send = (async () => {
+			deliveries += 1;
+			return {
+				id:
+					deliveries === 1
+						? takenSessionId
+						: `durable-session-${suffix}-redelivered`,
+			};
+		}) as unknown as SendFn;
+
+		const session = await dispatchBuilderSubmission(submissionId, send);
+		const [submission, settled] = await Promise.all([
+			db.agentConversationSubmission.findUniqueOrThrow({
+				where: { id: submissionId },
+			}),
+			db.agentConversation.findUniqueOrThrow({
+				where: { id: conversation.id },
+			}),
+		]);
+		expect(session.id).toBe(takenSessionId);
+		expect(submission.status).toBe("ACCEPTED");
+		expect(submission.errorCode).toBeNull();
+		expect(settled.continuationToken).toBeNull();
+
+		await db.agentConversationSubmission.update({
+			where: { id: submissionId },
+			data: { sentAt: new Date(Date.now() - 2 * DISPATCH.builder.leaseMs) },
+		});
+		await pendingBuilderSubmissionIds();
+		let redelivery: Error | null = null;
+		try {
+			await dispatchBuilderSubmission(submissionId, send);
+		} catch (error) {
+			redelivery = error as Error;
+		}
+		const recovered = await db.agentConversationSubmission.findUniqueOrThrow({
+			where: { id: submissionId },
+		});
+		expect(redelivery?.message).toContain("already claimed or is out of order");
+		expect(recovered.status).toBe("ACCEPTED");
+		expect(deliveries).toBe(1);
+	});
+
+	it("records the builder session when only the acceptance write fails", async () => {
+		const conversation = await db.agentConversation.create({
+			data: {
+				kind: "BUILDER",
+				userId,
+				submissions: {
+					create: {
+						submittedById: userId,
+						clientRequestId: crypto.randomUUID(),
+						message: { text: "Build a third agent" },
+					},
+				},
+			},
+			select: { id: true, submissions: { select: { id: true } } },
+		});
+		builderConversationIds.push(conversation.id);
+		const submissionId = conversation.submissions[0]?.id ?? "";
+		const sessionId = `durable-session-${suffix}-recorded`;
+		const send = (async () => {
+			await db.agentConversationSubmission.deleteMany({
+				where: { id: submissionId },
+			});
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		await dispatchBuilderSubmission(submissionId, send);
+		const settled = await db.agentConversation.findUniqueOrThrow({
+			where: { id: conversation.id },
+		});
+		expect(settled.sessionId).toBe(sessionId);
+	});
+
+	it("keeps a newer builder question when only the acceptance write fails", async () => {
+		const sessionId = `durable-session-${suffix}-asking`;
+		const created = await db.agentConversation.create({
+			data: { kind: "BUILDER", userId, sessionId },
+			select: { id: true },
+		});
+		builderConversationIds.push(created.id);
+		const conversation = await db.agentConversation.update({
+			where: { id: created.id },
+			data: {
+				continuationToken: builderToken(created.id),
+				submissions: {
+					create: {
+						submittedById: userId,
+						clientRequestId: crypto.randomUUID(),
+						message: { text: "Change the schedule" },
+					},
+				},
+			},
+			select: { id: true, submissions: { select: { id: true } } },
+		});
+		const submissionId = conversation.submissions[0]?.id ?? "";
+		const question = { requestId: "durable-question", prompt: "Which day?" };
+		const send = (async () => {
+			await db.agentConversationSubmission.deleteMany({
+				where: { id: submissionId },
+			});
+			await db.agentConversation.update({
+				where: { id: conversation.id },
+				data: { pendingInputRequest: question },
+			});
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		await dispatchBuilderSubmission(submissionId, send);
+		const settled = await db.agentConversation.findUniqueOrThrow({
+			where: { id: conversation.id },
+		});
+		expect(settled.sessionId).toBe(sessionId);
+		expect(settled.pendingInputRequest).toEqual(question);
+	});
+
+	it("keeps a builder message accepted when the send rejects after Eve received it", async () => {
+		const conversation = await db.agentConversation.create({
+			data: {
+				kind: "BUILDER",
+				userId,
+				submissions: {
+					create: {
+						submittedById: userId,
+						clientRequestId: crypto.randomUUID(),
+						message: { text: "Build me another agent" },
+					},
+				},
+			},
+			select: { id: true, submissions: { select: { id: true } } },
+		});
+		builderConversationIds.push(conversation.id);
+		const submissionId = conversation.submissions[0]?.id ?? "";
+		const send = (async () => {
+			await db.agentConversationSubmission.updateMany({
+				where: { id: submissionId },
+				data: { status: "ACCEPTED", acceptedAt: new Date() },
+			});
+			throw new Error("The send timed out after Eve received the message.");
+		}) as unknown as SendFn;
+
+		let failure: Error | null = null;
+		try {
+			await dispatchBuilderSubmission(submissionId, send);
+		} catch (error) {
+			failure = error as Error;
+		}
+		const [submission, settled] = await Promise.all([
+			db.agentConversationSubmission.findUniqueOrThrow({
+				where: { id: submissionId },
+			}),
+			db.agentConversation.findUniqueOrThrow({
+				where: { id: conversation.id },
+			}),
+		]);
+		expect(failure?.message).toContain("timed out");
+		expect(submission.status).toBe("ACCEPTED");
+		expect(submission.errorCode).toBeNull();
+		expect(settled.continuationToken).toBeNull();
 	});
 
 	it("loads persisted attachment bytes into the Eve builder turn", async () => {

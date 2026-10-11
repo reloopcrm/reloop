@@ -19,6 +19,7 @@ import {
 	runTerminalEventId,
 } from "./run-state";
 import { slackAccessToken } from "./slack-connection";
+import { neutralizeSlackText } from "./slack-text";
 
 const ACTION_LEASE_MS = DISPATCH.run.actionLeaseMs;
 const NO_ACTION_TRIGGER_TYPES = new Set<AgentTriggerType>(
@@ -627,7 +628,9 @@ export async function sendSlackMessage(
 			"chat.postMessage",
 			{
 				channel,
-				text,
+				text: neutralizeSlackText(text),
+				parse: "none",
+				link_names: false,
 				client_msg_id: clientMessageId,
 			},
 			abortSignal,

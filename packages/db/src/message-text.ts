@@ -139,8 +139,17 @@ function matchesSubject(subject: string | null, markers: RegExp[]): boolean {
 	return line.length > 0 && markers.some((marker) => marker.test(line));
 }
 
+export function leadingCharacters(text: string, count: number): string {
+	if (text.length <= count) return text;
+	let end = 0;
+	for (let seen = 0; seen < count && end < text.length; seen += 1) {
+		end += (text.codePointAt(end) ?? 0) > 0xffff ? 2 : 1;
+	}
+	return text.slice(0, end);
+}
+
 function matchesBody(body: string | null, markers: RegExp[]): boolean {
-	const text = (body ?? "").slice(0, AUTO_REPLY_BODY_CHARS);
+	const text = leadingCharacters(body ?? "", AUTO_REPLY_BODY_CHARS);
 	return text.length > 0 && markers.some((marker) => marker.test(text));
 }
 

@@ -232,12 +232,14 @@ export async function safeFetch(
 		headers,
 		body,
 		allowPrivateHost = false,
+		httpsOnly = false,
 	}: {
 		method?: RequestMethod;
 		timeoutMs?: number;
 		headers?: RequestHeaders;
 		body?: string;
 		allowPrivateHost?: boolean;
+		httpsOnly?: boolean;
 	} = {},
 ): Promise<{ response: Response; url: URL } | null> {
 	let target: URL;
@@ -257,6 +259,12 @@ export async function safeFetch(
 			allowPrivateHost,
 		);
 		if (!address || target.username || target.password) return null;
+		if (
+			httpsOnly &&
+			target.protocol === "http:" &&
+			!isBlockedAddress(address.address)
+		)
+			return null;
 
 		let response: Response;
 		try {

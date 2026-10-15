@@ -270,14 +270,18 @@ export class CalendarSyncService {
 
 	private async remove(
 		event: GoogleEvent,
-		userId: string,
+		row: MailboxSync,
 	): Promise<"removed" | "ignored"> {
-		const held = await this.heldBy(event, userId);
+		const held = await this.heldBy(event, row.userId);
 		if (held.length === 0) return "ignored";
 
-		await this.db.$transaction((tx) => releaseEvents(tx, userId, held));
+		const live = await this.db.$transaction(async (tx) => {
+			if (!(await holdSyncRow(tx, row.id))) return false;
+			await releaseEvents(tx, row.userId, held);
+			return true;
+		});
 
-		return "removed";
+		return live ? "removed" : "ignored";
 	}
 
 	private async heldBy(event: GoogleEvent, userId: string): Promise<string[]> {
@@ -375,7 +379,7 @@ export class CalendarSyncService {
 		row: MailboxSync,
 		context: MatchContext,
 	): Promise<"written" | "removed" | "ignored"> {
-		if (event.status === "cancelled") return this.remove(event, row.userId);
+		if (event.status === "cancelled") return this.remove(event, row);
 		if (changedBefore(event, row.importSince)) return "ignored";
 
 		const iCalUid = event.iCalUID;

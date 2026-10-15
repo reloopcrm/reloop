@@ -426,7 +426,7 @@ export class ReactivationService {
 			),
 		]).catch(() => "unavailable" as const);
 
-		const usable = answer === "connected" || answer === "unavailable";
+		const usable = answer !== "idle";
 		this.loginCheck = { at: now, usable };
 		return usable;
 	}

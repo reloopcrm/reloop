@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
+import type { ChatgptLoginStatus } from "@crm/validation/chatgpt-login";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import type { ResearchKeyService } from "../src/agent/research-key.service";
 import { ReactivationService } from "../src/reactivation/reactivation.service";
@@ -8,7 +9,7 @@ import type { WinBackStoryPrefetchService } from "../src/reactivation/win-back-s
 const suffix = process.env.TEST_RUN_ID ?? "reading-progress-spec";
 const rootMessageId = `thread-${suffix}@reading-progress.test`;
 
-let login: "connected" | "idle" | "unavailable" = "idle";
+let login: ChatgptLoginStatus = "idle";
 let asked = 0;
 
 const researchKeys = {
@@ -67,6 +68,18 @@ describe("reading progress canRead", () => {
 
 	it("stays true when the agent cannot report the login", async () => {
 		login = "unavailable";
+		const progress = await build().progress();
+		expect(progress.canRead).toBe(true);
+	});
+
+	it("stays true after a cancelled ChatGPT re-login", async () => {
+		login = "cancelled";
+		const progress = await build().progress();
+		expect(progress.canRead).toBe(true);
+	});
+
+	it("stays true while a ChatGPT re-login waits for the code", async () => {
+		login = "waiting";
 		const progress = await build().progress();
 		expect(progress.canRead).toBe(true);
 	});

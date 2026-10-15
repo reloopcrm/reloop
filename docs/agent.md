@@ -63,6 +63,10 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
   to the code.
 - **A failed install is `unavailable` with a reason**, never a throw. The reason names
   the npm error code, so "no internet" reads as `npm ENOTFOUND`.
+- **Every answer carries `loginStored`**: whether `chatgptLoginExists` sees the auth
+  file right now. `status` is the state of the sign-in flow, so a cancelled re-login
+  reads `cancelled` while the stored login still works. Win back's `canRead` reads
+  `loginStored`, never the flow state alone.
 
 ## Pictures are copied, never linked
 

@@ -49,6 +49,7 @@ export class ResearchKeyService {
 			url: null,
 			code: null,
 			alreadyLoggedIn: false,
+			loginStored: false,
 			reason,
 			pollMs: 0,
 		});

@@ -39,6 +39,7 @@ function state(
 		url: null,
 		code: null,
 		alreadyLoggedIn: false,
+		loginStored: false,
 		reason: null,
 		pollMs: MODEL.chatgptLogin.pollMs,
 		...extra,
@@ -144,6 +145,10 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 		}
 	}
 
+	function report(next: ChatgptLoginState): ChatgptLoginState {
+		return { ...next, loginStored: deps.loginExists() };
+	}
+
 	async function begin(): Promise<ChatgptLoginState> {
 		const codex = await deps.codex();
 		if (cancelledWhileStarting) return current;
@@ -217,13 +222,13 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 	return {
 		status(): ChatgptLoginState {
 			if (current.status === "idle" && deps.loginExists()) {
-				return state("connected", { alreadyLoggedIn: true });
+				return report(state("connected", { alreadyLoggedIn: true }));
 			}
-			return current;
+			return report(current);
 		},
 
 		async start(): Promise<ChatgptLoginState> {
-			if (child) return current;
+			if (child) return report(current);
 			cancelledWhileStarting = false;
 			current = state("waiting");
 			if (!starting) {
@@ -234,17 +239,17 @@ export function createChatgptLogin(deps: ChatgptLoginDeps) {
 			const reply = new Promise<ChatgptLoginState>((resolve) => {
 				setTimeout(() => resolve(current), deps.replyMs).unref?.();
 			});
-			return Promise.race([starting, reply]);
+			return report(await Promise.race([starting, reply]));
 		},
 
 		cancel(): ChatgptLoginState {
 			if (starting && !child) {
 				cancelledWhileStarting = true;
 				current = state("cancelled");
-				return current;
+				return report(current);
 			}
 			if (child || current.status === "waiting") stop(state("cancelled"));
-			return current;
+			return report(current);
 		},
 	};
 }

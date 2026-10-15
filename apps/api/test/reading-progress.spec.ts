@@ -10,12 +10,13 @@ const suffix = process.env.TEST_RUN_ID ?? "reading-progress-spec";
 const rootMessageId = `thread-${suffix}@reading-progress.test`;
 
 let login: ChatgptLoginStatus = "idle";
+let loginStored = false;
 let asked = 0;
 
 const researchKeys = {
 	chatgptLogin: async () => {
 		asked += 1;
-		return { status: login };
+		return { status: login, loginStored };
 	},
 } as unknown as ResearchKeyService;
 
@@ -74,14 +75,30 @@ describe("reading progress canRead", () => {
 
 	it("stays true after a cancelled ChatGPT re-login", async () => {
 		login = "cancelled";
+		loginStored = true;
 		const progress = await build().progress();
+		loginStored = false;
 		expect(progress.canRead).toBe(true);
 	});
 
 	it("stays true while a ChatGPT re-login waits for the code", async () => {
 		login = "waiting";
+		loginStored = true;
 		const progress = await build().progress();
+		loginStored = false;
 		expect(progress.canRead).toBe(true);
+	});
+
+	it("is false after a cancelled first ChatGPT login", async () => {
+		login = "cancelled";
+		const progress = await build().progress();
+		expect(progress.canRead).toBe(false);
+	});
+
+	it("is false while a first ChatGPT login waits for the code", async () => {
+		login = "waiting";
+		const progress = await build().progress();
+		expect(progress.canRead).toBe(false);
 	});
 
 	it("asks the agent once a minute at most", async () => {

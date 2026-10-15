@@ -44,6 +44,7 @@ export default defineChannel({
 					url: null,
 					code: null,
 					alreadyLoggedIn: false,
+					loginStored: false,
 					reason: "A ChatGPT sign-in is not offered on a hosted install.",
 					pollMs: 0,
 				});

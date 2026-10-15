@@ -32,7 +32,7 @@ import type {
 	SetPotentialFeedbackInput,
 	WinBackRulesState,
 } from "./reactivation.contracts";
-import { readingReady } from "./reading-ready";
+import { chatgptLoginUsable, readingReady } from "./reading-ready";
 import {
 	bandTotals,
 	continuedBand,
@@ -407,7 +407,7 @@ export class ReactivationService {
 
 	private loginCheck: { at: number; usable: boolean } | null = null;
 
-	private async chatgptLoginUsable(): Promise<boolean> {
+	private async chatgptLoginCheck(): Promise<boolean> {
 		const now = Date.now();
 		if (
 			this.loginCheck &&
@@ -416,17 +416,13 @@ export class ReactivationService {
 			return this.loginCheck.usable;
 		}
 
-		const answer = await Promise.race([
-			this.researchKeys.chatgptLogin("status").then((login) => login.status),
-			new Promise<"unavailable">((resolve) =>
-				setTimeout(
-					() => resolve("unavailable"),
-					READING.loginCheck.timeoutMs,
-				).unref?.(),
+		const usable = await Promise.race([
+			this.researchKeys.chatgptLogin("status").then(chatgptLoginUsable),
+			new Promise<boolean>((resolve) =>
+				setTimeout(() => resolve(true), READING.loginCheck.timeoutMs).unref?.(),
 			),
-		]).catch(() => "unavailable" as const);
+		]).catch(() => true);
 
-		const usable = answer !== "idle";
 		this.loginCheck = { at: now, usable };
 		return usable;
 	}
@@ -449,7 +445,7 @@ export class ReactivationService {
 			return false;
 		}
 
-		return this.chatgptLoginUsable();
+		return this.chatgptLoginCheck();
 	}
 
 	async progress(): Promise<ReadingProgress> {

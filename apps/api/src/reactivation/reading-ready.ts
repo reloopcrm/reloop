@@ -4,6 +4,7 @@ import {
 	type AgentFunctionSettings,
 	isTaskKindEnabled,
 } from "@crm/validation/agent-functions";
+import type { ChatgptLoginState } from "@crm/validation/chatgpt-login";
 
 export const READING_KIND = "thread-insight";
 
@@ -36,5 +37,15 @@ export function readingReady({
 			setting.anthropicKey ||
 			chatgptUsable ||
 			(environmentKey && !cloud.customer()),
+	);
+}
+
+export function chatgptLoginUsable(
+	login: Pick<ChatgptLoginState, "status" | "loginStored">,
+): boolean {
+	return (
+		login.loginStored ||
+		login.status === "connected" ||
+		login.status === "unavailable"
 	);
 }

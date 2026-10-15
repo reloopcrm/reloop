@@ -66,7 +66,8 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
 - **Every answer carries `loginStored`**: whether `chatgptLoginExists` sees the auth
   file right now. `status` is the state of the sign-in flow, so a cancelled re-login
   reads `cancelled` while the stored login still works. Win back's `canRead` reads
-  `loginStored`, never the flow state alone.
+  `loginStored`, never the flow state alone; only an answer without the field (an
+  older agent) falls back to `connected`.
 
 ## Pictures are copied, never linked
 

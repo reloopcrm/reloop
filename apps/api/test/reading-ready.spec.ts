@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { readingReady } from "../src/reactivation/reading-ready";
+import { readingPaused, readingReady } from "../src/reactivation/reading-ready";
 
 const none = {
 	openrouterKey: null,
@@ -88,5 +88,21 @@ describe("readingReady", () => {
 				env: key,
 			}),
 		).toBe(true);
+	});
+});
+
+describe("readingPaused", () => {
+	it("is true while the subscription limit holds and summaries are on", () => {
+		expect(readingPaused({ limitHit: true, functions: {} })).toBe(true);
+	});
+
+	it("is false while summaries are switched off, because no reset resumes reading", () => {
+		expect(
+			readingPaused({ limitHit: true, functions: { "thread-insight": false } }),
+		).toBe(false);
+	});
+
+	it("is false without a subscription limit", () => {
+		expect(readingPaused({ limitHit: false, functions: {} })).toBe(false);
 	});
 });

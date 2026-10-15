@@ -48,3 +48,10 @@ export function chatgptLoginUsable(
 		(login.status === "connected" || login.status === "unavailable")
 	);
 }
+
+export function readingPaused(input: {
+	limitHit: boolean;
+	functions: AgentFunctionSettings;
+}): boolean {
+	return input.limitHit && isTaskKindEnabled(input.functions, READING_KIND);
+}

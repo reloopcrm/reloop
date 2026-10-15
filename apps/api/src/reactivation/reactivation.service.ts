@@ -35,6 +35,7 @@ import type {
 import {
 	chatgptLoginUsable,
 	readingBlockOf,
+	readingPaused,
 	readingReady,
 } from "./reading-ready";
 import {
@@ -489,12 +490,15 @@ export class ReactivationService {
 				: perHour > 0
 					? Math.ceil((pending / perHour) * 60)
 					: Math.ceil((pending * READING.assumedSecondsPerThread) / 60);
-		const paused =
-			pending > 0 &&
-			provider?.primaryUsedPercent !== null &&
-			provider?.primaryUsedPercent !== undefined &&
-			provider.primaryUsedPercent >= 100 &&
-			(provider.primaryResetAt?.getTime() ?? 0) > Date.now();
+		const paused = readingPaused({
+			limitHit:
+				pending > 0 &&
+				provider?.primaryUsedPercent !== null &&
+				provider?.primaryUsedPercent !== undefined &&
+				provider.primaryUsedPercent >= 100 &&
+				(provider.primaryResetAt?.getTime() ?? 0) > Date.now(),
+			functions,
+		});
 
 		const canRead = await this.canRead({
 			pending,

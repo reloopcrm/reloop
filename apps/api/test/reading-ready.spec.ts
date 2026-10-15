@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	readingBlockOf,
+	readingPaused,
 	readingReady,
 } from "../src/reactivation/reading-ready";
 
@@ -121,5 +122,21 @@ describe("readingBlockOf", () => {
 		expect(
 			readingBlockOf({ canRead: false, paused: true, functions: {} }),
 		).toBeNull();
+	});
+});
+
+describe("readingPaused", () => {
+	it("is true while the subscription limit holds and summaries are on", () => {
+		expect(readingPaused({ limitHit: true, functions: {} })).toBe(true);
+	});
+
+	it("is false while summaries are switched off, because no reset resumes reading", () => {
+		expect(
+			readingPaused({ limitHit: true, functions: { "thread-insight": false } }),
+		).toBe(false);
+	});
+
+	it("is false without a subscription limit", () => {
+		expect(readingPaused({ limitHit: false, functions: {} })).toBe(false);
 	});
 });

@@ -156,8 +156,9 @@ function build(
 			},
 		} as unknown as RealAnswerBackfillService,
 		{
-			sweep: async () => {
+			sweep: async (options: { deadlineAt?: number } = {}) => {
 				swept.push(Date.now());
+				sweepDeadlines.push(options.deadlineAt ?? Number.NaN);
 				return 0;
 			},
 		} as unknown as MeetingPrepService,
@@ -166,6 +167,7 @@ function build(
 
 const asked: string[] = [];
 const swept: number[] = [];
+const sweepDeadlines: number[] = [];
 
 let state: FakeState;
 
@@ -248,6 +250,34 @@ describe("the meeting preparation sweep", () => {
 		await service.runDue();
 
 		expect(swept).toHaveLength(1);
+	});
+
+	it("runs before the mailboxes, so a backfill that fills the tick never skips it", async () => {
+		state.add("a", "gmail");
+		swept.length = 0;
+		sweepDeadlines.length = 0;
+		const synced: number[] = [];
+		const realNow = Date.now;
+		const startedAt = realNow();
+		const service = build(state, async (userId, source) => {
+			synced.push(swept.length);
+			const late = realNow() + SYNC_TICK.selfHostBudgetMs;
+			Date.now = () => late;
+			return { source, userId, status: "synced" };
+		});
+
+		try {
+			await service.runDue();
+		} finally {
+			Date.now = realNow;
+		}
+
+		expect(swept).toHaveLength(1);
+		expect(synced).toEqual([1]);
+		expect(sweepDeadlines[0]).toBeGreaterThan(startedAt);
+		expect(sweepDeadlines[0]).toBeLessThanOrEqual(
+			(swept[0] ?? 0) + SYNC_TICK.meetingPrepSliceMs,
+		);
 	});
 });
 

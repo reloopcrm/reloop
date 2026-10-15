@@ -26,11 +26,13 @@ import { CALENDAR } from "../src/google/calendar.config";
 import { releaseEvents } from "../src/google/calendar-holders";
 import { readCalendarPage } from "../src/google/calendar-page-cursor";
 import { CalendarSyncService } from "../src/google/calendar-sync.service";
+import { GoogleConnectionService } from "../src/google/google-connection.service";
 import { MeetingPrepService } from "../src/google/meeting-prep.service";
 import type { MailboxResult } from "../src/mailbox/mailbox-api.client";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
-import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
+import { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import { withDiscardedCrmEvents } from "./agent-trigger.stub";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -85,6 +87,14 @@ const match = new MailboxMatchService(
 	log,
 );
 const state = new SyncStateService(db);
+const google = new GoogleConnectionService(
+	db,
+	new MailboxTokenService(db),
+	state,
+	match,
+	stamp,
+	new ThreadParticipantsService(db, match, stamp, agent),
+);
 
 function service(calendar: FakeCalendar): CalendarSyncService {
 	return new CalendarSyncService(
@@ -503,6 +513,38 @@ describe("a calendar event two reps share", () => {
 		expect(stored).toHaveLength(1);
 		expect(stored[0]?.activity).not.toBeNull();
 		expect(await holdersOf("handover")).toEqual([second.userId]);
+	});
+
+	it("drops a rep who disconnects Google as holder and keeps every event", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+
+		calendar.respond = onePage([meeting("revoke", at(39))]);
+		await sync.sync(first);
+		await sync.sync(second);
+		calendar.respond = onePage([meeting("revoke-solo", at(40))]);
+		await sync.sync(await reload(first));
+
+		const [shared] = await eventsOf("revoke");
+		const activityId = shared?.activity?.id ?? "";
+		expect(activityId).not.toBe("");
+
+		expect(await google.revoke(first.userId)).toEqual({ revoked: true });
+
+		expect(await holdersOf("revoke")).toEqual([second.userId]);
+		expect(await holdersOf("revoke-solo")).toEqual([]);
+		expect(await eventsOf("revoke")).toHaveLength(1);
+		expect(await eventsOf("revoke-solo")).toHaveLength(1);
+		expect(await db.activity.count({ where: { id: activityId } })).toBe(1);
+
+		second = await reload(second);
+		calendar.respond = onePage([{ id: "event-revoke", status: "cancelled" }]);
+		await sync.sync(second);
+
+		expect(await eventsOf("revoke")).toHaveLength(0);
+		expect(await db.activity.count({ where: { id: activityId } })).toBe(0);
 	});
 
 	it("ignores a cancellation from a calendar that never held the event", async () => {

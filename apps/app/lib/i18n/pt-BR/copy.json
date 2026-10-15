@@ -81,6 +81,8 @@
 	"The workspace needs an owner. Make someone else an owner first.": "O espaço de trabalho precisa de um dono. Torne outra pessoa dona primeiro.",
 	"That suggestion has already been settled.": "Essa sugestão já foi resolvida.",
 	"Another contact already uses that email address.": "Outro contato já usa esse endereço de e-mail.",
+	"That address belongs to a person who was deleted for good, so it cannot be added again.": "Esse endereço pertence a uma pessoa excluída definitivamente, então não pode ser adicionado de novo.",
+	"That company does not exist or is archived.": "Essa empresa não existe ou está arquivada.",
 	"That is our own domain. It is already excluded.": "Esse é o nosso próprio domínio. Ele já está de fora.",
 	"You already have a view with that name.": "Você já tem uma visão com esse nome.",
 	"Pruning is not configured.": "A limpeza do arquivo não está configurada.",

@@ -3,11 +3,14 @@ import type { RouterOutputs } from "@/lib/trpc/types";
 
 type Reading = Pick<
 	RouterOutputs["reactivation"]["progress"],
-	"pending" | "canRead" | "readingBlock"
+	"pending" | "canRead" | "paused" | "readingBlock"
 >;
 
 export function stillReading(progress: Reading | undefined): boolean {
-	return (progress?.pending ?? 0) > 0 && progress?.canRead === true;
+	return (
+		(progress?.pending ?? 0) > 0 &&
+		(progress?.canRead === true || progress?.paused === true)
+	);
 }
 
 export function winBackEmptyText(

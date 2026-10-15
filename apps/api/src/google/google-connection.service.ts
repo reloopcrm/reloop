@@ -194,10 +194,10 @@ export class GoogleConnectionService {
 			return { revoked };
 		}
 
-		await this.db.calendarEventSync.deleteMany({ where: { userId } });
 		for (const source of GOOGLE_SYNC_SOURCES) {
 			await this.state.remove(userId, source);
 		}
+		await this.db.calendarEventSync.deleteMany({ where: { userId } });
 
 		return { revoked: true };
 	}

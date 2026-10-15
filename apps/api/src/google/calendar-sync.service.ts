@@ -23,7 +23,12 @@ import {
 	type GoogleEvent,
 } from "./calendar.client";
 import { CALENDAR } from "./calendar.config";
-import { heldByUser, lockEvents, releaseEvents } from "./calendar-holders";
+import {
+	heldByUser,
+	holdSyncRow,
+	lockEvents,
+	releaseEvents,
+} from "./calendar-holders";
 import {
 	type CalendarPageCursor,
 	readCalendarPage,
@@ -419,6 +424,7 @@ export class CalendarSyncService {
 		};
 
 		const record = await this.db.$transaction(async (tx) => {
+			if (!(await holdSyncRow(tx, row.id))) return null;
 			const found = await this.existing(tx, event, iCalUid);
 			const kept =
 				found && (await lockEvents(tx, [found.id])).length > 0 ? found : null;
@@ -465,6 +471,7 @@ export class CalendarSyncService {
 
 			return written;
 		});
+		if (!record) return "ignored";
 
 		await this.syncAttendees(record.id, event);
 		await this.prep.forEvent(record.id);

@@ -547,6 +547,36 @@ describe("a calendar event two reps share", () => {
 		expect(await db.activity.count({ where: { id: activityId } })).toBe(0);
 	});
 
+	it("writes no holder for a rep whose disconnect lands while the page is read", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+
+		calendar.respond = onePage([meeting("revoke-race", at(41))]);
+		await sync.sync(second);
+
+		const update = meeting("revoke-race", at(41), { summary: "Moved" });
+		const inFlight = new FakeCalendar();
+		inFlight.listEvents = async () => {
+			await google.revoke(first.userId);
+			return { outcome: "ok", data: { items: [update] } };
+		};
+		await service(inFlight)
+			.sync(first)
+			.catch(() => undefined);
+
+		expect(await holdersOf("revoke-race")).toEqual([second.userId]);
+
+		second = await reload(second);
+		calendar.respond = onePage([
+			{ id: "event-revoke-race", status: "cancelled" },
+		]);
+		await sync.sync(second);
+
+		expect(await eventsOf("revoke-race")).toHaveLength(0);
+	});
+
 	it("ignores a cancellation from a calendar that never held the event", async () => {
 		const calendar = new FakeCalendar();
 		const sync = service(calendar);

@@ -499,8 +499,11 @@ the largest attachment upload the conversation contracts accept.
   go once no rep holds it. The removal locks the event rows first
   (`google/calendar-holders.ts`), so two reps who cancel at once leave no
   event without a holder. An event without any holder row counts as held by
-  its `syncedByUserId`. A Google disconnect (`revoke`) removes every holder
-  row of the rep in one statement and deletes no event.
+  its `syncedByUserId`. A Google disconnect (`revoke`) removes the rep's sync
+  rows, then every holder row of the rep in one statement, and deletes no
+  event. A sync writes an event only while its sync row exists, and holds that
+  row with `FOR KEY SHARE` (`holdSyncRow`), so a disconnect waits for a running
+  write and no write after it adds the holder back.
 - **A calendar event is found by its Google id.** A cancelled entry in an
   incremental sync carries only `id` and `status`, so it is matched by the
   Google id on the syncing rep's holder row, narrowed by `iCalUid` when the

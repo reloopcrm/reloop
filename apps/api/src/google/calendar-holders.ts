@@ -35,3 +35,13 @@ export async function lockEvents(
 	>`SELECT "id" FROM "calendarEvent" WHERE "id" = ANY(${eventIds}::text[]) ORDER BY "id" FOR UPDATE`;
 	return rows.map((row) => row.id);
 }
+
+export async function holdSyncRow(
+	tx: Prisma.TransactionClient,
+	syncId: string,
+): Promise<boolean> {
+	const rows = await tx.$queryRaw<
+		{ id: string }[]
+	>`SELECT "id" FROM "mailboxSync" WHERE "id" = ${syncId} FOR KEY SHARE`;
+	return rows.length > 0;
+}

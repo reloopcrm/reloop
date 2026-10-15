@@ -113,6 +113,23 @@ export class MailboxSyncService {
 		const due = await this.state.due(new Date());
 		const tickEndsAt = startedAt + tickBudgetMs();
 
+		if (!signal?.aborted) {
+			try {
+				await this.meetingPrep.sweep({
+					deadlineAt: Math.min(
+						Date.now() + SYNC_TICK.meetingPrepSliceMs,
+						tickEndsAt - SYNC_TICK.settleReserveMs,
+					),
+					signal,
+				});
+			} catch (error) {
+				this.logger.error(
+					{ message: "Meeting preparation sweep failed" },
+					error instanceof Error ? error.stack : String(error),
+				);
+			}
+		}
+
 		for (const [index, row] of due.entries()) {
 			if (signal?.aborted || Date.now() > tickEndsAt) {
 				this.logger.log({
@@ -166,17 +183,6 @@ export class MailboxSyncService {
 		}
 
 		const passDeadline = tickEndsAt - SYNC_TICK.settleReserveMs;
-		if (!signal?.aborted && Date.now() < passDeadline) {
-			try {
-				await this.meetingPrep.sweep({ deadlineAt: passDeadline, signal });
-			} catch (error) {
-				this.logger.error(
-					{ message: "Meeting preparation sweep failed" },
-					error instanceof Error ? error.stack : String(error),
-				);
-			}
-		}
-
 		if (!signal?.aborted && Date.now() < passDeadline) {
 			try {
 				await this.threadContacts.addFromRelevantThreads(passDeadline);

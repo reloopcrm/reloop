@@ -37,6 +37,7 @@ import {
 } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
+import { pagesByIds } from "../exports/export-pages";
 import { EXPORTS } from "../exports/exports-config";
 import { FieldsService } from "../fields/fields.service";
 import {
@@ -48,6 +49,7 @@ import {
 	ownerFilter,
 	paginate,
 	resolveOrderBy,
+	withIdTieBreak,
 } from "../trpc/list-input";
 import type {
 	ClosingWindow,
@@ -342,23 +344,25 @@ export class DealsService {
 		};
 	}
 
-	async *exportRows(input: DealListInput): AsyncGenerator<DealExportRow[]> {
+	async *exportRows(
+		input: DealListInput,
+		pageSize: number = EXPORTS.page.size,
+	): AsyncGenerator<DealExportRow[]> {
 		const filterableFields = await this.fields.filterableFieldsFor("DEAL");
 		const where = this.buildWhere(input, filterableFields);
-		let cursor: string | undefined;
+		const orderBy = withIdTieBreak(
+			resolveOrderBy(input, SORTABLE, [{ createdAt: "desc" }]),
+		);
+		const ids = (
+			await this.db.deal.findMany({ where, orderBy, select: { id: true } })
+		).map((row) => row.id);
 
-		for (;;) {
-			const rows = await this.db.deal.findMany({
-				where,
-				orderBy: { id: "asc" },
-				take: EXPORTS.page.size,
-				cursor: cursor ? { id: cursor } : undefined,
-				skip: cursor ? 1 : 0,
+		for await (const rows of pagesByIds(ids, pageSize, (chunk) =>
+			this.db.deal.findMany({
+				where: { id: { in: chunk } },
 				select: DEAL_EXPORT_SELECT,
-			});
-
-			if (rows.length === 0) return;
-
+			}),
+		)) {
 			const values = await this.fields.exportValuesFor(
 				"DEAL",
 				rows.map((row) => row.id),
@@ -368,9 +372,6 @@ export class DealsService {
 				...row,
 				fields: values.get(row.id) ?? {},
 			}));
-
-			if (rows.length < EXPORTS.page.size) return;
-			cursor = rows.at(-1)?.id;
 		}
 	}
 

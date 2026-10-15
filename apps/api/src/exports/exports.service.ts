@@ -62,16 +62,26 @@ function day(value: Date | null | undefined): string {
 	return value ? value.toISOString().slice(0, 10) : "";
 }
 
-function money(value: Prisma.Decimal | null | undefined): string {
+function localNumber(plain: string, locale: Locale): string {
+	return plain.replace(".", EXPORTS.number.decimalSeparator(locale));
+}
+
+function money(
+	value: Prisma.Decimal | null | undefined,
+	locale: Locale,
+): string {
 	return value === null || value === undefined
 		? ""
-		: value.toString().replace(".", ",");
+		: localNumber(value.toString(), locale);
 }
 
 const fieldString = z.string();
+const fieldNumber = z.number();
 
-function fieldText(value: FieldValueJson | undefined): string {
+function fieldText(value: FieldValueJson | undefined, locale: Locale): string {
 	if (value === null || value === undefined) return "";
+	const counted = fieldNumber.safeParse(value);
+	if (counted.success) return localNumber(String(counted.data), locale);
 	const written = fieldString.safeParse(value);
 	return written.success ? neutralizeFormula(written.data) : String(value);
 }
@@ -166,11 +176,14 @@ export const DEAL_COLUMNS: Column<DealExportRow>[] = [
 				exportWord(context.locale, english),
 			),
 	},
-	{ header: "Amount", value: (row) => money(row.amount) },
+	{
+		header: "Amount",
+		value: (row, context) => money(row.amount, context.locale),
+	},
 	{ header: "Currency", value: (row) => text(row.currency) },
 	{
 		header: "Amount in reporting currency",
-		value: (row) => money(row.baseAmount),
+		value: (row, context) => money(row.baseAmount, context.locale),
 	},
 	{ header: "Reporting currency", value: (row) => text(row.baseCurrency) },
 	{ header: "Owner", value: (row) => text(row.owner.name) },
@@ -294,7 +307,9 @@ export class ExportsService {
 			for (const row of page) {
 				chunk += csvLine([
 					...columns.map((column) => column.value(row, context)),
-					...fields.map((field) => fieldText(row.fields[field.key])),
+					...fields.map((field) =>
+						fieldText(row.fields[field.key], context.locale),
+					),
 				]);
 			}
 			yield chunk;

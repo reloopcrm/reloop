@@ -1,5 +1,20 @@
+const DECIMAL_SEPARATORS = new Map<string, string>();
+
+function readDecimalSeparator(locale: string): string {
+	const separator =
+		new Intl.NumberFormat(locale)
+			.formatToParts(1.1)
+			.find((part) => part.type === "decimal")?.value ?? ".";
+	DECIMAL_SEPARATORS.set(locale, separator);
+	return separator;
+}
+
 export const EXPORTS = {
 	page: { size: 500 },
+	number: {
+		decimalSeparator: (locale: string): string =>
+			DECIMAL_SEPARATORS.get(locale) ?? readDecimalSeparator(locale),
+	},
 	time: {
 		defaultZone: "UTC",
 		maxZoneChars: 60,

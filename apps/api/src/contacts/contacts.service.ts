@@ -42,6 +42,7 @@ import { type BulkResult, requireOwner, runBulk } from "../crm/bulk";
 import { readPotential, readStanding } from "../crm/standing";
 import { blankToNull, normalizeEmail, toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
+import { pagesByIds } from "../exports/export-pages";
 import { EXPORTS } from "../exports/exports-config";
 import { FieldsService } from "../fields/fields.service";
 import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
@@ -57,6 +58,7 @@ import {
 	paginate,
 	resolveOrderBy,
 	splitSentinel,
+	withIdTieBreak,
 } from "../trpc/list-input";
 import { lockContactEmail } from "./contact-email-lock";
 import { CONTACT_MESSAGES } from "./contacts.config";
@@ -213,23 +215,23 @@ export class ContactsService {
 
 	async *exportRows(
 		input: ContactListInput,
+		pageSize: number = EXPORTS.page.size,
 	): AsyncGenerator<ContactExportRow[]> {
 		const filterableFields = await this.fields.filterableFieldsFor("CONTACT");
 		const where = this.buildWhere(input, filterableFields);
-		let cursor: string | undefined;
+		const orderBy = withIdTieBreak(
+			resolveOrderBy(input, SORTABLE, [{ createdAt: "desc" }]),
+		);
+		const ids = (
+			await this.db.contact.findMany({ where, orderBy, select: { id: true } })
+		).map((row) => row.id);
 
-		for (;;) {
-			const rows = await this.db.contact.findMany({
-				where,
-				orderBy: { id: "asc" },
-				take: EXPORTS.page.size,
-				cursor: cursor ? { id: cursor } : undefined,
-				skip: cursor ? 1 : 0,
+		for await (const rows of pagesByIds(ids, pageSize, (chunk) =>
+			this.db.contact.findMany({
+				where: { id: { in: chunk } },
 				select: CONTACT_EXPORT_SELECT,
-			});
-
-			if (rows.length === 0) return;
-
+			}),
+		)) {
 			const values = await this.fields.exportValuesFor(
 				"CONTACT",
 				rows.map((row) => row.id),
@@ -239,9 +241,6 @@ export class ContactsService {
 				...row,
 				fields: values.get(row.id) ?? {},
 			}));
-
-			if (rows.length < EXPORTS.page.size) return;
-			cursor = rows.at(-1)?.id;
 		}
 	}
 

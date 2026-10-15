@@ -132,3 +132,9 @@ export async function activityFacetCounts(
 		ACTIVITY_WINDOWS.map((days, index) => [days, counts[index]]),
 	) as FacetCount;
 }
+
+export function withIdTieBreak<TOrder extends object>(
+	orderBy: TOrder | TOrder[],
+): (TOrder | { id: "asc" })[] {
+	return [...(Array.isArray(orderBy) ? orderBy : [orderBy]), { id: "asc" }];
+}

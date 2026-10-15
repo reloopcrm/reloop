@@ -43,6 +43,8 @@ export function readingReady({
 export function chatgptLoginUsable(
 	login: Pick<ChatgptLoginState, "status" | "loginStored">,
 ): boolean {
-	if (login.status === "unavailable") return true;
-	return login.loginStored ?? login.status === "connected";
+	return (
+		login.loginStored ??
+		(login.status === "connected" || login.status === "unavailable")
+	);
 }

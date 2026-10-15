@@ -71,8 +71,16 @@ describe("reading progress canRead", () => {
 
 	it("stays true when the agent cannot report the login", async () => {
 		login = "unavailable";
+		loginStored = undefined;
 		const progress = await build().progress();
+		loginStored = false;
 		expect(progress.canRead).toBe(true);
+	});
+
+	it("is false when the agent reports no codex and no stored login", async () => {
+		login = "unavailable";
+		const progress = await build().progress();
+		expect(progress.canRead).toBe(false);
 	});
 
 	it("stays true after a cancelled ChatGPT re-login", async () => {

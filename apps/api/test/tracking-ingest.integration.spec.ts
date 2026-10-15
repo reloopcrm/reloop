@@ -690,6 +690,36 @@ describe("a submission kept for later", () => {
 		expect(window?.value).toBe(1);
 	});
 
+	it("is skipped by a pass that starts while another pass files it", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 17);
+		const calls: string[] = [];
+		let second: TrackingRefileService | null = null;
+		const nesting = {
+			file: async (
+				submission: Parameters<TrackingFilingService["file"]>[0],
+			) => {
+				calls.push(submission.id);
+				if (second) {
+					const inner = second;
+					second = null;
+					await inner.drain(1);
+				}
+				return filing.file(submission);
+			},
+		} as unknown as TrackingFilingService;
+		second = new TrackingRefileService(db, counters, nesting);
+		const first = new TrackingRefileService(db, counters, nesting);
+
+		expect(await first.drain(1)).toBe(1);
+
+		expect(calls).toEqual([row.id]);
+		const window = await db.trackingCounter.findUnique({
+			where: { key: formVisitorWindowKey(row.visitorId ?? "") },
+			select: { value: true },
+		});
+		expect(window?.value).toBe(1);
+	});
+
 	it("waits until the hour it was capped in is over", async () => {
 		const row = await deferred(TRACKING_SKIP.formCap, 12);
 		await db.formSubmission.update({

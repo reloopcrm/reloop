@@ -223,7 +223,9 @@ deleted* comes to be true of email and not of forms.
   keep failing never blocks the rows behind them. Every attempt stamps `triedAt`,
   and a pass reads the least recently tried rows first, so failed rows take turns.
   The stamp is also the lease: a pass takes a row only while `triedAt` still holds
-  the value it read, so two passes that overlap never file or charge one row twice.
+  the value it read, and a read skips a row stamped less than `FORM_REFILE.leaseMs`
+  ago, so two passes that overlap never file or charge one row twice. A failed row
+  therefore waits at least that long before its next try.
   The read uses the
   `(skipReason, createdAt)` index, so a long history of filed rows costs nothing.
 - **A `form_cap` row waits until its hour is over.** A pass reads it only once

@@ -71,6 +71,7 @@ export const FORMS_PER_SITE_HOUR = CONTACTS_PER_HOUR * 2;
 export const FORM_REFILE = {
 	perPass: 25,
 	liveReserve: CONTACTS_PER_HOUR / 5,
+	leaseMs: 5 * 60_000,
 } as const;
 
 export const HONEYPOT_FIELD = "_crm_hp";

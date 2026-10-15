@@ -175,7 +175,15 @@ export class TrackingRefileService {
 		return this.db.formSubmission.findMany({
 			where: {
 				filedAt: null,
-				OR: [{ skipReason: { in: others } }, ...formCapped],
+				AND: [
+					{ OR: [{ skipReason: { in: others } }, ...formCapped] },
+					{
+						OR: [
+							{ triedAt: null },
+							{ triedAt: { lt: new Date(Date.now() - FORM_REFILE.leaseMs) } },
+						],
+					},
+				],
 			},
 			orderBy: [
 				{ triedAt: { sort: "asc", nulls: "first" } },

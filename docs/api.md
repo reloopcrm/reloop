@@ -499,7 +499,9 @@ the largest attachment upload the conversation contracts accept.
   is not cancelled and is not declined by the rep (`CalendarAttendee.isSelf`).
   The calendar sync calls it for each written event, and every mailbox sync tick
   sweeps all events, so a meeting stored weeks ahead is prepared once it comes
-  close. The task carries `payload.eventId`; an event that already had a task
+  close. The sweep runs before the mailboxes, inside its own slice
+  (`SYNC_TICK.meetingPrepSliceMs`), so a backfill that fills the tick never
+  skips it. The task carries `payload.eventId`; an event that already had a task
   for that contact is not queued again, finished or not. An incremental sync
   never returns an unchanged event, so the migration that added `isSelf` is
   followed by one that sets it on every stored attendee whose address belongs to
@@ -545,7 +547,7 @@ the largest attachment upload the conversation contracts accept.
   (`GMAIL_QUOTA`, 240 `messages.get` per tick at 80 % of 6,000 units a minute),
   so the operator's cap raises Outlook and IMAP only. **Every mailbox also gets a
   deadline**: `runDue` splits the tick budget (`SYNC_TICK.selfHostBudgetMs`
-  minus a settle reserve) evenly over the
+  minus a settle reserve and the time the meeting prep sweep used) evenly over the
   mailboxes still due, and each provider stops between two messages when its
   deadline passes, persists the position and returns. That is what keeps one
   first import inside the tick budget, so the mailbox is never

@@ -204,6 +204,30 @@ async function createRun(
 	});
 }
 
+function failNextRunWrite(failures = 1) {
+	const delegate = db.agentRun;
+	let pending = failures;
+	Reflect.defineProperty(db, "agentRun", {
+		configurable: true,
+		value: new Proxy(delegate, {
+			get(target, property) {
+				if (property !== "updateMany") return Reflect.get(target, property);
+				return (...args: unknown[]) => {
+					if (pending > 0) {
+						pending -= 1;
+						return Promise.reject(new Error("The connection dropped."));
+					}
+					return Reflect.apply(target.updateMany, target, args);
+				};
+			},
+		}),
+	});
+}
+
+function restoreRunWrites() {
+	Reflect.deleteProperty(db, "agentRun");
+}
+
 async function satisfyRequiredActivity(runId: string, callId: string) {
 	return createRunActivity(runId, callId, {
 		type: "NOTE",
@@ -1038,5 +1062,229 @@ describe("durable custom-agent runtime", () => {
 				where: { idempotencyKey: `${run.id}:unapproved-task` },
 			}),
 		).toBe(0);
+	});
+});
+
+describe("team-agent run delivery", () => {
+	it("keeps a delivered run out of the queue when its session write fails once", async () => {
+		const run = await createRun("QUEUED", null);
+		const sessionId = `durable-session-${suffix}-run-write-failed`;
+		let deliveries = 0;
+		const send = (async () => {
+			deliveries += 1;
+			failNextRunWrite();
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		let failure: Error | null = null;
+		try {
+			await dispatchAgentRun(run.id, send);
+		} catch (error) {
+			failure = error as Error;
+		} finally {
+			restoreRunWrites();
+		}
+		const delivered = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(failure).toBeNull();
+		expect(delivered).toMatchObject({
+			status: "RUNNING",
+			sessionId,
+			errorCode: null,
+		});
+
+		await db.agentRun.update({
+			where: { id: run.id },
+			data: {
+				startedAt: new Date(Date.now() - 2 * DISPATCH.run.deliveryLeaseMs),
+			},
+		});
+		const pending = await pendingAgentRunIds();
+		let redelivery: Error | null = null;
+		try {
+			await dispatchAgentRun(run.id, send);
+		} catch (error) {
+			redelivery = error as Error;
+		}
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(pending).not.toContain(run.id);
+		expect(redelivery?.message).toContain("already claimed");
+		expect(settled).toMatchObject({
+			status: "RUNNING",
+			sessionId,
+			errorCode: null,
+		});
+		expect(deliveries).toBe(1);
+	});
+
+	it("records a delivered run's session on recovery when both session writes fail", async () => {
+		const run = await createRun("QUEUED", null);
+		const sessionId = `durable-session-${suffix}-run-writes-failed`;
+		let deliveries = 0;
+		const send = (async () => {
+			deliveries += 1;
+			failNextRunWrite(2);
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		try {
+			await dispatchAgentRun(run.id, send);
+		} finally {
+			restoreRunWrites();
+		}
+		const unrecorded = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(unrecorded).toMatchObject({ status: "RUNNING", sessionId: null });
+
+		await db.agentRun.update({
+			where: { id: run.id },
+			data: {
+				startedAt: new Date(Date.now() - 2 * DISPATCH.run.deliveryLeaseMs),
+			},
+		});
+		const pending = await pendingAgentRunIds();
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(pending).not.toContain(run.id);
+		expect(settled).toMatchObject({
+			status: "RUNNING",
+			sessionId,
+			errorCode: null,
+		});
+		expect(
+			await db.agentRunEvent.count({
+				where: { runId: run.id, type: "run.delivery_recovered" },
+			}),
+		).toBe(0);
+		expect(deliveries).toBe(1);
+	});
+
+	it("keeps the state a hook wrote when the run's session write fails", async () => {
+		const run = await createRun("QUEUED", null);
+		const sessionId = `durable-session-${suffix}-run-waiting`;
+		const send = (async () => {
+			await db.agentRun.update({
+				where: { id: run.id },
+				data: { status: "WAITING_FOR_APPROVAL", sessionId },
+			});
+			failNextRunWrite();
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		try {
+			await dispatchAgentRun(run.id, send);
+		} finally {
+			restoreRunWrites();
+		}
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(settled).toMatchObject({
+			status: "WAITING_FOR_APPROVAL",
+			sessionId,
+			errorCode: null,
+		});
+	});
+
+	it("keeps a run running when the send rejects after Eve started it", async () => {
+		const run = await createRun("QUEUED", null);
+		const sessionId = `durable-session-${suffix}-run-started`;
+		const send = (async () => {
+			await db.agentRun.update({
+				where: { id: run.id },
+				data: { sessionId },
+			});
+			throw new Error("The send timed out after Eve received the run.");
+		}) as unknown as SendFn;
+
+		let failure: Error | null = null;
+		try {
+			await dispatchAgentRun(run.id, send);
+		} catch (error) {
+			failure = error as Error;
+		}
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(failure?.message).toContain("timed out");
+		expect(settled).toMatchObject({
+			status: "RUNNING",
+			sessionId,
+			errorCode: null,
+		});
+	});
+
+	it("fails a run whose send rejects before Eve started it", async () => {
+		const run = await createRun("QUEUED", null);
+		const send = (async () => {
+			throw new Error("Eve is unreachable.");
+		}) as unknown as SendFn;
+
+		await expect(dispatchAgentRun(run.id, send)).rejects.toThrow("unreachable");
+		const settled = await db.agentRun.findUniqueOrThrow({
+			where: { id: run.id },
+		});
+		expect(settled).toMatchObject({
+			status: "FAILED",
+			errorCode: "DELIVERY_FAILED",
+		});
+	});
+});
+
+describe("builder delivery", () => {
+	it("clears the answered builder question when only the acceptance write fails", async () => {
+		const sessionId = `durable-session-${suffix}-answered`;
+		const created = await db.agentConversation.create({
+			data: {
+				kind: "BUILDER",
+				userId,
+				sessionId,
+				pendingInputRequest: {
+					requestId: "durable-answered",
+					prompt: "Which day?",
+				},
+			},
+			select: { id: true },
+		});
+		builderConversationIds.push(created.id);
+		const conversation = await db.agentConversation.update({
+			where: { id: created.id },
+			data: {
+				continuationToken: builderToken(created.id),
+				submissions: {
+					create: {
+						submittedById: userId,
+						clientRequestId: crypto.randomUUID(),
+						message: {
+							text: "Monday",
+							inputResponse: {
+								requestId: "durable-answered",
+								text: "Monday",
+							},
+						},
+					},
+				},
+			},
+			select: { id: true, submissions: { select: { id: true } } },
+		});
+		const submissionId = conversation.submissions[0]?.id ?? "";
+		const send = (async () => {
+			await db.agentConversationSubmission.deleteMany({
+				where: { id: submissionId },
+			});
+			return { id: sessionId };
+		}) as unknown as SendFn;
+
+		await dispatchBuilderSubmission(submissionId, send);
+		const settled = await db.agentConversation.findUniqueOrThrow({
+			where: { id: conversation.id },
+		});
+		expect(settled.sessionId).toBe(sessionId);
+		expect(settled.pendingInputRequest).toBeNull();
 	});
 });

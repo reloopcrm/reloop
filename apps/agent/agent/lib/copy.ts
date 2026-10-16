@@ -95,6 +95,46 @@ export const COPY = {
 		},
 	},
 
+	meetingPrep: {
+		gone: {
+			en: "The meeting is no longer in the calendar. No preparation ran.",
+			de: "Der Termin steht nicht mehr im Kalender. Es lief keine Vorbereitung.",
+			es: "La reunión ya no está en el calendario. No se ejecutó ninguna preparación.",
+			fr: "Le rendez-vous n'est plus dans l'agenda. Aucune préparation n'a été lancée.",
+			"pt-BR":
+				"A reunião não está mais no calendário. Nenhuma preparação foi executada.",
+			tr: "Toplantı artık takvimde değil. Hiçbir hazırlık çalışmadı.",
+			"zh-Hans": "该会议已不在日历中。未运行任何准备。",
+		},
+		cancelled: {
+			en: "The meeting was cancelled. No preparation ran.",
+			de: "Der Termin wurde abgesagt. Es lief keine Vorbereitung.",
+			es: "La reunión se canceló. No se ejecutó ninguna preparación.",
+			fr: "Le rendez-vous a été annulé. Aucune préparation n'a été lancée.",
+			"pt-BR": "A reunião foi cancelada. Nenhuma preparação foi executada.",
+			tr: "Toplantı iptal edildi. Hiçbir hazırlık çalışmadı.",
+			"zh-Hans": "该会议已取消。未运行任何准备。",
+		},
+		declined: {
+			en: "You declined the meeting. No preparation ran.",
+			de: "Du hast den Termin abgelehnt. Es lief keine Vorbereitung.",
+			es: "Rechazaste la reunión. No se ejecutó ninguna preparación.",
+			fr: "Tu as refusé le rendez-vous. Aucune préparation n'a été lancée.",
+			"pt-BR": "Você recusou a reunião. Nenhuma preparação foi executada.",
+			tr: "Toplantıyı reddettin. Hiçbir hazırlık çalışmadı.",
+			"zh-Hans": "你已拒绝该会议。未运行任何准备。",
+		},
+		past: {
+			en: "The meeting has already started. No preparation ran.",
+			de: "Der Termin hat schon begonnen. Es lief keine Vorbereitung.",
+			es: "La reunión ya ha empezado. No se ejecutó ninguna preparación.",
+			fr: "Le rendez-vous a déjà commencé. Aucune préparation n'a été lancée.",
+			"pt-BR": "A reunião já começou. Nenhuma preparação foi executada.",
+			tr: "Toplantı zaten başladı. Hiçbir hazırlık çalışmadı.",
+			"zh-Hans": "该会议已经开始。未运行任何准备。",
+		},
+	},
+
 	tasks: {
 		noThreadId: {
 			en: "No thread id on the task.",
@@ -770,6 +810,15 @@ export const COPY = {
 			"pt-BR": `Preenchido: ${fields}.${copied > 0 ? ` ${copied} imagem(ns) copiada(s) para o armazenamento próprio.` : ""}`,
 			tr: `Dolduruldu: ${fields}.${copied > 0 ? ` ${copied} görsel kendi depomuza kopyalandı.` : ""}`,
 			"zh-Hans": `已填写：${fields}。${copied > 0 ? `已将 ${copied} 张图片复制到自有存储。` : ""}`,
+		}),
+		modelSilent: (domain: string): Lines => ({
+			en: `The website ${domain} was read, but the reading model did not answer. It is tried again later.`,
+			de: `Die Website ${domain} wurde gelesen, aber das Lesemodell hat nicht geantwortet. Es wird später erneut versucht.`,
+			es: `Se leyó el sitio web ${domain}, pero el modelo de lectura no respondió. Se volverá a intentar más tarde.`,
+			fr: `Le site ${domain} a été lu, mais le modèle de lecture n'a pas répondu. Une nouvelle tentative aura lieu plus tard.`,
+			"pt-BR": `O site ${domain} foi lido, mas o modelo de leitura não respondeu. Uma nova tentativa será feita mais tarde.`,
+			tr: `${domain} web sitesi okundu, ancak okuma modeli yanıt vermedi. Daha sonra yeniden denenecek.`,
+			"zh-Hans": `已读取网站 ${domain}，但读取模型没有回应。稍后会重试。`,
 		}),
 		siteSilent: (domain: string): Lines => ({
 			en: `The website ${domain} did not answer with a page to read.`,

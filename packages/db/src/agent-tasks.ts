@@ -30,6 +30,8 @@ export type TaskKind = (typeof TASK_KINDS)[number];
 
 export const USAGE_PROBE_KIND = "usage-probe" satisfies TaskKind;
 
+export const MEETING_PREP_KIND = "meeting-prep" satisfies TaskKind;
+
 export const USAGE_PROBE_OUTCOMES = {
 	refreshed: "Usage limit refreshed.",
 	noLimit:
@@ -115,6 +117,7 @@ export const PRIORITY = {
 	emailDraft: 970,
 	personStory: 960,
 	storyPrefetch: 35,
+	draftPrefetch: 34,
 	playbookLearn: 600,
 	event: 700,
 	dealStall: 30,

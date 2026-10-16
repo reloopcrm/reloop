@@ -6,6 +6,7 @@ import {
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import type { GoogleConnectionService } from "../src/google/google-connection.service";
 import type { GoogleSyncService } from "../src/google/google-sync.service";
+import type { MeetingPrepService } from "../src/google/meeting-prep.service";
 import type { ImapConnectionService } from "../src/imap/imap-connection.service";
 import type { ImapSyncService } from "../src/imap/imap-sync.service";
 import type { DirectionRepairService } from "../src/mailbox/direction-repair.service";
@@ -154,10 +155,19 @@ function build(
 				return 0;
 			},
 		} as unknown as RealAnswerBackfillService,
+		{
+			sweep: async (options: { deadlineAt?: number } = {}) => {
+				swept.push(Date.now());
+				sweepDeadlines.push(options.deadlineAt ?? Number.NaN);
+				return 0;
+			},
+		} as unknown as MeetingPrepService,
 	);
 }
 
 const asked: string[] = [];
+const swept: number[] = [];
+const sweepDeadlines: number[] = [];
 
 let state: FakeState;
 
@@ -229,6 +239,45 @@ describe("the real answer backfill", () => {
 		await service.runDue();
 
 		expect(asked).toEqual(["business-setup", "real-answers"]);
+	});
+});
+
+describe("the meeting preparation sweep", () => {
+	it("runs once per tick, even with no mailbox due", async () => {
+		swept.length = 0;
+		const service = build(state, async () => null);
+
+		await service.runDue();
+
+		expect(swept).toHaveLength(1);
+	});
+
+	it("runs before the mailboxes, so a backfill that fills the tick never skips it", async () => {
+		state.add("a", "gmail");
+		swept.length = 0;
+		sweepDeadlines.length = 0;
+		const synced: number[] = [];
+		const realNow = Date.now;
+		const startedAt = realNow();
+		const service = build(state, async (userId, source) => {
+			synced.push(swept.length);
+			const late = realNow() + SYNC_TICK.selfHostBudgetMs;
+			Date.now = () => late;
+			return { source, userId, status: "synced" };
+		});
+
+		try {
+			await service.runDue();
+		} finally {
+			Date.now = realNow;
+		}
+
+		expect(swept).toHaveLength(1);
+		expect(synced).toEqual([1]);
+		expect(sweepDeadlines[0]).toBeGreaterThan(startedAt);
+		expect(sweepDeadlines[0]).toBeLessThanOrEqual(
+			(swept[0] ?? 0) + SYNC_TICK.meetingPrepSliceMs,
+		);
 	});
 });
 

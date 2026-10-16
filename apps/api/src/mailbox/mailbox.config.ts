@@ -45,6 +45,7 @@ export const LIMIT_WARNING = {
 export const SYNC_TICK = {
 	selfHostBudgetMs: MINUTE_MS,
 	settleReserveMs: 2 * SECOND_MS,
+	meetingPrepSliceMs: 5 * SECOND_MS,
 } as const;
 
 export const PROVIDER_API = {

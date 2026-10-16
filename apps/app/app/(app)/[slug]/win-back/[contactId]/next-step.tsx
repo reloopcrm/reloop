@@ -32,6 +32,7 @@ import {
 } from "@crm/ui/components/story";
 import { Textarea } from "@crm/ui/components/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
+import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -44,6 +45,7 @@ import {
 	useEmailDraft,
 } from "@/components/crm/use-email-draft";
 import { DEMO } from "@/components/demo/demo-tour-config";
+import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
 import { useErrorMessage, useLocale, useT } from "@/lib/i18n/client";
 import { dateFormat } from "@/lib/i18n/format";
 import { useCrmCache } from "@/lib/trpc/cache";
@@ -53,6 +55,7 @@ import { WIN_BACK_UI } from "../win-back-config";
 import {
 	answerIsNext,
 	type CardStep,
+	draftLimitHint,
 	followUpDaysOf,
 	type LaterUndo,
 	type NextPerson,
@@ -115,6 +118,9 @@ export function useNextStep(
 
 	const draft = useEmailDraft(contactId, true);
 	const email = view.contact.email;
+	useMountEffect(() => {
+		if (email && view.feedback !== "bad") draft.refresh();
+	});
 	const shortVersion = draft.draft?.oneOff ?? null;
 	const outdated = replyDraftOutdated(view, draft.draft);
 	const shown = outdated
@@ -400,14 +406,26 @@ function DraftState({ step }: { step: NextStep }) {
 	const t = useT();
 	const { draft } = step;
 
-	if (draft.held && (!draft.draft || step.outdated)) {
+	const hint = draftLimitHint(draft.held, draft.draft, step.outdated);
+	if (draft.held && hint) {
 		return (
 			<p className="text-muted-foreground text-sm">
-				{draft.planLimit
-					? t(PLAN_LIMIT_MESSAGES.drafts)
-					: t(
+				{hint === "stale" ? (
+					<>{t("Newer mail has arrived since this draft.")} </>
+				) : null}
+				{draft.planLimit ? (
+					<>
+						{t(PLAN_LIMIT_MESSAGES.drafts)}{" "}
+						<LocalDateTime date={draft.held} options={LONG_DAY} />.
+					</>
+				) : (
+					<>
+						{t(
 							"The subscription limit is reached. The agent writes this draft when the limit resets, in",
-						)}
+						)}{" "}
+						<LocalRelativeTime date={draft.held} />
+					</>
+				)}
 			</p>
 		);
 	}
@@ -510,7 +528,7 @@ function CardBody({ step }: { step: NextStep }) {
 
 	if (step.step === "read") {
 		const preview =
-			draft.draft && !step.outdated
+			draft.draft && !draft.waiting && !step.outdated
 				? paragraphs(draft.draft.body).slice(1, 3).join(" ")
 				: "";
 		return (
@@ -530,7 +548,12 @@ function CardBody({ step }: { step: NextStep }) {
 							)
 						: t("Reloop prepares it in your tone, with what the story says.")}
 				</DraftCardDescription>
-				{preview ? (
+				{draft.waiting && step.email ? (
+					<p className="flex items-center gap-2 text-muted-foreground text-sm">
+						<Spinner />
+						{t("Reloop is writing the message…")}
+					</p>
+				) : preview ? (
 					<DraftCardPreview>
 						<p>{preview}</p>
 					</DraftCardPreview>
@@ -588,7 +611,7 @@ function CardBody({ step }: { step: NextStep }) {
 					<Button
 						variant="link"
 						size="text"
-						disabled={!step.shown}
+						disabled={!step.shown || draft.waiting}
 						onClick={() => void step.copy()}
 					>
 						{t("Copy")}

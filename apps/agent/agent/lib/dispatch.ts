@@ -56,6 +56,7 @@ import { typesafeKey } from "./jev";
 import { drainGateCounts, gateCounts } from "./jev-meter";
 import { inLane, keyBucket, type Lane } from "./key-bucket";
 import { say } from "./language";
+import { skippedMeetingPrep } from "./meeting-precheck";
 import {
 	isExhaustion,
 	modelUnavailable,
@@ -682,6 +683,8 @@ async function beginResearch(
 		await completeTask(task.id, say(COPY.functions.off));
 		return;
 	}
+
+	if (await skippedMeetingPrep(task)) return;
 
 	if (await skippedByPrecheck(task)) return;
 

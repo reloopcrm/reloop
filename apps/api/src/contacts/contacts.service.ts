@@ -7,7 +7,7 @@ import {
 	Prisma as PrismaNamespace,
 	RecordSource,
 } from "@crm/db";
-import { REP_ASKED_REASON } from "@crm/db/agent-tasks";
+import { PRIORITY, REP_ASKED_REASON } from "@crm/db/agent-tasks";
 import {
 	type ContactAttention,
 	readContactAttention,
@@ -17,9 +17,15 @@ import type {
 	FieldValueJson,
 } from "@crm/db/fields";
 import { lockFactField } from "@crm/db/idempotency";
-import { fixedAiWith, planLimitsOf, usageWindowOf } from "@crm/db/plan-usage";
+import {
+	budgetTasksWhere,
+	fixedAiWith,
+	planLimitsOf,
+	usageWindowOf,
+} from "@crm/db/plan-usage";
 import { DRAFT_KIND, monthlyBudget } from "@crm/db/plans";
 import { threadsOfContact } from "@crm/db/thread-participants";
+import { readAgentTaskOneOff } from "@crm/validation/agent-task-payload";
 import { readDraftRole } from "@crm/validation/draft-style";
 import type { LimitReason } from "@crm/validation/plan-limit-reason";
 import { readWinBackRules } from "@crm/validation/win-back-rules";
@@ -898,7 +904,6 @@ export class ContactsService {
 			select: {
 				id: true,
 				emailDraft: true,
-				_count: { select: { emailThreads: true } },
 			},
 		});
 
@@ -909,12 +914,15 @@ export class ContactsService {
 		const open = await this.db.agentTask.findFirst({
 			where: { contactId: id, kind: "email-draft", finishedAt: null },
 			orderBy: { dueAt: "asc" },
-			select: { dueAt: true },
+			select: { dueAt: true, priority: true },
 		});
 		const now = new Date();
 		const held =
 			open && open.dueAt.getTime() > now.getTime() ? open.dueAt : null;
 		const queued = open !== null && held === null;
+		if (queued && open.priority < PRIORITY.emailDraft) {
+			await this.agent.emailDraftOpened(id);
+		}
 		const resumesAt = await this.draftLimitResumesAt(now);
 		const planReached = resumesAt !== null;
 		const waitingUntil =
@@ -928,7 +936,9 @@ export class ContactsService {
 			const failed =
 				!queued &&
 				waitingUntil === null &&
-				contact._count.emailThreads > 0 &&
+				(await this.db.emailThread.count({
+					where: threadsOfContact(id),
+				})) > 0 &&
 				(await this.db.agentTask.count({
 					where: {
 						contactId: id,
@@ -947,11 +957,7 @@ export class ContactsService {
 			};
 		}
 
-		const newest = await this.db.emailThread.aggregate({
-			where: threadsOfContact(id),
-			_max: { lastMessageAt: true },
-		});
-		const since = newest._max.lastMessageAt;
+		const since = await this.newestMailAt(id);
 
 		return {
 			contactId: id,
@@ -988,6 +994,8 @@ export class ContactsService {
 		id: string,
 		instruction?: string,
 		oneOff = false,
+		seen?: string | null,
+		stillWanted?: (tx: Prisma.TransactionClient) => Promise<boolean>,
 	): Promise<ContactDraftState> {
 		const contact = await this.db.contact.findUnique({
 			where: { id },
@@ -998,14 +1006,83 @@ export class ContactsService {
 			throw new NotFoundException(`No contact with id ${id}.`);
 		}
 
+		const wish = instruction?.trim() || null;
+		const unchanged =
+			seen !== undefined && wish === null
+				? (tx: Prisma.TransactionClient) => this.draftUnchanged(id, seen, tx)
+				: undefined;
 		if (!(await this.draftLimitResumesAt(new Date()))) {
 			await this.agent.emailDraftRequested(
 				id,
-				instruction?.trim() || null,
+				wish,
 				oneOff,
+				stillWanted ?? unchanged,
 			);
 		}
 		return this.draft(id);
+	}
+
+	private async draftUnchanged(
+		id: string,
+		seen: string | null,
+		tx: Prisma.TransactionClient,
+	): Promise<boolean> {
+		const stored = await tx.emailDraft.findUnique({
+			where: { contactId: id },
+			select: { updatedAt: true },
+		});
+		return (stored?.updatedAt.toISOString() ?? null) === seen;
+	}
+
+	async refreshDraft(id: string): Promise<ContactDraftState> {
+		const state = await this.draft(id);
+		if (
+			!state.draft?.stale ||
+			state.queued ||
+			state.waitingUntil !== null ||
+			(await this.triedSinceNewestMail(id))
+		) {
+			return state;
+		}
+
+		const seen = state.draft.writtenAt;
+		return this.writeDraft(id, undefined, false, undefined, async (tx) => {
+			return (
+				(await this.draftUnchanged(id, seen, tx)) &&
+				!(await this.triedSinceNewestMail(id, tx))
+			);
+		});
+	}
+
+	private async newestMailAt(id: string): Promise<Date | null> {
+		const newest = await this.db.emailThread.aggregate({
+			where: threadsOfContact(id),
+			_max: { lastMessageAt: true },
+		});
+		return newest._max.lastMessageAt;
+	}
+
+	private async triedSinceNewestMail(
+		id: string,
+		client: Pick<Db, "emailMessage" | "agentTask"> = this.db,
+	): Promise<boolean> {
+		const stored = await client.emailMessage.aggregate({
+			where: { thread: threadsOfContact(id) },
+			_max: { createdAt: true },
+		});
+		const newest = stored._max.createdAt;
+		if (newest === null) return false;
+
+		const tries = await client.agentTask.findMany({
+			where: {
+				contactId: id,
+				kind: DRAFT_KIND,
+				createdAt: { gte: newest },
+				finishedAt: { not: null },
+			},
+			select: { payload: true },
+		});
+		return tries.some((row) => !readAgentTaskOneOff(row.payload));
 	}
 
 	private async draftLimitResumesAt(now: Date): Promise<Date | null> {
@@ -1014,7 +1091,7 @@ export class ContactsService {
 
 		const { since, until } = await usageWindowOf(this.db, now);
 		const used = await this.db.agentTask.count({
-			where: { kind: DRAFT_KIND, createdAt: { gte: since } },
+			where: budgetTasksWhere(DRAFT_KIND, since),
 		});
 		return used >= budget ? until : null;
 	}

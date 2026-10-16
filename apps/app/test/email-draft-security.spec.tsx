@@ -39,6 +39,7 @@ mock.module("../lib/trpc/client", () => ({
 				queryKey: () => ["draft"],
 			},
 			writeDraft: { mutationOptions: <T,>(options: T) => options },
+			refreshDraft: { mutationOptions: <T,>(options: T) => options },
 		},
 		settings: {
 			draftStyle: {

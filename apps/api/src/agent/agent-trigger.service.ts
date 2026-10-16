@@ -1,5 +1,9 @@
 import { type Db, type FieldEntity, Prisma } from "@crm/db";
-import { PRIORITY, USAGE_PROBE_KIND } from "@crm/db/agent-tasks";
+import {
+	MEETING_PREP_KIND,
+	PRIORITY,
+	USAGE_PROBE_KIND,
+} from "@crm/db/agent-tasks";
 import { cloud } from "@crm/db/cloud/scope";
 import {
 	CRM_EVENT_CATALOG,
@@ -15,6 +19,7 @@ import {
 } from "@crm/db/plan-usage";
 import {
 	allowsCompanyResearch,
+	DRAFT_KIND,
 	forwardReserve,
 	keepsReserve,
 	monthlyBudget,
@@ -33,10 +38,12 @@ import {
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskDraftPayload,
+	type AgentTaskMeetingPayload,
 	type AgentTaskOrigin,
 	type AgentTaskStoryPayload,
 	type AgentTaskThreadPayload,
 	agentTaskThreadPayload,
+	MEETING_EVENT_KEY,
 	readAgentTaskStoryReread,
 } from "@crm/validation/agent-task-payload";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
@@ -93,6 +100,16 @@ const STORY_REREAD_REASON = "A rep said the win back story is wrong";
 export type PendingStoryReread = "none" | "reread" | "running";
 
 const STORY_PREFETCH_BUDGET_KEY = `agent-task:${STORY_KIND}:prefetch-budget`;
+
+const DRAFT_PREFETCH_BUDGET_KEY = `agent-task:${DRAFT_KIND}:prefetch-budget`;
+
+const DRAFT_OPENED_REASON = "A rep looked at the email for this contact";
+
+export type DraftPrefetchRoom = (
+	budget: number | null,
+	used: number,
+	prefetched: number,
+) => number;
 
 function tenantOfThisRequest(): string | null {
 	try {
@@ -354,9 +371,11 @@ export class AgentTriggerService {
 		contactId: string,
 		instruction?: string | null,
 		oneOff = false,
+		stillWanted?: (tx: Prisma.TransactionClient) => Promise<boolean>,
 	): Promise<boolean> {
 		return this.enqueue({
 			contactId,
+			stillWanted,
 			kind: "email-draft",
 			reason: instruction
 				? "A rep said what they want different in their email"
@@ -451,6 +470,123 @@ export class AgentTriggerService {
 				error instanceof Error ? error.stack : String(error),
 			);
 			return 0;
+		}
+	}
+
+	async emailDraftsPrefetched(
+		contactIds: readonly string[],
+		reason: string,
+		roomOf: DraftPrefetchRoom,
+		checkedAt: Date,
+	): Promise<number> {
+		const ids = [...new Set(contactIds)].filter((id) => !isSampleRecordId(id));
+		if (ids.length === 0) return 0;
+		if (!(await this.allows(DRAFT_KIND))) return 0;
+
+		try {
+			const budget = monthlyBudget(DRAFT_KIND, await planLimitsOf(this.db));
+			const { since } = await usageWindowOf(this.db);
+			const outcome = await this.db.$transaction(async (tx) => {
+				await lockIdempotencyKey(tx, DRAFT_PREFETCH_BUDGET_KEY);
+				for (const id of [...ids].sort()) {
+					await lockIdempotencyKey(tx, `agent-task:${DRAFT_KIND}:${id}::`);
+				}
+				const counted = budgetTasksWhere(DRAFT_KIND, since);
+				const [used, prefetched] = await Promise.all([
+					tx.agentTask.count({ where: counted }),
+					tx.agentTask.count({
+						where: { ...counted, priority: PRIORITY.draftPrefetch },
+					}),
+				]);
+				const room = roomOf(budget, used, prefetched);
+				if (room <= 0) return { created: 0, room };
+
+				const [pending, drafted] = await Promise.all([
+					tx.agentTask.findMany({
+						where: {
+							kind: DRAFT_KIND,
+							contactId: { in: ids },
+							OR: [{ finishedAt: null }, { finishedAt: { gte: checkedAt } }],
+						},
+						select: { contactId: true },
+					}),
+					tx.emailDraft.findMany({
+						where: { contactId: { in: ids } },
+						select: { contactId: true },
+					}),
+				]);
+				const taken = new Set(
+					[...pending, ...drafted].map((row) => row.contactId),
+				);
+				const fresh = ids.filter((id) => !taken.has(id)).slice(0, room);
+				if (fresh.length === 0) return { created: 0, room };
+
+				const now = new Date();
+				await tx.agentTask.createMany({
+					data: fresh.map((contactId) => ({
+						contactId,
+						kind: DRAFT_KIND,
+						reason,
+						priority: PRIORITY.draftPrefetch,
+						budget: 1,
+						dueAt: now,
+					})),
+				});
+				return { created: fresh.length, room };
+			});
+
+			if (outcome.room <= 0) {
+				this.logger.log({
+					message: "Draft prefetch skipped: the budget keeps its rest",
+					room: outcome.room,
+				});
+				return 0;
+			}
+
+			this.logger.log({
+				message: "Draft prefetch queued",
+				queued: outcome.created,
+				asked: ids.length,
+			});
+			if (outcome.created > 0) this.poke();
+
+			return outcome.created;
+		} catch (error) {
+			this.logger.error(
+				{ message: "Could not queue the draft prefetch" },
+				error instanceof Error ? error.stack : String(error),
+			);
+			return 0;
+		}
+	}
+
+	async emailDraftOpened(contactId: string): Promise<boolean> {
+		try {
+			const { count } = await this.db.agentTask.updateMany({
+				where: {
+					contactId,
+					kind: DRAFT_KIND,
+					finishedAt: null,
+					priority: { lt: PRIORITY.emailDraft },
+					dueAt: { lte: new Date() },
+				},
+				data: { priority: PRIORITY.emailDraft, reason: DRAFT_OPENED_REASON },
+			});
+			if (count === 0) return false;
+
+			this.logger.log({
+				message: "A prefetched draft moved to the front",
+				contactId,
+			});
+			this.poke();
+
+			return true;
+		} catch (error) {
+			this.logger.error(
+				{ message: "Could not move the draft to the front", contactId },
+				error instanceof Error ? error.stack : String(error),
+			);
+			return false;
 		}
 	}
 
@@ -785,13 +921,20 @@ export class AgentTriggerService {
 		return { queued, merged };
 	}
 
-	async meetingSoon(contactId: string, when: Date): Promise<void> {
-		await this.enqueue({
+	async meetingSoon(
+		contactId: string,
+		when: Date,
+		eventId: string,
+	): Promise<boolean> {
+		const payload: AgentTaskMeetingPayload = { eventId };
+		return this.enqueue({
 			contactId,
-			kind: "meeting-prep",
-			reason: `Meeting on ${when.toDateString()} with someone we know nothing about`,
+			kind: MEETING_PREP_KIND,
+			reason: `Meeting on ${when.toISOString().slice(0, 10)}`,
 			priority: PRIORITY.meeting,
 			budget: 10,
+			payload,
+			onceFor: { path: [MEETING_EVENT_KEY], value: eventId },
 		});
 	}
 
@@ -987,8 +1130,10 @@ export class AgentTriggerService {
 			budget: number;
 			payload?: Prisma.InputJsonValue;
 			subject?: { path: string[]; value: string };
+			onceFor?: { path: string[]; value: string };
 			origin?: AgentTaskOrigin;
 			upgradeOpen?: boolean;
+			stillWanted?: (tx: Prisma.TransactionClient) => Promise<boolean>;
 		},
 		required = false,
 		client?: Prisma.TransactionClient,
@@ -1005,6 +1150,22 @@ export class AgentTriggerService {
 					tx,
 					`agent-task:${task.kind}:${task.contactId ?? ""}:${task.companyId ?? ""}:${task.subject?.value ?? ""}`,
 				);
+				if (task.onceFor) {
+					const earlier = await tx.agentTask.findFirst({
+						where: {
+							kind: task.kind,
+							contactId: task.contactId ?? undefined,
+							companyId: task.companyId ?? undefined,
+							payload: {
+								path: task.onceFor.path,
+								equals: task.onceFor.value,
+							},
+						},
+						select: { id: true },
+					});
+					if (earlier) return false;
+				}
+
 				const pending = await tx.agentTask.findFirst({
 					where: {
 						kind: task.kind,
@@ -1030,6 +1191,7 @@ export class AgentTriggerService {
 					});
 					return count > 0;
 				}
+				if (task.stillWanted && !(await task.stillWanted(tx))) return false;
 
 				await tx.agentTask.create({
 					data: {

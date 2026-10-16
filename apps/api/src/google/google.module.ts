@@ -10,6 +10,7 @@ import { GmailSyncService } from "./gmail-sync.service";
 import { GoogleRouter } from "./google.router";
 import { GoogleConnectionService } from "./google-connection.service";
 import { GoogleSyncService } from "./google-sync.service";
+import { MeetingPrepService } from "./meeting-prep.service";
 
 @Module({
 	imports: [TrpcModule, MailboxModule, AgentModule],
@@ -22,7 +23,8 @@ import { GoogleSyncService } from "./google-sync.service";
 		GoogleConnectionService,
 		ConversationService,
 		GoogleRouter,
+		MeetingPrepService,
 	],
-	exports: [GoogleSyncService, GoogleConnectionService],
+	exports: [GoogleSyncService, GoogleConnectionService, MeetingPrepService],
 })
 export class GoogleModule {}

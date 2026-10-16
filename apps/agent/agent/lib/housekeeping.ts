@@ -1,5 +1,5 @@
 import { db, Prisma } from "@crm/db";
-import { PRIORITY } from "@crm/db/agent-tasks";
+import { MEETING_PREP_KIND, PRIORITY } from "@crm/db/agent-tasks";
 import { forwardReserve, INSIGHT_KIND } from "@crm/db/plans";
 import {
 	NOT_SAMPLE_RECORD,
@@ -10,6 +10,7 @@ import { WEBHOOKS } from "@crm/db/webhooks";
 import {
 	AGENT_TASK_THREAD_ID_KEY,
 	type AgentTaskThreadPayload,
+	MEETING_EVENT_KEY,
 	readAgentTaskThreadId,
 } from "@crm/validation/agent-task-payload";
 import { z } from "zod";
@@ -355,6 +356,14 @@ export async function pruneAgentHistory(
 		WHERE id IN (
 			SELECT id FROM "agentTask"
 			WHERE "finishedAt" IS NOT NULL AND "finishedAt" < ${taskCutoff}
+			AND NOT (
+				kind = ${MEETING_PREP_KIND}
+				AND EXISTS (
+					SELECT 1 FROM "calendarEvent"
+					WHERE "calendarEvent".id = "agentTask".payload ->> ${MEETING_EVENT_KEY}
+					AND "calendarEvent"."startsAt" > ${now}
+				)
+			)
 			LIMIT ${batch}
 		)
 	`;

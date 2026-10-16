@@ -120,7 +120,7 @@ export function EmailDraftDialog({
 					{label ?? <span className="hidden sm:inline">{t("Email")}</span>}
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="sm:max-w-[640px]">
+			<DialogContent className="sm:max-w-(--container-sheet)">
 				<DialogHeader>
 					<DialogTitle>{t("Email to {name}", { name })}</DialogTitle>
 					<DialogDescription>

@@ -296,7 +296,7 @@ export function DashboardSummary() {
 			icon: TextIcon,
 			cell: (entry) => (
 				<span className="truncate">
-					{entry.subject ?? activityLabel(entry.type)}
+					{entry.subject ?? t(activityLabel(entry.type))}
 				</span>
 			),
 		},

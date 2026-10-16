@@ -6,6 +6,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./account-token": "./src/account-token.ts",
+		"./api-key-config": "./src/api-key-config.ts",
 		"./client": "./src/client.ts",
 		"./cloud/*": "./src/cloud/*.ts",
 		"./cookies": "./src/cookies.ts",

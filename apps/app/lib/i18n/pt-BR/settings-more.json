@@ -503,5 +503,6 @@
 	"Google returned no access token.": "O Google não retornou um token de acesso.",
 	"Google would not refresh the access token.": "O Google não renovou o token de acesso.",
 	"Microsoft returned no access token.": "A Microsoft não retornou um token de acesso.",
-	"Microsoft would not refresh the access token.": "A Microsoft não renovou o token de acesso."
+	"Microsoft would not refresh the access token.": "A Microsoft não renovou o token de acesso.",
+	"This mailbox stopped when its owner lost access to the workspace. Connect it again to resume.": "Esta caixa de correio parou quando o proprietário perdeu o acesso ao espaço de trabalho. Conecte-a novamente para continuar."
 }

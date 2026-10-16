@@ -51,6 +51,11 @@ describe("a webhook address on a private network", () => {
 		"0.0.0.0",
 		"::",
 		"224.0.0.1",
+		"168.63.129.16",
+		"100.100.100.200",
+		"fd00:ec2::254",
+		"64:ff9b::a9fe:a9fe",
+		"2002:a9fe:a9fe::",
 	];
 
 	it("is refused while the webhook does not allow one", async () => {

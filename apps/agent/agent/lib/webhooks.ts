@@ -1,5 +1,6 @@
 import { db } from "@crm/db";
 import { MAX_ATTEMPTS } from "@crm/db/agent-tasks";
+import { crmEventRecordIds } from "@crm/db/crm-events";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { resolvePublicHost, safeFetch } from "@crm/db/safe-fetch";
 import {
@@ -53,6 +54,7 @@ export async function queueWebhookDeliveries(
 
 			await tx.agentTask.create({
 				data: {
+					...crmEventRecordIds(event.data.record),
 					kind: WEBHOOKS.kind,
 					reason: `${event.data.type} to a webhook`,
 					priority: WEBHOOKS.priority,

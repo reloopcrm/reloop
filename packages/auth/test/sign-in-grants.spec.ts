@@ -13,21 +13,14 @@ let stored: string[] = [];
 const fake = {
 	appSetting: {
 		findUnique: async () => ({ signInAddresses: stored }),
-		upsert: async ({
-			create,
-			update,
-		}: {
-			create: { signInAddresses: string[] };
-			update: { signInAddresses: string[] };
-		}) => {
-			stored = update.signInAddresses ?? create.signInAddresses;
-		},
+		upsert: async () => undefined,
 		update: async ({ data }: { data: { signInAddresses: string[] } }) => {
 			stored = data.signInAddresses;
 		},
 	},
+	$queryRaw: async () => [{ signInAddresses: stored }],
 	user: { findMany: async () => [] },
-	$transaction: async (run: (client: Db) => Promise<void>) => run(fake),
+	$transaction: async <T>(run: (client: Db) => Promise<T>) => run(fake),
 } as unknown as Db;
 
 beforeEach(() => {
@@ -85,5 +78,34 @@ describe("a stored entry that is not one address", () => {
 
 		expect(await isSignInAllowed("stranger@acme.com", fake)).toBe(false);
 		expect(await isSignInAllowed("acme.com", fake)).toBe(false);
+	});
+});
+
+describe("the first grant on an install without settings", () => {
+	it("creates the settings row with an insert that tolerates a parallel one", async () => {
+		const statements: string[] = [];
+		let created = false;
+		const empty = {
+			appSetting: {
+				upsert: async () => {
+					statements.push("upsert");
+				},
+				update: async () => undefined,
+			},
+			$executeRaw: async (sql: TemplateStringsArray) => {
+				statements.push(sql.join("?"));
+				created = true;
+				return 1;
+			},
+			$queryRaw: async () => (created ? [{ signInAddresses: [] }] : []),
+		};
+		const database = {
+			$transaction: async <T>(run: (client: typeof empty) => Promise<T>) =>
+				run(empty),
+		} as unknown as Db;
+
+		expect(await grantSignIn(database, "lewis@acme.com", "owner")).toBe(true);
+		expect(statements).toHaveLength(1);
+		expect(statements[0]).toContain("ON CONFLICT");
 	});
 });

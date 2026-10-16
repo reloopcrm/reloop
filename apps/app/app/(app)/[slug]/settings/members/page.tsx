@@ -15,7 +15,10 @@ import { requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AddPersonSheet } from "./add-person-sheet";
-import { membersSearchParams } from "./members-search-params";
+import {
+	memberListInputOf,
+	membersSearchParams,
+} from "./members-search-params";
 import { MembersTable } from "./members-table";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -65,7 +68,9 @@ async function Members({
 	const [viewerRole] = await Promise.all([
 		workspaceRole(session.user.id),
 		queryClient.prefetchQuery(
-			trpc.workspace.members.queryOptions(membersSearchParams.toInput(values)),
+			trpc.workspace.members.queryOptions(
+				memberListInputOf(membersSearchParams.toInput(values)),
+			),
 		),
 	]);
 

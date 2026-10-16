@@ -63,6 +63,12 @@ model: cheap, fast, tool-using, and on the local price list so spend rows carry 
   to the code.
 - **A failed install is `unavailable` with a reason**, never a throw. The reason names
   the npm error code, so "no internet" reads as `npm ENOTFOUND`.
+- **Every answer carries `loginStored`**: whether `chatgptLoginExists` sees the auth
+  file right now. `status` is the state of the sign-in flow, so a cancelled re-login
+  reads `cancelled` while the stored login still works. Win back's `canRead` reads
+  `loginStored`, never the flow state alone. The API's own `unavailable` answer
+  (no bridge, agent unreachable) has no `loginStored` and counts as unknown, so
+  `connected` or `unavailable` without the field stays usable.
 
 ## Pictures are copied, never linked
 
@@ -255,7 +261,9 @@ counted or held back.
 names a number of days. Then it deletes `agentEvent` rows and finished `agentTask`
 rows older than that, `DISPATCH.retention.batch` rows a pass. The panel's offline
 transcript therefore reaches back that far and no further. A self-hosted install
-leaves the variable unset and keeps everything.
+leaves the variable unset and keeps everything. A finished `meeting-prep` row stays
+while the event in its `payload.eventId` still lies ahead: the row is the marker
+that stops the sweep from preparing the same meeting again.
 
 ## Two lanes
 
@@ -310,6 +318,14 @@ A claim the research lane hands back without a run, because the monthly budget
 (`withinResearchBudget`) or a blocked model provider stops it, goes through
 `returnClaim` (`lib/tasks.ts`) with the same rule. The row reads as waiting again, so
 a rep's Research click still rewrites it before the pre-check sees the sync reason.
+
+**`meeting-prep` checks its meeting first** (`lib/meeting-precheck.ts`, called
+from `beginResearch` before the identify pre-check). The task names its event in
+`payload.eventId` (`agentTaskMeetingPayload` in `@crm/validation/agent-task-payload`).
+An event that is gone, cancelled, declined by the rep (`CalendarAttendee.isSelf`
+with `declined`) or already started closes the row through `closeUncounted` with
+`COPY.meetingPrep`, so no session runs and no attempt counts. A row without an
+event id runs as before.
 
 **An archived record never reaches the pre-check.** `runResearchLane` hands each
 claimed batch to `releaseArchivedClaims` (`lib/housekeeping.ts`) first. A task whose
@@ -1399,7 +1415,10 @@ again whenever the mailbox changes. The API queues the task on the sync tick, at
 in 24 hours. The numbers are `MAILBOX_PROFILE` in `agent/lib/mailbox-config.ts`.
 
 - **Below 20 conversations nothing changes.** The website pass fills an empty business
-  description, as before.
+  description, as before. The 20 is `BUSINESS_DRAFT.minThreads` in
+  `packages/db/src/win-back-rules.ts`. The onboarding business step reads the same number:
+  it waits for a draft only with a model, and a website or 20 conversations. Otherwise it
+  shows the empty form at once.
 - **Every run is free until the rule says build.** `mailboxStats` counts, in SQL over the
   2,000 newest conversations, how many inbound senders are freemail, role (`info@`,
   `office@` …) or work addresses, and how many of each we answered.

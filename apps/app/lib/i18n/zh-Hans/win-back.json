@@ -179,6 +179,7 @@
 	"Log meeting": "记录会议",
 	"All day": "全天",
 	"Join call": "加入通话",
+	"Location: {location}": "地点：{location}",
 	"1 message": "1 条消息",
 	"{count} messages": "{count} 条消息",
 	"Open in {mailbox}": "在 {mailbox} 里打开",
@@ -426,5 +427,9 @@
 	"Comes back": "回归日期",
 	"Wrote back, contacted since {date}": "已回复，自 {date} 起联系",
 	"The research agent service is not running. Start it on your server.": "研究代理服务没有运行。请在你的服务器上启动它。",
-	"The research agent service is not set up. Finish its setup on your server.": "研究代理服务尚未设置。请在你的服务器上完成设置。"
+	"The research agent service is not set up. Finish its setup on your server.": "研究代理服务尚未设置。请在你的服务器上完成设置。",
+	"Reloop cannot read your mail because no AI provider is connected.": "Reloop 无法读取你的邮件，因为没有连接 AI 服务商。",
+	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop 无法读取你的邮件，因为对话摘要已关闭。",
+	"Connect an AI provider": "连接 AI 服务商",
+	"Switch summaries on": "开启摘要"
 }

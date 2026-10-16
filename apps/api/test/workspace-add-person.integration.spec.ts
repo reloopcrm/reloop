@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { WORKSPACE_ID } from "@crm/auth";
+import { readSignInGrants, WORKSPACE_ID } from "@crm/auth";
 import { type Db, db, type Prisma } from "@crm/db";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { WorkspaceService } from "../src/workspace/workspace.service";
@@ -99,6 +99,31 @@ const brokenMemberWrite = {
 		),
 } as unknown as Db;
 
+function failingMemberWrite(): Db {
+	const breakMember = <T extends object>(client: T): T =>
+		new Proxy(client, {
+			get(target, key, receiver) {
+				if (key !== "member") return Reflect.get(target, key, receiver);
+				return {
+					findFirst: db.member.findFirst.bind(db.member),
+					findUnique: db.member.findUnique.bind(db.member),
+					create: async () => {
+						throw new Error(REFUSED);
+					},
+				};
+			},
+		});
+
+	return breakMember({
+		user: db.user,
+		member: db.member,
+		appSetting: db.appSetting,
+		$queryRaw: db.$queryRaw.bind(db),
+		$transaction: <T>(run: (tx: Prisma.TransactionClient) => Promise<T>) =>
+			db.$transaction((tx) => run(breakMember(tx))),
+	}) as unknown as Db;
+}
+
 describe("workspace.addPerson", () => {
 	it("refuses an admin who tries to create an owner, and creates nothing", async () => {
 		const email = `boss@${domain}`;
@@ -196,6 +221,48 @@ describe("workspace.addPerson", () => {
 		).rejects.toThrow(REFUSED);
 
 		expect(await userFor(email)).toBeNull();
+	});
+
+	it("leaves no sign-in grant behind when the member write fails", async () => {
+		const email = `ungranted-${suffix}@outside.test`;
+		const broken = new WorkspaceService(
+			failingMemberWrite(),
+			undefined as unknown as AgentTriggerService,
+		);
+
+		await expect(
+			broken.addPerson(
+				ownerId,
+				{ email, name: "Ungranted", role: "member" },
+				session(),
+			),
+		).rejects.toThrow(REFUSED);
+
+		expect(await userFor(email)).toBeNull();
+		expect(await readSignInGrants(db)).not.toContain(email);
+	});
+
+	it("grants nothing for an address that already has an account", async () => {
+		const email = `taken-${suffix}@outside.test`;
+		await db.user.create({
+			data: {
+				id: `${suffix}-taken`,
+				name: "Taken",
+				email,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			},
+		});
+
+		await expect(
+			service.addPerson(
+				ownerId,
+				{ email, name: "Taken", role: "member" },
+				session(),
+			),
+		).rejects.toThrow("That address already has an account.");
+
+		expect(await readSignInGrants(db)).not.toContain(email);
 	});
 
 	it("refuses a session that is not fresh", async () => {

@@ -110,16 +110,33 @@ here, what do we sell.
   *and* used to disable the UI control, so the button and the 403 cannot disagree.
   They live in `packages/auth/src/roles.ts`, which imports nothing, so a client
   component reaches them through `@crm/auth/roles` without pulling Prisma in.
-  `WorkspaceService` adds two invariants: **the last owner cannot be demoted**, with
-  `FOR UPDATE` on the owner rows before counting, and **only an owner grants or
-  changes `owner`** (`canAssignRole`).
+  `WorkspaceService` adds two invariants: **the last owner cannot be demoted**, and
+  **only an owner grants or changes `owner`** (`canAssignRole`). `setMemberRole` and
+  `removeMember` read the caller, the target and every owner row in one
+  `SELECT ... ORDER BY id FOR UPDATE` inside the transaction, and decide on those rows
+  only. A concurrent promotion therefore cannot let an admin remove a fresh owner, and
+  two role changes cannot deadlock on each other.
 - **Removing a member takes the access and keeps the data.** `workspace.removeMember`
   (`SessionOnlyMiddleware`) checks `canRemoveMember`: owner or admin, and an admin never
   removes an owner. Nobody removes themselves, and the last owner stays, with the same
   `FOR UPDATE` count as a demotion. The `user` row stays, because contacts, deals,
   activities, agent runs and more than twenty other relations point at it; it gets
   `removedAt`. The `member` row, every `session` and every `apikey` of the person are
-  deleted; no other table points at them. The gate is `removedAt` in
+  deleted; no other table points at them. In the same transaction
+  `forgetStoredGrantsOf` clears the stored grants and keeps their rows: the access,
+  refresh and id tokens and their expiry on every `account` except Slack, the sealed
+  `imapAccount.secret`, and the user token of a pending `slackInstallation` of that person. Every
+  `mailboxSync` row of the person turns `NEEDS_RECONNECT` with
+  `MAILBOX_ACCESS_ENDED_REASON`, so cursors, settings and filed mail stay and the
+  tick skips the rows. Only connecting the mailbox again resumes it: Google and
+  Microsoft through their reconnect, IMAP through `imap.add` with the same address,
+  which writes the new password into the kept row and keeps its cursor. `imap.add`
+  saves a password under a `FOR UPDATE` lock on the `user` row and refuses a removed
+  user, so a removal during the server sign-in check wins. A token
+  refresh that lands after the removal is cleared again in `afterAccountWrite`
+  (`forgetGrantOfRemovedUser`) and never clears `NEEDS_RECONNECT`. The Slack
+  `account` row holds the workspace bot token and `SlackWorkspaceGrant` the
+  workspace user token; neither is the person's, so both stay. The gate is `removedAt` in
   `databaseHooks.session.create.before`, not the allow-list: a domain on
   `ALLOWED_SIGN_IN` still matches the address, and without the stamp the next sign-in
   would enrol the person again. The granted address in `AppSetting.signInAddresses` is
@@ -128,7 +145,9 @@ here, what do we sell.
   `users.list`, of the first enrolment in `ensureWorkspaceMembership`, and of the
   mailbox sync (`dueWhere`), so their inbox stops feeding the CRM. `addPerson` with the
   address of a removed person takes them back: it clears `removedAt`, creates the member
-  row with the chosen role, sets a new password and grants the address again. No
+  row with the chosen role, sets a new password and grants the address again. The grant
+  is written in the same transaction as the user and member rows, after the "already has
+  an account" check, so a failed add leaves no address on `AppSetting.signInAddresses`. No
   second `user` row, so their records
   are theirs again. An active person still gets "That address already has an account."
   Every `addPerson` calls `cloud.onMemberAdded()`, a no-op here.
@@ -221,6 +240,9 @@ self-hoster's admin cannot redeploy.
   environment-only half, and `workspaceDomains()` still answers "is this address us" for the
   mailbox and the tracking filter. The database is read only when the environment already said no.
   See `SECURITY.md` for what the boundary holds.
+- **Grants change under a row lock.** `grantSignIn`, `grantSignInInTransaction` and
+  `revokeSignIn` read `AppSetting.signInAddresses` with `FOR UPDATE` in their
+  transaction, so two grants, or a grant and a revoke, never overwrite each other.
 - **`revokeSignIn` ends access, not only the grant.** In one transaction it takes the
   address off `AppSetting.signInAddresses` and runs `endAccessOf`, which deletes every
   `session` and every `apikey` of the account with that address. `removeMember` runs the
@@ -238,7 +260,9 @@ self-hoster's admin cannot redeploy.
   key is a session in a header, so a procedure that mints a credential, grants a
   role, registers a sign-in provider, stores an outbound address or deploys code
   must refuse one: revoking the key must undo everything the key did. The list is
-  in `SECURITY.md`. `agents.revise`, `agents.saveFile`, `agents.deploy`, `agents.resume`
+  in `SECURITY.md`. `webhooks.create`, `webhooks.update` and `webhooks.remove` are on
+  it, so a key can neither point CRM events at an address nor take one away.
+  `agents.revise`, `agents.saveFile`, `agents.deploy`, `agents.resume`
   and `agents.restore` are on it: a deployed agent keeps running after the key is
   gone, so a key may read an agent but never change, deploy, resume or restore it. A role gate on top of it is still
   the service's job.
@@ -278,13 +302,17 @@ tRPC answers with JSON, so a CSV is a Nest controller:
   proxy buffers a response unless it carries that header or an event-stream
   content type. Without it a 50,000 row file is held in the proxy's memory.
 
-`exportRows` is an async generator that pages by `id` cursor
-(`EXPORTS.page.size`, `exports/exports-config.ts`), so nothing builds the file in
-memory. **The page order is `id` ascending, not the list's sort.** A cursor is
-stable, and the sort is not worth an offset scan per page.
+`exportRows` is an async generator. It reads the ids in the list's own order once
+(the list's `SORTABLE` map and fallback, then `id` ascending as tie-break), then
+loads full rows in chunks of `EXPORTS.page.size` (`exports/exports-config.ts`,
+`exports/export-pages.ts`). The order is fixed when the export starts, so a sort
+value that changes mid-export never skips or repeats a row, and no query pages with
+a Prisma cursor on a nullable or relation sort. Only ids sit in memory, not rows.
 
-The file is UTF-8 with a byte order mark, `;` separated, CRLF, amounts with a
-decimal comma: what German Excel opens without an import dialog. A value that
+The file is UTF-8 with a byte order mark, `;` separated, CRLF. Every number in it,
+amounts and NUMBER custom fields, takes the decimal separator of the export's
+`locale` (`EXPORTS.number.decimalSeparator`): a comma in German, French or Spanish,
+a dot in English or Chinese. No thousands separator. A value that
 starts with `=`, `+`, `-`, `@` or a tab gets a leading `'` (`neutralizeFormula`),
 so a contact called `=SUM(A1:A9)` stays text. Only values a person typed are
 guarded; dates and amounts the exporter formats are not.
@@ -493,6 +521,22 @@ the largest attachment upload the conversation contracts accept.
   attendee rows follow Google's list, unless Google sets `attendeesOmitted`. An
   unknown `status` or `responseStatus` reads as absent instead of failing the
   page.
+- **Meeting prep follows the event, not the sync.** `MeetingPrepService`
+  (`google/meeting-prep.service.ts`) queues one `meeting-prep` task per contact
+  without a brief for an event that starts within `CALENDAR.meetingPrep.soonMs`,
+  is not cancelled and is not declined by the rep (`CalendarAttendee.isSelf`).
+  The calendar sync calls it for each written event, and every mailbox sync tick
+  sweeps all events, so a meeting stored weeks ahead is prepared once it comes
+  close. The sweep runs before the mailboxes, inside its own slice
+  (`SYNC_TICK.meetingPrepSliceMs`), so a backfill that fills the tick never
+  skips it. The task carries `payload.eventId`; an event that already had a task
+  for that contact is not queued again, finished or not. An incremental sync
+  never returns an unchanged event, so the migration that added `isSelf` is
+  followed by one that sets it on every stored attendee whose address belongs to
+  a user with a calendar sync: the user's email or one of their mailbox addresses.
+- **The `MEETING` activity stores the event's own title and no body.** An event
+  without a title stores `subject` null, and the location stays on the event.
+  The timeline renders "Meeting" and the location through `t()`.
 - **A message the store rejects is retried, then skipped.** Gmail and Outlook
   keep `failures` (`{ id, attempts, lanes }`) in the backfill blob, IMAP keeps
   it in the folder's cursor entry (`mailbox/message-failures.ts`). The cursor
@@ -531,7 +575,7 @@ the largest attachment upload the conversation contracts accept.
   (`GMAIL_QUOTA`, 240 `messages.get` per tick at 80 % of 6,000 units a minute),
   so the operator's cap raises Outlook and IMAP only. **Every mailbox also gets a
   deadline**: `runDue` splits the tick budget (`SYNC_TICK.selfHostBudgetMs`
-  minus a settle reserve) evenly over the
+  minus a settle reserve and the time the meeting prep sweep used) evenly over the
   mailboxes still due, and each provider stops between two messages when its
   deadline passes, persists the position and returns. That is what keeps one
   first import inside the tick budget, so the mailbox is never
@@ -888,7 +932,10 @@ picker reads.
 `createdById` is the signed-in user. The one exception to null `meta` is a win
 back task: the follow up task (`{ winBack: true }`), assigned to the rep, so the rep
 moves it, and the "Remind me" task (`{ winBack: true, later: true }`), which the rep
-wrote and may undo. A synced mail, a meeting, and anything the agent or tracking wrote stay
+wrote and may undo. The follow up task's rep is the active member who decided the
+verdict, else the contact's active owner, else the active owner or admin who joined the
+workspace first (`member.createdAt`, ties to the lower `member.id`); with none of them
+the sweep writes no task. A synced mail, a meeting, and anything the agent or tracking wrote stay
 read only. `Activity` has no `archivedAt`,
 so a delete is final. After it, `lastActivityAt` is recomputed for the company,
 contact and deal; a failure there is logged, never thrown.
@@ -988,7 +1035,13 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
 - **Purging a company does not suppress its domain** — its people survive with no
   company, and domain suppression stays the explicit Settings → Connections control.
 - **Clear `AgentTask` and `AgentEvent` yourself** — they carry `contactId`/`companyId`
-  with no foreign key, so nothing cascades.
+  with no foreign key, so nothing cascades. A `webhook-delivery` task carries the id
+  of the record its event is about, so an open delivery goes with the record and
+  never sends a purged person.
+- **Clear the person's `FormSubmission` rows**, by `contactId` before the contact
+  row goes (the relation is `SetNull`) and by the address, case-insensitively, after
+  it. A form they sent is their name and their words, and an unlinked one is still
+  theirs.
 - **Recompute `lastActivityAt` on exactly the records the purge reached.**
   `ActivityStampService.targetsOf(where)` collects them *inside* the transaction (the
   evidence is what gets deleted); `recomputeMany` restamps. A company's `where` must

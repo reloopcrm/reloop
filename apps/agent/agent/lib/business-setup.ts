@@ -1,5 +1,6 @@
 import { db } from "@crm/db";
 import { MEMORY } from "@crm/db/insights";
+import { BUSINESS_DRAFT } from "@crm/db/win-back-rules";
 import {
 	type MailboxProfile,
 	mailboxProfile,
@@ -39,7 +40,7 @@ import { identity, type WorkspaceIdentity } from "./workspace";
 export const BUSINESS_SETUP = {
 	threadSample: 60,
 	bodyChars: 400,
-	minThreads: 20,
+	minThreads: BUSINESS_DRAFT.minThreads,
 	maxProducts: 12,
 	maxMinimum: 100_000,
 	maxList: 50,

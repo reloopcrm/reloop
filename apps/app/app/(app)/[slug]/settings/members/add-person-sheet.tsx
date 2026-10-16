@@ -1,6 +1,7 @@
 "use client";
 
 import Add from "@carbon/icons-react/es/Add";
+import { WORKSPACE_ROLES, type WorkspaceRole } from "@crm/auth/roles";
 import { Alert, AlertDescription } from "@crm/ui/components/alert";
 import { Button } from "@crm/ui/components/button";
 import {
@@ -31,14 +32,17 @@ import {
 import { Spinner } from "@crm/ui/components/spinner";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
+import { z } from "zod";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { AddedPersonDialog } from "./added-person-dialog";
-import { assignableRoles, ROLE_LABEL, type Role } from "./members-table";
+import { assignableRoles, ROLE_LABEL } from "./members-table";
 
 const FORM = "add-person";
+
+const workspaceRole = z.enum(WORKSPACE_ROLES);
 
 type AddedPerson = RouterOutputs["workspace"]["addPerson"];
 
@@ -55,7 +59,7 @@ export function AddPersonSheet() {
 	const [open, setOpen] = useState(false);
 	const [email, setEmail] = useState("");
 	const [name, setName] = useState("");
-	const [role, setRole] = useState<Role>("member");
+	const [role, setRole] = useState<WorkspaceRole>("member");
 	const [added, setAdded] = useState<AddedPerson | null>(null);
 
 	const workspace = useQuery(trpc.workspace.get.queryOptions());
@@ -162,7 +166,10 @@ export function AddPersonSheet() {
 								<FieldLabel htmlFor={roleId}>{t("Role")}</FieldLabel>
 								<Select
 									value={role}
-									onValueChange={(value) => setRole(value as Role)}
+									onValueChange={(value) => {
+										const next = workspaceRole.safeParse(value);
+										if (next.success) setRole(next.data);
+									}}
 								>
 									<SelectTrigger id={roleId} width="full">
 										<SelectValue />

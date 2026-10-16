@@ -1,5 +1,6 @@
 import { isWorkspaceAdmin, workspaceRoleOf } from "@crm/auth";
 import { type Db, type Prisma, RecordSource } from "@crm/db";
+import { fixedAiWith } from "@crm/db/plan-usage";
 import { readProviderUsage } from "@crm/db/provider-usage";
 import {
 	listReactivationCandidates,
@@ -7,8 +8,9 @@ import {
 	type ReactivationCandidate,
 	type ReactivationGroup,
 } from "@crm/db/reactivation";
-import { SETTINGS_ID } from "@crm/db/settings";
+import { readAgentProvider, SETTINGS_ID } from "@crm/db/settings";
 import { snoozedUntil } from "@crm/db/win-back-snooze";
+import { readAgentFunctions } from "@crm/validation/agent-functions";
 import {
 	readWinBackRules,
 	readWinBackRulesState,
@@ -20,6 +22,7 @@ import {
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
+import { ResearchKeyService } from "../agent/research-key.service";
 import { InjectDatabase } from "../database/database.constants";
 import { READING } from "./reactivation.config";
 import type {
@@ -29,6 +32,12 @@ import type {
 	SetPotentialFeedbackInput,
 	WinBackRulesState,
 } from "./reactivation.contracts";
+import {
+	chatgptLoginUsable,
+	readingBlockOf,
+	readingPaused,
+	readingReady,
+} from "./reading-ready";
 import {
 	bandTotals,
 	continuedBand,
@@ -64,6 +73,7 @@ export class ReactivationService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
 		private readonly prefetch: WinBackStoryPrefetchService,
+		private readonly researchKeys: ResearchKeyService,
 	) {}
 
 	private async assertManager(userId: string): Promise<void> {
@@ -400,20 +410,75 @@ export class ReactivationService {
 		return revive;
 	}
 
+	private loginCheck: { at: number; usable: boolean } | null = null;
+
+	private async chatgptLoginCheck(): Promise<boolean> {
+		const now = Date.now();
+		if (
+			this.loginCheck &&
+			now - this.loginCheck.at < READING.loginCheck.cacheMs
+		) {
+			return this.loginCheck.usable;
+		}
+
+		const usable = await Promise.race([
+			this.researchKeys.chatgptLogin("status").then(chatgptLoginUsable),
+			new Promise<boolean>((resolve) =>
+				setTimeout(() => resolve(true), READING.loginCheck.timeoutMs).unref?.(),
+			),
+		]).catch(() => true);
+
+		this.loginCheck = { at: now, usable };
+		return usable;
+	}
+
+	private async canRead(input: {
+		pending: number;
+		paused: boolean;
+		fixed: boolean;
+		setting: Parameters<typeof readingReady>[0]["setting"];
+		functions: Parameters<typeof readingReady>[0]["functions"];
+	}): Promise<boolean> {
+		const { pending, paused, fixed, setting, functions } = input;
+		if (pending === 0) return true;
+
+		if (readingReady({ fixed, setting, chatgptUsable: false, functions })) {
+			return true;
+		}
+		if (fixed || paused) return false;
+		if (!readingReady({ fixed, setting, chatgptUsable: true, functions })) {
+			return false;
+		}
+
+		return this.chatgptLoginCheck();
+	}
+
 	async progress(): Promise<ReadingProgress> {
 		const since = new Date(Date.now() - READING.rateWindowMs);
 
-		const [threads, read, queued, relevant, readRecently, provider] =
-			await Promise.all([
-				this.db.emailThread.count(),
-				this.db.threadInsight.count(),
-				this.db.agentTask.count({
-					where: { kind: "thread-insight", finishedAt: null },
-				}),
-				this.db.threadInsight.count({ where: { relevant: true } }),
-				this.db.threadInsight.count({ where: { createdAt: { gte: since } } }),
-				readProviderUsage(this.db, "chatgpt"),
-			]);
+		const [
+			threads,
+			read,
+			queued,
+			relevant,
+			readRecently,
+			provider,
+			fixed,
+			setting,
+			functions,
+		] = await Promise.all([
+			this.db.emailThread.count(),
+			this.db.threadInsight.count(),
+			this.db.agentTask.count({
+				where: { kind: "thread-insight", finishedAt: null },
+			}),
+			this.db.threadInsight.count({ where: { relevant: true } }),
+			this.db.threadInsight.count({ where: { createdAt: { gte: since } } }),
+			readProviderUsage(this.db, "chatgpt"),
+			fixedAiWith(this.db),
+			readAgentProvider(this.db),
+			readAgentFunctions(this.db),
+		]);
 
 		const pending = Math.max(threads - read, queued > 0 ? 1 : 0);
 		const perHour = Math.round(
@@ -425,14 +490,35 @@ export class ReactivationService {
 				: perHour > 0
 					? Math.ceil((pending / perHour) * 60)
 					: Math.ceil((pending * READING.assumedSecondsPerThread) / 60);
-		const paused =
-			pending > 0 &&
-			provider?.primaryUsedPercent !== null &&
-			provider?.primaryUsedPercent !== undefined &&
-			provider.primaryUsedPercent >= 100 &&
-			(provider.primaryResetAt?.getTime() ?? 0) > Date.now();
+		const paused = readingPaused({
+			limitHit:
+				pending > 0 &&
+				provider?.primaryUsedPercent !== null &&
+				provider?.primaryUsedPercent !== undefined &&
+				provider.primaryUsedPercent >= 100 &&
+				(provider.primaryResetAt?.getTime() ?? 0) > Date.now(),
+			functions,
+		});
 
-		return { threads, read, pending, relevant, perHour, etaMinutes, paused };
+		const canRead = await this.canRead({
+			pending,
+			paused,
+			fixed,
+			setting,
+			functions,
+		});
+
+		return {
+			threads,
+			read,
+			pending,
+			relevant,
+			perHour,
+			etaMinutes,
+			paused,
+			canRead,
+			readingBlock: readingBlockOf({ canRead, paused, functions }),
+		};
 	}
 }
 

@@ -15,7 +15,9 @@ import {
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import { DataTable, type DataTableColumn } from "@crm/ui/components/data-table";
+import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import { Icon } from "@crm/ui/components/icon";
+import { Status } from "@crm/ui/components/mark";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ListSearch } from "@/components/data-table/list-search";
@@ -55,9 +57,12 @@ function columns(
 			id: "start",
 			header: t("Key"),
 			size: 230,
-			cell: (row) => (
-				<Badge variant="mono">{row.start ? `${row.start}…` : "-"}</Badge>
-			),
+			cell: (row) =>
+				row.start ? (
+					<Badge variant="mono">{`${row.start}…`}</Badge>
+				) : (
+					<EmptyCellValue />
+				),
 		},
 		{
 			id: "createdAt",
@@ -92,14 +97,12 @@ function columns(
 			sortable: true,
 			size: 160,
 			cell: (row) =>
-				row.expiresAt ? (
-					<span
-						className={
-							isExpired(row.expiresAt)
-								? "text-destructive"
-								: "text-muted-foreground"
-						}
-					>
+				row.expiresAt && isExpired(row.expiresAt) ? (
+					<Status tone="faint">
+						<LocalRelativeTime date={row.expiresAt} />
+					</Status>
+				) : row.expiresAt ? (
+					<span className="text-muted-foreground">
 						<LocalRelativeTime date={row.expiresAt} />
 					</span>
 				) : (

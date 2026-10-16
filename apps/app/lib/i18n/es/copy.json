@@ -269,5 +269,20 @@
 	"You cannot remove yourself from the workspace.": "No puedes quitarte a ti mismo del espacio de trabajo.",
 	"Only an owner can remove an owner.": "Solo un propietario puede quitar a un propietario.",
 	"Show archived": "Mostrar archivados",
-	"That deal is archived. Restore it before you change its stage.": "Este negocio está archivado. Restáuralo antes de cambiar su etapa."
+	"That deal is archived. Restore it before you change its stage.": "Este negocio está archivado. Restáuralo antes de cambiar su etapa.",
+	"That API key no longer exists. Reload the page.": "Esa clave de API ya no existe. Recarga la página.",
+	"Pick one of the expiry options for the key.": "Elige una de las opciones de caducidad para la clave.",
+	"That key name is too long. Use a shorter one.": "El nombre de la clave es demasiado largo. Usa uno más corto.",
+	"Give the key a name.": "Ponle un nombre a la clave.",
+	"Sign in again to manage your API keys.": "Vuelve a iniciar sesión para gestionar tus claves de API.",
+	"The API key could not be saved.": "No se pudo guardar la clave de API.",
+	"Sign in to the CRM before you connect Slack.": "Inicia sesión en el CRM antes de conectar Slack.",
+	"Only a member of this workspace can connect Slack.": "Solo un miembro de este espacio de trabajo puede conectar Slack.",
+	"Only an owner or an admin can connect Slack. One Slack workspace is shared by everyone here, so ask one of them to connect or reconnect it.": "Solo un propietario o un admin puede conectar Slack. Todos aquí comparten un espacio de trabajo de Slack, así que pide a uno de ellos que lo conecte o lo vuelva a conectar.",
+	"An API key cannot manage API keys. Sign in to the CRM first.": "Una clave de API no puede gestionar claves de API. Inicia sesión en el CRM primero.",
+	"An API key takes the prefix this CRM gives it.": "Una clave de API lleva el prefijo que le da este CRM.",
+	"An API key cannot add a sign-in provider. Sign in to the CRM first.": "Una clave de API no puede añadir un proveedor de inicio de sesión. Inicia sesión en el CRM primero.",
+	"Only an owner or an admin adds a sign-in provider, on Settings then SSO.": "Solo un propietario o un admin añade un proveedor de inicio de sesión, en Ajustes y luego SSO.",
+	"Change the workspace on Settings, not through the auth API.": "Cambia el espacio de trabajo en Ajustes, no a través de la API de autenticación.",
+	"No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN=\"acme.com\") and restart.": "Todavía nadie puede iniciar sesión: define ALLOWED_SIGN_IN en .env con el dominio de tu correo (por ejemplo ALLOWED_SIGN_IN=\"acme.com\") y reinicia."
 }

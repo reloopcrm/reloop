@@ -48,6 +48,114 @@ const samples = {
 	}),
 	nextLineIsNotWhitespace: inbound({ body: "I\u0085am away until Monday." }),
 	autoReplyWithLineSeparator: inbound({ body: "I\u2028am away until Monday." }),
+	autoReplyAfterAccentedLetter: inbound({
+		body: "Caf\u00e9this is an automated reply.",
+	}),
+	vacationAfterGermanUmlaut: inbound({
+		body: "Gr\u00fc\u00dfich bin derzeit nicht im B\u00fcro.",
+	}),
+	autoReplyAfterCedilla: inbound({
+		body: "Fran\u00e7i am away until Monday.",
+	}),
+	bounceAfterAccentedLetter: inbound({
+		body: "Caf\u00e9this is the mail system at host mail.example.com.",
+	}),
+	germanBounceAfterUmlaut: inbound({
+		body: "Gr\u00fc\u00dfihre Nachricht konnte nicht zugestellt werden.",
+	}),
+	autoReplyAfterDigit: inbound({ body: "5this is an automated reply." }),
+	autoReplyAfterUnderscore: inbound({ body: "_this is an automated reply." }),
+	autoReplyAfterHyphen: inbound({ body: "-this is an automated reply." }),
+	upperUmlautVacationBody: inbound({
+		body: "ICH BIN DERZEIT NICHT IM B\u00dcRO.",
+	}),
+	upperUmlautUrgentBody: inbound({
+		body: "IN DRINGENDEN F\u00c4LLEN WENDEN SIE SICH AN HERRN MEIER.",
+	}),
+	upperUmlautSubject: inbound({
+		subject: "AW: \u00dcBERMITTLUNGSSTATUS",
+	}),
+	lowerUmlautSubject: inbound({
+		subject: "\u00fcbermittlungsstatus",
+	}),
+	upperUmlautForwardHeader: inbound({
+		body: "Ja, passt.\n-----URSPR\u00dcNGLICHE NACHRICHT-----\nIch bin derzeit nicht im B\u00fcro.",
+	}),
+	longSInAutomatedBody: inbound({
+		body: "Thi\u017f is an automated reply.",
+	}),
+	longSInAutomatedBodyUpper: inbound({
+		body: "THI\u017f IS AN AUTOMATED REPLY.",
+	}),
+	longSInSubject: inbound({ subject: "Out of the office\u017f" }),
+	longSInsidePatternSubject: inbound({ subject: "Au\u017ftomatic reply" }),
+	longSInsidePatternBody: inbound({
+		body: "I am cur\u017frently out of the office.",
+	}),
+	longSReplacingS: inbound({ body: "This i\u017f an automated reply." }),
+	kelvinInBounceBody: inbound({
+		body: "Ihre Nachricht \u212aonnte nicht zugestellt werden.",
+	}),
+	kelvinInGermanBounceBody: inbound({
+		body: "Die E-Mail kann an folgende Adresse nicht zugestellt werden, \u212aann.",
+	}),
+	kelvinInSubject: inbound({ subject: "Failure notice \u212a" }),
+	kelvinInsidePatternSubject: inbound({
+		subject: "Undeliverable pac\u212aage",
+	}),
+	dottedCapitalIInBody: inbound({ body: "\u0130 am away until Monday." }),
+	dotlessIInBody: inbound({ body: "\u0131 am away until Monday." }),
+	dotlessIInsidePatternWord: inbound({
+		body: "Thanks. I am currently out of the off\u0131ce.",
+	}),
+	dottedCapitalIInsidePatternWord: inbound({
+		body: "Thanks. I am currently out of the off\u0130ce.",
+	}),
+	dottedCapitalIInSubject: inbound({ subject: "Out of the off\u0130ce" }),
+	dotlessIInSubject: inbound({ subject: "Out of the off\u0131ce" }),
+	dotlessIInAutomatic: inbound({ subject: "Automat\u0131c reply" }),
+	dottedCapitalIInUndeliverable: inbound({
+		subject: "Undel\u0130verable: Pallets",
+	}),
+	turkishWordWithCapitalI: inbound({
+		body: "THIS IS AN AUTOMATED REPLY. \u0130STANBUL OFFICE.",
+	}),
+	sharpSInsideGermanBody: inbound({
+		body: "Gru\u00df, ich bin derzeit nicht im B\u00fcro.",
+	}),
+	capitalSharpSNextToGermanBody: inbound({
+		body: "GRU\u1e9e, ich bin derzeit nicht im B\u00dcRO.",
+	}),
+	capitalSharpSInsideBody: inbound({
+		body: "Ich bin derzeit nicht im B\u00fcro, au\u1e9eer Haus.",
+	}),
+	sharpSBeforePattern: inbound({
+		body: "Stra\u00dfe 5 \u00dfich bin derzeit nicht im B\u00fcro.",
+	}),
+	capitalSharpSBeforePattern: inbound({
+		body: "Stra\u1e9e\u1e9e ich bin derzeit nicht im B\u00fcro.",
+	}),
+	finalSigmaNextToPattern: inbound({
+		body: "\u03bf\u03c2 this is an automated reply.",
+	}),
+	capitalSigmaNextToPattern: inbound({
+		body: "\u03a3 this is an automated reply \u03c2",
+	}),
+	finalSigmaAfterPattern: inbound({
+		body: "I am away \u03c2\u03a3\u03c3",
+	}),
+	mixedCaseGermanBody: inbound({
+		body: "Ich Bin Derzeit Nicht Im B\u00dcro.",
+	}),
+	mixedCaseBounceBody: inbound({
+		body: "IHRE NACHRICHT KANN AN FOLGENDE EMPF\u00c4NGER NICHT ZUGESTELLT WERDEN.",
+	}),
+	upperFaelleVariant: inbound({
+		body: "In dringenden F\u00c4llen wenden Sie sich an Herrn Meier.",
+	}),
+	upperSubjectAbwesenheit: inbound({ subject: "ABWESENHEIT" }),
+	upperSubjectReponse: inbound({ subject: "R\u00c9PONSE AUTOMATIQUE" }),
+	lowerSubjectReponse: inbound({ subject: "r\u00e9ponse automatique" }),
 	mailerDaemon: inbound({
 		fromEmail: "MAILER-DAEMON@example.com",
 		subject: "Re: Pallets",
@@ -176,6 +284,23 @@ describe("the real answer rule", () => {
 
 		expect(real).toEqual(
 			[
+				"autoReplyAfterDigit",
+				"dotlessIInAutomatic",
+				"dotlessIInBody",
+				"dotlessIInSubject",
+				"dotlessIInsidePatternWord",
+				"dottedCapitalIInBody",
+				"dottedCapitalIInSubject",
+				"dottedCapitalIInUndeliverable",
+				"dottedCapitalIInsidePatternWord",
+				"kelvinInBounceBody",
+				"longSInAutomatedBody",
+				"longSInAutomatedBodyUpper",
+				"longSInsidePatternBody",
+				"longSInsidePatternSubject",
+				"longSReplacingS",
+				"upperUmlautForwardHeader",
+				"autoReplyAfterUnderscore",
 				"autoReplyPastTheLimit",
 				"deliveryOfGoods",
 				"nextLineIsNotWhitespace",

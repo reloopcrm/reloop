@@ -14,14 +14,23 @@ export const NOT_SAMPLE_RECORD = {
 	id: { not: { startsWith: SAMPLE_DATA.prefix } },
 } as const;
 
-export type OwnRecordsDb = Pick<Db, "company" | "contact" | "deal">;
+export type OwnRecordsDb = Pick<
+	Db,
+	"company" | "contact" | "deal" | "emailThread"
+>;
 
-export async function hasOwnRecords(db: OwnRecordsDb): Promise<boolean> {
+export type OwnRecordsScope = { mailThreads: boolean };
+
+export async function hasOwnRecords(
+	db: OwnRecordsDb,
+	scope: OwnRecordsScope,
+): Promise<boolean> {
 	const found = { where: NOT_SAMPLE_RECORD, select: { id: true } } as const;
 	const rows = await Promise.all([
 		db.company.findFirst(found),
 		db.contact.findFirst(found),
 		db.deal.findFirst(found),
+		scope.mailThreads ? db.emailThread.findFirst(found) : null,
 	]);
 
 	return rows.some((row) => row !== null);

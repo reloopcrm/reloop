@@ -179,6 +179,7 @@
 	"Log meeting": "Toplantı kaydet",
 	"All day": "Tüm gün",
 	"Join call": "Aramaya katıl",
+	"Location: {location}": "Konum: {location}",
 	"1 message": "1 mesaj",
 	"{count} messages": "{count} mesaj",
 	"Open in {mailbox}": "{mailbox} içinde aç",
@@ -426,5 +427,9 @@
 	"Comes back": "Geri dönüş",
 	"Wrote back, contacted since {date}": "Cevap yazdı, {date} tarihinden beri yazıldı",
 	"The research agent service is not running. Start it on your server.": "Araştırma ajanı hizmeti çalışmıyor. Onu sunucunda başlat.",
-	"The research agent service is not set up. Finish its setup on your server.": "Araştırma ajanı hizmeti kurulmamış. Kurulumunu sunucunda tamamla."
+	"The research agent service is not set up. Finish its setup on your server.": "Araştırma ajanı hizmeti kurulmamış. Kurulumunu sunucunda tamamla.",
+	"Reloop cannot read your mail because no AI provider is connected.": "Reloop e-postalarını okuyamıyor, çünkü bağlı bir yapay zeka sağlayıcısı yok.",
+	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop e-postalarını okuyamıyor, çünkü konuşma özetleri kapalı.",
+	"Connect an AI provider": "Yapay zeka sağlayıcısı bağla",
+	"Switch summaries on": "Özetleri aç"
 }

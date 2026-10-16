@@ -179,6 +179,7 @@
 	"Log meeting": "Saisir le rendez-vous",
 	"All day": "Toute la journée",
 	"Join call": "Rejoindre",
+	"Location: {location}": "Lieu : {location}",
 	"1 message": "1 message",
 	"{count} messages": "{count} messages",
 	"Open in {mailbox}": "Ouvrir dans {mailbox}",
@@ -426,5 +427,9 @@
 	"Comes back": "Revient",
 	"Wrote back, contacted since {date}": "A répondu, contacté depuis le {date}",
 	"The research agent service is not running. Start it on your server.": "Le service de l'agent de recherche ne tourne pas. Démarre-le sur ton serveur.",
-	"The research agent service is not set up. Finish its setup on your server.": "Le service de l'agent de recherche n'est pas configuré. Termine sa configuration sur ton serveur."
+	"The research agent service is not set up. Finish its setup on your server.": "Le service de l'agent de recherche n'est pas configuré. Termine sa configuration sur ton serveur.",
+	"Reloop cannot read your mail because no AI provider is connected.": "Reloop ne peut pas lire tes e-mails, car aucun fournisseur d'IA n'est connecté.",
+	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop ne peut pas lire tes e-mails, car les résumés de conversations sont désactivés.",
+	"Connect an AI provider": "Connecter un fournisseur d'IA",
+	"Switch summaries on": "Activer les résumés"
 }

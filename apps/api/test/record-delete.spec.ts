@@ -86,6 +86,25 @@ async function parked(subject: { contactId?: string; companyId?: string }) {
 	});
 }
 
+const formKey = `record-delete-spec-${suffix}-`;
+
+async function aSubmission(input: {
+	contactId?: string;
+	email: string | null;
+}) {
+	return db.formSubmission.create({
+		data: {
+			contactId: input.contactId ?? null,
+			host: domain,
+			path: "/contact",
+			email: input.email,
+			fields: { email: input.email ?? "", message: "Please call me back." },
+			dedupeKey: `${formKey}${crypto.randomUUID()}`,
+		},
+		select: { id: true },
+	});
+}
+
 async function clean() {
 	const [existingContacts, existingCompanies] = await Promise.all([
 		db.contact.findMany({ where: ours, select: { id: true } }),
@@ -108,6 +127,9 @@ async function clean() {
 		},
 	});
 	await db.agentEvent.deleteMany({ where: { contactId: { in: contactIds } } });
+	await db.formSubmission.deleteMany({
+		where: { dedupeKey: { startsWith: formKey } },
+	});
 	await db.contact.deleteMany({ where: ours });
 	await db.company.deleteMany({ where: { domain: { in: domains } } });
 	await db.suppressedContact.deleteMany({ where: ours });
@@ -158,6 +180,33 @@ describe("purging a contact", () => {
 		).toBeNull();
 		expect(await db.agentTask.count({ where: { contactId } })).toBe(0);
 		expect(await db.agentEvent.count({ where: { contactId } })).toBe(0);
+	});
+
+	it("takes every form they sent with it, linked or not", async () => {
+		const formed = `formed@${domain}`;
+		const created = await contacts.create({
+			firstName: "Formed",
+			email: formed,
+			ownerId: userId,
+		});
+
+		const linked = await aSubmission({ contactId: created.id, email: null });
+		const byAddress = await aSubmission({ email: formed.toUpperCase() });
+		const other = await aSubmission({ email: colleague });
+
+		await contacts.purge(created.id);
+
+		expect(
+			await db.formSubmission.findUnique({ where: { id: linked.id } }),
+		).toBeNull();
+		expect(
+			await db.formSubmission.findUnique({ where: { id: byAddress.id } }),
+		).toBeNull();
+		expect(
+			await db.formSubmission.findUnique({ where: { id: other.id } }),
+		).not.toBeNull();
+
+		await db.suppressedContact.deleteMany({ where: { email: formed } });
 	});
 
 	it("remembers the address so the sync cannot bring them back", async () => {

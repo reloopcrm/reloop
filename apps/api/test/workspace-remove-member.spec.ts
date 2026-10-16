@@ -7,33 +7,50 @@ import { WorkspaceService } from "../src/workspace/workspace.service";
 
 type Target = { role: string; userId: string };
 
-function workspace(actorRole: string, target: Target, owners = 2) {
+const ACTOR = "actor-user";
+const OUTSIDE = "role read outside the transaction";
+
+function workspace(actorRole: string | null, target: Target) {
 	const writes: string[] = [];
+	const locks: string[] = [];
+	const targetRow = { id: "target", ...target };
+	const rows =
+		target.userId === ACTOR || actorRole === null
+			? [targetRow]
+			: [{ id: "actor", role: actorRole, userId: ACTOR }, targetRow];
 	const tx = {
-		member: {
-			findFirst: async () => ({
-				id: "target",
-				role: target.role,
-				userId: target.userId,
-				user: { email: "target@example.com" },
-			}),
-			delete: async () => writes.push("member"),
+		member: { delete: async () => writes.push("member") },
+		user: {
+			findUniqueOrThrow: async () => ({ email: "target@example.com" }),
+			update: async () => writes.push("user"),
 		},
-		user: { update: async () => writes.push("user") },
 		session: { deleteMany: async () => writes.push("session") },
 		apikey: { deleteMany: async () => writes.push("apikey") },
-		$queryRaw: async () =>
-			Array.from({ length: owners }, (_, index) => ({ id: `owner-${index}` })),
+		account: {
+			findMany: async () => [],
+			updateMany: async () => writes.push("account"),
+		},
+		imapAccount: { updateMany: async () => writes.push("imapAccount") },
+		mailboxSync: { updateMany: async () => writes.push("mailboxSync") },
+		$queryRaw: async (sql: TemplateStringsArray) => {
+			const query = sql.join("?");
+			if (query.includes('"appSetting"')) return [{ signInAddresses: [] }];
+			locks.push(query);
+			return rows;
+		},
 	};
 	const db = {
-		member: { findUnique: async () => ({ role: actorRole }) },
-		appSetting: { findUnique: async () => ({ signInAddresses: [] }) },
+		member: {
+			findUnique: async () => {
+				throw new Error(OUTSIDE);
+			},
+		},
 		$transaction: async (run: (client: typeof tx) => Promise<unknown>) =>
 			run(tx),
 	} as unknown as Db;
 	const unused = undefined as never;
 
-	return { service: new WorkspaceService(db, unused), writes };
+	return { service: new WorkspaceService(db, unused), writes, locks };
 }
 
 describe("removing a member: the rules", () => {
@@ -44,7 +61,19 @@ describe("removing a member: the rules", () => {
 		});
 
 		await expect(
-			service.removeMember("member-user", { memberId: "target" }),
+			service.removeMember(ACTOR, { memberId: "target" }),
+		).rejects.toThrow("Only an owner or an admin can remove a member.");
+		expect(writes).toEqual([]);
+	});
+
+	it("refuses a caller who is no longer in the workspace", async () => {
+		const { service, writes } = workspace(null, {
+			role: "member",
+			userId: "target-user",
+		});
+
+		await expect(
+			service.removeMember(ACTOR, { memberId: "target" }),
 		).rejects.toThrow("Only an owner or an admin can remove a member.");
 		expect(writes).toEqual([]);
 	});
@@ -52,11 +81,11 @@ describe("removing a member: the rules", () => {
 	it("refuses to remove yourself", async () => {
 		const { service, writes } = workspace("owner", {
 			role: "owner",
-			userId: "owner-user",
+			userId: ACTOR,
 		});
 
 		await expect(
-			service.removeMember("owner-user", { memberId: "target" }),
+			service.removeMember(ACTOR, { memberId: "target" }),
 		).rejects.toThrow("You cannot remove yourself from the workspace.");
 		expect(writes).toEqual([]);
 	});
@@ -68,22 +97,20 @@ describe("removing a member: the rules", () => {
 		});
 
 		await expect(
-			service.removeMember("admin-user", { memberId: "target" }),
+			service.removeMember(ACTOR, { memberId: "target" }),
 		).rejects.toThrow("Only an owner can remove an owner.");
 		expect(writes).toEqual([]);
 	});
 
-	it("keeps the last owner", async () => {
-		const { service, writes } = workspace(
-			"owner",
-			{ role: "owner", userId: "target-user" },
-			1,
-		);
+	it("reads the caller and the target under a row lock in the transaction", async () => {
+		const { service, locks } = workspace("admin", {
+			role: "member",
+			userId: "target-user",
+		});
 
-		await expect(
-			service.removeMember("owner-user", { memberId: "target" }),
-		).rejects.toThrow("The workspace needs an owner.");
-		expect(writes).toEqual([]);
+		await service.removeMember(ACTOR, { memberId: "target" });
+		expect(locks).toHaveLength(1);
+		expect(locks[0]).toContain("FOR UPDATE");
 	});
 
 	it("lets an admin remove a member", async () => {
@@ -92,8 +119,16 @@ describe("removing a member: the rules", () => {
 			userId: "target-user",
 		});
 
-		await service.removeMember("admin-user", { memberId: "target" });
-		expect(writes).toEqual(["member", "user", "session", "apikey"]);
+		await service.removeMember(ACTOR, { memberId: "target" });
+		expect(writes).toEqual([
+			"member",
+			"user",
+			"session",
+			"apikey",
+			"account",
+			"imapAccount",
+			"mailboxSync",
+		]);
 	});
 
 	it("lets an owner remove another owner", async () => {
@@ -102,8 +137,16 @@ describe("removing a member: the rules", () => {
 			userId: "target-user",
 		});
 
-		await service.removeMember("owner-user", { memberId: "target" });
-		expect(writes).toEqual(["member", "user", "session", "apikey"]);
+		await service.removeMember(ACTOR, { memberId: "target" });
+		expect(writes).toEqual([
+			"member",
+			"user",
+			"session",
+			"apikey",
+			"account",
+			"imapAccount",
+			"mailboxSync",
+		]);
 	});
 });
 

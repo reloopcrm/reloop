@@ -29,6 +29,7 @@ import { readPotential, readStanding } from "../crm/standing";
 import { blankToNull, toCents } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
+import { pagesByIds } from "../exports/export-pages";
 import { EXPORTS } from "../exports/exports-config";
 import { FieldsService } from "../fields/fields.service";
 import {
@@ -42,6 +43,7 @@ import {
 	ownerFilter,
 	paginate,
 	resolveOrderBy,
+	withIdTieBreak,
 } from "../trpc/list-input";
 import type {
 	CompanyBulkOwnerInput,
@@ -208,23 +210,23 @@ export class CompaniesService {
 
 	async *exportRows(
 		input: CompanyListInput,
+		pageSize: number = EXPORTS.page.size,
 	): AsyncGenerator<CompanyExportRow[]> {
 		const filterableFields = await this.fields.filterableFieldsFor("COMPANY");
 		const where = this.buildWhere(input, filterableFields);
-		let cursor: string | undefined;
+		const orderBy = withIdTieBreak(
+			resolveOrderBy(input, SORTABLE, { createdAt: "desc" }),
+		);
+		const ids = (
+			await this.db.company.findMany({ where, orderBy, select: { id: true } })
+		).map((row) => row.id);
 
-		for (;;) {
-			const rows = await this.db.company.findMany({
-				where,
-				orderBy: { id: "asc" },
-				take: EXPORTS.page.size,
-				cursor: cursor ? { id: cursor } : undefined,
-				skip: cursor ? 1 : 0,
+		for await (const rows of pagesByIds(ids, pageSize, (chunk) =>
+			this.db.company.findMany({
+				where: { id: { in: chunk } },
 				select: COMPANY_EXPORT_SELECT,
-			});
-
-			if (rows.length === 0) return;
-
+			}),
+		)) {
 			const values = await this.fields.exportValuesFor(
 				"COMPANY",
 				rows.map((row) => row.id),
@@ -234,9 +236,6 @@ export class CompaniesService {
 				...row,
 				fields: values.get(row.id) ?? {},
 			}));
-
-			if (rows.length < EXPORTS.page.size) return;
-			cursor = rows.at(-1)?.id;
 		}
 	}
 

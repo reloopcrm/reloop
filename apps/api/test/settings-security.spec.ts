@@ -100,6 +100,7 @@ it("rejects member changes to global win-back rules", async () => {
 		db,
 		undefined as never,
 		undefined as never,
+		undefined as never,
 	);
 	await expect(service.setRules("member", {} as never, false)).rejects.toThrow(
 		"Only a workspace admin",

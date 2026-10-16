@@ -217,6 +217,40 @@ describe("ChatGPT device login", () => {
 		expect(harness(notLoggedIn).flow.status().status).toBe("idle");
 	});
 
+	it("reports a stored login while a re-login is cancelled", async () => {
+		const { flow } = harness(notLoggedIn, { loginExists: true });
+
+		await flow.start();
+		const cancelled = flow.cancel();
+
+		expect(cancelled).toMatchObject({ status: "cancelled", loginStored: true });
+		expect(flow.status()).toMatchObject({
+			status: "cancelled",
+			loginStored: true,
+		});
+	});
+
+	it("reports a stored login while a re-login waits for the code", async () => {
+		const { flow } = harness(notLoggedIn, { loginExists: true });
+
+		expect(await flow.start()).toMatchObject({
+			status: "waiting",
+			loginStored: true,
+		});
+		flow.cancel();
+	});
+
+	it("reports no stored login after a cancelled first login", async () => {
+		const { flow } = harness(notLoggedIn);
+
+		await flow.start();
+		expect(flow.cancel()).toMatchObject({
+			status: "cancelled",
+			loginStored: false,
+		});
+		expect(flow.status().loginStored).toBe(false);
+	});
+
 	it("reports a missing codex binary instead of throwing", async () => {
 		const flow = createChatgptLogin({
 			spawn: () => {

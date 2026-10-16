@@ -179,6 +179,7 @@
 	"Log meeting": "Registrar reunião",
 	"All day": "Dia inteiro",
 	"Join call": "Entrar na chamada",
+	"Location: {location}": "Local: {location}",
 	"1 message": "1 mensagem",
 	"{count} messages": "{count} mensagens",
 	"Open in {mailbox}": "Abrir no {mailbox}",

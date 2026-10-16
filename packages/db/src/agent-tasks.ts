@@ -30,6 +30,8 @@ export type TaskKind = (typeof TASK_KINDS)[number];
 
 export const USAGE_PROBE_KIND = "usage-probe" satisfies TaskKind;
 
+export const MEETING_PREP_KIND = "meeting-prep" satisfies TaskKind;
+
 export const USAGE_PROBE_OUTCOMES = {
 	refreshed: "Usage limit refreshed.",
 	noLimit:

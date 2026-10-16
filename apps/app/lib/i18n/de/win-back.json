@@ -179,6 +179,7 @@
 	"Log meeting": "Termin eintragen",
 	"All day": "Ganztägig",
 	"Join call": "Teilnehmen",
+	"Location: {location}": "Ort: {location}",
 	"1 message": "1 Nachricht",
 	"{count} messages": "{count} Nachrichten",
 	"Open in {mailbox}": "In {mailbox} öffnen",

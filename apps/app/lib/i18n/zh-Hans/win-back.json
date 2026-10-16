@@ -179,6 +179,7 @@
 	"Log meeting": "记录会议",
 	"All day": "全天",
 	"Join call": "加入通话",
+	"Location: {location}": "地点：{location}",
 	"1 message": "1 条消息",
 	"{count} messages": "{count} 条消息",
 	"Open in {mailbox}": "在 {mailbox} 里打开",

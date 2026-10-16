@@ -238,7 +238,9 @@ self-hoster's admin cannot redeploy.
   key is a session in a header, so a procedure that mints a credential, grants a
   role, registers a sign-in provider, stores an outbound address or deploys code
   must refuse one: revoking the key must undo everything the key did. The list is
-  in `SECURITY.md`. `agents.revise`, `agents.saveFile`, `agents.deploy`, `agents.resume`
+  in `SECURITY.md`. `webhooks.create`, `webhooks.update` and `webhooks.remove` are on
+  it, so a key can neither point CRM events at an address nor take one away.
+  `agents.revise`, `agents.saveFile`, `agents.deploy`, `agents.resume`
   and `agents.restore` are on it: a deployed agent keeps running after the key is
   gone, so a key may read an agent but never change, deploy, resume or restore it. A role gate on top of it is still
   the service's job.
@@ -1004,7 +1006,13 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
 - **Purging a company does not suppress its domain** — its people survive with no
   company, and domain suppression stays the explicit Settings → Connections control.
 - **Clear `AgentTask` and `AgentEvent` yourself** — they carry `contactId`/`companyId`
-  with no foreign key, so nothing cascades.
+  with no foreign key, so nothing cascades. A `webhook-delivery` task carries the id
+  of the record its event is about, so an open delivery goes with the record and
+  never sends a purged person.
+- **Clear the person's `FormSubmission` rows**, by `contactId` before the contact
+  row goes (the relation is `SetNull`) and by the address, case-insensitively, after
+  it. A form they sent is their name and their words, and an unlinked one is still
+  theirs.
 - **Recompute `lastActivityAt` on exactly the records the purge reached.**
   `ActivityStampService.targetsOf(where)` collects them *inside* the transaction (the
   evidence is what gets deleted); `recomputeMany` restamps. A company's `where` must

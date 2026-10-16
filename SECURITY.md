@@ -59,7 +59,7 @@ every record its owner can, and an expiry is optional. What it cannot do is buil
 its own revocation. `SessionOnlyMiddleware` refuses an `x-api-key` header on `apiKeys.*`,
 `settings.setPassword`, `settings.setAgentProvider`, `settings.chatgptLoginAction`,
 `workspace.addPerson`, `workspace.setMemberRole`, `workspace.removeMember`, `sso.register`, `sso.remove`, `imap.add`,
-`webhooks.create`, `webhooks.update`, `system.update`, `agents.revise`, `agents.saveFile`,
+`webhooks.create`, `webhooks.update`, `webhooks.remove`, `system.update`, `agents.revise`, `agents.saveFile`,
 `agents.deploy`, `agents.resume` and `agents.restore`, and on the same kind of call in any optional
 cloud module, and `accessGuard` refuses it on
 `/api/auth/api-key/*`, `/api/auth/sso/register`, `/change-password` and `/set-password`. Those are the calls that mint a

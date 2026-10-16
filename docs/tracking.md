@@ -162,7 +162,9 @@ that holds for the inbox holds here.** A second copy is how *deleted contacts st
 deleted* comes to be true of email and not of forms.
 
 - **Every submission is stored; filing is separate and may decline.** `skipReason`
-  says why, and the row stays for a rep to look at.
+  says why, and the row stays for a rep to look at. "Delete forever" on the contact
+  removes every submission linked to them or sent from their address
+  (`ContactsService.purge`).
 - **A refusal is a `skipReason`, never a lost row**, and `CONTACT_CAP_REASON` is a
   shared constant because `rollup.service.ts` matches on it. Telemetry that
   substring-matches prose breaks the first time somebody improves the wording.

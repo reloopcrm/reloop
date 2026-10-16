@@ -67,6 +67,7 @@ export class WebhooksRouter {
 		output: webhookRemoveOutput,
 		meta: restMeta("DELETE", "/webhooks/{id}", ["Webhooks"]),
 	})
+	@UseMiddlewares(SessionOnlyMiddleware)
 	remove(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
 		return this.webhooks.remove(ctx.user.id, id);
 	}

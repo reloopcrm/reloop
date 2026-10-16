@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, EnrichmentStatus } from "@crm/db";
+import { WEBHOOKS } from "@crm/db/webhooks";
 import { markRunning, settle } from "../agent/lib/enrichment";
 
 const domain = "lifecycle.example.test";
@@ -225,6 +226,33 @@ describe("the record follows the task", () => {
 		});
 		expect(row?.enrichmentStatus).toBe("PENDING");
 		expect(row?.enrichmentError).toBeNull();
+	});
+
+	it("records the failure while a webhook delivery about the record is open", async () => {
+		const org = await company();
+		const task = await retiredTask(org.id);
+		await db.agentTask.create({
+			data: {
+				companyId: org.id,
+				kind: WEBHOOKS.kind,
+				reason: "lifecycle",
+				budget: 1,
+				dueAt: new Date(),
+			},
+			select: { id: true },
+		});
+
+		await settle(
+			{ ...subjectOf({ companyId: org.id }), id: task.id },
+			EnrichmentStatus.FAILED,
+			"Research was attempted several times and never completed.",
+		);
+
+		const row = await db.company.findUnique({
+			where: { id: org.id },
+			select: { enrichmentStatus: true },
+		});
+		expect(row?.enrichmentStatus).toBe("FAILED");
 	});
 
 	it("leaves the record to a newer request when an ended task settles late", async () => {

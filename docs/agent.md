@@ -1409,7 +1409,10 @@ again whenever the mailbox changes. The API queues the task on the sync tick, at
 in 24 hours. The numbers are `MAILBOX_PROFILE` in `agent/lib/mailbox-config.ts`.
 
 - **Below 20 conversations nothing changes.** The website pass fills an empty business
-  description, as before.
+  description, as before. The 20 is `BUSINESS_DRAFT.minThreads` in
+  `packages/db/src/win-back-rules.ts`. The onboarding business step reads the same number:
+  it waits for a draft only with a model, and a website or 20 conversations. Otherwise it
+  shows the empty form at once.
 - **Every run is free until the rule says build.** `mailboxStats` counts, in SQL over the
   2,000 newest conversations, how many inbound senders are freemail, role (`info@`,
   `office@` …) or work addresses, and how many of each we answered.

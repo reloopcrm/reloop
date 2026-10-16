@@ -79,3 +79,7 @@ export const DEFAULT_WIN_BACK_RULES: WinBackRuleSet = {
 	titleKeywords: ["Owner", "Founder", "CEO", "Purchasing", "Head", "Director"],
 	excludedDomains: [],
 };
+
+export const BUSINESS_DRAFT = {
+	minThreads: 20,
+} as const;

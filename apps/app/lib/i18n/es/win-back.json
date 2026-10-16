@@ -418,5 +418,9 @@
 	"Bring back": "Traer de vuelta",
 	"{name} is back in the list.": "{name} vuelve a estar en la lista.",
 	"Comes back": "Vuelve",
-	"Wrote back, contacted since {date}": "Ha respondido, contactado desde el {date}"
+	"Wrote back, contacted since {date}": "Ha respondido, contactado desde el {date}",
+	"Reloop cannot read your mail because no AI provider is connected.": "Reloop no puede leer tu correo porque no hay ningún proveedor de IA conectado.",
+	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop no puede leer tu correo porque los resúmenes de conversaciones están desactivados.",
+	"Connect an AI provider": "Conectar un proveedor de IA",
+	"Switch summaries on": "Activar los resúmenes"
 }

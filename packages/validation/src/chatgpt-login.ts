@@ -15,6 +15,7 @@ export const chatgptLoginState = z.object({
 	url: z.string().nullable(),
 	code: z.string().nullable(),
 	alreadyLoggedIn: z.boolean(),
+	loginStored: z.boolean().optional(),
 	reason: z.string().nullable(),
 	pollMs: z.number(),
 });

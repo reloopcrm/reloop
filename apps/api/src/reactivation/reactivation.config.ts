@@ -4,6 +4,7 @@ const HOUR_MS = 60 * MINUTE_MS;
 export const READING = {
 	rateWindowMs: 30 * MINUTE_MS,
 	assumedSecondsPerThread: 12,
+	loginCheck: { timeoutMs: 2_000, cacheMs: MINUTE_MS },
 } as const;
 
 export const PERSON_VIEW = {

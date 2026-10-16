@@ -44,7 +44,7 @@ const prefetch = {
 } as unknown as WinBackStoryPrefetchService;
 
 const dashboard = new DashboardService(db, new ConversionService(db));
-const list = new ReactivationService(db, agent, prefetch);
+const list = new ReactivationService(db, agent, prefetch, undefined as never);
 const person = new WinBackPersonService(db, agent, prefetch);
 
 type Mail = {

@@ -418,5 +418,9 @@
 	"Bring back": "Geri getir",
 	"{name} is back in the list.": "{name} listeye geri döndü.",
 	"Comes back": "Geri dönüş",
-	"Wrote back, contacted since {date}": "Cevap yazdı, {date} tarihinden beri yazıldı"
+	"Wrote back, contacted since {date}": "Cevap yazdı, {date} tarihinden beri yazıldı",
+	"Reloop cannot read your mail because no AI provider is connected.": "Reloop e-postalarını okuyamıyor, çünkü bağlı bir yapay zeka sağlayıcısı yok.",
+	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop e-postalarını okuyamıyor, çünkü konuşma özetleri kapalı.",
+	"Connect an AI provider": "Yapay zeka sağlayıcısı bağla",
+	"Switch summaries on": "Özetleri aç"
 }

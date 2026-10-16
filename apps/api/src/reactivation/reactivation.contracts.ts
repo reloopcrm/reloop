@@ -119,6 +119,8 @@ export const readingProgressOutput = z.object({
 	perHour: z.number(),
 	etaMinutes: z.number().nullable(),
 	paused: z.boolean(),
+	canRead: z.boolean(),
+	readingBlock: z.enum(["noProvider", "functionOff"]).nullable(),
 });
 
 export type ReadingProgress = z.infer<typeof readingProgressOutput>;

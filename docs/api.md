@@ -280,13 +280,17 @@ tRPC answers with JSON, so a CSV is a Nest controller:
   proxy buffers a response unless it carries that header or an event-stream
   content type. Without it a 50,000 row file is held in the proxy's memory.
 
-`exportRows` is an async generator that pages by `id` cursor
-(`EXPORTS.page.size`, `exports/exports-config.ts`), so nothing builds the file in
-memory. **The page order is `id` ascending, not the list's sort.** A cursor is
-stable, and the sort is not worth an offset scan per page.
+`exportRows` is an async generator. It reads the ids in the list's own order once
+(the list's `SORTABLE` map and fallback, then `id` ascending as tie-break), then
+loads full rows in chunks of `EXPORTS.page.size` (`exports/exports-config.ts`,
+`exports/export-pages.ts`). The order is fixed when the export starts, so a sort
+value that changes mid-export never skips or repeats a row, and no query pages with
+a Prisma cursor on a nullable or relation sort. Only ids sit in memory, not rows.
 
-The file is UTF-8 with a byte order mark, `;` separated, CRLF, amounts with a
-decimal comma: what German Excel opens without an import dialog. A value that
+The file is UTF-8 with a byte order mark, `;` separated, CRLF. Every number in it,
+amounts and NUMBER custom fields, takes the decimal separator of the export's
+`locale` (`EXPORTS.number.decimalSeparator`): a comma in German, French or Spanish,
+a dot in English or Chinese. No thousands separator. A value that
 starts with `=`, `+`, `-`, `@` or a tab gets a leading `'` (`neutralizeFormula`),
 so a contact called `=SUM(A1:A9)` stays text. Only values a person typed are
 guarded; dates and amounts the exporter formats are not.

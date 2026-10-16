@@ -151,6 +151,13 @@ language in Settings > General. The API stores and serves the value and does not
   draft call asks an OpenAI route for low reasoning effort (`DRAFT.providerOptions`),
   so reasoning leaves room for the email; an answer cut off at the limit fails at
   once with that reason instead of retrying.
+- **A draft reads the same threads the API calls it stale against.** `recipient` in
+  `lib/email-draft.ts` takes the newest `DRAFT.threads` of
+  `threadsOfContact(contactId)` (`@crm/db/thread-participants`): the threads the
+  contact owns and the ones it is linked to through `emailThreadContact`. Its
+  `basedOnUntil` is the newest of them, the same mail `contacts.draft` compares, so a
+  draft written after a colleague's thread is not stale the moment it is stored
+  (`test/run-email-draft.integration.spec.ts`).
 - **A thread summary follows the workspace, or else the thread.** `summaryLanguage()`
   in `@crm/validation/agent-language` picks the language for the thread summary, the
   message lines, the contact memory and its brief: the stored workspace language, else
@@ -268,10 +275,11 @@ than failing.
 
 **Priority**: `personStory` 960 · `brand` 900 · `portrait` 800 · `threadRefresh` 750 · `threadInsight` 700 · `workspace` 500 ·
 `requested` 300 · `meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 ·
-`storyPrefetch` 35 · `threadInsightBackfill` 10 · `recheck` 0. `brand` and `portrait` are what a rep reads
+`storyPrefetch` 35 · `draftPrefetch` 34 · `threadInsightBackfill` 10 · `recheck` 0. `brand` and `portrait` are what a rep reads
 *before* deciding what to open; `personStory` is what a rep waits for after opening.
 `storyPrefetch` is a story nobody waits for yet: above the backfill, so the fast lane
-claims it, and below every story a rep opened.
+claims it, and below every story a rep opened. `draftPrefetch` is a Win back
+email nobody asked for yet, one step below it, because a rep reads the story first.
 
 **`company-profile` runs only when a rep asks.** Nothing queues it on its own: a new
 company, an email-domain company, a changed domain and the sign-in backfill queue

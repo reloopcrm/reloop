@@ -76,12 +76,26 @@ export function useEmailDraft(
 
 	const write = useMutation(
 		trpc.contacts.writeDraft.mutationOptions({
-			onSuccess: (result) => {
+			onSuccess: async (result) => {
 				onWritten?.();
-				queries.setQueryData(
-					trpc.contacts.draft.queryKey({ id: contactId }),
-					result,
-				);
+				const queryKey = trpc.contacts.draft.queryKey({ id: contactId });
+				await queries.cancelQueries({ queryKey });
+				queries.setQueryData(queryKey, result);
+			},
+			onError: (error) => toast.error(translateError(t, locale, error.message)),
+		}),
+	);
+
+	const refresh = useMutation(
+		trpc.contacts.refreshDraft.mutationOptions({
+			onSuccess: async (result) => {
+				const queryKey = trpc.contacts.draft.queryKey({ id: contactId });
+				if (!result.queued) {
+					await queries.invalidateQueries({ queryKey });
+					return;
+				}
+				await queries.cancelQueries({ queryKey });
+				queries.setQueryData(queryKey, result);
 			},
 			onError: (error) => toast.error(translateError(t, locale, error.message)),
 		}),
@@ -93,7 +107,10 @@ export function useEmailDraft(
 				trpc.contacts.draft.queryOptions({ id: contactId }),
 			);
 			if (draftToWrite(current, options)) {
-				write.mutate({ id: contactId });
+				write.mutate({
+					id: contactId,
+					seen: current.draft?.writtenAt ?? null,
+				});
 			}
 		} catch (error) {
 			toast.error(
@@ -102,7 +119,10 @@ export function useEmailDraft(
 		}
 	};
 
-	const waiting = state.data?.queued === true || write.isPending;
+	const waiting =
+		state.data?.queued === true ||
+		write.isPending ||
+		(refresh.isPending && state.data?.draft?.stale === true);
 	const held = state.data?.waitingUntil ?? null;
 
 	return {
@@ -117,8 +137,9 @@ export function useEmailDraft(
 			write.mutate(
 				instruction
 					? { id: contactId, instruction, oneOff }
-					: { id: contactId },
+					: { id: contactId, seen: state.data?.draft?.writtenAt ?? null },
 			),
 		ensure,
+		refresh: () => refresh.mutate({ id: contactId }),
 	};
 }

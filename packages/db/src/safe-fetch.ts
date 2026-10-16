@@ -15,59 +15,99 @@ type RequestMethod = "GET" | "HEAD" | "POST";
 type RequestHeaders = Record<string, string>;
 
 export function isBlockedAddress(ip: string, allowPrivate = false): boolean {
-	const groups = ip.includes(":") ? expandIPv6(ip) : null;
-
-	if (groups) {
-		const marker = groups[5];
-		if (
-			groups.slice(0, 5).every((group) => group === 0) &&
-			(marker === 0xffff || marker === 0)
-		) {
-			const high = groups[6] ?? 0;
-			const low = groups[7] ?? 0;
-			const loopbackV6 =
-				marker === 0 && high === 0 && low === 1 && !ip.includes(".");
-			if (loopbackV6) return !allowPrivate;
-
-			return isBlockedIPv4(high >> 8, high & 0xff, allowPrivate);
-		}
-
-		const first = groups[0] ?? 0;
-		if (allowPrivate && (first & 0xfe00) === 0xfc00) return false;
-
-		return (
-			(first & 0xfe00) === 0xfc00 ||
-			(first & 0xffc0) === 0xfe80 ||
-			(first & 0xff00) === 0xff00
-		);
+	if (ip.includes(":")) {
+		const groups = expandIPv6(ip);
+		return groups ? isBlockedIPv6(groups, ip, allowPrivate) : true;
 	}
 
-	if (net.isIPv4(ip)) {
-		const [a = 0, b = 0] = ip.split(".").map(Number);
-		return isBlockedIPv4(a, b, allowPrivate);
-	}
+	if (net.isIPv4(ip)) return isBlockedIPv4(ipv4Octets(ip), allowPrivate);
 
 	return true;
 }
 
-function isBlockedIPv4(a: number, b: number, allowPrivate = false): boolean {
-	if (isNeverAllowedIPv4(a, b)) return true;
+type IPv4Octets = readonly [number, number, number, number];
 
-	return !allowPrivate && isPrivateIPv4(a, b);
+function isBlockedIPv6(
+	groups: number[],
+	ip: string,
+	allowPrivate: boolean,
+): boolean {
+	const marker = groups[5];
+	if (
+		groups.slice(0, 5).every((group) => group === 0) &&
+		(marker === 0xffff || marker === 0)
+	) {
+		const high = groups[6] ?? 0;
+		const low = groups[7] ?? 0;
+		const loopbackV6 =
+			marker === 0 && high === 0 && low === 1 && !ip.includes(".");
+		if (loopbackV6) return !allowPrivate;
+
+		return isBlockedIPv4(octetsOf(high, low), allowPrivate);
+	}
+
+	const [first = 0, second = 0, third = 0] = groups;
+
+	if (
+		first === 0x64 &&
+		second === 0xff9b &&
+		groups.slice(2, 6).every((group) => group === 0)
+	)
+		return isBlockedIPv4(
+			octetsOf(groups[6] ?? 0, groups[7] ?? 0),
+			allowPrivate,
+		);
+
+	if (first === 0x2002)
+		return isBlockedIPv4(octetsOf(second, third), allowPrivate);
+
+	if (METADATA_IPV6.has(groups.join(":"))) return true;
+
+	if (allowPrivate && (first & 0xfe00) === 0xfc00) return false;
+
+	return (
+		(first & 0xfe00) === 0xfc00 ||
+		(first & 0xffc0) === 0xfe80 ||
+		(first & 0xff00) === 0xff00
+	);
 }
 
-function isNeverAllowedIPv4(a: number, b: number): boolean {
-	return a === 0 || (a === 169 && b === 254) || a >= 224;
+function ipv4Octets(ip: string): IPv4Octets {
+	const [a = 0, b = 0, c = 0, d = 0] = ip.split(".").map(Number);
+	return [a, b, c, d];
 }
 
-function isPrivateIPv4(a: number, b: number): boolean {
+function octetsOf(high: number, low: number): IPv4Octets {
+	return [high >> 8, high & 0xff, low >> 8, low & 0xff];
+}
+
+function isBlockedIPv4(octets: IPv4Octets, allowPrivate = false): boolean {
+	if (isNeverAllowedIPv4(octets)) return true;
+
+	return !allowPrivate && isPrivateIPv4(octets);
+}
+
+function isNeverAllowedIPv4(octets: IPv4Octets): boolean {
+	const [a, b] = octets;
+	return (
+		a === 0 ||
+		(a === 169 && b === 254) ||
+		a >= 224 ||
+		METADATA_IPV4.has(octets.join("."))
+	);
+}
+
+function isPrivateIPv4([a, b, c]: IPv4Octets): boolean {
 	return (
 		a === 10 ||
 		a === 127 ||
 		(a === 172 && b >= 16 && b <= 31) ||
 		(a === 192 && b === 168) ||
 		(a === 100 && b >= 64 && b <= 127) ||
-		(a === 198 && (b === 18 || b === 19))
+		(a === 198 && (b === 18 || b === 19)) ||
+		(a === 192 && b === 0 && (c === 0 || c === 2)) ||
+		(a === 198 && b === 51 && c === 100) ||
+		(a === 203 && b === 0 && c === 113)
 	);
 }
 
@@ -107,6 +147,17 @@ function expandIPv6(ip: string): number[] | null {
 
 	return groups;
 }
+
+const METADATA_IPV4: ReadonlySet<string> = new Set(
+	NETWORK.metadataAddresses.ipv4,
+);
+
+const METADATA_IPV6: ReadonlySet<string> = new Set(
+	NETWORK.metadataAddresses.ipv6.flatMap((ip) => {
+		const groups = expandIPv6(ip);
+		return groups ? [groups.join(":")] : [];
+	}),
+);
 
 export async function resolvePublicHost(
 	hostname: string,

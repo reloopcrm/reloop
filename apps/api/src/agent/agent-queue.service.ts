@@ -1,4 +1,5 @@
 import type { Db, Prisma } from "@crm/db";
+import { WEBHOOKS } from "@crm/db/webhooks";
 import { Injectable } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 
@@ -46,7 +47,12 @@ export class AgentQueueService {
 	}
 
 	private due(subject: Prisma.AgentTaskWhereInput): Prisma.AgentTaskWhereInput {
-		return { ...subject, finishedAt: null, dueAt: { lte: new Date() } };
+		return {
+			...subject,
+			kind: { not: WEBHOOKS.kind },
+			finishedAt: null,
+			dueAt: { lte: new Date() },
+		};
 	}
 
 	private identifiers(values: (string | null)[]): Set<string> {

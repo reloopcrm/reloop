@@ -194,6 +194,8 @@ deleted* comes to be true of email and not of forms.
 - **Every submission is stored; filing is separate and may decline.** `skipReason`
   says why, and the row stays for a rep to look at. The one submission that is
   never stored is a filled honeypot, because it is spam and not a lead.
+  "Delete forever" on the contact removes every submission linked to them or
+  sent from their address (`ContactsService.purge`).
 - **A refusal is a `skipReason`, never a lost row.** A limit is never a refusal
   either: it is a deferral. `TRACKING_SKIP` holds the stable codes, `contact_cap`
   and `form_cap`, and `TRACKING_SKIP_TEXT` the words a log line shows beside

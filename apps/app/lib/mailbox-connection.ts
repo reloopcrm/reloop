@@ -22,7 +22,7 @@ const hasMailboxConnection = cache(async (): Promise<boolean> => {
 
 const hasOwnRecordsHere = cache(
 	async (): Promise<boolean> =>
-		(await inScope(() => hasOwnRecords(db))) ?? false,
+		(await inScope(() => hasOwnRecords(db, { mailThreads: false }))) ?? false,
 );
 
 export const hasMailboxRecords = cache(async (): Promise<boolean> => {

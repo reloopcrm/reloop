@@ -180,3 +180,58 @@ describe("the header row", () => {
 		expect(first).toContain(";Plan");
 	});
 });
+
+describe("numbers in one file", () => {
+	async function contactFile(locale: "en" | "de" | "fr" | "zh-Hans") {
+		const service = new ExportsService(
+			{} as never,
+			{
+				exportRows: async function* () {
+					yield [{ fields: { score: 12.5, whole: 7, note: "=1+1" } }];
+				},
+			} as never,
+			{} as never,
+			{} as never,
+			{
+				definitionsFor: async () => [
+					{ key: "score", label: "Score" },
+					{ key: "whole", label: "Whole" },
+					{ key: "note", label: "Note" },
+				],
+			} as never,
+		);
+		const file = await service.file(
+			parseExportRequest("contacts", undefined, locale, undefined),
+		);
+		let text = "";
+		for await (const chunk of file.lines) text += chunk;
+		return text.split("\r\n")[1] ?? "";
+	}
+
+	const context = (locale: "en" | "de"): ExportContext => ({
+		locale,
+		moment: EXPORTS.time.format("UTC"),
+		stageNames: {},
+	});
+
+	it("writes a NUMBER field with the comma in German", async () => {
+		expect((await contactFile("de")).endsWith("12,5;7;'=1+1")).toBe(true);
+	});
+
+	it("writes a NUMBER field with the dot in English", async () => {
+		expect((await contactFile("en")).endsWith("12.5;7;'=1+1")).toBe(true);
+	});
+
+	it("follows the language of the file for French and Chinese", async () => {
+		expect((await contactFile("fr")).endsWith("12,5;7;'=1+1")).toBe(true);
+		expect((await contactFile("zh-Hans")).endsWith("12.5;7;'=1+1")).toBe(true);
+	});
+
+	it("writes amounts with the same separator as the NUMBER fields", () => {
+		const amount = DEAL_COLUMNS.find((column) => column.header === "Amount");
+		const row = { amount: { toString: () => "1234.5" } } as never;
+
+		expect(amount?.value(row, context("de"))).toBe("1234,5");
+		expect(amount?.value(row, context("en"))).toBe("1234.5");
+	});
+});

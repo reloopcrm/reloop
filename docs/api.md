@@ -238,7 +238,9 @@ self-hoster's admin cannot redeploy.
   key is a session in a header, so a procedure that mints a credential, grants a
   role, registers a sign-in provider, stores an outbound address or deploys code
   must refuse one: revoking the key must undo everything the key did. The list is
-  in `SECURITY.md`. `agents.revise`, `agents.saveFile`, `agents.deploy`, `agents.resume`
+  in `SECURITY.md`. `webhooks.create`, `webhooks.update` and `webhooks.remove` are on
+  it, so a key can neither point CRM events at an address nor take one away.
+  `agents.revise`, `agents.saveFile`, `agents.deploy`, `agents.resume`
   and `agents.restore` are on it: a deployed agent keeps running after the key is
   gone, so a key may read an agent but never change, deploy, resume or restore it. A role gate on top of it is still
   the service's job.
@@ -278,13 +280,17 @@ tRPC answers with JSON, so a CSV is a Nest controller:
   proxy buffers a response unless it carries that header or an event-stream
   content type. Without it a 50,000 row file is held in the proxy's memory.
 
-`exportRows` is an async generator that pages by `id` cursor
-(`EXPORTS.page.size`, `exports/exports-config.ts`), so nothing builds the file in
-memory. **The page order is `id` ascending, not the list's sort.** A cursor is
-stable, and the sort is not worth an offset scan per page.
+`exportRows` is an async generator. It reads the ids in the list's own order once
+(the list's `SORTABLE` map and fallback, then `id` ascending as tie-break), then
+loads full rows in chunks of `EXPORTS.page.size` (`exports/exports-config.ts`,
+`exports/export-pages.ts`). The order is fixed when the export starts, so a sort
+value that changes mid-export never skips or repeats a row, and no query pages with
+a Prisma cursor on a nullable or relation sort. Only ids sit in memory, not rows.
 
-The file is UTF-8 with a byte order mark, `;` separated, CRLF, amounts with a
-decimal comma: what German Excel opens without an import dialog. A value that
+The file is UTF-8 with a byte order mark, `;` separated, CRLF. Every number in it,
+amounts and NUMBER custom fields, takes the decimal separator of the export's
+`locale` (`EXPORTS.number.decimalSeparator`): a comma in German, French or Spanish,
+a dot in English or Chinese. No thousands separator. A value that
 starts with `=`, `+`, `-`, `@` or a tab gets a leading `'` (`neutralizeFormula`),
 so a contact called `=SUM(A1:A9)` stays text. Only values a person typed are
 guarded; dates and amounts the exporter formats are not.
@@ -493,6 +499,22 @@ the largest attachment upload the conversation contracts accept.
   attendee rows follow Google's list, unless Google sets `attendeesOmitted`. An
   unknown `status` or `responseStatus` reads as absent instead of failing the
   page.
+- **Meeting prep follows the event, not the sync.** `MeetingPrepService`
+  (`google/meeting-prep.service.ts`) queues one `meeting-prep` task per contact
+  without a brief for an event that starts within `CALENDAR.meetingPrep.soonMs`,
+  is not cancelled and is not declined by the rep (`CalendarAttendee.isSelf`).
+  The calendar sync calls it for each written event, and every mailbox sync tick
+  sweeps all events, so a meeting stored weeks ahead is prepared once it comes
+  close. The sweep runs before the mailboxes, inside its own slice
+  (`SYNC_TICK.meetingPrepSliceMs`), so a backfill that fills the tick never
+  skips it. The task carries `payload.eventId`; an event that already had a task
+  for that contact is not queued again, finished or not. An incremental sync
+  never returns an unchanged event, so the migration that added `isSelf` is
+  followed by one that sets it on every stored attendee whose address belongs to
+  a user with a calendar sync: the user's email or one of their mailbox addresses.
+- **The `MEETING` activity stores the event's own title and no body.** An event
+  without a title stores `subject` null, and the location stays on the event.
+  The timeline renders "Meeting" and the location through `t()`.
 - **A message the store rejects is retried, then skipped.** Gmail and Outlook
   keep `failures` (`{ id, attempts, lanes }`) in the backfill blob, IMAP keeps
   it in the folder's cursor entry (`mailbox/message-failures.ts`). The cursor
@@ -531,7 +553,7 @@ the largest attachment upload the conversation contracts accept.
   (`GMAIL_QUOTA`, 240 `messages.get` per tick at 80 % of 6,000 units a minute),
   so the operator's cap raises Outlook and IMAP only. **Every mailbox also gets a
   deadline**: `runDue` splits the tick budget (`SYNC_TICK.selfHostBudgetMs`
-  minus a settle reserve) evenly over the
+  minus a settle reserve and the time the meeting prep sweep used) evenly over the
   mailboxes still due, and each provider stops between two messages when its
   deadline passes, persists the position and returns. That is what keeps one
   first import inside the tick budget, so the mailbox is never
@@ -857,9 +879,22 @@ picker reads.
 - **Moving a deal to another company keeps that rule.** `deals.update` with a new
   `companyId` removes every `DealContact` whose contact is not at the new company
   (a contact with no company included) and moves the deal's activities to the new
-  company, in the same transaction. After commit it raises the new company's
-  `lastActivityAt` to the deal's newest activity; the old company keeps its stamp,
-  because a recompute would drop stamps the agent writes without an activity.
+  company, in the same transaction. Still under the deal's `FOR UPDATE` it raises
+  the new company's `lastActivityAt` to the deal's newest activity, so two quick
+  moves cannot stamp a company the deal already left. The old company drops to the
+  newest activity it still has (null with none), but only when its stamp is not
+  newer than the moved deal's newest activity
+  (`ActivityStampService.releaseMovedDeal`, one `UPDATE`). A newer stamp came
+  from something that stayed, such as a research brief the agent stamps itself,
+  so it stays. Before it moves anything the move locks both company rows with
+  `FOR NO KEY UPDATE`, sorted by id, so two deals leaving one company recompute
+  one after the other and never from a stale snapshot. The deal's `FOR UPDATE`
+  comes first, before `fields.applyValues`: a `FieldValue` insert takes a key
+  share on the deal, and two moves holding one each would deadlock.
+- **`attachContact` checks the company under the deal's `FOR UPDATE`**, the same
+  row lock a company move takes, and upserts in that transaction. An attach that
+  races a move either lands first and is removed by the move, or runs after it
+  and is refused.
 - **Attaching is an upsert and re-attaching keeps the role already there**, so a
   double click cannot blank what somebody typed.
 - **Detaching removes the row, never the contact.** They stay in the CRM, on the
@@ -875,7 +910,10 @@ picker reads.
 `createdById` is the signed-in user. The one exception to null `meta` is a win
 back task: the follow up task (`{ winBack: true }`), assigned to the rep, so the rep
 moves it, and the "Remind me" task (`{ winBack: true, later: true }`), which the rep
-wrote and may undo. A synced mail, a meeting, and anything the agent or tracking wrote stay
+wrote and may undo. The follow up task's rep is the active member who decided the
+verdict, else the contact's active owner, else the active owner or admin who joined the
+workspace first (`member.createdAt`, ties to the lower `member.id`); with none of them
+the sweep writes no task. A synced mail, a meeting, and anything the agent or tracking wrote stay
 read only. `Activity` has no `archivedAt`,
 so a delete is final. After it, `lastActivityAt` is recomputed for the company,
 contact and deal; a failure there is logged, never thrown.
@@ -975,7 +1013,13 @@ Below is `purge`'s contract — everything that used to be `delete`'s:
 - **Purging a company does not suppress its domain** — its people survive with no
   company, and domain suppression stays the explicit Settings → Connections control.
 - **Clear `AgentTask` and `AgentEvent` yourself** — they carry `contactId`/`companyId`
-  with no foreign key, so nothing cascades.
+  with no foreign key, so nothing cascades. A `webhook-delivery` task carries the id
+  of the record its event is about, so an open delivery goes with the record and
+  never sends a purged person.
+- **Clear the person's `FormSubmission` rows**, by `contactId` before the contact
+  row goes (the relation is `SetNull`) and by the address, case-insensitively, after
+  it. A form they sent is their name and their words, and an unlinked one is still
+  theirs.
 - **Recompute `lastActivityAt` on exactly the records the purge reached.**
   `ActivityStampService.targetsOf(where)` collects them *inside* the transaction (the
   evidence is what gets deleted); `recomputeMany` restamps. A company's `where` must
@@ -1121,6 +1165,27 @@ marked passages and the follow-up delay. It writes nothing but an
   claims it only after the stories reps asked for. When a rep opens a person whose
   prefetched task still waits, `person` lifts it to `PRIORITY.personStory` through
   `personStoryOpened`. A task the budget postponed keeps its date.
+- **The email is written ahead too, for fewer people.** The same two calls hand
+  their people to `WinBackDraftPrefetchService`
+  (`reactivation/win-back-draft-prefetch.service.ts`): the first
+  `PERSON_VIEW.prefetch.drafts.top` of the list and the next person. It queues
+  `email-draft` only for a person with an address, mail, no stored draft and no open
+  draft task. Mail is `threadsOfContact`, so a person who only takes part in a
+  colleague's thread counts, as in the draft agent. It checks the stored draft and a finished try again under the lock.
+  A stored draft that is stale is left alone; a rep's open asks for that one. The
+  `retryAfterMs` pause holds here as well, so a person whose draft came back empty is
+  not queued on every list read.
+- **A draft prefetch never spends a rep's last drafts.** The writes go through
+  `AgentTriggerService.emailDraftsPrefetched`, with the same per-contact lock as
+  `enqueue` and one lock for the prefetch budget. It stops at
+  `PERSON_VIEW.prefetch.drafts.perMonth` prefetched drafts in the usage window, and
+  keeps a share of any draft allowance for drafts a rep asks for. Without an AI
+  provider (no stored key, no `OPENROUTER_API_KEY`, no ChatGPT usage the agent has
+  recorded) it queues nothing.
+- **A draft a rep looks at goes first.** A prefetched draft carries
+  `PRIORITY.draftPrefetch`, just below `storyPrefetch`. When `contacts.draft` finds
+  it still waiting, `emailDraftOpened` lifts it to `PRIORITY.emailDraft`. The lifted
+  task no longer counts against the prefetch cap.
 - **A reference to a message that no longer exists is dropped on read**
   (`keepKnownMessages`). A message the story names but older than the newest
   `PERSON_VIEW.mails` is added to the list, so "where Reloop knows this from" always
@@ -1151,6 +1216,41 @@ marked passages and the follow-up delay. It writes nothing but an
   same as taking it off.
 - **`contacts.draft` carries a one-off version beside the draft** (`oneOff`), written
   by `writeDraft` with `oneOff: true`; the stored draft stays as suggested.
+- **Opening a person rewrites a stale draft.** The person page calls
+  `contacts.refreshDraft` once when it mounts, never from a sweep. The API queues a
+  normal `email-draft` task only when the stored draft is `stale`, no draft task is
+  open or held, any draft allowance has room, and no finished draft task
+  was created after the newest mail was stored (the newest `EmailMessage.createdAt`). That last
+  check spends one try per newer mail, so a draft that stays stale does not cost a
+  draft on every open, and mail stored while a draft was written still counts. When the
+  call queued a task, the page cancels a draft read in flight before it writes the
+  result, so polling sees the queued task. A call that queued nothing makes the page
+  read the state again instead of writing its own answer, so a late answer never
+  hides a write a click queued and a draft written meanwhile shows. A manual write
+  cancels a read in flight the same way before it stores its answer. After the win back mail
+  goes out, this is how the follow-up replaces the sent text.
+- **A manual write names the draft it saw.** `contacts.writeDraft` takes `seen`, the
+  `writtenAt` of the draft on screen or null for none, and `useEmailDraft` always
+  sends it without a wish. Under the same task lock as `refreshDraft`
+  (`agent-task:email-draft:<contactId>`) the API queues only while the stored draft
+  is still that one, so an open and a click that race write one draft for a mail.
+  It looks for an open draft task first and reads the stored draft after, because a
+  draft task stores its draft before it finishes and does not take the lock.
+  Write again on the draft a rep reads still queues. A call without `seen` and a
+  call with a wish behave as before. `refreshDraft` makes the same check with the
+  draft it found stale, so a draft another task stored meanwhile is not rewritten.
+- **The win back follow-up task opens the person page.** The overview's task lists
+  read `meta` and the contact of each task, and a task whose `meta` is
+  `{ winBack: true }` (`winBackTaskMeta` in `@crm/validation/activity-meta`) links
+  to `/<slug>/win-back/<contactId>` instead of the record sheet.
+- **A stale draft at the draft limit says so.** When `contacts.draft` answers with
+  `waitingUntil` and a draft that is `stale`, the page shows "Newer mail has arrived
+  since this draft." and the limit text with its date above it (`draftLimitHint` in
+  `win-back/[contactId]/person-view.ts`). The old draft stays readable below.
+- **The draft limit counts what the budget counts.** `draftLimitResumesAt` counts
+  `budgetTasksWhere(DRAFT_KIND, since)`, the set the agent's gate and the usage page
+  count, so a draft task that finished without ever starting never makes the page
+  say the limit is reached.
 - **`followUpDays` is null when the win back follow-up function is off**, so the page
   never promises a reminder the sweep will not write.
 - The mailbox link of a message is `mailboxLinkOf` (`mailbox/mailbox-link.ts`), shared

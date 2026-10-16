@@ -58,6 +58,21 @@ export const workspaceRow = cache(
 		)) ?? null,
 );
 
+export const businessDraftMaterial = cache(
+	async (): Promise<{ threads: number; website: boolean }> =>
+		(await inScope(async () => {
+			const [threads, workspace] = await Promise.all([
+				db.emailThread.count(),
+				db.organization.findUnique({
+					where: { id: WORKSPACE_ID },
+					select: { website: true },
+				}),
+			]);
+
+			return { threads, website: Boolean(workspace?.website?.trim()) };
+		})) ?? { threads: 0, website: false },
+);
+
 export async function requireMailboxAccess(): Promise<Session> {
 	const session = await requireSession();
 

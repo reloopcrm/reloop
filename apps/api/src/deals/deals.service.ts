@@ -37,6 +37,7 @@ import {
 } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
+import { pagesByIds } from "../exports/export-pages";
 import { EXPORTS } from "../exports/exports-config";
 import { FieldsService } from "../fields/fields.service";
 import {
@@ -48,6 +49,7 @@ import {
 	ownerFilter,
 	paginate,
 	resolveOrderBy,
+	withIdTieBreak,
 } from "../trpc/list-input";
 import type {
 	ClosingWindow,
@@ -342,23 +344,25 @@ export class DealsService {
 		};
 	}
 
-	async *exportRows(input: DealListInput): AsyncGenerator<DealExportRow[]> {
+	async *exportRows(
+		input: DealListInput,
+		pageSize: number = EXPORTS.page.size,
+	): AsyncGenerator<DealExportRow[]> {
 		const filterableFields = await this.fields.filterableFieldsFor("DEAL");
 		const where = this.buildWhere(input, filterableFields);
-		let cursor: string | undefined;
+		const orderBy = withIdTieBreak(
+			resolveOrderBy(input, SORTABLE, [{ createdAt: "desc" }]),
+		);
+		const ids = (
+			await this.db.deal.findMany({ where, orderBy, select: { id: true } })
+		).map((row) => row.id);
 
-		for (;;) {
-			const rows = await this.db.deal.findMany({
-				where,
-				orderBy: { id: "asc" },
-				take: EXPORTS.page.size,
-				cursor: cursor ? { id: cursor } : undefined,
-				skip: cursor ? 1 : 0,
+		for await (const rows of pagesByIds(ids, pageSize, (chunk) =>
+			this.db.deal.findMany({
+				where: { id: { in: chunk } },
 				select: DEAL_EXPORT_SELECT,
-			});
-
-			if (rows.length === 0) return;
-
+			}),
+		)) {
 			const values = await this.fields.exportValuesFor(
 				"DEAL",
 				rows.map((row) => row.id),
@@ -368,9 +372,6 @@ export class DealsService {
 				...row,
 				fields: values.get(row.id) ?? {},
 			}));
-
-			if (rows.length < EXPORTS.page.size) return;
-			cursor = rows.at(-1)?.id;
 		}
 	}
 
@@ -553,17 +554,8 @@ export class DealsService {
 			Object.assign(data, await this.conversion.dealFields(amount, currency));
 		}
 
-		let outcome: {
-			updated: { id: string; name: string };
-			moved: { from: string; to: string } | null;
-		};
-
 		try {
-			outcome = await this.db.$transaction(async (tx) => {
-				if (input.fields) {
-					await this.fields.applyValues(tx, "DEAL", id, input.fields);
-				}
-
+			return await this.db.$transaction(async (tx) => {
 				const [before] =
 					input.companyId === undefined
 						? []
@@ -571,32 +563,45 @@ export class DealsService {
 								SELECT "companyId" FROM deal WHERE id = ${id} FOR UPDATE
 							`;
 
+				if (before && input.companyId && before.companyId !== input.companyId) {
+					await this.lockCompanies(tx, [before.companyId, input.companyId]);
+				}
+
+				if (input.fields) {
+					await this.fields.applyValues(tx, "DEAL", id, input.fields);
+				}
+
 				const result = await tx.deal.update({
 					where: { id },
 					data,
 					select: { id: true, name: true, companyId: true },
 				});
 
-				const updated = { id: result.id, name: result.name };
-
-				if (!before || before.companyId === result.companyId) {
-					return { updated, moved: null };
+				if (before && before.companyId !== result.companyId) {
+					await this.moveToCompany(tx, id, result.companyId);
+					await this.restampMove(tx, id, {
+						from: before.companyId,
+						to: result.companyId,
+					});
 				}
 
-				await this.moveToCompany(tx, id, result.companyId);
-
-				return {
-					updated,
-					moved: { from: before.companyId, to: result.companyId },
-				};
+				return { id: result.id, name: result.name };
 			});
 		} catch (error) {
 			throw this.translate(error, id);
 		}
+	}
 
-		if (outcome.moved) await this.restampMove(id, outcome.moved);
-
-		return outcome.updated;
+	private async lockCompanies(
+		tx: Prisma.TransactionClient,
+		ids: string[],
+	): Promise<void> {
+		await tx.$queryRaw`
+			SELECT id FROM company
+			WHERE id IN (${PrismaNamespace.join([...ids].sort())})
+			ORDER BY id
+			FOR NO KEY UPDATE
+		`;
 	}
 
 	private async moveToCompany(
@@ -619,28 +624,18 @@ export class DealsService {
 	}
 
 	private async restampMove(
+		tx: Prisma.TransactionClient,
 		dealId: string,
 		moved: { from: string; to: string },
 	): Promise<void> {
-		try {
-			const { _max } = await this.db.activity.aggregate({
-				where: { dealId },
-				_max: { createdAt: true },
-			});
-			if (_max.createdAt) {
-				await this.stamp.touch({ companyId: moved.to }, _max.createdAt);
-			}
-		} catch (error) {
-			this.logger.error(
-				{
-					message:
-						"A deal moved company but the new company's activity stamp was not raised",
-					dealId,
-					...moved,
-				},
-				error instanceof Error ? error.stack : String(error),
-			);
-		}
+		const { _max } = await tx.activity.aggregate({
+			where: { dealId },
+			_max: { createdAt: true },
+		});
+		if (!_max.createdAt) return;
+
+		await this.stamp.touch({ companyId: moved.to }, _max.createdAt, tx);
+		await this.stamp.releaseMovedDeal(moved.from, dealId, tx);
 	}
 
 	async archive(id: string): Promise<{ id: string; name: string }> {
@@ -884,33 +879,35 @@ export class DealsService {
 	}
 
 	async attachContact(input: DealAttachContactInput) {
-		const company = await this.companyOf(input.dealId);
-		const contact = await this.db.contact.findUnique({
-			where: { id: input.contactId },
-			select: { companyId: true },
-		});
-
-		if (!contact) {
-			throw new NotFoundException(`No contact with id ${input.contactId}.`);
-		}
-
-		if (contact.companyId !== company.id) {
-			throw new BadRequestException(
-				`That contact does not work at ${company.name}.`,
-			);
-		}
-
 		const role = roleOrNull(input.role ?? null);
 
-		await this.db.dealContact.upsert({
-			where: {
-				dealId_contactId: {
-					dealId: input.dealId,
-					contactId: input.contactId,
+		await this.db.$transaction(async (tx) => {
+			const company = await this.lockedCompanyOf(tx, input.dealId);
+			const contact = await tx.contact.findUnique({
+				where: { id: input.contactId },
+				select: { companyId: true },
+			});
+
+			if (!contact) {
+				throw new NotFoundException(`No contact with id ${input.contactId}.`);
+			}
+
+			if (contact.companyId !== company.id) {
+				throw new BadRequestException(
+					`That contact does not work at ${company.name}.`,
+				);
+			}
+
+			await tx.dealContact.upsert({
+				where: {
+					dealId_contactId: {
+						dealId: input.dealId,
+						contactId: input.contactId,
+					},
 				},
-			},
-			create: { dealId: input.dealId, contactId: input.contactId, role },
-			update: role === null ? {} : { role },
+				create: { dealId: input.dealId, contactId: input.contactId, role },
+				update: role === null ? {} : { role },
+			});
 		});
 
 		this.logger.log({
@@ -1008,17 +1005,19 @@ export class DealsService {
 		return runBulk(ids, (id) => this.purge(id));
 	}
 
-	private async companyOf(dealId: string) {
-		const deal = await this.db.deal.findUnique({
-			where: { id: dealId },
-			select: { company: { select: { id: true, name: true } } },
-		});
+	private async lockedCompanyOf(tx: Prisma.TransactionClient, dealId: string) {
+		const [deal] = await tx.$queryRaw<Array<{ companyId: string }>>`
+			SELECT "companyId" FROM deal WHERE id = ${dealId} FOR UPDATE
+		`;
 
 		if (!deal) {
 			throw new NotFoundException(`No deal with id ${dealId}.`);
 		}
 
-		return deal.company;
+		return tx.company.findUniqueOrThrow({
+			where: { id: deal.companyId },
+			select: { id: true, name: true },
+		});
 	}
 
 	private searchFilter(q: string): Prisma.DealWhereInput {

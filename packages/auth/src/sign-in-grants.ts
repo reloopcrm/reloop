@@ -1,6 +1,13 @@
-import { type Db, db as defaultDb } from "@crm/db";
+import {
+	type Db,
+	db as defaultDb,
+	GoogleSyncStatus,
+	type Prisma,
+} from "@crm/db";
 import { SETTINGS_ID } from "@crm/db/settings";
+import { MAILBOX_ACCESS_ENDED_REASON } from "@crm/validation/mailbox-reasons";
 import { canGrantSignIn, type WorkspaceRole } from "./roles";
+import { SLACK_PROVIDER_ID } from "./scopes";
 import { isWorkspaceEmail } from "./workspace";
 
 export const SIGN_IN_GRANTS = {
@@ -47,8 +54,51 @@ export async function isSignInAllowed(
 	return (await readSignInGrants(database)).includes(address);
 }
 
+type GrantStore = Pick<
+	Prisma.TransactionClient,
+	"appSetting" | "$queryRaw" | "$executeRaw"
+>;
+
+async function selectGrantsForUpdate(
+	tx: GrantStore,
+): Promise<readonly string[] | null> {
+	const rows = await tx.$queryRaw<{ signInAddresses: string[] }[]>`
+		SELECT "signInAddresses" FROM "appSetting"
+		WHERE id = ${SETTINGS_ID}
+		FOR UPDATE
+	`;
+
+	return rows[0]?.signInAddresses ?? null;
+}
+
+async function lockSignInGrants(tx: GrantStore): Promise<readonly string[]> {
+	const granted = await selectGrantsForUpdate(tx);
+	if (granted) return granted;
+
+	await tx.$executeRaw`
+		INSERT INTO "appSetting" (id, "updatedAt")
+		VALUES (${SETTINGS_ID}, now())
+		ON CONFLICT (id) DO NOTHING
+	`;
+
+	return (await selectGrantsForUpdate(tx)) ?? [];
+}
+
 export async function grantSignIn(
 	database: Db,
+	email: string,
+	role: WorkspaceRole | null,
+): Promise<boolean> {
+	if (isWorkspaceEmail(email)) return true;
+	if (!canGrantSignIn(role)) return false;
+
+	return database.$transaction((tx) =>
+		grantSignInInTransaction(tx, email, role),
+	);
+}
+
+export async function grantSignInInTransaction(
+	tx: GrantStore,
 	email: string,
 	role: WorkspaceRole | null,
 ): Promise<boolean> {
@@ -58,16 +108,13 @@ export async function grantSignIn(
 	const address = normalizeSignInAddress(email);
 	if (!address) return false;
 
-	const granted = await readSignInGrants(database);
+	const granted = await lockSignInGrants(tx);
 	if (granted.includes(address)) return true;
 	if (granted.length >= SIGN_IN_GRANTS.maxAddresses) return false;
 
-	const signInAddresses = [...granted, address];
-
-	await database.appSetting.upsert({
+	await tx.appSetting.update({
 		where: { id: SETTINGS_ID },
-		create: { id: SETTINGS_ID, signInAddresses },
-		update: { signInAddresses },
+		data: { signInAddresses: [...granted, address] },
 	});
 
 	return true;
@@ -80,10 +127,10 @@ export async function revokeSignIn(
 	const address = normalizeSignInAddress(email);
 	if (!address) return false;
 
-	const granted = await readSignInGrants(database);
-	if (!granted.includes(address)) return false;
+	return database.$transaction(async (tx) => {
+		const granted = await lockSignInGrants(tx);
+		if (!granted.includes(address)) return false;
 
-	await database.$transaction(async (tx) => {
 		await tx.appSetting.update({
 			where: { id: SETTINGS_ID },
 			data: { signInAddresses: granted.filter((entry) => entry !== address) },
@@ -98,10 +145,18 @@ export async function revokeSignIn(
 			tx,
 			people.map((person) => person.id),
 		);
-	});
 
-	return true;
+		return true;
+	});
 }
+
+const CLEARED_TOKENS = {
+	accessToken: null,
+	refreshToken: null,
+	idToken: null,
+	accessTokenExpiresAt: null,
+	refreshTokenExpiresAt: null,
+} as const;
 
 type CredentialStore = Pick<Db, "session" | "apikey">;
 
@@ -117,4 +172,66 @@ export async function endAccessOf(
 	await database.apikey.deleteMany({
 		where: { referenceId: { in: [...userIds] } },
 	});
+}
+
+type StoredGrantStore = Pick<
+	Db,
+	"account" | "imapAccount" | "mailboxSync" | "slackInstallation"
+>;
+
+export async function forgetStoredGrantsOf(
+	database: StoredGrantStore,
+	userIds: readonly string[],
+): Promise<void> {
+	if (userIds.length === 0) return;
+
+	const people = [...userIds];
+	const slack = await database.account.findMany({
+		where: { userId: { in: people }, providerId: SLACK_PROVIDER_ID },
+		select: { accountId: true },
+	});
+
+	await database.account.updateMany({
+		where: { userId: { in: people }, providerId: { not: SLACK_PROVIDER_ID } },
+		data: CLEARED_TOKENS,
+	});
+	await database.imapAccount.updateMany({
+		where: { userId: { in: people } },
+		data: { secret: null },
+	});
+	await database.mailboxSync.updateMany({
+		where: { userId: { in: people } },
+		data: {
+			status: GoogleSyncStatus.NEEDS_RECONNECT,
+			lastError: MAILBOX_ACCESS_ENDED_REASON,
+			retryAfter: null,
+		},
+	});
+
+	if (slack.length === 0) return;
+
+	await database.slackInstallation.updateMany({
+		where: { installerId: { in: slack.map((account) => account.accountId) } },
+		data: { userToken: null },
+	});
+}
+
+export async function forgetGrantOfRemovedUser(
+	account: { id: string; userId: string; providerId: string },
+	database: Pick<Db, "user" | "account"> = defaultDb,
+): Promise<boolean> {
+	if (account.providerId === SLACK_PROVIDER_ID) return false;
+
+	const user = await database.user.findUnique({
+		where: { id: account.userId },
+		select: { removedAt: true },
+	});
+	if (!user?.removedAt) return false;
+
+	await database.account.updateMany({
+		where: { id: account.id },
+		data: CLEARED_TOKENS,
+	});
+
+	return true;
 }

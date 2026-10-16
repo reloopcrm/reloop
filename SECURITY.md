@@ -50,7 +50,12 @@ an old login or an old key back. Taking the address off
 **Removing a member closes the door that `ALLOWED_SIGN_IN` leaves open.** Settings → Members →
 Remove from workspace (`workspace.removeMember`, owner or admin, never yourself, never the last
 owner, and an admin never removes an owner) stamps `user.removedAt`, deletes the member row, every
-session and every API key of that person, and revokes their granted address. The
+session and every API key of that person, and revokes their granted address. In the same
+transaction it clears the Google and Microsoft access, refresh and id tokens, the sealed IMAP
+password and a pending Slack user token of that person, and sets their mailboxes to
+`NEEDS_RECONNECT`. Adding the person again brings none of them back; each mailbox resumes only
+when it is connected again. The workspace Slack bot token and the workspace Slack user grant stay,
+because they belong to the workspace. The
 `session.create.before` hook refuses a user with `removedAt`, so a domain on `ALLOWED_SIGN_IN` does
 not let them back in.
 

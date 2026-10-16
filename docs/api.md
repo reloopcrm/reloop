@@ -110,16 +110,33 @@ here, what do we sell.
   *and* used to disable the UI control, so the button and the 403 cannot disagree.
   They live in `packages/auth/src/roles.ts`, which imports nothing, so a client
   component reaches them through `@crm/auth/roles` without pulling Prisma in.
-  `WorkspaceService` adds two invariants: **the last owner cannot be demoted**, with
-  `FOR UPDATE` on the owner rows before counting, and **only an owner grants or
-  changes `owner`** (`canAssignRole`).
+  `WorkspaceService` adds two invariants: **the last owner cannot be demoted**, and
+  **only an owner grants or changes `owner`** (`canAssignRole`). `setMemberRole` and
+  `removeMember` read the caller, the target and every owner row in one
+  `SELECT ... ORDER BY id FOR UPDATE` inside the transaction, and decide on those rows
+  only. A concurrent promotion therefore cannot let an admin remove a fresh owner, and
+  two role changes cannot deadlock on each other.
 - **Removing a member takes the access and keeps the data.** `workspace.removeMember`
   (`SessionOnlyMiddleware`) checks `canRemoveMember`: owner or admin, and an admin never
   removes an owner. Nobody removes themselves, and the last owner stays, with the same
   `FOR UPDATE` count as a demotion. The `user` row stays, because contacts, deals,
   activities, agent runs and more than twenty other relations point at it; it gets
   `removedAt`. The `member` row, every `session` and every `apikey` of the person are
-  deleted; no other table points at them. The gate is `removedAt` in
+  deleted; no other table points at them. In the same transaction
+  `forgetStoredGrantsOf` clears the stored grants and keeps their rows: the access,
+  refresh and id tokens and their expiry on every `account` except Slack, the sealed
+  `imapAccount.secret`, and the user token of a pending `slackInstallation` of that person. Every
+  `mailboxSync` row of the person turns `NEEDS_RECONNECT` with
+  `MAILBOX_ACCESS_ENDED_REASON`, so cursors, settings and filed mail stay and the
+  tick skips the rows. Only connecting the mailbox again resumes it: Google and
+  Microsoft through their reconnect, IMAP through `imap.add` with the same address,
+  which writes the new password into the kept row and keeps its cursor. `imap.add`
+  saves a password under a `FOR UPDATE` lock on the `user` row and refuses a removed
+  user, so a removal during the server sign-in check wins. A token
+  refresh that lands after the removal is cleared again in `afterAccountWrite`
+  (`forgetGrantOfRemovedUser`) and never clears `NEEDS_RECONNECT`. The Slack
+  `account` row holds the workspace bot token and `SlackWorkspaceGrant` the
+  workspace user token; neither is the person's, so both stay. The gate is `removedAt` in
   `databaseHooks.session.create.before`, not the allow-list: a domain on
   `ALLOWED_SIGN_IN` still matches the address, and without the stamp the next sign-in
   would enrol the person again. The granted address in `AppSetting.signInAddresses` is
@@ -128,7 +145,9 @@ here, what do we sell.
   `users.list`, of the first enrolment in `ensureWorkspaceMembership`, and of the
   mailbox sync (`dueWhere`), so their inbox stops feeding the CRM. `addPerson` with the
   address of a removed person takes them back: it clears `removedAt`, creates the member
-  row with the chosen role, sets a new password and grants the address again. No
+  row with the chosen role, sets a new password and grants the address again. The grant
+  is written in the same transaction as the user and member rows, after the "already has
+  an account" check, so a failed add leaves no address on `AppSetting.signInAddresses`. No
   second `user` row, so their records
   are theirs again. An active person still gets "That address already has an account."
   Every `addPerson` calls `cloud.onMemberAdded()`, a no-op here.
@@ -221,6 +240,9 @@ self-hoster's admin cannot redeploy.
   environment-only half, and `workspaceDomains()` still answers "is this address us" for the
   mailbox and the tracking filter. The database is read only when the environment already said no.
   See `SECURITY.md` for what the boundary holds.
+- **Grants change under a row lock.** `grantSignIn`, `grantSignInInTransaction` and
+  `revokeSignIn` read `AppSetting.signInAddresses` with `FOR UPDATE` in their
+  transaction, so two grants, or a grant and a revoke, never overwrite each other.
 - **`revokeSignIn` ends access, not only the grant.** In one transaction it takes the
   address off `AppSetting.signInAddresses` and runs `endAccessOf`, which deletes every
   `session` and every `apikey` of the account with that address. `removeMember` runs the

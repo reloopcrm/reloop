@@ -254,29 +254,51 @@ describe("the texts that reach t() through a variable", () => {
 	}
 });
 
+function authErrorMessage(node: ts.NewExpression): ts.Node | undefined {
+	const body = node.arguments?.[1];
+	if (!body || !ts.isObjectLiteralExpression(body)) return undefined;
+
+	const message = body.properties.find(
+		(property) =>
+			ts.isPropertyAssignment(property) &&
+			property.name.getText() === "message",
+	);
+
+	return message && ts.isPropertyAssignment(message)
+		? message.initializer
+		: undefined;
+}
+
 async function apiExceptionMessages(): Promise<Map<string, string>> {
-	const root = fileURLToPath(new URL("../../api/src/", import.meta.url));
+	const roots = [
+		fileURLToPath(new URL("../../api/src/", import.meta.url)),
+		fileURLToPath(new URL("../../../packages/auth/src/", import.meta.url)),
+	];
 	const found = new Map<string, string>();
 
-	for await (const path of new Bun.Glob("**/*.ts").scan(root)) {
-		const source = ts.createSourceFile(
-			path,
-			await Bun.file(`${root}/${path}`).text(),
-			ts.ScriptTarget.Latest,
-			true,
-		);
-		const visit = (node: ts.Node): void => {
-			if (
-				ts.isNewExpression(node) &&
-				/Exception$/.test(node.expression.getText(source))
-			) {
-				const message = node.arguments?.[0];
-				if (message && ts.isStringLiteral(message))
-					found.set(message.text, path);
-			}
-			ts.forEachChild(node, visit);
-		};
-		visit(source);
+	for (const root of roots) {
+		for await (const path of new Bun.Glob("**/*.ts").scan(root)) {
+			const source = ts.createSourceFile(
+				path,
+				await Bun.file(`${root}/${path}`).text(),
+				ts.ScriptTarget.Latest,
+				true,
+			);
+			const visit = (node: ts.Node): void => {
+				if (ts.isNewExpression(node)) {
+					const name = node.expression.getText(source);
+					const message = /Exception$/.test(name)
+						? node.arguments?.[0]
+						: name === "APIError"
+							? authErrorMessage(node)
+							: undefined;
+					if (message && ts.isStringLiteral(message))
+						found.set(message.text, path);
+				}
+				ts.forEachChild(node, visit);
+			};
+			visit(source);
+		}
 	}
 
 	return found;

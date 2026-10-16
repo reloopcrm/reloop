@@ -1,6 +1,11 @@
 "use client";
 
 import Add from "@carbon/icons-react/es/Add";
+import {
+	API_KEY_EXPIRATION,
+	type ApiKeyExpirationChoice,
+	expirationDaysOf,
+} from "@crm/auth/api-key-config";
 import { Button } from "@crm/ui/components/button";
 import {
 	Field,
@@ -32,6 +37,7 @@ import { useMutation } from "@tanstack/react-query";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { type ComponentProps, Suspense, useId, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { useErrorMessage, useT } from "@/lib/i18n/client";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
@@ -41,14 +47,14 @@ import { CreatedApiKeyDialog } from "./created-api-key-dialog";
 
 const FORM = "create-api-key";
 
-const EXPIRATION_OPTIONS = [
-	{ value: "30", label: "30 days" },
-	{ value: "90", label: "90 days" },
-	{ value: "365", label: "1 year" },
-	{ value: "never", label: "No expiration" },
-] as const;
+const EXPIRATION_LABEL = {
+	"30": "30 days",
+	"90": "90 days",
+	"365": "1 year",
+	never: "No expiration",
+} as const satisfies Record<ApiKeyExpirationChoice, string>;
 
-type ExpirationValue = (typeof EXPIRATION_OPTIONS)[number]["value"];
+const expirationChoice = z.enum(API_KEY_EXPIRATION.choices);
 
 type CreatedApiKey = RouterOutputs["apiKeys"]["create"];
 
@@ -85,7 +91,9 @@ function CreateApiKeyForm() {
 		parseAsBoolean.withDefault(false),
 	);
 	const [name, setName] = useState("");
-	const [expiration, setExpiration] = useState<ExpirationValue>("90");
+	const [expiration, setExpiration] = useState<ApiKeyExpirationChoice>(
+		API_KEY_EXPIRATION.defaultChoice,
+	);
 	const [created, setCreated] = useState<CreatedApiKey | null>(null);
 
 	const create = useMutation(
@@ -94,7 +102,7 @@ function CreateApiKeyForm() {
 				await cache.apiKeys();
 				await setOpen(null);
 				setName("");
-				setExpiration("90");
+				setExpiration(API_KEY_EXPIRATION.defaultChoice);
 				setCreated(apiKey);
 			},
 			onError: (error) => toast.error(errorMessage(error.message)),
@@ -125,8 +133,7 @@ function CreateApiKeyForm() {
 							event.preventDefault();
 							create.mutate({
 								name: name.trim(),
-								expiresInDays:
-									expiration === "never" ? null : Number(expiration),
+								expiresInDays: expirationDaysOf(expiration),
 							});
 						}}
 					>
@@ -154,17 +161,18 @@ function CreateApiKeyForm() {
 								<FieldLabel htmlFor={expirationId}>{t("Expires")}</FieldLabel>
 								<Select
 									value={expiration}
-									onValueChange={(value) =>
-										setExpiration(value as ExpirationValue)
-									}
+									onValueChange={(value) => {
+										const choice = expirationChoice.safeParse(value);
+										if (choice.success) setExpiration(choice.data);
+									}}
 								>
 									<SelectTrigger id={expirationId} className="w-full">
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										{EXPIRATION_OPTIONS.map((option) => (
-											<SelectItem key={option.value} value={option.value}>
-												{t(option.label)}
+										{API_KEY_EXPIRATION.choices.map((choice) => (
+											<SelectItem key={choice} value={choice}>
+												{t(EXPIRATION_LABEL[choice])}
 											</SelectItem>
 										))}
 									</SelectContent>

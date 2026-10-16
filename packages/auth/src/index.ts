@@ -84,7 +84,9 @@ export {
 } from "./scopes";
 export {
 	endAccessOf,
+	forgetStoredGrantsOf,
 	grantSignIn,
+	grantSignInInTransaction,
 	isSignInAllowed,
 	normalizeSignInAddress,
 	readSignInGrants,

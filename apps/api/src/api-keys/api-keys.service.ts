@@ -1,7 +1,6 @@
 import { auth, DAY_SECONDS } from "@crm/auth";
 import type { Db, Prisma } from "@crm/db";
 import {
-	HttpException,
 	Injectable,
 	InternalServerErrorException,
 	Logger,
@@ -14,6 +13,7 @@ import {
 	paginate,
 	resolveOrderBy,
 } from "../trpc/list-input";
+import { apiKeyException } from "./api-key-errors";
 import type {
 	ApiKeyListInput,
 	ApiKeySummary,
@@ -40,15 +40,6 @@ const SORTABLE: OrderByColumns<Prisma.ApikeyOrderByWithRelationInput> = {
 	lastRequest: (dir) => ({ lastRequest: dir }),
 	expiresAt: (dir) => ({ expiresAt: dir }),
 };
-
-const STATUS_BY_CODE = new Map<string, number>([
-	["BAD_REQUEST", 400],
-	["UNAUTHORIZED", 401],
-	["FORBIDDEN", 403],
-	["NOT_FOUND", 404],
-	["CONFLICT", 409],
-	["UNPROCESSABLE_ENTITY", 400],
-]);
 
 function toSummary(row: KeyRow): ApiKeySummary {
 	return {
@@ -158,15 +149,7 @@ export class ApiKeysService {
 		try {
 			return await run();
 		} catch (error) {
-			if (error instanceof APIError) {
-				const status =
-					STATUS_BY_CODE.get(error.body?.code ?? "") ?? error.statusCode;
-
-				throw new HttpException(
-					error.body?.message ?? "The API key could not be saved.",
-					status,
-				);
-			}
+			if (error instanceof APIError) throw apiKeyException(error);
 
 			this.logger.error(
 				{ message: "API key call failed" },

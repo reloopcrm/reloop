@@ -4,7 +4,7 @@ import { z } from "zod";
 import { listInput } from "../trpc/list-input";
 
 export const memberListInput = listInput.extend({
-	role: z.array(z.string()).default([]),
+	role: z.array(z.enum(WORKSPACE_ROLES)).default([]),
 });
 
 export type MemberListInput = z.infer<typeof memberListInput>;

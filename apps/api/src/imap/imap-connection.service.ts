@@ -1,4 +1,4 @@
-import type { Db, Prisma } from "@crm/db";
+import { type Db, GoogleSyncStatus, type Prisma } from "@crm/db";
 import { planLimitsOf } from "@crm/db/plan-usage";
 import { clampImportSince } from "@crm/db/plans";
 import {
@@ -108,11 +108,13 @@ export class ImapConnectionService {
 
 		const existing = await this.db.imapAccount.findUnique({
 			where: { userId_email: { userId, email } },
-			select: { id: true },
+			select: { id: true, secret: true },
 		});
-		if (existing) {
+		if (existing?.secret) {
 			throw new BadRequestException(`${email} is already connected.`);
 		}
+
+		if (existing) return this.reconnect(userId, existing.id, input);
 
 		const limits = await planLimitsOf(this.db);
 
@@ -125,6 +127,99 @@ export class ImapConnectionService {
 			new Date(),
 		);
 
+		await this.checkSignIn(input);
+
+		const secret = this.credentials.seal(input.password);
+
+		const account = await this.whileActive(userId, async (tx) => {
+			const created = await tx.imapAccount.create({
+				data: {
+					userId,
+					email,
+					host: input.host,
+					port: input.port,
+					secure: input.secure,
+					username: input.username,
+					secret,
+					importSince,
+				},
+				select: { id: true },
+			});
+
+			await startSync(
+				tx,
+				userId,
+				imapSourceFor(created.id),
+				policyOf(input.createFrom),
+			);
+
+			return created;
+		});
+
+		this.logger.log({
+			message: "IMAP mailbox connected",
+			userId,
+			accountId: account.id,
+		});
+
+		return this.status(userId);
+	}
+
+	private async reconnect(
+		userId: string,
+		id: string,
+		input: AddImapAccountInput,
+	): Promise<ImapStatus> {
+		await this.checkSignIn(input);
+
+		const secret = this.credentials.seal(input.password);
+
+		await this.whileActive(userId, async (tx) => {
+			await tx.imapAccount.update({
+				where: { id },
+				data: {
+					host: input.host,
+					port: input.port,
+					secure: input.secure,
+					username: input.username,
+					secret,
+				},
+			});
+
+			await startSync(
+				tx,
+				userId,
+				imapSourceFor(id),
+				policyOf(input.createFrom),
+			);
+		});
+
+		this.logger.log({
+			message: "IMAP mailbox reconnected",
+			userId,
+			accountId: id,
+		});
+
+		return this.status(userId);
+	}
+
+	private async whileActive<T>(
+		userId: string,
+		write: (tx: Prisma.TransactionClient) => Promise<T>,
+	): Promise<T> {
+		return this.db.$transaction(async (tx) => {
+			const people = await tx.$queryRaw<{ removedAt: Date | null }[]>`
+				SELECT "removedAt" FROM "user" WHERE id = ${userId} FOR UPDATE
+			`;
+			if (!people[0] || people[0].removedAt) {
+				throw new NotFoundException("That mailbox is not connected.");
+			}
+
+			return write(tx);
+		});
+	}
+
+	private async checkSignIn(input: AddImapAccountInput): Promise<void> {
 		const connected = await this.clients.connect({
 			host: input.host,
 			port: input.port,
@@ -138,34 +233,6 @@ export class ImapConnectionService {
 		}
 
 		await connected.session.close();
-
-		const account = await this.db.imapAccount.create({
-			data: {
-				userId,
-				email,
-				host: input.host,
-				port: input.port,
-				secure: input.secure,
-				username: input.username,
-				secret: this.credentials.seal(input.password),
-				importSince,
-			},
-			select: { id: true },
-		});
-
-		await this.state.ensure(
-			userId,
-			imapSourceFor(account.id),
-			policyOf(input.createFrom),
-		);
-
-		this.logger.log({
-			message: "IMAP mailbox connected",
-			userId,
-			accountId: account.id,
-		});
-
-		return this.status(userId);
 	}
 
 	async reconcileAll(): Promise<void> {
@@ -291,6 +358,30 @@ export class ImapConnectionService {
 			throw new NotFoundException("That mailbox is not connected.");
 		}
 	}
+}
+
+async function startSync(
+	tx: Prisma.TransactionClient,
+	userId: string,
+	source: string,
+	policy: ImapCreatePolicy,
+): Promise<void> {
+	await tx.mailboxSync.upsert({
+		where: { userId_source: { userId, source } },
+		create: {
+			userId,
+			source,
+			status: GoogleSyncStatus.IDLE,
+			autoCreate: policy.autoCreate,
+			createWithoutReply: policy.createWithoutReply,
+			createFrom: policy.createFrom,
+		},
+		update: {
+			status: GoogleSyncStatus.IDLE,
+			lastError: null,
+			retryAfter: null,
+		},
+	});
 }
 
 function policyOf(createFrom: ImapCreateFrom): ImapCreatePolicy {

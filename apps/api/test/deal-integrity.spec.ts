@@ -12,6 +12,7 @@ import { FieldsService } from "../src/fields/fields.service";
 const suffix = process.env.TEST_RUN_ID ?? "deal-integrity-spec";
 const userId = `user-${suffix}-deal-integrity`;
 const domain = `deal-integrity-${suffix}.test`;
+const fieldPrefix = `deal_integrity_${suffix}_`;
 
 const events: CrmEventInput[] = [];
 
@@ -48,6 +49,9 @@ async function clean() {
 		where: { company: { domain: { endsWith: domain } } },
 	});
 	await db.company.deleteMany({ where: { domain: { endsWith: domain } } });
+	await db.fieldDefinition.deleteMany({
+		where: { key: { startsWith: fieldPrefix } },
+	});
 	await db.user.deleteMany({ where: { id: userId } });
 }
 
@@ -254,5 +258,337 @@ describe("an archived deal", () => {
 		expect(stored.stage).toBe(DealStage.DEMO_BOOKED);
 		expect(stored.closedAt).toBeNull();
 		expect(events).toEqual([]);
+	});
+});
+
+describe("the old company's activity stamp after a move", () => {
+	const older = new Date("2026-03-01T10:00:00.000Z");
+	const moved = new Date("2026-03-05T10:00:00.000Z");
+	const agentStamp = new Date("2026-03-09T10:00:00.000Z");
+
+	async function movingDeal(key: string, stamp: Date) {
+		const from = await company(`${key}-from`);
+		const to = await company(`${key}-to`);
+		const deal = await deals.create({
+			name: `Stamp ${key} ${suffix}`,
+			companyId: from.id,
+			ownerId: userId,
+		});
+		await db.activity.create({
+			data: {
+				type: ActivityType.NOTE,
+				subject: "Deal call",
+				companyId: from.id,
+				dealId: deal.id,
+				createdById: userId,
+				createdAt: moved,
+			},
+		});
+		await db.company.update({
+			where: { id: from.id },
+			data: { lastActivityAt: stamp },
+		});
+		return { from, to, deal };
+	}
+
+	async function stampOf(id: string) {
+		const stored = await db.company.findUniqueOrThrow({
+			where: { id },
+			select: { lastActivityAt: true },
+		});
+		return stored.lastActivityAt;
+	}
+
+	it("drops to the newest activity the old company still has", async () => {
+		const { from, to, deal } = await movingDeal("lower", moved);
+		await db.activity.create({
+			data: {
+				type: ActivityType.NOTE,
+				subject: "Company call",
+				companyId: from.id,
+				createdById: userId,
+				createdAt: older,
+			},
+		});
+
+		await deals.update(deal.id, { companyId: to.id });
+
+		expect(await stampOf(from.id)).toEqual(older);
+		expect(await stampOf(to.id)).toEqual(moved);
+	});
+
+	it("is empty when the old company has no activity left", async () => {
+		const { from, to, deal } = await movingDeal("empty", moved);
+
+		await deals.update(deal.id, { companyId: to.id });
+
+		expect(await stampOf(from.id)).toBeNull();
+	});
+
+	it("keeps a newer stamp the agent wrote without a moved activity", async () => {
+		const { from, to, deal } = await movingDeal("agent", agentStamp);
+
+		await deals.update(deal.id, { companyId: to.id });
+
+		expect(await stampOf(from.id)).toEqual(agentStamp);
+		expect(await stampOf(to.id)).toEqual(moved);
+	});
+});
+
+describe("two quick moves of one deal", () => {
+	it("leaves no stamp at the company the deal left", async () => {
+		const first = await company("quick-first");
+		const second = await company("quick-second");
+		const at = new Date("2026-04-02T10:00:00.000Z");
+
+		let delayed = false;
+		let started = () => {};
+		const stampStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		class SlowStamp extends ActivityStampService {
+			override async touch(
+				...args: Parameters<ActivityStampService["touch"]>
+			): Promise<void> {
+				if (!delayed && args[0].companyId === second.id) {
+					delayed = true;
+					started();
+					await Bun.sleep(400);
+				}
+				return super.touch(...args);
+			}
+		}
+		const slow = new DealsService(
+			db,
+			agent,
+			new SlowStamp(db),
+			new ConversionService(db),
+			new FieldsService(db, { fieldBackfill: async () => undefined } as never),
+		);
+
+		const deal = await deals.create({
+			name: `Quick moves ${suffix}`,
+			companyId: first.id,
+			ownerId: userId,
+		});
+		await db.activity.create({
+			data: {
+				type: ActivityType.NOTE,
+				subject: "Quick notes",
+				companyId: first.id,
+				dealId: deal.id,
+				createdById: userId,
+				createdAt: at,
+			},
+		});
+		await db.company.update({
+			where: { id: first.id },
+			data: { lastActivityAt: at },
+		});
+
+		const away = slow.update(deal.id, { companyId: second.id });
+		await stampStarted;
+		const back = slow.update(deal.id, { companyId: first.id });
+		await Promise.all([away, back]);
+
+		const stamps = await db.company.findMany({
+			where: { id: { in: [first.id, second.id] } },
+			select: { id: true, lastActivityAt: true },
+		});
+		const stampOf = (id: string) =>
+			stamps.find((row) => row.id === id)?.lastActivityAt;
+		expect(stampOf(first.id)).toEqual(at);
+		expect(stampOf(second.id)).toBeNull();
+	});
+});
+
+describe("two deals leaving one company at once", () => {
+	it("leaves the company no stamp from activity it gave away", async () => {
+		const home = await company("leave-home");
+		const north = await company("leave-north");
+		const south = await company("leave-south");
+		const newer = new Date("2026-05-09T10:00:00.000Z");
+		const older = new Date("2026-05-02T10:00:00.000Z");
+
+		let paused = false;
+		let released = () => {};
+		const firstReleased = new Promise<void>((resolve) => {
+			released = resolve;
+		});
+		class SlowRelease extends ActivityStampService {
+			override async releaseMovedDeal(
+				...args: Parameters<ActivityStampService["releaseMovedDeal"]>
+			): Promise<void> {
+				await super.releaseMovedDeal(...args);
+				if (!paused) {
+					paused = true;
+					released();
+					await Bun.sleep(400);
+				}
+			}
+		}
+		const slow = new DealsService(
+			db,
+			agent,
+			new SlowRelease(db),
+			new ConversionService(db),
+			new FieldsService(db, { fieldBackfill: async () => undefined } as never),
+		);
+
+		async function leavingDeal(key: string, at: Date) {
+			const deal = await deals.create({
+				name: `Leaving ${key} ${suffix}`,
+				companyId: home.id,
+				ownerId: userId,
+			});
+			await db.activity.create({
+				data: {
+					type: ActivityType.NOTE,
+					subject: `Leaving ${key}`,
+					companyId: home.id,
+					dealId: deal.id,
+					createdById: userId,
+					createdAt: at,
+				},
+			});
+			return deal;
+		}
+		const newerDeal = await leavingDeal("newer", newer);
+		const olderDeal = await leavingDeal("older", older);
+		await db.company.update({
+			where: { id: home.id },
+			data: { lastActivityAt: newer },
+		});
+
+		const first = slow.update(newerDeal.id, { companyId: north.id });
+		await firstReleased;
+		const second = slow.update(olderDeal.id, { companyId: south.id });
+		await Promise.all([first, second]);
+
+		const stored = await db.company.findUniqueOrThrow({
+			where: { id: home.id },
+			select: { lastActivityAt: true },
+		});
+		expect(stored.lastActivityAt).toBeNull();
+	});
+});
+
+describe("two moves that also write custom fields", () => {
+	it("both land without a deadlock", async () => {
+		const home = await company("fields-home");
+		const east = await company("fields-east");
+		const west = await company("fields-west");
+		const [eastKey, westKey] = [`${fieldPrefix}east`, `${fieldPrefix}west`];
+		await db.fieldDefinition.createMany({
+			data: [eastKey, westKey].map((key, position) => ({
+				entity: "DEAL" as const,
+				key,
+				label: key,
+				type: "TEXT" as const,
+				agentFilled: false,
+				position: 900 + position,
+			})),
+		});
+
+		let arrived = 0;
+		let bothArrived = () => {};
+		const barrier = new Promise<void>((resolve) => {
+			bothArrived = resolve;
+		});
+		class MeetingFields extends FieldsService {
+			override async applyValues(
+				...args: Parameters<FieldsService["applyValues"]>
+			): Promise<void> {
+				await super.applyValues(...args);
+				arrived += 1;
+				if (arrived === 2) bothArrived();
+				await Promise.race([barrier, Bun.sleep(500)]);
+			}
+		}
+		const meeting = new DealsService(
+			db,
+			agent,
+			new ActivityStampService(db),
+			new ConversionService(db),
+			new MeetingFields(db, { fieldBackfill: async () => undefined } as never),
+		);
+
+		const deal = await deals.create({
+			name: `Fields race ${suffix}`,
+			companyId: home.id,
+			ownerId: userId,
+		});
+
+		await Promise.all([
+			meeting.update(deal.id, {
+				companyId: east.id,
+				fields: { [eastKey]: "east" },
+			}),
+			meeting.update(deal.id, {
+				companyId: west.id,
+				fields: { [westKey]: "west" },
+			}),
+		]);
+
+		const values = await db.fieldValue.count({ where: { dealId: deal.id } });
+		await db.fieldDefinition.deleteMany({
+			where: { key: { in: [eastKey, westKey] } },
+		});
+		expect(values).toBe(2);
+	});
+});
+
+describe("attaching a contact while the deal moves", () => {
+	it("never leaves a contact of the old company on the deal", async () => {
+		const from = await company("attach-from");
+		const to = await company("attach-to");
+		const leaving = await db.contact.create({
+			data: { firstName: "Ari", lastName: "Attach", companyId: from.id },
+			select: { id: true },
+		});
+		const deal = await deals.create({
+			name: `Attach race ${suffix}`,
+			companyId: from.id,
+			ownerId: userId,
+		});
+
+		let release = () => {};
+		const held = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let locked = () => {};
+		const lockTaken = new Promise<void>((resolve) => {
+			locked = resolve;
+		});
+		const holder = db.$transaction(
+			async (tx) => {
+				await tx.$queryRaw`SELECT id FROM deal WHERE id = ${deal.id} FOR UPDATE`;
+				locked();
+				await held;
+			},
+			{ timeout: 10_000 },
+		);
+		await lockTaken;
+
+		const move = deals.update(deal.id, { companyId: to.id });
+		await Bun.sleep(300);
+		const attach = deals
+			.attachContact({ dealId: deal.id, contactId: leaving.id })
+			.then(
+				() => null,
+				(error: Error) => error,
+			);
+		await Bun.sleep(300);
+		release();
+		await holder;
+		const [, refused] = await Promise.all([move, attach]);
+
+		const people = await db.dealContact.findMany({
+			where: { dealId: deal.id },
+			select: { contactId: true },
+		});
+		expect(people).toEqual([]);
+		expect(refused).toBeInstanceOf(Error);
+		expect(refused?.message).toContain("does not work at");
 	});
 });

@@ -32,26 +32,30 @@ export class ActivityStampService {
 
 	constructor(@InjectDatabase() private readonly db: Db) {}
 
-	async touch(target: ActivityTarget, at: Date): Promise<void> {
+	async touch(
+		target: ActivityTarget,
+		at: Date,
+		client: Prisma.TransactionClient = this.db,
+	): Promise<void> {
 		const stale = {
 			OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: at } }],
 		};
 
 		await Promise.all([
 			target.companyId
-				? this.db.company.updateMany({
+				? client.company.updateMany({
 						where: { id: target.companyId, ...stale },
 						data: { lastActivityAt: at },
 					})
 				: null,
 			target.contactId
-				? this.db.contact.updateMany({
+				? client.contact.updateMany({
 						where: { id: target.contactId, ...stale },
 						data: { lastActivityAt: at },
 					})
 				: null,
 			target.dealId
-				? this.db.deal.updateMany({
+				? client.deal.updateMany({
 						where: { id: target.dealId, ...stale },
 						data: { lastActivityAt: at },
 					})
@@ -156,6 +160,22 @@ export class ActivityStampService {
 				error instanceof Error ? error.stack : String(error),
 			);
 		}
+	}
+
+	async releaseMovedDeal(
+		companyId: string,
+		dealId: string,
+		client: Prisma.TransactionClient = this.db,
+	): Promise<void> {
+		await client.$executeRaw`
+			UPDATE "company" c
+			SET "lastActivityAt" = (
+				SELECT MAX(a."createdAt") FROM "activity" a WHERE a."companyId" = c.id
+			)
+			WHERE c.id = ${companyId}
+			AND c."lastActivityAt" <= (
+				SELECT MAX(a."createdAt") FROM "activity" a WHERE a."dealId" = ${dealId}
+			)`;
 	}
 
 	private restamp(table: string, column: string, ids: string[]) {

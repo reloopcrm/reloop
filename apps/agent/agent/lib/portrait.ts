@@ -1,6 +1,7 @@
 import { db } from "@crm/db";
 import { blobEnabled, isMirrored, mirror } from "@crm/db/blob";
 import { COPY } from "./copy";
+import { LIVE, liveContact } from "./crm";
 import { say } from "./language";
 import { findPortrait, type PortraitSource } from "./portrait-sources";
 
@@ -46,10 +47,7 @@ export async function storePortrait({
 		};
 	}
 
-	const contact = await db.contact.findUnique({
-		where: { id: contactId },
-		select: { imageUrl: true },
-	});
+	const contact = await liveContact(contactId, { imageUrl: true });
 
 	if (!contact) {
 		return {
@@ -85,10 +83,18 @@ export async function storePortrait({
 		};
 	}
 
-	await db.contact.update({
-		where: { id: contactId },
+	const { count } = await db.contact.updateMany({
+		where: { id: contactId, ...LIVE },
 		data: { imageUrl: stored },
 	});
+
+	if (count === 0) {
+		return {
+			stored: false,
+			imageUrl: null,
+			reason: say(COPY.portraits.noContact),
+		};
+	}
 
 	return { stored: true, imageUrl: stored };
 }
@@ -108,15 +114,12 @@ export async function runPortrait({
 		};
 	}
 
-	const contact = await db.contact.findUnique({
-		where: { id: contactId },
-		select: {
-			id: true,
-			firstName: true,
-			lastName: true,
-			imageUrl: true,
-			githubUrl: true,
-		},
+	const contact = await liveContact(contactId, {
+		id: true,
+		firstName: true,
+		lastName: true,
+		imageUrl: true,
+		githubUrl: true,
 	});
 
 	if (!contact) {

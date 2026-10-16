@@ -1,9 +1,14 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { enabled, unavailable } from "../lib/capabilities";
-import { personForVerification, stampSocialsChecked } from "../lib/crm";
+import {
+	NOT_LIVE,
+	personForVerification,
+	stampSocialsChecked,
+} from "../lib/crm";
 import { focusOn, refund, spend } from "../lib/focus";
 import { RESEARCH } from "../lib/research-config";
+import { assertResearchPurpose } from "../lib/session-purpose";
 import { findSocialCandidates, type Network } from "../lib/socials";
 import { tenantTool } from "../lib/tenant";
 
@@ -15,7 +20,8 @@ const tool = defineTool({
 	inputSchema: z.object({
 		contactId: z.string(),
 	}),
-	async execute({ contactId }) {
+	async execute({ contactId }, ctx) {
+		assertResearchPurpose(ctx);
 		focusOn({ contactId });
 
 		if (!(await enabled("PERPLEXITY_API_KEY"))) {
@@ -24,7 +30,7 @@ const tool = defineTool({
 
 		const person = await personForVerification(contactId);
 		if (!person) {
-			return { searched: false as const, reason: "No such contact." };
+			return { searched: false as const, reason: NOT_LIVE.contact };
 		}
 
 		const cost = RESEARCH.cost.socialSearch;

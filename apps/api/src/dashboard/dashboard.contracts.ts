@@ -70,8 +70,16 @@ const overdueTaskOutput = z.object({
 	id: z.string(),
 	subject: z.string().nullable(),
 	company: linkedRecordOutput.nullable(),
+	contact: z
+		.object({
+			id: z.string(),
+			firstName: z.string(),
+			lastName: z.string().nullable(),
+		})
+		.nullable(),
 	deal: linkedRecordOutput.nullable(),
 	dueAt: z.string().nullable(),
+	meta: activityMeta,
 });
 
 const recentActivityOutput = z.object({

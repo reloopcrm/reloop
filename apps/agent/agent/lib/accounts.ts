@@ -553,7 +553,7 @@ async function recentNotes(
 				],
 			},
 		},
-		orderBy: { createdAt: "desc" },
+		orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
 		take: 10,
 		select: {
 			type: true,

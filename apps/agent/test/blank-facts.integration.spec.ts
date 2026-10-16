@@ -5,6 +5,7 @@ import { sweepBlankFacts } from "../agent/lib/blank-facts";
 const suffix = process.env.TEST_RUN_ID ?? "blank-facts-spec";
 const email = `blank.subject.${suffix}@example.test`;
 const strangerEmail = `a.keller.${suffix}@example.test`;
+const archivedEmail = `gone.subject.${suffix}@example.test`;
 
 let contactId: string;
 
@@ -41,7 +42,7 @@ function statusOf(id: string) {
 
 beforeEach(async () => {
 	await db.contact.deleteMany({
-		where: { email: { in: [email, strangerEmail] } },
+		where: { email: { in: [email, strangerEmail, archivedEmail] } },
 	});
 	const contact = await db.contact.create({
 		data: { firstName: "Blank", lastName: "Subject", email },
@@ -52,7 +53,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	await db.contact.deleteMany({
-		where: { email: { in: [email, strangerEmail] } },
+		where: { email: { in: [email, strangerEmail, archivedEmail] } },
 	});
 });
 
@@ -209,6 +210,52 @@ describe("sweepBlankFacts", () => {
 			where: { contactId, field: "title", status: FactStatus.PROPOSED },
 		});
 		expect(left).toBe(1);
+	});
+
+	it("skips suggestions for an archived contact, so they never hold back a live one", async () => {
+		const archived = await db.contact.create({
+			data: {
+				firstName: "Gone",
+				lastName: "Subject",
+				email: archivedEmail,
+				archivedAt: new Date(),
+			},
+			select: { id: true },
+		});
+
+		const hidden = await db.contactFact.create({
+			data: {
+				contactId: archived.id,
+				field: "linkedinUrl",
+				value: "https://www.linkedin.com/in/gone",
+				score: 0.99,
+				band: FactBand.PROBABLE,
+				evidence: [{ kind: "web.cited-claim", detail: "a page said so" }],
+				method: "web",
+				status: FactStatus.PROPOSED,
+			},
+			select: { id: true },
+		});
+
+		const live = await propose({
+			field: "linkedinUrl",
+			value: "https://www.linkedin.com/in/subject",
+			score: 0.61,
+		});
+
+		const sweep = await sweepBlankFacts();
+
+		expect(sweep.scanned).toBe(1);
+		expect(sweep.unscanned).toBe(0);
+		expect(sweep.filled).toBe(1);
+		expect(await statusOf(live)).toBe("APPLIED");
+		expect(await statusOf(hidden.id)).toBe("PROPOSED");
+
+		const gone = await db.contact.findUnique({
+			where: { id: archived.id },
+			select: { linkedinUrl: true },
+		});
+		expect(gone?.linkedinUrl).toBeNull();
 	});
 
 	it("counts without writing when it is only reading", async () => {

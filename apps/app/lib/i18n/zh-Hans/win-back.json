@@ -419,6 +419,7 @@
 	"The research agent did not return a session id.": "研究代理没有返回会话 ID。",
 	"The research agent is not configured for this install.": "此安装尚未配置研究代理。",
 	"The research agent could not answer. Try again.": "研究代理无法回答。请重试。",
+	"Newer mail has arrived since this draft.": "这份草稿之后来了新邮件。",
 	"Snoozed": "已推迟",
 	"Bring back": "放回列表",
 	"{name} is back in the list.": "{name} 已回到列表。",

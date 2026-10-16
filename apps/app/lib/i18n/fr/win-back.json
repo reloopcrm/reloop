@@ -419,6 +419,7 @@
 	"The research agent did not return a session id.": "L'agent de recherche n'a pas renvoyé d'identifiant de session.",
 	"The research agent is not configured for this install.": "L'agent de recherche n'est pas configuré pour cette installation.",
 	"The research agent could not answer. Try again.": "L'agent de recherche n'a pas pu répondre. Réessaie.",
+	"Newer mail has arrived since this draft.": "Du courrier plus récent est arrivé depuis ce brouillon.",
 	"Snoozed": "Mis de côté",
 	"Bring back": "Faire revenir",
 	"{name} is back in the list.": "{name} est de retour dans la liste.",

@@ -1,5 +1,6 @@
 import { DealStage, db } from "@crm/db";
 import { LOSING_DEAL_STAGES, OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
+import { LIVE } from "./crm";
 import { domainOf, normalise } from "./names";
 import { RESEARCH } from "./research-config";
 
@@ -80,6 +81,8 @@ export async function listDeals(options: DealListOptions = {}) {
 
 	const rows = await db.deal.findMany({
 		where: {
+			...LIVE,
+			company: LIVE,
 			stage: stages ? { in: stages } : undefined,
 			companyId: options.companyId ?? undefined,
 			ownerId: options.ownerId ?? undefined,
@@ -205,12 +208,18 @@ async function searchContacts(
 
 	const rows = await db.contact.findMany({
 		where: {
+			...LIVE,
 			OR: [
 				...(email
 					? [{ email: { equals: email, mode: "insensitive" as const } }]
 					: []),
 				...contains,
-				{ company: { name: { contains: term, mode: "insensitive" as const } } },
+				{
+					company: {
+						...LIVE,
+						name: { contains: term, mode: "insensitive" as const },
+					},
+				},
 			],
 		},
 		orderBy: [{ lastActivityAt: "desc" }, { createdAt: "asc" }],
@@ -222,22 +231,26 @@ async function searchContacts(
 			title: true,
 			email: true,
 			lastActivityAt: true,
-			company: { select: { id: true, name: true } },
+			company: { select: { id: true, name: true, archivedAt: true } },
 		},
 	});
 
 	return rows
 		.map((row) => {
 			const name = [row.firstName, row.lastName].filter(Boolean).join(" ");
+			const company =
+				row.company && row.company.archivedAt === null
+					? { id: row.company.id, name: row.company.name }
+					: null;
 			return {
-				score: score(term, [name, row.email ?? "", row.company?.name ?? ""]),
+				score: score(term, [name, row.email ?? "", company?.name ?? ""]),
 				hit: {
 					kind: "contact" as const,
 					id: row.id,
 					name,
 					title: row.title,
 					email: row.email,
-					company: row.company,
+					company,
 					lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
 				},
 			};
@@ -255,6 +268,7 @@ async function searchCompanies(
 ): Promise<CompanyHit[]> {
 	const rows = await db.company.findMany({
 		where: {
+			...LIVE,
 			OR: [
 				{ name: { contains: term, mode: "insensitive" } },
 				...(domain
@@ -272,7 +286,9 @@ async function searchCompanies(
 			name: true,
 			domain: true,
 			industry: true,
-			_count: { select: { contacts: true, deals: true } },
+			_count: {
+				select: { contacts: { where: LIVE }, deals: { where: LIVE } },
+			},
 		},
 	});
 
@@ -301,6 +317,8 @@ async function searchDeals(
 ): Promise<DealHit[]> {
 	const rows = await db.deal.findMany({
 		where: {
+			...LIVE,
+			company: LIVE,
 			OR: [
 				{ name: { contains: term, mode: "insensitive" } },
 				...words.map((word) => ({

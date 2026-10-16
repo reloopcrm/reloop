@@ -419,6 +419,7 @@
 	"The research agent did not return a session id.": "El agente de investigación no devolvió un ID de sesión.",
 	"The research agent is not configured for this install.": "El agente de investigación no está configurado para esta instalación.",
 	"The research agent could not answer. Try again.": "El agente de investigación no pudo responder. Inténtalo de nuevo.",
+	"Newer mail has arrived since this draft.": "Desde este borrador ha llegado correo nuevo.",
 	"Snoozed": "Pospuestos",
 	"Bring back": "Traer de vuelta",
 	"{name} is back in the list.": "{name} vuelve a estar en la lista.",

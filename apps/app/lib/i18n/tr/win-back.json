@@ -419,6 +419,7 @@
 	"The research agent did not return a session id.": "Araştırma ajanı bir oturum kimliği döndürmedi.",
 	"The research agent is not configured for this install.": "Araştırma ajanı bu kurulum için yapılandırılmamış.",
 	"The research agent could not answer. Try again.": "Araştırma ajanı yanıt veremedi. Tekrar dene.",
+	"Newer mail has arrived since this draft.": "Bu taslaktan sonra yeni posta geldi.",
 	"Snoozed": "Ertelenenler",
 	"Bring back": "Geri getir",
 	"{name} is back in the list.": "{name} listeye geri döndü.",

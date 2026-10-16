@@ -1,5 +1,6 @@
 import { db } from "@crm/db";
 import { MEMORY } from "@crm/db/insights";
+import { threadsOfContact } from "@crm/db/thread-participants";
 import {
 	DRAFT_STYLE,
 	draftRole,
@@ -56,34 +57,36 @@ async function recipient(contactId: string) {
 					products: true,
 				},
 			},
-			emailThreads: {
-				orderBy: { lastMessageAt: "desc" },
-				take: DRAFT.threads,
-				select: {
-					subject: true,
-					lastMessageAt: true,
-					messages: {
-						orderBy: { sentAt: "desc" },
-						take: DRAFT.messagesPerThread,
-						select: {
-							direction: true,
-							fromName: true,
-							fromEmail: true,
-							subject: true,
-							sentAt: true,
-							body: true,
-							snippet: true,
-						},
-					},
-				},
-			},
 		},
 	});
 	if (!person) return null;
 
+	const emailThreads = await db.emailThread.findMany({
+		where: threadsOfContact(contactId),
+		orderBy: { lastMessageAt: "desc" },
+		take: DRAFT.threads,
+		select: {
+			subject: true,
+			lastMessageAt: true,
+			messages: {
+				orderBy: { sentAt: "desc" },
+				take: DRAFT.messagesPerThread,
+				select: {
+					direction: true,
+					fromName: true,
+					fromEmail: true,
+					subject: true,
+					sentAt: true,
+					body: true,
+					snippet: true,
+				},
+			},
+		},
+	});
+
 	return {
 		...person,
-		emailThreads: person.emailThreads.map((thread) => ({
+		emailThreads: emailThreads.map((thread) => ({
 			...thread,
 			messages: [...thread.messages].reverse(),
 		})),

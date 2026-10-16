@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { db, RecordSource } from "@crm/db";
+import {
+	THREAD_CONTACT_ROLE,
+	threadsOfContact,
+} from "@crm/db/thread-participants";
 import { readDraftStyle, writeDraftStyle } from "@crm/validation/draft-style";
 import { simulateReadableStream } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
@@ -92,6 +96,37 @@ async function talked(contactId: string): Promise<void> {
 			recipients: [`j.mueller@${domain}`],
 		},
 	});
+}
+
+async function threadOf(
+	contactId: string,
+	at: Date,
+	body: string,
+): Promise<string> {
+	const thread = await db.emailThread.create({
+		data: {
+			rootMessageId: `root-${crypto.randomUUID()}@${domain}`,
+			subject: "Gitterboxen",
+			contactId,
+			firstMessageAt: at,
+			lastMessageAt: at,
+		},
+		select: { id: true },
+	});
+
+	await db.emailMessage.create({
+		data: {
+			threadId: thread.id,
+			rfcMessageId: `msg-${crypto.randomUUID()}@${domain}`,
+			direction: "INBOUND",
+			sentAt: at,
+			subject: "Gitterboxen",
+			body,
+			fromEmail: `seller@${domain}`,
+			recipients: [`buyer@${domain}`],
+		},
+	});
+	return thread.id;
 }
 
 async function clean(): Promise<void> {
@@ -204,6 +239,52 @@ describe("runEmailDraft before it reaches a model", () => {
 		expect(stored.oneOffBody).toBe("Kurzer Text");
 		expect(JSON.stringify(fake.model.doStreamCalls[0]?.prompt)).toContain(
 			"never a rule for other emails",
+		);
+	});
+
+	it("reads a thread the contact only takes part in, so the draft is not stale after it", async () => {
+		const id = await person("teilnehmer", "Nurdabei");
+		const colleague = await person("kollege", "Besitzer");
+		await threadOf(id, new Date("2026-05-01T10:00:00.000Z"), "Alte Anfrage.");
+		const newestAt = new Date("2026-06-10T10:00:00.000Z");
+		const shared = await threadOf(
+			colleague,
+			newestAt,
+			"Neue Anfrage zu 400 Gitterboxen.",
+		);
+		await db.emailThreadContact.create({
+			data: {
+				threadId: shared,
+				contactId: id,
+				role: THREAD_CONTACT_ROLE.recipient,
+				firstAt: newestAt,
+				lastAt: newestAt,
+			},
+		});
+		const fake = answering(
+			JSON.stringify({
+				subject: "Gitterboxen",
+				body: "Danke für die Anfrage.",
+				language: "de",
+				role: "seller",
+			}),
+		);
+
+		await runEmailDraft(id, null, fake.build);
+
+		const stored = await db.emailDraft.findUniqueOrThrow({
+			where: { contactId: id },
+		});
+		const newest = await db.emailThread.aggregate({
+			where: threadsOfContact(id),
+			_max: { lastMessageAt: true },
+		});
+		expect(stored.basedOnUntil?.toISOString()).toBe(newestAt.toISOString());
+		expect(newest._max.lastMessageAt?.toISOString()).toBe(
+			newestAt.toISOString(),
+		);
+		expect(JSON.stringify(fake.model.doStreamCalls[0]?.prompt)).toContain(
+			"400 Gitterboxen",
 		);
 	});
 

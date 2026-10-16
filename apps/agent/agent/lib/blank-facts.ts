@@ -1,5 +1,6 @@
 import { db, FactStatus, type Prisma } from "@crm/db";
 import { lockFactField } from "@crm/db/idempotency";
+import { LIVE } from "./crm";
 import { DISPATCH } from "./dispatch-config";
 import { parseEvidence } from "./evidence";
 import {
@@ -36,9 +37,11 @@ export async function sweepBlankFacts(
 	options: { dry?: boolean } = {},
 ): Promise<BlankFactSweep> {
 	const [pending, proposals] = await Promise.all([
-		db.contactFact.count({ where: { status: FactStatus.PROPOSED } }),
+		db.contactFact.count({
+			where: { status: FactStatus.PROPOSED, contact: LIVE },
+		}),
 		db.contactFact.findMany({
-			where: { status: FactStatus.PROPOSED },
+			where: { status: FactStatus.PROPOSED, contact: LIVE },
 			select: {
 				id: true,
 				contactId: true,

@@ -1,3 +1,4 @@
+import { isWorkspaceAdmin, WORKSPACE_ROLES } from "@crm/auth";
 import { ActivityType, type Db } from "@crm/db";
 import {
 	DAY_MS,
@@ -5,6 +6,7 @@ import {
 	startOfUtcDay,
 	type WinBackFollowUp,
 } from "@crm/db/win-back-outcome";
+import { WORKSPACE_ID } from "@crm/db/workspace";
 import {
 	isAgentFunctionEnabled,
 	readAgentFunctions,
@@ -20,6 +22,8 @@ export const WIN_BACK_FOLLOW_UP_SUBJECT = "Follow up on the win back";
 
 export const WIN_BACK_FOLLOW_UP_BODY =
 	"You wrote to them after the win back verdict and nobody answered.";
+
+const FALLBACK_ROLES = WORKSPACE_ROLES.filter((role) => isWorkspaceAdmin(role));
 
 export type FollowUpSweep = { created: number; capped: boolean; off: boolean };
 
@@ -46,18 +50,20 @@ export class WinBackFollowUpService {
 
 		if (room <= 0) return { created: 0, capped: true, off: false };
 
+		const fallback = await this.fallbackAuthor();
 		const candidates = await listWinBackFollowUps(this.db, {
 			now,
 			afterDays: WIN_BACK.followUp.afterDays,
 			maxAgeDays: WIN_BACK.followUp.maxAgeDays,
 			limit: room,
+			hasFallback: fallback !== null,
 		});
 		const authors = await this.authors(candidates);
 
 		let created = 0;
 
 		for (const candidate of candidates) {
-			const author = authorOf(candidate, authors);
+			const author = authorOf(candidate, authors) ?? fallback;
 
 			if (!author) {
 				this.logger.log({
@@ -79,6 +85,20 @@ export class WinBackFollowUpService {
 			capped: created >= room && candidates.length >= room,
 			off: false,
 		};
+	}
+
+	private async fallbackAuthor(): Promise<string | null> {
+		const member = await this.db.member.findFirst({
+			where: {
+				organizationId: WORKSPACE_ID,
+				role: { in: FALLBACK_ROLES },
+				user: { removedAt: null },
+			},
+			orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+			select: { userId: true },
+		});
+
+		return member?.userId ?? null;
 	}
 
 	private async authors(

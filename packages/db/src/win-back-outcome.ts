@@ -240,12 +240,25 @@ export async function readWinBackOutcome(
 
 export async function listWinBackFollowUps(
 	db: Db,
-	options: { now: Date; afterDays: number; maxAgeDays: number; limit: number },
+	options: {
+		now: Date;
+		afterDays: number;
+		maxAgeDays: number;
+		limit: number;
+		hasFallback: boolean;
+	},
 ): Promise<WinBackFollowUp[]> {
 	if (options.limit <= 0) return [];
 
 	const due = new Date(options.now.getTime() - options.afterDays * DAY_MS);
 	const floor = new Date(options.now.getTime() - options.maxAgeDays * DAY_MS);
+	const owned = options.hasFallback
+		? Prisma.empty
+		: Prisma.sql`AND EXISTS (
+				SELECT 1 FROM "user" u
+				WHERE u.id IN (o.decided_by, c."ownerId")
+					AND u."removedAt" IS NULL
+			)`;
 
 	const rows = await db.$queryRaw<
 		{
@@ -274,11 +287,7 @@ export async function listWinBackFollowUps(
 			AND a.contact_id IS NULL
 			AND o.contacted_at <= ${due}
 			AND o.contacted_at >= ${floor}
-			AND EXISTS (
-				SELECT 1 FROM "user" u
-				WHERE u.id IN (o.decided_by, c."ownerId")
-					AND u."removedAt" IS NULL
-			)
+			${owned}
 		ORDER BY o.contacted_at ASC
 		LIMIT ${options.limit}
 	`;

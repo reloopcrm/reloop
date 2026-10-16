@@ -910,7 +910,10 @@ picker reads.
 `createdById` is the signed-in user. The one exception to null `meta` is a win
 back task: the follow up task (`{ winBack: true }`), assigned to the rep, so the rep
 moves it, and the "Remind me" task (`{ winBack: true, later: true }`), which the rep
-wrote and may undo. A synced mail, a meeting, and anything the agent or tracking wrote stay
+wrote and may undo. The follow up task's rep is the active member who decided the
+verdict, else the contact's active owner, else the active owner or admin who joined the
+workspace first (`member.createdAt`, ties to the lower `member.id`); with none of them
+the sweep writes no task. A synced mail, a meeting, and anything the agent or tracking wrote stay
 read only. `Activity` has no `archivedAt`,
 so a delete is final. After it, `lastActivityAt` is recomputed for the company,
 contact and deal; a failure there is logged, never thrown.

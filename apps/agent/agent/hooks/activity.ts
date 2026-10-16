@@ -58,6 +58,15 @@ function resultName(result: ActionResult): string {
 	}
 }
 
+const PRISMA_CODE = /\bP\d{4}\b/;
+
+function failure(error: { code: string; message: string }): string {
+	const prisma = PRISMA_CODE.exec(error.message)?.[0];
+	return prisma && prisma !== error.code
+		? `${error.code} ${prisma}`
+		: error.code;
+}
+
 function count(tokens: number): string {
 	return tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : String(tokens);
 }
@@ -113,7 +122,7 @@ export default defineHook({
 				return;
 			}
 
-			const why = error ? `: ${truncate(error.message, 140)}` : "";
+			const why = error ? `: ${failure(error)}` : "";
 			line("✗", `${name}${took} ${status}${why}`);
 		},
 
@@ -154,24 +163,15 @@ export default defineHook({
 		},
 
 		"step.failed"(event) {
-			line(
-				"⨯",
-				`step ${event.data.stepIndex} ${event.data.code}: ${truncate(event.data.message, 200)}`,
-			);
+			line("⨯", `step ${event.data.stepIndex} ${failure(event.data)}`);
 		},
 
 		"turn.failed"(event) {
-			line(
-				"⨯",
-				`turn ${event.data.code}: ${truncate(event.data.message, 200)}`,
-			);
+			line("⨯", `turn ${failure(event.data)}`);
 		},
 
 		"session.failed"(event) {
-			line(
-				"⨯",
-				`session ${event.data.code}: ${truncate(event.data.message, 200)}`,
-			);
+			line("⨯", `session ${failure(event.data)}`);
 		},
 	},
 });

@@ -642,6 +642,10 @@ export async function modelUnavailable(): Promise<string | null> {
 	}
 }
 
+export class ModelUnconfiguredError extends Error {
+	override readonly name = "ModelUnconfiguredError";
+}
+
 export async function directModel(
 	purpose: ModelPurpose = "chat",
 	kind: string = MODEL.spend.defaultKind,
@@ -649,7 +653,7 @@ export async function directModel(
 	const { fixed } = await provider();
 	const all = await chainFor(purpose, kind);
 	if (all.length === 0) {
-		throw new Error(
+		throw new ModelUnconfiguredError(
 			fixed ? say(COPY.model.fixedUnavailable) : noProviderMessage(),
 		);
 	}

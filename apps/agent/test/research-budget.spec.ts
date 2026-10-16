@@ -230,6 +230,45 @@ describe("set_contact_socials", () => {
 		expect(calls).toEqual([]);
 	});
 
+	it("says the X check is unavailable and calls nothing without a Perplexity key", async () => {
+		delete process.env.PERPLEXITY_API_KEY;
+
+		await inEveContext(async () => {
+			const result = await setContactSocials.execute(
+				{ contactId: "contact-1", twitterUrl: "https://x.com/lewiscarhart" },
+				ctx,
+			);
+
+			expect(result).toMatchObject({ written: false, configured: false });
+			expect(spent()).toBe(0);
+		});
+
+		expect(calls).toEqual([]);
+	});
+
+	it("still checks GitHub while the X check is unavailable", async () => {
+		delete process.env.PERPLEXITY_API_KEY;
+		githubReply = () => ({ status: 404 });
+
+		await inEveContext(async () => {
+			const result = await setContactSocials.execute(
+				{
+					contactId: "contact-1",
+					twitterUrl: "https://x.com/lewiscarhart",
+					githubUrl: "https://github.com/lewiscarhart",
+				},
+				ctx,
+			);
+
+			expect("rejected" in result && result.rejected).toContainEqual(
+				expect.stringContaining("no PERPLEXITY_API_KEY"),
+			);
+			expect(spent()).toBe(1);
+		});
+
+		expect(calls).toEqual(["https://api.github.com/users/lewiscarhart"]);
+	});
+
 	it("charges nothing for a URL that is not a profile", async () => {
 		await inEveContext(async () => {
 			await setContactSocials.execute(

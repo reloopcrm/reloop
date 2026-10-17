@@ -1,20 +1,26 @@
 import type { Db } from "@crm/db";
-import { classifyTouch, type RawTouch, type Touch } from "@crm/db/attribution";
+import { classifyTouch, type RawTouch } from "@crm/db/attribution";
 import {
 	dedupeKey,
 	EVENTS_PER_MINUTE,
+	FORMS_PER_CLIENT_HOUR,
 	FORMS_PER_SITE_HOUR,
 	FORMS_PER_VISITOR_HOUR,
+	formClientWindowKey,
 	formSiteWindowKey,
 	formVisitorWindowKey,
+	HONEYPOT_FIELD,
 	hostAllowed,
 	MAX_EVENTS_PER_BATCH,
 	matchedHost,
 	normalizePath,
 	originAllowed,
 	rateWindowKey,
+	skipText,
 	stripQuery,
+	TRACKING_SKIP,
 	type TrackingConfig,
+	type TrackingSkipCode,
 } from "@crm/db/tracking";
 import type {
 	TrackingBatch,
@@ -24,9 +30,11 @@ import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 import { normalizeEmail } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
+import { type FormFields, nameFrom, storeTouch } from "./stored-submission";
 import { TrackingConfigService } from "./tracking-config.service";
 import { TrackingCounterService } from "./tracking-counter.service";
 import { TrackingFilingService } from "./tracking-filing.service";
+import { refilable, TrackingRefileService } from "./tracking-refile.service";
 
 const MAX_LABEL = 80;
 
@@ -44,18 +52,11 @@ const ADDRESS = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
 
 const fieldText = z.string().nullable().catch(null);
 
-export type FormFields = Record<string, string>;
-
-type StoredTouch = {
-	source: string;
-	medium: string;
-	campaign: string | null;
-	term: string | null;
-	content: string | null;
-	referrer: string | null;
-	landing: string | null;
-	at: string;
-};
+export interface TrackingRequest {
+	origin: string | null;
+	userAgent: string | null;
+	clientKey: string | null;
+}
 
 interface AcceptedEvent {
 	event: TrackingEvent;
@@ -71,12 +72,10 @@ export class TrackingIngestService {
 		private readonly config: TrackingConfigService,
 		private readonly counters: TrackingCounterService,
 		private readonly filing: TrackingFilingService,
+		private readonly refile: TrackingRefileService,
 	) {}
 
-	async accept(
-		batch: TrackingBatch,
-		request: { origin: string | null; userAgent: string | null },
-	): Promise<void> {
+	async accept(batch: TrackingBatch, request: TrackingRequest): Promise<void> {
 		if (request.userAgent && BOT.test(request.userAgent)) return;
 
 		const compiled = await this.config.forSite(batch.siteId);
@@ -93,7 +92,7 @@ export class TrackingIngestService {
 		const accepted = events.flatMap<AcceptedEvent>((event) => {
 			const host = event.host.toLowerCase().trim().slice(0, MAX_HOST);
 
-			return host && hostAllowed(host, compiled.config)
+			return host && hostAllowed(host, compiled.config) && !trapped(event)
 				? [{ event, host }]
 				: [];
 		});
@@ -111,29 +110,55 @@ export class TrackingIngestService {
 		}
 
 		for (const form of forms) {
-			if (!(await this.withinFormRate(visitorId, batch.siteId))) break;
+			const within = await this.withinFormRate(
+				visitorId,
+				batch.siteId,
+				request.clientKey,
+			);
 
-			await this.submission(visitorId, form);
+			await this.submission(
+				visitorId,
+				form,
+				within ? null : TRACKING_SKIP.formCap,
+			);
 		}
+
+		await this.refile.drainDue();
 	}
 
 	private async withinFormRate(
 		visitorId: string,
 		siteId: string,
+		clientKey: string | null,
 	): Promise<boolean> {
 		const at = new Date();
+		const windows = [
+			...(clientKey
+				? [
+						{
+							key: formClientWindowKey(clientKey, at),
+							limit: FORMS_PER_CLIENT_HOUR,
+						},
+					]
+				: []),
+			{
+				key: formVisitorWindowKey(visitorId, at),
+				limit: FORMS_PER_VISITOR_HOUR,
+			},
+			{ key: formSiteWindowKey(siteId, at), limit: FORMS_PER_SITE_HOUR },
+		];
+		const charged: string[] = [];
 
-		const perVisitor = await this.counters.take(
-			formVisitorWindowKey(visitorId, at),
-			FORMS_PER_VISITOR_HOUR,
-		);
+		for (const window of windows) {
+			if (!(await this.counters.take(window.key, window.limit))) {
+				await Promise.all(charged.map((key) => this.counters.release(key)));
+				return false;
+			}
 
-		if (!perVisitor) return false;
+			charged.push(window.key);
+		}
 
-		return this.counters.take(
-			formSiteWindowKey(siteId, at),
-			FORMS_PER_SITE_HOUR,
-		);
+		return true;
 	}
 
 	private async events(
@@ -197,6 +222,7 @@ export class TrackingIngestService {
 	private async submission(
 		visitorId: string,
 		{ event, host }: AcceptedEvent,
+		deferred: TrackingSkipCode | null,
 	): Promise<void> {
 		const fields = clean(event.fields ?? {});
 		const email = emailFrom(fields);
@@ -208,7 +234,7 @@ export class TrackingIngestService {
 			? classifyTouch(arriving(event.firstTouch), at)
 			: lastTouch;
 
-		const key = dedupeKey({ host, path, email, at });
+		const key = dedupeKey({ host, path, email, visitorId, at });
 
 		const created = await this.db.formSubmission.createMany({
 			data: [
@@ -218,13 +244,27 @@ export class TrackingIngestService {
 					path,
 					email,
 					fields,
-					firstTouch: stored(firstTouch),
-					lastTouch: stored(lastTouch),
+					firstTouch: storeTouch(firstTouch),
+					lastTouch: storeTouch(lastTouch),
 					dedupeKey: key,
+					skipReason: deferred,
 				},
 			],
 			skipDuplicates: true,
 		});
+
+		if (deferred) {
+			if (created.count > 0) {
+				this.logger.log({
+					message: "Form submission stored and deferred",
+					host,
+					reason: deferred,
+					detail: skipText(deferred),
+				});
+			}
+
+			return;
+		}
 
 		const submission = await this.db.formSubmission.findUnique({
 			where: { dedupeKey: key },
@@ -232,7 +272,7 @@ export class TrackingIngestService {
 		});
 
 		if (!submission) return;
-		if (created.count === 0 && !unfiled(submission)) return;
+		if (created.count === 0 && !refilable(submission)) return;
 
 		const outcome = await this.filing.file({
 			id: submission.id,
@@ -249,6 +289,7 @@ export class TrackingIngestService {
 				message: "Form submission stored but not filed",
 				host,
 				reason: outcome.reason,
+				detail: skipText(outcome.reason),
 			});
 		}
 	}
@@ -258,11 +299,10 @@ export class TrackingIngestService {
 	}
 }
 
-function unfiled(submission: {
-	filedAt: Date | null;
-	skipReason: string | null;
-}): boolean {
-	return submission.filedAt === null && submission.skipReason === null;
+function trapped(event: TrackingEvent): boolean {
+	if (event.type !== "form_submit") return false;
+
+	return (event.fields?.[HONEYPOT_FIELD] ?? "").trim() !== "";
 }
 
 function arriving(touch: RawTouch): RawTouch {
@@ -270,19 +310,6 @@ function arriving(touch: RawTouch): RawTouch {
 		...touch,
 		referrer: stripQuery(touch.referrer) ?? undefined,
 		landing: stripQuery(touch.landing) ?? undefined,
-	};
-}
-
-function stored(touch: Touch): StoredTouch {
-	return {
-		source: touch.source,
-		medium: touch.medium,
-		campaign: touch.campaign,
-		term: touch.term,
-		content: touch.content,
-		referrer: touch.referrer,
-		landing: touch.landing,
-		at: touch.at.toISOString(),
 	};
 }
 
@@ -323,6 +350,7 @@ function clean(fields: FormFields): FormFields {
 	for (const [key, value] of Object.entries(fields).slice(0, 40)) {
 		const text = fieldText.parse(value);
 		if (text === null) continue;
+		if (key === HONEYPOT_FIELD) continue;
 		if (SENSITIVE.test(key)) continue;
 		if (CARD.test(text.trim())) continue;
 
@@ -351,21 +379,4 @@ function address(value: string): string | null {
 	const email = normalizeEmail(value);
 
 	return email && ADDRESS.test(email) ? email : null;
-}
-
-function nameFrom(fields: FormFields): string | null {
-	const first = pick(fields, /^(first[\s_-]?name|fname|given)/i);
-	const last = pick(fields, /^(last[\s_-]?name|lname|surname|family)/i);
-
-	if (first) return last ? `${first} ${last}` : first;
-
-	return pick(fields, /^(full[\s_-]?name|name)$/i) ?? pick(fields, /name/i);
-}
-
-function pick(fields: FormFields, pattern: RegExp): string | null {
-	for (const [key, value] of Object.entries(fields)) {
-		if (pattern.test(key) && value.trim()) return value.trim();
-	}
-
-	return null;
 }

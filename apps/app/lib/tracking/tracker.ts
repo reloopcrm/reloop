@@ -2,6 +2,7 @@ import { COOKIE_FIRST_TOUCH } from "@crm/db/attribution";
 import type { TrackingConfig } from "@crm/db/tracking";
 import {
 	COOKIE_NAME,
+	HONEYPOT_FIELD,
 	LINKER_MAX_AGE_SECONDS,
 	MAX_BODY_BYTES,
 	MAX_EVENTS_PER_BATCH,
@@ -13,7 +14,7 @@ export function trackerSource(
 ): string {
 	return `(function(){
 var C=${JSON.stringify(config)},E=${JSON.stringify(endpoint)},N=${JSON.stringify(COOKIE_NAME)},FS=${JSON.stringify(COOKIE_FIRST_TOUCH)};
-var B=${MAX_BODY_BYTES},M=${MAX_EVENTS_PER_BATCH};
+var B=${MAX_BODY_BYTES},M=${MAX_EVENTS_PER_BATCH},HP=${JSON.stringify(HONEYPOT_FIELD)};
 var d=document,w=window,loc=w.location;
 if(w.__crmT)return;w.__crmT=1;
 function host(){return loc.hostname.toLowerCase()}
@@ -107,7 +108,7 @@ function send(e){
  q.push(e);
  if(q.length>=M){flush();return}
  clearTimeout(timer);timer=setTimeout(flush,2000)}
-function view(){send({type:"page_view",path:loc.pathname,referrer:d.referrer||undefined,touch:last})}
+function view(){try{trap()}catch(e){}send({type:"page_view",path:loc.pathname,referrer:d.referrer||undefined,touch:last})}
 function label(el){
  var t=(el.getAttribute("aria-label")||el.textContent||"").replace(/\\s+/g," ").trim();
  return t?t.slice(0,80):undefined}
@@ -124,9 +125,11 @@ function onClick(ev){
 function onSubmit(ev){
  var f=ev.target;
  if(!f||f.tagName!=="FORM")return;
- var fields={},n=0;
+ var fields={},n=0,hp=hpOf(f);
+ if(hp&&hp.value){fields[HP]="1";send({type:"form_submit",path:loc.pathname,fields:fields});flush();return}
  for(var i=0;i<f.elements.length&&n<40;i++){
   var el=f.elements[i],name=el.name||el.id;
+  if(el===hp)continue;
   if(!name||!el.value)continue;
   var type=(el.type||"").toLowerCase();
   if(type==="password"||type==="hidden"||type==="file")continue;
@@ -135,6 +138,17 @@ function onSubmit(ev){
  if(!n)return;
  send({type:"form_submit",path:loc.pathname,fields:fields,touch:last,firstTouch:first});
  flush()}
+function hpOf(f){try{return Element.prototype.querySelector.call(f,"[data-crm-hp]")}catch(e){return null}}
+function trap(){
+ var fs=d.forms;
+ for(var i=0;i<fs.length;i++){
+  var f=fs[i];
+  if(hpOf(f))continue;
+  var t=d.createElement("textarea");
+  t.tabIndex=-1;t.setAttribute("autocomplete","off");
+  t.setAttribute("data-crm-hp","");t.setAttribute("aria-hidden","true");
+  t.style.cssText="position:absolute;left:-9999px;width:1px;height:1px;opacity:0";
+  try{Node.prototype.appendChild.call(f,t)}catch(e){}}}
 function decorate(){
  if(!C.crossDomain)return;
  d.addEventListener("mousedown",function(ev){
@@ -153,6 +167,7 @@ function start(){
  d.addEventListener("visibilitychange",function(){if(d.visibilityState==="hidden")flush()});
  w.addEventListener("pagehide",flush);
  decorate();
+ if(w.MutationObserver){var pend=0;new MutationObserver(function(){if(pend)return;pend=1;setTimeout(function(){pend=0;try{trap()}catch(e){}},0)}).observe(d.documentElement,{childList:!0,subtree:!0})}
  var push=history.pushState,rep=history.replaceState;
  function spa(fn){return function(){var r=fn.apply(this,arguments);setTimeout(view,0);return r}}
  try{history.pushState=spa(push);history.replaceState=spa(rep)}catch(e){}

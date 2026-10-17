@@ -1,8 +1,8 @@
-import type { IncomingMessage } from "node:http";
 import type { Db } from "@crm/db";
 import { cloud } from "@crm/db/cloud/scope";
 import {
 	EVENT_RETENTION_DAYS,
+	FORM_REFILE,
 	isSiteId,
 	MAX_BODY_BYTES,
 } from "@crm/db/tracking";
@@ -33,13 +33,16 @@ import {
 	ApiTags,
 } from "@nestjs/swagger";
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { z } from "zod";
 import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
+import { clientAddressOf } from "../http/client-address";
+import { clientKeyOf } from "./client-key";
 import { TrackingConfigService } from "./tracking-config.service";
 import { TrackingCounterService } from "./tracking-counter.service";
 import { TrackingIngestService } from "./tracking-ingest.service";
+import { TrackingRefileService } from "./tracking-refile.service";
 import { TrackingRollupService } from "./tracking-rollup.service";
 
 const SWEEP_BATCH = 10_000;
@@ -62,11 +65,15 @@ const trackingRequest = z.object({ body: parsedBody }).catch({ body: null });
 @Controller("api/t")
 export class TrackingController {
 	private readonly logger = new Logger(TrackingController.name);
+	private readonly clientSecret: string;
 
 	constructor(
 		private readonly config: TrackingConfigService,
 		private readonly ingest: TrackingIngestService,
-	) {}
+		environment: ConfigService<EnvironmentVariables, true>,
+	) {
+		this.clientSecret = environment.get("BETTER_AUTH_SECRET", { infer: true });
+	}
 
 	@Get("config/:siteId")
 	@AllowAnonymous()
@@ -98,7 +105,7 @@ export class TrackingController {
 			"Always returned, even when the batch was rejected or unreadable.",
 	})
 	async collect(
-		@Req() request: IncomingMessage,
+		@Req() request: Request,
 		@Res({ passthrough: true }) response: Response,
 		@Headers("origin") origin?: string,
 		@Headers("user-agent") userAgent?: string,
@@ -115,6 +122,7 @@ export class TrackingController {
 			this.ingest.accept(batch, {
 				origin: origin ?? null,
 				userAgent: userAgent ?? null,
+				clientKey: clientKeyOf(clientAddressOf(request), this.clientSecret),
 			});
 
 		try {
@@ -151,6 +159,7 @@ export class TrackingRetentionController {
 		@InjectDatabase() private readonly db: Db,
 		private readonly rollups: TrackingRollupService,
 		private readonly counters: TrackingCounterService,
+		private readonly refile: TrackingRefileService,
 		config: ConfigService<EnvironmentVariables, true>,
 	) {
 		this.secret = config.get("CRON_SECRET", { infer: true });
@@ -197,6 +206,7 @@ export class TrackingRetentionController {
 		const { removed, complete } = await this.sweepEvents(before);
 		const visitors = await this.sweepVisitors(before);
 		const counters = await this.counters.sweep();
+		const refiled = await this.refile.drain(FORM_REFILE.perPass);
 
 		if (!complete) {
 			this.logger.warn({
@@ -214,10 +224,11 @@ export class TrackingRetentionController {
 			complete,
 			visitors,
 			counters,
+			refiled,
 			retentionDays: EVENT_RETENTION_DAYS,
 		});
 
-		return { rolled, removed, complete, visitors, counters };
+		return { rolled, removed, complete, visitors, counters, refiled };
 	}
 
 	private async sweepEvents(
@@ -257,10 +268,7 @@ export class TrackingRetentionController {
 	}
 }
 
-async function read(
-	request: IncomingMessage,
-	limit: number,
-): Promise<string | null> {
+async function read(request: Request, limit: number): Promise<string | null> {
 	const existing = trackingRequest.parse(request).body;
 
 	if (existing !== null) {

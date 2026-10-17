@@ -20,11 +20,63 @@ export const EVENTS_PER_MINUTE = 600;
 
 export const CONTACTS_PER_HOUR = 50;
 
-export const CONTACT_CAP_REASON = "Hourly contact cap reached — not filed";
+export const TRACKING_SKIP = {
+	contactCap: "contact_cap",
+	formCap: "form_cap",
+	refileFailed: "refile_failed",
+} as const;
+
+export type TrackingSkipCode =
+	(typeof TRACKING_SKIP)[keyof typeof TRACKING_SKIP];
+
+export const TRACKING_SKIP_TEXT = {
+	[TRACKING_SKIP.contactCap]: "Hourly contact cap reached, filed later",
+	[TRACKING_SKIP.formCap]: "Hourly form cap reached, filed later",
+	[TRACKING_SKIP.refileFailed]:
+		"Filing failed, retried when the queue is empty",
+} as const satisfies Record<TrackingSkipCode, string>;
+
+export function skipText(reason: string): string {
+	const codes: readonly string[] = Object.values(TRACKING_SKIP);
+
+	return codes.includes(reason)
+		? TRACKING_SKIP_TEXT[reason as TrackingSkipCode]
+		: reason;
+}
+
+export const LEGACY_CONTACT_CAP_REASON =
+	"Hourly contact cap reached \u2014 not filed";
+
+export const CONTACT_CAP_REASONS = [
+	TRACKING_SKIP.contactCap,
+	LEGACY_CONTACT_CAP_REASON,
+] as const;
+
+export const WAITING_REASONS = [
+	...CONTACT_CAP_REASONS,
+	TRACKING_SKIP.formCap,
+] as const;
+
+export const REFILABLE_REASONS = [
+	...WAITING_REASONS,
+	TRACKING_SKIP.refileFailed,
+] as const;
 
 export const FORMS_PER_VISITOR_HOUR = 10;
 
+export const FORMS_PER_CLIENT_HOUR = FORMS_PER_VISITOR_HOUR * 2;
+
 export const FORMS_PER_SITE_HOUR = CONTACTS_PER_HOUR * 2;
+
+export const FORM_REFILE = {
+	perPass: 25,
+	liveReserve: CONTACTS_PER_HOUR / 5,
+	leaseMs: 5 * 60_000,
+} as const;
+
+export const HONEYPOT_FIELD = "_crm_hp";
+
+export const CLIENT_KEY_LENGTH = 32;
 
 export const LOADER_MAX_AGE_SECONDS = 600;
 
@@ -77,6 +129,21 @@ export function formVisitorWindowKey(
 	at: Date = new Date(),
 ): string {
 	return `form-visitor:${Math.floor(at.getTime() / 3_600_000)}:${visitorId}`;
+}
+
+export function formClientWindowKey(
+	clientKey: string,
+	at: Date = new Date(),
+): string {
+	return `form-client:${Math.floor(at.getTime() / 3_600_000)}:${clientKey}`;
+}
+
+export function formWindowStart(at: Date = new Date()): Date {
+	return new Date(Math.floor(at.getTime() / 3_600_000) * 3_600_000);
+}
+
+export function refileWindowKey(at: Date = new Date()): string {
+	return `${rateWindowKey(at)}:refile`;
 }
 
 export function formSiteWindowKey(
@@ -291,12 +358,15 @@ export function dedupeKey(parts: {
 	host: string;
 	path: string;
 	email: string | null;
+	visitorId: string;
 	at: Date;
 }): string {
 	const minute = Math.floor(parts.at.getTime() / 60_000);
 
 	return createHash("sha256")
-		.update(`${parts.host}|${parts.path}|${parts.email ?? ""}|${minute}`)
+		.update(
+			`${parts.host}|${parts.path}|${parts.email ?? ""}|${parts.visitorId}|${minute}`,
+		)
 		.digest("hex");
 }
 

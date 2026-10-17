@@ -15,7 +15,10 @@ import {
 	normalizePath,
 	originAllowed,
 	pageScripts,
+	skipText,
 	stripQuery,
+	TRACKING_SKIP,
+	TRACKING_SKIP_TEXT,
 	type TrackingConfig,
 	trackingReady,
 	trackingSnippet,
@@ -302,7 +305,12 @@ describe("the submission dedupe key", () => {
 	test("collapses the same form inside one minute", () => {
 		const at = new Date("2026-08-10T12:00:10.000Z");
 		const later = new Date("2026-08-10T12:00:50.000Z");
-		const parts = { host: "reloop.de", path: "/pricing", email: "a@b.com" };
+		const parts = {
+			host: "reloop.de",
+			path: "/pricing",
+			email: "a@b.com",
+			visitorId: "visitor-one",
+		};
 
 		expect(dedupeKey({ ...parts, at })).toBe(
 			dedupeKey({ ...parts, at: later }),
@@ -311,12 +319,39 @@ describe("the submission dedupe key", () => {
 
 	test("separates a different address on the same page", () => {
 		const at = new Date("2026-08-10T12:00:10.000Z");
+		const page = { host: "reloop.de", path: "/p", visitorId: "visitor-one" };
 
-		expect(
-			dedupeKey({ host: "reloop.de", path: "/p", email: "a@b.com", at }),
-		).not.toBe(
-			dedupeKey({ host: "reloop.de", path: "/p", email: "c@d.com", at }),
+		expect(dedupeKey({ ...page, email: "a@b.com", at })).not.toBe(
+			dedupeKey({ ...page, email: "c@d.com", at }),
 		);
+	});
+
+	test("separates two visitors who send the same form without an address", () => {
+		const at = new Date("2026-08-10T12:00:10.000Z");
+		const page = { host: "reloop.de", path: "/p", email: null };
+
+		expect(dedupeKey({ ...page, visitorId: "visitor-one", at })).not.toBe(
+			dedupeKey({ ...page, visitorId: "visitor-two", at }),
+		);
+	});
+});
+
+describe("why a submission was not filed", () => {
+	test("stores a stable code, not prose", () => {
+		for (const code of Object.values(TRACKING_SKIP)) {
+			expect(code).toMatch(/^[a-z_]+$/);
+		}
+	});
+
+	test("shows words without a dash beside each code", () => {
+		for (const code of Object.values(TRACKING_SKIP)) {
+			expect(skipText(code)).toBe(TRACKING_SKIP_TEXT[code]);
+			expect(skipText(code)).not.toMatch(/[\u2013\u2014]/);
+		}
+	});
+
+	test("shows a reason that is not a code as it is", () => {
+		expect(skipText("No email address")).toBe("No email address");
 	});
 });
 

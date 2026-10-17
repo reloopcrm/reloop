@@ -55,6 +55,17 @@ somebody else's page. That imposes rules nothing else in this repo has:
 - **Constants come from `@crm/db/tracking`**, interpolated in — `MAX_BODY_BYTES`,
   `MAX_EVENTS_PER_BATCH`, `LINKER_MAX_AGE_SECONDS`, `COOKIE_NAME`. A literal at the
   call site is a client and a server that disagree, and the disagreement is silent.
+- **Every form carries a honeypot.** `trap()` appends one `textarea` to each
+  form on the page, at start, on every SPA view and after a `MutationObserver`
+  sees the page insert nodes, so a modal form gets one too: off screen, `tabIndex -1`,
+  `aria-hidden`, `autocomplete="off"`, marked `data-crm-hp`. **It has no `name`**,
+  so the site's own form never posts it and its backend cannot reject an unknown
+  field. It is a `textarea` and not a text input, because a second text input
+  blocks implicit submission: a one field form without a button would stop
+  submitting on Enter. A person never sees it; a script that fills every input does. When it
+  holds a value, `onSubmit` checks it **before** the forty-field loop and sends a
+  submission that carries only `HONEYPOT_FIELD`, so neither the field cap nor
+  `shrink()` can drop the marker.
 - **The client stays inside the body limit the collector enforces.** `flush()`
   measures the packed batch and splits it, then trims a single oversized form's
   fields, rather than posting a body the collector will destroy — a rejected POST is
@@ -95,11 +106,29 @@ The gauntlet, in order, in `TrackingIngestService.accept`:
    no signal, and treating them as proof discarded honest traffic.
 6. **Host** — each event's own host against the allow list. The batch is filtered,
    not refused, because one bad host in twenty is a bug in somebody's SPA.
+   **Honeypot** — a `form_submit` whose `HONEYPOT_FIELD` holds a value is filtered
+   out here too, before any window is charged. It is spam, so it is dropped with
+   no row and no log line, and the page views beside it are kept.
 7. **Rate** — `EVENTS_PER_MINUTE` charged **per accepted event, atomically**,
    through `TrackingCounter`.
-8. **Form rate**, `FORMS_PER_VISITOR_HOUR` and `FORMS_PER_SITE_HOUR`, charged on
-   the same counter before a `form_submit` is written. A page view costs nothing
-   here, so a refused flood of forms still leaves the real traffic recorded.
+8. **Form rate**, `FORMS_PER_CLIENT_HOUR`, `FORMS_PER_VISITOR_HOUR` and
+   `FORMS_PER_SITE_HOUR`, charged on the same counter before a `form_submit` is
+   filed. A page view costs nothing here, so a refused flood of forms still leaves
+   the real traffic recorded. A form over a limit is **still written**, with
+   `skipReason` `form_cap`, and filed later (see *Filing*). A refused form gives
+   back the windows it already charged, so a full site hour does not also spend
+   the client's and the visitor's.
+
+> **The client limit counts a keyed hash, never an address.** The `Origin` header
+> is a header, the site id is public and the visitor id is whatever the script
+> says, so `FORMS_PER_VISITOR_HOUR` alone stops nobody who makes up a new id per
+> post. The controller reads the client address with `clientAddressOf` (the last
+> `x-forwarded-for` hop, which the app's proxy sets) and turns it into
+> `clientKeyOf`: an HMAC-SHA256 under `BETTER_AUTH_SECRET`, cut to
+> `CLIENT_KEY_LENGTH`. Only that key reaches the ingest service, and it lives only
+> inside a `form-client:` counter key that expires with its hour. It is never on a
+> row and never in a log. A request with no address has no client limit; the
+> visitor and site limits still apply.
 
 > **The rate limit counts events, not requests, and it counts them in the
 > database.** A per-request counter with a full batch behind it admits twenty times
@@ -127,7 +156,8 @@ this whole feature exists to catch.
 - **No sensitive fields.** `clean()` drops any field whose *name* matches
   `SENSITIVE`, anything shaped like a card number, and every `password`, `hidden`
   and `file` input — the last three never leave the browser at all.
-- **No IP address**, anywhere, ever.
+- **No IP address**, anywhere, ever. The form limit counts a keyed hash of it,
+  inside an expiring counter key, and nothing else.
 
 ## Attribution
 
@@ -162,19 +192,72 @@ that holds for the inbox holds here.** A second copy is how *deleted contacts st
 deleted* comes to be true of email and not of forms.
 
 - **Every submission is stored; filing is separate and may decline.** `skipReason`
-  says why, and the row stays for a rep to look at. "Delete forever" on the contact
-  removes every submission linked to them or sent from their address
-  (`ContactsService.purge`).
-- **A refusal is a `skipReason`, never a lost row**, and `CONTACT_CAP_REASON` is a
-  shared constant because `rollup.service.ts` matches on it. Telemetry that
-  substring-matches prose breaks the first time somebody improves the wording.
-- **A form submission is capped before it becomes a row.** `/api/t/e` is
-  anonymous and the `Origin` header is a header, so a script can post forms all
-  day. `FORMS_PER_VISITOR_HOUR` (10) is what one browser may send, and
-  `FORMS_PER_SITE_HOUR` (twice `CONTACTS_PER_HOUR`) is what the whole install
-  may send. Over either one the submission is dropped, with no `formSubmission`
-  row and no filing, because the row itself is the cost. `CONTACTS_PER_HOUR`
-  still bounds what reaches the CRM; these two bound what reaches the database.
+  says why, and the row stays for a rep to look at. The one submission that is
+  never stored is a filled honeypot, because it is spam and not a lead.
+  "Delete forever" on the contact removes every submission linked to them or
+  sent from their address (`ContactsService.purge`).
+- **A refusal is a `skipReason`, never a lost row.** A limit is never a refusal
+  either: it is a deferral. `TRACKING_SKIP` holds the stable codes, `contact_cap`
+  and `form_cap`, and `TRACKING_SKIP_TEXT` the words a log line shows beside
+  them. `rollup.service.ts` matches the code, never the prose, because telemetry
+  that matches prose breaks the first time somebody improves the wording. Rows
+  written before the codes existed carry `LEGACY_CONTACT_CAP_REASON`, and
+  `CONTACT_CAP_REASONS` keeps matching them.
+- **Three form limits bound the filing, not the row.** `/api/t/e` is anonymous
+  and the `Origin` header is a header, so a script can post forms all day.
+  `FORMS_PER_CLIENT_HOUR` (20) is what one client address may send,
+  `FORMS_PER_VISITOR_HOUR` (10) what one browser may send, and
+  `FORMS_PER_SITE_HOUR` (twice `CONTACTS_PER_HOUR`) what the whole install may
+  send. A submission over any of them is stored with `form_cap` and not filed
+  now. The client limit is the one a script cannot dodge with fresh visitor ids,
+  and it is checked first, so a flood from one client stops spending the site's
+  hour before real leads from everyone else run out of it. The rows themselves
+  are bounded by `EVENTS_PER_MINUTE`.
+- **A deferred row is filed later, by `TrackingRefileService`.** `drain` reads
+  the oldest rows whose `skipReason` is in `REFILABLE_REASONS`, `FORM_REFILE.perPass`
+  at a time, and hands each to `file()` again. The collector calls `drainDue`
+  after every accepted batch, and the `refile` window (`refileWindowKey`) lets
+  one pass run per minute. The nightly retention sweep runs one more. A pass
+  stops at the first row the contact cap refuses, because the hour is full. A
+  row whose filing throws is logged and kept with the code `refile_failed`, and
+  the pass goes on to the next row. A pass reads waiting rows first and
+  `refile_failed` rows only with the room that is left, so a set of rows that
+  keep failing never blocks the rows behind them. Every attempt stamps `triedAt`,
+  and a pass reads the least recently tried rows first, so failed rows take turns.
+  The stamp is also the lease: a pass takes a row only while `triedAt` still holds
+  the value it read, and a read skips a row stamped less than `FORM_REFILE.leaseMs`
+  ago, so two passes that overlap never file or charge one row twice. A failed row
+  therefore waits at least that long before its next try.
+  The read uses the
+  `(skipReason, createdAt)` index, so a long history of filed rows costs nothing.
+- **A `form_cap` row waits until its hour is over.** A pass reads it only once
+  `formWindowStart` has moved past its `createdAt`.
+- **Every refiled row pays its visitor's form window.** Before it files a row with
+  a `visitorId`, a pass charges `FORMS_PER_VISITOR_HOUR` for that visitor in the
+  current hour, whatever the row's `skipReason`, because the contact cap or a
+  failure can replace `form_cap` on the row. After a refused charge the row waits
+  for a later pass. A row that does not file gives the charge back.
+  A `contact_cap` row refiled in its own hour therefore counts twice for its
+  visitor. The client window is not charged again, because the client key is
+  never on a row.
+- **A filing never moves a visitor backwards.** `trackedVisitor.contactSubmittedAt`
+  holds the `createdAt` of the submission that last set the visitor's contact.
+  `attach` writes `contactId`, that column and the `last*` columns in one `UPDATE`
+  whose `WHERE` refuses when the stored time is later than this submission's. So
+  an old deferred form, refiled or resent after a newer one, leaves the newer
+  contact and the newer campaign in place. It compares submission times, not
+  touch times, because two forms of one page load share one touch. The guard is
+  on the row it updates, so PostgreSQL re-checks it against the newest row
+  version after a lock wait, and two filings running at once cannot both win.
+  A visitor written before the column existed has it `null`; for that one the
+  `WHERE` looks for a filed submission of the visitor with a later `createdAt`
+  instead, through the `(visitorId, createdAt)` index. No old row is rewritten.
+- **The trap code calls the DOM prototype**, `Element.prototype.querySelector`
+  and `Node.prototype.appendChild`, because a control named `querySelector`
+  shadows the form's own method and the call would throw.
+- **A refile never takes the hour's last slots.** It charges `CONTACTS_PER_HOUR`
+  minus `FORM_REFILE.liveReserve`, so a backlog of deferred rows cannot fill the
+  hour before a lead that arrives live. The live path keeps the full limit.
 - **`CONTACTS_PER_HOUR` bounds the blast radius** of a scripted form. It is charged
   only when a *new* contact would be created — an existing contact costs nothing,
   because attaching to somebody already in the CRM cannot flood it — and **a create
@@ -189,8 +272,11 @@ deleted* comes to be true of email and not of forms.
   writing — otherwise two concurrent deliveries of one submission each leave the
   contact a `Submitted a form on …` note.
 - **Duplicate delivery retries an unfiled row.** `dedupeKey` collapses a resend
-  inside one minute, but if the first attempt died before it filed — no `filedAt`,
-  no `skipReason` — the resend is the retry.
+  inside one minute, but if the first attempt died before it filed (no `filedAt`,
+  and no `skipReason` or a deferral code) the resend is the retry. The key is
+  `host|path|email|visitorId|minute`. Without the visitor id, two people who send
+  the same form without an address in one minute collapse into one row, and the
+  second submission is lost.
 - **The agent is told, never asked.** `agent.contactCreated` writes an `AgentTask`.
   No enrichment, no scoring and no identity matching happens here; see `docs/api.md`.
 
@@ -258,6 +344,6 @@ everybody: a member's render would fire a request that can only be refused.
 | `packages/db/src/attribution.ts` | `classifyTouch` and the source tables. No imports, no database |
 | `apps/app/lib/tracking/` | The loader and the tracker source |
 | `apps/app/app/t/` | The two public routes |
-| `apps/api/src/tracking/` | Collector, config cache, ingest, filing, counters, rollup, retention, tRPC router |
+| `apps/api/src/tracking/` | Collector, config cache, ingest, filing, refile, counters, rollup, retention, tRPC router. `stored-submission.ts` parses a stored row's `fields` and touches back at the read |
 | `apps/app/app/(app)/[slug]/settings/tracking/` | The settings page |
 | `apps/app/components/crm/website-activity.tsx` | The record-sheet section, which renders its own heading so it can render nothing at all |

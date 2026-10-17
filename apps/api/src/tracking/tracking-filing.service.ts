@@ -2,9 +2,9 @@ import { workspaceDomains } from "@crm/auth";
 import { ActivityType, type Db, Prisma, RecordSource } from "@crm/db";
 import type { Touch } from "@crm/db/attribution";
 import {
-	CONTACT_CAP_REASON,
 	CONTACTS_PER_HOUR,
 	contactWindowKey,
+	TRACKING_SKIP,
 } from "@crm/db/tracking";
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -56,15 +56,18 @@ export class TrackingFilingService {
 		private readonly stamp: ActivityStampService,
 	) {}
 
-	async file(submission: {
-		id: string;
-		email: string | null;
-		host: string;
-		visitorId: string | null;
-		name: string | null;
-		firstTouch?: Touch;
-		lastTouch?: Touch;
-	}): Promise<FilingOutcome> {
+	async file(
+		submission: {
+			id: string;
+			email: string | null;
+			host: string;
+			visitorId: string | null;
+			name: string | null;
+			firstTouch?: Touch;
+			lastTouch?: Touch;
+		},
+		options: { contactLimit: number } = { contactLimit: CONTACTS_PER_HOUR },
+	): Promise<FilingOutcome> {
 		const email = normalizeEmail(submission.email ?? "");
 		if (!email) return this.skip(submission.id, "No email address");
 
@@ -98,8 +101,8 @@ export class TrackingFilingService {
 
 		const window = contactWindowKey();
 
-		if (!(await this.counters.take(window, CONTACTS_PER_HOUR))) {
-			return this.skip(submission.id, CONTACT_CAP_REASON);
+		if (!(await this.counters.take(window, options.contactLimit))) {
+			return this.skip(submission.id, TRACKING_SKIP.contactCap);
 		}
 
 		const companyId = await this.companies.companyForEmail(email);
@@ -181,7 +184,7 @@ export class TrackingFilingService {
 
 		const submission = await this.db.formSubmission.findUniqueOrThrow({
 			where: { id: submissionId },
-			select: { host: true, path: true },
+			select: { host: true, path: true, createdAt: true },
 		});
 
 		const author = await this.author(contactId);
@@ -206,13 +209,46 @@ export class TrackingFilingService {
 		if (!visitorId) return;
 
 		const first = columns(context.firstTouch, "first");
-		const last = columns(context.lastTouch, "last");
 
 		await this.db.trackedVisitor.upsert({
 			where: { id: visitorId },
-			create: { id: visitorId, contactId, ...first, ...last },
-			update: { contactId, ...last },
+			create: { id: visitorId, ...first },
+			update: {},
 		});
+
+		const touch = context.lastTouch;
+		const lastColumns = touch
+			? Prisma.sql`,
+				"lastSource" = ${touch.source},
+				"lastMedium" = ${touch.medium},
+				"lastCampaign" = ${touch.campaign},
+				"lastTerm" = ${touch.term},
+				"lastContent" = ${touch.content},
+				"lastReferrer" = ${touch.referrer},
+				"lastLanding" = ${touch.landing},
+				"lastTouchAt" = ${touch.at}`
+			: Prisma.empty;
+
+		await this.db.$executeRaw`
+			UPDATE "trackedVisitor" SET
+				"contactId" = ${contactId},
+				"contactSubmittedAt" = ${submission.createdAt},
+				"lastSeen" = ${new Date()}${lastColumns}
+			WHERE "id" = ${visitorId}
+				AND (
+					"contactSubmittedAt" <= ${submission.createdAt}
+					OR (
+						"contactSubmittedAt" IS NULL
+						AND NOT EXISTS (
+							SELECT 1 FROM "formSubmission"
+							WHERE "visitorId" = ${visitorId}
+								AND "id" <> ${submissionId}
+								AND "filedAt" IS NOT NULL
+								AND "createdAt" > ${submission.createdAt}
+						)
+					)
+				);
+		`;
 	}
 
 	private async author(contactId: string): Promise<string | null> {

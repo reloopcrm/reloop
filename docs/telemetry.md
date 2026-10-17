@@ -173,7 +173,7 @@ sent.
 | `tracking_page_views` | Page views recorded in the window. A count, never a path |
 | `tracking_forms` | Form submissions stored in the window. A count, never a field |
 | `tracking_contacts_created` | Contacts created **by** tracking in the window — `Contact.source = TRACKING`, not submissions that attached to somebody already filed |
-| `tracking_capped` | Submissions the hourly contact cap refused. Matched against `CONTACT_CAP_REASON` (`@crm/db/tracking`) exactly, so the wording is a constant two files share rather than prose one of them may reword |
+| `tracking_capped` | Submissions the hourly contact cap holds back and that still wait for a refile. Matched against `CONTACT_CAP_REASONS` (`@crm/db/tracking`): the stable code `contact_cap` and the wording rows carried before it, never prose one file may reword |
 | `tracking_paused` | Whether collection is paused |
 
 ### The setup funnel

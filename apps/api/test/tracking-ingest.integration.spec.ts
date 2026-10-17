@@ -9,9 +9,15 @@ import {
 import { db } from "@crm/db";
 import {
 	EVENTS_PER_MINUTE,
+	FORMS_PER_CLIENT_HOUR,
 	FORMS_PER_SITE_HOUR,
 	FORMS_PER_VISITOR_HOUR,
 	formSiteWindowKey,
+	formVisitorWindowKey,
+	HONEYPOT_FIELD,
+	LEGACY_CONTACT_CAP_REASON,
+	refileWindowKey,
+	TRACKING_SKIP,
 	type TrackingConfig,
 } from "@crm/db/tracking";
 import type { TrackingEvent } from "@crm/validation/tracking-batch";
@@ -19,6 +25,7 @@ import type { TrackingConfigService } from "../src/tracking/tracking-config.serv
 import { TrackingCounterService } from "../src/tracking/tracking-counter.service";
 import type { TrackingFilingService } from "../src/tracking/tracking-filing.service";
 import { TrackingIngestService } from "../src/tracking/tracking-ingest.service";
+import { TrackingRefileService } from "../src/tracking/tracking-refile.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "ingest-spec";
 const parent = `sites-${suffix}.test`;
@@ -66,11 +73,19 @@ const filing = {
 } as unknown as TrackingFilingService;
 
 const counters = new TrackingCounterService(db);
-const ingest = new TrackingIngestService(db, configService, counters, filing);
+const refile = new TrackingRefileService(db, counters, filing);
+const ingest = new TrackingIngestService(
+	db,
+	configService,
+	counters,
+	filing,
+	refile,
+);
 
 const REQUEST = {
 	origin: `https://${child}`,
 	userAgent: "Mozilla/5.0",
+	clientKey: null,
 };
 
 let visitor = 0;
@@ -81,10 +96,25 @@ function visitorId(): string {
 	return `ingest${suffix.replace(/[^a-zA-Z0-9]/g, "")}${visitor}`;
 }
 
-async function accept(events: TrackingEvent[], id = visitorId()) {
-	await ingest.accept({ siteId: SITE_ID, visitorId: id, events }, REQUEST);
+async function accept(
+	events: TrackingEvent[],
+	id = visitorId(),
+	clientKey: string | null = null,
+) {
+	await ingest.accept(
+		{ siteId: SITE_ID, visitorId: id, events },
+		{ ...REQUEST, clientKey },
+	);
 
 	return id;
+}
+
+async function holdRefile() {
+	const now = Date.now();
+
+	for (const at of [now, now + 60_000]) {
+		await counters.take(refileWindowKey(new Date(at)), 1);
+	}
 }
 
 let tick = 0;
@@ -118,6 +148,7 @@ beforeEach(async () => {
 			{ host: exact, scope: "EXACT_HOST" },
 		],
 	});
+	await holdRefile();
 });
 
 afterAll(clean);
@@ -167,7 +198,7 @@ describe("the rate limit", () => {
 		await accept([view(parent), view(parent), view(parent)]);
 
 		const counter = await db.trackingCounter.findFirst({
-			where: { key: { startsWith: "rate:" } },
+			where: { key: { in: spendableWindows() } },
 			select: { value: true },
 		});
 
@@ -176,6 +207,7 @@ describe("the rate limit", () => {
 
 	it("stops writing once the window is spent", async () => {
 		await db.trackingCounter.deleteMany({ where: {} });
+		await holdRefile();
 
 		for (const key of spendableWindows()) {
 			await counters.take(key, EVENTS_PER_MINUTE, EVENTS_PER_MINUTE);
@@ -188,6 +220,7 @@ describe("the rate limit", () => {
 
 	it("does not spend the window on a batch it refuses", async () => {
 		await db.trackingCounter.deleteMany({ where: {} });
+		await holdRefile();
 
 		for (const key of spendableWindows()) {
 			await counters.take(key, EVENTS_PER_MINUTE, EVENTS_PER_MINUTE - 1);
@@ -312,7 +345,7 @@ describe("a batch delivered twice", () => {
 });
 
 describe("the form submission cap", () => {
-	it("stops one visitor after the hour's forms are spent", async () => {
+	it("files one visitor's first forms and keeps the rest for later", async () => {
 		const id = visitorId();
 		const at = Date.now();
 
@@ -328,11 +361,47 @@ describe("the form submission cap", () => {
 		);
 
 		expect(await db.formSubmission.count({ where: { host: parent } })).toBe(
-			FORMS_PER_VISITOR_HOUR,
+			FORMS_PER_VISITOR_HOUR + 2,
 		);
+		expect(filed).toHaveLength(FORMS_PER_VISITOR_HOUR);
+		expect(
+			await db.formSubmission.count({
+				where: { host: parent, skipReason: TRACKING_SKIP.formCap },
+			}),
+		).toBe(2);
 	});
 
-	it("stops the whole site once its hour is spent, whoever asks", async () => {
+	it("keeps the capped forms unfiled when the same batch runs a refile pass", async () => {
+		await db.trackingCounter.deleteMany({
+			where: { key: { endsWith: ":refile" } },
+		});
+		const id = visitorId();
+		const at = Date.now();
+
+		await accept(
+			Array.from({ length: FORMS_PER_VISITOR_HOUR + 2 }, (_value, index) => ({
+				type: "form_submit",
+				host: parent,
+				path: `/refile-${index}`,
+				at: at - index,
+				fields: { email: `refile-flood-${index}-${suffix}@acme.test` },
+			})),
+			id,
+		);
+
+		expect(filed).toHaveLength(FORMS_PER_VISITOR_HOUR);
+		expect(
+			await db.formSubmission.count({
+				where: {
+					host: parent,
+					filedAt: null,
+					skipReason: TRACKING_SKIP.formCap,
+				},
+			}),
+		).toBe(2);
+	});
+
+	it("keeps a form the site's spent hour refused, unfiled", async () => {
 		for (const key of spendableSiteWindows()) {
 			await counters.take(key, FORMS_PER_SITE_HOUR, FORMS_PER_SITE_HOUR);
 		}
@@ -347,8 +416,110 @@ describe("the form submission cap", () => {
 			},
 		]);
 
-		expect(await db.formSubmission.count({ where: { host: parent } })).toBe(0);
+		const rows = await db.formSubmission.findMany({
+			where: { host: parent },
+			select: { filedAt: true, skipReason: true },
+		});
+
+		expect(rows).toEqual([
+			{ filedAt: null, skipReason: TRACKING_SKIP.formCap },
+		]);
 		expect(filed).toHaveLength(0);
+	});
+
+	it("limits one client however many visitor ids it makes up", async () => {
+		const at = Date.now();
+
+		for (let index = 0; index < FORMS_PER_CLIENT_HOUR + 3; index += 1) {
+			await accept(
+				[
+					{
+						type: "form_submit",
+						host: parent,
+						path: `/contact-${index}`,
+						at: at - index,
+						fields: { email: `rotating-${index}-${suffix}@acme.test` },
+					},
+				],
+				visitorId(),
+				"client-one",
+			);
+		}
+
+		expect(filed).toHaveLength(FORMS_PER_CLIENT_HOUR);
+		expect(
+			await db.formSubmission.count({
+				where: { host: parent, skipReason: TRACKING_SKIP.formCap },
+			}),
+		).toBe(3);
+
+		await accept(
+			[
+				{
+					type: "form_submit",
+					host: parent,
+					path: "/contact",
+					at,
+					fields: { email: `real-${suffix}@acme.test` },
+				},
+			],
+			visitorId(),
+			"client-two",
+		);
+
+		expect(filed).toHaveLength(FORMS_PER_CLIENT_HOUR + 1);
+	});
+
+	it("gives the client and visitor back what a refused form charged", async () => {
+		for (const key of spendableSiteWindows()) {
+			await counters.take(key, FORMS_PER_SITE_HOUR, FORMS_PER_SITE_HOUR);
+		}
+
+		await accept(
+			[
+				{
+					type: "form_submit",
+					host: parent,
+					path: "/contact",
+					at: Date.now(),
+					fields: { email: `refused-${suffix}@acme.test` },
+				},
+			],
+			visitorId(),
+			"client-refused",
+		);
+
+		const charged = await db.trackingCounter.findMany({
+			where: {
+				OR: [
+					{ key: { startsWith: "form-client:" } },
+					{ key: { startsWith: "form-visitor:" } },
+				],
+			},
+			select: { value: true },
+		});
+
+		expect(charged.every((row) => row.value === 0)).toBe(true);
+	});
+
+	it("never stores the client key it was given on the row", async () => {
+		await accept(
+			[
+				{
+					type: "form_submit",
+					host: parent,
+					path: "/contact",
+					at: Date.now(),
+					fields: { email: `keyed-${suffix}@acme.test` },
+				},
+			],
+			visitorId(),
+			"client-secret-key",
+		);
+
+		const row = await db.formSubmission.findFirst({ where: { host: parent } });
+
+		expect(JSON.stringify(row)).not.toContain("client-secret-key");
 	});
 
 	it("leaves page views alone when the form cap is spent", async () => {
@@ -359,6 +530,321 @@ describe("the form submission cap", () => {
 		await accept([view(parent)]);
 
 		expect(await db.trackedEvent.count({ where: { host: parent } })).toBe(1);
+	});
+});
+
+describe("the honeypot", () => {
+	it("drops a submission whose trap was filled in, and spends nothing", async () => {
+		await accept([
+			{
+				type: "form_submit",
+				host: parent,
+				path: "/contact",
+				at: Date.now(),
+				fields: {
+					email: `bot-${suffix}@acme.test`,
+					[HONEYPOT_FIELD]: "1",
+				},
+			},
+		]);
+
+		expect(await db.formSubmission.count({ where: { host: parent } })).toBe(0);
+		expect(filed).toHaveLength(0);
+		expect(
+			await db.trackingCounter.count({
+				where: { key: { startsWith: "form-" } },
+			}),
+		).toBe(0);
+	});
+
+	it("keeps the page views that came with it", async () => {
+		await accept([
+			view(parent),
+			{
+				type: "form_submit",
+				host: parent,
+				path: "/contact",
+				at: Date.now(),
+				fields: { email: `bot-${suffix}@acme.test`, [HONEYPOT_FIELD]: "1" },
+			},
+		]);
+
+		expect(await db.trackedEvent.count({ where: { host: parent } })).toBe(1);
+		expect(await db.formSubmission.count({ where: { host: parent } })).toBe(0);
+	});
+
+	it("files a submission whose trap stayed empty, without the trap", async () => {
+		await accept([
+			{
+				type: "form_submit",
+				host: parent,
+				path: "/contact",
+				at: Date.now(),
+				fields: { email: `human-${suffix}@acme.test`, [HONEYPOT_FIELD]: "" },
+			},
+		]);
+
+		const row = await db.formSubmission.findFirst({
+			where: { host: parent },
+			select: { fields: true },
+		});
+
+		expect(filed).toHaveLength(1);
+		expect(row?.fields).toEqual({ email: `human-${suffix}@acme.test` });
+	});
+});
+
+describe("two submissions without an address", () => {
+	it("keeps both when two visitors send the same form in one minute", async () => {
+		const at = Date.now();
+		const anonymous: TrackingEvent = {
+			type: "form_submit",
+			host: parent,
+			path: "/newsletter",
+			at,
+			fields: { topic: "pricing" },
+		};
+
+		await accept([anonymous], visitorId());
+		await accept([anonymous], visitorId());
+
+		expect(await db.formSubmission.count({ where: { host: parent } })).toBe(2);
+	});
+});
+
+describe("a submission kept for later", () => {
+	async function deferred(skipReason: string, index: number) {
+		return db.formSubmission.create({
+			data: {
+				host: parent,
+				path: "/contact",
+				email: `later-${index}-${suffix}@acme.test`,
+				visitorId: visitorId(),
+				fields: { email: `later-${index}-${suffix}@acme.test` },
+				dedupeKey: `${suffix}-later-${index}-${Math.random()}`,
+				skipReason,
+				createdAt: new Date(Date.UTC(2000, 0, 1, 0, index)),
+			},
+			select: { id: true, visitorId: true },
+		});
+	}
+
+	it("waits while its visitor's form hour is spent", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 11);
+		await counters.take(
+			formVisitorWindowKey(row.visitorId ?? ""),
+			FORMS_PER_VISITOR_HOUR,
+			FORMS_PER_VISITOR_HOUR,
+		);
+
+		expect(await refile.drain(1)).toBe(0);
+
+		const kept = await db.formSubmission.findUnique({
+			where: { id: row.id },
+			select: { filedAt: true, skipReason: true, triedAt: true },
+		});
+		expect(kept?.filedAt).toBeNull();
+		expect(kept?.skipReason).toBe(TRACKING_SKIP.formCap);
+		expect(kept?.triedAt).not.toBeNull();
+	});
+
+	it("waits on a spent visitor hour after the contact cap or a failure changed its reason", async () => {
+		const capped = await deferred(TRACKING_SKIP.contactCap, 14);
+		const failed = await deferred(TRACKING_SKIP.refileFailed, 15);
+
+		for (const row of [capped, failed]) {
+			await counters.take(
+				formVisitorWindowKey(row.visitorId ?? ""),
+				FORMS_PER_VISITOR_HOUR,
+				FORMS_PER_VISITOR_HOUR,
+			);
+		}
+
+		expect(await refile.drain(2)).toBe(0);
+		expect(filed).toHaveLength(0);
+	});
+
+	it("is filed and charged once when two passes overlap", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 16);
+		const calls: string[] = [];
+		const counting = {
+			file: async (
+				submission: Parameters<TrackingFilingService["file"]>[0],
+			) => {
+				calls.push(submission.id);
+				return filing.file(submission);
+			},
+		} as unknown as TrackingFilingService;
+		const passes = [
+			new TrackingRefileService(db, counters, counting),
+			new TrackingRefileService(db, counters, counting),
+		];
+
+		await Promise.all(passes.map((pass) => pass.drain(1)));
+
+		expect(calls).toEqual([row.id]);
+		const window = await db.trackingCounter.findUnique({
+			where: { key: formVisitorWindowKey(row.visitorId ?? "") },
+			select: { value: true },
+		});
+		expect(window?.value).toBe(1);
+	});
+
+	it("is skipped by a pass that starts while another pass files it", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 17);
+		const calls: string[] = [];
+		let second: TrackingRefileService | null = null;
+		const nesting = {
+			file: async (
+				submission: Parameters<TrackingFilingService["file"]>[0],
+			) => {
+				calls.push(submission.id);
+				if (second) {
+					const inner = second;
+					second = null;
+					await inner.drain(1);
+				}
+				return filing.file(submission);
+			},
+		} as unknown as TrackingFilingService;
+		second = new TrackingRefileService(db, counters, nesting);
+		const first = new TrackingRefileService(db, counters, nesting);
+
+		expect(await first.drain(1)).toBe(1);
+
+		expect(calls).toEqual([row.id]);
+		const window = await db.trackingCounter.findUnique({
+			where: { key: formVisitorWindowKey(row.visitorId ?? "") },
+			select: { value: true },
+		});
+		expect(window?.value).toBe(1);
+	});
+
+	it("waits until the hour it was capped in is over", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 12);
+		await db.formSubmission.update({
+			where: { id: row.id },
+			data: { createdAt: new Date() },
+		});
+
+		expect(await refile.drain(1)).toBe(0);
+		expect(filed).toHaveLength(0);
+	});
+
+	it("charges the visitor's form hour when it is filed", async () => {
+		const row = await deferred(TRACKING_SKIP.formCap, 13);
+
+		expect(await refile.drain(1)).toBe(1);
+
+		const window = await db.trackingCounter.findUnique({
+			where: { key: formVisitorWindowKey(row.visitorId ?? "") },
+			select: { value: true },
+		});
+		expect(window?.value).toBe(1);
+	});
+
+	it("is filed by the next refile pass", async () => {
+		const rows = [
+			await deferred(TRACKING_SKIP.formCap, 0),
+			await deferred(TRACKING_SKIP.contactCap, 1),
+			await deferred(LEGACY_CONTACT_CAP_REASON, 2),
+		];
+
+		expect(await refile.drain(rows.length)).toBe(rows.length);
+		expect([...filed].sort()).toEqual(rows.map((row) => row.id).sort());
+	});
+
+	it("keeps going past a row whose filing throws", async () => {
+		const broken = await deferred(TRACKING_SKIP.formCap, 5);
+		const next = await deferred(TRACKING_SKIP.formCap, 6);
+		const throwing = {
+			file: async (
+				submission: Parameters<TrackingFilingService["file"]>[0],
+			) => {
+				if (submission.id === broken.id) throw new Error("contact limit");
+				return filing.file(submission);
+			},
+		} as unknown as TrackingFilingService;
+		const guarded = new TrackingRefileService(db, counters, throwing);
+
+		expect(await guarded.drain(2)).toBe(1);
+		expect(filed).toEqual([next.id]);
+
+		const kept = await db.formSubmission.findUnique({
+			where: { id: broken.id },
+			select: { filedAt: true, skipReason: true },
+		});
+		expect(kept).toEqual({
+			filedAt: null,
+			skipReason: TRACKING_SKIP.refileFailed,
+		});
+	});
+
+	it("tries every failed row in turn, not the same oldest ones", async () => {
+		const first = await deferred(TRACKING_SKIP.refileFailed, 9);
+		const second = await deferred(TRACKING_SKIP.refileFailed, 10);
+		const seen: string[] = [];
+		const throwing = {
+			file: async (submission: { id: string }) => {
+				seen.push(submission.id);
+				throw new Error("still failing");
+			},
+		} as unknown as TrackingFilingService;
+		const guarded = new TrackingRefileService(db, counters, throwing);
+
+		await guarded.drain(1);
+		await guarded.drain(1);
+
+		expect(seen).toEqual([first.id, second.id]);
+	});
+
+	it("files a newer row before an older row whose filing failed", async () => {
+		const failed = await deferred(TRACKING_SKIP.refileFailed, 7);
+		const waiting = await deferred(TRACKING_SKIP.formCap, 8);
+
+		expect(await refile.drain(1)).toBe(1);
+		expect(filed).toEqual([waiting.id]);
+
+		expect(await refile.drain(1)).toBe(1);
+		expect(filed).toEqual([waiting.id, failed.id]);
+	});
+
+	it("is filed when the tracker resends it", async () => {
+		const at = Date.now();
+		const submission: TrackingEvent = {
+			type: "form_submit",
+			host: parent,
+			path: "/contact",
+			at,
+			fields: { email: `resend-${suffix}@acme.test` },
+		};
+
+		const id = visitorId();
+		await accept([submission], id);
+		await db.formSubmission.updateMany({
+			where: { host: parent },
+			data: { filedAt: null, skipReason: TRACKING_SKIP.contactCap },
+		});
+
+		await accept([submission], id);
+
+		expect(filed).toHaveLength(2);
+	});
+
+	it("is refiled by the collector at most once a minute", async () => {
+		await db.trackingCounter.deleteMany({
+			where: { key: { endsWith: ":refile" } },
+		});
+		const row = await deferred(TRACKING_SKIP.formCap, 3);
+
+		await accept([view(parent)]);
+		expect(filed).toEqual([row.id]);
+		await holdRefile();
+
+		const second = await deferred(TRACKING_SKIP.formCap, 4);
+		await accept([view(parent)]);
+
+		expect(filed).not.toContain(second.id);
 	});
 });
 

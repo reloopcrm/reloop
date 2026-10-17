@@ -1624,6 +1624,8 @@ model TrackedVisitor {
   contactId String?
   contact   Contact? @relation("VisitorContact", fields: [contactId], references: [id], onDelete: SetNull)
 
+  contactSubmittedAt DateTime?
+
   firstSource   String?
   firstMedium   String?
   firstCampaign String?
@@ -1713,11 +1715,14 @@ model FormSubmission {
   dedupeKey  String    @unique
   filedAt    DateTime?
   skipReason String?
+  triedAt    DateTime?
 
   createdAt DateTime @default(now())
 
   @@index([contactId])
   @@index([createdAt])
+  @@index([skipReason, createdAt])
+  @@index([visitorId, createdAt])
   @@map("formSubmission")
 }
 

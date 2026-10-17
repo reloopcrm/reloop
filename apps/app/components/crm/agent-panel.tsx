@@ -57,9 +57,11 @@ import {
 	ConversationPicker,
 	useConversations,
 } from "@/components/crm/agent-conversations";
+import { useCanSeeAgentDiagnostics } from "@/components/crm/agent-diagnostics";
 import { contactName } from "@/components/crm/contact-name";
 import { EMAIL_DRAFT } from "@/components/crm/email-draft-config";
 import { EmailDraftDialog } from "@/components/crm/email-draft-dialog";
+import { bridgeFailure } from "@/lib/agent-bridge-errors";
 import {
 	type AgentRecord,
 	recordCopy,
@@ -358,22 +360,18 @@ function Idle({ kind }: { kind: AgentRecord["kind"] }) {
 	);
 }
 
-function Failure({ message }: { message: string }) {
+export function Failure({ message }: { message: string }) {
 	const t = useT();
-	const known = Object.values(PLAN_LIMIT_MESSAGES).includes(
-		message as (typeof PLAN_LIMIT_MESSAGES)[keyof typeof PLAN_LIMIT_MESSAGES],
-	);
-	const hint = message.includes("not reachable")
-		? t("Start it with `bun run dev`, or check AGENT_URL.")
-		: message.includes("not configured")
-			? t("Set AGENT_BRIDGE_SECRET for both the app and the agent.")
-			: null;
+	const admin = useCanSeeAgentDiagnostics();
+	const { text, hint } = bridgeFailure(message, t, {
+		developer: process.env.NODE_ENV === "development",
+		admin,
+		known: Object.values(PLAN_LIMIT_MESSAGES),
+	});
 
 	return (
 		<div className="border-t px-4 py-3 text-xs sm:px-5">
-			<p className="wrap-break-word text-destructive">
-				{known ? t(message) : message}
-			</p>
+			<p className="wrap-break-word text-destructive">{text}</p>
 			{hint ? (
 				<p className="wrap-break-word text-muted-foreground text-xs">{hint}</p>
 			) : null}

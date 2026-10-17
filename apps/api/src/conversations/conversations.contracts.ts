@@ -401,6 +401,7 @@ const sharedConversationSubmissionOutput = z.object({
 	commandType: agentConversationCommandTypeOutput,
 	message: z.record(z.string(), z.unknown()),
 	status: agentConversationSubmissionStatusOutput,
+	errorCode: z.string().nullable(),
 	errorMessage: z.string().nullable(),
 	createdAt: z.string(),
 });

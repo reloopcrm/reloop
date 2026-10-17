@@ -34,11 +34,8 @@ export const REASONS: RunFailureReasons = {
 
 export function runFailureReason(
 	code: string | null | undefined,
-	message: string | null | undefined,
 	t: Translate,
 ): string {
 	const known = code ? REASONS[code] : undefined;
-	if (known) return t(known);
-	if (message?.trim()) return message.trim();
-	return t(RUN_FAILED_WITHOUT_REASON);
+	return t(known ?? RUN_FAILED_WITHOUT_REASON);
 }

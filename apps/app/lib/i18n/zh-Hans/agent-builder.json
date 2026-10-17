@@ -254,5 +254,13 @@
 	"{count} runs": "{count} 次运行",
 	"Brief every deal owner before a renewal call": "在续约通话前向每位交易负责人做简报",
 	"Flag deals with no activity for 14 days": "标记 14 天无活动的交易",
-	"Hand new customers from Sales to Onboarding": "将新客户从销售移交给入职团队"
+	"Hand new customers from Sales to Onboarding": "将新客户从销售移交给入职团队",
+	"Instructions": "指令",
+	"Manifest": "清单",
+	"Add another teammate to the notification": "把另一位团队成员加入通知",
+	"Post a message": "发送消息",
+	"Write a note or task on the record": "在记录上写备注或任务",
+	"Write a summary of the run": "写出本次运行的摘要",
+	"The builder did not receive this message. Send it again in a moment.": "构建器没有收到这条消息。请稍后再发一次。",
+	"The builder could not take this message after three attempts. Send it again.": "构建器尝试三次后仍无法接收这条消息。请再发一次。"
 }

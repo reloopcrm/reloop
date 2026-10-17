@@ -19,6 +19,20 @@ import {
 import { BILLING_SETTINGS_NAV, MARKETING_NAV } from "../cloud/slots.data";
 import { DOCS } from "../components/docs/docs-config";
 import { SHOTS } from "../components/site/site-config";
+import { ACTION_LABELS } from "../lib/agent-action-labels";
+import {
+	BRIDGE_ADMIN_HINTS,
+	BRIDGE_DEVELOPER_HINTS,
+	BRIDGE_ERROR_FALLBACK,
+	BRIDGE_ERRORS,
+} from "../lib/agent-bridge-errors";
+import {
+	BUILDER_FOLLOW_UPS,
+	BUILDER_STEPS,
+	DELIVERY_ERROR_FALLBACK,
+	DELIVERY_ERRORS,
+} from "../lib/builder-chat-copy";
+import { CHAT_DATE_GROUPS } from "../lib/chat-date-group";
 import {
 	GRANT_ACCESS_COPY,
 	GRANT_ACCESS_COPY_BOTH,
@@ -240,6 +254,16 @@ describe("the texts that reach t() through a variable", () => {
 		GRANT_ACCESS_INCOMPLETE_BOTH,
 		...Object.values(USAGE_PROBE_OUTCOMES),
 		...Object.values(PLAN_LIMIT_MESSAGES),
+		...BUILDER_STEPS,
+		...BUILDER_FOLLOW_UPS,
+		...DELIVERY_ERRORS.values(),
+		DELIVERY_ERROR_FALLBACK,
+		...CHAT_DATE_GROUPS,
+		...ACTION_LABELS.values(),
+		...Object.values(BRIDGE_ERRORS),
+		...BRIDGE_DEVELOPER_HINTS.values(),
+		...BRIDGE_ADMIN_HINTS.values(),
+		BRIDGE_ERROR_FALLBACK,
 		BRAND.tagline,
 		DOCS.index.title,
 		DOCS.index.description,
@@ -250,6 +274,25 @@ describe("the texts that reach t() through a variable", () => {
 		it(`says ${english.slice(0, 40)} in German`, () => {
 			expect(de[english]).toBeString();
 			expect(DASHES.test(de[english] ?? "")).toBe(false);
+		});
+	}
+
+	for (const locale of translated) {
+		it(`says every one of them in ${locale}`, () => {
+			const dictionary = DICTIONARIES[locale];
+			const chat = hidden.filter(
+				(english) =>
+					(BUILDER_STEPS as readonly string[]).includes(english) ||
+					(BUILDER_FOLLOW_UPS as readonly string[]).includes(english) ||
+					(CHAT_DATE_GROUPS as readonly string[]).includes(english) ||
+					[...ACTION_LABELS.values()].includes(english) ||
+					[...DELIVERY_ERRORS.values()].includes(english) ||
+					(Object.values(BRIDGE_ERRORS) as string[]).includes(english) ||
+					english === BRIDGE_ERROR_FALLBACK ||
+					english === DELIVERY_ERROR_FALLBACK,
+			);
+
+			expect(chat.filter((english) => !(english in dictionary))).toEqual([]);
 		});
 	}
 });

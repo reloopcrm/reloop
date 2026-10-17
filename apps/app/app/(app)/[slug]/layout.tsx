@@ -67,7 +67,7 @@ export default function AppLayout({
 				</div>
 
 				<Suspense fallback={null}>
-					<RecordSheetHost />
+					<RecordSheets />
 				</Suspense>
 
 				<Suspense fallback={null}>
@@ -86,6 +86,14 @@ export default function AppLayout({
 			</div>
 		</MobileNavProvider>
 	);
+}
+
+async function RecordSheets() {
+	await connection();
+	const session = await requireSession();
+	const canManage = isWorkspaceAdmin(await workspaceRole(session.user.id));
+
+	return <RecordSheetHost canManage={canManage} />;
 }
 
 async function UpdateNotice() {

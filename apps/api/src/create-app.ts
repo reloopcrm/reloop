@@ -11,7 +11,13 @@ import {
 	type NestExpressApplication,
 } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { type NextFunction, type Request, type Response, raw } from "express";
+import {
+	type NextFunction,
+	type Request,
+	type RequestHandler,
+	type Response,
+	raw,
+} from "express";
 import helmet from "helmet";
 import { AppRouterHost } from "nestjs-trpc";
 import {
@@ -40,7 +46,10 @@ const REST_DESCRIPTION =
 	"Every tRPC procedure, reachable over REST for tooling that cannot speak tRPC. Same validation, same middlewares, same services as the tRPC transport. Send an API key in the x-api-key header, or a session cookie.";
 
 export async function createApp(
-	options: { restRateLimit?: RestRateLimitWindow } = {},
+	options: {
+		restRateLimit?: RestRateLimitWindow;
+		cloudMiddleware?: RequestHandler[];
+	} = {},
 ): Promise<NestExpressApplication> {
 	const app = await NestFactory.create<NestExpressApplication>(
 		AppModule,
@@ -49,6 +58,10 @@ export async function createApp(
 	);
 
 	app.use(requestSizeLimit());
+	app.use(helmet());
+	for (const handler of options.cloudMiddleware ?? cloudMiddleware()) {
+		app.use(handler);
+	}
 	const keyRateLimit = restRateLimit(options.restRateLimit);
 	for (const mount of [...REST.bridge.mounts, REQUEST_SIZE.trpc.path]) {
 		app.use(mount, keyRateLimit);
@@ -58,8 +71,6 @@ export async function createApp(
 		BILLING_SEAM.webhook.path,
 		raw({ type: "application/json", limit: BILLING_SEAM.webhook.maxBytes }),
 	);
-	app.use(helmet());
-	for (const handler of cloudMiddleware()) app.use(handler);
 	app.useGlobalPipes(
 		new ValidationPipe({
 			whitelist: true,

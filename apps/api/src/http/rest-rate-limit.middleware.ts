@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { API_KEY_HEADER } from "@crm/auth";
 import { type Db, db } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import {
 	REQUEST_SIZE,
@@ -89,7 +90,7 @@ export function restRateLimit(
 	limit: RestRateLimitWindow = REST_RATE_LIMIT.apiKey,
 	client: Pick<Db, "$queryRaw" | "$executeRaw" | "apikey"> = db,
 ): RequestHandler {
-	let prunedAt = 0;
+	const prunedAt = new Map<string, number>();
 
 	return (req: Request, res: Response, next: NextFunction): void => {
 		const apiKey = keyHeaderOf(req);
@@ -100,9 +101,10 @@ export function restRateLimit(
 		}
 
 		const now = Date.now();
-		const due = now - prunedAt >= limit.windowMs;
+		const scope = cloud.scopedKey(REST_RATE_LIMIT.pruneKey);
+		const due = now - (prunedAt.get(scope) ?? 0) >= limit.windowMs;
 
-		if (due) prunedAt = now;
+		if (due) prunedAt.set(scope, now);
 
 		const prune = due ? pruneExpired(client, limit, now) : Promise.resolve();
 

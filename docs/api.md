@@ -373,7 +373,11 @@ carries no key header and is never counted. The count lives in the `rateLimit` t
 (better-auth's own table, under the `rest:` prefix and the key's row id), so every API
 process shares it. A header that matches no stored key is not counted and writes no row;
 the credential check answers it 401. One upsert counts and reads in one statement. Expired `rest:` rows are
-pruned once per window per process. better-auth's own API key limit stays off. The
+pruned once per window per workspace: the prune clock is keyed by `cloud.scopedKey()`, so
+a self-hosted process holds one clock and every workspace of a hosted build holds its own.
+`cloudMiddleware()` mounts right after `requestSizeLimit()` and `helmet()`, before the
+limiter, so the limiter's reads run in the scope the hosted build resolves
+(`test/rest-rate-limit-scope.spec.ts`). better-auth's own API key limit stays off. The
 `/internal/*` cron routes and the tracking collector are not on this limit. The 429 waits for the request body to drain before it answers, because Bun, the production runtime, keeps the connection open and blocks shutdown when a response leaves a body unread.
 
 **`GET /api/openapi.json` is the document a self-hoster reads**, and it is the tRPC

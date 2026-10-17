@@ -1,4 +1,5 @@
 import type { Db } from "./client";
+import { CLOUD_RESERVED_SLUGS } from "./cloud/slugs.data";
 import {
 	type JsonObject,
 	type JsonValue,
@@ -37,6 +38,7 @@ export const RESERVED_SLUGS: readonly string[] = [
 	"t",
 	"twitter-image",
 	"win-back",
+	...CLOUD_RESERVED_SLUGS,
 ];
 
 export function workspaceSlug(name: string): string {

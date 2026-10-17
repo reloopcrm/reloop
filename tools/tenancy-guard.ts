@@ -99,10 +99,10 @@ const RULES: readonly Rule[] = [
 	{
 		name: "a cloud module other than the port imported by the core",
 		pattern:
-			/(from\s*|import\(\s*)"@crm\/db\/cloud\/(?!scope"|contract")[^"]+"/,
+			/(from\s*|import\(\s*)"@crm\/db\/cloud\/(?!scope"|contract"|slugs\.data")[^"]+"/,
 		allowed: CLOUD_SIDE,
 		skipTests: true,
-		why: "Core code reaches the hosted Cloud through the port, cloud.* from @crm/db/cloud/scope, typed by @crm/db/cloud/contract. Only the slots import anything else under @crm/db/cloud.",
+		why: "Core code reaches the hosted Cloud through the port, cloud.* from @crm/db/cloud/scope, typed by @crm/db/cloud/contract, and the data slot @crm/db/cloud/slugs.data. Only the slots import anything else under @crm/db/cloud.",
 	},
 ];
 

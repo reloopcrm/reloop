@@ -195,7 +195,10 @@ every query still resolves through `WORKSPACE_ID`.
 - `ensureWorkspaceMembership` keeps a custom slug the rep chose in onboarding. It
   replaces the slug with `workspaceSlug(name)` only when it is empty or reserved
   (`isUsableSlug`). `RESERVED_SLUGS` prevents collision with a real route (a collision
-  gets `-crm`).
+  gets `-crm`). It ends with `CLOUD_RESERVED_SLUGS` from the data slot
+  `packages/db/src/cloud/slugs.data.ts`, empty here, where the hosted build lists the
+  first segments of its own pages. The slot holds plain data and no import, because the
+  `"use client"` onboarding form imports `@crm/db/workspace`.
 - **The proxy is the only thing that puts the slug on.** Missing or stale slugs are
   redirected with the query string intact, not 404'd; `[slug]/layout.tsx` is the
   backstop.

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { CLOUD_RESERVED_SLUGS } from "../src/cloud/slugs.data";
 import {
 	DEFAULT_WORKSPACE_SLUG,
 	isUsableSlug,
@@ -61,5 +63,25 @@ describe("isUsableSlug", () => {
 		for (const reserved of RESERVED_SLUGS) {
 			expect(isUsableSlug(reserved)).toBe(false);
 		}
+	});
+});
+
+describe("the cloud slug slot", () => {
+	it("reserves every slug the hosted build adds", () => {
+		for (const reserved of CLOUD_RESERVED_SLUGS) {
+			expect(RESERVED_SLUGS).toContain(reserved);
+			expect(isUsableSlug(reserved)).toBe(false);
+			expect(workspaceSlug(reserved)).not.toBe(reserved);
+		}
+	});
+
+	it("stays plain data, because a client component imports the slug helpers", () => {
+		const source = readFileSync(
+			new URL("../src/cloud/slugs.data.ts", import.meta.url),
+			"utf8",
+		);
+
+		expect(source).not.toMatch(/^\s*import\s/m);
+		expect(source).not.toMatch(/\bimport\(/);
 	});
 });

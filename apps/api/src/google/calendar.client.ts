@@ -55,6 +55,7 @@ export const googleEvent = z.object({
 	location: z.string().optional(),
 	hangoutLink: z.string().optional(),
 	htmlLink: z.string().optional(),
+	updated: z.iso.datetime({ offset: true }).optional().catch(undefined),
 	recurringEventId: z.string().optional(),
 	start: googleEventTime.optional(),
 	end: googleEventTime.optional(),

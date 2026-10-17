@@ -506,12 +506,38 @@ the largest attachment upload the conversation contracts accept.
   belongs to and the frozen `timeMin`/`timeMax` window go into the calendar row's
   `backfill` as `{ v, pageToken, syncToken, timeMin, timeMax }`
   (`google/calendar-page-cursor.ts`), and the next tick continues there with the
-  same window. The last page writes the new sync token and clears the blob. A
-  page Google rejects for good (`failed`, not retryable) or a 410 clears it, so
-  the next tick starts the pass again; a retryable failure keeps it.
+  same window. The last page writes the new sync token and keeps the blob with
+  `pageToken: null`, because Google binds a sync token to the window of the
+  pass that made it. A page Google rejects for good (`failed`, not retryable)
+  drops only the page token, so the next tick starts the pass again in the same
+  window; a 410 clears cursor and blob; a retryable failure keeps both.
+- **The calendar window is renewed before it runs out.** A sync token never
+  returns an event that starts after the window's `timeMax`. Once now reaches
+  `timeMax` minus `CALENDAR.sync.windowReserveMs`, or a sync token has no known
+  window, the sync still reads the token's changes to the last page, so a
+  meeting moved into the past is not lost. Then it clears cursor and blob, and
+  the next tick reads a fresh window from now to `CALENDAR.sync.horizonMs`. The
+  fresh pass writes through the same lookups, so it adds no second row, and it
+  deletes nothing that fell out of the window.
+- **A calendar event belongs to every rep whose calendar holds it.** One
+  `CalendarEvent` row serves every rep who has the meeting, and
+  `CalendarEventSync` records one holder per rep with that rep's Google id. A
+  sync that writes an event records its rep. A cancellation or a purge from one
+  rep removes only that rep's holder row; the event and its `MEETING` activity
+  go once no rep holds it. The removal locks the event rows first
+  (`google/calendar-holders.ts`), so two reps who cancel at once leave no
+  event without a holder. An event without any holder row counts as held by
+  its `syncedByUserId`. A Google disconnect (`revoke`) removes the rep's sync
+  rows, then every holder row of the rep in one statement, and deletes no
+  event. A sync writes or removes an event only while its sync row exists, and
+  holds that row with `FOR KEY SHARE` (`holdSyncRow`), so a disconnect waits
+  for a running write, and no sync after it adds the holder back or deletes an
+  event.
 - **A calendar event is found by its Google id.** A cancelled entry in an
-  incremental sync carries only `id` and `status`, so it is deleted by
-  `googleEventId`, narrowed by `iCalUid` when the entry has one. The second way
+  incremental sync carries only `id` and `status`, so it is matched by the
+  Google id on the syncing rep's holder row, narrowed by `iCalUid` when the
+  entry has one. Another rep's id on the event row never matches. A sync writes
+  the event and its holder row in one transaction under the event lock. The second way
   is `iCalUid`: for a single event every row without a `recurringEventId`, for
   an instance the row with its `originalStartTime`. Google ids are unique per calendar
   only, so an id that matches events with different `iCalUid`s deletes nothing. A

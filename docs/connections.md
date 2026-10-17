@@ -92,7 +92,8 @@ day it is connected, and keeps reading new mail at the same time.
   same warning as a refused new connection. A row a sync tick is running on stays. So two unfinished connections never end
   as two mailboxes on a one-mailbox plan. Disconnect
   (`revoke`) removes the row also when there is no account; Google keeps it only
-  when Google refuses to revoke a token that exists.
+  when Google refuses to revoke a token that exists. A Google disconnect also
+  removes the rep as holder of every calendar event and keeps the events.
 - **The card says what is happening while it happens.** The status reads
   `Reading mail` and the line under it reads `Reading the history, back to
   <date>`, with a percentage and a bar when the backfill has a floor. The
@@ -107,8 +108,10 @@ day it is connected, and keeps reading new mail at the same time.
   Everything already filed stays.
 - **Deleting synced data ends the backfill.** Google and Outlook promise that
   nothing deleted comes back, so `purgeSyncedData` marks the backfill done
-  (`SyncStateService.stopBackfill`). IMAP promises the opposite and is
-  unchanged.
+  (`SyncStateService.stopBackfill`). The calendar row gets `importSince` set to
+  the purge time, and the calendar sync skips every event that Google last
+  changed (`updated`) before it, so a renewed window does not bring a deleted
+  meeting back. IMAP promises the opposite and is unchanged.
 
 ## A broken grant is fixed where it shows
 

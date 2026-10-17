@@ -24,16 +24,17 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  ownedCompanies Company[]           @relation("CompanyOwner")
-  ownedContacts  Contact[]           @relation("ContactOwner")
-  ownedDeals     Deal[]              @relation("DealOwner")
-  activities     Activity[]          @relation("ActivityAuthor")
-  mailboxSyncs   MailboxSync[]
-  imapAccounts   ImapAccount[]
-  factDecisions  ContactFact[]       @relation("FactDecider")
-  conversations  AgentConversation[] @relation("ConversationOwner")
-  fieldValues    FieldValue[]        @relation("FieldValueUser")
-  savedViews     SavedView[]         @relation("SavedViewOwner")
+  ownedCompanies     Company[]           @relation("CompanyOwner")
+  ownedContacts      Contact[]           @relation("ContactOwner")
+  ownedDeals         Deal[]              @relation("DealOwner")
+  activities         Activity[]          @relation("ActivityAuthor")
+  mailboxSyncs       MailboxSync[]
+  calendarEventSyncs CalendarEventSync[]
+  imapAccounts       ImapAccount[]
+  factDecisions      ContactFact[]       @relation("FactDecider")
+  conversations      AgentConversation[] @relation("ConversationOwner")
+  fieldValues        FieldValue[]        @relation("FieldValueUser")
+  savedViews         SavedView[]         @relation("SavedViewOwner")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -1484,6 +1485,7 @@ model CalendarEvent {
   googleEventId  String?
 
   attendees CalendarAttendee[]
+  holders   CalendarEventSync[]
   activity  Activity?
 
   createdAt DateTime @default(now())
@@ -1494,6 +1496,23 @@ model CalendarEvent {
   @@index([contactId, startsAt])
   @@index([googleEventId])
   @@map("calendarEvent")
+}
+
+model CalendarEventSync {
+  id      String        @id @default(cuid())
+  eventId String
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  googleEventId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([userId, googleEventId])
+  @@map("calendarEventSync")
 }
 
 model CalendarAttendee {

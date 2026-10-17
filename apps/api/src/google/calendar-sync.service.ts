@@ -3,6 +3,7 @@ import {
 	type Db,
 	GoogleSyncStatus,
 	type MailboxSyncModel as MailboxSync,
+	type Prisma,
 	RecordSource,
 } from "@crm/db";
 import { Injectable, Logger } from "@nestjs/common";
@@ -23,6 +24,13 @@ import {
 } from "./calendar.client";
 import { CALENDAR } from "./calendar.config";
 import {
+	heldByUser,
+	holdSyncRow,
+	lockEvents,
+	releaseEvents,
+} from "./calendar-holders";
+import {
+	type CalendarPageCursor,
 	readCalendarPage,
 	serialiseCalendarPage,
 } from "./calendar-page-cursor";
@@ -95,7 +103,7 @@ export class CalendarSyncService {
 			suppressedEmails,
 		};
 
-		let pass = this.startPass(row);
+		let pass = this.startPass(row, Date.now());
 		let written = 0;
 		let removed = 0;
 
@@ -142,7 +150,10 @@ export class CalendarSyncService {
 
 			if (result.outcome === "failed" || result.outcome === "unreadable") {
 				if (result.outcome === "failed" && !result.retryable) {
-					await this.state.saveBackfill(row.id, null);
+					await this.state.saveBackfill(
+						row.id,
+						serialiseCalendarPage(savedPass(pass, null, pass.syncToken)),
+					);
 				}
 				await this.state.markFailed(row.id, result.reason);
 				return {
@@ -162,11 +173,24 @@ export class CalendarSyncService {
 			const nextPageToken = result.data.nextPageToken;
 
 			if (!nextPageToken) {
+				const next = result.data.nextSyncToken ?? pass.syncToken;
+				const renew = next !== null && windowEnding(pass, Date.now());
+				const cursor = renew ? null : next;
 				await this.state.settle(row.id, {
-					cursor: result.data.nextSyncToken ?? pass.syncToken,
-					backfill: null,
+					cursor,
+					backfill: renew
+						? null
+						: serialiseCalendarPage(savedPass(pass, null, cursor)),
 					status: GoogleSyncStatus.RUNNING,
 				});
+
+				if (renew) {
+					this.logger.log({
+						message: "Calendar sync window ends. The next tick reads a new one",
+						syncId: row.id,
+						timeMax: pass.timeMax,
+					});
+				}
 
 				this.logger.log({
 					message: "Calendar sync complete",
@@ -187,13 +211,7 @@ export class CalendarSyncService {
 			pass = { ...pass, pageToken: nextPageToken };
 			await this.state.saveBackfill(
 				row.id,
-				serialiseCalendarPage({
-					v: 1,
-					pageToken: nextPageToken,
-					syncToken: pass.syncToken,
-					timeMin: pass.timeMin,
-					timeMax: pass.timeMax,
-				}),
+				serialiseCalendarPage(savedPass(pass, nextPageToken, pass.syncToken)),
 			);
 		}
 
@@ -211,7 +229,7 @@ export class CalendarSyncService {
 		};
 	}
 
-	private startPass(row: MailboxSync): CalendarPass {
+	private startPass(row: MailboxSync, now: number): CalendarPass {
 		const syncToken = row.cursor ?? null;
 		const saved = readCalendarPage(row.backfill);
 
@@ -223,16 +241,25 @@ export class CalendarSyncService {
 			});
 		}
 
-		if (saved.outcome === "ok" && saved.cursor.syncToken === syncToken) {
+		const resumes =
+			saved.outcome === "ok" &&
+			saved.cursor.syncToken === syncToken &&
+			(saved.cursor.pageToken !== null || syncToken !== null);
+		if (resumes) {
+			const { pageToken, timeMin, timeMax } = saved.cursor;
+			return { syncToken, pageToken: pageToken ?? undefined, timeMin, timeMax };
+		}
+
+		if (syncToken) {
+			const unknown = new Date(now).toISOString();
 			return {
 				syncToken,
-				pageToken: saved.cursor.pageToken,
-				timeMin: saved.cursor.timeMin,
-				timeMax: saved.cursor.timeMax,
+				pageToken: undefined,
+				timeMin: unknown,
+				timeMax: unknown,
 			};
 		}
 
-		const now = Date.now();
 		return {
 			syncToken,
 			pageToken: undefined,
@@ -241,12 +268,44 @@ export class CalendarSyncService {
 		};
 	}
 
-	private async remove(event: GoogleEvent): Promise<"removed" | "ignored"> {
+	private async remove(
+		event: GoogleEvent,
+		row: MailboxSync,
+	): Promise<"removed" | "ignored"> {
+		const held = await this.heldBy(event, row.userId);
+		if (held.length === 0) return "ignored";
+
+		const live = await this.db.$transaction(async (tx) => {
+			if (!(await holdSyncRow(tx, row.id))) return false;
+			await releaseEvents(tx, row.userId, held);
+			return true;
+		});
+
+		return live ? "removed" : "ignored";
+	}
+
+	private async heldBy(event: GoogleEvent, userId: string): Promise<string[]> {
 		const iCalUid = event.iCalUID;
+		const mine = heldByUser(userId);
 
 		if (event.id) {
 			const rows = await this.db.calendarEvent.findMany({
-				where: { googleEventId: event.id, iCalUid },
+				where: {
+					AND: [
+						mine,
+						{ iCalUid },
+						{
+							OR: [
+								{ holders: { some: { userId, googleEventId: event.id } } },
+								{
+									holders: { none: {} },
+									syncedByUserId: userId,
+									googleEventId: event.id,
+								},
+							],
+						},
+					],
+				},
 				select: { id: true, iCalUid: true },
 			});
 			const uids = new Set(rows.map((found) => found.iCalUid));
@@ -257,44 +316,48 @@ export class CalendarSyncService {
 					googleEventId: event.id,
 					matches: rows.length,
 				});
-				return "ignored";
+				return [];
 			}
 
-			if (rows.length > 0) {
-				const byId = await this.db.calendarEvent.deleteMany({
-					where: { id: { in: rows.map((found) => found.id) } },
-				});
-				if (byId.count > 0) return "removed";
-			}
+			if (rows.length > 0) return rows.map((found) => found.id);
 		}
 
-		if (!iCalUid) return "ignored";
+		if (!iCalUid) return [];
 
 		if (!event.recurringEventId && !event.originalStartTime) {
-			const single = await this.db.calendarEvent.deleteMany({
-				where: { iCalUid, recurringEventId: null },
+			return this.idsOf({
+				AND: [mine, { iCalUid, recurringEventId: null }],
 			});
-			return single.count > 0 ? "removed" : "ignored";
 		}
 
 		const originalStart =
 			eventTime(event.originalStartTime) ?? eventTime(event.start);
-		if (!originalStart) return "ignored";
+		if (!originalStart) return [];
 
-		const byKey = await this.db.calendarEvent.deleteMany({
-			where: { iCalUid, originalStartTime: originalStart.at },
+		return this.idsOf({
+			AND: [mine, { iCalUid, originalStartTime: originalStart.at }],
 		});
-		return byKey.count > 0 ? "removed" : "ignored";
+	}
+
+	private async idsOf(
+		where: Prisma.CalendarEventWhereInput,
+	): Promise<string[]> {
+		const rows = await this.db.calendarEvent.findMany({
+			where,
+			select: { id: true },
+		});
+		return rows.map((found) => found.id);
 	}
 
 	private async existing(
+		tx: Prisma.TransactionClient,
 		event: GoogleEvent,
 		iCalUid: string,
 	): Promise<{ id: string; googleEventId: string | null } | null> {
 		const select = { id: true, googleEventId: true } as const;
 
 		if (event.id) {
-			const byId = await this.db.calendarEvent.findFirst({
+			const byId = await tx.calendarEvent.findFirst({
 				where: { googleEventId: event.id, iCalUid },
 				orderBy: { createdAt: "asc" },
 				select,
@@ -304,7 +367,7 @@ export class CalendarSyncService {
 
 		if (event.recurringEventId) return null;
 
-		return this.db.calendarEvent.findFirst({
+		return tx.calendarEvent.findFirst({
 			where: { iCalUid, recurringEventId: null },
 			orderBy: { createdAt: "asc" },
 			select,
@@ -316,7 +379,8 @@ export class CalendarSyncService {
 		row: MailboxSync,
 		context: MatchContext,
 	): Promise<"written" | "removed" | "ignored"> {
-		if (event.status === "cancelled") return this.remove(event);
+		if (event.status === "cancelled") return this.remove(event, row);
+		if (changedBefore(event, row.importSince)) return "ignored";
 
 		const iCalUid = event.iCalUID;
 		if (!iCalUid) return "ignored";
@@ -363,35 +427,55 @@ export class CalendarSyncService {
 			contactId: match.contactId,
 		};
 
-		const found = await this.existing(event, iCalUid);
+		const record = await this.db.$transaction(async (tx) => {
+			if (!(await holdSyncRow(tx, row.id))) return null;
+			const found = await this.existing(tx, event, iCalUid);
+			const kept =
+				found && (await lockEvents(tx, [found.id])).length > 0 ? found : null;
 
-		const record = found
-			? await this.db.calendarEvent.update({
-					where: { id: found.id },
-					data: {
-						...fields,
-						googleEventId: found.googleEventId ?? event.id ?? null,
-					},
-					select: { id: true },
-				})
-			: await this.db.calendarEvent.upsert({
-					where: {
-						iCalUid_originalStartTime: {
+			const written = kept
+				? await tx.calendarEvent.update({
+						where: { id: kept.id },
+						data: {
+							...fields,
+							googleEventId: kept.googleEventId ?? event.id ?? null,
+						},
+						select: { id: true },
+					})
+				: await tx.calendarEvent.upsert({
+						where: {
+							iCalUid_originalStartTime: {
+								iCalUid,
+								originalStartTime: originalStart.at,
+							},
+						},
+						create: {
+							...fields,
 							iCalUid,
 							originalStartTime: originalStart.at,
+							recurringEventId: event.recurringEventId ?? null,
+							syncedByUserId: row.userId,
+							googleEventId: event.id ?? null,
 						},
-					},
-					create: {
-						...fields,
-						iCalUid,
-						originalStartTime: originalStart.at,
-						recurringEventId: event.recurringEventId ?? null,
-						syncedByUserId: row.userId,
-						googleEventId: event.id ?? null,
-					},
-					update: fields,
-					select: { id: true },
-				});
+						update: fields,
+						select: { id: true },
+					});
+
+			await tx.calendarEventSync.upsert({
+				where: {
+					eventId_userId: { eventId: written.id, userId: row.userId },
+				},
+				create: {
+					eventId: written.id,
+					userId: row.userId,
+					googleEventId: event.id ?? null,
+				},
+				update: { googleEventId: event.id ?? undefined },
+			});
+
+			return written;
+		});
+		if (!record) return "ignored";
 
 		await this.syncAttendees(record.id, event);
 		await this.prep.forEvent(record.id);
@@ -521,4 +605,27 @@ export class CalendarSyncService {
 
 		return people;
 	}
+}
+
+function changedBefore(event: GoogleEvent, since: Date | null): boolean {
+	if (!since || !event.updated) return false;
+	return Date.parse(event.updated) < since.getTime();
+}
+
+function windowEnding(pass: CalendarPass, now: number): boolean {
+	return now >= Date.parse(pass.timeMax) - CALENDAR.sync.windowReserveMs;
+}
+
+function savedPass(
+	pass: CalendarPass,
+	pageToken: string | null,
+	syncToken: string | null,
+): CalendarPageCursor {
+	return {
+		v: 1,
+		pageToken,
+		syncToken,
+		timeMin: pass.timeMin,
+		timeMax: pass.timeMax,
+	};
 }

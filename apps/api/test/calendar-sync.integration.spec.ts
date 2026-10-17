@@ -1,4 +1,14 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	it,
+	setSystemTime,
+} from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { db, type MailboxSyncModel as MailboxSync } from "@crm/db";
 import { readAgentTaskMeetingEventId } from "@crm/validation/agent-task-payload";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
@@ -12,12 +22,17 @@ import {
 	type GoogleEvent,
 	googleEventsPage,
 } from "../src/google/calendar.client";
+import { CALENDAR } from "../src/google/calendar.config";
+import { releaseEvents } from "../src/google/calendar-holders";
+import { readCalendarPage } from "../src/google/calendar-page-cursor";
 import { CalendarSyncService } from "../src/google/calendar-sync.service";
+import { GoogleConnectionService } from "../src/google/google-connection.service";
 import { MeetingPrepService } from "../src/google/meeting-prep.service";
 import type { MailboxResult } from "../src/mailbox/mailbox-api.client";
 import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
-import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
+import { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import { SyncStateService } from "../src/mailbox/sync-state.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
 import { withDiscardedCrmEvents } from "./agent-trigger.stub";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -72,6 +87,14 @@ const match = new MailboxMatchService(
 	log,
 );
 const state = new SyncStateService(db);
+const google = new GoogleConnectionService(
+	db,
+	new MailboxTokenService(db),
+	state,
+	match,
+	stamp,
+	new ThreadParticipantsService(db, match, stamp, agent),
+);
 
 function service(calendar: FakeCalendar): CalendarSyncService {
 	return new CalendarSyncService(
@@ -138,6 +161,21 @@ function eventsOf(key: string) {
 		where: { iCalUid: `ical-${key}-${suffix}@google.com` },
 		include: { activity: true, attendees: { orderBy: { email: "asc" } } },
 	});
+}
+
+async function holdersOf(key: string): Promise<string[]> {
+	const rows = await db.calendarEventSync.findMany({
+		where: { event: { iCalUid: `ical-${key}-${suffix}@google.com` } },
+		select: { userId: true },
+		orderBy: { userId: "asc" },
+	});
+	return rows.map((holder) => holder.userId);
+}
+
+function savedPass(row: MailboxSync) {
+	const read = readCalendarPage(row.backfill);
+	if (read.outcome !== "ok") throw new Error(`No saved pass: ${read.outcome}`);
+	return read.cursor;
 }
 
 function ourContactIds(): Promise<string[]> {
@@ -282,6 +320,15 @@ describe("calendar sync of a cancelled event", () => {
 		]);
 		await sync.sync(second);
 
+		expect(await eventsOf("other-copy")).toHaveLength(1);
+		expect(await holdersOf("other-copy")).toEqual([first.userId]);
+
+		const firstAgain = await reload(first);
+		calendar.respond = onePage([
+			{ id: "event-first-copy", status: "cancelled" },
+		]);
+		await sync.sync(firstAgain);
+
 		expect(await eventsOf("other-copy")).toHaveLength(0);
 	});
 
@@ -321,6 +368,362 @@ describe("calendar sync of a cancelled event", () => {
 		await sync.sync(row);
 		expect(await eventsOf("shared-b")).toHaveLength(1);
 		expect(await eventsOf("shared-c")).toHaveLength(1);
+	});
+});
+
+describe("a calendar event two reps share", () => {
+	it("keeps the event and its activity until the last rep cancels it", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		let first = await freshRow();
+		let second = await freshRow();
+
+		calendar.respond = onePage([meeting("both", at(30))]);
+		await sync.sync(first);
+		await sync.sync(second);
+
+		const stored = await eventsOf("both");
+		expect(stored).toHaveLength(1);
+		const activityId = stored[0]?.activity?.id ?? "";
+		expect(activityId).not.toBe("");
+		expect(await holdersOf("both")).toEqual(
+			[first.userId, second.userId].sort(),
+		);
+
+		first = await reload(first);
+		calendar.respond = onePage([{ id: "event-both", status: "cancelled" }]);
+		await sync.sync(first);
+
+		expect(await eventsOf("both")).toHaveLength(1);
+		expect(await db.activity.count({ where: { id: activityId } })).toBe(1);
+		expect(await holdersOf("both")).toEqual([second.userId]);
+
+		second = await reload(second);
+		await sync.sync(second);
+
+		expect(await eventsOf("both")).toHaveLength(0);
+		expect(await db.activity.count({ where: { id: activityId } })).toBe(0);
+	});
+
+	it("removes the event when both reps cancel it at the same moment", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+
+		calendar.respond = onePage([meeting("race", at(34))]);
+		await sync.sync(first);
+		await sync.sync(second);
+		const [event] = await eventsOf("race");
+		const eventId = event?.id ?? "";
+
+		let openGate = () => {};
+		const gate = new Promise<void>((resolve) => {
+			openGate = resolve;
+		});
+		let firstReleased = () => {};
+		const released = new Promise<void>((resolve) => {
+			firstReleased = resolve;
+		});
+		const firstCancel = db.$transaction(
+			async (tx) => {
+				await releaseEvents(tx, first.userId, [eventId]);
+				firstReleased();
+				await gate;
+			},
+			{ timeout: 10_000 },
+		);
+		await released;
+
+		second = await reload(second);
+		calendar.respond = onePage([{ id: "event-race", status: "cancelled" }]);
+		const secondCancel = sync.sync(second);
+		await Bun.sleep(200);
+		openGate();
+		await Promise.all([firstCancel, secondCancel]);
+
+		expect(await eventsOf("race")).toHaveLength(0);
+	});
+
+	it("keeps a rep's holder when the rep cancels a colleague's Google id", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+		const startsAt = at(37);
+
+		calendar.respond = onePage([
+			meeting("idmix", startsAt, { id: "event-idmix-first" }),
+		]);
+		await sync.sync(first);
+		calendar.respond = onePage([
+			meeting("idmix", startsAt, { id: "event-idmix-second" }),
+		]);
+		await sync.sync(second);
+
+		second = await reload(second);
+		calendar.respond = onePage([
+			{ id: "event-idmix-first", status: "cancelled" },
+		]);
+		const outcome = await sync.sync(second);
+
+		expect(outcome.eventsRemoved).toBe(0);
+		expect(await holdersOf("idmix")).toEqual(
+			[first.userId, second.userId].sort(),
+		);
+	});
+
+	it("keeps the event for a rep who syncs it while the last holder cancels", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		const second = await freshRow();
+
+		calendar.respond = onePage([meeting("handover", at(38))]);
+		await sync.sync(first);
+		const [event] = await eventsOf("handover");
+		const eventId = event?.id ?? "";
+
+		let openGate = () => {};
+		const gate = new Promise<void>((resolve) => {
+			openGate = resolve;
+		});
+		let firstReleased = () => {};
+		const released = new Promise<void>((resolve) => {
+			firstReleased = resolve;
+		});
+		const firstCancel = db.$transaction(
+			async (tx) => {
+				await releaseEvents(tx, first.userId, [eventId]);
+				firstReleased();
+				await gate;
+			},
+			{ timeout: 10_000 },
+		);
+		await released;
+
+		const secondSync = sync.sync(second);
+		await Bun.sleep(200);
+		openGate();
+		await firstCancel;
+		const outcome = await secondSync;
+
+		expect(outcome.status).toBe("synced");
+		const stored = await eventsOf("handover");
+		expect(stored).toHaveLength(1);
+		expect(stored[0]?.activity).not.toBeNull();
+		expect(await holdersOf("handover")).toEqual([second.userId]);
+	});
+
+	it("drops a rep who disconnects Google as holder and keeps every event", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+
+		calendar.respond = onePage([meeting("revoke", at(39))]);
+		await sync.sync(first);
+		await sync.sync(second);
+		calendar.respond = onePage([meeting("revoke-solo", at(40))]);
+		await sync.sync(await reload(first));
+
+		const [shared] = await eventsOf("revoke");
+		const activityId = shared?.activity?.id ?? "";
+		expect(activityId).not.toBe("");
+
+		expect(await google.revoke(first.userId)).toEqual({ revoked: true });
+
+		expect(await holdersOf("revoke")).toEqual([second.userId]);
+		expect(await holdersOf("revoke-solo")).toEqual([]);
+		expect(await eventsOf("revoke")).toHaveLength(1);
+		expect(await eventsOf("revoke-solo")).toHaveLength(1);
+		expect(await db.activity.count({ where: { id: activityId } })).toBe(1);
+
+		second = await reload(second);
+		calendar.respond = onePage([{ id: "event-revoke", status: "cancelled" }]);
+		await sync.sync(second);
+
+		expect(await eventsOf("revoke")).toHaveLength(0);
+		expect(await db.activity.count({ where: { id: activityId } })).toBe(0);
+	});
+
+	it("writes no holder for a rep whose disconnect lands while the page is read", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+		let second = await freshRow();
+
+		calendar.respond = onePage([meeting("revoke-race", at(41))]);
+		await sync.sync(second);
+
+		const update = meeting("revoke-race", at(41), { summary: "Moved" });
+		const inFlight = new FakeCalendar();
+		inFlight.listEvents = async () => {
+			await google.revoke(first.userId);
+			return { outcome: "ok", data: { items: [update] } };
+		};
+		await service(inFlight)
+			.sync(first)
+			.catch(() => undefined);
+
+		expect(await holdersOf("revoke-race")).toEqual([second.userId]);
+
+		second = await reload(second);
+		calendar.respond = onePage([
+			{ id: "event-revoke-race", status: "cancelled" },
+		]);
+		await sync.sync(second);
+
+		expect(await eventsOf("revoke-race")).toHaveLength(0);
+	});
+
+	it("removes no event for a rep whose disconnect lands while a cancellation is read", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const first = await freshRow();
+
+		calendar.respond = onePage([meeting("revoke-cancel", at(42))]);
+		await sync.sync(first);
+		const [stored] = await eventsOf("revoke-cancel");
+		const activityId = stored?.activity?.id ?? "";
+		expect(activityId).not.toBe("");
+
+		const inFlight = new FakeCalendar();
+		inFlight.listEvents = async () => {
+			await google.revoke(first.userId);
+			return {
+				outcome: "ok",
+				data: { items: [{ id: "event-revoke-cancel", status: "cancelled" }] },
+			};
+		};
+		await service(inFlight)
+			.sync(await reload(first))
+			.catch(() => undefined);
+
+		expect(await eventsOf("revoke-cancel")).toHaveLength(1);
+		expect(await db.activity.count({ where: { id: activityId } })).toBe(1);
+	});
+
+	it("ignores a cancellation from a calendar that never held the event", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const owner = await freshRow();
+		const stranger = await freshRow();
+
+		calendar.respond = onePage([meeting("stranger", at(31))]);
+		await sync.sync(owner);
+
+		calendar.respond = onePage([
+			{ id: "event-stranger", status: "cancelled" },
+			{
+				id: "event-stranger-other",
+				iCalUID: `ical-stranger-${suffix}@google.com`,
+				status: "cancelled",
+			},
+		]);
+		const outcome = await sync.sync(stranger);
+
+		expect(outcome.eventsRemoved).toBe(0);
+		expect(await eventsOf("stranger")).toHaveLength(1);
+		expect(await holdersOf("stranger")).toEqual([owner.userId]);
+	});
+
+	it("removes an event stored before holders existed when its rep cancels it", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const owner = await freshRow();
+		const colleagueRow = await freshRow();
+		const startsAt = at(32);
+
+		await db.calendarEvent.create({
+			data: {
+				iCalUid: `ical-legacy-${suffix}@google.com`,
+				originalStartTime: startsAt,
+				startsAt,
+				endsAt: new Date(startsAt.getTime() + 3_600_000),
+				status: "confirmed",
+				syncedByUserId: owner.userId,
+				googleEventId: "event-legacy",
+				companyId,
+			},
+		});
+
+		calendar.respond = onePage([{ id: "event-legacy", status: "cancelled" }]);
+		await sync.sync(colleagueRow);
+		expect(await eventsOf("legacy")).toHaveLength(1);
+
+		await sync.sync(owner);
+		expect(await eventsOf("legacy")).toHaveLength(0);
+	});
+
+	it("records a second rep as holder of an older shared event on the first renewed window", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const owner = await freshRow();
+		let colleagueRow = await freshRow();
+		const startsAt = at(39);
+
+		calendar.respond = onePage([meeting("upgrade", startsAt)]);
+		await sync.sync(owner);
+		await db.mailboxSync.update({
+			where: { id: colleagueRow.id },
+			data: { cursor: "sync-before-upgrade", backfill: null },
+		});
+		colleagueRow = await reload(colleagueRow);
+		expect(await holdersOf("upgrade")).toEqual([owner.userId]);
+
+		calendar.respond = onePage([], "sync-drained");
+		await sync.sync(colleagueRow);
+		colleagueRow = await reload(colleagueRow);
+		expect(colleagueRow.cursor).toBeNull();
+
+		calendar.respond = onePage([meeting("upgrade", startsAt)], "sync-new");
+		await sync.sync(colleagueRow);
+
+		expect(await holdersOf("upgrade")).toEqual(
+			[owner.userId, colleagueRow.userId].sort(),
+		);
+		expect(await eventsOf("upgrade")).toHaveLength(1);
+	});
+
+	it("gives every event stored before the migration its syncing rep as holder", async () => {
+		const owner = await freshRow();
+		const startsAt = at(33);
+		const event = await db.calendarEvent.create({
+			data: {
+				iCalUid: `ical-backfill-${suffix}@google.com`,
+				originalStartTime: startsAt,
+				startsAt,
+				endsAt: new Date(startsAt.getTime() + 3_600_000),
+				status: "confirmed",
+				syncedByUserId: owner.userId,
+				googleEventId: "event-backfill",
+			},
+		});
+		const backfill = readFileSync(
+			join(
+				import.meta.dir,
+				"../../../packages/db/prisma/migrations/20261008180100_calendar_event_sync_backfill/migration.sql",
+			),
+			"utf8",
+		);
+		let holders: { userId: string; googleEventId: string | null }[] = [];
+
+		await expect(
+			db.$transaction(async (tx) => {
+				await tx.$executeRawUnsafe(backfill);
+				await tx.$executeRawUnsafe(backfill);
+				holders = await tx.calendarEventSync.findMany({
+					where: { eventId: event.id },
+					select: { userId: true, googleEventId: true },
+				});
+				throw new Error("rollback");
+			}),
+		).rejects.toThrow("rollback");
+
+		expect(holders).toEqual([
+			{ userId: owner.userId, googleEventId: "event-backfill" },
+		]);
 	});
 });
 
@@ -469,7 +872,13 @@ describe("calendar sync page budget", () => {
 
 		const settled = await reload(row);
 		expect(settled.cursor).toBe("sync-after-paging");
-		expect(settled.backfill).toBeNull();
+		expect(savedPass(settled)).toEqual({
+			v: 1,
+			pageToken: null,
+			syncToken: "sync-after-paging",
+			timeMin: firstTick[0]?.timeMin ?? "",
+			timeMax: firstTick[0]?.timeMax ?? "",
+		});
 	});
 
 	it("starts over when Google rejects the saved page", async () => {
@@ -487,7 +896,7 @@ describe("calendar sync page budget", () => {
 			retryable: false,
 		});
 		await sync.sync(row);
-		expect((await reload(row)).backfill).toBeNull();
+		expect(savedPass(await reload(row)).pageToken).toBeNull();
 
 		row = await reload(row);
 		calendar.calls = [];
@@ -514,6 +923,155 @@ describe("calendar sync page budget", () => {
 		});
 		await sync.sync(row);
 		expect((await reload(row)).backfill).toBe(saved);
+	});
+});
+
+describe("calendar sync window", () => {
+	afterEach(() => setSystemTime());
+
+	it("skips an event Google last changed before the rep deleted the synced data", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		let row = await freshRow();
+		const purgedAt = new Date(Date.now() - DAY_MS);
+		await db.mailboxSync.update({
+			where: { id: row.id },
+			data: { importSince: purgedAt },
+		});
+		row = await reload(row);
+
+		calendar.respond = onePage([
+			meeting("purged", at(30), {
+				updated: new Date(purgedAt.getTime() - DAY_MS).toISOString(),
+			}),
+			meeting("after-purge", at(31), {
+				updated: new Date(purgedAt.getTime() + 60_000).toISOString(),
+			}),
+		]);
+		await sync.sync(row);
+
+		expect(await eventsOf("purged")).toHaveLength(0);
+		expect(await eventsOf("after-purge")).toHaveLength(1);
+	});
+
+	it("starts a fresh window once the reserve before its end is reached", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		const start = new Date(Date.now());
+		setSystemTime(start);
+		let row = await freshRow();
+		const earlyAt = at(30);
+
+		calendar.respond = onePage(
+			[meeting("window-early", earlyAt), meeting("window-kept", at(40))],
+			"sync-first",
+		);
+		await sync.sync(row);
+		const first = calendar.calls[0];
+		expect(first?.syncToken).toBeUndefined();
+		expect(first?.timeMax).toBe(
+			new Date(start.getTime() + CALENDAR.sync.horizonMs).toISOString(),
+		);
+		const firstActivity = (await eventsOf("window-early"))[0]?.activity?.id;
+
+		setSystemTime(new Date(start.getTime() + 100 * DAY_MS));
+		row = await reload(row);
+		calendar.calls = [];
+		calendar.respond = onePage([], "sync-second");
+		await sync.sync(row);
+		expect(calendar.calls[0]?.syncToken).toBe("sync-first");
+		expect(savedPass(await reload(row)).timeMax).toBe(first?.timeMax ?? "");
+
+		const renewAt = new Date(
+			start.getTime() + CALENDAR.sync.horizonMs - CALENDAR.sync.windowReserveMs,
+		);
+		setSystemTime(renewAt);
+		const yesterday = new Date(renewAt.getTime() - DAY_MS);
+		row = await reload(row);
+		calendar.calls = [];
+		calendar.respond = onePage(
+			[meeting("window-early", yesterday)],
+			"sync-third",
+		);
+		await sync.sync(row);
+
+		expect(calendar.calls[0]?.syncToken).toBe("sync-second");
+		const moved = await eventsOf("window-early");
+		expect(moved[0]?.startsAt.toISOString()).toBe(yesterday.toISOString());
+		row = await reload(row);
+		expect(row.cursor).toBeNull();
+		expect(row.backfill).toBeNull();
+
+		const late = new Date(start.getTime() + CALENDAR.sync.horizonMs + DAY_MS);
+		calendar.calls = [];
+		calendar.respond = onePage(
+			[meeting("window-early", yesterday), meeting("window-late", late)],
+			"sync-renewed",
+		);
+		await sync.sync(row);
+
+		expect(calendar.calls[0]?.syncToken).toBeUndefined();
+		expect(calendar.calls[0]?.timeMin).toBe(renewAt.toISOString());
+		expect(calendar.calls[0]?.timeMax).toBe(
+			new Date(renewAt.getTime() + CALENDAR.sync.horizonMs).toISOString(),
+		);
+		expect(await eventsOf("window-late")).toHaveLength(1);
+		const early = await eventsOf("window-early");
+		expect(early).toHaveLength(1);
+		expect(early[0]?.activity?.id).toBe(firstActivity ?? "");
+		expect(await eventsOf("window-kept")).toHaveLength(1);
+		expect((await reload(row)).cursor).toBe("sync-renewed");
+	});
+
+	it("reads a stored sync token without a known window to its end, then renews", async () => {
+		const calendar = new FakeCalendar();
+		const sync = service(calendar);
+		let row = await freshRow();
+		await db.mailboxSync.update({
+			where: { id: row.id },
+			data: { cursor: "sync-legacy", backfill: null },
+		});
+		row = await reload(row);
+
+		calendar.respond = (query) => {
+			const page = query.pageToken ? Number(query.pageToken.slice(5)) : 0;
+			if (page >= 7) {
+				return {
+					outcome: "ok",
+					data: { items: [], nextSyncToken: "sync-drained" },
+				};
+			}
+			return {
+				outcome: "ok",
+				data: { items: [], nextPageToken: `page-${page + 1}` },
+			};
+		};
+		await sync.sync(row);
+
+		expect(calendar.calls[0]?.syncToken).toBe("sync-legacy");
+		row = await reload(row);
+		expect(row.cursor).toBe("sync-legacy");
+
+		const firstTick = calendar.calls.length;
+		calendar.calls = [];
+		await sync.sync(row);
+
+		expect(calendar.calls[0]?.syncToken).toBe("sync-legacy");
+		expect(calendar.calls[0]?.pageToken).toBe(`page-${firstTick}`);
+		row = await reload(row);
+		expect(row.cursor).toBeNull();
+		expect(row.backfill).toBeNull();
+
+		calendar.calls = [];
+		calendar.respond = onePage([], "sync-fresh");
+		const now = Date.now();
+		await sync.sync(row);
+
+		expect(calendar.calls[0]?.syncToken).toBeUndefined();
+		expect(
+			Date.parse(calendar.calls[0]?.timeMax ?? "") - now,
+		).toBeGreaterThanOrEqual(CALENDAR.sync.horizonMs);
+		expect((await reload(row)).cursor).toBe("sync-fresh");
 	});
 });
 

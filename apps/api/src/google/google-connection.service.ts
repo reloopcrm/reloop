@@ -20,6 +20,7 @@ import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
 import { rebuildThreads } from "../mailbox/thread-rebuild";
+import { heldByUser, releaseEvents } from "./calendar-holders";
 import {
 	GOOGLE_PROVIDER_ID,
 	GOOGLE_SYNC_SOURCES,
@@ -160,16 +161,23 @@ export class GoogleConnectionService {
 				await rebuildThreads(tx, threadIds);
 				await this.participants.linkThreads(threadIds, context, tx);
 
-				const events = await tx.calendarEvent.deleteMany({
-					where: { syncedByUserId: userId },
+				const held = await tx.calendarEvent.findMany({
+					where: heldByUser(userId),
+					select: { id: true },
 				});
+				const events = await releaseEvents(
+					tx,
+					userId,
+					held.map((event) => event.id),
+				);
 
-				return messages.count + events.count;
+				return messages.count + events;
 			},
 			{ timeout: PURGE_TIMEOUT_MS },
 		);
 
 		await this.state.stopBackfill(userId, "gmail");
+		await this.state.setImportSince(userId, "calendar", new Date());
 		await this.stamp.recomputeAll();
 
 		this.logger.log({ message: "Google data purged", userId, purged });
@@ -189,6 +197,7 @@ export class GoogleConnectionService {
 		for (const source of GOOGLE_SYNC_SOURCES) {
 			await this.state.remove(userId, source);
 		}
+		await this.db.calendarEventSync.deleteMany({ where: { userId } });
 
 		return { revoked: true };
 	}

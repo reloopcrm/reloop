@@ -1,0 +1,1001 @@
+import { EnrichmentStatus } from "@crm/db";
+import { PRIORITY, waitsForPerson } from "@crm/db/agent-tasks";
+import { cloud } from "@crm/db/cloud/scope";
+import {
+	forwardReserve,
+	INSIGHT_KIND,
+	RESEARCH_RUN_KIND,
+	STORY_KIND,
+} from "@crm/db/plans";
+import { WEBHOOKS } from "@crm/db/webhooks";
+import {
+	readAgentTaskInstruction,
+	readAgentTaskMemoryOnly,
+	readAgentTaskOneOff,
+	readAgentTaskReread,
+	readAgentTaskStoryReread,
+	readAgentTaskThreadId,
+} from "@crm/validation/agent-task-payload";
+import { fieldBackfillPayload } from "@crm/validation/field-backfill";
+import { APP_AUTH, type AppAuth } from "./app-auth";
+import { brandOutcome, runBrand } from "./brand";
+import { runBusinessSetup } from "./business-setup";
+import { runContactClean } from "./contact-clean";
+import {
+	archiveOwnContacts,
+	pruneCompanies,
+	pruneContacts,
+} from "./contact-prune";
+import { sweepContactStanding } from "./contact-standing-sweep";
+import { COPY } from "./copy";
+import { queueEventAgentRuns } from "./custom-agent-dispatch";
+import { settledWithin } from "./deadline";
+import { DEAL_STALL_KIND, queueStalledDeals, runDealStall } from "./deal-stall";
+import { DISPATCH } from "./dispatch-config";
+import { runEmailDraft } from "./email-draft";
+import { markRunning, settle } from "./enrichment";
+import {
+	cancelArchivedWork,
+	cancelSampleWork,
+	pruneAgentHistory,
+	queueContactCleanups,
+	queueIdentifyAgain,
+	queuePlaybookLearn,
+	queueUnreadThreads,
+	releaseArchivedClaims,
+} from "./housekeeping";
+import { skippedByPrecheck } from "./identify-precheck";
+import {
+	GATE_UNAVAILABLE,
+	NEEDS_FULL_READ,
+	runSummaryRefresh,
+	runThreadDigest,
+	runThreadInsight,
+} from "./insight";
+import { typesafeKey } from "./jev";
+import { drainGateCounts, gateCounts } from "./jev-meter";
+import { inLane, keyBucket, type Lane } from "./key-bucket";
+import { say } from "./language";
+import { skippedMeetingPrep } from "./meeting-precheck";
+import {
+	isExhaustion,
+	modelUnavailable,
+	probeUsage,
+	providersExhausted,
+	readProviderFailure,
+	resumeAt,
+} from "./model";
+import { runPersonStory } from "./person-story";
+import {
+	fixedAi,
+	limitOutcome,
+	limitResumesAt,
+	monthlyRoom,
+	planId,
+	planLimits,
+} from "./plan-limits";
+import { runPlaybookLearn } from "./playbook";
+import { collapsing, runLimited } from "./pool";
+import { runPortrait } from "./portrait";
+import { quietCutoff, quietSlots, quietThreadTaskFilter } from "./quiet-reads";
+import { researchAllowance } from "./research-throttle";
+import { runRulesTune } from "./rules-tuner";
+import { runSlackChannelJoin } from "./slack-join-task";
+import { runSlackPeopleMatch } from "./slack-people";
+import { staleTaskSweep } from "./stale-tasks";
+import {
+	claimDue,
+	completeTask,
+	DIRECT_KINDS,
+	type LeasedTask,
+	noteSession,
+	postponeTask,
+	returnClaim,
+	taskKindEnabled,
+} from "./tasks";
+import { tenantAttributes, tenantState } from "./tenant";
+import { queueWebhookDeliveries, runWebhookLane } from "./webhooks";
+
+export const VISIBLE_BATCH = DISPATCH.visible.batch;
+export const VISIBLE_CONCURRENCY = DISPATCH.visible.concurrency;
+export const VISIBLE_LEASE_MS = DISPATCH.visible.leaseMs;
+
+export const RESEARCH_BATCH = DISPATCH.research.batch;
+export const RESEARCH_LEASE_MS = DISPATCH.research.leaseMs;
+
+const REFRESH_KIND = "thread-refresh";
+const MODEL_KINDS = new Set([
+	INSIGHT_KIND,
+	"thread-digest",
+	REFRESH_KIND,
+	"contact-clean",
+	"playbook-learn",
+	"email-draft",
+	"business-setup",
+	DEAL_STALL_KIND,
+	STORY_KIND,
+]);
+const VISIBLE_KINDS = DIRECT_KINDS.filter(
+	(kind) =>
+		!MODEL_KINDS.has(kind) && !waitsForPerson(kind) && kind !== WEBHOOKS.kind,
+);
+
+export async function runVisibleLane(signal?: AbortSignal): Promise<number> {
+	let handled = 0;
+
+	while (handled < VISIBLE_BATCH) {
+		if (signal?.aborted) break;
+
+		const tasks = await claimDue(
+			Math.min(VISIBLE_CONCURRENCY, VISIBLE_BATCH - handled),
+			{ only: VISIBLE_KINDS },
+			VISIBLE_LEASE_MS,
+		);
+
+		if (tasks.length === 0) break;
+
+		await runLimited(VISIBLE_CONCURRENCY, tasks, runDirect, signal);
+		handled += tasks.length;
+	}
+
+	return handled;
+}
+
+async function logReadingPaused(): Promise<void> {
+	const until = await resumeAt();
+	console.error(
+		`[agent] reading paused until ${until?.toISOString() ?? "the limit resets"}: ${
+			(await modelUnavailable()) ??
+			"every configured model provider is at its usage limit"
+		}`,
+	);
+}
+
+type GateOutcome = "cleared" | "returned" | "unavailable";
+
+async function clearWithGate(
+	task: LeasedTask,
+	until: Date,
+): Promise<GateOutcome> {
+	const threadId = readAgentTaskThreadId(task.payload);
+	if (!threadId) {
+		await completeTask(task.id, say(COPY.tasks.noThreadId));
+		return "cleared";
+	}
+
+	try {
+		await completeTask(
+			task.id,
+			await runThreadInsight(threadId, true, readAgentTaskReread(task.payload)),
+		);
+		return "cleared";
+	} catch (error) {
+		await postponeTask(task.id, until);
+
+		if (error === NEEDS_FULL_READ) return "returned";
+		if (error !== GATE_UNAVAILABLE) {
+			console.error(`[agent] ⨯ ${INSIGHT_KIND} ${task.id}: ${reasonOf(error)}`);
+		}
+
+		return "unavailable";
+	}
+}
+
+async function runGateLane(
+	budget: number,
+	signal?: AbortSignal,
+): Promise<number> {
+	const until = await resumeAt();
+
+	if (
+		!until ||
+		!(await typesafeKey()) ||
+		!(await taskKindEnabled(INSIGHT_KIND))
+	) {
+		await logReadingPaused();
+		return 0;
+	}
+
+	let cleared = 0;
+	let returned = 0;
+	let unavailable = false;
+
+	while (cleared + returned < budget && !unavailable) {
+		if (signal?.aborted) break;
+
+		const tasks = await claimDue(
+			Math.min(DISPATCH.insight.gate.concurrency, budget - cleared - returned),
+			{ only: [INSIGHT_KIND] },
+			DISPATCH.insight.leaseMs,
+		);
+
+		if (tasks.length === 0) break;
+
+		const before = cleared;
+
+		await runLimited(
+			DISPATCH.insight.gate.concurrency,
+			tasks,
+			async (task) => {
+				if (unavailable) {
+					await postponeTask(task.id, until);
+					returned += 1;
+					return;
+				}
+
+				const outcome = await clearWithGate(task, until);
+
+				if (outcome === "cleared") cleared += 1;
+				else returned += 1;
+
+				if (outcome === "unavailable") unavailable = true;
+			},
+			signal,
+		);
+
+		if (cleared === before) break;
+	}
+
+	if (unavailable || cleared + returned === 0) {
+		await logReadingPaused();
+		return cleared;
+	}
+
+	console.error(
+		`[agent] reading paused until ${until.toISOString()}: the cheap gate is still clearing conversations, ${cleared} cleared and ${returned} wait for the full read`,
+	);
+
+	return cleared;
+}
+
+export const BACKFILL_PRIORITY = PRIORITY.threadInsightBackfill;
+
+export async function slowLaneRoom(): Promise<number> {
+	if (!(await fixedAi())) return Number.POSITIVE_INFINITY;
+
+	return keyBucket().slowAllowance(cloud.scopeId(), await planId());
+}
+
+export type InsightLaneDeps = {
+	room: () => Promise<number>;
+	handle: (task: LeasedTask) => Promise<void>;
+	exhausted: () => Promise<boolean>;
+};
+
+async function claimSlowLane(allowed: number): Promise<LeasedTask[]> {
+	const quiet = await claimDue(
+		quietSlots(allowed),
+		{ only: [INSIGHT_KIND] },
+		DISPATCH.insight.leaseMs,
+		{ atMost: BACKFILL_PRIORITY },
+		quietThreadTaskFilter(quietCutoff()),
+	);
+	const rest = await claimDue(
+		allowed - quiet.length,
+		{ only: [INSIGHT_KIND, REFRESH_KIND] },
+		DISPATCH.insight.leaseMs,
+		{ atMost: BACKFILL_PRIORITY },
+	);
+	return [...quiet, ...rest];
+}
+
+export async function runInsightLane(
+	signal?: AbortSignal,
+	deps: InsightLaneDeps = {
+		room: slowLaneRoom,
+		handle: runDirect,
+		exhausted: providersExhausted,
+	},
+): Promise<number> {
+	let handled = 0;
+
+	while (handled < DISPATCH.insight.batch) {
+		if (signal?.aborted) break;
+
+		if (await deps.exhausted()) {
+			handled += await runGateLane(DISPATCH.insight.gate.batch, signal);
+			break;
+		}
+
+		const want = Math.min(
+			DISPATCH.insight.concurrency,
+			DISPATCH.insight.batch - handled,
+		);
+		let lane: Lane = "fast";
+		let tasks = await claimDue(
+			want,
+			{ only: [...MODEL_KINDS] },
+			DISPATCH.insight.leaseMs,
+			{ above: BACKFILL_PRIORITY },
+		);
+
+		if (tasks.length === 0) {
+			const allowed = Math.min(want, await deps.room());
+			if (allowed <= 0) break;
+
+			lane = "slow";
+			tasks = await claimSlowLane(allowed);
+			if (tasks.length === 0) break;
+		}
+
+		const batch = tasks;
+		await inLane(lane, () =>
+			runLimited(DISPATCH.insight.concurrency, batch, deps.handle, signal),
+		);
+		handled += tasks.length;
+	}
+
+	return handled;
+}
+
+type DirectOutcome = { finished: true } | { finished: false; reason: string };
+
+export async function runDirect(
+	task: LeasedTask,
+	handle: (task: LeasedTask) => Promise<void> = handleDirect,
+	timeoutMs: number = DISPATCH.sweep.itemTimeoutMs,
+): Promise<void> {
+	const work: Promise<DirectOutcome> = handle(task).then(
+		() => ({ finished: true }) as const,
+		(error) => ({ finished: false, reason: reasonOf(error) }) as const,
+	);
+
+	const outcome = await settledWithin(work, timeoutMs);
+
+	if (outcome.settled) {
+		await reconcileDirect(task, outcome.value);
+		return;
+	}
+
+	const state = health();
+	state.pendingItems += 1;
+	void work
+		.then((late) => reconcileDirect(task, late))
+		.finally(() => {
+			state.pendingItems -= 1;
+		});
+}
+
+async function reconcileDirect(
+	task: LeasedTask,
+	outcome: DirectOutcome,
+): Promise<void> {
+	if (outcome.finished) return;
+
+	console.error(`[agent] ⨯ ${task.kind} ${task.id}: ${outcome.reason}`);
+	await settle(task, EnrichmentStatus.FAILED, outcome.reason).catch(() => {});
+}
+
+async function runThreadTask(
+	task: LeasedTask,
+	run: (threadId: string) => Promise<string>,
+	what: string,
+): Promise<void> {
+	const threadId = readAgentTaskThreadId(task.payload);
+	if (!threadId) {
+		await completeTask(task.id, say(COPY.tasks.noThreadId));
+		return;
+	}
+
+	try {
+		await completeTask(task.id, await run(threadId));
+	} catch (error) {
+		const until = await resumeAt();
+		if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+		await postponeTask(task.id, until);
+		console.error(
+			`[agent] ${what} waits until ${until.toISOString()}: the usage limit is reached`,
+		);
+	}
+}
+
+async function handleDirect(task: LeasedTask): Promise<void> {
+	if (!(await taskKindEnabled(task.kind))) {
+		await completeTask(task.id, say(COPY.functions.off));
+		return;
+	}
+
+	if (task.kind === "brand" && task.companyId) {
+		const result = await runBrand({ companyId: task.companyId });
+		if (result.retryable) return;
+
+		await completeTask(task.id, brandOutcome(result));
+		return;
+	}
+
+	if (task.kind === "portrait" && task.contactId) {
+		const portrait = await runPortrait({ contactId: task.contactId });
+
+		await completeTask(
+			task.id,
+			portrait.stored
+				? say(COPY.portraits.stored(String(portrait.source)))
+				: (portrait.reason ?? say(COPY.portraits.none)),
+		);
+		return;
+	}
+
+	if (task.kind === "thread-insight") {
+		const threadId = readAgentTaskThreadId(task.payload);
+		if (!threadId) {
+			await completeTask(task.id, say(COPY.tasks.noThreadId));
+			return;
+		}
+
+		try {
+			await completeTask(
+				task.id,
+				await runThreadInsight(
+					threadId,
+					false,
+					readAgentTaskReread(task.payload),
+				),
+			);
+		} catch (error) {
+			const until = await resumeAt();
+			if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+			await postponeTask(task.id, until);
+			console.error(
+				`[agent] reading postponed until ${until.toISOString()}: the usage limit is reached`,
+			);
+		}
+		return;
+	}
+
+	if (task.kind === REFRESH_KIND) {
+		await runThreadTask(
+			task,
+			(threadId) =>
+				runSummaryRefresh(threadId, {
+					memoryOnly: readAgentTaskMemoryOnly(task.payload),
+				}),
+			"a summary refresh",
+		);
+		return;
+	}
+
+	if (task.kind === "thread-digest") {
+		await runThreadTask(task, runThreadDigest, "a digest");
+		return;
+	}
+
+	if (task.kind === "email-draft" && task.contactId) {
+		const room = await monthlyRoom(task.kind, new Date(), task.id);
+		if (room !== null && room <= 0) {
+			const until = await limitResumesAt();
+			await postponeTask(task.id, until);
+			console.error(`[agent] a draft waits: ${limitOutcome(task.kind, until)}`);
+			return;
+		}
+
+		try {
+			await completeTask(
+				task.id,
+				await runEmailDraft(
+					task.contactId,
+					readAgentTaskInstruction(task.payload),
+					undefined,
+					readAgentTaskOneOff(task.payload),
+				),
+			);
+		} catch (error) {
+			const until = await resumeAt();
+			if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+			await postponeTask(task.id, until);
+			console.error(
+				`[agent] a draft waits until ${until.toISOString()}: the usage limit is reached`,
+			);
+		}
+		return;
+	}
+
+	if (task.kind === STORY_KIND && task.contactId) {
+		const room = await monthlyRoom(task.kind, new Date(), task.id);
+		const reserve = forwardReserve(task.kind, await planLimits());
+		if (room !== null && room - reserve <= 0) {
+			const until = await limitResumesAt();
+			await postponeTask(task.id, until);
+			console.error(`[agent] a story waits: ${limitOutcome(task.kind, until)}`);
+			return;
+		}
+
+		try {
+			await completeTask(
+				task.id,
+				await runPersonStory(
+					task.contactId,
+					readAgentTaskStoryReread(task.payload),
+				),
+			);
+		} catch (error) {
+			const until = await resumeAt();
+			if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+			await postponeTask(task.id, until);
+			console.error(
+				`[agent] a story waits until ${until.toISOString()}: the usage limit is reached`,
+			);
+		}
+		return;
+	}
+
+	if (task.kind === DEAL_STALL_KIND && task.dealId) {
+		try {
+			await completeTask(task.id, await runDealStall(task.dealId));
+		} catch (error) {
+			const until = await resumeAt();
+			if (!until || !isExhaustion(readProviderFailure(error))) throw error;
+
+			await postponeTask(task.id, until);
+			console.error(
+				`[agent] a stalled deal note waits until ${until.toISOString()}: the usage limit is reached`,
+			);
+		}
+		return;
+	}
+
+	if (task.kind === "contact-clean" && task.contactId) {
+		await completeTask(task.id, await runContactClean(task.contactId));
+		return;
+	}
+
+	if (task.kind === "playbook-learn") {
+		await completeTask(task.id, await runPlaybookLearn());
+		return;
+	}
+
+	if (task.kind === "usage-probe") {
+		await completeTask(task.id, await probeUsage());
+		return;
+	}
+
+	if (task.kind === "business-setup") {
+		await completeTask(task.id, await runBusinessSetup());
+		return;
+	}
+
+	if (task.kind === "rules-tune") {
+		await completeTask(task.id, await runRulesTune());
+		return;
+	}
+
+	if (task.kind === "slack-people-match") {
+		await completeTask(task.id, await runSlackPeopleMatch());
+		return;
+	}
+
+	if (task.kind === "slack-channel-join") {
+		await completeTask(task.id, await runSlackChannelJoin(task.payload));
+		return;
+	}
+
+	if (task.kind === "agent-event") {
+		const queued = await queueEventAgentRuns(task);
+		const webhooks = await queueWebhookDeliveries(task);
+		await completeTask(task.id, say(COPY.tasks.queued(queued, webhooks)));
+		return;
+	}
+
+	await completeTask(task.id, say(COPY.tasks.recordGone));
+}
+
+export async function runResearchLane(
+	start: (task: LeasedTask) => Promise<{ id: string }>,
+	signal?: AbortSignal,
+): Promise<number> {
+	if (signal?.aborted) return 0;
+
+	const allowance = await researchAllowance(RESEARCH_BATCH);
+	if (allowance.allowed === 0) {
+		if (allowance.reason) {
+			const tenantId = cloud.hosted() ? cloud.scopeId() : null;
+			console.error(
+				`[agent] research paused${tenantId ? ` for tenant ${tenantId}` : ""}: ${allowance.reason}`,
+			);
+		}
+		return 0;
+	}
+
+	const claimed = await claimDue(
+		allowance.allowed,
+		{ except: DIRECT_KINDS },
+		RESEARCH_LEASE_MS,
+	);
+	if (claimed.length === 0) return 0;
+
+	const tasks = await withinResearchBudget(
+		await releaseArchivedClaims(claimed),
+	);
+	if (tasks.length === 0) return 0;
+
+	const blocked = await modelUnavailable();
+	if (blocked) {
+		const until = await resumeAt();
+		for (const task of tasks) {
+			await returnClaim(
+				task.id,
+				until ?? new Date(Date.now() + DISPATCH.blocked.retryMs),
+			);
+		}
+		console.error(`[agent] ${tasks.length} tasks wait: ${blocked}`);
+		return 0;
+	}
+
+	let started = 0;
+
+	await Promise.all(
+		tasks.map(async (task) => {
+			if (signal?.aborted) return;
+			started += 1;
+			await beginResearch(task, start);
+		}),
+	);
+
+	return started;
+}
+
+async function withinResearchBudget(
+	tasks: LeasedTask[],
+): Promise<LeasedTask[]> {
+	const room = await monthlyRoom(RESEARCH_RUN_KIND);
+	if (room === null) return tasks;
+
+	const until = await limitResumesAt();
+	const kept: LeasedTask[] = [];
+	let left = room;
+	let deferred = 0;
+
+	for (const task of tasks) {
+		if (task.kind !== RESEARCH_RUN_KIND) {
+			kept.push(task);
+			continue;
+		}
+		if (left > 0) {
+			left -= 1;
+			kept.push(task);
+			continue;
+		}
+		await returnClaim(task.id, until);
+		deferred += 1;
+	}
+
+	if (deferred > 0) {
+		console.error(
+			`[agent] ${deferred} research runs wait: ${limitOutcome(RESEARCH_RUN_KIND, until)}`,
+		);
+	}
+
+	return kept;
+}
+
+type StartOutcome =
+	| { accepted: true; sessionId: string }
+	| { accepted: false; reason: string };
+
+async function beginResearch(
+	task: LeasedTask,
+	start: (task: LeasedTask) => Promise<{ id: string }>,
+): Promise<void> {
+	if (!(await taskKindEnabled(task.kind))) {
+		await completeTask(task.id, say(COPY.functions.off));
+		return;
+	}
+
+	if (await skippedMeetingPrep(task)) return;
+
+	if (await skippedByPrecheck(task)) return;
+
+	try {
+		await markRunning(task);
+	} catch (error) {
+		await settle(task, EnrichmentStatus.FAILED, reasonOf(error)).catch(
+			() => {},
+		);
+		return;
+	}
+
+	const send: Promise<StartOutcome> = start(task).then(
+		(session) => ({ accepted: true, sessionId: session.id }) as const,
+		(error) => ({ accepted: false, reason: reasonOf(error) }) as const,
+	);
+
+	const outcome = await settledWithin(send, DISPATCH.sweep.startTimeoutMs);
+
+	if (outcome.settled) {
+		await reconcileStart(task, outcome.value);
+		return;
+	}
+
+	const state = health();
+	state.pendingStarts += 1;
+	void send
+		.then((late) => reconcileStart(task, late))
+		.finally(() => {
+			state.pendingStarts -= 1;
+		});
+}
+
+async function reconcileStart(
+	task: LeasedTask,
+	outcome: StartOutcome,
+): Promise<void> {
+	if (outcome.accepted) {
+		await linkSession(task, outcome.sessionId);
+		return;
+	}
+
+	await settle(task, EnrichmentStatus.FAILED, outcome.reason).catch(() => {});
+}
+
+export async function linkSession(
+	task: LeasedTask,
+	sessionId: string,
+	note: (taskId: string, sessionId: string) => Promise<void> = noteSession,
+	link: { attempts: number; retryMs: number } = DISPATCH.research.link,
+): Promise<boolean> {
+	for (let attempt = 1; attempt <= link.attempts; attempt += 1) {
+		try {
+			await note(task.id, sessionId);
+			return true;
+		} catch (error) {
+			if (attempt < link.attempts) {
+				await new Promise((resolve) =>
+					setTimeout(resolve, link.retryMs * attempt),
+				);
+				continue;
+			}
+
+			health().unlinkedSessions += 1;
+			console.error(
+				`[agent] Task ${task.id} accepted session ${sessionId}, but the session id was not recorded: ${reasonOf(error)}`,
+			);
+		}
+	}
+
+	return false;
+}
+
+function reasonOf(cause: unknown): string {
+	return cause instanceof Error ? cause.message : String(cause);
+}
+
+export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
+	const records: Record<string, string> = {};
+	if (task.contactId) records.contactId = task.contactId;
+	if (task.companyId) records.companyId = task.companyId;
+	if (task.dealId) records.dealId = task.dealId;
+
+	if (task.kind === "field-backfill") {
+		const parsed = fieldBackfillPayload.safeParse(task.payload);
+		if (parsed.success) records.fieldKeys = parsed.data.keys.join(",");
+	}
+
+	return {
+		...base,
+		attributes: {
+			...tenantAttributes(),
+			taskKind: task.kind,
+			reason: task.reason,
+			budget: String(task.budget),
+			...records,
+		},
+	};
+}
+
+export const DRAIN_TIMEOUT_MS = DISPATCH.sweep.timeoutMs;
+
+const health = tenantState(() => ({
+	lastSweepStartedAt: null as Date | null,
+	lastSweepFinishedAt: null as Date | null,
+	lastSweepError: null as string | null,
+	abandonedSweeps: 0,
+	pendingStarts: 0,
+	pendingItems: 0,
+	unlinkedSessions: 0,
+	unsettledSweeps: new Set<{ startedAt: Date }>(),
+}));
+
+function oldestUnsettledAt(): Date | null {
+	let oldest: Date | null = null;
+
+	for (const sweep of health().unsettledSweeps) {
+		if (!oldest || sweep.startedAt.getTime() < oldest.getTime()) {
+			oldest = sweep.startedAt;
+		}
+	}
+
+	return oldest;
+}
+
+export function dispatchHealth() {
+	const state = health();
+	const startedAt = state.lastSweepStartedAt;
+	const finishedAt = state.lastSweepFinishedAt;
+	const collapsed = Boolean(
+		startedAt && (!finishedAt || finishedAt.getTime() < startedAt.getTime()),
+	);
+	const unsettledAt = oldestUnsettledAt();
+	const running = collapsed || unsettledAt !== null;
+
+	const since = collapsed && startedAt ? startedAt : unsettledAt;
+	const oldest =
+		since && unsettledAt && unsettledAt.getTime() < since.getTime()
+			? unsettledAt
+			: since;
+
+	return {
+		startedAt: startedAt?.toISOString() ?? null,
+		finishedAt: finishedAt?.toISOString() ?? null,
+		running,
+		stalledMs: oldest ? Math.max(0, Date.now() - oldest.getTime()) : 0,
+		abandonedSweeps: state.abandonedSweeps,
+		unsettledSweeps: state.unsettledSweeps.size,
+		pendingStarts: state.pendingStarts,
+		pendingItems: state.pendingItems,
+		unlinkedSessions: state.unlinkedSessions,
+		staleTasks: staleTaskSweep(),
+		cheapGates: gateCounts(),
+		lastError: state.lastSweepError,
+	};
+}
+
+async function runSweep(
+	label: string,
+	run: () => Promise<unknown>,
+): Promise<void> {
+	try {
+		await run();
+	} catch (cause) {
+		console.error(`[agent] ${label}: ${reasonOf(cause)}`);
+	}
+}
+
+const drains = tenantState(() => collapsing(sweepOnce));
+
+export function drainAll(
+	start: (task: LeasedTask) => Promise<{ id: string }>,
+	outer?: AbortSignal,
+): Promise<void> {
+	return drains()(start, outer);
+}
+
+async function sweepOnce(
+	start: (task: LeasedTask) => Promise<{ id: string }>,
+	outer?: AbortSignal,
+): Promise<void> {
+	const state = health();
+	const { unsettledSweeps } = state;
+	if (unsettledSweeps.size >= DISPATCH.sweep.maxAbandoned) {
+		state.lastSweepError =
+			"An abandoned dispatch sweep is still in flight, so this sweep did not start.";
+		console.error(`[agent] ${state.lastSweepError}`);
+		return;
+	}
+
+	const startedAt = new Date();
+	state.lastSweepStartedAt = startedAt;
+	state.lastSweepError = null;
+
+	const controller = new AbortController();
+	const signal = controller.signal;
+	const stop = () => controller.abort();
+	if (outer?.aborted) stop();
+	else outer?.addEventListener("abort", stop, { once: true });
+
+	const sweep = (async () => {
+		await Promise.all([
+			runSweep("contact cleanup sweep failed", queueContactCleanups),
+			runSweep("identify again sweep failed", queueIdentifyAgain),
+			runSweep("playbook sweep failed", queuePlaybookLearn),
+			runSweep("stalled deal sweep failed", () => queueStalledDeals()),
+			runSweep("own-contact sweep failed", archiveOwnContacts),
+			runSweep("contact prune failed", async () => {
+				await pruneContacts();
+				await pruneCompanies();
+			}),
+			runSweep("contact standing sweep failed", sweepContactStanding),
+			runSweep("reading sweep failed", queueUnreadThreads),
+			runSweep("archived-work sweep failed", cancelArchivedWork),
+			runSweep("sample-data sweep failed", cancelSampleWork),
+			runSweep("history retention failed", () => pruneAgentHistory()),
+		]);
+		await Promise.all([
+			runVisibleLane(signal),
+			runInsightLane(signal),
+			runResearchLane(start, signal),
+			runWebhookLane(signal),
+		]);
+
+		const gates = drainGateCounts();
+		if (gates) console.error(`[agent] cheap gates this pass: ${gates}`);
+	})();
+
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const abandon = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => {
+			state.abandonedSweeps += 1;
+
+			const unsettled = { startedAt };
+			unsettledSweeps.add(unsettled);
+
+			const forget = setTimeout(() => {
+				if (!unsettledSweeps.delete(unsettled)) return;
+				console.error(
+					`[agent] An abandoned dispatch sweep never settled within ${DISPATCH.sweep.abandonGraceMs}ms, so dispatch is starting again without it.`,
+				);
+			}, DISPATCH.sweep.abandonGraceMs);
+			forget.unref?.();
+
+			void sweep
+				.catch((error) => {
+					console.error(
+						`[agent] An abandoned dispatch sweep then failed: ${reasonOf(error)}`,
+					);
+				})
+				.finally(() => {
+					clearTimeout(forget);
+					unsettledSweeps.delete(unsettled);
+				});
+
+			controller.abort();
+			reject(
+				new Error(
+					`Dispatch sweep exceeded ${DRAIN_TIMEOUT_MS}ms and was abandoned so the next one can start.`,
+				),
+			);
+		}, DRAIN_TIMEOUT_MS);
+	});
+
+	sweep.catch(() => {});
+
+	try {
+		await Promise.race([sweep, abandon]);
+	} catch (error) {
+		state.lastSweepError = reasonOf(error);
+		console.error(`[agent] ${state.lastSweepError}`);
+		throw error;
+	} finally {
+		clearTimeout(timer);
+		outer?.removeEventListener("abort", stop);
+		state.lastSweepFinishedAt = new Date();
+	}
+}
+
+export function brief(task: LeasedTask): string {
+	const again =
+		task.attempts > 1
+			? `This is attempt ${task.attempts}; the earlier one did not finish, and this session starts without its history. Whatever it saved is already in the CRM, so read the record before you research, and do not record anything that is already there. `
+			: "";
+
+	return again + work(task.kind, task.reason, task.payload);
+}
+
+function work(
+	kind: string,
+	reason: string,
+	payload: LeasedTask["payload"],
+): string {
+	switch (kind) {
+		case "identify":
+			return "Work out who this contact actually is, and record what you find. Read what we already have before spending anything.";
+		case "profile":
+		case "recheck":
+			return "Bring this contact's record up to date: their background, their current role, and anything that has changed since we last looked.";
+		case "meeting-prep":
+			return "There is a meeting with this person soon. Make sure whoever is taking it opens the record knowing who they are dealing with.";
+		case "company-profile":
+			return "Fill this company's basics and stop. Call enrich_company once: that fills the name, the industry, the city, the links and a short description. Do not read the website yourself, do not research their pricing, their customers or their news, and do not write a brief. The rep only needs to know who they are and where they sit. If enrich_company fills nothing, say so and finish.";
+		case "workspace-profile":
+			return "Write the profile of the company you work for, so that every other session knows who we are. Read our own site and keep it short.";
+		case "field-backfill": {
+			const parsed = fieldBackfillPayload.safeParse(payload);
+			const keys = parsed.success ? parsed.data.keys.join(", ") : reason;
+			return `This record is missing a value for the custom field(s) ${keys}. Call list_fields for this record's type, read each field's brief, and call set_field_value only where you find real evidence — leave it blank rather than guess.`;
+		}
+		default:
+			return `Handle this: ${reason}`;
+	}
+}

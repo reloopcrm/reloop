@@ -1,0 +1,416 @@
+import {
+	type Db,
+	GoogleSyncStatus,
+	type ImapAccountModel as ImapAccount,
+	type MailboxSyncModel as MailboxSync,
+} from "@crm/db";
+import { planLimitsOf } from "@crm/db/plan-usage";
+import { clampImportSince } from "@crm/db/plans";
+import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
+import { MAILBOX_ACCESS_ENDED_REASON } from "@crm/validation/mailbox-reasons";
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectDatabase } from "../database/database.constants";
+import { importCapRemaining } from "../mailbox/import-cap";
+import {
+	MESSAGE_FAILURES,
+	NO_DEADLINE,
+	pastDeadline,
+} from "../mailbox/mailbox.config";
+import {
+	type ImapSyncSource,
+	imapAccountIdOf,
+	isImapSyncSource,
+} from "../mailbox/mailbox.constants";
+import type { MatchContext } from "../mailbox/mailbox-match.service";
+import { FailureLedger } from "../mailbox/message-failures";
+import { SyncStateService } from "../mailbox/sync-state.service";
+import { ThreadWriterService } from "../mailbox/thread-writer.service";
+import {
+	ImapClientFactory,
+	type ImapFolder,
+	type ImapSession,
+} from "./imap.client";
+import { IMAP } from "./imap.config";
+import { ImapCredentialService } from "./imap-credentials";
+import {
+	type ImapCursor,
+	type ImapFolderCursor,
+	parseImapCursor,
+	rewindBackfill,
+	rewindsOf,
+	serialiseImapCursor,
+} from "./imap-cursor";
+import { planFolders } from "./imap-folders";
+import { parseImapMessage } from "./imap-message";
+
+export type ImapSyncOutcome = {
+	source: ImapSyncSource;
+	userId: string;
+	status: "synced" | "skipped" | "reconnect" | "failed";
+	messagesWritten?: number;
+	reason?: string;
+};
+
+type Ingest = { seen: number; written: number };
+
+type FolderRun = {
+	entry: ImapFolderCursor;
+	session: ImapSession;
+	row: MailboxSync;
+	account: ImapAccount;
+	folder: ImapFolder;
+	uidValidity: string;
+	context: MatchContext;
+	ledger: FailureLedger;
+};
+
+@Injectable()
+export class ImapSyncService {
+	private readonly logger = new Logger(ImapSyncService.name);
+
+	constructor(
+		@InjectDatabase() private readonly db: Db,
+		private readonly clients: ImapClientFactory,
+		private readonly credentials: ImapCredentialService,
+		private readonly state: SyncStateService,
+		private readonly threads: ThreadWriterService,
+	) {}
+
+	async runOne(
+		userId: string,
+		source: ImapSyncSource,
+		deadlineAt: number = NO_DEADLINE,
+	) {
+		const row = await this.state.get(userId, source);
+		if (!row) return null;
+
+		return this.sync(row, deadlineAt);
+	}
+
+	async sync(
+		row: MailboxSync,
+		deadlineAt: number = NO_DEADLINE,
+	): Promise<ImapSyncOutcome> {
+		if (!isImapSyncSource(row.source)) {
+			return {
+				source: row.source as ImapSyncSource,
+				userId: row.userId,
+				status: "skipped",
+				reason: "Not an IMAP source.",
+			};
+		}
+
+		const source = row.source;
+		const account = await this.db.imapAccount.findUnique({
+			where: { id: imapAccountIdOf(source) },
+		});
+
+		if (!account || account.userId !== row.userId) {
+			await this.state.remove(row.userId, source);
+			return {
+				source,
+				userId: row.userId,
+				status: "skipped",
+				reason: "The mailbox was removed.",
+			};
+		}
+
+		if (!account.secret) {
+			await this.state.markNeedsReconnect(row.id, MAILBOX_ACCESS_ENDED_REASON);
+			return {
+				source,
+				userId: row.userId,
+				status: "reconnect",
+				reason: MAILBOX_ACCESS_ENDED_REASON,
+			};
+		}
+
+		await this.state.markRunning(row.id);
+
+		const connected = await this.clients.connect({
+			host: account.host,
+			port: account.port,
+			secure: account.secure,
+			username: account.username,
+			password: this.credentials.open(account.secret),
+		});
+
+		if (connected.outcome === "auth") {
+			await this.state.markNeedsReconnect(row.id, connected.reason);
+			return {
+				source,
+				userId: row.userId,
+				status: "reconnect",
+				reason: connected.reason,
+			};
+		}
+
+		if (connected.outcome !== "ok") {
+			await this.state.markFailed(row.id, connected.reason);
+			return {
+				source,
+				userId: row.userId,
+				status: "failed",
+				reason: connected.reason,
+			};
+		}
+
+		const session = connected.session;
+		const cursor = parseImapCursor(row.cursor);
+
+		try {
+			const written = await this.walk(
+				session,
+				row,
+				account,
+				cursor,
+				deadlineAt,
+			);
+
+			await this.saveCursor(row, cursor);
+			await this.state.settle(row.id, { status: GoogleSyncStatus.IDLE });
+
+			if (written > 0) {
+				this.logger.log({
+					message: "IMAP sync wrote messages",
+					userId: row.userId,
+					accountId: account.id,
+					messagesWritten: written,
+				});
+			}
+
+			return {
+				source,
+				userId: row.userId,
+				status: "synced",
+				messagesWritten: written,
+			};
+		} catch (error) {
+			const reason = error instanceof Error ? error.message : String(error);
+
+			await this.saveCursor(row, cursor);
+			await this.state.markFailed(row.id, reason);
+
+			this.logger.error(
+				{
+					message: "IMAP sync failed",
+					userId: row.userId,
+					accountId: account.id,
+				},
+				error instanceof Error ? error.stack : String(error),
+			);
+
+			return { source, userId: row.userId, status: "failed", reason };
+		} finally {
+			await session.close();
+		}
+	}
+
+	private async saveCursor(row: MailboxSync, cursor: ImapCursor) {
+		let expected = row.cursor;
+		let seen = rewindsOf(parseImapCursor(row.cursor));
+		let next = cursor;
+
+		for (;;) {
+			const { count } = await this.db.mailboxSync.updateMany({
+				where: { id: row.id, cursor: expected },
+				data: { cursor: serialiseImapCursor(next) },
+			});
+			if (count > 0) return;
+
+			const fresh = await this.db.mailboxSync.findUnique({
+				where: { id: row.id },
+				select: { cursor: true },
+			});
+			if (!fresh) return;
+			if (fresh.cursor === null && expected !== null) return;
+
+			expected = fresh.cursor;
+			const requested = rewindsOf(parseImapCursor(fresh.cursor));
+
+			if (requested > seen) {
+				next = { ...rewindBackfill(next), rewinds: requested };
+				seen = requested;
+			}
+		}
+	}
+
+	private async walk(
+		session: ImapSession,
+		row: MailboxSync,
+		account: ImapAccount,
+		cursor: ImapCursor,
+		deadlineAt: number,
+	): Promise<number> {
+		const context = await this.threads.context(account.email);
+
+		let budget = IMAP.sync.maxMessagesPerTick;
+		let written = 0;
+
+		const limits = await planLimitsOf(this.db);
+		const importSince = clampImportSince(
+			account.importSince,
+			limits,
+			new Date(),
+		);
+
+		const plan = planFolders(await session.folders());
+
+		for (const folder of plan) {
+			if (budget <= 0 || pastDeadline(deadlineAt)) break;
+
+			const opened = await session.open(folder.path);
+			const newest = opened.uidNext - 1;
+
+			let entry = cursor.folders[folder.path];
+
+			if (!entry || entry.uidValidity !== opened.uidValidity) {
+				const floorUid = importSince
+					? await floorUidFor(session, importSince, newest)
+					: 1;
+
+				entry = {
+					uidValidity: opened.uidValidity,
+					lastUid: Math.max(newest, 0),
+					backfillUid: newest >= floorUid ? newest : null,
+					floorUid,
+				};
+			}
+
+			cursor.folders[folder.path] = entry;
+
+			const run: FolderRun = {
+				entry,
+				session,
+				row,
+				account,
+				folder,
+				uidValidity: opened.uidValidity,
+				context,
+				ledger: new FailureLedger(entry.failures),
+			};
+
+			while (
+				entry.lastUid < newest &&
+				budget > 0 &&
+				!pastDeadline(deadlineAt)
+			) {
+				const from = entry.lastUid + 1;
+				const to = Math.min(newest, from + IMAP.sync.forwardChunk - 1);
+
+				const result = await this.ingest(run, `${from}:${to}`, "forward");
+				budget -= Math.max(result.seen, 1);
+				written += result.written;
+				entry.lastUid = to;
+			}
+
+			while (
+				entry.backfillUid !== null &&
+				budget > 0 &&
+				!pastDeadline(deadlineAt)
+			) {
+				const remaining = await importCapRemaining(this.db, limits);
+				if (remaining === 0) {
+					entry.backfillUid = null;
+					break;
+				}
+
+				const to = entry.backfillUid;
+				const size = Math.min(IMAP.sync.backfillChunk, budget, remaining);
+				const from = Math.max(entry.floorUid, to - size + 1);
+
+				const result = await this.ingest(run, `${from}:${to}`, "backfill");
+				budget -= Math.max(result.seen, 1);
+				written += result.written;
+				entry.backfillUid = from > entry.floorUid ? from - 1 : null;
+			}
+
+			const { lastUid, backfillUid, floorUid } = entry;
+			run.ledger.retain("forward", (uid) => Number(uid) > lastUid);
+			run.ledger.retain(
+				"backfill",
+				(uid) =>
+					backfillUid !== null &&
+					Number(uid) >= floorUid &&
+					Number(uid) <= backfillUid,
+			);
+			entry.failures = run.ledger.list();
+
+			cursor.folders[folder.path] = entry satisfies ImapFolderCursor;
+		}
+
+		return written;
+	}
+
+	private async ingest(
+		run: FolderRun,
+		range: string,
+		lane: AgentTaskOrigin,
+	): Promise<Ingest> {
+		let seen = 0;
+		let written = 0;
+
+		for await (const raw of run.session.fetch(range)) {
+			seen += 1;
+
+			if (run.ledger.skip(String(raw.uid), lane)) continue;
+
+			let parsed: Awaited<ReturnType<typeof parseImapMessage>>;
+			try {
+				parsed = await parseImapMessage(raw, {
+					accountId: run.account.id,
+					folder: run.folder.path,
+					uidValidity: run.uidValidity,
+				});
+			} catch (error) {
+				this.logger.warn({
+					message: "An IMAP message could not be parsed and was skipped",
+					accountId: run.account.id,
+					uid: raw.uid,
+					reason: error instanceof Error ? error.message : String(error),
+				});
+				continue;
+			}
+
+			if (!parsed) continue;
+
+			try {
+				const stored = await this.threads.store(
+					run.row,
+					{ origin: "imap", lane },
+					parsed,
+					run.context,
+				);
+				if (stored) written += 1;
+				run.ledger.clear(String(raw.uid));
+				run.entry.failures = run.ledger.list();
+			} catch (error) {
+				const attempts = run.ledger.record(String(raw.uid), lane);
+				run.entry.failures = run.ledger.list();
+				if (attempts < MESSAGE_FAILURES.maxAttempts) throw error;
+
+				this.logger.warn({
+					message:
+						"An IMAP message could not be stored after repeated attempts. It is skipped",
+					mailboxId: run.row.id,
+					providerMessageId: raw.uid,
+					folder: run.folder.path,
+					attempts,
+				});
+			}
+		}
+
+		return { seen, written };
+	}
+}
+
+async function floorUidFor(
+	session: ImapSession,
+	since: Date,
+	newest: number,
+): Promise<number> {
+	const uids = await session.uidsSince(since);
+	if (uids.length === 0) return newest + 1;
+
+	return Math.max(1, Math.min(...uids));
+}

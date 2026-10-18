@@ -1,0 +1,16 @@
+{
+	"Quotes in your mail": "Presupuestos en tu correo",
+	"Offers you already sent by email, at companies with nothing open in the pipeline. One click makes the deal. Nothing happens on its own.": "Presupuestos que ya enviaste por correo, en empresas sin ningún negocio abierto en el pipeline. Un clic crea el negocio. Nada pasa solo.",
+	"The offer you sent": "El presupuesto que enviaste",
+	"Quantity": "Cantidad",
+	"Last message": "Último mensaje",
+	"Every deal you create here lands on {stage} with no amount.": "Cada negocio que creas aquí llega a {stage} sin importe.",
+	"{count} {unit}": "{count} {unit}",
+	"No subject": "Sin asunto",
+	"Put aside": "Apartar",
+	"Deal created.": "Negocio creado.",
+	"Quote put aside.": "Presupuesto apartado.",
+	"No offer in your mail is waiting for a deal. Quotes the agent reads show up here.": "Ningún presupuesto de tu correo espera un negocio. Los presupuestos que lee el agente aparecen aquí.",
+	"More offers are waiting. Handle these first, then the next ones appear.": "Hay más presupuestos esperando. Resuelve estos primero y aparecen los siguientes.",
+	"That quote is no longer waiting.": "Ese presupuesto ya no está esperando."
+}

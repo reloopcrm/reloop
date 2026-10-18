@@ -1,0 +1,191 @@
+"use client";
+
+import { Button } from "@crm/ui/components/button";
+import { MonoLabel } from "@crm/ui/components/mark";
+import { Separator } from "@crm/ui/components/separator";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Fragment, useMemo } from "react";
+import { BILLING_SETTINGS_NAV } from "@/cloud/slots.data";
+import { useT } from "@/lib/i18n/client";
+import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+
+type SettingsNavItem = {
+	title: string;
+	href: string;
+	hosted?: boolean;
+	selfHosted?: boolean;
+	admin?: boolean;
+	group?: "plan";
+};
+
+export type SettingsNavAudience = {
+	hosted?: boolean;
+	admin?: boolean;
+};
+
+const ROOT = "/settings";
+
+const ITEMS: SettingsNavItem[] = [
+	{ title: "General", href: ROOT },
+	{ title: "Tracking & Analytics", href: `${ROOT}/tracking` },
+	{ title: "Connections", href: `${ROOT}/connections` },
+	{ title: "AI", href: `${ROOT}/ai`, selfHosted: true },
+	{ title: "Functions", href: `${ROOT}/functions` },
+	{ title: "Currencies", href: `${ROOT}/currencies` },
+	{ title: "Members", href: `${ROOT}/members` },
+	{ title: "API Keys", href: `${ROOT}/api-keys` },
+	{ title: "SSO", href: `${ROOT}/sso` },
+	{ title: "Usage", href: `${ROOT}/ai`, hosted: true, group: "plan" },
+	...BILLING_SETTINGS_NAV,
+];
+
+export function settingsNavItems(who: SettingsNavAudience): SettingsNavItem[] {
+	const hosted = who.hosted ?? false;
+	const admin = who.admin ?? false;
+	return ITEMS.filter(
+		(item) =>
+			(hosted || !item.hosted) &&
+			(!hosted || !item.selfHosted) &&
+			(admin || !item.admin),
+	);
+}
+
+function startsGroup(items: SettingsNavItem[], index: number): boolean {
+	const item = items[index];
+	return item?.group !== undefined && items[index - 1]?.group !== item.group;
+}
+
+function isActive(href: string, root: string, pathname: string): boolean {
+	return href === root ? pathname === href : pathname.startsWith(href);
+}
+
+function NavLink({
+	item,
+	active,
+	className,
+}: {
+	item: SettingsNavItem;
+	active: boolean;
+	className: string;
+}) {
+	const t = useT();
+	return (
+		<Button asChild variant="nav" className={className}>
+			<Link
+				href={item.href}
+				prefetch
+				aria-current={active ? "page" : undefined}
+				transitionTypes={["nav-lateral"]}
+			>
+				{t(item.title)}
+			</Link>
+		</Button>
+	);
+}
+
+export function SettingsSidebarFallback() {
+	const t = useT();
+	return (
+		<>
+			<aside className="hidden w-(--container-sidebar) shrink-0 border-r md:block [view-transition-name:settings-sidebar]">
+				<nav
+					aria-label={t("Workspace settings")}
+					aria-busy="true"
+					className="flex flex-col gap-0.5 px-3 pt-(--spacing-page-top) pb-4"
+				>
+					<MonoLabel className="flex h-7 items-center px-2">
+						{t("Settings")}
+					</MonoLabel>
+					{settingsNavItems({}).map((item) => (
+						<Button key={item.href} variant="nav" disabled className="w-full">
+							{t(item.title)}
+						</Button>
+					))}
+				</nav>
+			</aside>
+
+			<nav
+				aria-label={t("Workspace settings")}
+				aria-busy="true"
+				className="flex gap-1 overflow-x-auto border-b p-2 md:hidden [view-transition-name:settings-sidebar]"
+			>
+				{settingsNavItems({}).map((item) => (
+					<Button
+						key={item.href}
+						variant="nav"
+						disabled
+						className="shrink-0 px-3"
+					>
+						{t(item.title)}
+					</Button>
+				))}
+			</nav>
+		</>
+	);
+}
+
+export function SettingsSidebar({ hosted, admin }: SettingsNavAudience) {
+	const t = useT();
+	const pathname = usePathname();
+	const workspaceUrl = useWorkspaceUrl();
+
+	const root = workspaceUrl(ROOT);
+	const items = useMemo(
+		() =>
+			settingsNavItems({ hosted, admin }).map((item) => ({
+				...item,
+				href: workspaceUrl(item.href),
+			})),
+		[workspaceUrl, hosted, admin],
+	);
+
+	return (
+		<>
+			<aside className="hidden w-(--container-sidebar) shrink-0 border-r md:block [view-transition-name:settings-sidebar]">
+				<nav
+					aria-label={t("Workspace settings")}
+					className="flex flex-col gap-0.5 px-3 pt-(--spacing-page-top) pb-4"
+				>
+					<MonoLabel className="flex h-7 items-center px-2">
+						{t("Settings")}
+					</MonoLabel>
+					{items.map((item, index) => (
+						<Fragment key={item.href}>
+							{startsGroup(items, index) ? (
+								<div className="px-2 py-2">
+									<Separator />
+								</div>
+							) : null}
+							<NavLink
+								item={item}
+								active={isActive(item.href, root, pathname)}
+								className="w-full"
+							/>
+						</Fragment>
+					))}
+				</nav>
+			</aside>
+
+			<nav
+				aria-label={t("Workspace settings")}
+				className="flex gap-1 overflow-x-auto border-b p-2 md:hidden [view-transition-name:settings-sidebar]"
+			>
+				{items.map((item, index) => (
+					<Fragment key={item.href}>
+						{startsGroup(items, index) ? (
+							<div className="flex items-stretch px-1 py-2">
+								<Separator orientation="vertical" />
+							</div>
+						) : null}
+						<NavLink
+							item={item}
+							active={isActive(item.href, root, pathname)}
+							className="shrink-0 px-3"
+						/>
+					</Fragment>
+				))}
+			</nav>
+		</>
+	);
+}

@@ -1,0 +1,16 @@
+{
+	"Quotes in your mail": "邮件里的报价",
+	"Offers you already sent by email, at companies with nothing open in the pipeline. One click makes the deal. Nothing happens on its own.": "你已经通过邮件发出的报价，对方公司在管道里没有进行中的交易。一键建立交易。系统不会自动做任何事。",
+	"The offer you sent": "你发出的报价",
+	"Quantity": "数量",
+	"Last message": "最后一条消息",
+	"Every deal you create here lands on {stage} with no amount.": "你在这里建立的每个交易都进入 {stage}，没有金额。",
+	"{count} {unit}": "{count} {unit}",
+	"No subject": "无主题",
+	"Put aside": "先放一边",
+	"Deal created.": "交易已建立。",
+	"Quote put aside.": "报价已放在一边。",
+	"No offer in your mail is waiting for a deal. Quotes the agent reads show up here.": "你的邮件里没有报价在等待建立交易。智能体读到的报价会显示在这里。",
+	"More offers are waiting. Handle these first, then the next ones appear.": "还有更多报价在等待。先处理这些，然后下一批出现。",
+	"That quote is no longer waiting.": "该报价不再等待。"
+}

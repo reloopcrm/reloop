@@ -1,0 +1,197 @@
+import { DIRECT_KINDS } from "./agent-tasks";
+import type { Db } from "./client";
+import type { UsageWindow } from "./cloud/contract";
+import { cloud } from "./cloud/scope";
+import type { Prisma } from "./generated/prisma/client";
+import {
+	budgetKinds,
+	DRAFT_KIND,
+	INSIGHT_KIND,
+	nextMonthStart,
+	PLAN_USAGE,
+	type PlanLimits,
+	RESEARCH_RUN_KIND,
+	startOfMonth,
+} from "./plans";
+import { readPlan } from "./settings";
+
+export type { UsageWindow } from "./cloud/contract";
+
+export async function planIdOf(db: Db): Promise<string | null> {
+	const stored = await readPlan(db);
+	if (stored) return stored;
+	return cloud.customer() ? cloud.current().plan : null;
+}
+
+export function fixedAiFor(plan: string | null | undefined): boolean {
+	return cloud.customer() && cloud.plans.limitsOf(plan).aiIncluded;
+}
+
+export async function planLimitsOf(db: Db): Promise<PlanLimits> {
+	return cloud.plans.withAddOns(cloud.plans.limitsOf(await planIdOf(db)));
+}
+
+export async function fixedAiWith(db: Db): Promise<boolean> {
+	return fixedAiFor(await planIdOf(db));
+}
+
+function usageWindowFor(
+	plan: string | null | undefined,
+	now: Date = new Date(),
+): UsageWindow {
+	return (
+		cloud.plans.usageWindow(plan, now) ?? {
+			since: startOfMonth(now),
+			until: nextMonthStart(now),
+			trialEnds: false,
+		}
+	);
+}
+
+export async function usageWindowOf(
+	db: Db,
+	now: Date = new Date(),
+): Promise<UsageWindow> {
+	return usageWindowFor(await planIdOf(db), now);
+}
+
+const COUNTED_BY_FINISH: readonly string[] = [RESEARCH_RUN_KIND];
+
+export function budgetTasksWhere(
+	kind: string,
+	since: Date,
+): Prisma.AgentTaskWhereInput {
+	const window = COUNTED_BY_FINISH.includes(kind)
+		? { finishedAt: { gte: since } }
+		: { createdAt: { gte: since } };
+
+	return {
+		kind: { in: budgetKinds(kind) },
+		...window,
+		NOT: { finishedAt: { not: null }, startedAt: null },
+	};
+}
+
+export const USAGE_COUNTERS = [
+	"insights",
+	"drafts",
+	"sessions",
+	"research",
+	"chat",
+	"builder",
+] as const;
+
+export type UsageCounter = (typeof USAGE_COUNTERS)[number];
+
+export type MonthlyUsage = Record<UsageCounter, number>;
+
+export const USAGE_LEVELS = ["normal", "warning", "reached"] as const;
+
+export type UsageLevel = (typeof USAGE_LEVELS)[number];
+
+export function usageLevel(used: number, limit: number | null): UsageLevel {
+	if (limit === null) return "normal";
+	if (used >= limit) return "reached";
+	return used / limit >= PLAN_USAGE.warnShare ? "warning" : "normal";
+}
+
+export type UsageLine = {
+	counter: UsageCounter;
+	used: number;
+	limit: number | null;
+	included: boolean;
+	level: UsageLevel;
+	reached: boolean;
+};
+
+const LIMIT_OF = {
+	insights: (limits: PlanLimits) => limits.insightsPerMonth,
+	drafts: (limits: PlanLimits) => limits.draftsPerMonth,
+	sessions: (limits: PlanLimits) => limits.researchSessionsPerMonth,
+	research: (limits: PlanLimits) => limits.researchPerMonth,
+	chat: (limits: PlanLimits) => limits.chatPerMonth,
+	builder: (limits: PlanLimits) => limits.builderPerMonth,
+} satisfies Record<UsageCounter, (limits: PlanLimits) => number | null>;
+
+async function conversationMessages(
+	db: Db,
+	kind: "RECORD" | "BUILDER",
+	since: Date,
+): Promise<number> {
+	const [row] = await db.$queryRaw<{ count: bigint }[]>`
+		SELECT COUNT(*) AS count
+		FROM "agentEvent" AS e
+		JOIN "agentConversation" AS c ON c."sessionId" = e."sessionId"
+		WHERE e.type = 'message.received'
+			AND e."emittedAt" >= ${since}
+			AND c.kind = ${kind}::"AgentConversationKind"
+	`;
+
+	return Number(row?.count ?? 0);
+}
+
+export async function readMonthlyUsage(
+	db: Db,
+	now: Date = new Date(),
+): Promise<MonthlyUsage> {
+	const { since } = await usageWindowOf(db, now);
+	const count = (kind: string) =>
+		db.agentTask.count({ where: budgetTasksWhere(kind, since) });
+
+	const [insights, drafts, sessions, research, chat, builder] =
+		await Promise.all([
+			count(INSIGHT_KIND),
+			count(DRAFT_KIND),
+			db.agentTask.count({
+				where: {
+					kind: { notIn: [...DIRECT_KINDS] },
+					startedAt: { gte: since },
+					attempts: { gte: 1 },
+				},
+			}),
+			count(RESEARCH_RUN_KIND),
+			conversationMessages(db, "RECORD", since),
+			conversationMessages(db, "BUILDER", since),
+		]);
+
+	return { insights, drafts, sessions, research, chat, builder };
+}
+
+export function limitOf(
+	counter: UsageCounter,
+	limits: PlanLimits,
+): number | null {
+	return LIMIT_OF[counter](limits);
+}
+
+export function includedIn(counter: UsageCounter, limits: PlanLimits): boolean {
+	return counter === "research" ? limits.companyResearch : true;
+}
+
+export function usageLines(
+	usage: MonthlyUsage,
+	limits: PlanLimits,
+): UsageLine[] {
+	return USAGE_COUNTERS.map((counter) => {
+		const limit = limitOf(counter, limits);
+		const used = usage[counter];
+		const level = usageLevel(used, limit);
+		return {
+			counter,
+			used,
+			limit,
+			included: includedIn(counter, limits),
+			level,
+			reached: level === "reached",
+		};
+	});
+}
+
+export function roomFor(
+	counter: UsageCounter,
+	usage: MonthlyUsage,
+	limits: PlanLimits,
+): number | null {
+	const limit = limitOf(counter, limits);
+	return limit === null ? null : Math.max(0, limit - usage[counter]);
+}

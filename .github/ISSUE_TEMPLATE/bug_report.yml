@@ -1,0 +1,70 @@
+name: Bug report
+description: Something in Reloop CRM does not work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Security problems go through SECURITY.md, not here.
+        Never paste real customer data, real email addresses or mail text. Describe the shape of the data instead.
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: Include the exact error message or a screenshot with sample data only.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version on Settings, General, or RELOOP_VERSION in deploy/.env.
+      placeholder: 0.22.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options:
+        - install.sh with Docker
+        - Docker Compose by hand
+        - From source (bun run dev)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Mailbox sync (Gmail, Outlook, IMAP)
+        - Win back
+        - Agent and AI
+        - Contacts, companies and deals
+        - Settings and connections
+        - Install and update
+        - Other
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Output of `docker compose logs api agent app` around the error. Remove addresses and names first.
+      render: text

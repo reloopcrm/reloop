@@ -1,0 +1,129 @@
+import { canManageConnections } from "@crm/auth";
+import type { Db, WebhookModel } from "@crm/db";
+import { isCrmEventType } from "@crm/db/crm-events";
+import { isPlainHttpUrl, sealWebhookSecret, WEBHOOKS } from "@crm/db/webhooks";
+import {
+	BadRequestException,
+	ForbiddenException,
+	Injectable,
+	NotFoundException,
+} from "@nestjs/common";
+import { AgentAccessService } from "../agent/agent-access.service";
+import { InjectDatabase } from "../database/database.constants";
+import {
+	type CreateWebhookInput,
+	type UpdateWebhookInput,
+	WEBHOOK_HTTPS_REQUIRED,
+	type WebhookOutput,
+	type WebhookRemoveOutput,
+	type WebhooksStatus,
+} from "./webhooks.contracts";
+
+@Injectable()
+export class WebhooksService {
+	constructor(
+		@InjectDatabase() private readonly db: Db,
+		private readonly access: AgentAccessService,
+	) {}
+
+	async status(userId: string): Promise<WebhooksStatus> {
+		const role = await this.access.assertMember(userId);
+		const webhooks = await this.db.webhook.findMany({
+			orderBy: { createdAt: "asc" },
+		});
+
+		const canManage = canManageConnections(role);
+
+		return {
+			webhooks: webhooks.map((webhook) => present(webhook, canManage)),
+			canManage,
+		};
+	}
+
+	async create(
+		userId: string,
+		input: CreateWebhookInput,
+	): Promise<WebhooksStatus> {
+		await this.assertManager(userId);
+
+		await this.db.webhook.create({
+			data: {
+				url: input.url,
+				events: input.events,
+				secret: sealWebhookSecret(input.secret),
+				allowPrivateHost: input.allowPrivateHost,
+			},
+		});
+
+		return this.status(userId);
+	}
+
+	async update(
+		userId: string,
+		input: UpdateWebhookInput,
+	): Promise<WebhooksStatus> {
+		await this.assertManager(userId);
+
+		if (
+			input.url !== undefined &&
+			input.allowPrivateHost === undefined &&
+			isPlainHttpUrl(input.url)
+		) {
+			const current = await this.db.webhook.findUnique({
+				where: { id: input.id },
+				select: { allowPrivateHost: true },
+			});
+			if (current && !current.allowPrivateHost)
+				throw new BadRequestException(WEBHOOK_HTTPS_REQUIRED);
+		}
+
+		const { count } = await this.db.webhook.updateMany({
+			where: { id: input.id },
+			data: {
+				url: input.url,
+				events: input.events,
+				enabled: input.enabled,
+				allowPrivateHost: input.allowPrivateHost,
+				secret: input.secret ? sealWebhookSecret(input.secret) : undefined,
+			},
+		});
+
+		if (count === 0) throw new NotFoundException("No webhook with that id.");
+
+		return this.status(userId);
+	}
+
+	async remove(userId: string, id: string): Promise<WebhookRemoveOutput> {
+		await this.assertManager(userId);
+
+		const { count } = await this.db.webhook.deleteMany({ where: { id } });
+		if (count === 0) throw new NotFoundException("No webhook with that id.");
+
+		return { removed: true };
+	}
+
+	private async assertManager(userId: string): Promise<void> {
+		const role = await this.access.assertMember(userId);
+
+		if (!canManageConnections(role)) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can change a webhook.",
+			);
+		}
+	}
+}
+
+function present(webhook: WebhookModel, canManage: boolean): WebhookOutput {
+	return {
+		id: webhook.id,
+		url: canManage ? webhook.url : null,
+		events: webhook.events.filter(isCrmEventType),
+		enabled: webhook.enabled,
+		allowPrivateHost: webhook.allowPrivateHost,
+		secretHint: canManage ? WEBHOOKS.secret.hint : null,
+		lastDeliveryAt: webhook.lastDeliveryAt?.toISOString() ?? null,
+		lastStatus: webhook.lastStatus,
+		lastError: webhook.lastError,
+		createdAt: webhook.createdAt.toISOString(),
+	};
+}

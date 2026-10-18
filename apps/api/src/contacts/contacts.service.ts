@@ -1,0 +1,1381 @@
+import {
+	type ContactBriefSections,
+	type Db,
+	type FactEvidence,
+	FactStatus,
+	type Prisma,
+	Prisma as PrismaNamespace,
+	RecordSource,
+} from "@crm/db";
+import { PRIORITY, REP_ASKED_REASON } from "@crm/db/agent-tasks";
+import {
+	type ContactAttention,
+	readContactAttention,
+} from "@crm/db/contact-attention";
+import type {
+	FieldDefinitionWithOptions,
+	FieldValueJson,
+} from "@crm/db/fields";
+import { lockFactField } from "@crm/db/idempotency";
+import {
+	budgetTasksWhere,
+	fixedAiWith,
+	planLimitsOf,
+	usageWindowOf,
+} from "@crm/db/plan-usage";
+import { DRAFT_KIND, monthlyBudget } from "@crm/db/plans";
+import { threadsOfContact } from "@crm/db/thread-participants";
+import { readAgentTaskOneOff } from "@crm/validation/agent-task-payload";
+import { readDraftRole } from "@crm/validation/draft-style";
+import type { LimitReason } from "@crm/validation/plan-limit-reason";
+import { readWinBackRules } from "@crm/validation/win-back-rules";
+import {
+	BadRequestException,
+	ConflictException,
+	Injectable,
+	Logger,
+	NotFoundException,
+} from "@nestjs/common";
+import { AgentQueueService } from "../agent/agent-queue.service";
+import { AgentTriggerService } from "../agent/agent-trigger.service";
+import { ARCHIVE } from "../archive/archive-config";
+import { CompanyDirectoryService } from "../companies/company-directory.service";
+import {
+	ActivityStampService,
+	type StampTargets,
+} from "../crm/activity-stamp.service";
+import { type BulkResult, requireOwner, runBulk } from "../crm/bulk";
+import { readPotential, readStanding } from "../crm/standing";
+import { blankToNull, normalizeEmail, toCents } from "../crm/values";
+import { InjectDatabase } from "../database/database.constants";
+import { pagesByIds } from "../exports/export-pages";
+import { EXPORTS } from "../exports/exports-config";
+import { FieldsService } from "../fields/fields.service";
+import { ThreadParticipantsService } from "../mailbox/thread-participants.service";
+import {
+	activityFacetCounts,
+	activityFilter,
+	archivedFilter,
+	countsByKey,
+	FACET_UNASSIGNED,
+	type ListResult,
+	type OrderByColumns,
+	ownerFilter,
+	paginate,
+	resolveOrderBy,
+	splitSentinel,
+	withIdTieBreak,
+} from "../trpc/list-input";
+import { lockContactEmail } from "./contact-email-lock";
+import { CONTACT_MESSAGES } from "./contacts.config";
+import type {
+	ContactBulkCompanyInput,
+	ContactBulkOwnerInput,
+	ContactCreateInput,
+	ContactDraftState,
+	ContactListInput,
+	ContactRow,
+	ContactUpdateInput,
+	FactDecisionInput,
+} from "./contacts.contracts";
+
+const OWNER_SELECT = {
+	id: true,
+	name: true,
+	email: true,
+	image: true,
+} as const;
+
+const COMPANY_SELECT = {
+	id: true,
+	name: true,
+	domain: true,
+	iconUrl: true,
+	iconDarkUrl: true,
+	iconTone: true,
+	logoUrl: true,
+} as const;
+
+const NO_COMPANY = "none";
+
+const CONTACT_EXPORT_SELECT = {
+	id: true,
+	firstName: true,
+	lastName: true,
+	email: true,
+	phone: true,
+	title: true,
+	seniority: true,
+	function: true,
+	linkedinUrl: true,
+	company: { select: { name: true, domain: true } },
+	owner: { select: { name: true, email: true } },
+	standing: true,
+	potentialBand: true,
+	source: true,
+	createdAt: true,
+	lastActivityAt: true,
+	archivedAt: true,
+} satisfies Prisma.ContactSelect;
+
+export type ContactExportRow = Prisma.ContactGetPayload<{
+	select: typeof CONTACT_EXPORT_SELECT;
+}> & { fields: Record<string, FieldValueJson> };
+
+type FactColumns = Record<string, string | undefined>;
+
+const FACT_COLUMNS: FactColumns = {
+	title: "title",
+	phone: "phone",
+	seniority: "seniority",
+	function: "function",
+	linkedinUrl: "linkedinUrl",
+	twitterUrl: "twitterUrl",
+	githubUrl: "githubUrl",
+};
+
+const SORTABLE: OrderByColumns<Prisma.ContactOrderByWithRelationInput[]> = {
+	name: (dir) => [{ firstName: dir }, { lastName: dir }],
+	email: (dir) => [{ email: dir }],
+	title: (dir) => [{ title: dir }, { lastName: "asc" }],
+	company: (dir) => [{ company: { name: dir } }, { lastName: "asc" }],
+	standing: (dir) => [
+		{ standing: { sort: dir, nulls: "last" } },
+		{ lastName: "asc" },
+	],
+	potential: (dir) => [
+		{ potentialBand: { sort: dir, nulls: "last" } },
+		{ lastName: "asc" },
+	],
+	createdAt: (dir) => [{ createdAt: dir }],
+	owner: (dir) => [{ owner: { name: dir } }, { lastName: "asc" }],
+	lastActivity: (dir) => [{ lastActivityAt: { sort: dir, nulls: "last" } }],
+	archivedAt: (dir) => [{ archivedAt: { sort: dir, nulls: "last" } }],
+};
+
+@Injectable()
+export class ContactsService {
+	private readonly logger = new Logger(ContactsService.name);
+
+	constructor(
+		@InjectDatabase() private readonly db: Db,
+		private readonly companies: CompanyDirectoryService,
+		private readonly agent: AgentTriggerService,
+		private readonly queue: AgentQueueService,
+		private readonly stamp: ActivityStampService,
+		private readonly fields: FieldsService,
+		private readonly participants: ThreadParticipantsService,
+	) {}
+
+	async list(input: ContactListInput): Promise<ListResult<ContactRow>> {
+		const filterableFields = await this.fields.filterableFieldsFor("CONTACT");
+		const where = this.buildWhere(input, filterableFields);
+		const { skip, take } = paginate(input);
+
+		const [rows, total, facetCounts] = await Promise.all([
+			this.db.contact.findMany({
+				where,
+				skip,
+				take,
+				orderBy: resolveOrderBy(input, SORTABLE, [{ createdAt: "desc" }]),
+				select: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					title: true,
+					imageUrl: true,
+					source: true,
+					company: { select: COMPANY_SELECT },
+					owner: { select: OWNER_SELECT },
+					standing: true,
+					potentialBand: true,
+					lastActivityAt: true,
+					createdAt: true,
+					archivedAt: true,
+				},
+			}),
+			this.db.contact.count({ where }),
+			this.facetCounts(input, filterableFields),
+		]);
+
+		const tableFields = await this.fields.tableValuesFor(
+			"CONTACT",
+			rows.map((row) => row.id),
+		);
+
+		return {
+			rows: rows.map(({ standing, potentialBand, ...row }) => ({
+				...row,
+				standing: readStanding(standing),
+				potential: readPotential(potentialBand),
+				lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
+				createdAt: row.createdAt.toISOString(),
+				archivedAt: row.archivedAt?.toISOString() ?? null,
+				fields: tableFields.get(row.id) ?? {},
+			})),
+			total,
+			facetCounts,
+		};
+	}
+
+	async *exportRows(
+		input: ContactListInput,
+		pageSize: number = EXPORTS.page.size,
+	): AsyncGenerator<ContactExportRow[]> {
+		const filterableFields = await this.fields.filterableFieldsFor("CONTACT");
+		const where = this.buildWhere(input, filterableFields);
+		const orderBy = withIdTieBreak(
+			resolveOrderBy(input, SORTABLE, [{ createdAt: "desc" }]),
+		);
+		const ids = (
+			await this.db.contact.findMany({ where, orderBy, select: { id: true } })
+		).map((row) => row.id);
+
+		for await (const rows of pagesByIds(ids, pageSize, (chunk) =>
+			this.db.contact.findMany({
+				where: { id: { in: chunk } },
+				select: CONTACT_EXPORT_SELECT,
+			}),
+		)) {
+			const values = await this.fields.exportValuesFor(
+				"CONTACT",
+				rows.map((row) => row.id),
+			);
+
+			yield rows.map((row) => ({
+				...row,
+				fields: values.get(row.id) ?? {},
+			}));
+		}
+	}
+
+	async byId(id: string) {
+		const contact = await this.db.contact.findUnique({
+			where: { id },
+			select: {
+				id: true,
+				firstName: true,
+				lastName: true,
+				email: true,
+				phone: true,
+				title: true,
+				linkedinUrl: true,
+				twitterUrl: true,
+				githubUrl: true,
+				imageUrl: true,
+				enrichmentStatus: true,
+				enrichmentError: true,
+				createdAt: true,
+				archivedAt: true,
+				brief: {
+					select: {
+						narrative: true,
+						sections: true,
+						score: true,
+						sourceUrl: true,
+						refreshedAt: true,
+					},
+				},
+				facts: {
+					where: { status: { in: [FactStatus.APPLIED, FactStatus.PROPOSED] } },
+					orderBy: { observedAt: "desc" },
+					select: {
+						id: true,
+						field: true,
+						value: true,
+						score: true,
+						band: true,
+						evidence: true,
+						method: true,
+						sourceUrl: true,
+						status: true,
+						observedAt: true,
+					},
+				},
+				company: {
+					select: { ...COMPANY_SELECT, industry: true, primaryContactId: true },
+				},
+				owner: { select: OWNER_SELECT },
+				deals: {
+					where: { deal: archivedFilter(false) },
+					select: {
+						role: true,
+						deal: {
+							select: {
+								id: true,
+								name: true,
+								stage: true,
+								amount: true,
+								currency: true,
+								expectedCloseDate: true,
+								owner: { select: OWNER_SELECT },
+							},
+						},
+					},
+				},
+			},
+		});
+
+		if (!contact) {
+			throw new NotFoundException(`No contact with id ${id}.`);
+		}
+
+		const relationship = await this.relationship(
+			id,
+			contact.company?.id ?? null,
+			contact.email,
+		);
+
+		const { deals, createdAt, archivedAt, brief, facts, company, ...rest } =
+			contact;
+
+		return {
+			...rest,
+			company,
+			fields: await this.fields.valuesFor("CONTACT", id),
+			queued: await this.queue.isQueued({ contactId: id }),
+			createdAt: createdAt.toISOString(),
+			archivedAt: archivedAt?.toISOString() ?? null,
+			brief: brief
+				? {
+						...brief,
+						sections: brief.sections as ContactBriefSections,
+						refreshedAt: brief.refreshedAt.toISOString(),
+					}
+				: null,
+			facts: facts.map((fact) => ({
+				...fact,
+				evidence: fact.evidence as FactEvidence[],
+				observedAt: fact.observedAt.toISOString(),
+			})),
+			relationship,
+			isPrimaryContact: company?.primaryContactId === contact.id,
+			deals: deals.map(({ role, deal }) => ({
+				...deal,
+				role,
+				amount: undefined,
+				amountCents: toCents(deal.amount),
+				expectedCloseDate: deal.expectedCloseDate?.toISOString() ?? null,
+			})),
+		};
+	}
+
+	async attention(id: string): Promise<ContactAttention> {
+		const rules = await readWinBackRules(this.db);
+		const attention = await readContactAttention(this.db, {
+			contactId: id,
+			rules,
+		});
+
+		if (attention.summary) await this.refreshMemoryLanguage(id);
+
+		return attention;
+	}
+
+	private async refreshMemoryLanguage(contactId: string): Promise<void> {
+		const [memory, thread] = await Promise.all([
+			this.db.contactMemory.findUnique({
+				where: { contactId },
+				select: { language: true },
+			}),
+			this.db.emailThread.findFirst({
+				where: { ...threadsOfContact(contactId), insight: { relevant: true } },
+				orderBy: { lastMessageAt: "desc" },
+				select: { id: true },
+			}),
+		]);
+		if (!memory || !thread) return;
+
+		await this.agent.summaryRefreshNeeded(thread.id, memory.language);
+	}
+
+	async create(input: ContactCreateInput) {
+		const email = normalizeEmail(input.email ?? "");
+
+		if (email) {
+			const existing = await this.db.contact.findFirst({
+				where: {
+					email: { equals: email, mode: "insensitive" },
+					archivedAt: null,
+				},
+				select: { id: true },
+			});
+			if (existing) throw new ConflictException(CONTACT_MESSAGES.emailInUse);
+
+			const suppressed = await this.db.suppressedContact.findFirst({
+				where: { email: { equals: email, mode: "insensitive" } },
+				select: { email: true },
+			});
+			if (suppressed)
+				throw new ConflictException(CONTACT_MESSAGES.emailSuppressed);
+		}
+
+		await requireOwner(this.db, input.ownerId ?? null);
+		await this.requireCompany(input.companyId ?? null);
+
+		const companyId =
+			input.companyId ??
+			(email
+				? await this.companies.companyForEmail(email, {
+						ownerId: input.ownerId,
+					})
+				: null);
+
+		const contact = await this.insertContact(input, email, companyId);
+
+		this.logger.log({ message: "Contact created", contactId: contact.id });
+
+		if (email) {
+			await this.participants.linkContact(
+				contact.id,
+				email,
+				await this.participants.context(),
+			);
+		}
+		await this.agent.contactCreated(
+			contact.id,
+			"Added by a rep, with nothing on the record yet",
+		);
+		this.fields
+			.queueBackfillForNewRecord("CONTACT", contact.id)
+			.catch((error: Error) => {
+				this.logger.error(
+					{
+						message: "Contact backfill queueing failed",
+						contactId: contact.id,
+					},
+					error.stack,
+				);
+			});
+
+		return {
+			id: contact.id,
+			firstName: contact.firstName,
+			lastName: contact.lastName,
+		};
+	}
+
+	async archive(id: string): Promise<{ id: string; name: string }> {
+		try {
+			const contact = await this.db.contact.update({
+				where: { id },
+				data: { archivedAt: new Date() },
+				select: { firstName: true, lastName: true },
+			});
+
+			this.logger.log({ message: "Contact archived", contactId: id });
+
+			return { id, name: nameOf(contact) };
+		} catch (error) {
+			throw this.translate(error, id);
+		}
+	}
+
+	async restore(id: string): Promise<{ id: string; name: string }> {
+		try {
+			const contact = await this.db.contact.update({
+				where: { id },
+				data: { archivedAt: null },
+				select: { firstName: true, lastName: true },
+			});
+
+			this.logger.log({ message: "Contact restored", contactId: id });
+
+			return { id, name: nameOf(contact) };
+		} catch (error) {
+			throw this.translate(error, id);
+		}
+	}
+
+	async purge(id: string): Promise<{ id: string; name: string }>;
+	async purge(
+		id: string,
+		guard: { archivedBefore: Date },
+	): Promise<{ id: string; name: string } | null>;
+	async purge(
+		id: string,
+		guard?: { archivedBefore: Date },
+	): Promise<{ id: string; name: string } | null> {
+		let deleted: {
+			targets: StampTargets;
+			name: string;
+			suppressed: boolean;
+		} | null;
+
+		try {
+			deleted = await this.db.$transaction(async (tx) => {
+				const [row] = await tx.$queryRaw<Array<{ archivedAt: Date | null }>>`
+					SELECT "archivedAt" FROM contact WHERE id = ${id} FOR UPDATE
+				`;
+
+				if (!row) {
+					if (guard) return null;
+					throw new NotFoundException(`No contact with id ${id}.`);
+				}
+				if (
+					guard &&
+					(!row.archivedAt || row.archivedAt > guard.archivedBefore)
+				) {
+					return null;
+				}
+
+				const targets = await this.stamp.targetsOf({ contactId: id }, tx);
+
+				await tx.agentTask.deleteMany({ where: { contactId: id } });
+				await tx.agentEvent.deleteMany({ where: { contactId: id } });
+				await tx.formSubmission.deleteMany({ where: { contactId: id } });
+
+				const contact = await tx.contact.delete({
+					where: { id },
+					select: { firstName: true, lastName: true, email: true },
+				});
+
+				const name = nameOf(contact);
+				const suppress = normalizeEmail(contact.email ?? "");
+
+				if (suppress) {
+					await lockContactEmail(tx, suppress);
+					await tx.formSubmission.deleteMany({
+						where: { email: { equals: suppress, mode: "insensitive" } },
+					});
+					await tx.suppressedContact.upsert({
+						where: { email: suppress },
+						create: {
+							email: suppress,
+							reason: `Deleted from the CRM (${name})`,
+						},
+						update: {},
+					});
+				}
+
+				return { targets, name, suppressed: suppress !== null };
+			});
+		} catch (error) {
+			throw this.translate(error, id);
+		}
+
+		if (!deleted) return null;
+
+		await this.stamp.recomputeAfterDelete(deleted.targets, { contactId: id });
+
+		this.logger.log({
+			message: "Contact purged",
+			contactId: id,
+			suppressed: deleted.suppressed,
+		});
+
+		return { id, name: deleted.name };
+	}
+
+	async purgeExpired(before: Date): Promise<BulkResult> {
+		const expired = await this.db.contact.findMany({
+			where: {
+				archivedAt: { lte: before },
+				source: { notIn: [RecordSource.EMAIL, RecordSource.CALENDAR] },
+			},
+			select: { id: true },
+			take: ARCHIVE.prune.maxBatch,
+		});
+
+		return runBulk(
+			expired.map((row) => row.id),
+			(id) => this.purge(id, { archivedBefore: before }),
+		);
+	}
+
+	async update(id: string, input: ContactUpdateInput) {
+		const data: Prisma.ContactUpdateInput = {};
+
+		if (input.firstName !== undefined) data.firstName = input.firstName.trim();
+		if (input.lastName !== undefined)
+			data.lastName = blankToNull(input.lastName);
+		const email =
+			input.email === undefined ? null : normalizeEmail(input.email);
+		if (input.email !== undefined) data.email = email;
+		if (input.phone !== undefined) data.phone = blankToNull(input.phone);
+		if (input.title !== undefined) data.title = blankToNull(input.title);
+		if (input.linkedinUrl !== undefined) {
+			data.linkedinUrl = blankToNull(input.linkedinUrl);
+		}
+		if (input.twitterUrl !== undefined) {
+			data.twitterUrl = blankToNull(input.twitterUrl);
+		}
+		if (input.githubUrl !== undefined) {
+			data.githubUrl = blankToNull(input.githubUrl);
+		}
+		if (input.companyId !== undefined) {
+			data.company = input.companyId
+				? { connect: { id: input.companyId } }
+				: { disconnect: true };
+		}
+		if (input.ownerId !== undefined) {
+			data.owner = input.ownerId
+				? { connect: { id: input.ownerId } }
+				: { disconnect: true };
+		}
+
+		let updated: { id: string; firstName: string; lastName: string | null };
+		try {
+			updated = await this.db.$transaction(async (tx) => {
+				if (input.fields) {
+					await this.fields.applyValues(tx, "CONTACT", id, input.fields);
+				}
+
+				const row = await tx.contact.update({
+					where: { id },
+					data,
+					select: { id: true, firstName: true, lastName: true },
+				});
+
+				if (email !== null) {
+					await this.allowAgain(tx, email);
+				}
+
+				return row;
+			});
+		} catch (error) {
+			throw this.translate(error, id);
+		}
+
+		if (input.email !== undefined) {
+			await this.participants.relinkContact(
+				id,
+				email,
+				await this.participants.context(),
+			);
+		}
+
+		return updated;
+	}
+
+	async bulkAssignOwner(input: ContactBulkOwnerInput): Promise<BulkResult> {
+		const ownerId = input.ownerId || null;
+
+		await requireOwner(this.db, ownerId);
+
+		const ids = [...new Set(input.ids)];
+		const { count } = await this.db.contact.updateMany({
+			where: { id: { in: ids } },
+			data: { ownerId },
+		});
+
+		this.logger.log({
+			message: "Contacts reassigned",
+			count,
+			ownerId,
+		});
+
+		return {
+			requested: ids.length,
+			succeeded: count,
+			skipped: 0,
+			failed: ids.length - count,
+			message: null,
+		};
+	}
+
+	async bulkSetCompany(input: ContactBulkCompanyInput): Promise<BulkResult> {
+		const companyId = input.companyId || null;
+
+		if (companyId) {
+			const company = await this.db.company.findUnique({
+				where: { id: companyId },
+				select: { id: true },
+			});
+			if (!company) {
+				throw new NotFoundException(`No company with id ${companyId}.`);
+			}
+		}
+
+		const ids = [...new Set(input.ids)];
+		const { count } = await this.db.contact.updateMany({
+			where: { id: { in: ids } },
+			data: { companyId },
+		});
+
+		this.logger.log({
+			message: "Contacts moved",
+			count,
+			companyId,
+		});
+
+		return {
+			requested: ids.length,
+			succeeded: count,
+			skipped: 0,
+			failed: ids.length - count,
+			message: null,
+		};
+	}
+
+	async bulkEnrich(ids: string[]): Promise<BulkResult> {
+		return runBulk(ids, (id) => this.enrich(id));
+	}
+
+	async bulkArchive(ids: string[]): Promise<BulkResult> {
+		return runBulk(ids, (id) => this.archive(id));
+	}
+
+	async bulkRestore(ids: string[]): Promise<BulkResult> {
+		return runBulk(ids, (id) => this.restore(id));
+	}
+
+	async bulkPurge(ids: string[]): Promise<BulkResult> {
+		return runBulk(ids, (id) => this.purge(id));
+	}
+
+	private async insertContact(
+		input: ContactCreateInput,
+		email: string | null,
+		companyId: string | null,
+	) {
+		try {
+			return await this.agent.withCrmEvents(async (tx, emit) => {
+				await this.requireNotSuppressed(tx, email);
+
+				const created = await tx.contact.create({
+					data: {
+						firstName: input.firstName.trim(),
+						lastName: blankToNull(input.lastName ?? ""),
+						email,
+						phone: blankToNull(input.phone ?? ""),
+						title: blankToNull(input.title ?? ""),
+						companyId,
+						ownerId: input.ownerId ?? null,
+					},
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						email: true,
+						companyId: true,
+						createdAt: true,
+					},
+				});
+				await emit({
+					type: "contact.created",
+					record: { kind: "contact", id: created.id },
+					occurredAt: created.createdAt,
+					data: {
+						firstName: created.firstName,
+						lastName: created.lastName,
+						email: created.email,
+						companyId: created.companyId,
+					},
+				});
+				return created;
+			});
+		} catch (error) {
+			this.translateCreate(error);
+		}
+	}
+
+	private async requireNotSuppressed(
+		tx: Prisma.TransactionClient,
+		email: string | null,
+	): Promise<void> {
+		if (!email) return;
+		await lockContactEmail(tx, email);
+		const suppressed = await tx.suppressedContact.findFirst({
+			where: { email: { equals: email, mode: "insensitive" } },
+			select: { email: true },
+		});
+		if (suppressed)
+			throw new ConflictException(CONTACT_MESSAGES.emailSuppressed);
+	}
+
+	private async requireCompany(companyId: string | null): Promise<void> {
+		if (!companyId) return;
+		const company = await this.db.company.findFirst({
+			where: { id: companyId, archivedAt: null },
+			select: { id: true },
+		});
+		if (!company)
+			throw new BadRequestException(CONTACT_MESSAGES.companyMissing);
+	}
+
+	private translateCreate(cause: unknown): never {
+		if (cause instanceof PrismaNamespace.PrismaClientKnownRequestError) {
+			if (cause.code === "P2002") {
+				throw new ConflictException(CONTACT_MESSAGES.emailInUse);
+			}
+			if (cause.code === "P2003") {
+				throw new BadRequestException(CONTACT_MESSAGES.companyMissing);
+			}
+		}
+		throw cause;
+	}
+
+	private async allowAgain(
+		tx: Prisma.TransactionClient,
+		email: string | null,
+	): Promise<void> {
+		if (!email) return;
+		await tx.suppressedContact.deleteMany({
+			where: { email: { equals: email, mode: "insensitive" } },
+		});
+	}
+
+	private async relationship(
+		contactId: string,
+		companyId: string | null,
+		email: string | null,
+	) {
+		const now = new Date();
+		const address = email?.trim().toLowerCase() || null;
+		const fromThem: Prisma.EmailMessageWhereInput = address
+			? { direction: "INBOUND", fromEmail: address }
+			: { direction: "INBOUND", thread: { contactId } };
+		const toThem: Prisma.EmailMessageWhereInput = address
+			? {
+					direction: "OUTBOUND",
+					recipients: { array_contains: [{ email: address }] },
+				}
+			: { direction: "OUTBOUND", thread: { contactId } };
+
+		const [threads, mails, lastReply, meetings, nextMeeting, colleagues] =
+			await Promise.all([
+				this.db.emailThread.count({ where: threadsOfContact(contactId) }),
+				this.db.emailMessage.count({
+					where: {
+						thread: threadsOfContact(contactId),
+						OR: [fromThem, toThem],
+					},
+				}),
+				this.db.emailMessage.findFirst({
+					where: { thread: threadsOfContact(contactId), ...fromThem },
+					orderBy: { sentAt: "desc" },
+					select: { sentAt: true },
+				}),
+				this.db.calendarEvent.count({
+					where: {
+						OR: [{ contactId }, { attendees: { some: { contactId } } }],
+					},
+				}),
+				this.db.calendarEvent.findFirst({
+					where: {
+						startsAt: { gt: now },
+						OR: [{ contactId }, { attendees: { some: { contactId } } }],
+					},
+					orderBy: { startsAt: "asc" },
+					select: { title: true, startsAt: true },
+				}),
+				companyId
+					? this.db.contact.findMany({
+							where: { companyId, id: { not: contactId } },
+							orderBy: { lastActivityAt: { sort: "desc", nulls: "last" } },
+							take: 4,
+							select: {
+								id: true,
+								firstName: true,
+								lastName: true,
+								title: true,
+							},
+						})
+					: Promise.resolve([]),
+			]);
+
+		return {
+			emails: mails,
+			threads,
+			lastReplyAt: lastReply?.sentAt.toISOString() ?? null,
+			meetings,
+			nextMeeting: nextMeeting
+				? {
+						title: nextMeeting.title,
+						startsAt: nextMeeting.startsAt.toISOString(),
+					}
+				: null,
+			colleagues: colleagues.map((colleague) => ({
+				id: colleague.id,
+				name: [colleague.firstName, colleague.lastName]
+					.filter(Boolean)
+					.join(" "),
+				title: colleague.title,
+			})),
+		};
+	}
+
+	async draft(id: string): Promise<ContactDraftState> {
+		const contact = await this.db.contact.findUnique({
+			where: { id },
+			select: {
+				id: true,
+				emailDraft: true,
+			},
+		});
+
+		if (!contact) {
+			throw new NotFoundException(`No contact with id ${id}.`);
+		}
+
+		const open = await this.db.agentTask.findFirst({
+			where: { contactId: id, kind: "email-draft", finishedAt: null },
+			orderBy: { dueAt: "asc" },
+			select: { dueAt: true, priority: true },
+		});
+		const now = new Date();
+		const held =
+			open && open.dueAt.getTime() > now.getTime() ? open.dueAt : null;
+		const queued = open !== null && held === null;
+		if (queued && open.priority < PRIORITY.emailDraft) {
+			await this.agent.emailDraftOpened(id);
+		}
+		const resumesAt = await this.draftLimitResumesAt(now);
+		const planReached = resumesAt !== null;
+		const waitingUntil =
+			held?.toISOString() ??
+			(resumesAt && !queued ? resumesAt.toISOString() : null);
+		const limit: LimitReason | null =
+			waitingUntil === null ? null : planReached ? "plan" : "provider";
+
+		const stored = contact.emailDraft;
+		if (!stored) {
+			const failed =
+				!queued &&
+				waitingUntil === null &&
+				(await this.db.emailThread.count({
+					where: threadsOfContact(id),
+				})) > 0 &&
+				(await this.db.agentTask.count({
+					where: {
+						contactId: id,
+						kind: "email-draft",
+						finishedAt: { not: null },
+					},
+				})) > 0;
+
+			return {
+				contactId: id,
+				queued,
+				waitingUntil,
+				limit,
+				failed,
+				draft: null,
+			};
+		}
+
+		const since = await this.newestMailAt(id);
+
+		return {
+			contactId: id,
+			queued,
+			waitingUntil,
+			limit,
+			failed: false,
+			draft: {
+				subject: stored.subject,
+				body: stored.body,
+				language: stored.language,
+				role: readDraftRole(stored.role),
+				modelId: (await fixedAiWith(this.db)) ? null : stored.modelId,
+				writtenAt: stored.updatedAt.toISOString(),
+				basedOnUntil: stored.basedOnUntil?.toISOString() ?? null,
+				stale:
+					since !== null &&
+					(stored.basedOnUntil === null || since > stored.basedOnUntil),
+				oneOff:
+					stored.oneOffSubject !== null &&
+					stored.oneOffBody !== null &&
+					stored.oneOffAt !== null
+						? {
+								subject: stored.oneOffSubject,
+								body: stored.oneOffBody,
+								writtenAt: stored.oneOffAt.toISOString(),
+							}
+						: null,
+			},
+		};
+	}
+
+	async writeDraft(
+		id: string,
+		instruction?: string,
+		oneOff = false,
+		seen?: string | null,
+		stillWanted?: (tx: Prisma.TransactionClient) => Promise<boolean>,
+	): Promise<ContactDraftState> {
+		const contact = await this.db.contact.findUnique({
+			where: { id },
+			select: { id: true },
+		});
+
+		if (!contact) {
+			throw new NotFoundException(`No contact with id ${id}.`);
+		}
+
+		const wish = instruction?.trim() || null;
+		const unchanged =
+			seen !== undefined && wish === null
+				? (tx: Prisma.TransactionClient) => this.draftUnchanged(id, seen, tx)
+				: undefined;
+		if (!(await this.draftLimitResumesAt(new Date()))) {
+			await this.agent.emailDraftRequested(
+				id,
+				wish,
+				oneOff,
+				stillWanted ?? unchanged,
+			);
+		}
+		return this.draft(id);
+	}
+
+	private async draftUnchanged(
+		id: string,
+		seen: string | null,
+		tx: Prisma.TransactionClient,
+	): Promise<boolean> {
+		const stored = await tx.emailDraft.findUnique({
+			where: { contactId: id },
+			select: { updatedAt: true },
+		});
+		return (stored?.updatedAt.toISOString() ?? null) === seen;
+	}
+
+	async refreshDraft(id: string): Promise<ContactDraftState> {
+		const state = await this.draft(id);
+		if (
+			!state.draft?.stale ||
+			state.queued ||
+			state.waitingUntil !== null ||
+			(await this.triedSinceNewestMail(id))
+		) {
+			return state;
+		}
+
+		const seen = state.draft.writtenAt;
+		return this.writeDraft(id, undefined, false, undefined, async (tx) => {
+			return (
+				(await this.draftUnchanged(id, seen, tx)) &&
+				!(await this.triedSinceNewestMail(id, tx))
+			);
+		});
+	}
+
+	private async newestMailAt(id: string): Promise<Date | null> {
+		const newest = await this.db.emailThread.aggregate({
+			where: threadsOfContact(id),
+			_max: { lastMessageAt: true },
+		});
+		return newest._max.lastMessageAt;
+	}
+
+	private async triedSinceNewestMail(
+		id: string,
+		client: Pick<Db, "emailMessage" | "agentTask"> = this.db,
+	): Promise<boolean> {
+		const stored = await client.emailMessage.aggregate({
+			where: { thread: threadsOfContact(id) },
+			_max: { createdAt: true },
+		});
+		const newest = stored._max.createdAt;
+		if (newest === null) return false;
+
+		const tries = await client.agentTask.findMany({
+			where: {
+				contactId: id,
+				kind: DRAFT_KIND,
+				createdAt: { gte: newest },
+				finishedAt: { not: null },
+			},
+			select: { payload: true },
+		});
+		return tries.some((row) => !readAgentTaskOneOff(row.payload));
+	}
+
+	private async draftLimitResumesAt(now: Date): Promise<Date | null> {
+		const budget = monthlyBudget(DRAFT_KIND, await planLimitsOf(this.db));
+		if (budget === null) return null;
+
+		const { since, until } = await usageWindowOf(this.db, now);
+		const used = await this.db.agentTask.count({
+			where: budgetTasksWhere(DRAFT_KIND, since),
+		});
+		return used >= budget ? until : null;
+	}
+
+	async enrich(id: string): Promise<{ id: string; queued: boolean }> {
+		const contact = await this.db.contact.findUnique({
+			where: { id },
+			select: { id: true, imageUrl: true, linkedinUrl: true, updatedAt: true },
+		});
+
+		if (!contact) {
+			throw new NotFoundException(`No contact with id ${id}.`);
+		}
+
+		const queued = await this.agent.contactRequested(
+			id,
+			contact.linkedinUrl && !contact.imageUrl
+				? `${REP_ASKED_REASON}. They have a LinkedIn profile on file but no picture`
+				: REP_ASKED_REASON,
+		);
+
+		if (queued) {
+			await this.db.contact.updateMany({
+				where: { id, updatedAt: contact.updatedAt },
+				data: { enrichmentStatus: "PENDING", enrichmentError: null },
+			});
+		}
+
+		return { id, queued };
+	}
+
+	async decideFact(
+		input: FactDecisionInput,
+		userId: string,
+	): Promise<{ contactId: string; field: string; applied: boolean }> {
+		const fact = await this.db.contactFact.findUnique({
+			where: { id: input.factId },
+			select: {
+				id: true,
+				contactId: true,
+				field: true,
+				value: true,
+				status: true,
+			},
+		});
+
+		if (!fact) {
+			throw new NotFoundException(`No fact with id ${input.factId}.`);
+		}
+
+		const accepted = input.decision === "accept";
+		const column = FACT_COLUMNS[fact.field];
+
+		await this.db.$transaction(async (tx) => {
+			await lockFactField(tx, fact.contactId, fact.field);
+
+			const current = await tx.contactFact.findUnique({
+				where: { id: fact.id },
+				select: { status: true },
+			});
+
+			if (current?.status !== FactStatus.PROPOSED) {
+				throw new ConflictException(
+					"That suggestion has already been settled.",
+				);
+			}
+
+			if (accepted) {
+				await tx.contactFact.updateMany({
+					where: {
+						contactId: fact.contactId,
+						field: fact.field,
+						id: { not: fact.id },
+						status: { in: [FactStatus.APPLIED, FactStatus.PROPOSED] },
+					},
+					data: { status: FactStatus.SUPERSEDED, supersededAt: new Date() },
+				});
+			}
+
+			await tx.contactFact.update({
+				where: { id: fact.id },
+				data: {
+					status: accepted ? FactStatus.APPLIED : FactStatus.DISMISSED,
+					decidedById: userId,
+					decidedAt: new Date(),
+				},
+			});
+
+			if (accepted && column) {
+				await tx.contact.update({
+					where: { id: fact.contactId },
+					data: { [column]: fact.value },
+				});
+			}
+
+			if (accepted && fact.field === "name") {
+				const [firstName, ...rest] = fact.value.trim().split(/\s+/);
+				if (firstName) {
+					await tx.contact.update({
+						where: { id: fact.contactId },
+						data: {
+							firstName,
+							lastName: rest.length > 0 ? rest.join(" ") : null,
+						},
+					});
+				}
+			}
+		});
+
+		this.logger.log({
+			message: "Fact decided",
+			factId: fact.id,
+			contactId: fact.contactId,
+			field: fact.field,
+			decision: input.decision,
+		});
+
+		return { contactId: fact.contactId, field: fact.field, applied: accepted };
+	}
+
+	private companyFilter(
+		values: string[],
+	): Prisma.ContactWhereInput | undefined {
+		if (values.length === 0) return undefined;
+
+		const { ids, includesSentinel } = splitSentinel(values, NO_COMPANY);
+		if (includesSentinel && ids.length === 0) return { companyId: null };
+		if (!includesSentinel) return { companyId: { in: ids } };
+		return { OR: [{ companyId: { in: ids } }, { companyId: null }] };
+	}
+
+	private buildWhere(
+		input: ContactListInput,
+		filterableFields: FieldDefinitionWithOptions[],
+	): Prisma.ContactWhereInput {
+		const and: Prisma.ContactWhereInput[] = [
+			contactSearchFilter(input.q),
+			archivedFilter(input.archived),
+			...this.fields.fieldFilters(filterableFields, input.fields),
+		];
+
+		const owner = ownerFilter<Prisma.ContactWhereInput>(input.owner);
+		if (owner) and.push(owner);
+
+		const company = this.companyFilter(input.company);
+		if (company) and.push(company);
+
+		if (input.source.length > 0) {
+			and.push({ source: { in: input.source as RecordSource[] } });
+		}
+		if (input.title.length > 0) and.push({ title: { in: input.title } });
+		if (input.seniority.length > 0) {
+			and.push({ seniority: { in: input.seniority } });
+		}
+		if (input.persona.length > 0) and.push({ function: { in: input.persona } });
+		if (input.standing.length > 0) {
+			and.push({ standing: { in: input.standing } });
+		}
+		if (input.potential.length > 0) {
+			and.push({ potentialBand: { in: input.potential } });
+		}
+
+		const activity = activityFilter(input.activity);
+		if (activity) and.push(activity);
+
+		return { AND: and };
+	}
+
+	private async facetCounts(
+		input: ContactListInput,
+		filterableFields: FieldDefinitionWithOptions[],
+	) {
+		const where = {
+			AND: [contactSearchFilter(input.q), archivedFilter(input.archived)],
+		};
+
+		const [
+			owners,
+			companies,
+			sources,
+			titles,
+			seniorities,
+			personas,
+			standings,
+			potentials,
+			activity,
+			fieldFacets,
+		] = await Promise.all([
+			this.db.contact.groupBy({
+				by: ["ownerId"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.contact.groupBy({
+				by: ["companyId"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.contact.groupBy({
+				by: ["source"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.contact.groupBy({
+				by: ["title"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.contact.groupBy({
+				by: ["seniority"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.contact.groupBy({
+				by: ["function"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.contact.groupBy({
+				by: ["standing"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.contact.groupBy({
+				by: ["potentialBand"],
+				where,
+				_count: { _all: true },
+			}),
+			activityFacetCounts((activityWhere) =>
+				this.db.contact.count({ where: { AND: [where, activityWhere] } }),
+			),
+			this.fields.filterFacetCounts("CONTACT", where, filterableFields),
+		]);
+
+		return {
+			owner: countsByKey(owners, "ownerId", FACET_UNASSIGNED),
+			company: countsByKey(companies, "companyId", NO_COMPANY),
+			source: countsByKey(sources, "source"),
+			title: countsByKey(titles, "title"),
+			seniority: countsByKey(seniorities, "seniority"),
+			persona: countsByKey(personas, "function"),
+			standing: countsByKey(standings, "standing"),
+			potential: countsByKey(potentials, "potentialBand"),
+			activity,
+			...Object.fromEntries(
+				Object.entries(fieldFacets).map(([key, counts]) => [
+					`field:${key}`,
+					counts,
+				]),
+			),
+		};
+	}
+
+	private translate(cause: unknown, id: string): never {
+		if (cause instanceof PrismaNamespace.PrismaClientKnownRequestError) {
+			if (cause.code === "P2025") {
+				throw new NotFoundException(`No contact with id ${id}.`);
+			}
+			if (cause.code === "P2002") {
+				throw new ConflictException(CONTACT_MESSAGES.emailInUse);
+			}
+		}
+		throw cause;
+	}
+}
+
+function nameOf(contact: {
+	firstName: string;
+	lastName: string | null;
+}): string {
+	return [contact.firstName, contact.lastName].filter(Boolean).join(" ");
+}
+
+export function contactSearchFilter(q: string): Prisma.ContactWhereInput {
+	const words = q.trim().split(/\s+/).filter(Boolean);
+	if (words.length === 0) return {};
+
+	return {
+		AND: words.map((term) => ({
+			OR: [
+				{ firstName: { contains: term, mode: "insensitive" } },
+				{ lastName: { contains: term, mode: "insensitive" } },
+				{ email: { contains: term, mode: "insensitive" } },
+				{ company: { name: { contains: term, mode: "insensitive" } } },
+			],
+		})),
+	};
+}

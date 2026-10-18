@@ -1,0 +1,112 @@
+import { describe, expect, it } from "bun:test";
+import {
+	isDerivedName,
+	looksMachineMade,
+	nameRank,
+	outranksRecord,
+	shortensName,
+} from "../agent/lib/names";
+
+describe("isDerivedName", () => {
+	it("flags a first name that is only the local part", () => {
+		expect(isDerivedName("tomas@x.com", "Tomas", null)).toBe(true);
+	});
+
+	it("flags an initial and a surname cut out of the address", () => {
+		expect(isDerivedName("a.mueller@acme.com", "A", "Mueller")).toBe(true);
+		expect(isDerivedName("c.weber@filmhaus.example", "C", "Weber")).toBe(true);
+		expect(isDerivedName("anna.m@acme.com", "Anna", "M")).toBe(true);
+	});
+
+	it("leaves a full name alone, even when the address spells it out", () => {
+		expect(isDerivedName("anna.mueller@acme.com", "Anna", "Mueller")).toBe(
+			false,
+		);
+		expect(isDerivedName("j.mueller@acme.com", "Anna", "Mueller")).toBe(false);
+	});
+
+	it("trusts a contact whose name says more than the address", () => {
+		expect(isDerivedName("markus.beispiel@x.de", "Markus", "Beispiel")).toBe(
+			false,
+		);
+		expect(isDerivedName("info@x.de", "Klaus", "Berger")).toBe(false);
+		expect(isDerivedName(null, "Klaus", "Berger")).toBe(false);
+	});
+});
+
+describe("looksMachineMade", () => {
+	it("treats initial plus surname from the address as machine made", () => {
+		expect(looksMachineMade("c.weber@filmhaus.example", "C", "Weber")).toBe(
+			true,
+		);
+		expect(looksMachineMade("t.hartmann@x.de", "T", "Hartmann")).toBe(true);
+	});
+
+	it("treats a name that only mirrors the address as machine made", () => {
+		expect(looksMachineMade("markus.beispiel@x.de", "Markus", "Beispiel")).toBe(
+			true,
+		);
+		expect(looksMachineMade("tomas@x.com", "Tomas", null)).toBe(true);
+	});
+
+	it("keeps a name that carries more than the address", () => {
+		expect(looksMachineMade("info@x.de", "Klaus", "Berger")).toBe(false);
+		expect(looksMachineMade(null, "Klaus", "Berger")).toBe(false);
+	});
+});
+
+describe("nameRank", () => {
+	it("ranks a full name above an initial, and an initial above one word", () => {
+		expect(nameRank("Maria", "Beispiel")).toBeGreaterThan(
+			nameRank("M.", "Beispiel"),
+		);
+		expect(nameRank("M.", "Beispiel")).toBeGreaterThan(nameRank("Maria", null));
+	});
+});
+
+describe("outranksRecord", () => {
+	const record = {
+		email: "m.beispiel@example.com",
+		firstName: "M.",
+		lastName: "Beispiel",
+	};
+
+	it("prefers the full display name over the initial the address gave", () => {
+		expect(outranksRecord("Maria Beispiel", record)).toBe(true);
+	});
+
+	it("never prefers an equal or weaker name", () => {
+		expect(outranksRecord("M. Beispiel", record)).toBe(false);
+		expect(outranksRecord("Beispiel", record)).toBe(false);
+	});
+
+	it("never prefers somebody else's name", () => {
+		expect(outranksRecord("Klara Muster", record)).toBe(false);
+	});
+});
+
+describe("shortensName", () => {
+	it("treats a prefix of the name on the record as shorter", () => {
+		expect(
+			shortensName(
+				{ firstName: "Jo", lastName: "Beispiel" },
+				{ firstName: "Johannes", lastName: null },
+			),
+		).toBe(true);
+		expect(
+			shortensName(
+				{ firstName: "Maria", lastName: "Beisp" },
+				{ firstName: "Maria", lastName: "Beispiel" },
+			),
+		).toBe(true);
+	});
+
+	it("lets a full first name replace its initial", () => {
+		expect(
+			shortensName(
+				{ firstName: "Maria", lastName: "Beispiel" },
+				{ firstName: "M.", lastName: "Beispiel" },
+			),
+		).toBe(false);
+	});
+});

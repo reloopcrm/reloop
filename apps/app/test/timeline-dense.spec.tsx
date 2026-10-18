@@ -1,0 +1,407 @@
+import { afterAll, describe, expect, it } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+
+const owned = !("document" in globalThis);
+if (owned) GlobalRegistrator.register();
+
+const { createElement, Fragment } = await import("react");
+const { renderToString } = await import("react-dom/server");
+const { EventGroup, EventRow, EventMark } = await import(
+	"@crm/ui/components/event-row"
+);
+const { emailPreview } = await import("@crm/ui/lib/email-text");
+const { byDay } = await import("../components/crm/timeline/timeline");
+const { EmailThreadEntry } = await import(
+	"../components/crm/timeline/email-thread-entry"
+);
+const { tabCount } = await import("../components/crm/timeline/timeline-config");
+const { I18nProvider } = await import("../lib/i18n/client");
+const { TRPCReactProvider } = await import("../lib/trpc/client");
+
+afterAll(() => {
+	if (owned) GlobalRegistrator.unregister();
+});
+
+const SIGNED_OFF = [
+	"Hallo Herr Berg,",
+	"",
+	"haben Sie mittlerweile wieder Europaletten zur Abholung verfügbar?",
+	"",
+	"Vielen Dank vorab.",
+	"",
+	"Mit freundlichen Grüßen",
+	"Nina Falk",
+	"--",
+	"Nina Falk",
+	"www.nordfracht.example",
+	"E: info@nordfracht.example",
+].join("\n");
+
+const FLAT_SNIPPET =
+	"Hallo Herr Berg, haben Sie mittlerweile wieder Europaletten zur Abholung verfügbar? Vielen Dank vorab. Mit freundlichen Grüßen Nina Falk -- Nina Falk www.nordfracht.example E: info@nordf…";
+
+function mount(markup: string): HTMLElement {
+	const holder = document.createElement("div");
+	holder.innerHTML = markup;
+	document.body.append(holder);
+	return holder;
+}
+
+describe("the collapsed preview is the sentence, not the sign-off", () => {
+	it("drops the signature from a multi line body", () => {
+		const preview = emailPreview(SIGNED_OFF, 180);
+		expect(preview).toBe(
+			"haben Sie mittlerweile wieder Europaletten zur Abholung verfügbar? Vielen Dank vorab.",
+		);
+	});
+
+	it("drops the signature from the flattened snippet the timeline stores", () => {
+		const preview = emailPreview(FLAT_SNIPPET, 180) ?? "";
+		expect(preview).not.toContain("Mit freundlichen Grüßen");
+		expect(preview).not.toContain("nordfracht");
+		expect(preview).not.toContain("Nina Falk");
+	});
+
+	it("drops the greeting, because the greeting is not the sentence", () => {
+		const preview = emailPreview(FLAT_SNIPPET, 180) ?? "";
+		expect(preview).not.toContain("Hallo Herr Berg");
+		expect(preview.startsWith("haben Sie mittlerweile")).toBe(true);
+	});
+
+	it("keeps a body that is only a greeting rather than emptying it", () => {
+		expect(emailPreview("Hallo Herr Berg,", 180)).toBe("Hallo Herr Berg,");
+	});
+
+	it("truncates instead of wrapping", () => {
+		const preview = emailPreview("a".repeat(400), 180) ?? "";
+		expect(preview.length).toBe(181);
+		expect(preview.endsWith("…")).toBe(true);
+	});
+
+	it("keeps the signature out of the closed row a rep reads", () => {
+		const entry = {
+			id: "a1",
+			type: "EMAIL" as const,
+			subject: "Re: Europaletten Abholung",
+			body: FLAT_SNIPPET,
+			occurredAt: "2026-09-14T07:37:00.000Z",
+			dueAt: null,
+			completedAt: null,
+			meta: null,
+			createdAt: "2026-09-14T07:37:00.000Z",
+			createdBy: {
+				id: "u1",
+				name: "Nina Falk",
+				email: "info@nordfracht.example",
+				image: null,
+			},
+			company: null,
+			contact: null,
+			deal: null,
+			emailThread: {
+				id: "t1",
+				messageCount: 1,
+				lastMessageAt: "2026-09-14T07:37:00.000Z",
+				lastMessage: {
+					direction: "OUTBOUND" as const,
+					fromName: "Nina Falk",
+					fromEmail: "info@nordfracht.example",
+					source: "IMAP" as const,
+				},
+			},
+			calendarEvent: null,
+			editable: false,
+		};
+
+		const markup = renderToString(
+			createElement(TRPCReactProvider, {
+				children: createElement(I18nProvider, {
+					locale: "en",
+					children: createElement(EmailThreadEntry, {
+						entries: [entry],
+						anchor: { contactId: "c1" },
+					}),
+				}),
+			}),
+		);
+
+		const holder = mount(markup);
+		const closed = holder.querySelector("summary")?.textContent ?? "";
+		expect(closed).toContain("Europaletten Abholung");
+		expect(closed).not.toContain("Mit freundlichen Grüßen");
+		expect(closed).not.toContain("nordfracht.example");
+		expect(closed).not.toContain("Hallo Herr Berg");
+	});
+});
+
+describe("a row opens in place", () => {
+	const row = (panel: string | null) =>
+		createElement(EventRow, {
+			voice: "inbound",
+			time: "07:37",
+			mark: createElement(EventMark, { kind: "inbound" }),
+			who: "Martin Berg",
+			subject: "Europaletten Abholung",
+			preview: "Diese Woche kommt nichts zusammen.",
+			panel: panel === null ? undefined : panel,
+		});
+
+	it("uses a native disclosure, so a keyboard reaches it and a reader announces it", () => {
+		const holder = mount(renderToString(row("Die ganze Nachricht.")));
+		const details = holder.querySelector("details");
+		expect(details).not.toBeNull();
+		expect(details?.querySelector("summary")).not.toBeNull();
+		expect(details?.open).toBe(false);
+	});
+
+	it("opens and closes", () => {
+		const holder = mount(renderToString(row("Die ganze Nachricht.")));
+		const details = holder.querySelector("details");
+		if (!details) throw new Error("no disclosure");
+
+		details.open = true;
+		expect(details.getAttribute("open")).not.toBeNull();
+		details.open = false;
+		expect(details.getAttribute("open")).toBeNull();
+	});
+
+	it("hides the panel and the caret when there is nothing more to show", () => {
+		const holder = mount(renderToString(row(null)));
+		expect(holder.querySelector("details")).toBeNull();
+		expect(holder.querySelector("[data-slot='event-panel']")).toBeNull();
+		expect(holder.querySelector("svg")).toBeNull();
+	});
+});
+
+describe("every tab carries the number the query already paid for", () => {
+	const counts = {
+		all: 54,
+		notes: 12,
+		email: 53,
+		meetings: 2,
+		upcoming: 1,
+		done: 3,
+	};
+
+	it("counts the total", () => {
+		expect(tabCount("all", counts)).toBe(54);
+	});
+
+	it("counts the open tasks, because that number changes a decision", () => {
+		expect(tabCount("upcoming", counts)).toBe(1);
+	});
+
+	it("counts notes, email, meetings and done as well", () => {
+		expect(tabCount("notes", counts)).toBe(12);
+		expect(tabCount("email", counts)).toBe(53);
+		expect(tabCount("meetings", counts)).toBe(2);
+		expect(tabCount("done", counts)).toBe(3);
+	});
+
+	it("hides a zero", () => {
+		expect(tabCount("upcoming", { ...counts, upcoming: 0 })).toBeNull();
+	});
+});
+
+describe("a day strip appears once per day", () => {
+	const entries = [
+		{ occurredAt: "2026-09-14T07:37:00.000Z", createdAt: "x" },
+		{ occurredAt: "2026-09-11T15:58:00.000Z", createdAt: "x" },
+		{ occurredAt: "2026-09-11T11:20:00.000Z", createdAt: "x" },
+		{ occurredAt: "2026-09-11T09:14:00.000Z", createdAt: "x" },
+		{ occurredAt: "2026-09-10T17:45:00.000Z", createdAt: "x" },
+	];
+
+	it("groups five entries into three days", () => {
+		const days = byDay(entries, false);
+		expect(days.map((group) => group.day)).toEqual([
+			"2026-09-14",
+			"2026-09-11",
+			"2026-09-10",
+		]);
+		expect(days.map((group) => group.entries.length)).toEqual([1, 3, 1]);
+	});
+
+	it("draws one strip per day, not one per entry", () => {
+		const markup = renderToString(
+			createElement(
+				Fragment,
+				null,
+				byDay(entries, false).map((group) =>
+					createElement(EventGroup, { key: group.day, label: group.day }),
+				),
+			),
+		);
+		const holder = mount(markup);
+		expect(
+			holder.querySelectorAll("[data-slot='event-day-strip']").length,
+		).toBe(3);
+		expect(entries.length).toBe(5);
+	});
+
+	it("keeps every day strip inside its own day, so two cannot stick at once", () => {
+		const markup = renderToString(
+			createElement(
+				Fragment,
+				null,
+				byDay(entries, false).map((group) =>
+					createElement(EventGroup, { key: group.day, label: group.day }),
+				),
+			),
+		);
+		const holder = mount(markup);
+		const days = holder.querySelectorAll("[data-slot='event-day']");
+
+		expect(days.length).toBe(3);
+		for (const day of days) {
+			expect(day.querySelectorAll("[data-slot='event-day-strip']").length).toBe(
+				1,
+			);
+		}
+	});
+});
+
+describe("the demo tour still has something to click", () => {
+	it("marks the summary, because clicking a details element does not open it", () => {
+		const markup = renderToString(
+			createElement(EventRow, {
+				voice: "inbound",
+				time: "07:37",
+				mark: createElement(EventMark, { kind: "inbound" }),
+				who: "Martin Berg",
+				subject: "Europaletten Abholung",
+				panel: "Die ganze Nachricht.",
+				"data-demo": "email-thread",
+			}),
+		);
+		const holder = mount(markup);
+		const marked = holder.querySelector("[data-demo='email-thread']");
+		expect(marked?.tagName.toLowerCase()).toBe("summary");
+	});
+});
+
+function mail(id: string, threadId: string, subject: string, at: string) {
+	return {
+		id,
+		type: "EMAIL" as const,
+		subject,
+		body: "Kurzer Text zum Thema.",
+		occurredAt: at,
+		dueAt: null,
+		completedAt: null,
+		meta: null,
+		createdAt: at,
+		createdBy: {
+			id: "u1",
+			name: "Nina Falk",
+			email: "info@nordfracht.example",
+			image: null,
+		},
+		company: null,
+		contact: null,
+		deal: null,
+		emailThread: {
+			id: threadId,
+			messageCount: 2,
+			lastMessageAt: at,
+			lastMessage: {
+				direction: "INBOUND" as const,
+				fromName: "Martin Berg",
+				fromEmail: "m.berg@paletten-nord.example",
+				source: "IMAP" as const,
+			},
+		},
+		calendarEvent: null,
+		editable: false,
+	};
+}
+
+const CONVERSATION = [
+	mail("a", "t1", "Antwort Europaletten", "2026-09-14T07:37:00.000Z"),
+	mail("b", "t2", "AW: Antwort Europaletten", "2026-09-12T15:58:00.000Z"),
+	mail("c", "t3", "Re: Antwort Europaletten", "2026-09-11T11:20:00.000Z"),
+];
+
+function renderThread(
+	entries: ReturnType<typeof mail>[],
+	openThreadId: string | null = null,
+): HTMLElement {
+	return mount(
+		renderToString(
+			createElement(TRPCReactProvider, {
+				children: createElement(I18nProvider, {
+					locale: "en",
+					children: createElement(EmailThreadEntry, {
+						entries,
+						anchor: { contactId: "c1" },
+						openThreadId,
+					}),
+				}),
+			}),
+		),
+	);
+}
+
+function closedRow(holder: HTMLElement): string {
+	return holder.querySelector("summary")?.textContent ?? "";
+}
+
+describe("one conversation is one row", () => {
+	it("draws one row for three consecutive entries of one conversation", () => {
+		const holder = renderThread(CONVERSATION);
+		expect(holder.querySelectorAll("[data-slot='event-row']").length).toBe(1);
+	});
+
+	it("says the subject once, not once per message", () => {
+		const holder = renderThread(CONVERSATION);
+		expect(closedRow(holder).match(/Antwort Europaletten/g)?.length).toBe(1);
+	});
+
+	it("names the message count and the speaker who spoke last", () => {
+		const closed = closedRow(renderThread(CONVERSATION));
+		expect(closed).toContain("6 messages");
+		expect(closed).toContain("Martin Berg");
+	});
+
+	it("keeps the kind and the mailbox out of the row, because the mark says both", () => {
+		const closed = closedRow(renderThread(CONVERSATION));
+		expect(closed).not.toContain("IMAP");
+		expect(closed).not.toContain("Email");
+	});
+
+	it("says the count once, so the old three places cannot come back", () => {
+		const closed = closedRow(renderThread(CONVERSATION));
+		expect(closed.match(/6 messages/g)?.length).toBe(1);
+	});
+
+	it("keeps the snippet when one row is one conversation", () => {
+		const closed = closedRow(
+			renderThread([
+				mail("a", "t1", "Antwort Europaletten", "2026-09-14T07:37:00.000Z"),
+			]),
+		);
+		expect(closed).toContain("Kurzer Text zum Thema.");
+		expect(closed).not.toContain("messages");
+	});
+});
+
+describe("a deep link still opens the right conversation", () => {
+	it("opens the merged row when the link names a thread inside it", () => {
+		const holder = renderThread(CONVERSATION, "t3");
+		expect(
+			holder.querySelector("details")?.getAttribute("open"),
+		).not.toBeNull();
+	});
+
+	it("keeps an anchor for every thread the row swallowed", () => {
+		const holder = renderThread(CONVERSATION);
+		for (const id of ["thread-t1", "thread-t2", "thread-t3"]) {
+			expect(holder.querySelector(`[id='${id}']`)).not.toBeNull();
+		}
+	});
+
+	it("leaves the row closed when the link names another conversation", () => {
+		const holder = renderThread(CONVERSATION, "t9");
+		expect(holder.querySelector("details")?.getAttribute("open")).toBeNull();
+	});
+});

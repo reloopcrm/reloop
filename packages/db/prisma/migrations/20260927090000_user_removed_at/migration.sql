@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "removedAt" TIMESTAMP(3);

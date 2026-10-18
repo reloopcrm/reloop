@@ -1,0 +1,108 @@
+import { Suspense } from "react";
+import { ConnectMailbox } from "@/components/connect-mailbox";
+import {
+	PageShell,
+	PageShellActions,
+	PageShellContent,
+	PageShellEyebrow,
+	PageShellHeader,
+	PageShellHeading,
+	PageShellLoading,
+} from "@/components/page-shell";
+import { LoadSampleData } from "@/components/sample-data";
+import { getT } from "@/lib/i18n/server";
+import { hasRecordsToShow } from "@/lib/mailbox-connection";
+import { CONNECTIONS_PATH } from "@/lib/onboarding";
+import { requireSession } from "@/lib/session";
+import { HydrateClient } from "@/lib/trpc/hydrate";
+import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceUrl } from "@/lib/workspace-url";
+import { DashboardSummary } from "./dashboard-summary";
+import { OVERVIEW } from "./overview-config";
+import {
+	OverviewGreeting,
+	OverviewGreetingFallback,
+} from "./overview-greeting";
+import {
+	OverviewScopeToggle,
+	OverviewScopeToggleFallback,
+} from "./overview-scope";
+import { loadOverviewSearchParams } from "./overview-search-params";
+
+export default async function OverviewPage({
+	params,
+	searchParams,
+}: PageProps<"/[slug]">) {
+	const [session, { slug }, connected, t] = await Promise.all([
+		requireSession(),
+		params,
+		hasRecordsToShow(),
+		getT(),
+	]);
+	const firstName = session.user.name.trim().split(/\s+/)[0];
+
+	return (
+		<PageShell>
+			<PageShellHeader>
+				<PageShellHeading>
+					<PageShellEyebrow>{t("Overview")}</PageShellEyebrow>
+					<Suspense
+						fallback={
+							<OverviewGreetingFallback
+								connected={connected}
+								firstName={firstName}
+							/>
+						}
+					>
+						<OverviewGreeting connected={connected} firstName={firstName} />
+					</Suspense>
+				</PageShellHeading>
+				{connected ? (
+					<PageShellActions>
+						<Suspense fallback={<OverviewScopeToggleFallback />}>
+							<OverviewScopeToggle />
+						</Suspense>
+					</PageShellActions>
+				) : null}
+			</PageShellHeader>
+
+			<PageShellContent>
+				<ConnectMailbox
+					connected={connected}
+					href={workspaceUrl(slug, CONNECTIONS_PATH)}
+				>
+					<LoadSampleData />
+				</ConnectMailbox>
+				{connected ? (
+					<Suspense fallback={<PageShellLoading />}>
+						<Summary searchParams={searchParams} />
+					</Suspense>
+				) : null}
+			</PageShellContent>
+		</PageShell>
+	);
+}
+
+async function Summary({
+	searchParams,
+}: Pick<PageProps<"/[slug]">, "searchParams">) {
+	const [, { scope }] = await Promise.all([
+		requireSession(),
+		loadOverviewSearchParams(searchParams),
+	]);
+
+	const queryClient = getServerQueryClient();
+	const trpc = getServerTrpc();
+	await Promise.all([
+		queryClient.prefetchQuery(trpc.dashboard.summary.queryOptions({ scope })),
+		queryClient.prefetchQuery(
+			trpc.activities.myTasks.queryOptions(OVERVIEW.myTasks),
+		),
+	]);
+
+	return (
+		<HydrateClient>
+			<DashboardSummary />
+		</HydrateClient>
+	);
+}

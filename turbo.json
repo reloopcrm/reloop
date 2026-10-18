@@ -1,0 +1,95 @@
+{
+	"$schema": "https://turborepo.dev/schema.json",
+	"ui": "tui",
+	"globalEnv": ["NODE_ENV"],
+	"globalPassThroughEnv": [
+		"DATABASE_URL",
+		"DATABASE_URL_UNPOOLED",
+		"TEST_DATABASE_URL",
+		"TEST_RUN_ID",
+		"BETTER_AUTH_SECRET",
+		"BETTER_AUTH_URL",
+		"ALLOWED_SIGN_IN",
+		"GOOGLE_CLIENT_ID",
+		"GOOGLE_CLIENT_SECRET",
+		"MICROSOFT_CLIENT_ID",
+		"MICROSOFT_CLIENT_SECRET",
+		"SLACK_CLIENT_ID",
+		"SLACK_CLIENT_SECRET",
+		"MICROSOFT_TENANT_ID",
+		"AUTH_COOKIE_DOMAIN",
+		"CRON_SECRET",
+		"MAILBOX_SYNC_INTERVAL_MS",
+		"MAILBOX_SYNC_MAX_PER_TICK",
+		"MAILBOX_SYNC_BACKFILL_CHUNK",
+		"MAILBOX_SYNC_PAGE_SIZE",
+		"REDIS_URL",
+		"CACHE_TTL_MS",
+		"PORT",
+		"PRISMA_LOG_QUERIES",
+		"PERPLEXITY_API_KEY",
+		"TYPESAFE_API_KEY",
+		"GITHUB_TOKEN",
+		"BLOB_READ_WRITE_TOKEN",
+		"OPENROUTER_API_KEY",
+		"AGENT_URL",
+		"AGENT_BRIDGE_SECRET",
+		"CODEX_HOME",
+		"CRM_TELEMETRY_DISABLED",
+		"RELOOP_UPDATE_CHECK",
+		"RELOOP_GERMAN",
+		"UPDATER_URL",
+		"UPDATER_TOKEN",
+		"RELOOP_MANAGED",
+		"AGENT_HISTORY_RETENTION_DAYS",
+		"ORG_CONTACT_EMAIL",
+		"ORG_CONTACT_PHONE",
+		"ORG_STREET_ADDRESS",
+		"ORG_POSTAL_CODE",
+		"ORG_ADDRESS_LOCALITY",
+		"ORG_ADDRESS_COUNTRY",
+		"DO_NOT_TRACK",
+		"VERCEL",
+		"VERCEL_GIT_COMMIT_SHA"
+	],
+
+	"tasks": {
+		"topo": {
+			"dependsOn": ["^topo"]
+		},
+		"build": {
+			"dependsOn": ["^build"],
+			"env": ["API_URL", "APP_URL", "NEXT_DIST_DIR", "NEXT_PUBLIC_API_URL"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"outputs": [
+				".next/**",
+				"!.next/cache/**",
+				"!.next/dev/**",
+				"dist/**",
+				".output/**"
+			]
+		},
+		"lint": {
+			"dependsOn": ["topo"]
+		},
+		"check-types": {
+			"dependsOn": ["topo", "^build"]
+		},
+		"test": {
+			"dependsOn": ["topo", "^build"]
+		},
+		"dev": {
+			"dependsOn": ["^dev:prepare"],
+			"cache": false,
+			"persistent": true
+		},
+		"dev:headless": {
+			"dependsOn": ["^dev:prepare"],
+			"cache": false,
+			"persistent": true
+		},
+		"dev:prepare": {
+			"cache": false
+		}
+	}
+}

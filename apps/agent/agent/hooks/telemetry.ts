@@ -1,0 +1,89 @@
+import { db } from "@crm/db";
+import { chatModelFor, readAgentProvider } from "@crm/db/settings";
+import { agentError, modelError } from "@crm/telemetry";
+import { defineHook } from "eve/hooks";
+import { z } from "zod";
+import { tenantState, withTenant } from "../lib/tenant";
+
+type SessionPrincipal = {
+	readonly attributes?: Readonly<Record<string, string | readonly string[]>>;
+} | null;
+
+const attributeText = z.string().trim().min(1).nullable().catch(null);
+
+const known = tenantState(() => ({ modelId: null as string | null }));
+
+async function configuredModel(): Promise<string | null> {
+	const state = known();
+	if (state.modelId) return state.modelId;
+
+	try {
+		state.modelId = chatModelFor(await readAgentProvider(db)).id;
+	} catch {
+		state.modelId = null;
+	}
+
+	return state.modelId;
+}
+
+const MODEL_CODES = [
+	"model",
+	"openrouter",
+	"provider",
+	"rate_limit",
+	"context_length",
+	"overloaded",
+	"unauthorized",
+];
+
+function taskKind(auth: SessionPrincipal): string | null {
+	return attributeText.parse(auth?.attributes?.taskKind);
+}
+
+function looksLikeModel(code: string): boolean {
+	const lowered = code.toLowerCase();
+	return MODEL_CODES.some((marker) => lowered.includes(marker));
+}
+
+export default defineHook({
+	events: {
+		"action.result"(event, ctx) {
+			const { error, result, status } = event.data;
+			if (status === "completed") return;
+
+			agentError({
+				error: error ?? status,
+				tool: "toolName" in result ? result.toolName : null,
+				taskKind: taskKind(ctx.session.auth.current ?? null),
+				source: "tool",
+			});
+		},
+
+		"turn.failed"(event, ctx) {
+			agentError({
+				error: event.data.code,
+				taskKind: taskKind(ctx.session.auth.current ?? null),
+				source: "turn",
+			});
+		},
+
+		"session.failed"(event, ctx) {
+			agentError({
+				error: event.data.code,
+				taskKind: taskKind(ctx.session.auth.current ?? null),
+				source: "session",
+			});
+		},
+
+		async "step.failed"(event, ctx) {
+			if (!looksLikeModel(event.data.code)) return;
+
+			await withTenant(ctx, async () =>
+				modelError({
+					error: event.data.code,
+					modelId: await configuredModel(),
+				}),
+			);
+		},
+	},
+});

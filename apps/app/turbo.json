@@ -1,0 +1,73 @@
+{
+	"$schema": "https://turborepo.dev/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"],
+			"env": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_AUTH_URL"],
+			"passThroughEnv": [
+				"AGENT_BRIDGE_SECRET",
+				"AGENT_URL",
+				"AUTH_COOKIE_DOMAIN",
+				"AUTH_TRUSTED_ORIGINS",
+				"BETTER_AUTH_SECRET",
+				"BETTER_AUTH_URL",
+				"DATABASE_URL",
+				"IS_MARKETING",
+				"GOOGLE_SITE_VERIFICATION",
+				"RELOOP_PLANS",
+				"RELOOP_MANAGED",
+				"RELOOP_DEMO",
+				"RELOOP_CLOUD_URL",
+				"RELOOP_SITE_URL",
+				"RELOOP_MARKETING_HOST",
+				"RELOOP_IMPRINT_NAME",
+				"RELOOP_IMPRINT_BUSINESS",
+				"RELOOP_IMPRINT_ADDRESS",
+				"RELOOP_IMPRINT_EMAIL",
+				"RELOOP_IMPRINT_VAT_ID",
+				"RELOOP_IMPRINT_PHONE"
+			]
+		},
+		"check-types": {
+			"dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+		},
+		"typegen": {
+			"inputs": ["app/**", "next.config.ts"],
+			"outputs": [".next/types/**", "next-env.d.ts"],
+			"passThroughEnv": ["API_URL", "NEXT_PUBLIC_API_URL"]
+		},
+		"dev": {
+			"dependsOn": ["$TURBO_EXTENDS$"],
+			"cache": false,
+			"persistent": true,
+			"passThroughEnv": [
+				"AGENT_BRIDGE_SECRET",
+				"AGENT_URL",
+				"AUTH_COOKIE_DOMAIN",
+				"AUTH_TRUSTED_ORIGINS",
+				"BETTER_AUTH_SECRET",
+				"BETTER_AUTH_URL",
+				"DATABASE_URL",
+				"IS_MARKETING",
+				"GOOGLE_SITE_VERIFICATION",
+				"RELOOP_PLANS",
+				"RELOOP_MANAGED",
+				"RELOOP_DEMO",
+				"RELOOP_CLOUD_URL",
+				"RELOOP_SITE_URL",
+				"RELOOP_MARKETING_HOST",
+				"RELOOP_IMPRINT_NAME",
+				"RELOOP_IMPRINT_BUSINESS",
+				"RELOOP_IMPRINT_ADDRESS",
+				"RELOOP_IMPRINT_EMAIL",
+				"RELOOP_IMPRINT_VAT_ID",
+				"RELOOP_IMPRINT_PHONE",
+				"NEXT_PUBLIC_API_URL",
+				"NEXT_PUBLIC_AUTH_URL"
+			]
+		}
+	}
+}

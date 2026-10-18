@@ -1,0 +1,1520 @@
+# Agent: `apps/agent`
+
+An [eve](https://eve.dev/docs) app, its **own deployment**, owning every piece of
+intelligence in this repo. Read with `api.md`, whose first rule is that none of this
+may move into the API. Local dev, the bridge env vars and the manual dispatch command
+are in `docs/setup.md`.
+
+**Read the eve guide before writing eve code**:
+`apps/agent/node_modules/eve/docs/README.md` matches the installed version;
+`.agents/skills/eve` is the skill. Guessing typechecks, builds, then misbehaves.
+
+## Model
+
+Four providers pay for the model, and Settings → AI picks one: OpenRouter, a
+ChatGPT subscription, an OpenAI key, an Anthropic key. Every provider's default model
+is `AGENT_PROVIDER_DEFAULTS` in `@crm/db/settings`, because the agent and the API both
+need it. OpenRouter is the default provider and `openai/gpt-6-luna` its default
+model: cheap, fast, tool-using, and on the local price list so spend rows carry a cost.
+
+- **A row (`AppSetting`), not an env var**, via `defineDynamic` on `step.started`.
+  `lib/model.ts` builds the chosen provider's model object and chains the other
+  configured providers behind it as fallbacks for a usage limit.
+- **OpenRouter goes through `@ai-sdk/openai`** with `baseURL`
+  `https://openrouter.ai/api/v1` and `.chat(model)`, never the default call: the
+  default is OpenAI's Responses API, OpenRouter's compatible surface is chat
+  completions. `MODEL.openrouter` in `lib/model-config.ts` holds the URL and the two
+  headers OpenRouter asks for, `HTTP-Referer` and `X-Title`.
+- **The OpenRouter key is pasted on the settings page** and stored sealed like the
+  OpenAI and Anthropic keys. `OPENROUTER_API_KEY` in the environment is the same key
+  for an install that keeps secrets out of the database; a stored key wins.
+- **No key means no candidate, never a throw.** `candidatesFor` lists only providers
+  with a key; the compiled fallback is the OpenRouter default model with whatever
+  `OPENROUTER_API_KEY` holds, and a request on it fails only when nothing is set up.
+  ChatGPT counts as a candidate only when `$CODEX_HOME/auth.json` exists
+  (`chatgptLoginExists` in `lib/codex-binary.ts`), the file eve's
+  `experimental_chatgpt` reads. With no candidate at all `modelUnavailable()` answers
+  `NO_PROVIDER_MESSAGE`, which names Settings, AI; the research lane postpones
+  its tasks, `runBlocker` blocks the run, and `turn.failed` writes that sentence on
+  the record instead of the vendor's error text.
+- **A provider switch drops the mail models the old provider chose.**
+  `writeAgentProvider` compares against the stored row: a reading or draft model that
+  is unchanged from the old provider goes back to the new provider's default, a model
+  named for the new provider stays. The migration that maps the retired `gateway`
+  value to `openrouter` resets both the same way.
+- **`lib/model.ts` always sends `modelContextWindowTokens`**; eve never inherits it.
+- **A failed read logs and keeps the compiled fallback.** Never throws.
+- **Not a frontier model, deliberately**: refusing wrong answers is enforced by the
+  tools and evidence model, not model strength.
+
+## ChatGPT subscription login
+
+`lib/chatgpt-login.ts` runs `codex login --device-auth` for the settings page;
+`lib/codex-binary.ts` finds the binary first. **The image does not ship codex.**
+
+- **Resolution order**: `codex` on `PATH` (a dev machine), then
+  `$CODEX_HOME/cli/node_modules/.bin/codex`, then one `npm install --prefix
+  $CODEX_HOME/cli @openai/codex@<version>`. The version is `MODEL.chatgptLogin.version`.
+- **The download is about 280 MB and needs internet at that moment.** It lands in the
+  `codex` volume, so it happens once per install.
+- **One install at a time**: a second `start()` awaits the same promise.
+- **`start()` answers within `replyMs`** with `waiting`, because the API aborts the
+  bridge call after 20 seconds and the install takes minutes. The page polls its way
+  to the code.
+- **A failed install is `unavailable` with a reason**, never a throw. The reason names
+  the npm error code, so "no internet" reads as `npm ENOTFOUND`.
+- **Every answer carries `loginStored`**: whether `chatgptLoginExists` sees the auth
+  file right now. `status` is the state of the sign-in flow, so a cancelled re-login
+  reads `cancelled` while the stored login still works. Win back's `canRead` reads
+  `loginStored`, never the flow state alone. The API's own `unavailable` answer
+  (no bridge, agent unreachable) has no `loginStored` and counts as unknown, so
+  `connected` or `unavailable` without the field stays usable.
+
+## Pictures are copied, never linked
+
+`mirror()` copies bytes to Vercel Blob; the record points at our copy. Lives in
+**`@crm/db/blob`**. Writers are `lib/brand-images.ts`, `lib/portrait.ts`,
+`FaviconService`, `ImageMirrorService`, `prisma/seed.ts`.
+
+- **The key hashes the bytes**: idempotent, and a redesigned mark gets a new URL.
+- **`COMPANY_IMAGE_FIELDS` (`@crm/db/images`) is the one list of picture columns.**
+- **Fetch through `@crm/db/safe-fetch`**: vendor URLs are SSRF vectors.
+- **No `BLOB_READ_WRITE_TOKEN` means no photographs**; logos keep the origin URL.
+- **`isOptimizable` (`@crm/db/images`) is the whole rule**: `next.config.ts`
+  allow-lists only our Blob host (a wildcard makes us an open image proxy), and a
+  mirrored **SVG is still refused**.
+- **Faces are not optimized**: `AvatarImage` skips `<Image>` because Radix probes the
+  URL itself, doubling fetches.
+- **A photograph only comes from a source already tied to this person**:
+  `lib/portrait-sources.ts`: the GitHub account on the record, and nothing else.
+  LinkedIn and the employer's team page went with the Context.dev key; a contact with
+  no GitHub account gets no photograph.
+- **There is no image search by name, and there must never be.** Nobody audits a face.
+  **Guess where to look, never what you will find.**
+
+## Tenant wrappers
+
+`tenantTool(defineTool(...))` wraps every tool, root and subagent, and the
+instruction and model resolvers call `withTenant(ctx, ...)`. `lib/tenant.ts` is a
+slot: in this repository every wrapper runs its work once, inside the workspace
+language, and holds one state per process. The hosted version replaces the file;
+the open core runs without it. Wrap every new tool the same way.
+
+### Every workspace has its own language
+
+The agent writes what a customer reads in the workspace's language, never in one
+language for the whole process. `AppSetting.agentLanguage` holds one of the seven
+locales, parsed by `@crm/validation/agent-language`. An admin picks it under Agent
+language in Settings > General. The API stores and serves the value and does nothing else with it.
+
+- **Resolved at the tenant boundary.** `withTenant`, `withTenantId` and
+  `eachActiveTenant` read it once and run their work inside `inWorkspaceLanguage`, an
+  `AsyncLocalStorage`, so `language()` and `say()` stay synchronous and every tool,
+  lane, hook and instruction resolver already wrapped for the tenant gets it. The value
+  is cached per tenant for `DISPATCH.language.cacheMs`, so a change in Settings reaches
+  the agent within a minute.
+- **The fallback is the old behaviour.** No value, or a value that is not a locale,
+  means `RELOOP_GERMAN`: German for `"true"`, English otherwise. A read that fails logs
+  and uses the same fallback. It never throws.
+- **A prompt names the language in English**, `LOCALE.englishNames` in
+  `@crm/db/locale`. Every fixed sentence a customer can read lives in `COPY`
+  (`lib/copy.ts`) with one line per locale, and `say(COPY.…)` picks the workspace's
+  line: business setup notes, rules notes, task outcomes, record errors, webhook
+  errors, Slack answers and the "no AI" messages. The type requires every locale and
+  `test/language.spec.ts` refuses an empty line or a dash. Tool results the model
+  reads and log lines stay English. `USAGE_PROBE_OUTCOMES` and `RETIRED_OUTCOME`
+  stay English on purpose: the app translates the first per reader, and telemetry
+  compares the second.
+- **The settings card says what the agent does now.** With no value it
+  shows the fallback language with "not chosen yet", so an owner sees why the agent
+  writes English.
+- **A draft keeps the language of its conversation.** `lib/email-draft.ts` tells the
+  model to answer in the language the thread uses; only the style rule it learns is in
+  the workspace language. A rep's chat answers in the language the rep writes in.
+- **A draft continues the conversation in the sender's own voice.** `lib/draft-prompt.ts`
+  builds the prompt from plain data, so `test/draft-prompt.spec.ts` checks it without a
+  model. The current thread comes first, quotes and auto replies cut out, and its last
+  real message is marked: the draft picks that up and keeps the thread's subject.
+  The voice comes only from `OUTBOUND` mail of one address: the one that last wrote to
+  this contact, else the contact owner's own addresses (login, `MailboxSync.address`,
+  IMAP), else the only sending address of the workspace. A colleague's mail is
+  `OUTBOUND` too and can sit in the owner's mailbox, so the filter is always
+  `fromEmail`, never `syncedByUserId`. With none of them there are no examples,
+  never a colleague's mail. The
+  same source names the sender in the prompt. Greeting, sign off, du or Sie and the
+  example texts come only from mail to this contact; with none, du or Sie comes from
+  how the contact writes. Mail to other customers gives only language and length,
+  never its text, so no other customer's name or amount reaches the prompt. The
+  prompt names today and the age of the last message, and an old conversation is
+  reopened, not answered as if fresh. The draft never promises a price, discount,
+  date, bank change or contract the sender has not made. The openings this contact
+  already read, in the last draft and in mail sent to it, are listed so the next
+  draft opens differently; drafts to other contacts are never shown. There is no
+  fixed template and no trade wording. Every bound is `DRAFT` in
+  `lib/draft-config.ts`: `conversationMaxChars`, `bodyMaxChars` per message,
+  `voice.*` for the examples and lists, and `maxOutputTokens` for the answer. The
+  draft call asks an OpenAI route for low reasoning effort (`DRAFT.providerOptions`),
+  so reasoning leaves room for the email; an answer cut off at the limit fails at
+  once with that reason instead of retrying.
+- **A draft reads the same threads the API calls it stale against.** `recipient` in
+  `lib/email-draft.ts` takes the newest `DRAFT.threads` of
+  `threadsOfContact(contactId)` (`@crm/db/thread-participants`): the threads the
+  contact owns and the ones it is linked to through `emailThreadContact`. Its
+  `basedOnUntil` is the newest of them, the same mail `contacts.draft` compares, so a
+  draft written after a colleague's thread is not stale the moment it is stored
+  (`test/run-email-draft.integration.spec.ts`).
+- **A thread summary follows the workspace, or else the thread.** `summaryLanguage()`
+  in `@crm/validation/agent-language` picks the language for the thread summary, the
+  message lines, the contact memory and its brief: the stored workspace language, else
+  German with `RELOOP_GERMAN`, else `conversation`, which tells the model to write in
+  the language the conversation uses. English is never a silent default for them.
+- **A summary records its language.** `ThreadInsight.language` and
+  `ContactMemory.language` hold the `summaryLanguage()` it was written for; null means
+  it was written before this was tracked. When a rep opens a relevant thread, or a
+  contact whose memory is stale, the API compares that value with the wanted one and
+  queues one `thread-refresh` task at `PRIORITY.threadRefresh` (`summaryRefreshNeeded`
+  in `agent-trigger.service.ts`). The sample data is never refreshed.
+- **A refresh rewrites words, not facts.** `runSummaryRefresh` reads the thread with
+  the model, never with the cheap pre-check, and stores only `summary` and `language`,
+  plus the message lines and the contact memory in the wanted language. It touches a
+  relevant thread only. `thread-refresh` is its own task kind, so it never counts toward
+  the monthly conversation limit.
+- **The language catch-up rewrites only what is in another language.**
+  `bun run refresh-summaries` in `apps/api` runs inside `cloud.forEachScope`, once
+  per workspace. `--dry-run` is the default and writes nothing; `--apply` writes. It
+  prints counts only, never a summary or an address. `planSummaryCatchUp`
+  (`src/agent/summary-catch-up.ts`) sorts each relevant `ThreadInsight` and each
+  `ContactMemory` that is not tagged with the wanted language. A tag for another
+  language is `stale`. A null tag goes through `detectSummaryLanguage`
+  (`@crm/validation/summary-language`): a stopword count per sentence, no model. A
+  sentence below four words still counts when its stopwords lean to one language,
+  so a short sentence in another language makes the text `mixed`. The
+  wanted language is `correct`; `--apply` sets the tag and queues nothing, so opening
+  it later does not rewrite it. Another language is `foreign`, two languages are
+  `mixed`, and both queue `thread-refresh` at the backfill priority, a memory through
+  the contact's newest relevant thread. A text too short to judge is `undetermined`
+  and keeps its null tag. With `conversation` as the wanted language every null tag
+  is `undetermined`, because the language of the conversation is not known here.
+  A task whose payload says `memoryOnly: true`
+  (`readAgentTaskMemoryOnly`, written by `bun run thread-participants --apply` for a
+  linked contact without a memory) skips the model read of the thread, whatever the
+  stored language, and only refreshes the memories.
+- **The memory follows every person in the conversation.** `memoryContactsOf`
+  (`lib/insight.ts`) names the thread's own contact first, then every active contact
+  linked to the thread through `emailThreadContact`, at most
+  `MEMORY.linkedContactsPerThread` of them by `firstAt`, and `runThreadInsight` and
+  `runSummaryRefresh` call `refreshMemory` for each. A memory that is fresh and already
+  covers the thread returns before the model is asked, so the owner costs nothing on a
+  catch-up; each other person is one model call. `refreshMemory` and the
+  `read_contact_memory` tool read the insights of `threadsOfContact(contactId)`
+  (`@crm/db/thread-participants`), the thread's own contact or a linked one, so a
+  person who wrote into a colleague's conversation has a memory of it.
+- **A reread never changes relevance.** `reread: true` on a `thread-insight` task (the
+  direction repair) skips the pre-check for a thread that already has an insight
+  (`readPlan`): a relevant thread is read by the model and stays relevant, an off
+  topic one keeps its stored verdict. Every
+  other stored text keeps the language it was written in. The business unit and
+  description are edited by hand in Win back, Rules, because business setup keeps a
+  value that is already set.
+- **A decline is hard or soft, and the agent decides.** `classifyWithModel` asks for
+  `declineKind` beside `outcome`: `HARD` is a no without interest shown first (no
+  price or offer asked, no talk about needs, only "no interest", "stop writing" or an
+  unsubscribe), `SOFT` is a no after interest (too expensive, no need right now,
+  another supplier). The same call names `stopRequest`, the number of their message
+  that asks us to stop; it is never stored. `insightAnswerFor(thread)` turns it into
+  `DECLINED` and `HARD`, whatever the model said, but only when that message is the
+  person's latest real answer in the transcript (`isTheirAnswer` in
+  `lib/thread-decline.ts`: their own address, no auto reply, no bounce), so a later
+  mail from them outweighs it. The model also names `declineMessage`, the number of
+  the message that says no. A `HARD` answer counts only when that message is the
+  person's latest real answer, so a colleague's no never hides the thread's owner;
+  otherwise, and when no kind is given, a `DECLINED` answer is `SOFT`. Any other
+  outcome has no kind. A hard no stores `declinedAt`, the time of the person's
+  latest real answer in the thread, so a later mail from us never moves it. A stored
+  hard no survives a new read until the person answers after `declinedAt`
+  (`keptDecline`), so a thread whose refusal slid out of the transcript keeps it. It
+  survives only while the mail at `declinedAt` is still their real answer, so a
+  direction repair that turns it into our mail clears it. A repair reread of an
+  off topic thread that keeps a hard no reads it again (`readPlan`) instead of
+  copying the stored row, so the check runs there too. The
+  columns are `ThreadInsight.declineKind` and `ThreadInsight.declinedAt`, read through
+  `parseDeclineKind` (`@crm/validation/thread-decline`). A row read before this field
+  is null and counts as soft; nothing rereads old threads for it, the next normal
+  read fills it.
+- **The record sheet shows the brief, not the memory.** `ContactMemory.summary` is the
+  long running memory a draft and the win back list read, at most
+  `MEMORY.summaryMaxChars`. `ContactMemory.brief` is written in the same call, at most
+  `MEMORY.briefMaxChars`: where things stand, what is open, who acts next. The Activity
+  tab shows the brief, and falls back to the memory until a reread writes one. Both are
+  cut at a word, never inside one (`@crm/validation/summary-text`).
+
+### Usage limits
+
+The open core sets no usage limits. The hosted version plugs in here; the open core
+runs without it. `lib/plan-limits.ts` is the slot, and without a plan nothing is
+counted or held back.
+
+### Retention
+
+`pruneAgentHistory` runs in the sweep and is off unless `AGENT_HISTORY_RETENTION_DAYS`
+names a number of days. Then it deletes `agentEvent` rows and finished `agentTask`
+rows older than that, `DISPATCH.retention.batch` rows a pass. The panel's offline
+transcript therefore reaches back that far and no further. A self-hosted install
+leaves the variable unset and keeps everything. A finished `meeting-prep` row stays
+while the event in its `payload.eventId` still lies ahead: the row is the marker
+that stops the sweep from preparing the same meeting again.
+
+## Two lanes
+
+`schedules/dispatch.ts`, split by `DIRECT_KINDS` in `@crm/db/agent-tasks`.
+
+| | Kinds | How | Per tick |
+| --- | --- | --- | --- |
+| **Visible** | `brand`, `portrait` | Directly, no `receive`, no eve session | 60, six at a time |
+| **Research** | everything else | One eve session per row | 12 |
+
+**Neither visible kind has anything to decide**, and through a session they queued
+behind sixty LLM runs for 25 minutes (`test/lanes.integration.spec.ts`). **The row says
+what the work is; the lane only says whether it needs a conversation.** `brand` does
+make one direct model call to read the homepage it fetched, which is not a session and
+not a conversation; with no provider it falls back to the page's own metadata rather
+than failing.
+
+**Priority**: `personStory` 960 · `brand` 900 · `portrait` 800 · `threadRefresh` 750 · `threadInsight` 700 · `workspace` 500 ·
+`requested` 300 · `meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 ·
+`storyPrefetch` 35 · `draftPrefetch` 34 · `threadInsightBackfill` 10 · `recheck` 0. `brand` and `portrait` are what a rep reads
+*before* deciding what to open; `personStory` is what a rep waits for after opening.
+`storyPrefetch` is a story nobody waits for yet: above the backfill, so the fast lane
+claims it, and below every story a rep opened. `draftPrefetch` is a Win back
+email nobody asked for yet, one step below it, because a rep reads the story first.
+
+**`company-profile` runs only when a rep asks.** Nothing queues it on its own: a new
+company, an email-domain company, a changed domain and the sign-in backfill queue
+`brand` only. A click on Research or Re-enrich writes it at `requested`. A row queued
+before this rule at `companyProfile` still runs; nothing retires it.
+
+**`identify` passes a cheap pre-check first** (`lib/identify-precheck.ts`, called
+from `beginResearch` before `markRunning`). A record that already has a real name, a
+title, a company and a LinkedIn URL finishes with `COPY.precheck.filled` and settles
+`COMPLETE`. Otherwise Jev answers `DISPATCH.research.precheck.question` from the
+workspace business, the name, the email domain, the company and the mail and deal
+counts, never a mail body. The mail counts take the contact's own threads plus
+mail from or to its address in any thread, so a person who wrote into a colleague's
+thread does not read as 0 conversations. Only an answer below `precheck.threshold` (0.2) skips:
+the row finishes with `COPY.precheck.unlikely` and the contact settles `SKIPPED`, so
+the sign-in backfill does not queue it again. No key, no business description, no
+answer or an error all run the research as before. A reason that starts with
+`REP_ASKED_REASON` (`@crm/db/agent-tasks`), which the Re-enrich click in
+`ContactsService.enrich` writes at `requested`, never asks. The click also rewrites a
+waiting automatic `identify` row to that reason, so a row the agent has not claimed
+yet never meets the pre-check with the sync reason. `AgentTask` has no field that names
+who asked, so the reason prefix is the signal.
+
+A skipped row finishes with `startedAt` cleared and its attempt returned, so
+`researchSessionsBetween` never counts it. `closeUncounted` (`lib/tasks.ts`) is that
+write; it clears `startedAt` on a first attempt only, so an earlier run still counts.
+A claim the research lane hands back without a run, because the monthly budget
+(`withinResearchBudget`) or a blocked model provider stops it, goes through
+`returnClaim` (`lib/tasks.ts`) with the same rule. The row reads as waiting again, so
+a rep's Research click still rewrites it before the pre-check sees the sync reason.
+
+**`meeting-prep` checks its meeting first** (`lib/meeting-precheck.ts`, called
+from `beginResearch` before the identify pre-check). The task names its event in
+`payload.eventId` (`agentTaskMeetingPayload` in `@crm/validation/agent-task-payload`).
+An event that is gone, cancelled, declined by the rep (`CalendarAttendee.isSelf`
+with `declined`) or already started closes the row through `closeUncounted` with
+`COPY.meetingPrep`, so no session runs and no attempt counts. A row without an
+event id runs as before.
+
+**An archived record never reaches the pre-check.** `runResearchLane` hands each
+claimed batch to `releaseArchivedClaims` (`lib/housekeeping.ts`) first. A task whose
+contact, company or deal is archived closes through `closeUncounted` with
+`COPY.tasks.droppedArchived`. `cancelArchivedWork` runs in the same tick as the prune
+that archives, so without this a contact archived in this tick got a Jev call and a
+session. `queueIdentifyAgain` in the sweep queues
+`identify` again for a `SKIPPED` contact whose last `identify` never started and
+whose `lastActivityAt` is newer than that row. The gate meter counts both checks as
+`identify-filled` and `identify-precheck` in the per-pass `cheap gates` log line
+and in `dispatchHealth().cheapGates`. `recheck` has no pre-check.
+
+### The fast lane and the slow lane
+
+A mailbox sync stores a thread with a lane, `forward` for mail that just arrived and
+`backfill` for the history it reads behind it (`ThreadWriterService.store`, every
+sync names it). `AgentTriggerService.threadStored` writes the origin into the task
+payload (`agentTaskThreadPayload`, `@crm/validation/agent-task-payload`) and gives a
+backfill row `PRIORITY.threadInsightBackfill`. A forward mail on a thread whose
+backfill row is still waiting lifts that row to `threadInsight`, so today's reply
+never queues behind ten thousand old ones.
+
+`runInsightLane` claims in two steps. First everything above the backfill priority,
+which is the fast lane: a conversation a person is waiting for. Only when that claim
+is empty does it claim backfill rows, and at most `slowLaneRoom()` of them. A row
+that is not claimed keeps its place and its attempt; nothing is postponed.
+
+**The shared key is one bucket.** `lib/key-bucket.ts` holds a
+process-wide token bucket, `DISPATCH.bucket` its numbers: `perMinute` calls
+(`AGENT_SHARED_KEY_PER_MINUTE`) and `fastReserve` 0.3 that only the fast lane may
+use. `withKeyBucket` wraps the shared key's
+model in `fixedCandidates`, so every call through it, direct or in a session, takes
+a token, and a call with no token waits for the next one, `waitMaxMs` at most. It is
+never an error to the customer. The lane travels in `AsyncLocalStorage`
+(`inLane`, `currentLane`); everything defaults to fast, and the slow lane is only
+the backfill claim above. Self-hosting with an own key has no bucket.
+
+`queueUnreadThreads` queues the conversations that never came back in the slow lane
+too, at the backfill priority with origin `backfill`: it is a catch-up sweep, and
+nobody is waiting on a row it writes. The forward task a stored thread gets is what
+carries a person's wait.
+
+**Quiet customers are read beside the newest mail.** Win back scores only a person
+whose conversations are read, and a history read newest first leaves the old, quiet
+cases for last. `DISPATCH.read.quiet` holds a share and an age (90 days). A thread is
+quiet when its last message is at least that old and it has mail in both directions.
+`queueUnreadThreads` gives that share of its batch (`DISPATCH.read.batch`) to the
+newest quiet unread threads and the rest to the newest unread threads, and the slow
+lane in `runInsightLane` claims the same share of every backfill batch from waiting
+tasks on quiet unread threads (`lib/quiet-reads.ts`). With fewer quiet threads the
+newest part takes the rest, so a batch never shrinks. A sync stores every thread with
+its own task, so the slow lane claim is the part
+that moves quiet cases forward.
+
+**`claimDue` sorts what it claims**: Postgres does not order `UPDATE … RETURNING` by
+its sub-select's `ORDER BY`.
+
+### Dispatch on demand
+
+`POST /internal/crm/dispatch` drains **both lanes**; `AgentTriggerService.poke()` calls
+it after writing any `AgentTask`.
+
+- **Fire-and-forget, never awaited**: the row is still the message.
+- **Both lanes.** Visible-only made them diverge under `eve dev`, where there is no
+  cron: logos resolved instantly while `identify` sat at `attempts = 0` forever.
+- **Calls the channel's own `send`, not `receive`**: it is already on the crm channel.
+  Principal from `APP_AUTH` (`lib/app-auth.ts`); `taskAuth()` keeps schedule and route
+  from drifting.
+- **`drainAll` collapses** via `collapsing()` (`lib/pool.ts`): forty new contacts poke
+  forty times, and `claimDue` hands each a disjoint batch. Per-process; cross-process
+  overlap is leases and `FOR UPDATE SKIP LOCKED`.
+- **An abandoned sweep is still in flight, and `dispatchHealth()` says so.** The
+  timeout aborts the lanes, which stop between items, but the sweep only leaves
+  `unsettledSweeps` when it truly settles. Until then health reports `running: true`
+  and the endpoint answers `503`, and a new sweep is refused rather than stacked on
+  top of stuck work.
+- **A slow `start(task)` is reconciled, never failed.** Past
+  `sweep.startTimeoutMs` the lane stops waiting, the record stays *Researching*, and
+  the late session id is attached by `noteSession` when the send lands. Only a send
+  that actually rejects settles the record `FAILED`; a send that never lands is
+  retired by `retireExhausted` after `MAX_ATTEMPTS`. A session id that never
+  reaches the row after `research.link.attempts` raises `unlinkedSessions` in
+  health, so a task running under a session nobody recorded is visible.
+- **`AGENT_BRIDGE_SECRET` unset refuses rather than opens.**
+
+### Blank fields are filled on the dispatch tick
+
+`sweepBlankFacts` (`lib/blank-facts.ts`) applies every pending suggestion whose field is
+still empty and clears the ones that have stopped saying anything. It runs at the top of
+`schedules/dispatch.ts`, every minute, over **every contact in the workspace**: it is a
+database pass with no session, no model, no task row and no credits, so there is nothing
+to ration and nobody to scope it to.
+
+- **Scans 2000 suggestions and fills at most 500 a pass**, and reports what it did not
+  reach (`unscanned`) rather than a clean sweep it did not make.
+- **Idempotent**: a second pass fills nothing, because those fields are no longer blank.
+- **The suggestions left are conflicts**, every one against a value already on the
+  record. That number should stay small and reads as work for a rep.
+- **It does not belong on sign-in, and that is not a preference.** It lived there for one
+  release and never once ran. Two reasons, either fatal: `onSignedIn` fires on
+  `session.create`, so a rep already signed in never triggers it; and `BackfillService`
+  does its work in a detached `void (async () => …)()` after the response, on a Nest API
+  that is a Vercel **serverless function** (`apps/api/api/index.ts`): the tail of that
+  chain is not guaranteed to run at all. A cron in the agent is the only trigger here
+  that is a fact rather than a hope.
+
+### Sample data is never researched
+
+A row whose id starts with `demo-` is sample data (`@crm/db/sample-data`), loaded from
+Settings by a stranger with no mailbox. It looks real to every sweep, so without a guard
+25 invented companies and 40 invented people would be enriched with real credits, and on
+a subscription with a usage limit that also starves the real work.
+
+- **`claimDue` never claims a task on a sample row.** That is the one place every lane
+  and every kind passes before anything is spent, whoever wrote the row, including a
+  writer that does not exist yet.
+- **`scheduleTask` never writes one.** This is what keeps the queue empty rather than
+  churning: the seven sweeps and the lanes run in one tick, so a pass that closed rows
+  would race a pass that writes them. Nothing is written, so there is no race.
+- **The batch sweeps do not select sample rows.** `queueContactCleanups` takes 20
+  contacts a pass and `queueUnreadThreads` 40 threads; sample rows carry a recent
+  `lastActivityAt` and would fill both batches ahead of real records.
+- **`AgentTriggerService` writes none either** (`docs/api.md`), so the sign-in backfill
+  and the research button on a sample record leave no row to drop every five minutes.
+- **`cancelSampleWork` closes a task already queued on a sample row**, with an outcome
+  that says nothing was researched and nothing was spent. It runs beside
+  `cancelArchivedWork` on the dispatch tick and covers what the guards above cannot: a
+  row written before this rule existed, and a row from a writer that skips both
+  funnels. A live lease is closed too, exactly as `cancelArchivedWork` does; `closeTask`
+  reads `null` from `completeTask` and settles through `taskSubject`.
+- **The operator's tour is not affected.** `RELOOP_DEMO` drives a scripted walk through
+  the app and is not passed to the agent container at all. The tour films what the seed
+  wrote: the thread summaries and the win back ranking. It never waits for a task.
+
+### Stale rows are closed on the dispatch tick
+
+`reconcileStaleTasks` (`lib/stale-tasks.ts`) runs before `drainAll`, every minute. Like
+the blank-field pass it is a database pass with no session, no model and no credits. It
+closes rows that are provably done or provably dead, so the queue a rep reads is the
+work that is actually happening.
+
+- **It only looks at work that is due.** A `recheck` booked ninety days out is not
+  stale, it is scheduled, and closing it would delete the next look at that contact.
+- **A live lease is never touched.** That is work in flight, whatever the record says.
+- **A record that completed after the task started closes the task** with a plain
+  outcome. That is the row the settle path failed to close: research landed, facts were
+  written, and the task sat open holding the contact on *Researching*.
+- **A dead lease with attempts left goes back to waiting**, and the lease is cleared so
+  the row reads as waiting rather than as running. Exhausted rows are retired by
+  `retireExhausted`, which is the one rule for giving up.
+- **Idempotent**: a second pass in the same minute closes nothing, because the rows it
+  closed have a `finishedAt` and the rows it released have no lease.
+- **Scans 200 rows a pass** and reports `unscanned` rather than a clean sweep it did not
+  make. The counts are in `dispatchHealth().staleTasks`, so a growing number of stale
+  rows is visible at `GET /internal/crm/dispatch-health`.
+
+**It is a safety net, not the fix.** The settle path still fails to close some rows;
+this pass keeps that from reaching a rep, and the count it reports is how you see the
+underlying bug getting worse.
+
+### Stalled deals get one note per stall
+
+`queueStalledDeals` (`lib/deal-stall.ts`) runs in the dispatch sweep and queues a
+`deal-stall` task at most once a week (`DISPATCH.dealStall.everyMs`), for at most
+`DISPATCH.dealStall.batch` deals. Each task is one direct model call in the reading
+lane, no session.
+
+- **A deal is quiet after `DISPATCH.dealStall.quietDays`.** Deals move faster than
+  contacts, so the threshold is its own and shorter than `ATTENTION.quiet.days`. The clock is the newest of the deal's own
+  `lastActivityAt` (or `createdAt`) and the `lastActivityAt` of the people on it, so
+  mail with them counts as movement.
+- **One note per stall.** A deal with a `deal-stall` task created after the stall
+  began is skipped, whatever that task's outcome. The note does not touch
+  `lastActivityAt`, so the deal still reads as quiet in `list_deals`.
+- **No mail and no notes means no call.** The task closes with an outcome and spends
+  nothing.
+- **Settings, Functions** switches it off like every other model kind.
+
+### Builder chat ratings reach the next turn
+
+The thumbs in the agent builder chat write `AgentConversationFeedback`, and only for
+`BUILDER` conversations. `lib/builder-feedback.ts` reads that user's newest ratings
+(`DISPATCH.builder.feedback.items`), finds the rated answer and its question in
+`AgentEvent` by the turn id in `messageId` (`<turnId>:assistant`, eve's reducer), and
+`instructions/task.ts` appends them to the builder instructions on every turn. A read
+that fails logs and the turn runs without them.
+
+### Backfills
+
+Sign-in sweep queues `brand` for companies never looked up (one homepage fetch and
+one small model call per company, no vendor credits, no research session), and
+`identify` and `portrait` for contacts;
+`ImageMirrorService` in the same sweep re-hosts off-site pictures (free);
+`backfill:images` fixes enriched records missing only pictures (free);
+`backfill:facts` is the blank-field sweep above run by hand, with `--dry` to read it
+first. The cron covers it, so this is for a machine pointed at another database.
+
+- **The image sweep keeps "every picture is ours" true**, not true-since-Tuesday.
+  25 rows/table/sweep.
+- **Nobody clicks a suggestion into a blank field.** The rule is enforced at the write
+  path, so no queue forms; the sweep is for rows written before it existed and for the
+  field a rep clears while a suggestion is pending. **An unreachable agent leaves the
+  suggestions where they are**: the API cannot apply one itself.
+- **A finished `portrait` task stands that contact down for thirty days**, and only a
+  contact with a GitHub URL is queued at all. A LinkedIn URL or an employer domain is
+  no longer a door: both readers went with the Context.dev key, so booking on them
+  would only ever report that it found nothing.
+- **No button, deliberately**: a rep cannot know which records predate a resolver.
+- **The trigger is signing in**, via `databaseHooks.session.create.after` in
+  `packages/auth`; `BackfillService` subscribes with `onSignedIn` and has no router
+  (`@crm/auth` must not import a Nest provider). Five-minute stand-down, and `auto()`
+  returns before work starts.
+- **The 500-row cap is on the pass, not each query in it.** Deduplicate the union, cut
+  to 500, count `remaining` against the union.
+- **An archived record is never swept.** Every backfill query, `identify`, `portrait`
+  and `brand`, has `archivedAt: null`, so the 500 places go to active contacts and
+  companies. Before, the oldest `PENDING` contacts were mostly archived ones, and the
+  agent dropped nearly every row it got.
+
+## Evidence, not confidence
+
+**No tool accepts a confidence, a score, or a `sourceUrl` offered as proof.** Tools
+report what they *observed* (`crm.signature-block`, `github.account-identity`) and
+`lib/evidence.ts` prices it. A model asked to grade its own certainty will, and will be
+wrong in the direction that looks useful.
+
+- **`lib/facts.ts` is the only write path to a contact's fields.** Applies at
+  `VERIFIED`, proposes below it, and enforces three things a prompt cannot: never
+  overwrite a human, never re-offer a dismissal, never write without a primary source.
+- **A band decides only when there is something to lose.** An empty field is filled by
+  whatever cleared the floor for keeping, whatever the band: approving a sourced guess
+  into a blank is a click that can only say yes, and a rep with four hundred contacts
+  reads none of them. `fillsBlank` is the whole rule: no human value in the way and
+  nothing already found. **`PROBABLE` still means *a rep decides* when the field is
+  already filled**, which is the case where a wrong answer costs something. The dispatch
+  tick applies the same rule to rows that predate it: `sweepBlankFacts`, above.
+- **Applying settles the field's other suggestions.** They were all offers to fill the
+  same blank, and the sheet shows one at a time, so left alone, accepting one reveals
+  the next, forever. The same rule holds when a rep accepts one (`decideFact`).
+- **The same value is never offered twice.** A second `PROPOSED` row with a value
+  already waiting is refused at the write path, not deduplicated on read.
+- **"The same value" is `sameValue`, and a URL is compared as an address, not a
+  string.** `canonicalValue` lowercases, collapses whitespace, and for `http(s)` drops
+  the scheme, `www.`, a trailing slash and the query, and reads `twitter.com` as
+  `x.com`. Compared byte for byte, `…/in/mara-quill/` is not `…/in/mara-quill`, so the record
+  showed a suggestion offering back the URL already in the field, the exact click this
+  whole rule exists to remove. **The stored value is still what the source said**; only
+  the comparison normalises. **The refusal
+  is for offers only**: the check runs after `applies` is decided, so evidence that has
+  reached `VERIFIED` since the offer was made still lands, settles the suggestion it
+  matches, and replaces the older value. Refusing it there left a weaker value on the
+  record with the answer sitting unread beneath it.
+- **Text the sender wrote about themselves never fills a field alone.**
+  `crm.signature-block` is supporting evidence, not primary, and
+  `selfAssertedOnly` in `lib/evidence.ts` keeps it out of the blank-field path in
+  `lib/facts.ts`. Anybody can type a signature, and a stranger can put one in our
+  mailbox. Paired with `crm.thread-reply` from that same address it still reaches
+  `VERIFIED` and still writes, which is the case the rule is built around.
+- **A signature can still carry a title on a contact we have never written to,
+  and that is a choice.** `lib/contact-clean.ts` files `crm.thread-reply` for any
+  inbound mail from that address, so a contact created *from* a stranger's own
+  mail reaches `VERIFIED` from that stranger's own signature. Nothing here proves
+  the person is who the signature says. We accept it because the alternative is a
+  suggestion queue nobody reads for every new sender, and because a rep sees the
+  claim and its source on the record. Treat a name, title or phone number on a
+  contact with no outbound history as something the sender told us.
+- **A name the mailbox cut out of the address is not a person's answer.**
+  `participants.ts` splits `a.mueller@acme.com` into "A" and "Mueller", and
+  `humanOwns` for the `name` field is `!isDerivedName(...)`, so for one release
+  every such contact was locked: the signature name was refused with "A person
+  already filled in name" and the record kept the initial forever.
+  `isDerivedName` now also reads a name with both parts, but only when one part
+  is a single letter. `anna.mueller@` with "Anna Mueller" on the record stays a
+  human answer and is never overwritten, which is the false positive that rule
+  exists to avoid. `looksMachineMade` is the wider predicate and answers a
+  different question: whether the name still mirrors the address at all.
+- **A person's name is never touched, and a name never gets shorter.** There is no
+  column that records who typed a value, so `humanOwns` reads it from what exists:
+  a contact with `source` `MANUAL` was named by a person, and a column that differs
+  from the agent's own `APPLIED` fact was changed by a person after the agent wrote
+  it. Both are refused. `nameRank` (`lib/names.ts`) orders "Maria Beispiel" above
+  "M. Beispiel" above "Maria", and `recordFact` refuses a name that ranks below the
+  record, or one part that is a prefix of the part on the record ("Jo" never
+  replaces "Johannes"). The sync never renames a contact that already exists, so
+  this path is the one that upgrades an old placeholder.
+- **The sender line alone is enough to upgrade a name.** `contact-clean` skips the
+  signature gate when a From display name outranks the record and matches the
+  address, because a mail without a signature still carries the full first name
+  in its sender line. The model is told that Email 1 is the newest and wins when
+  the signatures disagree. The phone number is written as digits with a leading
+  `+` for an international number. An extension is cut off, "(0)" is dropped
+  except after +39, and more than 15 digits is no number. A mobile number fills
+  `phone` only when the signature has no landline, because the contact has no
+  mobile column.
+- **A name is written only by a source that identifies the person.**
+  `fillsBlank` treats the `name` field as always empty, so before this rule any
+  kept evidence, down to `POSSIBLE`, could rename a machine-made contact. A web
+  page that merely mentions a name is worse than the initial it replaces, because
+  a wrong person on the record is harder to notice than a missing one.
+  `mayFillBlank` (`lib/facts.ts`) is the single gate, used by `recordFact` and by
+  the minute sweep in `lib/blank-facts.ts`. For `name` it requires a primary
+  source; for every other field it only refuses evidence the sender wrote about
+  themselves. A `VERIFIED` band still applies whatever the gate says, which is
+  why the `contact-clean` pair of `crm.signature-block` and `crm.thread-reply`
+  still writes the real name.
+- **A signature that arrives later is still read.** `done()` stamps `cleanedAt`
+  on every outcome, including "no mail" and "no signature", so a single pass used
+  to be the only pass. `queueContactCleanups` now runs two bounded queries: the
+  contacts never cleaned, and the contacts whose `lastActivityAt` is newer than
+  their `cleanedAt`. In the second set only a name `isDerivedName` still flags is
+  queued; the rest have their `cleanedAt` moved forward. The gate is
+  `isDerivedName` and not `looksMachineMade` on purpose: "Anna Schmidt" at
+  `anna.schmidt@` mirrors its address, which is the common shape, and a re-read
+  of it can only ever end in a refusal, because the record already counts as a
+  human answer. That was the whole model budget spent on nothing. The cost of the
+  narrower gate is an occasional second read that would have found a title or a
+  phone number.
+- **Every field `contact-clean` writes goes through `recordFact`**, the phone
+  number included. A direct column write skips the ledger, so the provenance, the
+  dismissal memory and the never-overwrite-a-human rule all stop applying to it.
+- **A new fact field goes in `FIELDS` (`lib/facts.ts`) *and* `FACT_COLUMNS`**
+  (`apps/api/src/contacts/contacts.service.ts`).
+
+## Optional by default
+
+`lib/capabilities.ts` is the single place that knows what is set: prints it at boot,
+states it in the session instructions, and gives tools a shared "not configured,
+retrying will not help" result, **checked before the research budget is charged**. A
+missing key removes a place to look. **Never an error, never throws.**
+
+`capabilitiesFrom()`/`markdownFor()` are the pure halves; `capabilities()` stays async
+so a source that has to be read rather than looked up in the environment can be added
+without changing every caller.
+
+### A cheap gate in front of the thread classifier
+
+`classifyThread` (`lib/insight.ts`) is the expensive read of one mail conversation.
+With a TypeSafe key it is preceded by one call to Jev (`lib/jev.ts`), which answers a
+single noul: is this conversation about the workspace's business. `TYPESAFE` in
+`@crm/db/typesafe` holds the endpoint, the model, the threshold and the deadline.
+
+- **One question, not four.** When the gate passes, the big model answers `side`,
+  `outcome` and `unansweredByUs` anyway. When it fails, those describe a conversation
+  nobody reads. A second question is three dead answers per call.
+- **The state carries the business.** `businessPrompt(rules)`, the subject and the
+  transcript, as three named fields. Without the business text the gate judges
+  "is this commercial mail", which is a different question and a useless one. A
+  workspace with no business description therefore skips the gate entirely.
+- **A skip writes the verdict itself**: `relevant: false`, `outcome: "OTHER"`,
+  `side: null`, an empty summary, empty arrays, and `modelId: "jev-latest"`. That model
+  id is how every gate-skipped row is found again.
+- **A skipped conversation is not re-read** until new mail moves its `lastMessageAt`.
+  The threshold is 0.2 for that reason: a wrong skip costs a summary nobody asked for,
+  and 0.2 is a clear no rather than an uncertain one. The one exception is a task
+  whose payload says `reread: true` (`readAgentTaskReread`): the API writes it when
+  its direction repair turned received mail into sent mail, and the stored verdict,
+  `unansweredByUs` included, is read again.
+- **Never a throw, and off-path is byte identical.** No key, a 401, a 5xx, bad JSON, a
+  timeout, a network error: every one of them falls through to the big model and nothing
+  reaches the rep. The answer is parsed with zod at the read.
+- **The deadline is `settledWithin`, not `AbortSignal.timeout`.** That signal does not
+  fire under Bun, so a cap built on it alone is no cap. The abort still runs, to free the
+  socket. `test/jev-gate.spec.ts` pins both.
+- **The timeline is untouched.** Message summaries come from the `thread-digest` task,
+  which does not depend on insight.
+- **It is a capability, not a tool.** `lib/capabilities.ts` reads the stored key as well
+  as `TYPESAFE_API_KEY`, so the boot line states it. `briefed: false` keeps it out of
+  `markdownFor`, because the session briefing lists places the agent can look and this
+  is not one.
+
+#### The gate keeps working while the expensive providers are empty
+
+`runInsightLane` breaks when `providersExhausted()` is true, which used to stop the
+gate as well: the cheap answer sat behind the expensive one. With a TypeSafe key the
+lane now runs `runGateLane` instead of breaking, and clears the conversations the gate
+says are not business. On one real mailbox about two thirds of conversations are in
+that group, so the queue drains while the subscription window is empty.
+
+- **`runThreadInsight(threadId, true)` is the reduced read.** `askGate` answers `skip`,
+  `read` or `unavailable`. `skip` writes the same verdict the gate branch writes today.
+  `read` and `unavailable` throw `NEEDS_FULL_READ` and `GATE_UNAVAILABLE`, two module
+  singletons the lane compares by identity.
+- **A conversation that passes the gate goes back to the queue with `postponeTask`.**
+  That clears the lease, sets `dueAt` to `resumeAt()`, and gives the attempt back, so
+  waiting for the limit to reset never retires a task. `runResearchLane` releases
+  through `returnClaim`, which also clears `startedAt` on a first attempt, because
+  that claim never ran.
+- **No key, no business text, or a gate that does not answer breaks the lane** and logs
+  the ordinary pause line. A Jev outage must not read as "every conversation is
+  relevant".
+- **The lane stops when a pass clears nothing.** The postponed rows are due in the
+  future and cannot be claimed again, and the counter is the second guard.
+- **One line per pass, not per task**: `reading paused until <reset>: the cheap gate is
+  still clearing conversations, N cleared and M wait for the full read`.
+- **`DISPATCH.insight.gate`** holds the batch and the concurrency. One gate call costs
+  about $0.00003, far less than the read, so the gate clears more rows per tick than
+  the lane above it.
+- **`resumeAt()` must name a time.** No provider at all also answers
+  `providersExhausted()`, and it has no reset. Without this guard the lane would push
+  every passed task 30 minutes out and pay for the gate again on every cycle, for as
+  long as the install has no model key. That state logs the ordinary pause line and
+  clears nothing.
+- **The gate answer is not stored.** A returned task pays for the gate again after the
+  limit resets. That is one extra call per task per pause, a few cents for a mailbox of
+  this size. A column for it costs a migration and an invalidation rule.
+
+### Three more cheap gates
+
+`lib/jev.ts` is the one TypeSafe client. It posts a single question, parses the
+answer with zod at the read, returns `null` on every failure and never throws.
+`askNoul` and `askChoice` are the two primitives; `askJev` is the thread gate above,
+written on `askNoul`. **Never write a second HTTP client for this.**
+
+Three more gates sit in front of an expensive model call. **No key means the gate
+never runs and the path behaves exactly as it did before the gate existed.**
+
+| Gate | Question | Threshold | A low answer means |
+| --- | --- | --- | --- |
+| `deal-stall` | Is a follow up worth sending on this deal at all | `DISPATCH.dealStall.gate.threshold` (0.25) | No draft. The task closes with `STALL_SKIPPED`. |
+| `contact-clean` | Does this mail end in a signature block that names a person | `CLEAN.gate.threshold` (0.35) | No read. `done()` stamps `cleanedAt` and the task closes with `CLEAN_SKIPPED`. |
+| `brand-industry` | Which industry is this company in, from a fixed list | `WEBSITE.industry.threshold` (0.5) | The model's own free text `industry` is kept. |
+
+- **`brand-industry` saves no money.** It runs beside the brand read, not instead
+  of it, and it exists to keep `industry` out of many spellings, because the
+  companies table facets on that column. `WEBSITE.industry.options` is the list and
+  `Other` is the no match option. An answer outside the list fails the zod enum and
+  falls through to the free text, exactly like a 500.
+- **A skip writes a complete result.** `deal-stall` writes no note, `contact-clean`
+  writes no fact and stamps `cleanedAt`, so the sweeps read the row as finished.
+  The outcome text of a skip is its own sentence, so skipped rows are countable in
+  `AgentTask`.
+- **`lib/jev-meter.ts` counts how often each gate ran and how often it hit.**
+  Each gate names its own word, `skipped` for the two that skip a model call and
+  `labelled` for the industry choice, which skips nothing.
+  `drainAll` prints one line per sweep, `[agent] cheap gates this pass: …`, and
+  `dispatchHealth().cheapGates` carries the totals since boot. There is no column
+  and no migration: the money not spent is already visible as missing `ModelSpend`
+  rows.
+
+**Two evidence kinds have no producer left.** `profile.email-match` and
+`linkedin.employer-and-name` were both filed from a Context person lookup. Nothing
+observes them now, `agent/skills/evidence.md` says so, and they stay in `WEIGHTS` so
+the rows already on records still read back. A machine-made name is therefore written
+only by `crm.thread-reply` or `github.account-identity`; everything else is a proposal
+for a rep.
+
+**Company brand data has no key and cannot be turned off.** It reads the company's own
+website (`lib/website-brand.ts`) through `@crm/db/safe-fetch` and asks the configured
+model for the facts on the page. `askPage()` is the one reader; `tools/research_company.ts`
+uses it too. **There is no LinkedIn reader**, so nothing on this install can observe
+`linkedin.employer-and-name`.
+
+**`askPage()` tells a failed model from a missing one.** It reads `fullStream`, not
+`textStream`, because ai@7 drops error parts from `textStream`: a 429 or a timeout
+came back as empty text and read as "nothing on the page". It returns
+`{ ok: true, data }` or `{ ok: false, reason, retryable }`:
+
+- No reading model configured (`directModel` throws `ModelUnconfiguredError`):
+  `retryable: false`. The brand read fills the record from
+  the page's own metadata and settles COMPLETE, as before.
+- Every provider cooling down after a 429, an error or abort part in the stream, or
+  any other throw: `retryable: true`. The brand read
+  writes nothing, settles FAILED and returns `retryable`, so `dispatch.ts` leaves the
+  task for the next lease. It never stamps COMPLETE from the weaker metadata.
+  `research_company` refunds its unit and says retrying later can help.
+- Answers that never parse after `WEBSITE.jsonAttempts`: `retryable: false`.
+
+The JSON schema it sends is the schema's input side (`io: "input"`). The research brief
+schema has `.catch` and `.transform`, and the output side cannot be written as JSON
+Schema, so before this every `research_company` call with a model threw.
+
+**`research_company` keeps one brief per company and source.** It locks
+`research-brief:<companyId>:website`, finds the ENRICHMENT activity with that `source`,
+and updates it. An identical body changes nothing and answers `written: false`.
+`read_company_history` and `read_deal_history` list the ten notes changed last
+(`updatedAt`), so a refreshed brief stays in the list after ten newer notes. The
+company is checked live before any outside call and again inside the write.
+
+## Budget and scheduling
+
+- `lib/focus.ts`: per-session budget in `defineState`; running out is a normal ending.
+  **A unit is one outside call, not one credit.** `RESEARCH.cost` in
+  `lib/research-config.ts` names each price: a web question costs 1, a deep one 2,
+  `find_contact_socials` 1 per network it searches, and `set_contact_socials` 1 per
+  profile it checks. A brand read is free and charges nothing; reading a marketing
+  site for a brief charges 1, because it is a model call and not a vendor one.
+- **A call that did not answer is refunded.** A tool spends before the call and calls
+  `refund(units)` when the source failed: a 429, a 5xx, a timeout, an unreadable
+  answer. A check refused before any call (a URL that is not a profile, an X handle
+  that is not a form of the name) costs nothing either. A GitHub 404 is an answer and
+  keeps its unit.
+- **`find_contact_socials` checks the capability before it charges**, like
+  `research_person`. Without `PERPLEXITY_API_KEY` it returns `unavailable()`.
+  `set_contact_socials` does the same for an X profile, the one check that needs
+  Perplexity: an X URL alone returns `unavailable()`, and beside a GitHub URL the X
+  check is rejected with that reason while GitHub is still checked. It
+  stamps `socialsCheckedAt` only when at least one network answered, so a contact
+  whose searches all failed is searched again on a later run.
+- `lib/research-config.ts` holds every research number: the default budget, the
+  prices, the Perplexity and GitHub deadlines, the social hosts and reserved paths,
+  the recheck window, the brief length and the lookup limits. Its units come from
+  `lib/dispatch-config.ts`.
+- `lib/tasks.ts`: `claimDue` leases with `FOR UPDATE SKIP LOCKED`.
+- **`schedules/dispatch.ts` is the only schedule and decides nothing.** "Every N
+  minutes, the oldest ten contacts" belongs in a `dueAt`.
+- `tools/schedule_recheck.ts`: its `reason` is shown to the rep. It loads the
+  contact first and answers `scheduled: false` with a reason for a missing contact,
+  an archived one, a sample record, or a recheck function that is off.
+
+## Archived records are invisible to the agent
+
+`lib/crm.ts` owns `LIVE` (`archivedAt: null`) and the helpers `liveContact`,
+`liveCompany` and `liveDeal`. Each takes a select and an optional transaction client,
+and answers `null` for a missing row and for an archived one alike.
+
+- **Lookups hide archived rows completely.** `search_crm`, `list_deals` and
+  `list_outstanding_work` filter on `LIVE`. A deal of an archived company is hidden,
+  a contact's archived company reads as `null`, and the counts on a company hit count
+  live rows only.
+- **The blank-field sweep skips archived contacts.** `sweepBlankFacts` counts and
+  selects suggestions of live contacts only. An archived contact's suggestions stay
+  `PROPOSED` and never fill the scan limit ahead of a live contact.
+- **Every writing tool refuses a record that is not live, with a clean result.**
+  `write_brief`, `record_fact`, `fetch_contact_photo`, `find_contact_socials`,
+  `set_contact_socials`, `record_job_change` (also for `moveToCompanyId`),
+  `research_company` and `set_field_value` answer with `NOT_LIVE.contact`,
+  `NOT_LIVE.company` or `NOT_LIVE.deal`, never with a Prisma error.
+  `stampSocialsChecked` answers `false`.
+- **Only the research agent may use the research tools.** `research_person`,
+  `research_company`, `find_contact_socials` and `set_field_value` call
+  `assertResearchPurpose(ctx)` like the other writing tools. A builder or team-agent
+  session gets a refusal.
+
+**The author of a research note is chosen by one rule.** `researchAuthor` in
+`lib/crm.ts` takes the record owner. Without one it takes the oldest `owner` member of
+the workspace, then the oldest member, then the oldest user that is not removed. The
+order is `createdAt`, then `id`, so the same install always picks the same person. A
+plain `findFirst()` without an order picked whichever row Postgres returned first.
+
+## Three records, no dead ends
+
+**Every read hands back the ids of neighbouring records.** Breaking this made the agent
+ask a rep who had a company open, contacts on screen, to paste an email.
+
+| Read (all free) | Hands back |
+| --- | --- |
+| `read_crm_history` | the contact's **company id**, their deals, their colleagues |
+| `read_company_history` | **every contact with id**, deals, threads, meetings, notes |
+| `read_deal_history` | stage clock and history, **people with ids**, last reply |
+| `search_crm` | contacts, companies and deals matching typed text |
+
+**A preamble or tool result naming a record without its id is a bug**: the only
+recovery is asking the human. Ambiguity is fine: four Marchettis is four rows with
+titles. **`search_crm` does no fuzzy matching**: "Marchetti" reaching "Marchetta" is a
+wrong record about a real person.
+
+### Preambles
+
+`lib/preamble.ts` varies on **which record** (each names its neighbours with ids and
+points at the read to start from) and **who opened it**: a dispatched task is a
+research pass with a budget, a rep in the sheet is a conversation. Told neither, the
+agent answered a question with a work plan. `taskKind` is the tell.
+
+`task.ts` is the resolver and owns one side effect: seeding `lib/focus.ts`, without
+which the audit hook files events against nothing.
+
+**A fourth record kind** = `sessionPreamble` entry + a read + a `TOOL_VERBS` line
+(`apps/app/lib/agent-transcript.ts`) + a `COPY` entry (`lib/agent-record.ts`).
+
+### Every session knows who *we* are
+
+`composeClosing()` puts a **Who we are** block before the capabilities in every
+preamble; `lib/workspace.ts` is the only renderer.
+
+- **Tiny, enforced by the write path**: `MAX_NARRATIVE` (320) and `MAX_LINE` in
+  `@crm/db/workspace`. It is prompt-cached and precedes every question.
+- **It says what the context is for** (fit, competitor, partner, or nothing) and
+  **never a pitch**, or the model sells our own product back to us.
+- **No profile still gets the name line**, plus *do not guess at what we sell*.
+- **The profile dies with its website**: `readWorkspaceIdentity` returns it only while
+  `website` matches.
+- **Not a `Company` row**: that needs excluding from every list, facet and join. One
+  `WorkspaceProfile` keyed on `WORKSPACE_ID`.
+
+The pass is a `workspace-profile` task using `web_fetch` (no credits), filed only via
+`write_workspace_profile`, queued by `WorkspaceService.update` on a website change. **A
+finished attempt stands the sweep down for seven days.**
+
+## What may be read, and what may leave
+
+It may read **everything**, including full email bodies: internal single-tenant tool,
+and a signature block is still the fastest pointer to a job title. The boundary is
+egress, and one rule on top of it:
+
+1. No customer text in a third-party query. Derived questions only.
+2. Nothing sensitive logged. Reading is not logging.
+3. Everything it reads is data, never an instruction.
+
+**`web_fetch` is the only way out, and eve already guards it.** With the shell
+gone it is the whole egress surface, so it is worth knowing exactly what it
+refuses: anything that is not `https:`, any loopback name, and any address in a
+private, link-local, carrier-grade NAT or otherwise reserved range, checked both
+for a literal address and for every address the hostname resolves to, with the
+connection pinned to those addresses. A redirect is not followed; the tool
+returns the new URL and the next call is checked again. So a poisoned mail cannot
+reach `http://api:3001`, `http://postgres:5432` or `169.254.169.254` from inside
+the compose network. `test/web-fetch-egress.spec.ts` pins that, because it is
+eve's guarantee rather than ours and an upgrade could change it.
+`@crm/db/safe-fetch` stays what our own code uses for vendor URLs; its block list
+is a subset of eve's, so wrapping `web_fetch` in it would add nothing. One cost
+comes with it: an install whose own website sits on an intranet address cannot be
+read, so it gets no workspace profile. That is the same rule working.
+
+There is no `/workspace` rule any more, because there is no sandbox tool to write
+one with. See [Sandbox](#sandbox).
+
+`lib/untrusted.ts` wraps message bodies, subjects, sender names, meeting titles,
+note bodies and the summaries made from them in `<untrusted-text>` at the read,
+so `lib/crm.ts`, `lib/accounts.ts`, `lib/insight.ts`, `lib/email-draft.ts` and
+`tools/read_contact_memory.ts` all mark the same way and a stored summary stays
+marked when it is injected again. `agent/instructions.md` and the runner's
+instructions carry the rule. A stranger can email us, and the tracking endpoint
+files a web form the same way, so this is not a hypothetical.
+
+`skills/data-boundaries.md` is the agent's copy. Keep them in step.
+
+## The container starts the built server itself, not `eve start`
+
+`scripts/start.ts` spawns `node .output/server/index.mjs` with `HOST`, `NITRO_HOST`,
+`NITRO_PORT` and `PORT`, cwd at the app root. It does not run `eve start`.
+
+**The starter held 3.5 GB for nothing.** `eve start`, which is
+`node_modules/eve/dist/src/internal/nitro/host/start-production-server.js`, does
+four things: loads `.env*` from the app root, runs `prewarmBuiltAppSandboxes`, picks
+a port, and spawns that same `node .output/server/index.mjs` with those same four
+variables. The prewarm bundles the whole agent source with rolldown for the sandbox
+template of the two subagents, and the parent keeps every server log line in one
+string that is never freed. Measured in the container: 3,550 MB RSS forever with the
+starter, 280 to 530 MB for the server alone. Nothing in `apps/agent` calls
+`getSandbox` (see [Sandbox](#sandbox)), so the template is never used. The day an
+authored tool asks for a sandbox again, the prewarm comes back with it. Cron, the
+local workflow world and dispatch live in the `.output` build, not in the starter;
+eve's own self-hosting guide says the schedule runner is Nitro's.
+
+eve's docs prescribe `eve build && eve start` and do not name `index.mjs`. So on
+**every eve upgrade**, diff `start-production-server.js` against the four steps
+above. A step the starter gains that the server needs moves into `scripts/start.ts`.
+
+`bun scripts/start.ts` runs under bun, so `process.execPath` is bun there; the
+script spawns `node` by name in that case, which is what eve did too.
+
+## Sandbox
+
+**The root session has no sandbox tools.** `agent/tools/bash.ts`, `read_file.ts`,
+`write_file.ts`, `glob.ts` and `grep.ts` each export `disableTool()`, the same way
+both subagents already did it. Nothing in `apps/agent` calls `ctx.getSandbox()`, so
+the shell and the file tools bought the agent nothing and cost it a way out.
+`web_fetch` and `web_search` stay: they run in the app runtime and at the provider,
+never in the sandbox.
+
+**`deny-all` on the backend factory reaches three backends out of four.**
+`agent/sandbox/sandbox.ts` sets it for `vercel`, `docker` and `microsandbox`. The
+shipped container has no Docker socket and `apps/agent/Dockerfile` deletes
+microsandbox, so eve falls back to `just-bash`, which hard codes
+`network: { dangerouslyAllowFullInternetAccess: true }` at creation and throws on
+`setNetworkPolicy`. `JustBashSandboxCreateOptions` holds `autoInstall` and nothing
+else, so eve exposes no option that closes that egress. Disabling the tools is the
+fix. The policy stays as depth for the day an authored tool asks for a sandbox
+again.
+
+**Never give the sandbox `DATABASE_URL`.** CRM access is authored tools. A shell with
+credentials and network is exfiltration-shaped; with neither it is a text processor.
+
+## Team-agent builder and runner
+
+`agent_builder` and `agent_runner` are declared subagents with independent
+instructions, tools and deny-all sandboxes. They inherit nothing from the root. The
+root built-in `agent` copy tool is disabled; these two named specialists are the only
+delegation paths for custom agents.
+
+- **Creation requires the current `CREATE_AGENT` turn.** Every builder tool checks the
+  purpose and command type in session auth. A normal builder chat cannot create a
+  draft by prompt alone.
+- **Builder clarification is durable HITL.** The specialist calls eve's built-in
+  `ask_question` directly; descendant input requests are proxied to the root channel,
+  and the same child turn resumes when the user answers. The authored
+  `tools/ask_question.ts` disable override must stay absent. Builder task output is
+  typed as `draft_ready` and carries the immutable version ids only after save.
+- **Empty never means all.** A version chooses `SELECTED` or `WORKSPACE` record scope.
+  Selected scope requires at least one record tagged in that private conversation;
+  workspace scope is an explicit grant and cannot also list selected records.
+- **Connections are executable permissions.** Only `google:gmail` and
+  `google:calendar` are accepted, only when connected, and the runner does not query
+  their synced tables unless the deployed manifest includes that source.
+- **Actions are structured permissions.** `crm.activity.create` separately names
+  `NOTE`, `TASK`, or both. Runtime enforcement never infers a grant from the action's
+  prose summary. Every action is ledgered before execution and keyed by eve's call id
+  for replay safety.
+- **CRM events are shared domain contracts.** `@crm/db/crm-events` owns the event
+  vocabulary, record kind, and builder-facing description used by the API, builder,
+  and worker. API writes enqueue a durable `agent-event` task; the agent worker alone
+  matches live triggers and creates runs. Do not duplicate event lists in prompts or
+  feature code.
+- **Versions can have multiple triggers.** The manifest stores a `triggers` array and
+  each entry becomes its own `AgentTrigger` row. Deployment enables every trigger on
+  the approved version, so one agent can react to several independent lifecycle
+  moments without polling or duplicate agents.
+- **Deployment is the human approval boundary.** Saving produces a private READY
+  version and never deploys it. The review screen shows its triggers, scope, actions,
+  access and exact files. A user's Deploy action pins that immutable version for the
+  team. Scheduled runner sessions use task mode and therefore cannot pause for a
+  per-action approval; the deployed permission and idempotent runtime checks are the
+  boundary.
+- **Approved instructions are system context.** The runner resolves the pinned
+  version instructions at `session.started`, then calls `inspect_run` for the manifest
+  and current run state. Every runner tool also checks the `team-agent` purpose and
+  revalidates scope and action permission.
+- **Stopping a run is a row, not a signal.** `agents.cancelRun` settles the
+  `AgentRun` to `CANCELLED` inside one transaction (terminal event, outstanding
+  `AgentAction` rows, audit entry) and *then* pokes
+  `POST /internal/crm/cancel-run`, which calls eve's `cancel({ continuationToken })`
+  for `run:<id>`. **The row is what stops the work**: every run tool refuses a run
+  that is not `RUNNING`, so a cancel that never reaches the agent still means
+  nothing further is written. The poke only stops it spending tokens, and an unset
+  `AGENT_BRIDGE_SECRET` costs exactly that and nothing more.
+- **Cancelling is not undoing.** eve keeps side effects that already completed, so
+  a note, task or Slack message the run already made stays. The dialog says so.
+- **Whoever started it can stop it**, plus the creator and workspace admins.
+  `canCancel` is computed server-side per run and is what the button reads, so the
+  control and the 403 cannot disagree.
+- **`turn.cancelled` settles the run too**, keyed off `run:` in the continuation
+  token, so a cancel from any other path still reaches `finishedAt` rather than
+  leaving the run reading *Running* forever.
+- **No generic execution surface.** Both specialists disable shell, file, arbitrary
+  web and todo built-ins. The runner also disables direct questions; the builder keeps
+  only `ask_question` for durable clarification. CRM access exists only through their
+  small authored tool sets. Tool code runs in the trusted app runtime; the sandbox
+  remains isolated and deny-all.
+
+Runner manifests fail closed when either the explicit record-scope mode or an
+activity type grant is missing. Versions created before these typed permissions were
+introduced must be revised and deployed again before they can run.
+
+`bun run --filter=agent eval` runs the eve end-to-end builder eval against the real
+HTTP channel. It creates an isolated private conversation, dispatches the builder,
+asserts the declared subagent path, verifies a READY side-effect-free manifest, and
+cleans up its rows. It skips visibly when the database, bridge secret or model
+credential is unavailable.
+
+## The bridge
+
+```
+browser → /eve/v1/*  (same origin, session cookie, x-crm-contact header)
+        → apps/app/app/eve/v1/[...path]/route.ts
+            checks the Better Auth session, strips the cookie,
+            mints a 2-minute HS256 token naming the rep + record
+        → AGENT_URL/eve/v1/* → channels/eve.ts repFromCrm()
+                             → instructions/task.ts reads attributes.contactId
+```
+
+- **The record travels in the token, never in the message.**
+- **Mounted at `/eve/v1/*`** because that is where `useEveAgent()` looks: no `host`,
+  no CORS, no cross-site cookie.
+- **The proxy is an enforcement point, not a passthrough**: the agent never sees the
+  session cookie, so if that route did not check, nothing would.
+- **eve's `jwtHmac()` resolves to `principalType: "service"`**: wrong for a person,
+  and `lib/approval.ts` reads exactly those fields to decide whether to pause for a
+  human. `repFromCrm` maps the subject to a real user principal
+  (`test/channel-auth.spec.ts`).
+- **`AGENT_BRIDGE_SECRET` unset skips the auth entry rather than opening it.**
+
+### The panel
+
+`lib/agent-record.ts` maps a record kind to everything downstream. The panel's own
+rules (snapshot loading, composer state, thread capture, scrolling) are in
+**`docs/agent-panel.md`**. It lives in the API and is not a breach of rule one:
+listing history decides nothing.
+
+## Continuation tokens are namespaced
+
+**eve prefixes them with the channel name.** `channels/crm.ts` mints `task:<id>`;
+`session.waiting` returns `crm:task:<id>`. Minting the prefix ourselves meant matching
+against `crm:crm:task:<id>` and returning before `completeTask`: research ran, facts
+were written, sessions looked clean, but **no task reached `finishedAt`**, so contacts
+sat on "Researching" forever. Hidden because the archived event's
+`data.continuationToken` is *un-namespaced* while `channel.continuationToken` is not.
+
+### Conversations are kept
+
+A record accumulates conversations, and they survive a reload. `AgentConversation`
+holds the *handle* (the durable eve session id plus its cursor), while the
+transcript itself is already in `AgentEvent`, written by the audit hook. Nothing
+is stored twice.
+
+- **Resuming.** The panel passes the saved cursor as `initialSession`, so
+  reopening a contact continues last week's thread rather than starting another.
+  eve keeps sessions for 30 days.
+- **Replay from the start.** `streamIndex: 0` on resume, deliberately: the
+  saved index is where the *last reader* stopped, and a reopened thread should
+  show what was said in it, not only what has happened since.
+- **Which thread is open lives in the URL** (`?thread=`), like every other view
+  state in the sheet, so a refresh keeps your place and a conversation is a link.
+  It is cleared when the record or the tab changes, by the same rule that drops
+  a half-typed quick-add form.
+- **Nothing mounts until the list has loaded.** Rendering a thread while the
+  history is still in flight starts a *new* eve session and then remounts onto
+  the real one, which presents as "the history only appears if I refresh".
+- **The thread the panel landed on is captured once.** Re-deriving "the latest"
+  as the list changes would swap the open conversation out from under a live
+  answer the moment the first save adds a row. `resolveThread` in
+  `lib/agent-transcript.ts` holds the rule, and it is tested.
+- **The panel is not unmounted when you switch tabs.** It holds a live stream,
+  and Radix drops an inactive tab by default, which aborts the stream
+  mid-answer, so the reply landed in the durable session with nothing attached
+  to receive it. That is the "I went to another tab and the answer never came
+  back" bug, and no amount of re-reading state on the way in could fix it,
+  because the events had been dropped. `keepMounted` on the tab descriptor
+  (`detail-sheet.tsx`) keeps it alive; it renders nothing until the tab is
+  opened once, so flicking through records costs nothing.
+- **A thread is loaded with `session.snapshot()`, not by hand.** One call
+  returns the complete event prefix, the cursor that continues from it, and a
+  continuation token *if and only if* eve will accept another turn (about 30ms
+  against a hundred-event thread). `lib/agent-session.ts` is the whole of it.
+
+  What it replaced is worth remembering, because every panel bug of the last
+  day came out of it: a raw `fetch` of `…/stream?startIndex=-1`, parsing the
+  last line into a state machine. The endpoint *follows*, so awaiting the body
+  never returned. The stream opens with a bare newline, so "the first line" was
+  empty, which failed closed to "busy" and locked **every** reopened
+  conversation with "still working on the last question", including ones parked
+  with a perfectly good token. And a read that failed reported the *session* as
+  working rather than reporting itself as broken, so it could never recover.
+  The framework had a documented answer to the exact question that code was
+  asking. Read the guide before hand-rolling the protocol.
+- **The token is the authority on whether a message can be sent**, not our
+  reading of the events. eve returns one only when the captured prefix ends
+  parked, which is precisely the condition under which the next send lands.
+- **A turn that has gone quiet for 90 seconds is over, not working.** A
+  restarted agent leaves sessions with no closing boundary; they never park, and
+  treating them as in-flight locks that thread forever.
+- **An unreachable agent is `offline`, not `working`.** One is a fact about us
+  and the other a claim about the session; stated as the latter it is both
+  untrue and unrecoverable, since the read fails identically next time. The
+  transcript then comes from our own `AgentEvent` archive (which is also what
+  makes a thread older than eve's 30-day retention still readable), and the
+  composer stays usable.
+- **An ended thread gets a button, not a locked box.** Ended and working both
+  disable the composer and mean completely different things: one is a wait of
+  seconds, the other is permanent. `composerState()` keeps them apart, and an
+  ended thread offers **Start a new conversation**, which moves the picker to a
+  new thread. The transcript stays on screen throughout, and the save hook
+  treats the fresh session as a new conversation by comparing session ids
+  rather than by whether the panel started empty.
+- **`autoScroll` and nothing else.** The scroller is a state machine
+  (`following-bottom`, `free-scrolling`, `anchored-to-message`) and
+  `scrollAnchor` selects the third, which *stops it following the bottom*: the
+  answer then streams below the fold while the modes fight over each new row.
+  Left alone, `autoScroll` follows the tail while the reader is at the bottom
+  and releases the moment they scroll away, which lights the jump-to-end button.
+- **One `MessageScrollerItem` per message, not per part.** The row is what the
+  scroller measures; a row per tool call adds a boundary every few hundred
+  milliseconds during an answer. Part ids prefer `toolCallId`, which is stable
+  across a call's streaming states.
+- **A thread nobody has spoken in is loaded from nothing.** The snapshot query
+  is disabled without a conversation; a brand-new thread mounts with no session
+  and no events, and its first message creates both.
+- **Scoped to the rep.** Two people asking about the same contact are having two
+  conversations. `ConversationsService` filters on the caller, and a session id
+  in a request body decides which row, never whose.
+- **Cached the way `api.md` prescribes**: read through
+  `cache-manager` (Redis when `REDIS_URL` is set), write on miss, explicit
+  invalidation on every save. The list is read on every sheet open and changes
+  only when somebody sends a message, which is the shape a cache is for.
+
+This lives in the API rather than the agent, and that is not a breach of rule
+one: listing a record's history researches nothing, scores nothing and decides
+nothing. The agent owns judgement; the data surface owns filing.
+
+### Turning it on
+
+Same value in both processes, from the one root `.env`:
+
+```sh
+AGENT_URL="http://127.0.0.1:2000"        # the default
+AGENT_BRIDGE_SECRET="$(openssl rand -base64 32)"
+```
+
+Then `bun run dev` (the agent serves on `:2000`) and open any contact.
+
+**If the Agent tab errors:**
+
+| Symptom | Cause |
+| --- | --- |
+| `503`, "not configured for this install" | `AGENT_BRIDGE_SECRET` is unset in the app's process |
+| `401` | The two processes hold *different* secrets |
+| `502`, "not reachable" | The agent is not running, or `AGENT_URL` is wrong |
+
+`eve dev` takes about five seconds to bind, and it listens on **IPv4 only**.
+That is why `AGENT_URL` defaults to `http://127.0.0.1:2000` rather than
+`http://localhost:2000`: Node resolves `localhost` to `::1` first, so the
+`localhost` form fails to connect on a machine where the agent is plainly
+running, and reports itself as "not reachable", which sends you looking in the
+wrong place.
+
+A variable in `.env` is not enough on its own: Turbo runs in strict env mode, so
+`apps/app/turbo.json` and `apps/agent/turbo.json` both declare the pair in
+`passThroughEnv`. Adding a variable and not declaring it produces exactly the
+`401` above.
+
+### Checking it without a browser
+
+`localDev()` accepts anything on loopback, so a bare `curl` to `127.0.0.1`
+proves nothing about the bridge. **It is in the chain outside production only**:
+`eveAuth()` in `channels/eve.ts` keeps `repFromCrm` alone when `NODE_ENV` is
+`production`, which is what the image sets, so a caller inside the Docker network
+sending `Host: localhost` gets a 401 rather than a root session
+(`test/channel-auth.spec.ts`). In development, send a non-loopback `Host` to make
+that entry skip:
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'Host: agent.example.com' \
+  http://127.0.0.1:2000/eve/v1/info                      # 401
+
+curl -s -H 'Host: agent.example.com' \
+  -H "authorization: Bearer $TOKEN" \
+  http://127.0.0.1:2000/eve/v1/info | jq '.tools.available | length'
+```
+
+`GET /eve/v1/info` is the whole inventory: tools, skills, schedules, channels,
+sandbox, and a `diagnostics` count that is the fastest way to find a file eve
+silently ignored.
+
+## Watching it work
+
+`eve dev` shows every tool call, every result and every token in its interactive
+TUI, and it is the agent package's default `dev` command. The package's Turbo
+task is explicitly interactive, so select the agent pane and press Enter to hand
+stdin to eve. Type `/traces` to open the live trace viewer; Ctrl+Z returns input
+to Turbo.
+
+`dev:headless` keeps `eve dev --no-ui` available when a terminal cannot render
+the nested TUI. It starts the same server on the same port with the same routes
+and watcher. In that mode `hooks/activity.ts` narrates the session instead: a
+line per tool call with its arguments, a line per result with how long it took,
+the finish reason and token spend of each step, and any failure with its code.
+
+- **The lines go to stderr, not stdout.** The TUI's default log mode is `stderr`
+  and it keeps stdout buffered and hidden, so a `console.log` here would be
+  invisible in the mode it exists to serve. Written to stderr the same lines show
+  under `--no-ui`, under the TUI, and in `eve logs`.
+- **Contents print outside production; the shape prints everywhere.** Which tool
+  ran, whether it worked, what it cost: none of that is anybody's data, so it
+  logs wherever the agent runs. Arguments and replies carry names, addresses and
+  whatever a rep typed, which is the "nothing sensitive logged" rule above, so
+  they are gated on `NODE_ENV`. In production the durable record is an
+  `AgentEvent` row, not a log drain.
+- **A failure prints its code, never its message, in every environment.** A failed
+  tool call, step, turn or session logs eve's error code and a Prisma code
+  (`P2002`) when the message names one. The message itself is not printed: a
+  unique-constraint error quotes the address it collided on.
+- **It is not the audit trail.** `hooks/audit.ts` writes every event to
+  `AgentEvent` whatever this prints, and the panel's transcript is read back from
+  there. A change to one is not a change to the other.
+- **A call is timed by remembering it, because the result event does not carry
+  the tool name or a duration.** The map of in-flight calls is bounded rather
+  than trusted: a turn that dies between request and result would otherwise leak
+  an entry per call, forever, in a process that stays up for days.
+
+`eve logs` reads the full record back, but only for an **interactive** `eve dev`.
+That is the process that writes `.eve/logs/`. Under `--no-ui` the pane is the
+record, so keep the turbo scrollback rather than going looking for a file that
+was never written.
+
+Two consequences of opting into `dev:headless`, both worth recognising rather
+than debugging:
+
+- **A headless dev process cannot reconnect.** An interactive `eve dev`
+  reconnects to a local server that is already up; `dev:headless` rejects it and
+  exits non-zero. `A dev server is already running for this eve agent` means
+  exactly what it says: use the terminal it is in, or stop it before starting
+  another.
+- **An orphaned agent holds the port.** If turbo dies without reaping its child,
+  nothing on screen says so and every later `dev:headless` fails the same way.
+  `lsof -nP -iTCP:2000 -sTCP:LISTEN` names the process to kill.
+
+### Nothing is researching, and the queue only grows
+
+**`eve dev` never fires schedules on their cron cadence.** It is one line in
+eve's own [schedules guide](../apps/agent/node_modules/eve/docs/schedules.mdx),
+and it used to be the single most confusing thing about working on this agent,
+because every visible part of the loop worked: the Research button wrote its
+`AgentTask` row, the sheet said *Queued*, the toast promised the page would
+update, and `schedules/dispatch.ts`, the only thing that turns a row into a
+session, was never called. Twenty rows sat with `attempts = 0` and `AgentEvent`
+was empty. Nothing was broken and nothing reported a problem, because nothing
+ran.
+
+**The poke is what makes dev behave like production now**, which is most of why
+it was widened to both lanes. See [dispatch on demand](#dispatch-on-demand).
+A row written by the API is dispatched immediately whatever the clock is doing,
+so the schedule is a backstop rather than the only door.
+
+**It only does that when `AGENT_BRIDGE_SECRET` is set**, and that variable is
+optional: `poke()` reads it first and returns without sending anything when it is
+unset. So an install that has not set it is back at the paragraph above with no
+cron behind it either: rows queue, nothing dispatches, and the queue looks
+exactly like a slow agent. Set it, or run the dispatch below by hand.
+
+That leaves two cases where the clock's absence bites even with the poke
+working, and both look identical to the above: **a task the API did not
+write** (`schedule_recheck`,
+which books its own `dueAt` weeks out) and **anything queued while the agent was
+down**, since a missed poke is not retried. For those, the dev server mounts a
+one-shot route that runs the exact dispatch path production cron uses:
+
+```sh
+bun run --filter=agent dispatch
+# {"scheduleId":"dispatch","sessionIds":["wrun_01KZ…", …]}
+```
+
+It drains **both lanes**, exactly as the cron does: up to `VISIBLE_BATCH` (60)
+`brand` and `portrait` rows six at a time, handled in the process with no session
+at all, and `RESEARCH_BATCH` (12) research rows, one session each. So the
+`sessionIds` it prints are the research rows only: a run that resolved forty
+logos prints an empty list and was not idle. Either way it spends real money, a
+small model call per `brand` row and a model session per research one; that is the
+point of it, and the reason it is a command you run rather than a ticker somebody
+leaves on. Watch the agent pane; the session ids it returns are also streamable at
+`GET /eve/v1/session/:id/stream`.
+
+The built server (`bun run start`) *does* run the schedule, and so does Vercel,
+where each `defineSchedule` becomes a Cron Job. Dev is the only place the clock is
+missing.
+
+### The continuation token you write is not the one you read
+
+**eve namespaces a continuation token with the channel's name.** `channels/crm.ts`
+mints `task:<id>`; by the time `session.waiting` hands it back on the channel
+context it is `crm:task:<id>`. The `eve` channel's own sessions read back as
+`eve:<uuid>` for the same reason.
+
+This is worth stating because of how it failed, which was silently and
+completely. `taskToken()` used to mint `crm:task:<id>` itself, so the handler was
+matching `startsWith("crm:task:")` against `crm:crm:task:<id>`, getting `null`,
+and returning before `completeTask`. Nothing errored. The research ran, facts
+were written, briefs were saved, and the agent pane showed a clean session. But
+**no task ever reached `finishedAt`**, so every contact sat on "Researching"
+forever and the sweep re-queued work that had already been done. Twenty-eight
+tasks, zero finished.
+
+Two things made it survive a reading:
+
+- **The event data and the channel accessor disagree.** `session.waiting`'s
+  `data.continuationToken` carries the token *as stored* (un-namespaced), while
+  `channel.continuationToken` carries it namespaced. Debugging from the archived
+  event says the token is fine, because from that angle it is.
+- **Nothing downstream depends on settling.** The record's status is the only
+  thing that notices, and "still researching" is indistinguishable from
+  "researching slowly" until you look at `attempts` in the table.
+
+So `taskFromToken` keys on the `task:` marker rather than a fixed prefix, which
+reads correctly whoever namespaced it and still settles sessions parked before
+the fix. `test/crm-token.spec.ts` pins all three forms.
+
+The general rule: **a channel handler must not assume the token it receives is
+byte-identical to the one it sent.** Parse for your own marker.
+
+## The own-domain sweep archives only the workspace's own domains
+
+**`archiveOwnContacts` still runs on the dispatch tick.** It archives a contact only
+when the contact's source is `EMAIL` or `CALENDAR` and its address sits on one of the
+workspace's own domains. `ownDomainsOf` in `agent/lib/contact-prune.ts` reads those
+domains from the workspace website, the IMAP mailboxes and the users. It drops every
+domain in `FREE_EMAIL_DOMAINS` and every domain in `PLATFORM_DOMAINS`, such as
+`linkedin.com` or `wixsite.com` (both in `packages/db/src/email-domains.ts`). A user who
+signs in with `@gmail.com` does not make `gmail.com` an own domain.
+
+`pruneContacts` and `pruneCompanies` are off (`PRUNE.enabled` is `false`) and return 0.
+Turning them off does not restore or delete anything already archived.
+
+## The mailbox profile is learned from the workspace's own mail
+
+The `business-setup` task (`agent/lib/business-setup.ts`) learns two things. The win-back
+business rules, once. And `AppSetting.mailboxProfile` (`@crm/validation/mailbox-profile`),
+again whenever the mailbox changes. The API queues the task on the sync tick, at most once
+in 24 hours. The numbers are `MAILBOX_PROFILE` in `agent/lib/mailbox-config.ts`.
+
+- **Below 20 conversations nothing changes.** The website pass fills an empty business
+  description, as before. The 20 is `BUSINESS_DRAFT.minThreads` in
+  `packages/db/src/win-back-rules.ts`. The onboarding business step reads the same number:
+  it waits for a draft only with a model, and a website or 20 conversations. Otherwise it
+  shows the empty form at once.
+- **Every run is free until the rule says build.** `mailboxStats` counts, in SQL over the
+  2,000 newest conversations, how many inbound senders are freemail, role (`info@`,
+  `office@` …) or work addresses, and how many of each we answered.
+  `recordOwnAddresses` appends every address our sent mail came from to
+  `AppSetting.ownAddresses`, in one atomic `UPDATE`, capped at 200, never removing one.
+- **`profileDue` decides.** Build when there is no readable profile. Never within 7 days
+  of the last build. After that, build when the profile is 90 days old, when the
+  conversation count has doubled, or when the freemail or role share changed.
+- **One reading call per build**, on the reading model. The sample
+  is our own sent mail first (36 conversations), then 24 unanswered ones, 8 per sender
+  kind, without a conversation the thread gate already called irrelevant. 400 characters
+  each, 2,500 output tokens, two attempts. That is about 12k input tokens, under one cent.
+  Each conversation is labelled with the sender kind, not the address; the mail text
+  itself reaches the model as it always did. No new Jev call: the received conversations
+  reuse the stored gate verdicts, and a live gate costs more than the one call it saves.
+- **Deterministic where it can be.** `counterparts.freemail` and `roleAddresses` come
+  from the counts, not the model. A follow-up sentence is kept only when it is a quote of
+  our own sent mail with `{product}` in place of the product (`quotedFrom`).
+- **Nothing a person set is replaced.** The business rules merge only on the first mail
+  pass, as before. A rebuild writes the profile and nothing else. It keeps follow-up
+  sentences, `bulkUnit`, `currency` and `minAmount` that are already set, and it never
+  drops `quantity` from `measure` while the rules or earlier readings count quantities.
+- **A failure writes nothing.** A model that never answers in shape, or no model at all,
+  leaves the old profile as it was. An unreadable stored profile logs its reason and is
+  built again.
+- **Read it with `currentMailboxProfile()`** in `agent/lib/mailbox-stats.ts`. It returns
+  the parsed profile or `null`. `senderKind(email)` is the one freemail, role or work
+  classifier on the agent side.
+
+## A win back story is written before or when a rep opens the person
+
+`person-story` (`lib/person-story.ts`) writes what happened with one quiet customer:
+a gist of at most two sentences, what you did together, when and why it stopped with
+one quote of theirs, and what can bring them back with up to four points. The shape is
+`@crm/validation/person-story`, stored in `ContactStory.story`, one row per contact.
+
+- **Only the API queues it**, by the same rule everywhere: the row is missing, written
+  in another language, older than the newest mail, or does not parse. The person view
+  queues it when a rep opens the person, at `PRIORITY.personStory`. Reading the Win back
+  list queues it for the first `PERSON_VIEW.prefetch.top` people, and the next person
+  of "Continue with" is queued too, both at `PRIORITY.storyPrefetch`, which the API
+  lifts to `personStory` when a rep opens that person. "Sag es Reloop" queues it with
+  `reread: true`, or writes `reread: true` into a story task that still waits; the
+  prompt then carries the old story and says the rep rejected it.
+  Nothing in the agent sweeps the win back candidates; the rows are the whole trigger,
+  and the agent runs a prefetched story exactly like an opened one.
+- **Every part names the messages it is built on.** The model answers with the numbers
+  of the transcript, `storyFromAnswer` (`lib/story-prompt.ts`) turns them into message
+  ids, and a part that names no existing message is stored as null. A quote or a
+  passage is kept only when it is in that message, compared without case, spacing or
+  quote marks. The quote of the "stopped" part must come from a message the person
+  wrote themselves (`theirs`: inbound and from their address), never from ours. Nothing the mail does not say reaches the page.
+- **The mail is the relevant threads of the contact**, or the ones not read yet, at
+  most `STORY.threads`, `STORY.messages` (`PERSON_STORY.messagesRead`, which the
+  person page also reads to say how many mails Reloop reads) and `STORY.transcriptMaxChars`
+  (`lib/story-config.ts`), quoted history cut, oldest first, wrapped in
+  `untrusted()`. Deals of the contact and of its company and the contact memory go in
+  beside it.
+- **The language is `summaryLanguage()`**, like the thread summaries. A quote stays in
+  the language of the mail. A spaced dash in the text becomes a comma.
+- **`basedOnUntil` is the newest mail of the contact, read before the model call**, so
+  mail that arrives during the call makes the story stale, not covered.
+- **It spends the conversation budget.** `monthlyBudget` gives `person-story` the
+  plan's `insightsPerMonth`, and `budgetKinds` counts stories and thread readings
+  together, in the agent, in the API's gate and on the usage page. A story keeps the
+  20 % reserve for new mail free, like a backfill (`keepsReserve`). Past that the task
+  is postponed to the end of the window like a draft, and the API queues none.
+  The API stops prefetching earlier still, at `PERSON_VIEW.prefetch.openShare` of the
+  budget before that line, so the stories a rep opens keep their room. One model
+  call per person near the top of the list or opened, and only again after new mail
+  or a re-read.
+- **A rewrite from the person page is for one mail.** `oneOff: true` in the
+  `email-draft` payload (`agentTaskDraftPayload`) tells the model the wish is never a
+  rule, and `revise` never calls `learn`, whatever the model answers. The result goes
+  into `EmailDraft.oneOffSubject` and `oneOffBody` beside the draft, never over it, so
+  the suggested version stays; a new full draft clears it
+  (`test/run-email-draft.integration.spec.ts`).
+
+## Tests
+
+`bun run --filter=agent test`. The integration specs need `DATABASE_URL` and run
+against a real Postgres, which is the point: "never overwrite a human" is only
+true if the transaction says so.
+
+The `test/e2e` scripts are separate and you run them by hand. Three of them cost
+money or change something outside the database, so each one is off unless you
+switch it on:
+
+| Variable | What it does |
+| --- | --- |
+| `E2E_LIVE_MODEL=1` | `live-run.e2e.ts` calls the real model. It spends credits. |
+| `E2E_SLACK_JOIN=1` | `slack-join.e2e.ts` joins real Slack channels. It does not leave them. |
+| `E2E_LOAD_COUNT` | How many tasks `load.e2e.ts` queues. The default is 300. |
+
+Stop the local agent before you run an e2e script against a dev database. A
+running agent leases the rows the script seeds and retires exhausted tasks the
+script did not create.
+**`taskFromToken` keys on the `task:` marker, not a fixed prefix**
+(`test/crm-token.spec.ts`). **A channel handler must not assume the token it receives
+is byte-identical to the one it sent.**

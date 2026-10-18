@@ -1,0 +1,399 @@
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import type { Db } from "@crm/db";
+import type { INestApplication } from "@nestjs/common";
+import { Test } from "@nestjs/testing";
+import request from "supertest";
+import { WorkspaceService } from "../src/workspace/workspace.service";
+
+type Target = { role: string; userId: string };
+
+const ACTOR = "actor-user";
+const OUTSIDE = "role read outside the transaction";
+
+function workspace(actorRole: string | null, target: Target) {
+	const writes: string[] = [];
+	const locks: string[] = [];
+	const targetRow = { id: "target", ...target };
+	const rows =
+		target.userId === ACTOR || actorRole === null
+			? [targetRow]
+			: [{ id: "actor", role: actorRole, userId: ACTOR }, targetRow];
+	const tx = {
+		member: { delete: async () => writes.push("member") },
+		user: {
+			findUniqueOrThrow: async () => ({ email: "target@example.com" }),
+			update: async () => writes.push("user"),
+		},
+		session: { deleteMany: async () => writes.push("session") },
+		apikey: { deleteMany: async () => writes.push("apikey") },
+		account: {
+			findMany: async () => [],
+			updateMany: async () => writes.push("account"),
+		},
+		imapAccount: { updateMany: async () => writes.push("imapAccount") },
+		mailboxSync: { updateMany: async () => writes.push("mailboxSync") },
+		$queryRaw: async (sql: TemplateStringsArray) => {
+			const query = sql.join("?");
+			if (query.includes('"appSetting"')) return [{ signInAddresses: [] }];
+			locks.push(query);
+			return rows;
+		},
+	};
+	const db = {
+		member: {
+			findUnique: async () => {
+				throw new Error(OUTSIDE);
+			},
+		},
+		$transaction: async (run: (client: typeof tx) => Promise<unknown>) =>
+			run(tx),
+	} as unknown as Db;
+	const unused = undefined as never;
+
+	return { service: new WorkspaceService(db, unused), writes, locks };
+}
+
+describe("removing a member: the rules", () => {
+	it("refuses a member", async () => {
+		const { service, writes } = workspace("member", {
+			role: "member",
+			userId: "target-user",
+		});
+
+		await expect(
+			service.removeMember(ACTOR, { memberId: "target" }),
+		).rejects.toThrow("Only an owner or an admin can remove a member.");
+		expect(writes).toEqual([]);
+	});
+
+	it("refuses a caller who is no longer in the workspace", async () => {
+		const { service, writes } = workspace(null, {
+			role: "member",
+			userId: "target-user",
+		});
+
+		await expect(
+			service.removeMember(ACTOR, { memberId: "target" }),
+		).rejects.toThrow("Only an owner or an admin can remove a member.");
+		expect(writes).toEqual([]);
+	});
+
+	it("refuses to remove yourself", async () => {
+		const { service, writes } = workspace("owner", {
+			role: "owner",
+			userId: ACTOR,
+		});
+
+		await expect(
+			service.removeMember(ACTOR, { memberId: "target" }),
+		).rejects.toThrow("You cannot remove yourself from the workspace.");
+		expect(writes).toEqual([]);
+	});
+
+	it("does not let an admin remove an owner", async () => {
+		const { service, writes } = workspace("admin", {
+			role: "owner",
+			userId: "target-user",
+		});
+
+		await expect(
+			service.removeMember(ACTOR, { memberId: "target" }),
+		).rejects.toThrow("Only an owner can remove an owner.");
+		expect(writes).toEqual([]);
+	});
+
+	it("reads the caller and the target under a row lock in the transaction", async () => {
+		const { service, locks } = workspace("admin", {
+			role: "member",
+			userId: "target-user",
+		});
+
+		await service.removeMember(ACTOR, { memberId: "target" });
+		expect(locks).toHaveLength(1);
+		expect(locks[0]).toContain("FOR UPDATE");
+	});
+
+	it("lets an admin remove a member", async () => {
+		const { service, writes } = workspace("admin", {
+			role: "member",
+			userId: "target-user",
+		});
+
+		await service.removeMember(ACTOR, { memberId: "target" });
+		expect(writes).toEqual([
+			"member",
+			"user",
+			"session",
+			"apikey",
+			"account",
+			"imapAccount",
+			"mailboxSync",
+		]);
+	});
+
+	it("lets an owner remove another owner", async () => {
+		const { service, writes } = workspace("owner", {
+			role: "owner",
+			userId: "target-user",
+		});
+
+		await service.removeMember(ACTOR, { memberId: "target" });
+		expect(writes).toEqual([
+			"member",
+			"user",
+			"session",
+			"apikey",
+			"account",
+			"imapAccount",
+			"mailboxSync",
+		]);
+	});
+});
+
+describe("removing a member: access goes, data stays", () => {
+	const RUN = crypto.randomUUID().slice(0, 8);
+	const PASSWORD = "ein-sehr-langes-passwort-zum-entfernen";
+	const owner = {
+		id: `remove-owner-${RUN}`,
+		email: `remove-owner-${RUN}@example.com`,
+	};
+	const member = {
+		id: `remove-member-${RUN}`,
+		email: `remove-member-${RUN}@example.com`,
+	};
+	const contactId = `remove-contact-${RUN}`;
+	const apiKeyId = `remove-key-${RUN}`;
+	let app: INestApplication;
+	let ownerCookie = "";
+	let memberCookie = "";
+	let memberRowId = "";
+
+	async function clean() {
+		const { db } = await import("@crm/db");
+		const ids = [owner.id, member.id];
+		await db.contact.deleteMany({ where: { id: contactId } });
+		await db.apikey.deleteMany({ where: { referenceId: { in: ids } } });
+		await db.session.deleteMany({ where: { userId: { in: ids } } });
+		await db.account.deleteMany({ where: { userId: { in: ids } } });
+		await db.member.deleteMany({ where: { userId: { in: ids } } });
+		await db.user.deleteMany({ where: { id: { in: ids } } });
+	}
+
+	async function signIn(email: string, password = PASSWORD) {
+		const { db } = await import("@crm/db");
+		await db.rateLimit.deleteMany({});
+		return request(app.getHttpServer())
+			.post("/api/auth/sign-in/email")
+			.send({ email, password });
+	}
+
+	beforeAll(async () => {
+		const { db } = await import("@crm/db");
+		const { ensureWorkspaceMembership, setPasswordFor, WORKSPACE_ID } =
+			await import("@crm/auth");
+		const { BackfillService } = await import(
+			"../src/backfill/backfill.service"
+		);
+		spyOn(BackfillService.prototype, "onModuleInit").mockImplementation(
+			() => {},
+		);
+		const { AppModule } = await import("../src/app.module");
+
+		await clean();
+		for (const person of [owner, member]) {
+			await db.user.create({
+				data: {
+					id: person.id,
+					email: person.email,
+					name: person.id,
+					emailVerified: true,
+					updatedAt: new Date(),
+				},
+			});
+			await setPasswordFor(person.id, PASSWORD);
+			await ensureWorkspaceMembership(person.id);
+		}
+		await db.member.update({
+			where: {
+				organizationId_userId: {
+					organizationId: WORKSPACE_ID,
+					userId: owner.id,
+				},
+			},
+			data: { role: "owner" },
+		});
+		memberRowId = (
+			await db.member.findUniqueOrThrow({
+				where: {
+					organizationId_userId: {
+						organizationId: WORKSPACE_ID,
+						userId: member.id,
+					},
+				},
+				select: { id: true },
+			})
+		).id;
+		await db.contact.create({
+			data: { id: contactId, firstName: "Kept", ownerId: member.id },
+		});
+		await db.apikey.create({
+			data: {
+				id: apiKeyId,
+				name: "remove test",
+				referenceId: member.id,
+				key: `hashed-${RUN}`,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			},
+		});
+
+		const fixture = await Test.createTestingModule({
+			imports: [AppModule],
+		}).compile();
+		app = fixture.createNestApplication({ bodyParser: false });
+		await app.init();
+
+		ownerCookie = String((await signIn(owner.email)).headers["set-cookie"]);
+		memberCookie = String((await signIn(member.email)).headers["set-cookie"]);
+	});
+
+	afterAll(async () => {
+		await clean();
+		await app.close();
+	});
+
+	it("lets the member in before the removal", async () => {
+		await request(app.getHttpServer())
+			.get("/api/trpc/workspace.get")
+			.set("Cookie", memberCookie)
+			.expect(200);
+	});
+
+	it("refuses the member when the member tries to remove the owner", async () => {
+		const { db } = await import("@crm/db");
+		const { WORKSPACE_ID } = await import("@crm/auth");
+		const ownerRow = await db.member.findUniqueOrThrow({
+			where: {
+				organizationId_userId: {
+					organizationId: WORKSPACE_ID,
+					userId: owner.id,
+				},
+			},
+			select: { id: true },
+		});
+
+		const response = await request(app.getHttpServer())
+			.post("/api/trpc/workspace.removeMember")
+			.set("Cookie", memberCookie)
+			.send({ memberId: ownerRow.id });
+
+		expect(response.status).toBe(403);
+	});
+
+	it("removes the member, ends the sessions and keeps the records", async () => {
+		const { db } = await import("@crm/db");
+
+		await request(app.getHttpServer())
+			.post("/api/trpc/workspace.removeMember")
+			.set("Cookie", ownerCookie)
+			.send({ memberId: memberRowId })
+			.expect(200);
+
+		const user = await db.user.findUniqueOrThrow({
+			where: { id: member.id },
+			select: { removedAt: true },
+		});
+		expect(user.removedAt).toBeInstanceOf(Date);
+		expect(await db.member.count({ where: { userId: member.id } })).toBe(0);
+		expect(await db.session.count({ where: { userId: member.id } })).toBe(0);
+		expect(await db.apikey.count({ where: { referenceId: member.id } })).toBe(
+			0,
+		);
+		expect(
+			await db.contact.findUnique({
+				where: { id: contactId },
+				select: { ownerId: true },
+			}),
+		).toEqual({ ownerId: member.id });
+	});
+
+	it("refuses the old session cookie", async () => {
+		await request(app.getHttpServer())
+			.get("/api/trpc/workspace.get")
+			.set("Cookie", memberCookie)
+			.expect(401);
+	});
+
+	it("refuses a new sign-in although the domain is allowed", async () => {
+		const { db } = await import("@crm/db");
+		const response = await signIn(member.email);
+
+		expect(response.status).toBe(403);
+		expect(response.body.message).toBe(
+			"This account no longer has access to this CRM.",
+		);
+		expect(response.headers["set-cookie"]).toBeUndefined();
+		expect(await db.session.count({ where: { userId: member.id } })).toBe(0);
+		expect(await db.member.count({ where: { userId: member.id } })).toBe(0);
+	});
+
+	it("hides the removed person from the member list", async () => {
+		const response = await request(app.getHttpServer())
+			.get("/api/trpc/workspace.members")
+			.query({ input: JSON.stringify({ q: member.email }) })
+			.set("Cookie", ownerCookie)
+			.expect(200);
+
+		expect(response.body.result.data.rows).toEqual([]);
+	});
+
+	it("adds the removed person back to the same account", async () => {
+		const { db } = await import("@crm/db");
+		ownerCookie = String((await signIn(owner.email)).headers["set-cookie"]);
+
+		const added = await request(app.getHttpServer())
+			.post("/api/trpc/workspace.addPerson")
+			.set("Cookie", ownerCookie)
+			.send({ email: member.email, name: "Back Again", role: "admin" })
+			.expect(200);
+
+		const { member: row, password } = added.body.result.data;
+		expect(row.userId).toBe(member.id);
+		expect(row.role).toBe("admin");
+		expect(await db.user.count({ where: { email: member.email } })).toBe(1);
+		expect(
+			await db.user.findUniqueOrThrow({
+				where: { id: member.id },
+				select: { removedAt: true },
+			}),
+		).toEqual({ removedAt: null });
+
+		const again = await signIn(member.email, password);
+		expect(again.status).toBe(200);
+		expect(again.body.user?.id).toBe(member.id);
+		memberCookie = String(again.headers["set-cookie"]);
+
+		await request(app.getHttpServer())
+			.get("/api/trpc/workspace.get")
+			.set("Cookie", memberCookie)
+			.expect(200);
+		expect(
+			await db.contact.findUnique({
+				where: { id: contactId },
+				select: { ownerId: true },
+			}),
+		).toEqual({ ownerId: member.id });
+	});
+
+	it("still refuses to add an active person twice", async () => {
+		const response = await request(app.getHttpServer())
+			.post("/api/trpc/workspace.addPerson")
+			.set("Cookie", ownerCookie)
+			.send({ email: member.email, name: "Twice", role: "member" });
+
+		expect(response.status).toBe(400);
+		expect(response.body.error.message).toBe(
+			"That address already has an account.",
+		);
+	});
+});

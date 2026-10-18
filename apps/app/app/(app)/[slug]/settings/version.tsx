@@ -1,0 +1,246 @@
+"use client";
+
+import Renew from "@carbon/icons-react/es/Renew";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@crm/ui/components/alert-dialog";
+import { Badge } from "@crm/ui/components/badge";
+import { Button } from "@crm/ui/components/button";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@crm/ui/components/card";
+import { Icon } from "@crm/ui/components/icon";
+import { Link } from "@crm/ui/components/link";
+import { Skeleton } from "@crm/ui/components/skeleton";
+import { Spinner } from "@crm/ui/components/spinner";
+import { StatusIndicator } from "@crm/ui/components/status-indicator";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CopyCommand } from "@/components/copy-command";
+import { LocalRelativeTime } from "@/components/local-date-time";
+import { useT } from "@/lib/i18n/client";
+import { useTRPC } from "@/lib/trpc/client";
+import type { RouterOutputs } from "@/lib/trpc/types";
+
+const UPDATE_COMMAND = "docker compose pull && docker compose up -d";
+
+const VERSION = { reloadAfterMs: 45_000 } as const;
+
+export type VersionCardShape = "managed" | "updater" | "command";
+
+export type UpdateNowShape = "restarting" | "notStarted" | "idle";
+
+export function updateNowShape(input: {
+	pending: boolean;
+	error: boolean;
+	status: string | null;
+}): UpdateNowShape {
+	if (input.pending || input.status === "started") return "restarting";
+	if (input.error || input.status !== null) return "notStarted";
+	return "idle";
+}
+
+export function versionCardShape(input: {
+	managed: boolean;
+	updateAvailable: boolean;
+	updaterAvailable: boolean;
+}): VersionCardShape {
+	if (input.managed) return "managed";
+	if (input.updateAvailable && input.updaterAvailable) return "updater";
+	return "command";
+}
+
+export function Version({ managed }: { managed: boolean }) {
+	const t = useT();
+	const trpc = useTRPC();
+
+	const version = useQuery(trpc.system.version.queryOptions());
+
+	return (
+		<Card id="version">
+			<CardHeader>
+				<CardTitle>{t("Version")}</CardTitle>
+			</CardHeader>
+
+			<CardContent className="flex flex-col gap-4">
+				{version.isPending ? (
+					<Skeleton className="h-5 w-48 max-w-full" />
+				) : version.isError ? (
+					<p className="text-muted-foreground text-sm/6">
+						{t("The version could not be read. Try again later.")}
+					</p>
+				) : (
+					<VersionState data={version.data} managed={managed} />
+				)}
+
+				{managed ? (
+					<p className="text-muted-foreground text-sm/6">
+						{t("New versions arrive on their own. You never update anything.")}
+					</p>
+				) : (
+					<>
+						<CopyCommand command={UPDATE_COMMAND} />
+						<p className="text-muted-foreground text-xs">
+							{t("Run it in the folder that holds deploy/.env.")}
+						</p>
+					</>
+				)}
+			</CardContent>
+		</Card>
+	);
+}
+
+function VersionState({
+	data,
+	managed,
+}: {
+	data: RouterOutputs["system"]["version"];
+	managed: boolean;
+}) {
+	const t = useT();
+	const trpc = useTRPC();
+	const queryClient = useQueryClient();
+
+	const check = useMutation(
+		trpc.system.checkVersion.mutationOptions({
+			onSuccess: (fresh) =>
+				queryClient.setQueryData(trpc.system.version.queryKey(), fresh),
+		}),
+	);
+
+	return (
+		<div className="flex flex-col gap-2">
+			<div className="flex items-center justify-between gap-3">
+				<Badge variant="mono">{data.current}</Badge>
+				{data.checkDisabled ? (
+					<StatusIndicator
+						size="sm"
+						tone="neutral"
+						label={t("Check turned off")}
+					/>
+				) : data.latest === null ? (
+					<StatusIndicator
+						size="sm"
+						tone="neutral"
+						label={t("Could not check")}
+					/>
+				) : data.updateAvailable ? (
+					<StatusIndicator
+						size="sm"
+						tone="info"
+						label={t("Update available: {version}", { version: data.latest })}
+					/>
+				) : (
+					<StatusIndicator size="sm" tone="success" label={t("Up to date")} />
+				)}
+			</div>
+
+			{data.updateAvailable && data.releaseUrl ? (
+				<p className="text-sm">
+					<Link href={data.releaseUrl} target="_blank" rel="noreferrer">
+						{t("Release notes")}
+					</Link>
+				</p>
+			) : null}
+
+			{versionCardShape({ managed, ...data }) === "updater" ? (
+				<UpdateNow />
+			) : null}
+
+			{data.checkDisabled ? null : (
+				<div className="flex items-center gap-2">
+					{data.checkedAt ? (
+						<p className="text-muted-foreground text-xs">
+							{t("Last checked")} <LocalRelativeTime date={data.checkedAt} />
+						</p>
+					) : null}
+					<Button
+						variant="ghost"
+						size="icon"
+						aria-label={t("Check again")}
+						disabled={check.isPending}
+						onClick={() => check.mutate()}
+					>
+						{check.isPending ? <Spinner /> : <Icon icon={Renew} />}
+					</Button>
+				</div>
+			)}
+		</div>
+	);
+}
+
+function UpdateNow() {
+	const t = useT();
+	const trpc = useTRPC();
+
+	const update = useMutation(
+		trpc.system.update.mutationOptions({
+			onSuccess: (data) => {
+				if (data.status !== "started") return;
+				setTimeout(() => window.location.reload(), VERSION.reloadAfterMs);
+			},
+		}),
+	);
+	const shape = updateNowShape({
+		pending: update.isPending,
+		error: update.isError,
+		status: update.data?.status ?? null,
+	});
+
+	if (shape === "restarting") {
+		return (
+			<div className="flex items-center gap-2 text-sm">
+				<Spinner />
+				<span>
+					{t(
+						"The update runs. The app is unreachable for a moment, then this page reloads.",
+					)}
+				</span>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex items-center gap-3">
+			<AlertDialog>
+				<AlertDialogTrigger asChild>
+					<Button variant="outline" size="sm">
+						{t("Update now")}
+					</Button>
+				</AlertDialogTrigger>
+
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("Update now?")}</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t("The app is unreachable for a moment. Make a backup first.")}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+
+					<AlertDialogFooter>
+						<AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+						<AlertDialogAction onClick={() => update.mutate()}>
+							{t("Update now")}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{shape === "notStarted" ? (
+				<p className="text-muted-foreground text-sm">
+					{t("The update did not start. Use the command below.")}
+				</p>
+			) : null}
+		</div>
+	);
+}

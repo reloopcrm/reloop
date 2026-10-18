@@ -1,0 +1,119 @@
+import { z } from "zod";
+
+const SECOND_MS = 1_000;
+const MINUTE_MS = 60 * SECOND_MS;
+
+export const ADOPTION = {
+	batch: 50,
+} as const;
+
+export const THREAD_CONTACTS = {
+	batch: 100,
+	maxCreatesPerTick: 25,
+	maxThreadAttempts: 3,
+	settleMs: MINUTE_MS,
+	previewPage: 500,
+	previewBudgetMs: 30 * MINUTE_MS,
+} as const;
+
+export const MESSAGE_FAILURES = {
+	maxAttempts: THREAD_CONTACTS.maxThreadAttempts,
+	maxIdLength: 256,
+} as const;
+
+export const THREAD_PARTICIPANTS = {
+	backfillBatch: 200,
+	contactBatch: 100,
+	repairBatch: 100,
+	insertChunk: 500,
+	transactionTimeoutMs: MINUTE_MS,
+	scriptBudgetMs: 60 * MINUTE_MS,
+} as const;
+
+export const DIRECTION = {
+	repairBatch: 500,
+} as const;
+
+export const REAL_ANSWER = {
+	backfillBatch: 500,
+} as const;
+
+export const LIMIT_WARNING = {
+	intervalMs: MINUTE_MS,
+} as const;
+
+export const SYNC_TICK = {
+	selfHostBudgetMs: MINUTE_MS,
+	settleReserveMs: 2 * SECOND_MS,
+	meetingPrepSliceMs: 5 * SECOND_MS,
+} as const;
+
+export const PROVIDER_API = {
+	timeoutMs: 20 * SECOND_MS,
+	minBackoffMs: 30 * SECOND_MS,
+	maxBackoffMs: 15 * MINUTE_MS,
+	rateLimitFallbackMs: MINUTE_MS,
+} as const;
+
+export const SYNC_LEASE = {
+	leaseMs: 5 * MINUTE_MS,
+} as const;
+
+export const NO_DEADLINE = Number.POSITIVE_INFINITY;
+
+export function pastDeadline(deadlineAt: number): boolean {
+	return Date.now() >= deadlineAt;
+}
+
+const GMAIL_QUOTA = {
+	unitsPerUserPerMinute: 6_000,
+	messageGetUnits: 20,
+	reserve: 0.8,
+} as const;
+
+const positiveInt = (fallback: number) =>
+	z.coerce.number().int().min(1).default(fallback);
+
+const mailboxSyncEnv = z.object({
+	MAILBOX_SYNC_MAX_PER_TICK: positiveInt(1_000),
+	MAILBOX_SYNC_BACKFILL_CHUNK: positiveInt(500),
+	MAILBOX_SYNC_PAGE_SIZE: positiveInt(200),
+});
+
+export type MailboxSyncEnv = Record<string, string | undefined>;
+
+export function mailboxSyncConfig(env: MailboxSyncEnv) {
+	const parsed = mailboxSyncEnv.parse(env);
+	const gmailPerMinute = Math.floor(
+		(GMAIL_QUOTA.unitsPerUserPerMinute * GMAIL_QUOTA.reserve) /
+			GMAIL_QUOTA.messageGetUnits,
+	);
+
+	return {
+		maxMessagesPerTick: parsed.MAILBOX_SYNC_MAX_PER_TICK,
+		backfillChunk: parsed.MAILBOX_SYNC_BACKFILL_CHUNK,
+		pageSize: parsed.MAILBOX_SYNC_PAGE_SIZE,
+		forwardMax: 120,
+		forwardOverlapMs: SECOND_MS,
+		gmail: {
+			maxMessagesPerTick: Math.min(
+				parsed.MAILBOX_SYNC_MAX_PER_TICK,
+				gmailPerMinute,
+			),
+			historyPages: 20,
+			skippedLabels: ["DRAFT", "SPAM", "TRASH"] as readonly string[],
+			reenteringLabels: ["SPAM", "TRASH"] as readonly string[],
+		},
+	} as const;
+}
+
+export type MailboxSyncConfig = ReturnType<typeof mailboxSyncConfig>;
+
+let cached: MailboxSyncConfig | undefined;
+
+export const MAILBOX = {
+	get sync(): MailboxSyncConfig {
+		cached ??= mailboxSyncConfig(process.env);
+		return cached;
+	},
+};

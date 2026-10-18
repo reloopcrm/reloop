@@ -1,0 +1,281 @@
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { db, type MailboxSyncModel as MailboxSync } from "@crm/db";
+import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import { CompanyDirectoryService } from "../src/companies/company-directory.service";
+import { ActivityStampService } from "../src/crm/activity-stamp.service";
+import { EnrichmentLogService } from "../src/crm/enrichment-log.service";
+import { MailboxMatchService } from "../src/mailbox/mailbox-match.service";
+import { ThreadParticipantsService } from "../src/mailbox/thread-participants.service";
+import {
+	type IncomingMessage,
+	ThreadWriterService,
+} from "../src/mailbox/thread-writer.service";
+import { withDiscardedCrmEvents } from "./agent-trigger.stub";
+
+const suffix = process.env.TEST_RUN_ID ?? "thread-writer-spec";
+const domain = `threads-${suffix}.test`;
+const userId = `user-${suffix}`;
+const mailbox = `rep-${suffix}@example.test`;
+const person = `buyer@${domain}`;
+const rootId = `<root-${suffix}@mail.test>`;
+const movedRoot = `outlook-conversation:${suffix}`;
+
+const agent = {
+	contactCreated: async () => true,
+	companyCreated: async () => undefined,
+	withCrmEvents: withDiscardedCrmEvents,
+	companyRequested: async () => true,
+	threadStored: async () => undefined,
+	contactMemoryRequested: async () => true,
+} as unknown as AgentTriggerService;
+
+const stamp = new ActivityStampService(db);
+const directory = new CompanyDirectoryService(agent);
+const log = new EnrichmentLogService(db, stamp);
+const match = new MailboxMatchService(db, directory, agent, log);
+const participants = new ThreadParticipantsService(db, match, stamp, agent);
+const threads = new ThreadWriterService(db, match, stamp, agent, participants);
+
+let row: MailboxSync;
+
+function message(id: string, sentAt: Date, root = rootId): IncomingMessage {
+	return {
+		rfcMessageId: id,
+		rootId: root,
+		subject: "Pricing",
+		from: { email: mailbox, name: "Test Rep" },
+		recipients: [{ email: person, name: "A Buyer", kind: "to" }],
+		body: "The numbers you asked for.",
+		sentAt,
+		gmailMessageId: null,
+		outlookMessageId: null,
+		outlookWebLink: null,
+	};
+}
+
+async function clean() {
+	await db.emailThread.deleteMany({
+		where: { rootMessageId: { in: [rootId, movedRoot] } },
+	});
+	await db.contact.deleteMany({ where: { email: person } });
+	await db.company.deleteMany({ where: { domain } });
+	await db.mailboxSync.deleteMany({ where: { userId } });
+	await db.user.deleteMany({ where: { id: userId } });
+}
+
+beforeAll(async () => {
+	await clean();
+
+	await db.user.create({
+		data: { id: userId, name: "Test Rep", email: mailbox },
+	});
+	row = await db.mailboxSync.create({
+		data: { userId, source: "gmail", autoCreate: false },
+	});
+
+	const company = await db.company.create({
+		data: { name: "Buyer Co", domain },
+		select: { id: true },
+	});
+	await db.contact.create({
+		data: {
+			firstName: "A",
+			lastName: "Buyer",
+			email: person,
+			companyId: company.id,
+		},
+	});
+});
+
+afterAll(clean);
+
+describe("storing a synced email", () => {
+	it("writes the message, the counts and the activity together", async () => {
+		const stored = await threads.store(
+			row,
+			{ origin: "gmail", lane: "forward" },
+			message(`<one-${suffix}@mail.test>`, new Date("2026-01-01T10:00:00Z")),
+			await threads.context(),
+		);
+
+		expect(stored).toBe(true);
+
+		const thread = await db.emailThread.findUnique({
+			where: { rootMessageId: rootId },
+			select: {
+				id: true,
+				messageCount: true,
+				activity: { select: { id: true } },
+			},
+		});
+
+		expect(thread?.messageCount).toBe(1);
+		expect(thread?.activity).not.toBeNull();
+	});
+
+	it("repairs a thread whose projection was lost rather than skipping it forever", async () => {
+		const thread = await db.emailThread.findUnique({
+			where: { rootMessageId: rootId },
+			select: { id: true },
+		});
+		if (!thread) throw new Error("the first message was not stored");
+
+		await db.activity.deleteMany({ where: { emailThreadId: thread.id } });
+		await db.emailThread.update({
+			where: { id: thread.id },
+			data: { messageCount: 0 },
+		});
+
+		const stored = await threads.store(
+			row,
+			{ origin: "gmail", lane: "forward" },
+			message(`<one-${suffix}@mail.test>`, new Date("2026-01-01T10:00:00Z")),
+			await threads.context(),
+		);
+
+		expect(stored).toBe(false);
+
+		const repaired = await db.emailThread.findUnique({
+			where: { id: thread.id },
+			select: { messageCount: true, activity: { select: { id: true } } },
+		});
+
+		expect(repaired?.messageCount).toBe(1);
+		expect(repaired?.activity).not.toBeNull();
+	});
+
+	it("lets one of two concurrent syncs win without failing the other", async () => {
+		const parsed = message(
+			`<race-${suffix}@mail.test>`,
+			new Date("2026-01-02T10:00:00Z"),
+		);
+		const context = await threads.context();
+
+		const results = await Promise.all([
+			threads.store(row, { origin: "gmail", lane: "forward" }, parsed, context),
+			threads.store(
+				row,
+				{ origin: "outlook", lane: "forward" },
+				parsed,
+				context,
+			),
+		]);
+
+		expect(results.filter(Boolean)).toHaveLength(1);
+		expect(
+			await db.emailMessage.count({
+				where: { rfcMessageId: parsed.rfcMessageId },
+			}),
+		).toBe(1);
+
+		const thread = await db.emailThread.findUnique({
+			where: { rootMessageId: rootId },
+			select: { messageCount: true, activity: { select: { id: true } } },
+		});
+
+		expect(thread?.messageCount).toBe(2);
+		expect(thread?.activity).not.toBeNull();
+	});
+
+	it("repairs the thread the message is already on when the root id has moved", async () => {
+		const thread = await db.emailThread.findUnique({
+			where: { rootMessageId: rootId },
+			select: { id: true },
+		});
+		if (!thread) throw new Error("the first message was not stored");
+
+		await db.activity.deleteMany({ where: { emailThreadId: thread.id } });
+		await db.emailThread.update({
+			where: { id: thread.id },
+			data: { messageCount: 0 },
+		});
+
+		const stored = await threads.store(
+			row,
+			{ origin: "outlook", lane: "forward" },
+			message(
+				`<race-${suffix}@mail.test>`,
+				new Date("2026-01-02T10:00:00Z"),
+				movedRoot,
+			),
+			await threads.context(),
+		);
+
+		expect(stored).toBe(false);
+		expect(
+			await db.emailThread.count({ where: { rootMessageId: movedRoot } }),
+		).toBe(0);
+
+		const repaired = await db.emailThread.findUnique({
+			where: { id: thread.id },
+			select: { messageCount: true, activity: { select: { id: true } } },
+		});
+
+		expect(repaired?.messageCount).toBe(2);
+		expect(repaired?.activity).not.toBeNull();
+	});
+});
+
+describe("the real answer flag", () => {
+	function reply(name: string, overrides: Partial<IncomingMessage>) {
+		return {
+			...message(
+				`<${name}-${suffix}@mail.test>`,
+				new Date("2026-01-03T10:00:00Z"),
+			),
+			from: { email: person, name: "A Buyer" },
+			recipients: [{ email: mailbox, name: "Test Rep", kind: "to" as const }],
+			...overrides,
+		};
+	}
+
+	async function flagOf(name: string) {
+		const stored = await db.emailMessage.findUniqueOrThrow({
+			where: { rfcMessageId: `<${name}-${suffix}@mail.test>` },
+			select: { realAnswer: true },
+		});
+		return stored.realAnswer;
+	}
+
+	it("stores the verdict of the rule with every new message", async () => {
+		const context = await threads.context();
+		const cases = [
+			[
+				"sent",
+				message(`<sent-${suffix}@mail.test>`, new Date("2026-01-03T09:00:00Z")),
+				false,
+			],
+			[
+				"answer",
+				reply("answer", { body: "Yes, 500 pallets. What do you pay?" }),
+				true,
+			],
+			[
+				"away",
+				reply("away", { subject: "Automatische Antwort: Pricing" }),
+				false,
+			],
+			[
+				"away-body",
+				reply("away-body", {
+					body: "I am currently out of the office until Monday.",
+				}),
+				false,
+			],
+			["empty", reply("empty", { subject: null, body: "" }), true],
+		] as const;
+
+		for (const [, parsed] of cases) {
+			await threads.store(
+				row,
+				{ origin: "gmail", lane: "forward" },
+				parsed,
+				context,
+			);
+		}
+
+		for (const [name, , real] of cases) {
+			expect({ name, real: await flagOf(name) }).toEqual({ name, real });
+		}
+	});
+});

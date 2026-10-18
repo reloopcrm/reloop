@@ -1,0 +1,432 @@
+import { describe, expect, it } from "bun:test";
+import { fileURLToPath } from "node:url";
+import { USAGE_PROBE_OUTCOMES } from "@crm/db/agent-tasks";
+import { LOCALE, LOCALES } from "@crm/db/locale";
+import { AGENT_MODEL_OPTIONS } from "@crm/db/settings";
+import { BRAND } from "@crm/ui/lib/brand";
+import { ALL_MAILBOX_RECONNECT_REASONS } from "@crm/validation/mailbox-reasons";
+import { PLAN_LIMIT_MESSAGES } from "@crm/validation/plan-limit-reason";
+import ts from "typescript";
+import {
+	GOOGLE_CONNECT_ERROR_FALLBACK,
+	GOOGLE_CONNECT_ERRORS,
+	MICROSOFT_CONNECT_ERROR_FALLBACK,
+	MICROSOFT_CONNECT_ERRORS,
+	SLACK_CONNECT_ERRORS,
+	SLACK_NEVER,
+	SLACK_SUGGESTIONS,
+} from "../app/(app)/[slug]/settings/connections/connection-copy";
+import { BILLING_SETTINGS_NAV, MARKETING_NAV } from "../cloud/slots.data";
+import { DOCS } from "../components/docs/docs-config";
+import { SHOTS } from "../components/site/site-config";
+import { ACTION_LABELS } from "../lib/agent-action-labels";
+import {
+	BRIDGE_ADMIN_HINTS,
+	BRIDGE_DEVELOPER_HINTS,
+	BRIDGE_ERROR_FALLBACK,
+	BRIDGE_ERRORS,
+} from "../lib/agent-bridge-errors";
+import {
+	BUILDER_FOLLOW_UPS,
+	BUILDER_STEPS,
+	DELIVERY_ERROR_FALLBACK,
+	DELIVERY_ERRORS,
+} from "../lib/builder-chat-copy";
+import { CHAT_DATE_GROUPS } from "../lib/chat-date-group";
+import {
+	GRANT_ACCESS_COPY,
+	GRANT_ACCESS_COPY_BOTH,
+	GRANT_ACCESS_INCOMPLETE,
+	GRANT_ACCESS_INCOMPLETE_BOTH,
+} from "../lib/grant-access-copy";
+import { DICTIONARIES, DICTIONARY_MODULES } from "../lib/i18n/dictionaries";
+import { translator } from "../lib/i18n/locale";
+import {
+	SIGN_IN_ERROR_UNREACHABLE,
+	SIGN_IN_ERROR_WITH_CODE,
+	SIGN_IN_ERRORS,
+} from "../lib/sign-in-errors";
+
+const DASHES = /[‒–—―]/;
+
+const de = DICTIONARIES.de;
+
+const translated = LOCALES.filter((locale) => locale !== "en");
+
+const variables = (text: string) =>
+	[...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
+
+async function keysTheAppLooksUp(): Promise<Map<string, string>> {
+	const roots = [
+		fileURLToPath(new URL("../", import.meta.url)),
+		fileURLToPath(new URL("../../../packages/ui/src/", import.meta.url)),
+	];
+	const globs = ["{app,cloud,components,lib}/**/*.{ts,tsx}", "**/*.{ts,tsx}"];
+	const found = new Map<string, string>();
+
+	for (const [index, root] of roots.entries()) {
+		const pattern = globs[index] ?? "**/*.{ts,tsx}";
+		for await (const path of new Bun.Glob(pattern).scan(root)) {
+			if (path.startsWith("lib/i18n/")) continue;
+			const source = ts.createSourceFile(
+				path,
+				await Bun.file(`${root}/${path}`).text(),
+				ts.ScriptTarget.Latest,
+				true,
+				path.endsWith("tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+			);
+			const check = (node: ts.Node): void => {
+				if (
+					ts.isStringLiteral(node) ||
+					ts.isNoSubstitutionTemplateLiteral(node)
+				)
+					found.set(node.text, path);
+				else if (ts.isConditionalExpression(node)) {
+					check(node.whenTrue);
+					check(node.whenFalse);
+				}
+			};
+			const visit = (node: ts.Node): void => {
+				if (
+					ts.isCallExpression(node) &&
+					ts.isIdentifier(node.expression) &&
+					node.expression.text === "t" &&
+					node.arguments[0]
+				)
+					check(node.arguments[0]);
+				ts.forEachChild(node, visit);
+			};
+			visit(source);
+		}
+	}
+
+	return found;
+}
+
+describe("the German dictionary", () => {
+	it("holds every literal key the app looks up", async () => {
+		const missing = [...(await keysTheAppLooksUp())]
+			.filter(([key]) => !(key in de))
+			.map(([key, path]) => `${path}: ${key}`);
+
+		expect(missing).toEqual([]);
+	});
+
+	it("holds every label a cloud slot or a shot hands to t()", () => {
+		const labels = [
+			...[MARKETING_NAV.pricing, MARKETING_NAV.selfHosted].flatMap((link) =>
+				link ? [link.label] : [],
+			),
+			...MARKETING_NAV.reading.map((link) => link.label),
+			...MARKETING_NAV.company.map((link) => link.label),
+			...BILLING_SETTINGS_NAV.map((item) => item.title),
+			...Object.values(SHOTS.images).map((shot) => shot.alt),
+		];
+
+		expect(labels.filter((label) => !(label in de))).toEqual([]);
+	});
+});
+
+describe("every language", () => {
+	it("gives the English key back when it holds no translation", () => {
+		const unknown = "No dictionary in this repository holds this sentence.";
+
+		for (const locale of LOCALES) {
+			const t = translator(DICTIONARIES[locale]);
+
+			expect(t(unknown)).toBe(unknown);
+			expect(t("{count} left", { count: 2 })).toBe("2 left");
+		}
+	});
+
+	it("is named and tagged", () => {
+		for (const locale of LOCALES) {
+			expect(LOCALE.names[locale].length).toBeGreaterThan(0);
+			expect(LOCALE.tags[locale].length).toBeGreaterThan(0);
+		}
+
+		expect(
+			[...LOCALE.writtenByPeople, ...LOCALE.machineTranslated].sort(),
+		).toEqual([...LOCALES].sort());
+	});
+
+	for (const locale of translated) {
+		describe(locale, () => {
+			const modules = DICTIONARY_MODULES[locale] as Record<
+				string,
+				Record<string, string>
+			>;
+
+			it("holds the same modules as German", () => {
+				expect(Object.keys(modules).sort()).toEqual(
+					Object.keys(DICTIONARY_MODULES.de).sort(),
+				);
+			});
+
+			it("knows no key English does not have", () => {
+				const strangers: string[] = [];
+				for (const [name, module] of Object.entries(modules))
+					for (const key of Object.keys(module))
+						if (!(key in de)) strangers.push(`${name}: ${key}`);
+
+				expect(strangers).toEqual([]);
+			});
+
+			it("keeps the interpolation variables of the English key", () => {
+				const broken: string[] = [];
+				for (const [key, value] of Object.entries(DICTIONARIES[locale]))
+					if (variables(value).join() !== variables(key).join())
+						broken.push(`${key} -> ${value}`);
+
+				expect(broken).toEqual([]);
+			});
+
+			it("writes no dash and no empty value", () => {
+				const guilty: string[] = [];
+				for (const [key, value] of Object.entries(DICTIONARIES[locale])) {
+					if (DASHES.test(value)) guilty.push(`dash: ${key}`);
+					if (value.trim() === "") guilty.push(`empty: ${key}`);
+					if (DASHES.test(key)) guilty.push(`dash in key: ${key}`);
+				}
+
+				expect(guilty).toEqual([]);
+			});
+
+			it("never lets one module silently overwrite another", () => {
+				const seen = new Map<string, string>();
+				const clashes: string[] = [];
+
+				for (const [name, module] of Object.entries(modules))
+					for (const [key, value] of Object.entries(module)) {
+						const first = seen.get(key);
+						if (first !== undefined && first !== value)
+							clashes.push(`${name} disagrees on ${key}`);
+						if (first === undefined) seen.set(key, value);
+					}
+
+				expect(clashes).toEqual([]);
+			});
+		});
+	}
+
+	it("reports how much of English it covers", () => {
+		const english = Object.keys(de).length;
+		const coverage = translated.map((locale) => {
+			const held = Object.keys(de).filter(
+				(key) => key in DICTIONARIES[locale],
+			).length;
+			return `${locale} ${Math.round((held / english) * 100)}% (${held}/${english})`;
+		});
+
+		console.log(`dictionary coverage: ${coverage.join(", ")}`);
+		expect(coverage.length).toBe(translated.length);
+	});
+});
+
+describe("the sign-in failure texts", () => {
+	const texts = [
+		...Object.values(SIGN_IN_ERRORS),
+		SIGN_IN_ERROR_WITH_CODE,
+		SIGN_IN_ERROR_UNREACHABLE,
+	];
+
+	for (const english of texts) {
+		it(`says ${english} in German`, () => {
+			expect(de[english]).toBeString();
+			expect(DASHES.test(de[english] ?? "")).toBe(false);
+		});
+	}
+
+	it("keeps the placeholder when it carries a code", () => {
+		expect(de[SIGN_IN_ERROR_WITH_CODE]).toContain("{code}");
+	});
+});
+
+describe("the texts that reach t() through a variable", () => {
+	const hidden = [
+		...Object.values(AGENT_MODEL_OPTIONS)
+			.flat()
+			.map((option) => option.note)
+			.filter((note) => note.length > 0),
+		...Object.values(GRANT_ACCESS_COPY),
+		GRANT_ACCESS_COPY_BOTH,
+		...Object.values(GRANT_ACCESS_INCOMPLETE),
+		GRANT_ACCESS_INCOMPLETE_BOTH,
+		...Object.values(USAGE_PROBE_OUTCOMES),
+		...Object.values(PLAN_LIMIT_MESSAGES),
+		...BUILDER_STEPS,
+		...BUILDER_FOLLOW_UPS,
+		...DELIVERY_ERRORS.values(),
+		DELIVERY_ERROR_FALLBACK,
+		...CHAT_DATE_GROUPS,
+		...ACTION_LABELS.values(),
+		...Object.values(BRIDGE_ERRORS),
+		...BRIDGE_DEVELOPER_HINTS.values(),
+		...BRIDGE_ADMIN_HINTS.values(),
+		BRIDGE_ERROR_FALLBACK,
+		BRAND.tagline,
+		DOCS.index.title,
+		DOCS.index.description,
+		...DOCS.pages.flatMap((page) => [page.title, page.description]),
+	];
+
+	for (const english of hidden) {
+		it(`says ${english.slice(0, 40)} in German`, () => {
+			expect(de[english]).toBeString();
+			expect(DASHES.test(de[english] ?? "")).toBe(false);
+		});
+	}
+
+	for (const locale of translated) {
+		it(`says every one of them in ${locale}`, () => {
+			const dictionary = DICTIONARIES[locale];
+			const chat = hidden.filter(
+				(english) =>
+					(BUILDER_STEPS as readonly string[]).includes(english) ||
+					(BUILDER_FOLLOW_UPS as readonly string[]).includes(english) ||
+					(CHAT_DATE_GROUPS as readonly string[]).includes(english) ||
+					[...ACTION_LABELS.values()].includes(english) ||
+					[...DELIVERY_ERRORS.values()].includes(english) ||
+					(Object.values(BRIDGE_ERRORS) as string[]).includes(english) ||
+					english === BRIDGE_ERROR_FALLBACK ||
+					english === DELIVERY_ERROR_FALLBACK,
+			);
+
+			expect(chat.filter((english) => !(english in dictionary))).toEqual([]);
+		});
+	}
+});
+
+function authErrorMessage(node: ts.NewExpression): ts.Node | undefined {
+	const body = node.arguments?.[1];
+	if (!body || !ts.isObjectLiteralExpression(body)) return undefined;
+
+	const message = body.properties.find(
+		(property) =>
+			ts.isPropertyAssignment(property) &&
+			property.name.getText() === "message",
+	);
+
+	return message && ts.isPropertyAssignment(message)
+		? message.initializer
+		: undefined;
+}
+
+async function apiExceptionMessages(): Promise<Map<string, string>> {
+	const roots = [
+		fileURLToPath(new URL("../../api/src/", import.meta.url)),
+		fileURLToPath(new URL("../../../packages/auth/src/", import.meta.url)),
+	];
+	const found = new Map<string, string>();
+
+	for (const root of roots) {
+		for await (const path of new Bun.Glob("**/*.ts").scan(root)) {
+			const source = ts.createSourceFile(
+				path,
+				await Bun.file(`${root}/${path}`).text(),
+				ts.ScriptTarget.Latest,
+				true,
+			);
+			const visit = (node: ts.Node): void => {
+				if (ts.isNewExpression(node)) {
+					const name = node.expression.getText(source);
+					const message = /Exception$/.test(name)
+						? node.arguments?.[0]
+						: name === "APIError"
+							? authErrorMessage(node)
+							: undefined;
+					if (message && ts.isStringLiteral(message))
+						found.set(message.text, path);
+				}
+				ts.forEachChild(node, visit);
+			};
+			visit(source);
+		}
+	}
+
+	return found;
+}
+
+it("translates every fixed API exception in every language", async () => {
+	const { translateError } = await import("../lib/i18n/errors");
+	const messages = await apiExceptionMessages();
+	const missing: string[] = [];
+
+	for (const locale of translated) {
+		const t = translator(DICTIONARIES[locale]);
+		const fallback = t(
+			"The request failed. Check your input and connection, then try again.",
+		);
+
+		for (const [message, path] of messages)
+			if (translateError(t, locale, message) === fallback)
+				missing.push(`${locale} ${path}: ${message}`);
+	}
+
+	expect(missing).toEqual([]);
+
+	const t = translator(de);
+	const german = t(
+		"The request failed. Check your input and connection, then try again.",
+	);
+
+	expect(
+		translateError(t, "de", "The password needs at least 12 characters."),
+	).toBe("Das Passwort benötigt mindestens 12 Zeichen.");
+	expect(
+		translateError(t, "de", "The password takes at most 128 characters."),
+	).toBe("Das Passwort darf höchstens 128 Zeichen enthalten.");
+	expect(translateError(t, "de", "Unknown vendor failure")).toBe(german);
+	expect(translateError(translator({}), "en", "Unknown vendor failure")).toBe(
+		"Unknown vendor failure",
+	);
+});
+
+it("writes no dash in any text the API source holds", async () => {
+	const root = fileURLToPath(new URL("../../api/src/", import.meta.url));
+	const guilty: string[] = [];
+
+	for await (const path of new Bun.Glob("**/*.ts").scan(root)) {
+		const source = ts.createSourceFile(
+			path,
+			await Bun.file(`${root}/${path}`).text(),
+			ts.ScriptTarget.Latest,
+			true,
+		);
+		const visit = (node: ts.Node): void => {
+			if (
+				(ts.isStringLiteral(node) ||
+					ts.isNoSubstitutionTemplateLiteral(node) ||
+					ts.isTemplateHead(node) ||
+					ts.isTemplateMiddle(node) ||
+					ts.isTemplateTail(node)) &&
+				DASHES.test(node.text)
+			)
+				guilty.push(`${path}: ${node.text.slice(0, 80)}`);
+			ts.forEachChild(node, visit);
+		};
+		visit(source);
+	}
+
+	expect(guilty).toEqual([]);
+});
+
+describe("the connection texts that reach t() through a variable", () => {
+	const texts = [
+		...GOOGLE_CONNECT_ERRORS.values(),
+		GOOGLE_CONNECT_ERROR_FALLBACK,
+		...MICROSOFT_CONNECT_ERRORS.values(),
+		MICROSOFT_CONNECT_ERROR_FALLBACK,
+		...SLACK_CONNECT_ERRORS.values(),
+		...SLACK_NEVER,
+		...SLACK_SUGGESTIONS.flat(),
+		...ALL_MAILBOX_RECONNECT_REASONS,
+	];
+
+	for (const locale of translated)
+		it(`holds every one in ${locale}`, () => {
+			const dictionary = DICTIONARIES[locale];
+
+			expect(texts.filter((text) => !(text in dictionary))).toEqual([]);
+		});
+});

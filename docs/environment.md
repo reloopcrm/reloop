@@ -1,0 +1,432 @@
+# Environment
+
+Setup, DB commands, Google Cloud and the `vercel env pull` hazard: `docs/setup.md`.
+
+## One `.env`, at the repo root
+
+`.env.example` **is the documentation**: every variable the repo reads, with a note,
+and nothing that is not read. `packages/env` walks up to the workspace root and reads
+`.env`, then `.env.local` on top.
+
+- **Real environment variables always win**: the loader never overwrites
+  `process.env`, so Vercel/Docker/CI takes precedence.
+- **Never add a per-package `.env`.** Four once existed with duplicate
+  `DATABASE_URL`/`BETTER_AUTH_SECRET`; when they drifted the API minted a cookie the
+  app could not verify and the browser bounced between `/sign-in` and `/` forever.
+- **The root marker is a `package.json` declaring `workspaces`**: stopping at the
+  first `turbo.json` resolves the API's root to `apps/api`.
+
+## `NEXT_DIST_DIR`, unset by default
+
+The folder `next build` writes into. Unset it and Next.js writes `.next`, which
+is what `next start` and both Docker images read.
+
+Set it only for a deploy that must answer requests while the new build runs:
+build into `.next-build`, rename the folder afterwards, then restart the app.
+Turbo treats the value as part of the build hash, so a relocated build never
+reuses the cache of a normal one.
+
+## A new variable has three homes, not two
+
+`.env.example` and, if the API reads it, `env.validation.ts` are the two people
+remember. The third is **`globalPassThroughEnv` in the root `turbo.json`**, and it is
+the one that bites: Turborepo hides an undeclared variable from every task it runs, so
+a deployment that sets the variable perfectly still hands the code `undefined`, and
+nothing anywhere says so. That is how `MICROSOFT_CLIENT_ID` shipped with the sign-in
+button quietly missing. **`passThroughEnv`, never `env`**: a secret in `env` is a
+cache key, which means a cache miss on every rotation and the secret in the cache
+metadata. The root file's comment has the whole account.
+
+## Required
+
+`DATABASE_URL`, `BETTER_AUTH_SECRET`, `ALLOWED_SIGN_IN`. Everything else has a
+localhost default or is genuinely optional.
+
+**`GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`** are the sign-in button *and* the
+Gmail/Calendar sync: optional, so an SSO-only install needn't create a Google project,
+but both values enable the provider. An incomplete pair disables that provider and logs a warning.
+
+**`MICROSOFT_CLIENT_ID` + `MICROSOFT_CLIENT_SECRET`** are the same bargain for Entra
+ID: the other sign-in button *and* the Outlook mail sync, one app registration, the
+same pair rule. **`MICROSOFT_TENANT_ID`** defaults to `common` and is the only one of
+the three that is genuinely optional on its own: set it to your tenant's GUID to
+refuse other tenants at Microsoft instead of at `ALLOWED_SIGN_IN`. There is **no
+Microsoft equivalent of `hd`**: `tenantId` is the whole of it.
+
+**All three pairs can be typed on Settings, Connections instead**, on a hosted install
+and on a self-hosted one. A saved pair is sealed in `AppSetting` and **wins over the
+line in `.env`**, because a person just typed it. Clear it there and the file decides
+again. The API restarts itself so the new value reaches the `auth` instance. See
+`docs/connections.md`.
+
+**Neither pair is required.** Password sign-in, an available OAuth provider, or an SSO provider supplies account access.
+Incomplete optional credentials disable that provider. They do not prevent API startup.
+
+**`ALLOWED_SIGN_IN`**: comma-separated whole domains or single addresses (bare
+addresses exist for a solo self-hoster, where `gmail.com` would be an open door). **One
+list, read by the sign-in guard *and* the sync's "which side is external" decision**:
+if they drifted a colleague would be refused at the door or filed as a lead. **An empty
+list fails closed.** Parsed on demand. `packages/auth/src/workspace.ts`.
+
+## Where things are
+
+- **`API_URL`** (`:3001`) mints session cookies and serves `/api/auth/*`;
+  `next.config.ts` republishes it as `NEXT_PUBLIC_API_URL`, so one variable does both
+  sides. `BETTER_AUTH_URL` is a legacy fallback.
+- **The API dev command compiles before each start.** `apps/api/scripts/dev.ts` watches API source, tsconfig, and shared packages.
+  A successful build restarts `dist/main.js`. A failed build leaves the previous process running.
+  The next successful build replaces that process.
+- **`APP_URL`** (`:3000`) is also the trusted-origin and `callbackURL` allow-list.
+- **Every OAuth `redirect_uri` is built from `API_URL`, never `APP_URL`.** Better
+  Auth serves `/api/auth/*` at `baseURL`, and `baseURL` is `apiUrl`. A redirect
+  built from `APP_URL` points at the web app, where `/api/auth/callback` does not
+  exist, and the provider rejects it with "redirect_uri did not match". This is
+  invisible until someone sets `APP_URL` to a tunnel or a LAN host, at which
+  point the redirect silently becomes that host. `ssoCallbackBase()` is the
+  pattern; `slackRedirectUri` in `auth.ts` once was not.
+- **`AUTH_COOKIE_DOMAIN`** only for API and app on different subdomains of one parent.
+- **`AGENT_URL`** is the agent's deployment, server-side only, and **must include the
+  scheme**: validated at boot, or it throws when a task is queued instead.
+- **`AUTH_COOKIE_PREFIX` is `crm`** (`@crm/auth/cookies`), set on **both**
+  `advanced.cookiePrefix` in `auth.ts` and `getSessionCookie(request, { cookiePrefix })`
+  in `proxy.ts`: one alone redirects every signed-in request. Better Auth's default
+  collides with any neighbour on a shared parent domain, silently: sign-in completes,
+  the row is written, every reader resolves `null`. **Changing it signs everybody out.**
+
+## `IS_MARKETING`, landing page flag, off by default
+
+`"true"` serves `app/(landing)` at `/`; anything else sends a signed-out visitor to
+`/sign-in`, because the page markets *this* product. The open source build has no
+landing page, pricing or reading pages: those come with the hosted Cloud's
+private overlay. Without it `/` sends a visitor without a session to
+`/sign-in` and a signed-in one to the workspace. The
+public site of this build is the docs, `/contact`, `/privacy` and `/imprint`.
+
+- **Only the literal `true`** (same shape as `PRISMA_LOG_QUERIES`).
+- **It decides one thing**: what a stranger at `/` sees.
+- **`isMarketing()` (`apps/app/lib/env.ts`) reads per request**, so a config change
+  needs no rebuild. Declared in `apps/app/turbo.json` `passThroughEnv`.
+
+## `RELOOP_CLOUD_URL`, unset by default
+
+The address of the hosted Cloud, for a marketing site that runs on another
+address: `reloopcrm.com` sells, `app.reloopcrm.com` signs people up. With it set,
+every sign-up link ("Try it now" on the pricing page, "Get started" in the
+footer) points at `<RELOOP_CLOUD_URL>/get-started?plan=<id>`, and `/get-started`
+on this site redirects there with the same plan. Sign-in stays on this site.
+
+- **Only the sign-up links move.** Pricing, docs and sign-in stay here.
+- **Unset or empty means off**: the links stay relative. The compose file passes
+  `${RELOOP_CLOUD_URL:-}`, so an empty string is the normal off state.
+- **`signUpUrl()` (`apps/app/lib/site-links.ts`) reads it on the server** and
+  hands a plain string to the client component. Declared in `apps/app/turbo.json`
+  `passThroughEnv`. The API does not read it.
+
+A hosted build lists its own open routes in `HOSTED_ROUTES`
+(`apps/app/cloud/slots.data.ts`). The open source build has no `/get-started`
+page.
+
+With `RELOOP_CLOUD_URL` set, `sitemap.xml` and `llms.txt` leave `/get-started`
+out, because the page only redirects.
+
+## `RELOOP_SITE_URL`, unset by default
+
+The other direction: the address of the marketing site, set on the hosted Cloud.
+The Cloud serves `/get-started` and `/docs` inside the landing shell, and the
+shell links to pricing, about, privacy and the reading pages. Those pages answer
+404 on the Cloud, because `IS_MARKETING` is off there. With `RELOOP_SITE_URL` set,
+every link to a marketing page becomes `<RELOOP_SITE_URL>/<page>`, including
+"Change plan" on the sign-up form, and the logo on sign-in, sign-up,
+onboarding and grant-access. Docs and sign-in stay here.
+
+- **Unset or empty means off**: the links stay relative. The compose file passes
+  `${RELOOP_SITE_URL:-}`.
+- **`marketingUrl()` (`apps/app/lib/site-links.ts`) reads it on the server** and
+  hands a plain string to a client component. Declared in `apps/app/turbo.json`
+  `passThroughEnv`. The API does not read it.
+
+## `RELOOP_MARKETING_HOST`, unset by default
+
+The hosted Cloud serves the marketing site itself, on a second host name. A
+comma separated list of host names, `reloopcrm.com,www.reloopcrm.com`. A request
+whose `Host` (or `X-Forwarded-Host`) is on the list gets the public pages exactly
+as `IS_MARKETING="true"` does: the landing page at `/`, pricing, about, docs, the
+reading pages, `llms.txt` and the sitemap. Every other host is the app as before.
+
+- **`/sign-in` and `/get-started` on that host redirect to `RELOOP_CLOUD_URL`**,
+  with the query, so `?plan=` survives. Without `RELOOP_CLOUD_URL` they render
+  here.
+- **An app link on that host redirects to `RELOOP_CLOUD_URL` too**, with the same
+  path, so a rep who types `reloopcrm.com/companies` lands in the Cloud. A page
+  nobody serves is a 404.
+- **`siteAddress()` prefers `RELOOP_SITE_URL`** when it is set, so canonical
+  links, the sitemap, `robots.txt`, `llms.txt` and the structured data name the
+  marketing address and not the app's.
+- **Only the app reads it**: `isMarketingHost()` (`apps/app/lib/env.ts`) in the
+  proxy, per request. Declared in `apps/app/turbo.json` `passThroughEnv` and
+  passed by the hosted Cloud's compose file.
+
+## `RELOOP_IMPRINT_*`, the public `/imprint`, `/privacy` and `/contact` pages, off by default
+
+Six optional variables: `RELOOP_IMPRINT_NAME`, `RELOOP_IMPRINT_BUSINESS`,
+`RELOOP_IMPRINT_ADDRESS`, `RELOOP_IMPRINT_EMAIL`, `RELOOP_IMPRINT_VAT_ID`,
+`RELOOP_IMPRINT_PHONE`. Real names never belong in this public repository, so
+they come from the server's own environment instead of a file anyone can read.
+
+- **`RELOOP_IMPRINT_NAME` is the gate.** Unset it and `/imprint` 404s and the
+  footer link disappears, on every install, with no error either way.
+  `getImprint()` (`apps/app/lib/imprint.ts`) is the only reader, parsed with
+  Zod the same way `organisationEntry()` reads the `ORG_*` block.
+- **`RELOOP_IMPRINT_ADDRESS` holds one or more lines**, separated by `;` (the
+  only separator a single `.env` line allows) or by a real newline.
+- **`/privacy` and `/contact` read the same `getImprint()` and fall back to a
+  neutral sentence, never a `{{placeholder}}`,** when nothing is configured.
+- **Listed in `apps/app/lib/proxy-config.ts` `PROXY.marketing`**, the list the
+  Cloud's `MARKETING_ROUTES` join: reachable only when `IS_MARKETING` or `RELOOP_MARKETING_HOST`
+  says this is the public site. Declared in `apps/app/turbo.json`
+  `passThroughEnv`, and passed through to the `app` service's `environment` in
+  `deploy/docker-compose.yml` the same way as `RELOOP_SITE_URL` and
+  `RELOOP_PLANS`.
+- **`/imprint`, `/privacy` and `/contact` all carry
+  `robots: { index: false, follow: true }`** and are left out of `sitemap.ts`
+  on purpose, since any of the three can show the operator's name, so they stay
+  reachable without appearing in search results.
+- **Separate from the `ORG_*` block above.** `ORG_*` feeds the invisible
+  Organization JSON-LD; `RELOOP_IMPRINT_*` renders a page a visitor reads. They
+  are not kept in sync with each other.
+
+## `GOOGLE_SITE_VERIFICATION`, unset by default
+
+Google Search Console proves that the site belongs to you. The DNS method needs
+a TXT record at your domain provider. The HTML tag method needs this variable:
+paste the token Search Console shows for "HTML tag", without the surrounding
+meta tag. The app then writes the tag into every page of the public site.
+
+## `RELOOP_PLANS`, off by default
+
+The Plan card in Settings names the limits of the stored plan. The open source
+build carries no tariff catalog: its `cloud.plans` port answers no limit for
+every plan string, so the card then offers only "No plan, no limits". The
+hosted Cloud's private overlay fills the port with its catalog. A self-hosted
+install has no plan, so the card only renders when `RELOOP_PLANS` is the literal
+`"true"`. The operator of a hosted install sets it; nobody else does.
+
+## `RELOOP_MANAGED`, off by default
+
+An install that an operator keeps up to date: the hosted Cloud, or a server that runs
+from source under systemd. When it is the literal `"true"`, the Version card shows the
+version and the state only, with one sentence that the operator updates the install. No
+command, no Update button, no dot on the settings icon. `managedInstall()`
+(`apps/app/lib/operator.ts`) reads it on the server, next to `plansOffered`. The API
+reads it too: `system.update` answers `refused` and `system.version` reports
+`updaterAvailable: false`, even when an updater answers. Declared in
+`env.validation.ts`, the root `turbo.json` and `apps/app/turbo.json`.
+
+## Optional cloud modules
+
+Optional cloud modules can fill the slots of the port in `docs/api.md`. They
+read their own variables and document them themselves. Nothing in this
+repository reads those variables, and a self-hosted install sets none of them.
+The open source build has no billing code, no payment variable and no plan shop.
+
+## `AGENT_HISTORY_RETENTION_DAYS`, off by default
+
+Empty means nothing is deleted. A positive number makes `pruneAgentHistory`
+(`apps/agent/agent/lib/housekeeping.ts`) delete `agentEvent` rows and finished
+`agentTask` rows older than that many days, `DISPATCH.retention.batch` rows per
+dispatch tick. The record sheet's offline transcript reaches back that far. A
+value that is not a positive integer counts as off. Declared in the root and the
+agent's `turbo.json`.
+
+## `AGENT_SHARED_KEY_PER_MINUTE`, 300 by default
+
+Hosted mode only. The number of model calls per minute the operator's
+`OPENROUTER_API_KEY` carries across every tenant, read by `keyBucket()` in
+`apps/agent/agent/lib/key-bucket.ts`. `DISPATCH.bucket` keeps 30 % of it for the
+fast lane and shares the rest between the tenants' backfills by plan. A value
+that is not a positive integer counts as the default. Declared in the agent's
+`turbo.json` and passed to the agent container by `deploy/docker-compose.yml`,
+not in the API's schema, because only the agent reads it.
+
+## `RELOOP_DEMO`, off by default
+
+A floating Play demo button drives a scripted tour of the real app with a fake
+cursor, for recording a product video. It only renders when `RELOOP_DEMO` is the
+literal `"true"`. `demoOffered()` (`apps/app/lib/operator.ts`) reads it on the
+server. The steps and timings live in
+`apps/app/components/demo/demo-tour-config.ts`. A normal install leaves it unset.
+
+## `RELOOP_GERMAN`, off by default
+
+**The app ignores this variable.** Every person picks one of seven languages in
+Settings > General and the choice lives in the `crm.locale` cookie. An install that
+still sets `RELOOP_GERMAN` keeps working and loses nothing. `docs/languages.md` says
+how a language is added.
+
+The variable is left for the agent only, and only as a default. The agent writes in the
+language of each workspace, `AppSetting.agentLanguage`, which an admin picks under
+**Agent language** in Settings > General and a hosted sign-up fills with the language the
+person signed up in. A workspace with no value, or with a value that is not one of the
+seven locales, falls back to this variable: the literal `"true"` means German, anything
+else English (`defaultAgentLanguage` in `@crm/validation/agent-language`). Thread
+summaries and the contact memory are the exception: without a value and without
+`"true"` they are written in the language of the conversation, not in English. A
+self-hosted install that set it before keeps writing German until an admin picks
+another language. The API reads the same variable only to show that default on the
+settings card in hosted mode, and the hosted Cloud stores it for a new workspace
+signed up without a language. It reaches both when you run from source. Neither container in
+`deploy/docker-compose.yml` receives it, so there the default is English on both sides.
+Declared in `env.validation.ts` and the root `turbo.json`.
+
+## `RELOOP_UPDATE_CHECK`, on by default
+
+`system.version` (`apps/api/src/system`) reports the version from the root
+`package.json` and asks `api.github.com` for the newest release, no token, a short
+timeout, one call per six hours per process. A failed call gives `latest: null`,
+retries after `SYSTEM.updateCheck.retryMs`, and keeps the last good answer. The
+literal `"false"` turns the call off; the procedure then answers `checkDisabled: true`
+and never reaches GitHub. Declared in `env.validation.ts` and the root `turbo.json`.
+
+## `UPDATER_TOKEN` and `UPDATER_URL`, off by default
+
+`system.update` posts to the updater container (watchtower, `deploy/docker-compose.yml`,
+profile `updater`) with `UPDATER_TOKEN` as bearer token and a five second timeout. The
+updater answers only after it finished, and it restarts the API on the way, so a timeout
+counts as `started`. Without the token, or when the updater does not answer, the result
+is `unavailable`. A user who is not the workspace owner gets `refused`. Nothing here
+throws. `system.version` reports `updaterAvailable` for the owner only, and only while an
+update waits: it sends one request without the token and expects `401`. `UPDATER_URL`
+defaults to `http://updater:8080`. `install.sh` writes the token; the operator turns the
+profile on. `docs/self-host.md` names the trade-off. Declared in `env.validation.ts` and
+the root `turbo.json`.
+
+## Typed, validated env
+
+`apps/api/src/config/env.validation.ts` runs via `ConfigModule.forRoot({ validate })`,
+and lists every variable the API reads and nothing else.
+
+- **Validation runs while `AppModule` is evaluated**: a test must set variables before
+  importing it (see the dynamic `import()` in `test/auth.e2e.spec.ts`).
+- **The schema is the API's, not the repo's**: `@crm/auth` and the agent read their own.
+
+## Optional: what the agent can do
+
+Every outside source is optional and the agent runs with none. A missing key removes a
+place to look; **never an error, never throws**. `agent/lib/capabilities.ts` is the
+single place that knows what is set.
+
+| Variable | What it adds |
+| --- | --- |
+| `PERPLEXITY_API_KEY` | Open-web research with citations |
+| `GITHUB_TOKEN` | Raises the GitHub rate limit from 60/hour |
+| `BLOB_READ_WRITE_TOKEN` | Mirrors logos and photos into Blob |
+| `OPENROUTER_API_KEY` | The model through OpenRouter, when no key was pasted on Settings → AI. A pasted key wins. In hosted mode it is the operator's key for every plan with AI included, and a pasted key is not read |
+| `AGENT_BRIDGE_SECRET` | The rep-facing Agent panel, see `agent.md` |
+| `CODEX_HOME` | Where the Codex login lives and where the agent downloads codex on the first ChatGPT sign-in. Defaults to `~/.codex` |
+
+`BLOB_READ_WRITE_TOKEN` is also in `env.validation.ts` and `apps/api/turbo.json`
+because the API and the seed write pictures too. The Next.js app is deliberately
+excluded: recognising our URL for the image optimizer needs no token.
+
+### There is no research vendor key
+
+> [!WARNING]
+> **Context.dev is gone, and `CONTEXT_DEV_API_KEY` must not come back.** The key bought
+> two places to look and returned almost nothing: on the reference install 2528 of 2537
+> companies carried a `401 USAGE_EXCEEDED`, three had a logo, and no contact had a
+> LinkedIn URL. It cost a paid key, an onboarding step and a settings card.
+
+- **Company brand data now reads the company's own website.** `lib/website-brand.ts`
+  fetches the homepage through `@crm/db/safe-fetch` and asks the configured model for
+  the facts on it. It is the only brand path
+  (`apps/agent/test/website-brand.integration.spec.ts`).
+- **With no model provider it still answers.** `directModel` throwing falls back to the
+  page's own metadata, so a `brand` task never throws.
+- **Nothing is lost while a page cannot be read.** A `brand` task settles `SKIPPED`
+  *before* anything marks the row `RUNNING`, and `settle` only overwrites `RUNNING`, so
+  the company stays `PENDING`, which the sweep re-queues.
+- **`AppSetting.contextDevApiKey` is still a column and still holds whatever an
+  operator saved.** Nothing reads it. It is left alone on purpose: dropping it would
+  destroy a secret somebody pasted, and an empty column costs nothing.
+
+## Mailbox sync
+
+Always on, on whichever social provider is configured, so there is no extra redirect
+URI beyond the sign-in one. Scopes are requested at sign-in and gated by
+`requireMailboxAccess()`, because granular consent lets a user untick one and still
+sign in.
+
+**An SSO rep is not gated**: `needsMailboxGrant` (`@crm/auth`) walls only an account
+whose sign-in rows are *all* mailbox providers. It cannot be "has the scopes": an SSO
+rep has no Google or Microsoft account to grant on, and `revoke()` keeps the `account`
+row, so trying the optional feature and revoking would lock them out. They connect from
+Settings → Connections, posting the same `linkSocial` call.
+
+**One granted mailbox is enough.** A rep with both providers linked who granted Google
+is not asked for Outlook; `mailboxGrantsNeeded` names the ones still outstanding and
+`/grant-access` offers exactly those buttons.
+
+**Microsoft's granted scopes come back fully qualified**:
+`https://graph.microsoft.com/Mail.Read`, not `Mail.Read`. `parseScopes` is the one
+canonicaliser and strips that prefix, so the comparison is against the bare permission
+everywhere.
+
+**Mail reads both ways, the calendar only forwards**: Gmail records the current
+`historyId` and Outlook records `now`, then each also reads its own history
+backwards from that moment. Calendar reads from `now` and never looks back. How
+far back mail goes is `MailboxSync.importSince`, asked on the connection page and
+clamped by the plan. See `docs/connections.md`.
+
+**`MAILBOX_SYNC_MAX_PER_TICK`** (1000), **`MAILBOX_SYNC_BACKFILL_CHUNK`** (500)
+and **`MAILBOX_SYNC_PAGE_SIZE`** (200) size one tick per mailbox, all optional,
+positive integers, parsed once by `mailboxSyncConfig` in
+`apps/api/src/mailbox/mailbox.config.ts`. `MAX_PER_TICK` caps the messages one
+tick stores for Outlook and IMAP; Gmail never goes above its API quota share
+(`GMAIL_QUOTA`: 6,000 units per user per minute, `messages.get` costs 20, 80 %
+used, so 240 per tick), because a tick runs at most once a minute and a higher
+number only buys 429s. A lower cap lowers Gmail too. `BACKFILL_CHUNK` is the ids one
+Gmail `messages.list` call asks for (its maximum is 500) and the width of one
+IMAP `FETCH` range. `PAGE_SIZE` is the Graph `$top` for Outlook, bodies
+included: Graph allows 1000, and its own docs warn a page of hundreds of full
+bodies can time out with a 504. The forward read keeps its fixed share of 120
+and always runs first. The tick budget (30 s per tenant hosted, 60 s otherwise)
+and the plan's `importThreads` cap still apply on top, so a bigger number never
+runs a tick past its budget or a mailbox past its plan. Based on the Gmail
+API quota page, the Graph `user-list-messages` reference, and the Graph
+throttling limits (10,000 requests per mailbox per app per 10 minutes, 4
+concurrent) as of September 2026.
+
+**`CRON_SECRET`** (min 16 chars) guards `POST /internal/sync/mailboxes` and
+`/internal/sync/rates`; both **fail closed when unset**. `/internal/sync/google` is
+kept as an alias of the first, so an existing deployment's cron does not break on
+deploy. **Crons live in `apps/api/vercel.json`**: mailboxes `*/5 * * * *`, rates
+daily. Minute-level schedules need a Pro plan; on Hobby it silently becomes daily.
+
+Deliberate absences: **no `GOOGLE_SYNC_ENABLED`** (a switch that can disable a mandatory
+feature is only ever wrong), **no `GOOGLE_WORKSPACE_DOMAIN`** (`ALLOWED_SIGN_IN` already
+says who is internal: two sources is how a colleague becomes a lead), **no
+`GMAIL_BACKFILL_DAYS`**, **no `OUTLOOK_BACKFILL_DAYS`** (how far back is a
+question for the person connecting the mailbox, not for the operator), **no rate
+provider variable**.
+
+## Telemetry is on, and turning it off is one variable
+
+`CRM_TELEMETRY_DISABLED="1"`, or `DO_NOT_TRACK=1`, honoured identically, and nothing
+is sent. No client is constructed, so there is no queue waiting to flush later.
+
+- **Server side only**, `posthog-node` in the API and the agent. No browser SDK
+  exists anywhere, the landing page included. `docs/telemetry.md`.
+- **The destination comes from `POSTHOG_KEY`, `POSTHOG_HOST` and `POSTHOG_UI_HOST`**
+  (`packages/telemetry/src/project.ts`). Without `POSTHOG_KEY` nothing is sent.
+- **The install ID is a row, not a file**: `install`, one row, UUID written by
+  the migration. Vercel's filesystem is ephemeral, so `~/.crm/telemetry-id`
+  would count containers.
+- Declared in `env.validation.ts` as optional, like everything else here. Every
+  event and the never-sent list are in **`docs/telemetry.md`**.
+
+## Not env vars
+
+- **Cache TTL**: `DEFAULT_TTL_MS` (60s) in `cache.module.ts`; `CACHE_TTL_MS` overrides.
+- **Redis**: optional; without `REDIS_URL` the cache is per-instance in-memory, which
+  is wrong for multi-instance.
+- **Sign-in method**: Google and Microsoft are in code; an IdP is a row (SSO, in `api.md`).

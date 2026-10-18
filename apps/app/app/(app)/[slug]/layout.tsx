@@ -1,0 +1,196 @@
+import { isWorkspaceAdmin } from "@crm/auth";
+import { cloud } from "@crm/db/cloud/scope";
+import type { Metadata } from "next";
+import { notFound, unstable_rethrow } from "next/navigation";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import {
+	hostedCustomer,
+	pendingPurchase,
+	requestScope,
+} from "@/cloud/scope.server";
+import { CheckoutBanner } from "@/cloud/slots";
+import { AgreementGate } from "@/cloud/slots.server";
+import { AppHeader, AppHeaderFallback } from "@/components/app-header";
+import { AppSidebar, AppSidebarFallback } from "@/components/app-sidebar";
+import { QuickSwitcher } from "@/components/crm/quick-switcher";
+import { RecordSheetHost } from "@/components/crm/record-sheet/record-sheet-host";
+import { DemoTour } from "@/components/demo/demo-tour";
+import { MobileNavProvider } from "@/components/mobile-nav";
+import { SampleDataBanner } from "@/components/sample-data";
+import { UpdateBanner } from "@/components/update-banner";
+import { demoOffered, managedInstall } from "@/lib/operator";
+import {
+	requireMailboxAccess,
+	requireSession,
+	workspaceRole,
+} from "@/lib/session";
+import { HydrateClient } from "@/lib/trpc/hydrate";
+import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceLabel } from "@/lib/workspace-label";
+
+export async function generateMetadata(): Promise<Metadata> {
+	await connection();
+	const workspace = await loadWorkspace();
+	const label = workspaceLabel(workspace?.name);
+
+	return { title: { absolute: label, template: `%s \u00b7 ${label}` } };
+}
+
+export default function AppLayout({
+	children,
+	params,
+}: LayoutProps<"/[slug]">) {
+	return (
+		<MobileNavProvider>
+			<div className="isolate flex h-svh">
+				<Suspense fallback={<AppSidebarFallback />}>
+					<WorkspaceSidebar params={params} />
+				</Suspense>
+
+				<div className="flex min-w-0 flex-1 flex-col">
+					<Suspense fallback={<AppHeaderFallback />}>
+						<WorkspaceHeader params={params} />
+					</Suspense>
+
+					<Suspense fallback={null}>
+						<UpdateNotice />
+					</Suspense>
+
+					<Suspense fallback={null}>
+						<CheckoutNotice />
+					</Suspense>
+
+					<SampleDataBanner />
+
+					<div className="flex min-h-0 flex-1">{children}</div>
+				</div>
+
+				<Suspense fallback={null}>
+					<RecordSheets />
+				</Suspense>
+
+				<Suspense fallback={null}>
+					<QuickSwitcher />
+				</Suspense>
+
+				<Suspense fallback={null}>
+					<AgreementGate />
+				</Suspense>
+
+				{demoOffered() ? (
+					<Suspense fallback={null}>
+						<DemoTour />
+					</Suspense>
+				) : null}
+			</div>
+		</MobileNavProvider>
+	);
+}
+
+async function RecordSheets() {
+	await connection();
+	const session = await requireSession();
+	const canManage = isWorkspaceAdmin(await workspaceRole(session.user.id));
+
+	return <RecordSheetHost canManage={canManage} />;
+}
+
+async function UpdateNotice() {
+	if (managedInstall()) return null;
+
+	await connection();
+	const session = await requireSession();
+
+	if ((await workspaceRole(session.user.id)) !== "owner") return null;
+
+	return <UpdateBanner />;
+}
+
+async function CheckoutNotice() {
+	await connection();
+	if (!(await hostedCustomer())) return null;
+	const wanted = await pendingPurchase();
+	if (!wanted) return null;
+
+	const session = await requireSession();
+	if (!isWorkspaceAdmin(await workspaceRole(session.user.id))) return null;
+
+	return (
+		<div className="px-4 pt-4 md:px-(--spacing-page-inline) md:pt-(--spacing-page-top)">
+			<CheckoutBanner
+				wanted={wanted}
+				label={cloud.plans.limitsOf(wanted.plan).label}
+			/>
+		</div>
+	);
+}
+
+async function loadDealStages() {
+	try {
+		return await getServerQueryClient().prefetchQuery(
+			getServerTrpc().settings.dealStages.queryOptions(),
+		);
+	} catch (error) {
+		unstable_rethrow(error);
+		return null;
+	}
+}
+
+async function loadWorkspace() {
+	try {
+		return await getServerQueryClient().fetchQuery(
+			getServerTrpc().workspace.get.queryOptions(),
+		);
+	} catch (error) {
+		unstable_rethrow(error);
+		return null;
+	}
+}
+
+async function loadChrome(params: LayoutProps<"/[slug]">["params"]) {
+	await connection();
+	const [{ user }, { slug }, workspace] = await Promise.all([
+		requireMailboxAccess(),
+		params,
+		loadWorkspace(),
+		loadDealStages(),
+	]);
+
+	if (workspace && workspace.slug !== slug) notFound();
+
+	return {
+		user: { name: user.name, email: user.email, image: user.image ?? null },
+	};
+}
+
+async function planLabel(): Promise<string | null> {
+	await connection();
+	if (!(await hostedCustomer())) return null;
+	const tenant = await requestScope();
+	return tenant ? cloud.plans.limitsOf(tenant.plan).label : null;
+}
+
+async function WorkspaceSidebar({
+	params,
+}: Pick<LayoutProps<"/[slug]">, "params">) {
+	const [{ user }, plan] = await Promise.all([loadChrome(params), planLabel()]);
+
+	return (
+		<HydrateClient>
+			<AppSidebar managed={managedInstall()} user={user} plan={plan} />
+		</HydrateClient>
+	);
+}
+
+async function WorkspaceHeader({
+	params,
+}: Pick<LayoutProps<"/[slug]">, "params">) {
+	await loadChrome(params);
+
+	return (
+		<HydrateClient>
+			<AppHeader />
+		</HydrateClient>
+	);
+}

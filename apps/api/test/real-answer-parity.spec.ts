@@ -1,0 +1,324 @@
+import { describe, expect, it } from "bun:test";
+import { db, Prisma } from "@crm/db";
+import { type AnswerCandidate, isRealAnswer } from "@crm/db/message-text";
+import { realAnswer, realAnswerRule } from "@crm/db/real-answer";
+
+const person = "anna@example.com";
+
+const samples = {
+	realReply: inbound({ body: "Yes, we have 500 pallets. What do you pay?" }),
+	noSubjectNoBody: inbound({ subject: null, body: null }),
+	snippetOnly: inbound({ body: null, snippet: "Sounds good, call me." }),
+	outbound: {
+		...inbound({ body: "Shall we talk?" }),
+		direction: "OUTBOUND",
+	},
+	outOfOfficeSubject: inbound({
+		subject: "AW: Automatische Antwort: Paletten",
+	}),
+	outOfOfficeBody: inbound({
+		body: "Thanks for your email. I am currently out of the office until Monday.",
+	}),
+	germanVacationBody: inbound({
+		body: "Guten Tag, ich bin bis zum 20.09. nicht im Büro und lese keine Mails.",
+	}),
+	vacationAcrossLines: inbound({
+		body: "Guten Tag, ich bin bis zum 20.09.\nnicht im Büro.",
+	}),
+	snippetAutoReply: inbound({
+		body: null,
+		snippet: "This is an automated reply. I will be back on Monday.",
+	}),
+	autoReplyPastTheLimit: inbound({
+		body: `${"Thanks for the offer. ".repeat(40)}I am currently out of the office.`,
+	}),
+	autoReplyAfterEmoji: inbound({
+		body: `${"😀".repeat(50)}${"a".repeat(700)} I am away.`,
+	}),
+	autoReplyAfterEmojiInsideTheLimit: inbound({
+		body: `${"😀".repeat(50)}${"a".repeat(600)} I am away.`,
+	}),
+	bounceAfterEmoji: inbound({
+		body: `${"😀".repeat(100)}${"a".repeat(630)} This is the mail system at host mail.example.com.`,
+	}),
+	autoReplyWithNoBreakSpace: inbound({ body: "I\u00a0am away until Monday." }),
+	autoReplyWithEmSpace: inbound({ body: "I\u2003am away until Monday." }),
+	autoReplyWithZeroWidthNoBreakSpace: inbound({
+		body: "I\ufeffam away until Monday.",
+	}),
+	nextLineIsNotWhitespace: inbound({ body: "I\u0085am away until Monday." }),
+	autoReplyWithLineSeparator: inbound({ body: "I\u2028am away until Monday." }),
+	autoReplyAfterAccentedLetter: inbound({
+		body: "Caf\u00e9this is an automated reply.",
+	}),
+	vacationAfterGermanUmlaut: inbound({
+		body: "Gr\u00fc\u00dfich bin derzeit nicht im B\u00fcro.",
+	}),
+	autoReplyAfterCedilla: inbound({
+		body: "Fran\u00e7i am away until Monday.",
+	}),
+	bounceAfterAccentedLetter: inbound({
+		body: "Caf\u00e9this is the mail system at host mail.example.com.",
+	}),
+	germanBounceAfterUmlaut: inbound({
+		body: "Gr\u00fc\u00dfihre Nachricht konnte nicht zugestellt werden.",
+	}),
+	autoReplyAfterDigit: inbound({ body: "5this is an automated reply." }),
+	autoReplyAfterUnderscore: inbound({ body: "_this is an automated reply." }),
+	autoReplyAfterHyphen: inbound({ body: "-this is an automated reply." }),
+	upperUmlautVacationBody: inbound({
+		body: "ICH BIN DERZEIT NICHT IM B\u00dcRO.",
+	}),
+	upperUmlautUrgentBody: inbound({
+		body: "IN DRINGENDEN F\u00c4LLEN WENDEN SIE SICH AN HERRN MEIER.",
+	}),
+	upperUmlautSubject: inbound({
+		subject: "AW: \u00dcBERMITTLUNGSSTATUS",
+	}),
+	lowerUmlautSubject: inbound({
+		subject: "\u00fcbermittlungsstatus",
+	}),
+	upperUmlautForwardHeader: inbound({
+		body: "Ja, passt.\n-----URSPR\u00dcNGLICHE NACHRICHT-----\nIch bin derzeit nicht im B\u00fcro.",
+	}),
+	longSInAutomatedBody: inbound({
+		body: "Thi\u017f is an automated reply.",
+	}),
+	longSInAutomatedBodyUpper: inbound({
+		body: "THI\u017f IS AN AUTOMATED REPLY.",
+	}),
+	longSInSubject: inbound({ subject: "Out of the office\u017f" }),
+	longSInsidePatternSubject: inbound({ subject: "Au\u017ftomatic reply" }),
+	longSInsidePatternBody: inbound({
+		body: "I am cur\u017frently out of the office.",
+	}),
+	longSReplacingS: inbound({ body: "This i\u017f an automated reply." }),
+	kelvinInBounceBody: inbound({
+		body: "Ihre Nachricht \u212aonnte nicht zugestellt werden.",
+	}),
+	kelvinInGermanBounceBody: inbound({
+		body: "Die E-Mail kann an folgende Adresse nicht zugestellt werden, \u212aann.",
+	}),
+	kelvinInSubject: inbound({ subject: "Failure notice \u212a" }),
+	kelvinInsidePatternSubject: inbound({
+		subject: "Undeliverable pac\u212aage",
+	}),
+	dottedCapitalIInBody: inbound({ body: "\u0130 am away until Monday." }),
+	dotlessIInBody: inbound({ body: "\u0131 am away until Monday." }),
+	dotlessIInsidePatternWord: inbound({
+		body: "Thanks. I am currently out of the off\u0131ce.",
+	}),
+	dottedCapitalIInsidePatternWord: inbound({
+		body: "Thanks. I am currently out of the off\u0130ce.",
+	}),
+	dottedCapitalIInSubject: inbound({ subject: "Out of the off\u0130ce" }),
+	dotlessIInSubject: inbound({ subject: "Out of the off\u0131ce" }),
+	dotlessIInAutomatic: inbound({ subject: "Automat\u0131c reply" }),
+	dottedCapitalIInUndeliverable: inbound({
+		subject: "Undel\u0130verable: Pallets",
+	}),
+	turkishWordWithCapitalI: inbound({
+		body: "THIS IS AN AUTOMATED REPLY. \u0130STANBUL OFFICE.",
+	}),
+	sharpSInsideGermanBody: inbound({
+		body: "Gru\u00df, ich bin derzeit nicht im B\u00fcro.",
+	}),
+	capitalSharpSNextToGermanBody: inbound({
+		body: "GRU\u1e9e, ich bin derzeit nicht im B\u00dcRO.",
+	}),
+	capitalSharpSInsideBody: inbound({
+		body: "Ich bin derzeit nicht im B\u00fcro, au\u1e9eer Haus.",
+	}),
+	sharpSBeforePattern: inbound({
+		body: "Stra\u00dfe 5 \u00dfich bin derzeit nicht im B\u00fcro.",
+	}),
+	capitalSharpSBeforePattern: inbound({
+		body: "Stra\u1e9e\u1e9e ich bin derzeit nicht im B\u00fcro.",
+	}),
+	finalSigmaNextToPattern: inbound({
+		body: "\u03bf\u03c2 this is an automated reply.",
+	}),
+	capitalSigmaNextToPattern: inbound({
+		body: "\u03a3 this is an automated reply \u03c2",
+	}),
+	finalSigmaAfterPattern: inbound({
+		body: "I am away \u03c2\u03a3\u03c3",
+	}),
+	mixedCaseGermanBody: inbound({
+		body: "Ich Bin Derzeit Nicht Im B\u00dcro.",
+	}),
+	mixedCaseBounceBody: inbound({
+		body: "IHRE NACHRICHT KANN AN FOLGENDE EMPF\u00c4NGER NICHT ZUGESTELLT WERDEN.",
+	}),
+	upperFaelleVariant: inbound({
+		body: "In dringenden F\u00c4llen wenden Sie sich an Herrn Meier.",
+	}),
+	upperSubjectAbwesenheit: inbound({ subject: "ABWESENHEIT" }),
+	upperSubjectReponse: inbound({ subject: "R\u00c9PONSE AUTOMATIQUE" }),
+	lowerSubjectReponse: inbound({ subject: "r\u00e9ponse automatique" }),
+	mailerDaemon: inbound({
+		fromEmail: "MAILER-DAEMON@example.com",
+		subject: "Re: Pallets",
+	}),
+	postmaster: inbound({ fromEmail: "postmaster@example.com" }),
+	exchange: inbound({
+		fromEmail: "MicrosoftExchange329e71ec88ae4615bbc36ab6ce41109e@example.com",
+	}),
+	deliveryStatus: inbound({
+		subject: "Delivery Status Notification (Failure)",
+	}),
+	undeliverable: inbound({ subject: "Undeliverable: Pallets" }),
+	mailDeliveryFailed: inbound({
+		subject: "Mail delivery failed: returning message to sender",
+	}),
+	returnedToSender: inbound({
+		subject: "Undelivered Mail Returned to Sender",
+	}),
+	failureNotice: inbound({ subject: "failure notice" }),
+	gmailBounceBody: inbound({
+		body: "Address not found\n\nYour message wasn't delivered to anna@example.com because the address couldn't be found.",
+	}),
+	outlookBounceBody: inbound({
+		body: "Your message to anna@example.com couldn't be delivered.",
+	}),
+	exchangeBounceBody: inbound({
+		body: "Delivery has failed to these recipients or groups:",
+	}),
+	postfixBounceBody: inbound({
+		body: "This is the mail system at host mail.example.com.",
+	}),
+	germanBounceBody: inbound({
+		body: "Ihre Nachricht konnte an folgende Empfänger nicht zugestellt werden.",
+	}),
+	deliveryOfGoods: inbound({
+		subject: "Re: Delivery failed yesterday",
+		body: "The truck did not arrive. Can you send the pallets again?",
+	}),
+	replyQuotingAutoReply: inbound({
+		body: "Yes, we have 500 pallets.\n\n> I am currently out of the office until Monday.",
+	}),
+	replyBelowEnglishHeader: inbound({
+		body: "Yes, we have 500 pallets.\n\nOn Tue, 3 Feb 2026, Anna wrote:\nI am currently out of the office.",
+	}),
+	replyBelowGermanHeader: inbound({
+		body: "Ja, passt.\n\nvon: Anna\nIch bin derzeit nicht im Büro.",
+	}),
+	replyQuotingBounce: inbound({
+		body: "Sorry, wrong address before.\n-----Original Message-----\nYour message to anna@example.com couldn't be delivered.",
+	}),
+	autoReplyStartingWithHeader: inbound({
+		body: "From: Anna\nI am currently out of the office.",
+	}),
+	senderNamedPostmasterInside: inbound({
+		fromEmail: "anna.postmaster@example.com",
+	}),
+} satisfies Record<string, AnswerCandidate>;
+
+function inbound(overrides: Partial<AnswerCandidate>): AnswerCandidate {
+	return {
+		direction: "INBOUND",
+		fromEmail: person,
+		subject: "Re: Pallets",
+		body: "Hello",
+		snippet: null,
+		...overrides,
+	};
+}
+
+async function sqlVerdicts(
+	verdict: Prisma.Sql,
+	flag: (message: AnswerCandidate) => boolean | null = () => null,
+): Promise<Map<string, boolean>> {
+	const rows = Object.entries(samples).map(
+		([name, message]) =>
+			Prisma.sql`(${name}, ${message.direction}, ${message.fromEmail}, ${message.subject}::text, ${message.body}::text, ${message.snippet}::text, ${flag(message)}::boolean)`,
+	);
+
+	const result = await db.$queryRaw<{ name: string; real: boolean }[]>`
+		SELECT m.name, ${verdict} AS real
+		FROM (VALUES ${Prisma.join(rows)})
+			AS m(name, "direction", "fromEmail", "subject", "body", "snippet", "realAnswer")
+	`;
+
+	return new Map(result.map((row) => [row.name, row.real]));
+}
+
+function expectTypeScriptVerdicts(sql: Map<string, boolean>): void {
+	for (const [name, message] of Object.entries(samples)) {
+		expect({ name, real: sql.get(name) }).toEqual({
+			name,
+			real: isRealAnswer(message),
+		});
+	}
+}
+
+describe("the real answer rule", () => {
+	it("gives the same verdict in SQL as in TypeScript", async () => {
+		expectTypeScriptVerdicts(await sqlVerdicts(realAnswerRule("m")));
+	});
+
+	it("falls back to the rule while the stored flag is empty", async () => {
+		expectTypeScriptVerdicts(await sqlVerdicts(realAnswer("m")));
+	});
+
+	it("reads the stored flag once it is written", async () => {
+		expectTypeScriptVerdicts(await sqlVerdicts(realAnswer("m"), isRealAnswer));
+	});
+
+	it("trusts the stored flag over the rule, but never for mail we sent", async () => {
+		const flipped = await sqlVerdicts(
+			realAnswer("m"),
+			(message) => !isRealAnswer(message),
+		);
+
+		expect(flipped.get("realReply")).toBe(false);
+		expect(flipped.get("outOfOfficeBody")).toBe(true);
+		expect(flipped.get("outbound")).toBe(false);
+	});
+
+	it("counts only a person writing back", () => {
+		const real = Object.entries(samples)
+			.filter(([, message]) => isRealAnswer(message))
+			.map(([name]) => name)
+			.sort();
+
+		expect(real).toEqual(
+			[
+				"autoReplyAfterDigit",
+				"dotlessIInAutomatic",
+				"dotlessIInBody",
+				"dotlessIInSubject",
+				"dotlessIInsidePatternWord",
+				"dottedCapitalIInBody",
+				"dottedCapitalIInSubject",
+				"dottedCapitalIInUndeliverable",
+				"dottedCapitalIInsidePatternWord",
+				"kelvinInBounceBody",
+				"longSInAutomatedBody",
+				"longSInAutomatedBodyUpper",
+				"longSInsidePatternBody",
+				"longSInsidePatternSubject",
+				"longSReplacingS",
+				"upperUmlautForwardHeader",
+				"autoReplyAfterUnderscore",
+				"autoReplyPastTheLimit",
+				"deliveryOfGoods",
+				"nextLineIsNotWhitespace",
+				"noSubjectNoBody",
+				"realReply",
+				"replyBelowEnglishHeader",
+				"replyBelowGermanHeader",
+				"replyQuotingAutoReply",
+				"replyQuotingBounce",
+				"senderNamedPostmasterInside",
+				"snippetOnly",
+				"vacationAcrossLines",
+			].sort(),
+		);
+	});
+
+	it("refuses an alias that is not a plain name", () => {
+		expect(() => realAnswer("m; DROP TABLE contact")).toThrow();
+		expect(() => realAnswerRule("m; DROP TABLE contact")).toThrow();
+	});
+});

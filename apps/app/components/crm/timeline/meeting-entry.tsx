@@ -1,0 +1,83 @@
+"use client";
+
+import { AttendeeList } from "@crm/ui/components/attendee-list";
+import { Link } from "@crm/ui/components/link";
+import { useQuery } from "@tanstack/react-query";
+import {
+	LocalDateTime,
+	LocalDateTimeRange,
+} from "@/components/local-date-time";
+import { useT } from "@/lib/i18n/client";
+import { useTRPC } from "@/lib/trpc/client";
+import { TIMELINE } from "./timeline-config";
+
+export function MeetingWhen({
+	startsAt,
+	endsAt,
+	isAllDay,
+}: {
+	startsAt: string;
+	endsAt: string;
+	isAllDay: boolean;
+}) {
+	const t = useT();
+
+	return isAllDay ? (
+		<>
+			<LocalDateTime date={startsAt} options={TIMELINE.format.allDay} /> ·{" "}
+			{t("All day")}
+		</>
+	) : (
+		<LocalDateTimeRange
+			start={startsAt}
+			end={endsAt}
+			options={TIMELINE.format.range}
+		/>
+	);
+}
+
+export function MeetingEntry({
+	eventId,
+	startsAt,
+	endsAt,
+	isAllDay,
+	attendeeCount,
+	conferenceUrl,
+	location,
+}: {
+	eventId: string;
+	startsAt: string;
+	endsAt: string;
+	isAllDay: boolean;
+	attendeeCount: number;
+	conferenceUrl: string | null;
+	location: string | null;
+}) {
+	const t = useT();
+	const trpc = useTRPC();
+
+	const event = useQuery({
+		...trpc.google.event.queryOptions({ eventId }),
+		enabled: attendeeCount > 0,
+	});
+
+	return (
+		<div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground text-xs">
+			<span>
+				<MeetingWhen startsAt={startsAt} endsAt={endsAt} isAllDay={isAllDay} />
+			</span>
+
+			{location ? <span>{t("Location: {location}", { location })}</span> : null}
+
+			{event.data?.attendees && event.data.attendees.length > 0 ? (
+				<AttendeeList attendees={event.data.attendees} />
+			) : null}
+
+			{conferenceUrl ? (
+				<Link href={conferenceUrl} target="_blank" rel="noreferrer">
+					{t("Join call")}
+				</Link>
+			) : null}
+		</div>
+	);
+}

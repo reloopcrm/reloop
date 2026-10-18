@@ -1,0 +1,35 @@
+import "@crm/env/load";
+
+import { cloud } from "@crm/db/cloud/scope";
+import { AGENT_PROVIDER_DEFAULTS } from "@crm/db/settings";
+import { onTelemetryProblem, syncVersion } from "@crm/telemetry";
+import { defineAgent, defineDynamic } from "eve";
+import { logCapabilities } from "./lib/capabilities";
+import { fallbackModel, logModelProvider, stepModel } from "./lib/model";
+import { withTenant } from "./lib/tenant";
+
+if (cloud.hosted()) {
+	console.log("[agent] hosted mode: one database per tenant, read per session");
+} else {
+	void logCapabilities();
+	void logModelProvider();
+	void syncVersion();
+}
+
+onTelemetryProblem((message) => console.debug(`[telemetry] ${message}`));
+
+export default defineAgent({
+	modelContextWindowTokens:
+		AGENT_PROVIDER_DEFAULTS.openrouter.contextWindowTokens,
+	model: defineDynamic({
+		fallback: fallbackModel(),
+		events: {
+			"step.started": (_event, ctx) => withTenant(ctx, () => stepModel()),
+		},
+	}),
+	limits: {
+		maxInputTokensPerSession: 500_000,
+		maxOutputTokensPerSession: 50_000,
+		sessionTimeoutMs: 30 * 24 * 60 * 60 * 1000,
+	},
+});

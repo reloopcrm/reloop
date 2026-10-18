@@ -1,0 +1,82 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import {
+	PageShell,
+	PageShellActions,
+	PageShellContent,
+	PageShellDescription,
+	PageShellHeader,
+	PageShellHeading,
+	PageShellLoading,
+	PageShellTitle,
+} from "@/components/page-shell";
+import { getT } from "@/lib/i18n/server";
+import { requireSession, workspaceRole } from "@/lib/session";
+import { HydrateClient } from "@/lib/trpc/hydrate";
+import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { AddPersonSheet } from "./add-person-sheet";
+import {
+	memberListInputOf,
+	membersSearchParams,
+} from "./members-search-params";
+import { MembersTable } from "./members-table";
+
+export async function generateMetadata(): Promise<Metadata> {
+	const t = await getT();
+	return { title: t("Members") };
+}
+
+export default async function MembersSettingsPage({
+	searchParams,
+}: PageProps<"/[slug]/settings/members">) {
+	const t = await getT();
+
+	return (
+		<PageShell className="min-h-0">
+			<PageShellHeader>
+				<PageShellHeading>
+					<PageShellTitle>{t("Members")}</PageShellTitle>
+					<PageShellDescription>
+						{t("Everyone who has access to your CRM.")}
+					</PageShellDescription>
+				</PageShellHeading>
+
+				<PageShellActions>
+					<AddPersonSheet />
+				</PageShellActions>
+			</PageShellHeader>
+
+			<PageShellContent className="min-h-0">
+				<Suspense fallback={<PageShellLoading />}>
+					<Members searchParams={searchParams} />
+				</Suspense>
+			</PageShellContent>
+		</PageShell>
+	);
+}
+
+async function Members({
+	searchParams,
+}: Pick<PageProps<"/[slug]/settings/members">, "searchParams">) {
+	const session = await requireSession();
+
+	const values = await membersSearchParams.load(searchParams);
+
+	const trpc = getServerTrpc();
+	const queryClient = getServerQueryClient();
+
+	const [viewerRole] = await Promise.all([
+		workspaceRole(session.user.id),
+		queryClient.prefetchQuery(
+			trpc.workspace.members.queryOptions(
+				memberListInputOf(membersSearchParams.toInput(values)),
+			),
+		),
+	]);
+
+	return (
+		<HydrateClient>
+			<MembersTable viewerRole={viewerRole} />
+		</HydrateClient>
+	);
+}

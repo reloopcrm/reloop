@@ -1,0 +1,495 @@
+import {
+	canAssignRole,
+	canChangeRole,
+	canRemoveMember,
+	canRenameWorkspace,
+	endAccessOf,
+	ensureWorkspaceMembership,
+	forgetStoredGrantsOf,
+	generatePassword,
+	grantSignInInTransaction,
+	hashPassword,
+	isPasswordSignInConfigured,
+	revokeSignIn,
+	toWorkspaceRole,
+	WORKSPACE_ID,
+	type WorkspaceRole,
+	workspaceRoleOf,
+	writeCredentialAccount,
+} from "@crm/auth";
+import {
+	isFreshPasswordSession,
+	type PasswordSession,
+} from "@crm/auth/password-rules";
+import type { Db, Prisma } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
+import { isOnboarded, markOnboarded, workspaceSlug } from "@crm/db/workspace";
+import {
+	BadRequestException,
+	ForbiddenException,
+	Injectable,
+	Logger,
+	NotFoundException,
+	ServiceUnavailableException,
+} from "@nestjs/common";
+import { AgentTriggerService } from "../agent/agent-trigger.service";
+import { normalizeDomain } from "../companies/domain";
+import { InjectDatabase } from "../database/database.constants";
+import {
+	countsByKey,
+	type ListResult,
+	type OrderByColumns,
+	paginate,
+	resolveOrderBy,
+} from "../trpc/list-input";
+import type {
+	AddedPerson,
+	AddPersonInput,
+	MemberListInput,
+	RemovedMember,
+	RemoveMemberInput,
+	SetMemberRoleInput,
+	UpdateWorkspaceInput,
+	Workspace,
+	WorkspaceMember,
+} from "./workspace.contracts";
+
+const MEMBER_SELECT = {
+	id: true,
+	role: true,
+	createdAt: true,
+	userId: true,
+	user: { select: { name: true, email: true, image: true } },
+} as const;
+
+type MemberRow = Prisma.MemberGetPayload<{ select: typeof MEMBER_SELECT }>;
+
+const SORTABLE: OrderByColumns<Prisma.MemberOrderByWithRelationInput> = {
+	name: (dir) => ({ user: { name: dir } }),
+	email: (dir) => ({ user: { email: dir } }),
+	role: (dir) => ({ role: dir }),
+	joinedAt: (dir) => ({ createdAt: dir }),
+};
+
+type LockedMember = { id: string; role: string; userId: string };
+
+type LockedMembers = {
+	role: WorkspaceRole | null;
+	target: LockedMember | null;
+	owners: number;
+};
+
+async function lockMembers(
+	tx: Prisma.TransactionClient,
+	userId: string,
+	memberId: string,
+): Promise<LockedMembers> {
+	const rows = await tx.$queryRaw<LockedMember[]>`
+		SELECT id, role, "userId" FROM "member"
+		WHERE "organizationId" = ${WORKSPACE_ID}
+			AND (id = ${memberId} OR "userId" = ${userId} OR role = 'owner')
+		ORDER BY id
+		FOR UPDATE
+	`;
+	const caller = rows.find((row) => row.userId === userId);
+
+	return {
+		role: caller ? toWorkspaceRole(caller.role) : null,
+		target: rows.find((row) => row.id === memberId) ?? null,
+		owners: rows.filter((row) => row.role === "owner").length,
+	};
+}
+
+@Injectable()
+export class WorkspaceService {
+	private readonly logger = new Logger(WorkspaceService.name);
+
+	constructor(
+		@InjectDatabase() private readonly db: Db,
+		private readonly agent: AgentTriggerService,
+	) {}
+
+	async get(userId: string): Promise<Workspace> {
+		let row = await this.readWorkspace();
+
+		if (!row) {
+			await ensureWorkspaceMembership(userId);
+			row = await this.readWorkspace();
+		}
+
+		if (!row) {
+			throw new ServiceUnavailableException(
+				"The workspace could not be read. Sign in again in a moment.",
+			);
+		}
+
+		const role = await workspaceRoleOf(userId);
+
+		return {
+			id: row.id,
+			slug: row.slug,
+			name: row.name,
+			website: row.website,
+			onboarded: isOnboarded(row.metadata),
+			viewerRole: role,
+			canRename: canRenameWorkspace(role),
+			canChangeRoles: canChangeRole(role),
+			canAddPerson: canChangeRole(role) && isPasswordSignInConfigured(),
+		};
+	}
+
+	async update(
+		userId: string,
+		input: UpdateWorkspaceInput,
+	): Promise<Workspace> {
+		const role = await workspaceRoleOf(userId);
+
+		if (!canRenameWorkspace(role)) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can change the workspace.",
+			);
+		}
+
+		const before = await this.db.organization.findUnique({
+			where: { id: WORKSPACE_ID },
+			select: { website: true, metadata: true },
+		});
+
+		const website = normalizeDomain(input.website);
+
+		if (!website) {
+			throw new BadRequestException(
+				"That is not a website. Enter the domain, like acme.com.",
+			);
+		}
+
+		await this.db.organization.update({
+			where: { id: WORKSPACE_ID },
+			data: {
+				name: input.name,
+				slug: workspaceSlug(input.slug ?? input.name),
+				website,
+				metadata: markOnboarded(before?.metadata ?? null, new Date()),
+			},
+		});
+
+		this.logger.log({ message: "Workspace updated", userId });
+
+		if (website !== before?.website) {
+			await this.agent.workspaceChanged(
+				website,
+				before?.website
+					? "The company using this CRM changed its website"
+					: "The company using this CRM said what its website is",
+			);
+		}
+
+		return this.get(userId);
+	}
+
+	async members(
+		userId: string,
+		input: MemberListInput,
+	): Promise<ListResult<WorkspaceMember>> {
+		const where = this.buildWhere(input);
+		const { skip, take } = paginate(input);
+
+		const [rows, total, roles] = await Promise.all([
+			this.db.member.findMany({
+				where,
+				skip,
+				take,
+				select: MEMBER_SELECT,
+				orderBy: resolveOrderBy(input, SORTABLE, { createdAt: "asc" }),
+			}),
+			this.db.member.count({ where }),
+			this.db.member.groupBy({
+				by: ["role"],
+				where: this.searchWhere(input.q),
+				_count: { _all: true },
+			}),
+		]);
+
+		return {
+			rows: rows.map((row) => this.toMember(row, userId)),
+			total,
+			facetCounts: { role: countsByKey(roles, "role") },
+		};
+	}
+
+	async setMemberRole(
+		userId: string,
+		input: SetMemberRoleInput,
+	): Promise<WorkspaceMember> {
+		const updated = await this.db.$transaction(async (tx) => {
+			const { role, target, owners } = await lockMembers(
+				tx,
+				userId,
+				input.memberId,
+			);
+
+			if (!canChangeRole(role)) {
+				throw new ForbiddenException(
+					"Only an owner or an admin can change a member's role.",
+				);
+			}
+
+			if (!target) {
+				throw new NotFoundException("That person is not in this workspace.");
+			}
+
+			if (!canAssignRole(role, toWorkspaceRole(target.role), input.role)) {
+				throw new ForbiddenException(
+					"Only an owner can make someone an owner, or change an owner's role.",
+				);
+			}
+
+			if (target.role === "owner" && input.role !== "owner" && owners <= 1) {
+				throw new ForbiddenException(
+					"The workspace needs an owner. Make someone else an owner first.",
+				);
+			}
+
+			return tx.member.update({
+				where: { id: target.id },
+				data: { role: input.role },
+				select: MEMBER_SELECT,
+			});
+		});
+
+		this.logger.log({
+			message: "Workspace role changed",
+			userId,
+			memberId: updated.id,
+			role: input.role,
+		});
+
+		return this.toMember(updated, userId);
+	}
+
+	async removeMember(
+		userId: string,
+		input: RemoveMemberInput,
+	): Promise<RemovedMember> {
+		const removed = await this.db.$transaction(async (tx) => {
+			const { role, target, owners } = await lockMembers(
+				tx,
+				userId,
+				input.memberId,
+			);
+
+			if (!canChangeRole(role)) {
+				throw new ForbiddenException(
+					"Only an owner or an admin can remove a member.",
+				);
+			}
+
+			if (!target) {
+				throw new NotFoundException("That person is not in this workspace.");
+			}
+
+			if (target.userId === userId) {
+				throw new ForbiddenException(
+					"You cannot remove yourself from the workspace.",
+				);
+			}
+
+			if (!canRemoveMember(role, toWorkspaceRole(target.role))) {
+				throw new ForbiddenException("Only an owner can remove an owner.");
+			}
+
+			if (target.role === "owner" && owners <= 1) {
+				throw new ForbiddenException(
+					"The workspace needs an owner. Make someone else an owner first.",
+				);
+			}
+
+			const user = await tx.user.findUniqueOrThrow({
+				where: { id: target.userId },
+				select: { email: true },
+			});
+
+			await tx.member.delete({ where: { id: target.id } });
+			await tx.user.update({
+				where: { id: target.userId },
+				data: { removedAt: new Date() },
+			});
+			await endAccessOf(tx, [target.userId]);
+			await forgetStoredGrantsOf(tx, [target.userId]);
+
+			return { id: target.id, user };
+		});
+
+		await revokeSignIn(this.db, removed.user.email);
+		await this.updateTenantSignIn(() =>
+			cloud.onMemberRemoved(removed.user.email),
+		);
+
+		this.logger.log({
+			message: "Member removed",
+			userId,
+			memberId: removed.id,
+		});
+
+		return { memberId: removed.id };
+	}
+
+	private async updateTenantSignIn(update: () => Promise<void>): Promise<void> {
+		const tenantId = cloud.scopeId();
+		if (!tenantId) return;
+
+		try {
+			await update();
+		} catch (error) {
+			this.logger.error(
+				{ message: "Registry sign-in not updated", tenantId },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
+	}
+
+	async addPerson(
+		userId: string,
+		input: AddPersonInput,
+		session: PasswordSession,
+	): Promise<AddedPerson> {
+		const role = await workspaceRoleOf(userId, this.db);
+
+		if (!canChangeRole(role)) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can add a person.",
+			);
+		}
+
+		if (!isFreshPasswordSession(session)) {
+			throw new ForbiddenException(
+				"Sign out and sign in again before you add a person.",
+			);
+		}
+
+		if (!isPasswordSignInConfigured()) {
+			throw new BadRequestException(
+				'PASSWORD_SIGN_IN is not "1", so this person could not sign in. Set PASSWORD_SIGN_IN="1" in deploy/.env, then run docker compose up -d in that folder.',
+			);
+		}
+
+		if (!canAssignRole(role, "member", input.role)) {
+			throw new ForbiddenException("Only an owner can make someone an owner.");
+		}
+
+		const taken = await this.db.user.findFirst({
+			where: { email: input.email },
+			select: { id: true, removedAt: true },
+		});
+
+		if (taken && !taken.removedAt) {
+			throw new BadRequestException("That address already has an account.");
+		}
+
+		const password = generatePassword();
+		const hash = await hashPassword(password);
+
+		const member = await this.db.$transaction(async (tx) => {
+			if (!(await grantSignInInTransaction(tx, input.email, role))) {
+				throw new BadRequestException(
+					`${input.email} is not in ALLOWED_SIGN_IN, so this person could not sign in. Add ${input.email} to ALLOWED_SIGN_IN in deploy/.env, then run docker compose up -d in that folder.`,
+				);
+			}
+
+			const person = taken
+				? await tx.user.update({
+						where: { id: taken.id },
+						data: { removedAt: null },
+						select: { id: true },
+					})
+				: await tx.user.create({
+						data: {
+							id: crypto.randomUUID(),
+							email: input.email,
+							name: input.name,
+							emailVerified: true,
+							updatedAt: new Date(),
+						},
+						select: { id: true },
+					});
+
+			const row = await tx.member.create({
+				data: {
+					id: crypto.randomUUID(),
+					organizationId: WORKSPACE_ID,
+					userId: person.id,
+					role: input.role,
+					createdAt: new Date(),
+				},
+				select: MEMBER_SELECT,
+			});
+
+			await writeCredentialAccount(tx, person.id, hash);
+
+			return row;
+		});
+
+		await this.updateTenantSignIn(() => cloud.onMemberAdded(input.email));
+
+		this.logger.log({
+			message: taken ? "Removed person added again" : "Person added",
+			userId,
+			memberId: member.id,
+			role: input.role,
+		});
+
+		return { member: this.toMember(member, userId), password };
+	}
+
+	private toMember(row: MemberRow, userId: string): WorkspaceMember {
+		return {
+			id: row.id,
+			userId: row.userId,
+			name: row.user.name,
+			email: row.user.email,
+			image: row.user.image,
+			role: toWorkspaceRole(row.role),
+			joinedAt: row.createdAt.toISOString(),
+			isViewer: row.userId === userId,
+		};
+	}
+
+	private searchWhere(q: string): Prisma.MemberWhereInput {
+		const term = q.trim();
+		const where: Prisma.MemberWhereInput = { organizationId: WORKSPACE_ID };
+
+		if (term) {
+			where.user = {
+				OR: [
+					{ name: { contains: term, mode: "insensitive" } },
+					{ email: { contains: term, mode: "insensitive" } },
+				],
+			};
+		}
+
+		return where;
+	}
+
+	private buildWhere(input: MemberListInput): Prisma.MemberWhereInput {
+		const where = this.searchWhere(input.q);
+
+		if (input.role.length > 0) {
+			where.role = { in: input.role };
+		}
+
+		return where;
+	}
+
+	private async readWorkspace() {
+		return this.db.organization.findUnique({
+			where: { id: WORKSPACE_ID },
+			select: {
+				id: true,
+				slug: true,
+				name: true,
+				website: true,
+				metadata: true,
+			},
+		});
+	}
+}

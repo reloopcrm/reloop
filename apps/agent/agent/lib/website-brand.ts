@@ -1,0 +1,456 @@
+import { readCapped, safeFetch } from "@crm/db/safe-fetch";
+import { type LanguageModel, streamText } from "ai";
+import { z } from "zod";
+import type { Brand, BrandLookup } from "./brand-mapping";
+import { COPY } from "./copy";
+import {
+	askChoice,
+	type JevChoiceAsk,
+	type JevQuestion,
+	typesafeKey,
+} from "./jev";
+import { countGate } from "./jev-meter";
+import { language, say } from "./language";
+import { directModel, ModelUnconfiguredError } from "./model";
+import { WEBSITE } from "./website-config";
+
+const extracted = z.object({
+	name: z.string().max(120).nullable(),
+	description: z.string().max(300).nullable(),
+	industry: z.string().max(80).nullable(),
+	subindustry: z.string().max(80).nullable(),
+	city: z.string().max(80).nullable(),
+	country: z.string().max(80).nullable(),
+	countryCode: z.string().length(2).nullable(),
+	phone: z.string().max(40).nullable(),
+	email: z.string().max(120).nullable(),
+});
+
+type Extracted = z.infer<typeof extracted>;
+
+export type Page = {
+	url: URL;
+	html: string;
+	text: string;
+	title: string | null;
+	siteName: string | null;
+	metaDescription: string | null;
+	themeColor: string | null;
+	icons: string[];
+	ogImage: string | null;
+	links: string[];
+	mailto: string[];
+	tel: string[];
+};
+
+function attr(tag: string, name: string): string | null {
+	const match = new RegExp(`${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i").exec(
+		tag,
+	);
+	return match?.[2] ?? match?.[3] ?? null;
+}
+
+function metaContent(html: string, key: string): string | null {
+	const tags = html.match(/<meta\s[^>]*>/gi) ?? [];
+	for (const tag of tags) {
+		const property = attr(tag, "property") ?? attr(tag, "name");
+		if (property?.toLowerCase() === key.toLowerCase()) {
+			return attr(tag, "content")?.trim() || null;
+		}
+	}
+	return null;
+}
+
+function decode(text: string): string {
+	return text
+		.replace(/&amp;/g, "&")
+		.replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">")
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;|&apos;/g, "'")
+		.replace(/&nbsp;/g, " ")
+		.replace(/&uuml;/g, "ü")
+		.replace(/&ouml;/g, "ö")
+		.replace(/&auml;/g, "ä")
+		.replace(/&szlig;/g, "ß");
+}
+
+function bodyText(html: string): string {
+	return decode(
+		html
+			.replace(/<script[\s\S]*?<\/script>/gi, " ")
+			.replace(/<style[\s\S]*?<\/style>/gi, " ")
+			.replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+			.replace(/<[^>]+>/g, " ")
+			.replace(/\s+/g, " "),
+	).trim();
+}
+
+function absolute(base: URL, href: string | null): string | null {
+	if (!href) return null;
+	try {
+		return new URL(href, base).toString();
+	} catch {
+		return null;
+	}
+}
+
+function parsePage(url: URL, html: string): Page {
+	const title = decode(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
+		.replace(/\s+/g, " ")
+		.trim();
+	const links = html.match(/<link\s[^>]*>/gi) ?? [];
+	const icons: string[] = [];
+	for (const tag of links) {
+		const rel = attr(tag, "rel")?.toLowerCase() ?? "";
+		if (/apple-touch-icon|^icon$|shortcut icon|\bicon\b/.test(rel)) {
+			const href = absolute(url, attr(tag, "href"));
+			if (href) icons.push(href);
+		}
+	}
+	const anchors = [...html.matchAll(/href\s*=\s*("([^"]*)"|'([^']*)')/gi)].map(
+		(match) => match[2] ?? match[3] ?? "",
+	);
+
+	return {
+		url,
+		html,
+		text: bodyText(html).slice(0, WEBSITE.textMaxChars),
+		title: title || null,
+		siteName: metaContent(html, "og:site_name"),
+		metaDescription:
+			metaContent(html, "description") ?? metaContent(html, "og:description"),
+		themeColor: metaContent(html, "theme-color"),
+		icons,
+		ogImage: absolute(url, metaContent(html, "og:image")),
+		links: anchors.filter((href) => /^https?:/i.test(href)),
+		mailto: anchors
+			.filter((href) => href.toLowerCase().startsWith("mailto:"))
+			.map((href) => href.slice(7).split("?")[0] ?? ""),
+		tel: anchors
+			.filter((href) => href.toLowerCase().startsWith("tel:"))
+			.map((href) => href.slice(4)),
+	};
+}
+
+export async function fetchPage(domain: string): Promise<Page | null> {
+	for (const scheme of ["https", "http"]) {
+		const fetched = await safeFetch(`${scheme}://${domain}/`, {
+			timeoutMs: WEBSITE.timeoutMs,
+			headers: { accept: "text/html", "user-agent": WEBSITE.userAgent },
+		});
+		if (!fetched?.response.ok) continue;
+
+		const type = fetched.response.headers.get("content-type") ?? "";
+		if (!type.includes("html")) continue;
+
+		const html = await readCapped(
+			fetched.response,
+			WEBSITE.htmlMaxBytes,
+			WEBSITE.timeoutMs,
+		);
+		return parsePage(fetched.url, html);
+	}
+
+	return null;
+}
+
+function social(links: string[], host: RegExp): string | null {
+	return links.find((href) => host.test(href)) ?? null;
+}
+
+export type PageAnswer<T> =
+	| { ok: true; data: T }
+	| { ok: false; reason: string; retryable: boolean };
+
+type PageText =
+	| { ok: true; text: string }
+	| { ok: false; reason: string; retryable: true };
+
+const modelFailure = z
+	.object({
+		name: z.string().catch("Error"),
+		statusCode: z.number().optional().catch(undefined),
+	})
+	.catch({ name: "Error" });
+
+type ModelFailure = z.infer<typeof modelFailure>;
+
+function failureOf(failure: ModelFailure): string {
+	return failure.statusCode === undefined
+		? `the model call failed with ${failure.name}`
+		: `the model answered HTTP ${failure.statusCode}`;
+}
+
+async function readPage(
+	model: LanguageModel,
+	system: string,
+	prompt: string,
+): Promise<PageText> {
+	try {
+		const result = streamText({
+			model,
+			abortSignal: AbortSignal.timeout(WEBSITE.modelTimeoutMs),
+			system,
+			prompt,
+			onError: () => {},
+		});
+
+		let text = "";
+		for await (const part of result.fullStream) {
+			if (part.type === "text-delta") text += part.text;
+			if (part.type === "error") {
+				return {
+					ok: false,
+					retryable: true,
+					reason: failureOf(modelFailure.parse(part.error)),
+				};
+			}
+			if (part.type === "abort") {
+				return {
+					ok: false,
+					retryable: true,
+					reason: "the model call was cut off before it answered",
+				};
+			}
+		}
+
+		return { ok: true, text };
+	} catch (error) {
+		return {
+			ok: false,
+			retryable: true,
+			reason: failureOf(modelFailure.parse(error)),
+		};
+	}
+}
+
+function parseAnswer<Shape extends z.ZodType>(
+	shape: Shape,
+	text: string,
+): z.infer<Shape> | null {
+	const cleaned = text.replace(/```(?:json)?/gi, "").trim();
+	const json = cleaned.slice(
+		cleaned.indexOf("{"),
+		cleaned.lastIndexOf("}") + 1,
+	);
+
+	let value: unknown;
+	try {
+		value = JSON.parse(json);
+	} catch {
+		return null;
+	}
+
+	const parsed = shape.safeParse(value);
+	return parsed.success ? parsed.data : null;
+}
+
+export async function askPage<Shape extends z.ZodType>(
+	page: Page,
+	shape: Shape,
+	instructions: string[],
+): Promise<PageAnswer<z.infer<Shape>>> {
+	let model: LanguageModel;
+	try {
+		model = await directModel("reading", "brand");
+	} catch (error) {
+		return error instanceof ModelUnconfiguredError
+			? {
+					ok: false,
+					retryable: false,
+					reason: "no reading model is configured",
+				}
+			: {
+					ok: false,
+					retryable: true,
+					reason: "no reading model can take a call right now",
+				};
+	}
+
+	const facts = [
+		`URL: ${page.url.toString()}`,
+		`Title: ${page.title ?? ""}`,
+		`Site name: ${page.siteName ?? ""}`,
+		`Meta description: ${page.metaDescription ?? ""}`,
+		`Emails on page: ${page.mailto.slice(0, 5).join(", ")}`,
+		`Phones on page: ${page.tel.slice(0, 5).join(", ")}`,
+		`Page text: ${page.text}`,
+	].join("\n");
+
+	const system = [
+		...instructions,
+		"Answer with one JSON object only, no prose, no code fences, matching this JSON schema:",
+		JSON.stringify(z.toJSONSchema(shape, { io: "input" })),
+	].join("\n");
+
+	for (let attempt = 0; attempt < WEBSITE.jsonAttempts; attempt += 1) {
+		const read = await readPage(model, system, facts);
+		if (!read.ok) return read;
+
+		const data = parseAnswer(shape, read.text);
+		if (data !== null) return { ok: true, data };
+	}
+
+	return {
+		ok: false,
+		retryable: false,
+		reason: "the model answered, but not with the facts asked for",
+	};
+}
+
+export const BRAND_GATE = "brand-industry";
+
+const INDUSTRY_OPTIONS: readonly string[] = Object.keys(
+	WEBSITE.industry.options,
+);
+
+function industryQuestion(): JevQuestion {
+	return {
+		type: "choice",
+		instructions:
+			"The state holds one company's own homepage. Which industry does this company work in? Choose by what the company itself does, not by what its customers do.",
+		criteria: WEBSITE.industry.options,
+	};
+}
+
+export type IndustryState = {
+	url: string;
+	title: string;
+	description: string;
+	page: string;
+};
+
+export function industryState(page: Page): IndustryState {
+	return {
+		url: page.url.toString(),
+		title: page.title ?? "",
+		description: page.metaDescription ?? "",
+		page: page.text.slice(0, WEBSITE.industry.stateMaxChars),
+	};
+}
+
+export async function askIndustry(
+	page: Page,
+	ask: JevChoiceAsk = askChoice,
+): Promise<string | null> {
+	const key = await typesafeKey();
+	if (!key) return null;
+
+	const answer = await ask(
+		key,
+		industryState(page),
+		WEBSITE.industry.question,
+		industryQuestion(),
+		INDUSTRY_OPTIONS,
+	).catch(() => null);
+	if (!answer) return null;
+
+	const chosen =
+		answer.choice !== WEBSITE.industry.noMatch &&
+		(answer.probabilities[answer.choice] ?? 0) >= WEBSITE.industry.threshold;
+
+	countGate(BRAND_GATE, chosen, "labelled");
+
+	return chosen ? answer.choice : null;
+}
+
+type Extraction =
+	| { ok: true; facts: Extracted }
+	| { ok: false; reason: string };
+
+async function extract(page: Page, ask: JevChoiceAsk): Promise<Extraction> {
+	const [answer, industry] = await Promise.all([
+		askPage(page, extracted, [
+			"You read a company's homepage and report facts about the company.",
+			"Report only what the page states. Unknown values are null. Never guess a city or country from the language alone.",
+			"name is the company's real name without slogans or legal suffixes like GmbH left as they appear on the page.",
+			`description is one ${language()} sentence about what the company does.`,
+			"industry and subindustry are short English labels, for example Logistics / Pallet trading.",
+			"countryCode is the ISO 3166-1 alpha-2 code.",
+		]),
+		askIndustry(page, ask),
+	]);
+
+	if (!answer.ok && answer.retryable) {
+		return { ok: false, reason: answer.reason };
+	}
+
+	const read = answer.ok ? answer.data : fromMetadata(page);
+
+	return { ok: true, facts: industry ? { ...read, industry } : read };
+}
+
+function fromMetadata(page: Page): Extracted {
+	return {
+		name: page.siteName ?? page.title,
+		description: page.metaDescription,
+		industry: null,
+		subindustry: null,
+		city: null,
+		country: null,
+		countryCode: null,
+		phone: page.tel[0] ?? null,
+		email: page.mailto[0] ?? null,
+	};
+}
+
+export async function brandFromWebsite(
+	domain: string,
+	ask: JevChoiceAsk = askChoice,
+): Promise<BrandLookup> {
+	const page = await fetchPage(domain);
+	if (!page) {
+		return {
+			outcome: "skipped",
+			reason: say(COPY.brand.siteSilent(domain)),
+		};
+	}
+
+	const extraction = await extract(page, ask);
+	if (!extraction.ok) {
+		return {
+			outcome: "failed",
+			reason: say(COPY.brand.modelSilent(domain)),
+			retryable: true,
+		};
+	}
+
+	const facts = extraction.facts;
+
+	const logos: NonNullable<Brand["logos"]> = [];
+	const icon =
+		page.icons.find((href) => /apple-touch-icon/i.test(href)) ?? page.icons[0];
+	if (icon)
+		logos.push({ url: icon, type: "icon", mode: "has_opaque_background" });
+	if (page.ogImage)
+		logos.push({ url: page.ogImage, type: "logo", mode: "light" });
+
+	const brand: Brand = {
+		domain,
+		title: facts.name ?? page.siteName ?? page.title,
+		description: facts.description ?? page.metaDescription,
+		email: facts.email ?? page.mailto[0] ?? null,
+		phone: facts.phone ?? page.tel[0] ?? null,
+		colors: page.themeColor ? [{ hex: page.themeColor, name: "theme" }] : null,
+		logos,
+		socials: [
+			{ type: "linkedin", url: social(page.links, /linkedin\.com\//i) },
+			{ type: "x", url: social(page.links, /(twitter|x)\.com\//i) },
+		].filter((entry) => entry.url),
+		address: {
+			city: facts.city,
+			country: facts.country,
+			country_code: facts.countryCode,
+		},
+		industries: facts.industry
+			? { eic: [{ industry: facts.industry, subindustry: facts.subindustry }] }
+			: null,
+	};
+
+	return {
+		outcome: "found",
+		brand,
+		raw: { source: "website", url: page.url.toString(), facts },
+	};
+}

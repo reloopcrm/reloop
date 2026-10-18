@@ -1,0 +1,16 @@
+{
+	"Quotes in your mail": "Mailindeki teklifler",
+	"Offers you already sent by email, at companies with nothing open in the pipeline. One click makes the deal. Nothing happens on its own.": "Mail ile gönderdiğin teklifler, pipeline'da açık anlaşması olmayan şirketlerde. Tek tık anlaşmayı oluşturur. Kendiliğinden hiçbir şey olmaz.",
+	"The offer you sent": "Gönderdiğin teklif",
+	"Quantity": "Miktar",
+	"Last message": "Son mesaj",
+	"Every deal you create here lands on {stage} with no amount.": "Burada oluşturduğun her anlaşma tutarsız olarak {stage} aşamasına düşer.",
+	"{count} {unit}": "{count} {unit}",
+	"No subject": "Konu yok",
+	"Put aside": "Bir kenara koy",
+	"Deal created.": "Anlaşma oluşturuldu.",
+	"Quote put aside.": "Teklif bir kenara kondu.",
+	"No offer in your mail is waiting for a deal. Quotes the agent reads show up here.": "Mailinde anlaşma bekleyen teklif yok. Agent'ın okuduğu teklifler burada görünür.",
+	"More offers are waiting. Handle these first, then the next ones appear.": "Daha fazla teklif bekliyor. Önce bunları hallet, sonra sıradakiler görünür.",
+	"That quote is no longer waiting.": "Bu teklif artık beklemiyor."
+}

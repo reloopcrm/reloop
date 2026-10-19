@@ -10,6 +10,8 @@
 		"./client": "./src/client.ts",
 		"./cloud/*": "./src/cloud/*.ts",
 		"./cookies": "./src/cookies.ts",
+		"./mcp-access": "./src/mcp-access.ts",
+		"./mcp-config": "./src/mcp-config.ts",
 		"./oauth-apps": "./src/oauth-apps.ts",
 		"./password-rules": "./src/password-rules.ts",
 		"./roles": "./src/roles.ts",
@@ -27,6 +29,7 @@
 	},
 	"dependencies": {
 		"@better-auth/api-key": "1.6.25",
+		"@better-auth/oauth-provider": "1.6.25",
 		"@better-auth/sso": "1.6.25",
 		"@crm/db": "workspace:*",
 		"@crm/env": "workspace:*",

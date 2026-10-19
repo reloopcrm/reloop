@@ -158,7 +158,14 @@ const CLEARED_TOKENS = {
 	refreshTokenExpiresAt: null,
 } as const;
 
-type CredentialStore = Pick<Db, "session" | "apikey">;
+type CredentialStore = Pick<
+	Db,
+	| "session"
+	| "apikey"
+	| "oauthAccessToken"
+	| "oauthRefreshToken"
+	| "oauthConsent"
+>;
 
 export async function endAccessOf(
 	database: CredentialStore,
@@ -172,6 +179,28 @@ export async function endAccessOf(
 	await database.apikey.deleteMany({
 		where: { referenceId: { in: [...userIds] } },
 	});
+	await endAiClientAccessOf(database, userIds);
+}
+
+type AiClientStore = Pick<
+	Db,
+	"oauthAccessToken" | "oauthRefreshToken" | "oauthConsent"
+>;
+
+export async function endAiClientAccessOf(
+	database: AiClientStore,
+	userIds: readonly string[],
+	clientId?: string,
+): Promise<void> {
+	if (userIds.length === 0) return;
+
+	const scope = {
+		userId: { in: [...userIds] },
+		...(clientId ? { clientId } : {}),
+	};
+	await database.oauthAccessToken.deleteMany({ where: scope });
+	await database.oauthRefreshToken.deleteMany({ where: scope });
+	await database.oauthConsent.deleteMany({ where: scope });
 }
 
 type StoredGrantStore = Pick<

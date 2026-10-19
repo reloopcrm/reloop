@@ -51,6 +51,12 @@ import { CopyValue } from "../../copy-value";
 
 type AiClient = RouterOutputs["mcp"]["status"]["clients"][number];
 
+const CLIENT_NAMES = {
+	chatgpt: "ChatGPT",
+	claude: "Claude",
+	claudeCode: "Claude Code",
+} as const;
+
 export type AiConnectionProps = {
 	address: string;
 	secure: boolean;
@@ -98,9 +104,9 @@ function ConnectSteps({
 	return (
 		<Tabs defaultValue="chatgpt" className="px-(--spacing-block-inline)">
 			<TabsList>
-				<TabsTrigger value="chatgpt">ChatGPT</TabsTrigger>
-				<TabsTrigger value="claude">Claude</TabsTrigger>
-				<TabsTrigger value="claude-code">Claude Code</TabsTrigger>
+				<TabsTrigger value="chatgpt">{CLIENT_NAMES.chatgpt}</TabsTrigger>
+				<TabsTrigger value="claude">{CLIENT_NAMES.claude}</TabsTrigger>
+				<TabsTrigger value="claude-code">{CLIENT_NAMES.claudeCode}</TabsTrigger>
 				<TabsTrigger value="other">{t("Other")}</TabsTrigger>
 			</TabsList>
 

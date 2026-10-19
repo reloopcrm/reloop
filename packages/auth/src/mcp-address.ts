@@ -1,8 +1,12 @@
 import { isLoopbackHost } from "@better-auth/core/utils/host";
 import { cloud } from "@crm/db/cloud/scope";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { z } from "zod";
 import { apiUrl } from "./env";
 import { MCP, mcpUrl } from "./mcp-config";
+
+const text = z.string();
+const redirectAnswer = z.object({ redirect: z.literal(true), url: z.string() });
 
 const ISSUER_PARAM = "iss";
 const LOCATION_HEADER = "location";
@@ -56,15 +60,20 @@ export function scopeAuthorizationServer<T extends AuthorizationServerMetadata>(
 	if (metadata.issuer === issuer) return metadata;
 
 	const prefixes = [...new Set([metadata.issuer, rawAuthIssuer()])];
-	const moved = (value: unknown): unknown => {
-		if (typeof value !== "string") return value;
-		const prefix = prefixes.find((candidate) => value.startsWith(candidate));
-		return prefix === undefined
-			? value
-			: `${issuer}${value.slice(prefix.length)}`;
-	};
 	const scoped = Object.fromEntries(
-		Object.entries(metadata).map(([key, value]) => [key, moved(value)]),
+		Object.entries(metadata).map(([key, value]) => {
+			const parsed = text.safeParse(value);
+			if (!parsed.success) return [key, value];
+			const prefix = prefixes.find((candidate) =>
+				parsed.data.startsWith(candidate),
+			);
+			return [
+				key,
+				prefix === undefined
+					? value
+					: `${issuer}${parsed.data.slice(prefix.length)}`,
+			];
+		}),
 	) as T;
 
 	return { ...scoped, issuer };
@@ -88,12 +97,6 @@ function moveLocation(headers: Headers | undefined, issuer: string): void {
 	if (moved) headers?.set(LOCATION_HEADER, moved);
 }
 
-const redirectAnswer = (value: unknown): value is { url: string } =>
-	typeof value === "object" &&
-	value !== null &&
-	"url" in value &&
-	typeof value.url === "string";
-
 function isNavigation(headers: Headers | undefined): boolean {
 	return headers?.get(FETCH_DEST_HEADER) === NAVIGATION_DEST;
 }
@@ -110,10 +113,11 @@ export const oauthRedirects = createAuthMiddleware(async (ctx) => {
 		}
 		return;
 	}
-	if (!redirectAnswer(returned)) return;
+	const answer = redirectAnswer.safeParse(returned);
+	if (!answer.success) return;
 
 	const url =
-		(moving && withScopedIssuer(returned.url, issuer)) || returned.url;
+		(moving && withScopedIssuer(answer.data.url, issuer)) || answer.data.url;
 	if (isNavigation(ctx.request?.headers)) throw ctx.redirect(url);
-	if (url !== returned.url) return { ...returned, url };
+	if (url !== answer.data.url) return { ...answer.data, url };
 });

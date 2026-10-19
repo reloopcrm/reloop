@@ -11,6 +11,7 @@
 		"./cloud/*": "./src/cloud/*.ts",
 		"./cookies": "./src/cookies.ts",
 		"./mcp-access": "./src/mcp-access.ts",
+		"./mcp-address": "./src/mcp-address.ts",
 		"./mcp-config": "./src/mcp-config.ts",
 		"./oauth-apps": "./src/oauth-apps.ts",
 		"./password-rules": "./src/password-rules.ts",

@@ -425,6 +425,19 @@ and nothing else. The user-facing steps live in `docs/ai-assistants.md`.
   The discovery documents live at `/.well-known/oauth-protected-resource/api/mcp` and
   `/.well-known/oauth-authorization-server/api/auth`, outside that prefix. A controller serves each
   one. The app forwards them to the API like `/api/*`.
+- **A hosted build may serve a workspace under its own path.** Every absolute address of the
+  MCP surface goes through `cloud.scopedPath()` (`packages/auth/src/mcp-address.ts`): the
+  resource `mcpAddress()`, the issuer `mcpIssuer()`, the `resource_metadata` URL of the 401
+  challenge, `mcp.status.url`, and every endpoint of the authorization server metadata
+  (`scopeAuthorizationServer`). Here the slot returns the path unchanged, so the documents name
+  `/api/mcp` and `/api/auth`. A hosted build maps `/api/<rest>` to a workspace prefix and strips
+  it before Nest; the plugin keeps running on `/api/auth`. Two things follow. The plugin writes its
+  own `iss` into every redirect it answers, so the `after` hook `scopedIssuerRedirect` replaces
+  that value with `mcpIssuer()` in the `Location` header and in the `{ redirect, url }` answer;
+  a client that checks RFC 9207 sees the issuer it discovered. And `accessGuard` turns the scoped
+  `resource` of a token request back into `mcpUrl(apiUrl)` (`canonicalMcpResource`) before the
+  plugin checks it against `validAudiences`; a resource under another workspace's path stays as
+  it is and is refused.
 - **The tools reuse services.** `search`, `fetch`, `list_win_back_candidates`, `get_contact`,
   `get_contact_mails`, `get_contact_draft` and `get_thread` call the services behind the search, the
   Win back list and the person view. No tool has a write path. A tool that reads a person or a

@@ -1,3 +1,4 @@
+import { protectedResourceMetadataUrl } from "@crm/auth";
 import {
 	type ArgumentsHost,
 	Catch,
@@ -8,7 +9,6 @@ import { APIError } from "better-auth/api";
 import type { ErrorRequestHandler, Response } from "express";
 import { z } from "zod";
 import { MCP } from "./mcp.config";
-import { protectedResourceMetadataUrl } from "./mcp-text";
 
 type JsonRpcError = { readonly code: number; readonly message: string };
 

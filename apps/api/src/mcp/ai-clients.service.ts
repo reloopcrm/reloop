@@ -1,5 +1,4 @@
-import { apiUrl, endAiClientAccessOf } from "@crm/auth";
-import { mcpUrl } from "@crm/auth/mcp-config";
+import { endAiClientAccessOf, mcpAddress } from "@crm/auth";
 import type { Db } from "@crm/db";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -33,7 +32,7 @@ export class AiClientsService {
 		);
 
 		return {
-			url: mcpUrl(apiUrl),
+			url: mcpAddress(),
 			clients: consents.map(
 				(consent): AiClient => ({
 					id: consent.id,

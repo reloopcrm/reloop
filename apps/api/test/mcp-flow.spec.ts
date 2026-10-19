@@ -12,6 +12,7 @@ import {
 	WORKSPACE_ID,
 } from "@crm/auth";
 import { db } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import request from "supertest";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
 import { BackfillService } from "../src/backfill/backfill.service";
@@ -557,6 +558,143 @@ describe("the OAuth flow for an AI client", () => {
 		});
 		expect(list.status).toBe(200);
 		expect(list.body.result.tools).toHaveLength(MCP_TOOL_NAMES.length);
+	});
+
+	it("sends a visitor without a session to the sign-in page and resumes after the sign-in", async () => {
+		const { challenge } = pkce();
+		const query = new URLSearchParams({
+			response_type: "code",
+			client_id: clientId,
+			redirect_uri: redirectUri,
+			scope: MCP.scopes.join(" "),
+			code_challenge: challenge,
+			code_challenge_method: "S256",
+			state: "visitor",
+			resource: mcpUrl(apiUrl),
+		});
+
+		const authorize = await request(server)
+			.get(`/api/auth/oauth2/authorize?${query}`)
+			.set("accept", "application/json");
+		expect(authorize.status).toBe(200);
+		expect(authorize.body.redirect).toBe(true);
+		const signInPage = new URL(authorize.body.url);
+		expect(`${signInPage.origin}${signInPage.pathname}`).toBe(
+			new URL(MCP_AUTH.pages.login, appUrl).toString(),
+		);
+		expect(signInPage.searchParams.get("client_id")).toBe(clientId);
+		expect(signInPage.searchParams.get("sig")).toBeTruthy();
+
+		const signIn = await request(server)
+			.post("/api/auth/sign-in/email")
+			.set("origin", appUrl)
+			.set("accept", "application/json")
+			.send({ email, password, oauth_query: signInPage.search.slice(1) });
+		expect(signIn.status).toBe(200);
+		expect(signIn.body.redirect).toBe(true);
+		const callback = new URL(signIn.body.url);
+		expect(`${callback.origin}${callback.pathname}`).toBe(redirectUri);
+		expect(callback.searchParams.get("state")).toBe("visitor");
+		expect(callback.searchParams.get("code")).toBeTruthy();
+	});
+
+	it("serves a workspace that lives under its own path", async () => {
+		const base = apiUrl.replace(/\/+$/, "");
+		const scoped = spyOn(cloud, "scopedPath").mockImplementation(
+			(path: string) => path.replace(/^\/api\//, "/api/w/acme/"),
+		);
+		try {
+			const challengeResponse = await mcp(initialize, {});
+			expect(challengeResponse.status).toBe(401);
+			expect(challengeResponse.headers["www-authenticate"]).toBe(
+				`Bearer resource_metadata="${base}/.well-known/oauth-protected-resource/api/w/acme/mcp"`,
+			);
+
+			const status = await request(server)
+				.get("/api/trpc/mcp.status")
+				.set("cookie", cookie);
+			expect(status.status).toBe(200);
+			expect(status.body.result.data.url).toBe(`${base}/api/w/acme/mcp`);
+
+			const codeFor = async (state: string) => {
+				const { verifier, challenge } = pkce();
+				const query = new URLSearchParams({
+					response_type: "code",
+					client_id: clientId,
+					redirect_uri: redirectUri,
+					scope: MCP.scopes.join(" "),
+					code_challenge: challenge,
+					code_challenge_method: "S256",
+					state,
+					resource: `${base}/api/w/acme/mcp`,
+				});
+				const authorize = await request(server)
+					.get(`/api/auth/oauth2/authorize?${query}`)
+					.set("cookie", cookie)
+					.set("accept", "application/json");
+				expect([authorize.status, authorize.body]).toEqual([
+					200,
+					expect.objectContaining({ redirect: true }),
+				]);
+				const granted = new URL(authorize.body.url);
+				expect(`${granted.origin}${granted.pathname}`).toBe(redirectUri);
+				expect(granted.searchParams.get("iss")).toBe(`${base}/api/w/acme/auth`);
+				const code = granted.searchParams.get("code");
+				expect(code).toBeTruthy();
+				return { code: code ?? "", verifier };
+			};
+
+			const tokenFor = async (resource: string) => {
+				const { code, verifier } = await codeFor(`token-${resource.length}`);
+				return request(server)
+					.post("/api/auth/oauth2/token")
+					.type("form")
+					.send({
+						grant_type: "authorization_code",
+						code,
+						code_verifier: verifier,
+						redirect_uri: redirectUri,
+						client_id: clientId,
+						resource,
+					});
+			};
+
+			const navigated = await request(server)
+				.get(
+					`/api/auth/oauth2/authorize?${new URLSearchParams({
+						response_type: "code",
+						client_id: clientId,
+						redirect_uri: redirectUri,
+						scope: MCP.scopes.join(" "),
+						code_challenge: pkce().challenge,
+						code_challenge_method: "S256",
+						state: "navigated",
+					})}`,
+				)
+				.set("cookie", cookie)
+				.set("accept", "text/html")
+				.redirects(0);
+			expect(navigated.status).toBe(302);
+			const location = new URL(navigated.headers.location ?? "");
+			expect(`${location.origin}${location.pathname}`).toBe(redirectUri);
+			expect(location.searchParams.get("iss")).toBe(`${base}/api/w/acme/auth`);
+
+			const foreign = await tokenFor(`${base}/api/w/other/mcp`);
+			expect(foreign.status).toBe(400);
+			expect(foreign.body.error).toBe("invalid_request");
+
+			const own = await tokenFor(`${base}/api/w/acme/mcp`);
+			expect(own.status).toBe(200);
+			expect(own.body.access_token).toBeTruthy();
+
+			const list = await mcp(rpc("tools/list"), {
+				authorization: `Bearer ${own.body.access_token}`,
+			});
+			expect(list.status).toBe(200);
+			expect(list.body.result.tools).toHaveLength(MCP_TOOL_NAMES.length);
+		} finally {
+			scoped.mockRestore();
+		}
 	});
 
 	it("counts a bearer caller against the MCP rate limit", async () => {

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import { apiUrl, mcpUrl } from "@crm/auth";
 import { db } from "@crm/db";
+import { cloud } from "@crm/db/cloud/scope";
 import request from "supertest";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
 import { BackfillService } from "../src/backfill/backfill.service";
@@ -106,5 +107,53 @@ describe("the OAuth metadata for AI clients", () => {
 			const response = await request(server).head(path);
 			expect(response.status).toBe(200);
 		}
+	});
+});
+
+describe("the OAuth metadata under a workspace path", () => {
+	const base = apiUrl.replace(/\/+$/, "");
+	let scoped: ReturnType<typeof spyOn> | undefined;
+
+	beforeAll(() => {
+		scoped = spyOn(cloud, "scopedPath").mockImplementation((path: string) =>
+			path.replace(/^\/api\//, "/api/w/acme/"),
+		);
+	});
+
+	afterAll(() => {
+		scoped?.mockRestore();
+	});
+
+	it("moves the issuer and every endpoint under the workspace path", async () => {
+		const response = await request(server).get(AUTHORIZATION_SERVER[1] ?? "");
+
+		expect(response.status).toBe(200);
+		expect(response.body.issuer).toBe(`${base}/api/w/acme/auth`);
+		expect(response.body.authorization_endpoint).toBe(
+			`${base}/api/w/acme/auth/oauth2/authorize`,
+		);
+		expect(response.body.token_endpoint).toBe(
+			`${base}/api/w/acme/auth/oauth2/token`,
+		);
+		expect(response.body.registration_endpoint).toBe(
+			`${base}/api/w/acme/auth/oauth2/register`,
+		);
+		expect(response.body.revocation_endpoint).toBe(
+			`${base}/api/w/acme/auth/oauth2/revoke`,
+		);
+		expect(response.body.authorization_response_iss_parameter_supported).toBe(
+			true,
+		);
+		expect(JSON.stringify(response.body)).not.toContain(`${base}/api/auth`);
+	});
+
+	it("names the workspace resource and its issuer", async () => {
+		const response = await request(server).get(PROTECTED_RESOURCE[1] ?? "");
+
+		expect(response.status).toBe(200);
+		expect(response.body.resource).toBe(`${base}/api/w/acme/mcp`);
+		expect(response.body.authorization_servers).toEqual([
+			`${base}/api/w/acme/auth`,
+		]);
 	});
 });

@@ -1,4 +1,4 @@
-import { apiUrl, appUrl } from "@crm/auth";
+import { appUrl } from "@crm/auth";
 import { MCP, type McpRecordKind } from "./mcp.config";
 
 const ELLIPSIS = "…";
@@ -43,8 +43,4 @@ export function recordUrl(kind: McpRecordKind, id: string): string {
 
 export function recordRef(kind: McpRecordKind, id: string): string {
 	return `${kind}${MCP.record.separator}${id}`;
-}
-
-export function protectedResourceMetadataUrl(): string {
-	return `${trimBase(apiUrl)}${MCP.wellKnown.protectedResource}${MCP.path}`;
 }

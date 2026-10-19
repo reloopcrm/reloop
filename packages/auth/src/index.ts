@@ -24,6 +24,15 @@ export {
 	type McpTokenHolder,
 	readMcpTokenHolder,
 } from "./mcp-access";
+export {
+	authIssuer,
+	canonicalMcpResource,
+	mcpAddress,
+	mcpIssuer,
+	protectedResourceMetadataUrl,
+	scopeAuthorizationServer,
+	scopedIssuerRedirect,
+} from "./mcp-address";
 export { MCP, MCP_SCOPE, mcpAudiences, mcpUrl } from "./mcp-config";
 export {
 	DEFAULT_WORKSPACE_NAME,

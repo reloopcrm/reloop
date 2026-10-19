@@ -280,9 +280,14 @@
 	"Only a member of this workspace can connect Slack.": "只有这个工作区的成员才能连接 Slack。",
 	"Only an owner or an admin can connect Slack. One Slack workspace is shared by everyone here, so ask one of them to connect or reconnect it.": "只有所有者或管理员才能连接 Slack。这里所有人共用一个 Slack 工作区，所以请让他们中的一位来连接或重新连接。",
 	"An API key cannot manage API keys. Sign in to the CRM first.": "API 密钥不能管理 API 密钥。请先登录 CRM。",
+	"An API key cannot connect an AI assistant. Sign in to the CRM first.": "API 密钥不能连接 AI 助手。请先登录 CRM。",
+	"That AI client is not connected.": "该 AI 客户端未连接。",
 	"An API key takes the prefix this CRM gives it.": "API 密钥使用这个 CRM 分配的前缀。",
 	"An API key cannot add a sign-in provider. Sign in to the CRM first.": "API 密钥不能添加登录提供方。请先登录 CRM。",
 	"Only an owner or an admin adds a sign-in provider, on Settings then SSO.": "只有所有者或管理员才能添加登录提供方，位置在设置，然后 SSO。",
 	"Change the workspace on Settings, not through the auth API.": "请在设置中修改工作区，不要通过认证 API。",
-	"No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN=\"acme.com\") and restart.": "还没有人能登录：在 .env 中把 ALLOWED_SIGN_IN 设为你的邮箱域名（例如 ALLOWED_SIGN_IN=\"acme.com\"），然后重启。"
+	"No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN=\"acme.com\") and restart.": "还没有人能登录：在 .env 中把 ALLOWED_SIGN_IN 设为你的邮箱域名（例如 ALLOWED_SIGN_IN=\"acme.com\"），然后重启。",
+	"Could not finish the connection. Start again from the assistant.": "无法完成连接。请从助手重新开始。",
+	"Allow": "允许",
+	"Deny": "拒绝"
 }

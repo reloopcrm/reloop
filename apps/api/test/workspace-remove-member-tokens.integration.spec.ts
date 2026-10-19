@@ -22,6 +22,8 @@ const people = [ownerId, targetId, otherId];
 const targetEmail = `preview-${targetId}@example.com`;
 const slackInstallerId = `U-${RUN}`;
 const imapId = `imap-${RUN}`;
+const oauthClientId = `tokens-client-${RUN}`;
+const AI_SCOPES = ["crm:read", "offline_access"];
 
 const service = new WorkspaceService(
 	db,
@@ -94,7 +96,51 @@ async function seedSync(userId: string, source: string) {
 	});
 }
 
+async function seedAiClientGrant(userId: string) {
+	const now = new Date();
+	await db.oauthConsent.create({
+		data: {
+			id: `consent-${userId}`,
+			clientId: oauthClientId,
+			userId,
+			scopes: AI_SCOPES,
+			createdAt: now,
+			updatedAt: now,
+		},
+	});
+	await db.oauthRefreshToken.create({
+		data: {
+			id: `refresh-${userId}`,
+			token: `hashed-refresh-${userId}`,
+			clientId: oauthClientId,
+			userId,
+			scopes: AI_SCOPES,
+			createdAt: now,
+			expiresAt: later,
+		},
+	});
+	await db.oauthAccessToken.create({
+		data: {
+			id: `access-${userId}`,
+			token: `hashed-access-${userId}`,
+			clientId: oauthClientId,
+			userId,
+			refreshId: `refresh-${userId}`,
+			scopes: AI_SCOPES,
+			createdAt: now,
+			expiresAt: later,
+		},
+	});
+}
+
+const aiClientGrantsOf = async (userId: string) => ({
+	consents: await db.oauthConsent.count({ where: { userId } }),
+	refreshTokens: await db.oauthRefreshToken.count({ where: { userId } }),
+	accessTokens: await db.oauthAccessToken.count({ where: { userId } }),
+});
+
 async function clean() {
+	await db.oauthClient.deleteMany({ where: { clientId: oauthClientId } });
 	await db.session.deleteMany({ where: { userId: { in: people } } });
 	await db.apikey.deleteMany({ where: { referenceId: { in: people } } });
 	await db.slackInstallation.deleteMany({
@@ -150,6 +196,18 @@ beforeAll(async () => {
 	for (const source of ["gmail", "calendar", "outlook", imapSourceFor(imapId)])
 		await seedSync(targetId, source);
 	await seedSync(otherId, "gmail");
+
+	await db.oauthClient.create({
+		data: {
+			id: oauthClientId,
+			clientId: oauthClientId,
+			name: "Remove member spec",
+			redirectUris: ["https://client.example/callback"],
+			scopes: AI_SCOPES,
+		},
+	});
+	await seedAiClientGrant(targetId);
+	await seedAiClientGrant(otherId);
 
 	await service.removeMember(ownerId, { memberId: targetMemberId });
 });
@@ -209,6 +267,25 @@ describe("removing a member ends their stored mailbox access", () => {
 			expect(row.cursor).toBe(`cursor-${row.source}`);
 			expect(row.autoCreate).toBe(true);
 		}
+	});
+
+	it("deletes every AI client grant of that person and keeps the client", async () => {
+		expect(await aiClientGrantsOf(targetId)).toEqual({
+			consents: 0,
+			refreshTokens: 0,
+			accessTokens: 0,
+		});
+		expect(
+			await db.oauthClient.count({ where: { clientId: oauthClientId } }),
+		).toBe(1);
+	});
+
+	it("leaves the AI client grants of another member alone", async () => {
+		expect(await aiClientGrantsOf(otherId)).toEqual({
+			consents: 1,
+			refreshTokens: 1,
+			accessTokens: 1,
+		});
 	});
 
 	it("leaves another member's tokens and mailbox alone", async () => {

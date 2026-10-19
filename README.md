@@ -43,6 +43,7 @@ Reloop CRM connects to your mailbox, reads every conversation and remembers what
 - **Win back.** Points from real business facts, and rules the agent sharpens from your own verdicts.
 - **Learns your business.** Onboarding asks what you sell, the AI fills in the rest from your website and your mail.
 - **Only contacts that matter.** Out of office replies, newsletter recipients who never answered and your own addresses stay out.
+- **Ask ChatGPT or Claude.** Connect your own assistant through MCP and it reads the CRM and the mail story, read only, and writes the mail you send yourself.
 - **Bring your own AI.** An OpenRouter, OpenAI or Anthropic API key, or a ChatGPT subscription (experimental). Without one, the CRM works without AI.
 
 ## Self-host

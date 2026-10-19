@@ -42,5 +42,20 @@
 	"Title matches \"{keyword}\"": "Unvan \"{keyword}\" ile eşleşiyor",
 	"Reloop cannot reach its API right now.": "Reloop şu anda API'sine ulaşamıyor.",
 	"Reload the page in a moment.": "Sayfayı birazdan yeniden yükle.",
-	"Writing what happened with them": "Onlarla neler olduğunu yazıyor"
+	"Writing what happened with them": "Onlarla neler olduğunu yazıyor",
+	"Allow access": "Erişime izin ver",
+	"This connection request is not valid.": "Bu bağlantı isteği geçerli değil.",
+	"Start again from the AI assistant you want to connect.": "Bağlamak istediğin yapay zeka asistanından yeniden başla.",
+	"Back to your workspace": "Çalışma alanına dön",
+	"An AI assistant": "Bir yapay zeka asistanı",
+	"Allow {name} to read your CRM?": "{name} CRM'ini okuyabilsin mi?",
+	"It reads with your account. It cannot write, send or change anything.": "Senin hesabınla okur. Hiçbir şey yazamaz, gönderemez veya değiştiremez.",
+	"{name} may read:": "{name} şunları okuyabilir:",
+	"Contacts, companies and deals": "Kişiler, şirketler ve fırsatlar",
+	"The Win back list": "Geri kazan listesi",
+	"The story of a person, with summaries and excerpts of the mail": "Bir kişinin hikayesi, e-posta özetleri ve alıntılarıyla",
+	"The draft Reloop prepared": "Reloop'un hazırladığı taslak",
+	"What it reads goes to the company that runs {name}. You can revoke it any time in Settings, Connections, AI assistants.": "Okudukları {name} hizmetini işleten şirkete gider. İstediğin zaman Ayarlar, Bağlantılar, Yapay zeka asistanları içinden iptal edebilirsin.",
+	"It stays connected until you revoke it.": "Sen iptal edene kadar bağlı kalır.",
+	"Signed in as {email}": "{email} olarak giriş yapıldı"
 }

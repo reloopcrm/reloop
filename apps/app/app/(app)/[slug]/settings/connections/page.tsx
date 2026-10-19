@@ -1,3 +1,4 @@
+import Bot from "@carbon/icons-react/es/Bot";
 import ConnectionSend from "@carbon/icons-react/es/ConnectionSend";
 import Email from "@carbon/icons-react/es/Email";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
@@ -44,12 +45,13 @@ async function ConnectionsSettingsPageContent({
 	]);
 	const queryClient = getServerQueryClient();
 	const trpc = getServerTrpc();
-	const [google, microsoft, slack, imap, webhooks] = await Promise.all([
+	const [google, microsoft, slack, imap, webhooks, mcp] = await Promise.all([
 		queryClient.fetchQuery(trpc.google.status.queryOptions()),
 		queryClient.fetchQuery(trpc.microsoft.status.queryOptions()),
 		queryClient.fetchQuery(trpc.slack.status.queryOptions()),
 		queryClient.fetchQuery(trpc.imap.status.queryOptions()),
 		queryClient.fetchQuery(trpc.webhooks.status.queryOptions()),
+		queryClient.fetchQuery(trpc.mcp.status.queryOptions()),
 	]);
 	const now = new Date();
 	const gmail = importProgressOf(
@@ -133,6 +135,23 @@ async function ConnectionsSettingsPageContent({
 					},
 				]
 			: []),
+		...(mcp.clients.length > 0
+			? [
+					{
+						name: t("AI assistants"),
+						status:
+							mcp.clients.length === 1
+								? t("{count} assistant connected", { count: 1 })
+								: t("{count} assistants connected", {
+										count: mcp.clients.length,
+									}),
+						bringsIn: t("Nothing, so nothing here changes your CRM"),
+						sends: t("What you ask the assistant to read, to that vendor"),
+						href: `/${slug}/settings/connections/ai`,
+						logo: Bot,
+					},
+				]
+			: []),
 	];
 
 	return (
@@ -210,6 +229,14 @@ async function ConnectionsSettingsPageContent({
 								"Drive n8n, Zapier or your own script from CRM events",
 							)}
 							href={`/${slug}/settings/connections/webhooks`}
+						/>
+						<StarterRow
+							logo={Bot}
+							name={t("AI assistants")}
+							description={t(
+								"Connect ChatGPT, Claude or Claude Code to read your CRM",
+							)}
+							href={`/${slug}/settings/connections/ai`}
 						/>
 					</div>
 					<p className="px-(--spacing-block-inline) text-muted-foreground text-sm">

@@ -411,6 +411,34 @@ Two rules follow for the serverless build:
   `MODULE_NOT_FOUND` on the first request. Adding a name to `EXTERNALS` without
   checking it lands in `.vercel/output` breaks production, and the build stays green.
 
+## The MCP endpoint
+
+`/api/mcp` is the door for a connected AI assistant (ChatGPT, Claude, Claude Code). It reads the CRM
+and nothing else. The user-facing steps live in `docs/ai-assistants.md`.
+
+- **It mounts after `cloudMiddleware()` and under the REST rate limit.** An `x-api-key` call on
+  `/api/mcp` counts against the same per-key window as the REST bridge.
+- **Auth is a bearer or an `x-api-key`, never a cookie.** The server looks a bearer token up by its
+  hash in the database on every call, so a revoke works at once. The `x-api-key` header takes the
+  same API key check as the REST bridge.
+- **The well-known routes are Nest controllers.** The oauthProvider plugin only sees `/api/auth/*`.
+  The discovery documents live at `/.well-known/oauth-protected-resource/api/mcp` and
+  `/.well-known/oauth-authorization-server/api/auth`, outside that prefix. A controller serves each
+  one. The app forwards them to the API like `/api/*`.
+- **The tools reuse services.** `search`, `fetch`, `list_win_back_candidates`, `get_contact`,
+  `get_contact_mails`, `get_contact_draft` and `get_thread` call the services behind the search, the
+  Win back list and the person view. No tool has a write path. A tool that reads a person or a
+  thread queues the same `AgentTask` rows opening that page queues. The limits live in `MCP` in
+  `src/mcp/mcp.config.ts`.
+- **No intelligence runs there.** The endpoint returns stored data and writes an `AgentTask` row at
+  most. It calls no model and scores nothing. The agent decides, as everywhere else in the API.
+- **The oauthProvider plugin owns the grants.** Access and refresh tokens are opaque and stored
+  hashed. `endAccessOf` in `packages/auth/src/sign-in-grants.ts` deletes sessions, API keys and the
+  OAuth access tokens, refresh tokens and consents of a person. `removeMember` and
+  `sign-in-grants.ts revoke` call it. `accessGuard` refuses an `x-api-key` header on `/oauth2/*`, so
+  a key can never register or authorize an assistant. Dynamic client registration is open on
+  purpose: a client has no data until a user signs in and allows it.
+
 ## A request body has a size
 
 `apps/api/src/http/http-config.ts` holds the numbers and

@@ -86,11 +86,27 @@ async function pruneExpired(
 	`;
 }
 
+export function restRatePruner(
+	limit: RestRateLimitWindow = REST_RATE_LIMIT.apiKey,
+	client: Pick<Db, "$executeRaw"> = db,
+): (now: number) => Promise<void> {
+	const prunedAt = new Map<string, number>();
+
+	return (now) => {
+		const scope = cloud.scopedKey(REST_RATE_LIMIT.pruneKey);
+		const due = now - (prunedAt.get(scope) ?? 0) >= limit.windowMs;
+		if (!due) return Promise.resolve();
+
+		prunedAt.set(scope, now);
+		return pruneExpired(client, limit, now);
+	};
+}
+
 export function restRateLimit(
 	limit: RestRateLimitWindow = REST_RATE_LIMIT.apiKey,
 	client: Pick<Db, "$queryRaw" | "$executeRaw" | "apikey"> = db,
 ): RequestHandler {
-	const prunedAt = new Map<string, number>();
+	const prune = restRatePruner(limit, client);
 
 	return (req: Request, res: Response, next: NextFunction): void => {
 		const apiKey = keyHeaderOf(req);
@@ -101,14 +117,8 @@ export function restRateLimit(
 		}
 
 		const now = Date.now();
-		const scope = cloud.scopedKey(REST_RATE_LIMIT.pruneKey);
-		const due = now - (prunedAt.get(scope) ?? 0) >= limit.windowMs;
 
-		if (due) prunedAt.set(scope, now);
-
-		const prune = due ? pruneExpired(client, limit, now) : Promise.resolve();
-
-		prune
+		prune(now)
 			.then(() => apiKeyIdOf(client, apiKey))
 			.then((apiKeyId) =>
 				apiKeyId

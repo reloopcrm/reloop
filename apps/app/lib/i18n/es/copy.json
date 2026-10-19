@@ -280,9 +280,14 @@
 	"Only a member of this workspace can connect Slack.": "Solo un miembro de este espacio de trabajo puede conectar Slack.",
 	"Only an owner or an admin can connect Slack. One Slack workspace is shared by everyone here, so ask one of them to connect or reconnect it.": "Solo un propietario o un admin puede conectar Slack. Todos aquí comparten un espacio de trabajo de Slack, así que pide a uno de ellos que lo conecte o lo vuelva a conectar.",
 	"An API key cannot manage API keys. Sign in to the CRM first.": "Una clave de API no puede gestionar claves de API. Inicia sesión en el CRM primero.",
+	"An API key cannot connect an AI assistant. Sign in to the CRM first.": "Una clave de API no puede conectar un asistente de IA. Inicia sesión en el CRM primero.",
+	"That AI client is not connected.": "Ese cliente de IA no está conectado.",
 	"An API key takes the prefix this CRM gives it.": "Una clave de API lleva el prefijo que le da este CRM.",
 	"An API key cannot add a sign-in provider. Sign in to the CRM first.": "Una clave de API no puede añadir un proveedor de inicio de sesión. Inicia sesión en el CRM primero.",
 	"Only an owner or an admin adds a sign-in provider, on Settings then SSO.": "Solo un propietario o un admin añade un proveedor de inicio de sesión, en Ajustes y luego SSO.",
 	"Change the workspace on Settings, not through the auth API.": "Cambia el espacio de trabajo en Ajustes, no a través de la API de autenticación.",
-	"No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN=\"acme.com\") and restart.": "Todavía nadie puede iniciar sesión: define ALLOWED_SIGN_IN en .env con el dominio de tu correo (por ejemplo ALLOWED_SIGN_IN=\"acme.com\") y reinicia."
+	"No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN=\"acme.com\") and restart.": "Todavía nadie puede iniciar sesión: define ALLOWED_SIGN_IN en .env con el dominio de tu correo (por ejemplo ALLOWED_SIGN_IN=\"acme.com\") y reinicia.",
+	"Could not finish the connection. Start again from the assistant.": "No se pudo terminar la conexión. Empieza de nuevo desde el asistente.",
+	"Allow": "Permitir",
+	"Deny": "Rechazar"
 }

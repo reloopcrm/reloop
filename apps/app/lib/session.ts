@@ -11,6 +11,7 @@ import { db } from "@crm/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { z } from "zod";
 import { inScope } from "@/cloud/scope.server";
 import { GRANT_ACCESS } from "@/lib/grant-access-copy";
 
@@ -56,6 +57,42 @@ export const workspaceRow = cache(
 				select: { name: true, slug: true },
 			}),
 		)) ?? null,
+);
+
+const oauthClientPublic = z.object({
+	client_id: z.string(),
+	client_name: z.string().nullish(),
+	client_uri: z.string().nullish(),
+});
+
+export type OAuthClientPublic = {
+	clientId: string;
+	name: string | null;
+	uri: string | null;
+};
+
+const notFoundError = z.object({ status: z.literal("NOT_FOUND") });
+
+export const oauthClientOf = cache(
+	async (clientId: string): Promise<OAuthClientPublic | null> =>
+		(await inScope(async () => {
+			try {
+				const client = oauthClientPublic.parse(
+					await auth.api.getOAuthClientPublic({
+						query: { client_id: clientId },
+						headers: await headers(),
+					}),
+				);
+				return {
+					clientId: client.client_id,
+					name: client.client_name?.trim() || null,
+					uri: client.client_uri ?? null,
+				};
+			} catch (error) {
+				if (notFoundError.safeParse(error).success) return null;
+				throw error;
+			}
+		})) ?? null,
 );
 
 export const businessDraftMaterial = cache(

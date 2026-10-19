@@ -51,6 +51,7 @@ export type CrmCache = {
 	tracking(options?: Options): Promise<void>;
 	typesafe(options?: Options): Promise<void>;
 	webhooks(options?: Options): Promise<void>;
+	mcp(options?: Options): Promise<void>;
 	everything(): Promise<void>;
 };
 
@@ -397,6 +398,7 @@ export function useCrmCache(): CrmCache {
 
 		typesafe: (options) => run([trpc.typesafe.status.queryKey()], [], options),
 		webhooks: (options) => run([trpc.webhooks.status.queryKey()], [], options),
+		mcp: (options) => run([trpc.mcp.status.queryKey()], [], options),
 
 		everything: () => queryClient.invalidateQueries(),
 	};

@@ -187,6 +187,8 @@ type AiClientStore = Pick<
 	"oauthAccessToken" | "oauthRefreshToken" | "oauthConsent"
 >;
 
+type AiGrantScope = { userId: { in: string[] }; clientId?: string };
+
 export async function endAiClientAccessOf(
 	database: AiClientStore,
 	userIds: readonly string[],
@@ -194,10 +196,8 @@ export async function endAiClientAccessOf(
 ): Promise<void> {
 	if (userIds.length === 0) return;
 
-	const scope = {
-		userId: { in: [...userIds] },
-		...(clientId ? { clientId } : {}),
-	};
+	const scope: AiGrantScope = { userId: { in: [...userIds] } };
+	if (clientId) scope.clientId = clientId;
 	await database.oauthAccessToken.deleteMany({ where: scope });
 	await database.oauthRefreshToken.deleteMany({ where: scope });
 	await database.oauthConsent.deleteMany({ where: scope });

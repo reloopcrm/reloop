@@ -116,8 +116,8 @@ assistant only if you accept it.
 Open **Settings, Connections, AI assistants** and select **Revoke** next to the client. That ends
 its tokens and its consent.
 
-Removing a member from the workspace deletes every OAuth token and consent of that person, as
-well as their sessions and API keys. An operator does the same from the shell:
+Removing a member from the workspace deletes every OAuth token, consent and open authorization
+code of that person, as well as their sessions and API keys. An operator does the same from the shell:
 
 ```sh
 bun apps/api/scripts/sign-in-grants.ts revoke person@example.com

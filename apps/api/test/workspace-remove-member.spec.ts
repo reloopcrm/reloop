@@ -33,6 +33,7 @@ function workspace(actorRole: string | null, target: Target) {
 			deleteMany: async () => writes.push("oauthRefreshToken"),
 		},
 		oauthConsent: { deleteMany: async () => writes.push("oauthConsent") },
+		verification: { deleteMany: async () => writes.push("verification") },
 		account: {
 			findMany: async () => [],
 			updateMany: async () => writes.push("account"),
@@ -135,6 +136,7 @@ describe("removing a member: the rules", () => {
 			"oauthAccessToken",
 			"oauthRefreshToken",
 			"oauthConsent",
+			"verification",
 			"account",
 			"imapAccount",
 			"mailboxSync",
@@ -156,6 +158,7 @@ describe("removing a member: the rules", () => {
 			"oauthAccessToken",
 			"oauthRefreshToken",
 			"oauthConsent",
+			"verification",
 			"account",
 			"imapAccount",
 			"mailboxSync",

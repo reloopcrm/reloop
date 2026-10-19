@@ -24,6 +24,8 @@ const everything = {
 	consents: 1,
 	refreshTokens: 1,
 	accessTokens: 1,
+	openCodes: 1,
+	otherVerifications: 1,
 };
 const nothing = {
 	sessions: 0,
@@ -31,7 +33,22 @@ const nothing = {
 	consents: 0,
 	refreshTokens: 0,
 	accessTokens: 0,
+	openCodes: 0,
+	otherVerifications: 1,
 };
+
+function openCodeValue(userId: string): string {
+	return JSON.stringify({
+		type: "authorization_code",
+		query: { client_id: clientId, redirect_uri: "https://client.example" },
+		userId,
+		authTime: Date.now(),
+	});
+}
+
+function otherVerificationValue(userId: string): string {
+	return JSON.stringify({ type: "email-change", userId });
+}
 
 async function credentialsOf(userId: string) {
 	const now = new Date();
@@ -74,6 +91,22 @@ async function credentialsOf(userId: string) {
 			expiresAt: new Date(now.getTime() + HOUR_MS),
 		},
 	});
+	await db.verification.createMany({
+		data: [
+			{
+				id: `code-${userId}`,
+				identifier: `hashed-code-${userId}`,
+				value: openCodeValue(userId),
+				expiresAt: new Date(now.getTime() + HOUR_MS),
+			},
+			{
+				id: `other-${userId}`,
+				identifier: `other-${userId}`,
+				value: otherVerificationValue(userId),
+				expiresAt: new Date(now.getTime() + HOUR_MS),
+			},
+		],
+	});
 	await db.oauthAccessToken.create({
 		data: {
 			id: `access-${userId}`,
@@ -95,6 +128,12 @@ async function counts(userId: string) {
 		consents: await db.oauthConsent.count({ where: { userId } }),
 		refreshTokens: await db.oauthRefreshToken.count({ where: { userId } }),
 		accessTokens: await db.oauthAccessToken.count({ where: { userId } }),
+		openCodes: await db.verification.count({
+			where: { id: `code-${userId}` },
+		}),
+		otherVerifications: await db.verification.count({
+			where: { id: `other-${userId}` },
+		}),
 	};
 }
 
@@ -131,6 +170,11 @@ afterAll(async () => {
 	await db.apikey.deleteMany({ where: { referenceId: { in: people } } });
 	await db.session.deleteMany({ where: { userId: { in: people } } });
 	await db.oauthClient.deleteMany({ where: { clientId } });
+	await db.verification.deleteMany({
+		where: {
+			id: { in: people.flatMap((id) => [`code-${id}`, `other-${id}`]) },
+		},
+	});
 	await db.user.deleteMany({ where: { id: { in: people } } });
 
 	if (allowed === undefined) delete process.env.ALLOWED_SIGN_IN;

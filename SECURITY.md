@@ -53,8 +53,8 @@ mail-derived text: summaries, excerpts and the prepared draft, never raw MIME. T
 the vendor that runs the assistant, because the member chose to connect it and asked it something.
 Every tool is read only. No tool writes a record, sends mail or changes a setting. The member
 revokes a client in **Settings, Connections, AI assistants**. Removing the member, or
-`bun apps/api/scripts/sign-in-grants.ts revoke <address>`, deletes every OAuth token and consent of
-that person, as well as sessions and API keys. Access tokens are opaque and checked in the database
+`bun apps/api/scripts/sign-in-grants.ts revoke <address>`, deletes every OAuth token, consent and
+open authorization code of that person, as well as sessions and API keys. Access tokens are opaque and checked in the database
 on every call, so a revoke works at once. `accessGuard` refuses an `x-api-key` header on every
 `/api/auth/oauth2/*` route, so a leaked key cannot connect an assistant. Dynamic client
 registration is open, so anyone can register a client. A client gets nothing without a user who

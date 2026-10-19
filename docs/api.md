@@ -434,8 +434,8 @@ and nothing else. The user-facing steps live in `docs/ai-assistants.md`.
   most. It calls no model and scores nothing. The agent decides, as everywhere else in the API.
 - **The oauthProvider plugin owns the grants.** Access and refresh tokens are opaque and stored
   hashed. `endAccessOf` in `packages/auth/src/sign-in-grants.ts` deletes sessions, API keys and the
-  OAuth access tokens, refresh tokens and consents of a person. `removeMember` and
-  `sign-in-grants.ts revoke` call it. `accessGuard` refuses an `x-api-key` header on `/oauth2/*`, so
+  OAuth access tokens, refresh tokens, consents and the authorization codes not yet
+  exchanged of a person. `removeMember` and `sign-in-grants.ts revoke` call it. `accessGuard` refuses an `x-api-key` header on `/oauth2/*`, so
   a key can never register or authorize an assistant. Dynamic client registration is open on
   purpose: a client has no data until a user signs in and allows it.
 

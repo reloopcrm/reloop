@@ -19,6 +19,13 @@ export {
 	isSlackConfigured,
 } from "./env";
 export {
+	bearerTokenOf,
+	hashOAuthToken,
+	type McpTokenHolder,
+	readMcpTokenHolder,
+} from "./mcp-access";
+export { MCP, MCP_SCOPE, mcpAudiences, mcpUrl } from "./mcp-config";
+export {
 	DEFAULT_WORKSPACE_NAME,
 	ensureWorkspaceMembership,
 	WORKSPACE_ID,
@@ -84,6 +91,7 @@ export {
 } from "./scopes";
 export {
 	endAccessOf,
+	endAiClientAccessOf,
 	forgetStoredGrantsOf,
 	grantSignIn,
 	grantSignInInTransaction,

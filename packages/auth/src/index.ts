@@ -30,9 +30,9 @@ export {
 	issuerForm,
 	mcpAddress,
 	mcpIssuer,
+	oauthRedirects,
 	protectedResourceMetadataUrl,
 	scopeAuthorizationServer,
-	scopedIssuerRedirect,
 } from "./mcp-address";
 export { MCP, MCP_SCOPE, mcpAudiences, mcpUrl } from "./mcp-config";
 export {

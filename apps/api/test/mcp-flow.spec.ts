@@ -560,6 +560,39 @@ describe("the OAuth flow for an AI client", () => {
 		expect(list.body.result.tools).toHaveLength(MCP_TOOL_NAMES.length);
 	});
 
+	it("answers a browser navigation that came through the app proxy with a real redirect", async () => {
+		const query = new URLSearchParams({
+			response_type: "code",
+			client_id: clientId,
+			redirect_uri: redirectUri,
+			scope: MCP.scopes.join(" "),
+			code_challenge: pkce().challenge,
+			code_challenge_method: "S256",
+			state: "proxied",
+		});
+
+		const navigation = await request(server)
+			.get(`/api/auth/oauth2/authorize?${query}`)
+			.set("accept", "text/html,application/xhtml+xml")
+			.set("sec-fetch-mode", "cors")
+			.set("sec-fetch-dest", "document")
+			.redirects(0);
+		expect(navigation.status).toBe(302);
+		const signInPage = new URL(navigation.headers.location ?? "");
+		expect(`${signInPage.origin}${signInPage.pathname}`).toBe(
+			new URL(MCP_AUTH.pages.login, appUrl).toString(),
+		);
+		expect(signInPage.searchParams.get("state")).toBe("proxied");
+
+		const fetched = await request(server)
+			.get(`/api/auth/oauth2/authorize?${query}`)
+			.set("accept", "application/json")
+			.set("sec-fetch-mode", "cors")
+			.set("sec-fetch-dest", "empty");
+		expect(fetched.status).toBe(200);
+		expect(fetched.body.redirect).toBe(true);
+	});
+
 	it("sends a visitor without a session to the sign-in page and resumes after the sign-in", async () => {
 		const { challenge } = pkce();
 		const query = new URLSearchParams({

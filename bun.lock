@@ -130,6 +130,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@better-auth/api-key": "1.6.25",
+        "@better-auth/core": "1.6.25",
         "@better-auth/oauth-provider": "1.6.25",
         "@better-auth/sso": "1.6.25",
         "@crm/db": "workspace:*",

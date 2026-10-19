@@ -29,6 +29,18 @@ describe("the issuer form", () => {
 		expect(issuerForm("http://127.0.0.1:3001/api/auth")).toBe(
 			"http://127.0.0.1:3001/api/auth",
 		);
+		expect(issuerForm("http://crm.localhost:3001/api/auth")).toBe(
+			"http://crm.localhost:3001/api/auth",
+		);
+		expect(issuerForm("http://localhost.:3001/api/auth")).toBe(
+			"http://localhost.:3001/api/auth",
+		);
+		expect(issuerForm("http://[::1]:3001/api/auth")).toBe(
+			"http://[::1]:3001/api/auth",
+		);
+		expect(issuerForm("http://[::ffff:127.0.0.1]:3001/api/auth")).toBe(
+			"http://[::ffff:7f00:1]:3001/api/auth",
+		);
 	});
 });
 

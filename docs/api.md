@@ -432,12 +432,20 @@ and nothing else. The user-facing steps live in `docs/ai-assistants.md`.
   (`scopeAuthorizationServer`). Here the slot returns the path unchanged, so the documents name
   `/api/mcp` and `/api/auth`. A hosted build maps `/api/<rest>` to a workspace prefix and strips
   it before Nest; the plugin keeps running on `/api/auth`. Two things follow. The plugin writes its
-  own `iss` into every redirect it answers, so the `after` hook `scopedIssuerRedirect` replaces
+  own `iss` into every redirect it answers, so the `after` hook `oauthRedirects` replaces
   that value with `mcpIssuer()` in the `Location` header and in the `{ redirect, url }` answer;
   a client that checks RFC 9207 sees the issuer it discovered. And `accessGuard` turns the scoped
   `resource` of a token request back into `mcpUrl(apiUrl)` (`canonicalMcpResource`) before the
   plugin checks it against `validAudiences`; a resource under another workspace's path stays as
   it is and is refused.
+- **A browser that navigates to an OAuth endpoint through the app gets a real redirect.** The
+  app proxies `/api/*` with Node's `fetch`, which writes `sec-fetch-mode: cors` on every request
+  it sends, whatever the browser sent. The plugin reads that header and answers a navigation with
+  `200 { redirect: true, url }`, which a browser shows as text. `oauthRedirects` reads
+  `sec-fetch-dest`, which the proxy passes on as the browser sent it: `document` means a
+  navigation, and the hook turns the answer into a 302 to the same URL. A `fetch()` from the
+  sign-in or consent page carries `sec-fetch-dest: empty` and keeps the JSON answer that the
+  better-auth client follows itself.
 - **The tools reuse services.** `search`, `fetch`, `list_win_back_candidates`, `get_contact`,
   `get_contact_mails`, `get_contact_draft` and `get_thread` call the services behind the search, the
   Win back list and the person view. No tool has a write path. A tool that reads a person or a

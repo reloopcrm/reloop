@@ -1,3 +1,4 @@
+import { isLoopbackHost } from "@better-auth/core/utils/host";
 import { cloud } from "@crm/db/cloud/scope";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { apiUrl } from "./env";
@@ -5,7 +6,8 @@ import { MCP, mcpUrl } from "./mcp-config";
 
 const ISSUER_PARAM = "iss";
 const LOCATION_HEADER = "location";
-const LOOPBACK_HOST = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])(:\d+)?$/i;
+const FETCH_DEST_HEADER = "sec-fetch-dest";
+const NAVIGATION_DEST = "document";
 
 function apiBase(): string {
 	return apiUrl.replace(/\/+$/, "");
@@ -13,7 +15,7 @@ function apiBase(): string {
 
 export function issuerForm(url: string): string {
 	const parsed = new URL(url);
-	if (parsed.protocol !== "https:" && !LOOPBACK_HOST.test(parsed.host)) {
+	if (parsed.protocol !== "https:" && !isLoopbackHost(parsed.host)) {
 		parsed.protocol = "https:";
 	}
 	parsed.search = "";
@@ -92,21 +94,26 @@ const redirectAnswer = (value: unknown): value is { url: string } =>
 	"url" in value &&
 	typeof value.url === "string";
 
-export const scopedIssuerRedirect = createAuthMiddleware(async (ctx) => {
-	const issuer = mcpIssuer();
-	if (issuer === authIssuer()) return;
+function isNavigation(headers: Headers | undefined): boolean {
+	return headers?.get(FETCH_DEST_HEADER) === NAVIGATION_DEST;
+}
 
-	moveLocation(ctx.context.responseHeaders, issuer);
+export const oauthRedirects = createAuthMiddleware(async (ctx) => {
+	const issuer = mcpIssuer();
+	const moving = issuer !== authIssuer();
+	if (moving) moveLocation(ctx.context.responseHeaders, issuer);
 
 	const returned = ctx.context.returned;
 	if (returned instanceof APIError) {
-		moveLocation(
-			returned.headers instanceof Headers ? returned.headers : undefined,
-			issuer,
-		);
+		if (moving && returned.headers instanceof Headers) {
+			moveLocation(returned.headers, issuer);
+		}
 		return;
 	}
 	if (!redirectAnswer(returned)) return;
-	const moved = withScopedIssuer(returned.url, issuer);
-	if (moved) return { ...returned, url: moved };
+
+	const url =
+		(moving && withScopedIssuer(returned.url, issuer)) || returned.url;
+	if (isNavigation(ctx.request?.headers)) throw ctx.redirect(url);
+	if (url !== returned.url) return { ...returned, url };
 });

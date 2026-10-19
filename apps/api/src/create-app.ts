@@ -12,6 +12,7 @@ import {
 } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import {
+	json,
 	type NextFunction,
 	type Request,
 	type RequestHandler,
@@ -35,6 +36,8 @@ import {
 } from "./http/request-size.middleware";
 import { restRateLimit } from "./http/rest-rate-limit.middleware";
 import { ContextLogger } from "./logging/context-logger";
+import { MCP } from "./mcp/mcp.config";
+import { mcpBodyError } from "./mcp/mcp-challenge";
 import { REST } from "./trpc/openapi";
 import { createBaseTrpcContext } from "./trpc/trpc.context";
 
@@ -63,10 +66,19 @@ export async function createApp(
 		app.use(handler);
 	}
 	const keyRateLimit = restRateLimit(options.restRateLimit);
-	for (const mount of [...REST.bridge.mounts, REQUEST_SIZE.trpc.path]) {
+	for (const mount of [
+		...REST.bridge.mounts,
+		REQUEST_SIZE.trpc.path,
+		MCP.path,
+	]) {
 		app.use(mount, keyRateLimit);
 	}
 	app.use(REQUEST_SIZE.trpc.path, trpcBodyLimit());
+	app.use(
+		MCP.path,
+		json({ limit: REQUEST_SIZE.body.maxBytes }),
+		mcpBodyError(),
+	);
 	app.use(
 		BILLING_SEAM.webhook.path,
 		raw({ type: "application/json", limit: BILLING_SEAM.webhook.maxBytes }),

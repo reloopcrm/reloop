@@ -1,4 +1,5 @@
 import { apiKey } from "@better-auth/api-key";
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { sso } from "@better-auth/sso";
 import { db } from "@crm/db";
 import { cloud } from "@crm/db/cloud/scope";
@@ -18,6 +19,7 @@ import {
 import { AUTH_COOKIE_PREFIX } from "./cookies";
 import { env } from "./env";
 import { clearMailboxReconnect } from "./mailbox-reconnect";
+import { MCP, mcpAudiences } from "./mcp-config";
 import { oauthRedirectUri } from "./oauth-apps";
 import { ensureWorkspaceMembership } from "./organization";
 import { PASSWORD_RULES } from "./password-rules";
@@ -241,6 +243,22 @@ export const auth = betterAuth({
 
 		sso({
 			organizationProvisioning: { disabled: true },
+		}),
+
+		oauthProvider({
+			loginPage: new URL(MCP.pages.login, env.appUrl).toString(),
+			consentPage: new URL(MCP.pages.consent, env.appUrl).toString(),
+			scopes: [...MCP.scopes],
+			validAudiences: mcpAudiences(env.apiUrl),
+			disableJwtPlugin: true,
+			allowDynamicClientRegistration: true,
+			allowUnauthenticatedClientRegistration: true,
+			grantTypes: ["authorization_code", "refresh_token"],
+			accessTokenExpiresIn: MCP.token.accessSeconds,
+			refreshTokenExpiresIn: MCP.token.refreshSeconds,
+			codeExpiresIn: MCP.token.codeSeconds,
+			rateLimit: { ...MCP.rateLimit },
+			clientPrivileges: () => false,
 		}),
 
 		apiKey({

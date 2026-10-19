@@ -42,5 +42,20 @@
 	"Title matches \"{keyword}\"": "Le titre correspond à \"{keyword}\"",
 	"Reloop cannot reach its API right now.": "Reloop ne joint pas son API pour le moment.",
 	"Reload the page in a moment.": "Recharge la page dans un instant.",
-	"Writing what happened with them": "Écrit ce qui s'est passé avec eux"
+	"Writing what happened with them": "Écrit ce qui s'est passé avec eux",
+	"Allow access": "Autoriser l'accès",
+	"This connection request is not valid.": "Cette demande de connexion n'est pas valide.",
+	"Start again from the AI assistant you want to connect.": "Recommence depuis l'assistant IA que tu veux connecter.",
+	"Back to your workspace": "Retour à ton espace de travail",
+	"An AI assistant": "Un assistant IA",
+	"Allow {name} to read your CRM?": "Autoriser {name} à lire ton CRM ?",
+	"It reads with your account. It cannot write, send or change anything.": "Il lit avec ton compte. Il ne peut rien écrire, envoyer ni modifier.",
+	"{name} may read:": "{name} peut lire :",
+	"Contacts, companies and deals": "Les contacts, les entreprises et les deals",
+	"The Win back list": "La liste Reconquête",
+	"The story of a person, with summaries and excerpts of the mail": "L'histoire d'une personne, avec des résumés et des extraits des e-mails",
+	"The draft Reloop prepared": "Le brouillon préparé par Reloop",
+	"What it reads goes to the company that runs {name}. You can revoke it any time in Settings, Connections, AI assistants.": "Ce qu'il lit part chez l'entreprise qui fait tourner {name}. Tu peux le retirer à tout moment dans Paramètres, Connexions, Assistants IA.",
+	"It stays connected until you revoke it.": "Il reste connecté jusqu'à ce que tu le retires.",
+	"Signed in as {email}": "Connecté en tant que {email}"
 }

@@ -41,6 +41,9 @@ scratch filesystem in this session. Message bodies stay in the turn.
 **3. Nothing sensitive gets logged.** Same rule the rest of the codebase
 follows. Reading is not logging.
 
+An AI assistant the rep connected through MCP pulls CRM data out through the API, by the rep's own
+choice. You are not involved in that path.
+
 ## What belongs on a record
 
 Business context only: name, title, employer, tenure, seniority, public profile,

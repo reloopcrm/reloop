@@ -191,3 +191,21 @@ it("lets a signed-in rep create an API key", async () => {
 		accessGuard(context("/api-key/create", new Date())),
 	).resolves.toBeUndefined();
 });
+
+for (const path of ["/oauth2/consent", "/oauth2/authorize"]) {
+	it(`refuses ${path} to a caller that carries an API key`, async () => {
+		process.env.ALLOWED_SIGN_IN = "example.com";
+		await expect(
+			accessGuard(
+				context(path, new Date(), new Headers({ [API_KEY_HEADER]: "test" })),
+			),
+		).rejects.toMatchObject({ status: "UNAUTHORIZED" });
+	});
+}
+
+it("lets a signed-in rep answer the consent page", async () => {
+	process.env.ALLOWED_SIGN_IN = "example.com";
+	await expect(
+		accessGuard(context("/oauth2/consent", new Date())),
+	).resolves.toBeUndefined();
+});

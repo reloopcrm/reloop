@@ -28,6 +28,7 @@ import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput
 import { googleConnectionStatusOutput, setAutoCreateInput, setImportSinceInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
 import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookImportSinceInput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { imapStatusOutput, addImapAccountInput, imapAccountIdInput, imapRemoveOutput, imapPurgeOutput, setImapCreateFromInput } from "../imap/imap.contracts";
+import { mcpStatusOutput, revokeAiClientInput, revokeAiClientOutput } from "../mcp/mcp.contracts";
 import { oauthAppInput, oauthAppStatusOutput, saveOAuthAppInput, oauthAppRestartOutput } from "../oauth-apps/oauth-apps.contracts";
 import { quoteListOutput, quoteThreadInput, quoteCreatedOutput, quoteDismissedOutput } from "../quotes/quotes.contracts";
 import { winBackPersonViewInput, winBackPersonViewOutput, winBackNextInput, winBackNextOutput, rereadStoryOutput, bringBackOutput, reactivationListInput, reactivationListOutput, winBackRulesOutput, setWinBackRulesInput, setPotentialFeedbackInput, potentialFeedbackOutput, readingProgressOutput, winBackRulesStateOutput, setWinBackRulesModeInput } from "../reactivation/reactivation.contracts";
@@ -643,6 +644,15 @@ const appRouter = t.router({
     setCreateFrom: publicProcedure
       .input(setImapCreateFromInput)
       .output(imapStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  mcp: t.router({
+    status: publicProcedure
+      .output(mcpStatusOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    revoke: publicProcedure
+      .input(revokeAiClientInput)
+      .output(revokeAiClientOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   microsoft: t.router({

@@ -25,6 +25,11 @@ import { MeetingPrepService } from "./meeting-prep.service";
 		GoogleRouter,
 		MeetingPrepService,
 	],
-	exports: [GoogleSyncService, GoogleConnectionService, MeetingPrepService],
+	exports: [
+		ConversationService,
+		GoogleSyncService,
+		GoogleConnectionService,
+		MeetingPrepService,
+	],
 })
 export class GoogleModule {}

@@ -18,7 +18,7 @@ export class RequestLoggerMiddleware implements NestMiddleware {
 		const context: RequestContext = {
 			requestId,
 			method: request.method,
-			path: request.originalUrl,
+			path: pathWithoutQuery(request.originalUrl),
 		};
 		const startedAt = process.hrtime.bigint();
 
@@ -75,6 +75,11 @@ export class RequestLoggerMiddleware implements NestMiddleware {
 
 		this.logger.log(payload);
 	}
+}
+
+function pathWithoutQuery(url: string): string {
+	const at = url.indexOf("?");
+	return at < 0 ? url : url.slice(0, at);
 }
 
 function incomingRequestId(request: Request): string | undefined {

@@ -158,7 +158,15 @@ const CLEARED_TOKENS = {
 	refreshTokenExpiresAt: null,
 } as const;
 
-type CredentialStore = Pick<Db, "session" | "apikey">;
+type CredentialStore = Pick<
+	Db,
+	| "session"
+	| "apikey"
+	| "oauthAccessToken"
+	| "oauthRefreshToken"
+	| "oauthConsent"
+	| "verification"
+>;
 
 export async function endAccessOf(
 	database: CredentialStore,
@@ -172,6 +180,57 @@ export async function endAccessOf(
 	await database.apikey.deleteMany({
 		where: { referenceId: { in: [...userIds] } },
 	});
+	await endAiClientAccessOf(database, userIds);
+}
+
+type AiClientStore = Pick<
+	Db,
+	"oauthAccessToken" | "oauthRefreshToken" | "oauthConsent" | "verification"
+>;
+
+type AiGrantScope = { userId: { in: string[] }; clientId?: string };
+
+const AUTHORIZATION_CODE_MARK = JSON.stringify({
+	type: "authorization_code",
+}).slice(1, -1);
+
+function jsonField(name: string, value: string): string {
+	return JSON.stringify({ [name]: value }).slice(1, -1);
+}
+
+async function endOpenAuthorizationCodes(
+	database: Pick<Db, "verification">,
+	userIds: readonly string[],
+	clientId?: string,
+): Promise<void> {
+	for (const userId of userIds) {
+		await database.verification.deleteMany({
+			where: {
+				AND: [
+					{ value: { contains: AUTHORIZATION_CODE_MARK } },
+					{ value: { contains: jsonField("userId", userId) } },
+					...(clientId
+						? [{ value: { contains: jsonField("client_id", clientId) } }]
+						: []),
+				],
+			},
+		});
+	}
+}
+
+export async function endAiClientAccessOf(
+	database: AiClientStore,
+	userIds: readonly string[],
+	clientId?: string,
+): Promise<void> {
+	if (userIds.length === 0) return;
+
+	const scope: AiGrantScope = { userId: { in: [...userIds] } };
+	if (clientId) scope.clientId = clientId;
+	await database.oauthAccessToken.deleteMany({ where: scope });
+	await database.oauthRefreshToken.deleteMany({ where: scope });
+	await database.oauthConsent.deleteMany({ where: scope });
+	await endOpenAuthorizationCodes(database, userIds, clientId);
 }
 
 type StoredGrantStore = Pick<

@@ -13,8 +13,42 @@ const revokedEmail = `preview-${suffix}@example.com`;
 const bystanderEmail = `bystander-${suffix}@example.com`;
 const strangerEmail = `nobody-${suffix}@example.com`;
 const people = [revokedId, bystanderId];
+const clientId = `revoke-client-${suffix}`;
+const HOUR_MS = 60 * 60 * 1000;
 
 let allowed: string | undefined;
+
+const everything = {
+	sessions: 1,
+	apiKeys: 1,
+	consents: 1,
+	refreshTokens: 1,
+	accessTokens: 1,
+	openCodes: 1,
+	otherVerifications: 1,
+};
+const nothing = {
+	sessions: 0,
+	apiKeys: 0,
+	consents: 0,
+	refreshTokens: 0,
+	accessTokens: 0,
+	openCodes: 0,
+	otherVerifications: 1,
+};
+
+function openCodeValue(userId: string): string {
+	return JSON.stringify({
+		type: "authorization_code",
+		query: { client_id: clientId, redirect_uri: "https://client.example" },
+		userId,
+		authTime: Date.now(),
+	});
+}
+
+function otherVerificationValue(userId: string): string {
+	return JSON.stringify({ type: "email-change", userId });
+}
 
 async function credentialsOf(userId: string) {
 	const now = new Date();
@@ -36,12 +70,70 @@ async function credentialsOf(userId: string) {
 			updatedAt: now,
 		},
 	});
+	await db.oauthConsent.create({
+		data: {
+			id: `consent-${userId}`,
+			clientId,
+			userId,
+			scopes: ["crm:read", "offline_access"],
+			createdAt: now,
+			updatedAt: now,
+		},
+	});
+	await db.oauthRefreshToken.create({
+		data: {
+			id: `refresh-${userId}`,
+			token: `hashed-refresh-${userId}`,
+			clientId,
+			userId,
+			scopes: ["crm:read", "offline_access"],
+			createdAt: now,
+			expiresAt: new Date(now.getTime() + HOUR_MS),
+		},
+	});
+	await db.verification.createMany({
+		data: [
+			{
+				id: `code-${userId}`,
+				identifier: `hashed-code-${userId}`,
+				value: openCodeValue(userId),
+				expiresAt: new Date(now.getTime() + HOUR_MS),
+			},
+			{
+				id: `other-${userId}`,
+				identifier: `other-${userId}`,
+				value: otherVerificationValue(userId),
+				expiresAt: new Date(now.getTime() + HOUR_MS),
+			},
+		],
+	});
+	await db.oauthAccessToken.create({
+		data: {
+			id: `access-${userId}`,
+			token: `hashed-access-${userId}`,
+			clientId,
+			userId,
+			refreshId: `refresh-${userId}`,
+			scopes: ["crm:read", "offline_access"],
+			createdAt: now,
+			expiresAt: new Date(now.getTime() + HOUR_MS),
+		},
+	});
 }
 
 async function counts(userId: string) {
 	return {
 		sessions: await db.session.count({ where: { userId } }),
 		apiKeys: await db.apikey.count({ where: { referenceId: userId } }),
+		consents: await db.oauthConsent.count({ where: { userId } }),
+		refreshTokens: await db.oauthRefreshToken.count({ where: { userId } }),
+		accessTokens: await db.oauthAccessToken.count({ where: { userId } }),
+		openCodes: await db.verification.count({
+			where: { id: `code-${userId}` },
+		}),
+		otherVerifications: await db.verification.count({
+			where: { id: `other-${userId}` },
+		}),
 	};
 }
 
@@ -54,6 +146,15 @@ beforeAll(async () => {
 			{ id: revokedId, name: "Preview", email: revokedEmail },
 			{ id: bystanderId, name: "Bystander", email: bystanderEmail },
 		],
+	});
+	await db.oauthClient.create({
+		data: {
+			id: clientId,
+			clientId,
+			name: "Revoke spec",
+			redirectUris: ["https://client.example/callback"],
+			scopes: ["crm:read", "offline_access"],
+		},
 	});
 	for (const id of people) await credentialsOf(id);
 
@@ -68,6 +169,12 @@ afterAll(async () => {
 	await revokeSignIn(db, strangerEmail);
 	await db.apikey.deleteMany({ where: { referenceId: { in: people } } });
 	await db.session.deleteMany({ where: { userId: { in: people } } });
+	await db.oauthClient.deleteMany({ where: { clientId } });
+	await db.verification.deleteMany({
+		where: {
+			id: { in: people.flatMap((id) => [`code-${id}`, `other-${id}`]) },
+		},
+	});
 	await db.user.deleteMany({ where: { id: { in: people } } });
 
 	if (allowed === undefined) delete process.env.ALLOWED_SIGN_IN;
@@ -75,13 +182,14 @@ afterAll(async () => {
 });
 
 describe("revoking a granted address", () => {
-	it("ends the sessions and API keys of that person and nobody else", async () => {
-		expect(await counts(revokedId)).toEqual({ sessions: 1, apiKeys: 1 });
+	it("ends the sessions, API keys and AI client grants of that person and nobody else", async () => {
+		expect(await counts(revokedId)).toEqual(everything);
 
 		expect(await revokeSignIn(db, `Preview-${suffix}@Example.com`)).toBe(true);
 
-		expect(await counts(revokedId)).toEqual({ sessions: 0, apiKeys: 0 });
-		expect(await counts(bystanderId)).toEqual({ sessions: 1, apiKeys: 1 });
+		expect(await counts(revokedId)).toEqual(nothing);
+		expect(await counts(bystanderId)).toEqual(everything);
+		expect(await db.oauthClient.count({ where: { clientId } })).toBe(1);
 		expect(await readSignInGrants(db)).not.toContain(revokedEmail);
 		expect(await readSignInGrants(db)).toContain(bystanderEmail);
 	});
@@ -90,6 +198,6 @@ describe("revoking a granted address", () => {
 		expect(await revokeSignIn(db, strangerEmail)).toBe(true);
 
 		expect(await readSignInGrants(db)).not.toContain(strangerEmail);
-		expect(await counts(bystanderId)).toEqual({ sessions: 1, apiKeys: 1 });
+		expect(await counts(bystanderId)).toEqual(everything);
 	});
 });

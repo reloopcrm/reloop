@@ -47,6 +47,20 @@ every session and every API key of the account with that address, so a later gra
 an old login or an old key back. Taking the address off
 `ALLOWED_SIGN_IN` does not reach the database list.
 
+**A connected AI assistant reads your CRM.** A member can connect ChatGPT, Claude or Claude Code
+through MCP at `/api/mcp`. The assistant reads contacts, companies, deals, the Win back list and
+mail-derived text: summaries, excerpts and the prepared draft, never raw MIME. That text leaves for
+the vendor that runs the assistant, because the member chose to connect it and asked it something.
+Every tool is read only. No tool writes a record, sends mail or changes a setting. The member
+revokes a client in **Settings, Connections, AI assistants**. Removing the member, or
+`bun apps/api/scripts/sign-in-grants.ts revoke <address>`, deletes every OAuth token, consent and
+open authorization code of that person, as well as sessions and API keys. Access tokens are opaque and checked in the database
+on every call, so a revoke works at once. A token survives a browser sign-out, like an API key: it
+ends on revoke, on member removal, on address revocation or after one hour. `accessGuard` refuses an `x-api-key` header on every
+`/api/auth/oauth2/*` route, so a leaked key cannot connect an assistant. Dynamic client
+registration is open, so anyone can register a client. A client gets nothing without a user who
+signs in and allows it.
+
 **Removing a member closes the door that `ALLOWED_SIGN_IN` leaves open.** Settings → Members →
 Remove from workspace (`workspace.removeMember`, owner or admin, never yourself, never the last
 owner, and an admin never removes an owner) stamps `user.removedAt`, deletes the member row, every
@@ -65,7 +79,7 @@ its own revocation. `SessionOnlyMiddleware` refuses an `x-api-key` header on `ap
 `settings.setPassword`, `settings.setAgentProvider`, `settings.chatgptLoginAction`,
 `workspace.addPerson`, `workspace.setMemberRole`, `workspace.removeMember`, `sso.register`, `sso.remove`, `imap.add`,
 `webhooks.create`, `webhooks.update`, `webhooks.remove`, `system.update`, `agents.revise`, `agents.saveFile`,
-`agents.deploy`, `agents.resume` and `agents.restore`, and on the same kind of call in any optional
+`agents.deploy`, `agents.resume`, `agents.restore`, `mcp.status` and `mcp.revoke`, and on the same kind of call in any optional
 cloud module, and `accessGuard` refuses it on
 `/api/auth/api-key/*`, `/api/auth/sso/register`, `/change-password` and `/set-password`. Those are the calls that mint a
 credential, grant a role, register a sign-in provider, point CRM events at an address, or deploy

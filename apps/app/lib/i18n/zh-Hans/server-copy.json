@@ -42,5 +42,20 @@
 	"Title matches \"{keyword}\"": "职位匹配 \"{keyword}\"",
 	"Reloop cannot reach its API right now.": "Reloop 现在无法连接到它的 API。",
 	"Reload the page in a moment.": "请稍后重新加载页面。",
-	"Writing what happened with them": "正在写下与他们之间发生的事"
+	"Writing what happened with them": "正在写下与他们之间发生的事",
+	"Allow access": "允许访问",
+	"This connection request is not valid.": "这个连接请求无效。",
+	"Start again from the AI assistant you want to connect.": "请从你要连接的 AI 助手重新开始。",
+	"Back to your workspace": "返回你的工作区",
+	"An AI assistant": "一个 AI 助手",
+	"Allow {name} to read your CRM?": "允许 {name} 读取你的 CRM？",
+	"It reads with your account. It cannot write, send or change anything.": "它以你的账户读取。它不能写入、发送或更改任何内容。",
+	"{name} may read:": "{name} 可以读取：",
+	"Contacts, companies and deals": "联系人、公司和交易",
+	"The Win back list": "赢回列表",
+	"The story of a person, with summaries and excerpts of the mail": "一个人的故事，以及邮件的摘要和摘录",
+	"The draft Reloop prepared": "Reloop 准备好的草稿",
+	"What it reads goes to the company that runs {name}. You can revoke it any time in Settings, Connections, AI assistants.": "它读取的内容会发送给运营 {name} 的公司。你随时可以在设置, 连接, AI 助手中吊销。",
+	"It stays connected until you revoke it.": "在你吊销之前，它会一直保持连接。",
+	"Signed in as {email}": "已登录为 {email}"
 }

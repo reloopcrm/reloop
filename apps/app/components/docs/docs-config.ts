@@ -2,6 +2,7 @@ const FILES = {
 	selfHost: ["docs", "self-host.md"],
 	environment: ["docs", "environment.md"],
 	restApi: ["docs", "rest-api.md"],
+	aiAssistants: ["docs", "ai-assistants.md"],
 	languages: ["docs", "languages.md"],
 } as const;
 
@@ -104,6 +105,14 @@ const PAGES: readonly DocPage[] = [
 			"Call every CRM procedure over REST, where the base address is, and how to make a key.",
 		file: "restApi",
 		from: "rest-api",
+	},
+	{
+		slug: "ai-assistants",
+		title: "AI assistants",
+		description:
+			"Connect ChatGPT, Claude or Claude Code to your CRM through MCP. The assistant reads and never writes.",
+		file: "aiAssistants",
+		from: "ai-assistants",
 	},
 	{
 		slug: "languages",

@@ -6,6 +6,7 @@ import {
 } from "better-auth/api";
 import * as z from "zod";
 import { API_KEY_HEADER } from "./api-keys";
+import { MCP } from "./mcp-config";
 import { isOrganizationWrite } from "./organization";
 import { isFreshPasswordSession } from "./password-rules";
 import { isSignInAllowed } from "./sign-in-grants";
@@ -41,6 +42,15 @@ export const accessGuard = createAuthMiddleware(async (ctx) => {
 	) {
 		throw new APIError("FORBIDDEN", {
 			message: "An API key takes the prefix this CRM gives it.",
+		});
+	}
+	if (
+		ctx.path.startsWith(MCP.oauthPathPrefix) &&
+		ctx.headers?.has(API_KEY_HEADER)
+	) {
+		throw new APIError("UNAUTHORIZED", {
+			message:
+				"An API key cannot connect an AI assistant. Sign in to the CRM first.",
 		});
 	}
 	if (ctx.path === SSO_REGISTER_PATH && ctx.headers?.has(API_KEY_HEADER)) {

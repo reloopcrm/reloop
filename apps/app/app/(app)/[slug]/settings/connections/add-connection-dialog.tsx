@@ -1,5 +1,6 @@
 "use client";
 
+import Bot from "@carbon/icons-react/es/Bot";
 import ConnectionSend from "@carbon/icons-react/es/ConnectionSend";
 import Email from "@carbon/icons-react/es/Email";
 import Plug from "@carbon/icons-react/es/Plug";
@@ -94,6 +95,16 @@ export function AddConnectionDialog({
 								"Send every event you pick to n8n, Zapier or your own script",
 							)}
 							href={`/${slug}/settings/connections/webhooks`}
+						/>
+					) : null}
+					{!connected.includes(t("AI assistants")) ? (
+						<CatalogRow
+							logo={Bot}
+							name={t("AI assistants")}
+							description={t(
+								"Connect ChatGPT, Claude or Claude Code to read your CRM",
+							)}
+							href={`/${slug}/settings/connections/ai`}
 						/>
 					) : null}
 					<CatalogRow

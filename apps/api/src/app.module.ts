@@ -29,6 +29,7 @@ import { ImapModule } from "./imap/imap.module";
 import { LoggingModule } from "./logging/logging.module";
 import { logAuthRoute } from "./logging/request-logger.middleware";
 import { MailboxModule } from "./mailbox/mailbox.module";
+import { McpModule } from "./mcp/mcp.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
 import { OAuthAppsModule } from "./oauth-apps/oauth-apps.module";
 import { QuotesModule } from "./quotes/quotes.module";
@@ -78,6 +79,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		EnrichmentModule,
 		DashboardModule,
 		SearchModule,
+		McpModule,
 		MailboxModule,
 		GoogleModule,
 		MicrosoftModule,

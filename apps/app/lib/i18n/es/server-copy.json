@@ -42,5 +42,20 @@
 	"Title matches \"{keyword}\"": "El puesto coincide con \"{keyword}\"",
 	"Reloop cannot reach its API right now.": "Reloop no puede conectar con su API ahora mismo.",
 	"Reload the page in a moment.": "Vuelve a cargar la página en un momento.",
-	"Writing what happened with them": "Escribe lo que pasó con ellos"
+	"Writing what happened with them": "Escribe lo que pasó con ellos",
+	"Allow access": "Permitir acceso",
+	"This connection request is not valid.": "Esta solicitud de conexión no es válida.",
+	"Start again from the AI assistant you want to connect.": "Empieza de nuevo desde el asistente de IA que quieres conectar.",
+	"Back to your workspace": "Volver a tu espacio de trabajo",
+	"An AI assistant": "Un asistente de IA",
+	"Allow {name} to read your CRM?": "¿Permitir que {name} lea tu CRM?",
+	"It reads with your account. It cannot write, send or change anything.": "Lee con tu cuenta. No puede escribir, enviar ni cambiar nada.",
+	"{name} may read:": "{name} puede leer:",
+	"Contacts, companies and deals": "Contactos, empresas y oportunidades",
+	"The Win back list": "La lista Recuperar",
+	"The story of a person, with summaries and excerpts of the mail": "La historia de una persona, con resúmenes y extractos del correo",
+	"The draft Reloop prepared": "El borrador que Reloop preparó",
+	"What it reads goes to the company that runs {name}. You can revoke it any time in Settings, Connections, AI assistants.": "Lo que lee va a la empresa que gestiona {name}. Puedes retirarlo cuando quieras en Ajustes, Conexiones, Asistentes de IA.",
+	"It stays connected until you revoke it.": "Sigue conectado hasta que lo retires.",
+	"Signed in as {email}": "Sesión iniciada como {email}"
 }

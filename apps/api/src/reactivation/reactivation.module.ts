@@ -20,6 +20,6 @@ import { WinBackStoryPrefetchService } from "./win-back-story-prefetch.service";
 		WinBackPersonService,
 		WinBackStoryPrefetchService,
 	],
-	exports: [WinBackFollowUpService],
+	exports: [ReactivationService, WinBackFollowUpService, WinBackPersonService],
 })
 export class ReactivationModule {}

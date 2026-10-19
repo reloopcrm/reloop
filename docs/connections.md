@@ -27,6 +27,27 @@ building a second authoring surface.
 If you find yourself adding a toggle, a trigger builder, or an "Edit automation"
 form to a settings page, stop. That work belongs in the builder.
 
+## An AI assistant is a connection that only reads
+
+A person can connect ChatGPT, Claude or Claude Code to the CRM through MCP. That is a connection in
+the sense of this page: it is a capability, and it is read only. It never owns an automation and it
+never writes.
+
+- **The rule.** No tool of the MCP endpoint writes a record, sends mail or changes a setting. Do
+  not add one here. A write belongs in the agent builder.
+- **Where the page lives.** `/settings/connections/ai`, in German "KI verbinden". It shows the
+  user's own MCP URL, the steps for each client and the connected clients with **Revoke**. The
+  public steps are in `docs/ai-assistants.md`. The page does not offer a one-click install,
+  because ChatGPT and Claude.ai offer none without a directory listing.
+- **What leaves.** A connected assistant pulls CRM records and mail-derived text (summaries,
+  excerpts, the draft) to the vendor that runs it. The user chose that, and it happens when the
+  user asks it something. The page says so before the steps.
+- **Revoke.** **Revoke** ends the tokens and the consent of one client. Removing a member and
+  `sign-in-grants.ts revoke` end all of them for that person.
+- **The API only returns data.** The endpoint reads stored rows. The agent writes nothing for an
+  assistant, and Reloop sends no mail. The user copies the text and sends it from their own mail
+  program. See `docs/api.md`, "The MCP endpoint".
+
 ## Removing a connection is an owner or admin decision
 
 A connection is shared. One person disconnecting Slack stops every agent that

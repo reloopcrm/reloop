@@ -5,13 +5,28 @@ import { MCP, mcpUrl } from "./mcp-config";
 
 const ISSUER_PARAM = "iss";
 const LOCATION_HEADER = "location";
+const LOOPBACK_HOST = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])(:\d+)?$/i;
 
 function apiBase(): string {
 	return apiUrl.replace(/\/+$/, "");
 }
 
-export function authIssuer(): string {
+export function issuerForm(url: string): string {
+	const parsed = new URL(url);
+	if (parsed.protocol !== "https:" && !LOOPBACK_HOST.test(parsed.host)) {
+		parsed.protocol = "https:";
+	}
+	parsed.search = "";
+	parsed.hash = "";
+	return parsed.toString().replace(/\/$/, "");
+}
+
+function rawAuthIssuer(): string {
 	return `${apiBase()}${MCP.authBasePath}`;
+}
+
+export function authIssuer(): string {
+	return issuerForm(rawAuthIssuer());
 }
 
 export function mcpAddress(): string {
@@ -19,7 +34,7 @@ export function mcpAddress(): string {
 }
 
 export function mcpIssuer(): string {
-	return `${apiBase()}${cloud.scopedPath(MCP.authBasePath)}`;
+	return issuerForm(`${apiBase()}${cloud.scopedPath(MCP.authBasePath)}`);
 }
 
 export function protectedResourceMetadataUrl(): string {
@@ -38,13 +53,16 @@ export function scopeAuthorizationServer<T extends AuthorizationServerMetadata>(
 ): T {
 	if (metadata.issuer === issuer) return metadata;
 
+	const prefixes = [...new Set([metadata.issuer, rawAuthIssuer()])];
+	const moved = (value: unknown): unknown => {
+		if (typeof value !== "string") return value;
+		const prefix = prefixes.find((candidate) => value.startsWith(candidate));
+		return prefix === undefined
+			? value
+			: `${issuer}${value.slice(prefix.length)}`;
+	};
 	const scoped = Object.fromEntries(
-		Object.entries(metadata).map(([key, value]) => [
-			key,
-			typeof value === "string" && value.startsWith(metadata.issuer)
-				? `${issuer}${value.slice(metadata.issuer.length)}`
-				: value,
-		]),
+		Object.entries(metadata).map(([key, value]) => [key, moved(value)]),
 	) as T;
 
 	return { ...scoped, issuer };

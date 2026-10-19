@@ -27,6 +27,7 @@ export {
 export {
 	authIssuer,
 	canonicalMcpResource,
+	issuerForm,
 	mcpAddress,
 	mcpIssuer,
 	protectedResourceMetadataUrl,

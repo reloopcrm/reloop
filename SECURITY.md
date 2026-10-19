@@ -55,7 +55,8 @@ Every tool is read only. No tool writes a record, sends mail or changes a settin
 revokes a client in **Settings, Connections, AI assistants**. Removing the member, or
 `bun apps/api/scripts/sign-in-grants.ts revoke <address>`, deletes every OAuth token, consent and
 open authorization code of that person, as well as sessions and API keys. Access tokens are opaque and checked in the database
-on every call, so a revoke works at once. `accessGuard` refuses an `x-api-key` header on every
+on every call, so a revoke works at once. A token survives a browser sign-out, like an API key: it
+ends on revoke, on member removal, on address revocation or after one hour. `accessGuard` refuses an `x-api-key` header on every
 `/api/auth/oauth2/*` route, so a leaked key cannot connect an assistant. Dynamic client
 registration is open, so anyone can register a client. A client gets nothing without a user who
 signs in and allows it.
@@ -78,7 +79,7 @@ its own revocation. `SessionOnlyMiddleware` refuses an `x-api-key` header on `ap
 `settings.setPassword`, `settings.setAgentProvider`, `settings.chatgptLoginAction`,
 `workspace.addPerson`, `workspace.setMemberRole`, `workspace.removeMember`, `sso.register`, `sso.remove`, `imap.add`,
 `webhooks.create`, `webhooks.update`, `webhooks.remove`, `system.update`, `agents.revise`, `agents.saveFile`,
-`agents.deploy`, `agents.resume` and `agents.restore`, and on the same kind of call in any optional
+`agents.deploy`, `agents.resume`, `agents.restore`, `mcp.status` and `mcp.revoke`, and on the same kind of call in any optional
 cloud module, and `accessGuard` refuses it on
 `/api/auth/api-key/*`, `/api/auth/sso/register`, `/change-password` and `/set-password`. Those are the calls that mint a
 credential, grant a role, register a sign-in provider, point CRM events at an address, or deploy

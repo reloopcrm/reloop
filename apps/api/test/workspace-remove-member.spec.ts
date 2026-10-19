@@ -26,6 +26,13 @@ function workspace(actorRole: string | null, target: Target) {
 		},
 		session: { deleteMany: async () => writes.push("session") },
 		apikey: { deleteMany: async () => writes.push("apikey") },
+		oauthAccessToken: {
+			deleteMany: async () => writes.push("oauthAccessToken"),
+		},
+		oauthRefreshToken: {
+			deleteMany: async () => writes.push("oauthRefreshToken"),
+		},
+		oauthConsent: { deleteMany: async () => writes.push("oauthConsent") },
 		account: {
 			findMany: async () => [],
 			updateMany: async () => writes.push("account"),
@@ -125,6 +132,9 @@ describe("removing a member: the rules", () => {
 			"user",
 			"session",
 			"apikey",
+			"oauthAccessToken",
+			"oauthRefreshToken",
+			"oauthConsent",
 			"account",
 			"imapAccount",
 			"mailboxSync",
@@ -143,6 +153,9 @@ describe("removing a member: the rules", () => {
 			"user",
 			"session",
 			"apikey",
+			"oauthAccessToken",
+			"oauthRefreshToken",
+			"oauthConsent",
 			"account",
 			"imapAccount",
 			"mailboxSync",

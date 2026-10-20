@@ -19,6 +19,7 @@ import {
 import { AUTH_COOKIE_PREFIX } from "./cookies";
 import { env } from "./env";
 import { clearMailboxReconnect } from "./mailbox-reconnect";
+import { oauthRedirects } from "./mcp-address";
 import { MCP, mcpAudiences } from "./mcp-config";
 import { oauthRedirectUri } from "./oauth-apps";
 import { ensureWorkspaceMembership } from "./organization";
@@ -133,6 +134,7 @@ export const auth = betterAuth({
 	trustedOrigins: [...env.trustedOrigins],
 	hooks: {
 		before: accessGuard,
+		after: oauthRedirects,
 	},
 
 	plugins: [

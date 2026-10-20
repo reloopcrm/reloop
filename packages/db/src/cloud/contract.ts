@@ -53,6 +53,7 @@ export type CloudScope = {
 	scopeId(): string | null;
 	current(): WorkspaceScope;
 	scopedKey(key: string): string;
+	scopedPath(path: string): string;
 	hold<T>(fn: () => T): T;
 	run<T>(scope: WorkspaceScope, fn: () => T): T;
 	byId(id: string): Promise<WorkspaceScope | null>;

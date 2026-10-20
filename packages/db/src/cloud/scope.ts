@@ -32,6 +32,7 @@ export const cloud: CloudScope = {
 	scopeId: () => null,
 	current: noScope,
 	scopedKey: (key) => key,
+	scopedPath: (path) => path,
 	hold: (fn) => fn(),
 	run: (_scope, fn) => fn(),
 	byId: async () => null,

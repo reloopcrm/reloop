@@ -6,6 +6,8 @@ export const MCP_SCOPE = "crm:read";
 
 export const MCP = {
 	path: "/api/mcp",
+	authBasePath: "/api/auth",
+	tokenPath: "/oauth2/token",
 	scopes: [MCP_SCOPE, "offline_access"],
 	pages: { login: "/sign-in", consent: "/consent" },
 	oauthPathPrefix: "/oauth2/",

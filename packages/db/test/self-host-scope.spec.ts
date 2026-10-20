@@ -21,6 +21,7 @@ describe("the cloud slot on a self-hosted install", () => {
 		expect(cloud.operatorId()).toBeNull();
 		expect(cloud.scopeId()).toBeNull();
 		expect(cloud.scopedKey("rates")).toBe("rates");
+		expect(cloud.scopedPath("/api/mcp")).toBe("/api/mcp");
 	});
 
 	it("runs a held piece of work exactly once, in place", () => {

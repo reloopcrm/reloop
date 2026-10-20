@@ -1,14 +1,12 @@
 import { MCP as MCP_AUTH, MCP_SCOPE } from "@crm/auth/mcp-config";
 import { REST_RATE_LIMIT } from "../http/http-config";
 
-const AUTH_BASE_PATH = "/api/auth";
-
 export const MCP = {
 	path: MCP_AUTH.path,
 	scope: MCP_SCOPE,
 	scopes: MCP_AUTH.scopes,
 	wellKnown: MCP_AUTH.wellKnown,
-	authBasePath: AUTH_BASE_PATH,
+	authBasePath: MCP_AUTH.authBasePath,
 	server: { name: "reloop-crm", version: "1.0.0" },
 	rateLimit: REST_RATE_LIMIT.apiKey,
 	resource: {
@@ -18,7 +16,7 @@ export const MCP = {
 	wellKnownRoutes: {
 		authorizationServer: [
 			MCP_AUTH.wellKnown.authorizationServer,
-			`${MCP_AUTH.wellKnown.authorizationServer}${AUTH_BASE_PATH}`,
+			`${MCP_AUTH.wellKnown.authorizationServer}${MCP_AUTH.authBasePath}`,
 		],
 		protectedResource: [
 			MCP_AUTH.wellKnown.protectedResource,

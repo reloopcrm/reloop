@@ -1,4 +1,9 @@
-import { apiUrl, auth, mcpUrl } from "@crm/auth";
+import {
+	auth,
+	mcpAddress,
+	mcpIssuer,
+	scopeAuthorizationServer,
+} from "@crm/auth";
 import { Controller, Get, Res } from "@nestjs/common";
 import { ApiExcludeController } from "@nestjs/swagger";
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
@@ -33,16 +38,20 @@ function sendMetadata(
 export class WellKnownController {
 	@Get([...MCP.wellKnownRoutes.authorizationServer])
 	async authorizationServer(@Res() res: Response): Promise<void> {
-		sendMetadata(res, await auth.api.getOAuthServerConfig());
+		sendMetadata(
+			res,
+			scopeAuthorizationServer(
+				await auth.api.getOAuthServerConfig(),
+				mcpIssuer(),
+			),
+		);
 	}
 
 	@Get([...MCP.wellKnownRoutes.protectedResource])
-	async protectedResource(@Res() res: Response): Promise<void> {
-		const { issuer } = await auth.api.getOAuthServerConfig();
-
+	protectedResource(@Res() res: Response): void {
 		sendMetadata(res, {
-			resource: mcpUrl(apiUrl),
-			authorization_servers: [issuer],
+			resource: mcpAddress(),
+			authorization_servers: [mcpIssuer()],
 			scopes_supported: [...MCP.scopes],
 			bearer_methods_supported: [...MCP.resource.bearerMethods],
 			resource_name: MCP.resource.name,

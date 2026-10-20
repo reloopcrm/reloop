@@ -6,6 +6,7 @@ import {
 } from "better-auth/api";
 import * as z from "zod";
 import { API_KEY_HEADER } from "./api-keys";
+import { canonicalMcpResource } from "./mcp-address";
 import { MCP } from "./mcp-config";
 import { isOrganizationWrite } from "./organization";
 import { isFreshPasswordSession } from "./password-rules";
@@ -19,6 +20,7 @@ const API_KEY_CREATE_PATH = "/api-key/create";
 
 const ssoRegisterBody = z.object({ organizationId: z.literal(WORKSPACE_ID) });
 const chosenKeyPrefix = z.object({ prefix: z.string() });
+const tokenResource = z.object({ resource: z.string() });
 
 export const accessGuard = createAuthMiddleware(async (ctx) => {
 	const passwordChange =
@@ -88,4 +90,17 @@ export const accessGuard = createAuthMiddleware(async (ctx) => {
 		});
 	}
 	await slackConnectGuard(ctx);
+	if (ctx.path === MCP.tokenPath) {
+		const parsed = tokenResource.safeParse(ctx.body);
+		if (parsed.success) {
+			return {
+				context: {
+					body: {
+						...ctx.body,
+						resource: canonicalMcpResource(parsed.data.resource),
+					},
+				},
+			};
+		}
+	}
 });

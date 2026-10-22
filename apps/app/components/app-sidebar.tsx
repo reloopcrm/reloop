@@ -95,11 +95,11 @@ const MAIN: NavItem[] = [
 	},
 ];
 
-const SLOT_ICONS: Record<AppNavIcon, NavItem["icon"]> = {
+const SLOT_ICONS = {
 	renew: WinBackIcon,
 	email: MailIcon,
 	"user-multiple": ContactsIcon,
-};
+} satisfies Record<AppNavIcon, NavItem["icon"]>;
 
 export function withNavSlots(
 	base: readonly NavItem[],

@@ -1,4 +1,5 @@
 import type {
+	AppNavSlot,
 	DangerZoneProps,
 	HostedSignInProps,
 	PausedPaymentSectionProps,
@@ -18,4 +19,8 @@ export function AgreementGate() {
 
 export function HostedSignIn(_props: HostedSignInProps) {
 	return null;
+}
+
+export async function appNav(): Promise<readonly AppNavSlot[]> {
+	return [];
 }

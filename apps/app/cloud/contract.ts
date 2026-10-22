@@ -21,6 +21,15 @@ export type SettingsNavSlot = {
 	group: "plan";
 };
 
+export type AppNavIcon = "renew" | "email" | "user-multiple";
+
+export type AppNavSlot = {
+	title: string;
+	href: string;
+	icon: AppNavIcon;
+	after: string;
+};
+
 export type MarketingNav = {
 	pricing: SlotLink | null;
 	selfHosted: SlotLink | null;

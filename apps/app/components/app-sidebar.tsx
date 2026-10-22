@@ -6,6 +6,7 @@ import {
 	CompaniesIcon,
 	ContactsIcon,
 	DealsIcon,
+	MailIcon,
 	OverviewIcon,
 	SettingsIcon,
 	WinBackIcon,
@@ -23,6 +24,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useMemo } from "react";
+import type { AppNavIcon, AppNavSlot } from "@/cloud/contract";
 import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-sidebar";
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
 import { EnrichmentQueue } from "@/components/enrichment-queue";
@@ -38,7 +40,7 @@ import { numberFormat } from "@/lib/i18n/format";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
-type NavItem = {
+export type NavItem = {
 	title: string;
 	href: string;
 	icon: ComponentType<{ "aria-hidden"?: boolean }>;
@@ -93,6 +95,36 @@ const MAIN: NavItem[] = [
 	},
 ];
 
+const SLOT_ICONS = {
+	renew: WinBackIcon,
+	email: MailIcon,
+	"user-multiple": ContactsIcon,
+} satisfies Record<AppNavIcon, NavItem["icon"]>;
+
+export function withNavSlots(
+	base: readonly NavItem[],
+	nav: readonly AppNavSlot[],
+): NavItem[] {
+	const items = [...base];
+	const placed = new Map<string, number>();
+
+	for (const slot of nav) {
+		const entry: NavItem = {
+			title: slot.title,
+			href: slot.href,
+			icon: SLOT_ICONS[slot.icon],
+			match: "prefix",
+			transition: "nav-lateral",
+		};
+		const at = items.findIndex((item) => item.href === slot.after);
+		const earlier = placed.get(slot.after) ?? 0;
+		placed.set(slot.after, earlier + 1);
+		items.splice(at === -1 ? items.length : at + 1 + earlier, 0, entry);
+	}
+
+	return items;
+}
+
 const SETTINGS: NavItem = {
 	title: "Settings",
 	href: "/settings",
@@ -100,8 +132,6 @@ const SETTINGS: NavItem = {
 	match: "prefix",
 	transition: "nav-lateral",
 };
-
-const ITEMS: NavItem[] = [...MAIN, SETTINGS];
 
 const MINUTE_MS = 60 * 1000;
 
@@ -245,10 +275,12 @@ export function AppSidebar({
 	managed,
 	user,
 	plan,
+	nav,
 }: {
 	managed: boolean;
 	user: AppUser;
 	plan?: string | null;
+	nav: readonly AppNavSlot[];
 }) {
 	const pathname = usePathname();
 	const workspaceUrl = useWorkspaceUrl();
@@ -259,16 +291,16 @@ export function AppSidebar({
 
 	const items = useMemo(
 		() =>
-			ITEMS.map((item) => ({
+			[...withNavSlots(MAIN, nav), SETTINGS].map((item) => ({
 				...item,
 				section: item.href,
 				href: workspaceUrl(item.href),
 				related: item.related?.map((path) => workspaceUrl(path)),
 			})),
-		[workspaceUrl],
+		[workspaceUrl, nav],
 	);
-	const main = items.slice(0, MAIN.length);
-	const settings = items[MAIN.length] as (typeof items)[number];
+	const main = items.slice(0, -1);
+	const settings = items[items.length - 1] as (typeof items)[number];
 	const version = useQuery({
 		...trpc.system.version.queryOptions(),
 		staleTime: SIDEBAR.versionStaleMs,

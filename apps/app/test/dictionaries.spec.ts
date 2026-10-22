@@ -17,6 +17,7 @@ import {
 	SLACK_SUGGESTIONS,
 } from "../app/(app)/[slug]/settings/connections/connection-copy";
 import { BILLING_SETTINGS_NAV, MARKETING_NAV } from "../cloud/slots.data";
+import { appNav } from "../cloud/slots.server";
 import { DOCS } from "../components/docs/docs-config";
 import { SHOTS } from "../components/site/site-config";
 import { ACTION_LABELS } from "../lib/agent-action-labels";
@@ -112,7 +113,7 @@ describe("the German dictionary", () => {
 		expect(missing).toEqual([]);
 	});
 
-	it("holds every label a cloud slot or a shot hands to t()", () => {
+	it("holds every label a cloud slot or a shot hands to t()", async () => {
 		const labels = [
 			...[MARKETING_NAV.pricing, MARKETING_NAV.selfHosted].flatMap((link) =>
 				link ? [link.label] : [],
@@ -120,6 +121,7 @@ describe("the German dictionary", () => {
 			...MARKETING_NAV.reading.map((link) => link.label),
 			...MARKETING_NAV.company.map((link) => link.label),
 			...BILLING_SETTINGS_NAV.map((item) => item.title),
+			...(await appNav()).map((item) => item.title),
 			...Object.values(SHOTS.images).map((shot) => shot.alt),
 		];
 

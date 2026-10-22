@@ -19,6 +19,8 @@ ${links}
 
 export const BILLING_SETTINGS_NAV: readonly SettingsNavSlot[] = [];
 
+export const APP_NAV_SECTIONS: readonly string[] = [];
+
 export const BILLING_PATH: string | null = null;
 
 export const MARKETING_ROUTES: readonly string[] = [];

@@ -10,7 +10,7 @@ import {
 	requestScope,
 } from "@/cloud/scope.server";
 import { CheckoutBanner } from "@/cloud/slots";
-import { AgreementGate } from "@/cloud/slots.server";
+import { AgreementGate, appNav } from "@/cloud/slots.server";
 import { AppHeader, AppHeaderFallback } from "@/components/app-header";
 import { AppSidebar, AppSidebarFallback } from "@/components/app-sidebar";
 import { QuickSwitcher } from "@/components/crm/quick-switcher";
@@ -174,11 +174,20 @@ async function planLabel(): Promise<string | null> {
 async function WorkspaceSidebar({
 	params,
 }: Pick<LayoutProps<"/[slug]">, "params">) {
-	const [{ user }, plan] = await Promise.all([loadChrome(params), planLabel()]);
+	const [{ user }, plan, nav] = await Promise.all([
+		loadChrome(params),
+		planLabel(),
+		appNav(),
+	]);
 
 	return (
 		<HydrateClient>
-			<AppSidebar managed={managedInstall()} user={user} plan={plan} />
+			<AppSidebar
+				managed={managedInstall()}
+				user={user}
+				plan={plan}
+				nav={nav}
+			/>
 		</HydrateClient>
 	);
 }

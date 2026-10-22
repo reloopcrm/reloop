@@ -3,6 +3,7 @@ import { cloud } from "@crm/db/cloud/scope";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import {
+	APP_NAV_SECTIONS,
 	HOSTED_ROUTES,
 	landingMarkdown,
 	MARKETING_REDIRECTS,
@@ -167,7 +168,9 @@ function isUngated(pathname: string): boolean {
 }
 
 function isSection(pathname: string): boolean {
-	return PROXY.sections.some((section) => isUnder(pathname, section));
+	return [...PROXY.sections, ...APP_NAV_SECTIONS].some((section) =>
+		isUnder(pathname, section),
+	);
 }
 
 function isMarketingPath(pathname: string, marketing: boolean): boolean {

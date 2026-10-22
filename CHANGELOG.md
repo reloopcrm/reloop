@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.23.0](https://github.com/reloopcrm/reloop/compare/v0.22.0...v0.23.0) (2026-10-22)
+
+
+### Features
+
+* **api:** connect ChatGPT, Claude and Claude Code through MCP ([6f5b0b4](https://github.com/reloopcrm/reloop/commit/6f5b0b4c79e6d96013c07d99364aac2d44327bb8))
+* **api:** MCP server, consent page and AI assistant settings ([c1e1136](https://github.com/reloopcrm/reloop/commit/c1e11366f0e29872651ddabbe3f0ea700d3d3b9d))
+* **api:** mcp.status and mcp.revoke list and end AI client grants ([193e396](https://github.com/reloopcrm/reloop/commit/193e3969653fee4db95214aa4fc2c0ef39a5563a))
+* **app:** a slot for extra sidebar sections ([#4](https://github.com/reloopcrm/reloop/issues/4)) ([b2d977a](https://github.com/reloopcrm/reloop/commit/b2d977afbdf35c47f612d1e0c05f5dd8fbb314c0))
+* **auth:** OAuth provider and MCP contracts for AI clients ([c04b3a8](https://github.com/reloopcrm/reloop/commit/c04b3a80fb877f7d988107bd5ea08ca5b821181a))
+* **auth:** scoped MCP address slot for hosted installs ([#2](https://github.com/reloopcrm/reloop/issues/2)) ([92e9cb1](https://github.com/reloopcrm/reloop/commit/92e9cb1c5e9c189ef7c5de6b271da56db737bbf1))
+
+
+### Fixes
+
+* **app:** reserve the consent slug and keep client names out of the markup check ([beef1cc](https://github.com/reloopcrm/reloop/commit/beef1cc3c5d1bb334c9fb078a823c4b6320b0f9f))
+* **auth:** revoking an AI client also ends its open authorization codes ([02ccfdd](https://github.com/reloopcrm/reloop/commit/02ccfdd7ae07cb28e5c468cf9b75bbb454cdf08e))
+* **imap:** retry a refused login instead of locking the mailbox ([#5](https://github.com/reloopcrm/reloop/issues/5)) ([fc70623](https://github.com/reloopcrm/reloop/commit/fc70623a5948de252e53c57063ec728c4d532023))
+
+
+### Documentation
+
+* **security:** name the MCP procedures a key cannot call and the token lifetime ([e1d0de3](https://github.com/reloopcrm/reloop/commit/e1d0de3c4a4bc9084e314b3f0d71413d3f147feb))
+
 ## 0.22.0 (2026-10-18)
 
 This is the first release from this repository.

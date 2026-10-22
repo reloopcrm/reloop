@@ -34,29 +34,41 @@ export type ImapSession = {
 };
 
 export type ImapConnectFailure = {
-	outcome: "auth" | "unreachable" | "failed";
+	outcome: "auth" | "refused" | "unreachable" | "failed";
 	reason: string;
+	responseCode: string | null;
 };
 
 export type ImapConnectResult =
 	| { outcome: "ok"; session: ImapSession }
 	| ImapConnectFailure;
 
-const imapServerError = z
+export const imapServerError = z
 	.object({
 		message: z.string().catch(""),
 		responseText: z.string().catch(""),
 		authenticationFailed: z.boolean().catch(false),
 		code: z.string().catch(""),
+		serverResponseCode: z.string().catch(""),
+		responseStatus: z.string().catch(""),
 	})
 	.catch({
 		message: "",
 		responseText: "",
 		authenticationFailed: false,
 		code: "",
+		serverResponseCode: "",
+		responseStatus: "",
 	});
 
 export type ImapServerError = z.infer<typeof imapServerError>;
+
+const SIGN_IN_REFUSED =
+	"The mail server refused the sign-in. Check your username and app password.";
+const UNREACHABLE =
+	"The mail server could not be reached. Check its address, port and encryption.";
+const CONNECTION_FAILED =
+	"The mail connection failed. Check the server settings and encryption.";
 
 @Injectable()
 export class ImapClientFactory {
@@ -68,6 +80,7 @@ export class ImapClientFactory {
 			return {
 				outcome: "unreachable",
 				reason: "The mail server must have a public network address.",
+				responseCode: null,
 			};
 		const client = new ImapFlow({
 			host: target.address,
@@ -84,10 +97,12 @@ export class ImapClientFactory {
 		});
 
 		client.on("error", (error: Error) => {
+			const failure = imapServerError.parse(error);
 			this.logger.warn({
 				message: "IMAP connection reported an error",
 				host: settings.host,
-				reason: classifyConnectError(imapServerError.parse(error)).reason,
+				reason: classifyConnectError(failure).reason,
+				code: failure.code || null,
 			});
 		});
 
@@ -95,11 +110,28 @@ export class ImapClientFactory {
 			await client.connect();
 		} catch (error) {
 			client.close();
-			return classifyConnectError(imapServerError.parse(error));
+			const failure = imapServerError.parse(error);
+			const classified = classifyConnectError(failure);
+			this.logger.warn({
+				message: "IMAP connection failed",
+				host: settings.host,
+				outcome: classified.outcome,
+				code: failure.code || null,
+				responseCode: classified.responseCode,
+				responseStatus: failure.responseStatus || null,
+			});
+			return classified;
 		}
 
 		return { outcome: "ok", session: sessionOf(client) };
 	}
+}
+
+export function connectionLost(failure: ImapServerError): boolean {
+	return (
+		includes(IMAP.connect.goneCodes, failure.code) ||
+		includes(IMAP.connect.networkCodes, failure.code)
+	);
 }
 
 export function classifyConnectError(
@@ -107,38 +139,32 @@ export function classifyConnectError(
 ): ImapConnectFailure {
 	const text =
 		failure.responseText.trim() || failure.message || "Unknown error.";
+	const responseCode = failure.serverResponseCode.trim().toUpperCase() || null;
+
+	if (connectionLost(failure)) {
+		return { outcome: "unreachable", reason: UNREACHABLE, responseCode };
+	}
 
 	if (failure.authenticationFailed) {
+		const definitive =
+			responseCode === null ||
+			includes(IMAP.auth.definitiveCodes, responseCode);
 		return {
-			outcome: "auth",
-			reason:
-				"The mail server refused the sign-in. Check your username and app password.",
+			outcome: definitive ? "auth" : "refused",
+			reason: SIGN_IN_REFUSED,
+			responseCode,
 		};
 	}
 
-	const code = failure.code;
-	if (
-		[
-			"ENOTFOUND",
-			"ECONNREFUSED",
-			"ETIMEDOUT",
-			"EHOSTUNREACH",
-			"ECONNRESET",
-		].includes(code) ||
-		/timed? ?out|greeting/i.test(text)
-	) {
-		return {
-			outcome: "unreachable",
-			reason:
-				"The mail server could not be reached. Check its address, port and encryption.",
-		};
+	if (/timed? ?out|greeting/i.test(text)) {
+		return { outcome: "unreachable", reason: UNREACHABLE, responseCode };
 	}
 
-	return {
-		outcome: "failed",
-		reason:
-			"The mail connection failed. Check the server settings and encryption.",
-	};
+	return { outcome: "failed", reason: CONNECTION_FAILED, responseCode };
+}
+
+function includes(list: readonly string[], value: string): boolean {
+	return value !== "" && list.includes(value);
 }
 
 function sessionOf(client: ImapFlow): ImapSession {

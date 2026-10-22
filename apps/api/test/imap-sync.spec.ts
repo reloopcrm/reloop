@@ -5,11 +5,15 @@ import type {
 	MailboxSyncModel as MailboxSync,
 } from "@crm/db";
 import { actWithoutPlans, actWithTestPlans } from "@crm/db/test-plans";
-import type {
-	ImapClientFactory,
-	ImapFolder,
-	ImapSession,
+import {
+	classifyConnectError,
+	type ImapClientFactory,
+	type ImapConnectFailure,
+	type ImapFolder,
+	type ImapSession,
+	imapServerError,
 } from "../src/imap/imap.client";
+import { IMAP } from "../src/imap/imap.config";
 import type { ImapCredentialService } from "../src/imap/imap-credentials";
 import { parseImapCursor } from "../src/imap/imap-cursor";
 import { ImapSyncService } from "../src/imap/imap-sync.service";
@@ -33,9 +37,15 @@ const account = {
 	username: "rep@example.com",
 	secret: "sealed",
 	importSince: null,
+	updatedAt: new Date("2025-01-01T00:00:00Z"),
 } as unknown as ImapAccount;
 
-function row(cursor: string | null = null): MailboxSync {
+const MINUTE_MS = 60_000;
+
+function row(
+	cursor: string | null = null,
+	lastSyncedAt: Date | null = new Date(),
+): MailboxSync {
 	return {
 		id: "sync-1",
 		userId: "user-1",
@@ -43,7 +53,16 @@ function row(cursor: string | null = null): MailboxSync {
 		cursor,
 		autoCreate: true,
 		status: "IDLE",
+		lastSyncedAt,
+		createdAt: new Date("2025-01-01T00:00:00Z"),
 	} as unknown as MailboxSync;
+}
+
+function refusal(
+	outcome: ImapConnectFailure["outcome"],
+	responseCode: string | null = null,
+): ImapConnectFailure {
+	return { outcome, reason: `${outcome} failure`, responseCode };
 }
 
 function message(uid: number, from: string, to: string): FakeMessage {
@@ -66,7 +85,9 @@ function source(entry: FakeMessage): Buffer {
 
 function harness(options: {
 	folders: FakeFolder[];
-	connect?: "ok" | "auth" | "unreachable";
+	connect?: "ok" | ImapConnectFailure;
+	fetchFails?: unknown;
+	claimed?: boolean;
 	cursor?: string | null;
 	sinceUids?: number[];
 	plan?: string | null;
@@ -76,8 +97,9 @@ function harness(options: {
 
 	const stored: { mailbox: string; message: IncomingMessage }[] = [];
 	const settled: { cursor?: string | null; status: string }[] = [];
-	const failed: string[] = [];
+	const failed: { reason: string; retryAfterMs?: number }[] = [];
 	const reconnect: string[] = [];
+	const retrying: { retryAfterMs: number; reason?: string }[] = [];
 	const opened: string[] = [];
 	const fetched: { folder: string; range: string }[] = [];
 	const asked: Date[] = [];
@@ -111,6 +133,7 @@ function harness(options: {
 		async *fetch(range) {
 			if (!current) throw new Error("no folder open");
 			fetched.push({ folder: current.path, range });
+			if (options.fetchFails) throw options.fetchFails;
 			const [from, to] = range.split(":").map(Number);
 			for (const entry of current.messages) {
 				if (entry.uid >= (from ?? 0) && entry.uid <= (to ?? 0)) {
@@ -127,7 +150,7 @@ function harness(options: {
 		async connect() {
 			const outcome = options.connect ?? "ok";
 			if (outcome === "ok") return { outcome, session };
-			return { outcome, reason: `${outcome} failure` };
+			return outcome;
 		},
 	} as unknown as ImapClientFactory;
 
@@ -144,8 +167,14 @@ function harness(options: {
 		async markNeedsReconnect(_id: string, reason: string) {
 			reconnect.push(reason);
 		},
-		async markFailed(_id: string, reason: string) {
-			failed.push(reason);
+		async markFailed(_id: string, reason: string, retryAfterMs?: number) {
+			failed.push({ reason, retryAfterMs });
+		},
+		async markRateLimited(_id: string, retryAfterMs: number, reason?: string) {
+			retrying.push({ retryAfterMs, reason });
+		},
+		async claimManual() {
+			return options.claimed ?? true;
 		},
 		async settle(
 			_id: string,
@@ -200,6 +229,7 @@ function harness(options: {
 		settled,
 		failed,
 		reconnect,
+		retrying,
 		opened,
 		fetched,
 		closed: () => closed,
@@ -438,28 +468,225 @@ describe("ImapSyncService", () => {
 		expect(h.closed()).toBe(1);
 	});
 
-	it("marks a refused sign-in as needing reconnect", async () => {
+	it("retries a refused sign-in instead of locking the mailbox", async () => {
 		const h = harness({
 			folders: gmail({ sent: [], all: [] }),
-			connect: "auth",
+			connect: refusal("auth", "AUTHENTICATIONFAILED"),
 		});
 
 		const outcome = await h.service.sync(row());
 
-		expect(outcome.status).toBe("reconnect");
-		expect(h.reconnect).toEqual(["auth failure"]);
+		expect(outcome.status).toBe("rate-limited");
+		expect(h.reconnect).toEqual([]);
+		expect(h.retrying).toEqual([
+			{ retryAfterMs: IMAP.auth.backoffBaseMs, reason: "auth failure" },
+		]);
 		expect(h.settled).toEqual([]);
 	});
 
-	it("marks an unreachable server as failed and retries later", async () => {
+	it("asks for a reconnect once a refused sign-in outlasts the grace period", async () => {
 		const h = harness({
 			folders: gmail({ sent: [], all: [] }),
-			connect: "unreachable",
+			connect: refusal("auth", "AUTHENTICATIONFAILED"),
+		});
+		const longAgo = new Date(
+			Date.now() - IMAP.auth.permanentAfterMs - MINUTE_MS,
+		);
+
+		const outcome = await h.service.sync(row(null, longAgo));
+
+		expect(outcome.status).toBe("reconnect");
+		expect(h.reconnect).toEqual(["auth failure"]);
+		expect(h.retrying).toEqual([]);
+	});
+
+	it("never locks a mailbox for a temporary refusal, however long it lasts", async () => {
+		const h = harness({
+			folders: gmail({ sent: [], all: [] }),
+			connect: refusal("refused", "UNAVAILABLE"),
+		});
+		const longAgo = new Date(
+			Date.now() - IMAP.auth.permanentAfterMs - MINUTE_MS,
+		);
+
+		const outcome = await h.service.sync(row(null, longAgo));
+
+		expect(outcome.status).toBe("rate-limited");
+		expect(h.reconnect).toEqual([]);
+		expect(h.retrying).toEqual([
+			{ retryAfterMs: IMAP.auth.backoffCapMs, reason: "refused failure" },
+		]);
+	});
+
+	it("retries an unreachable server quietly and with a growing backoff", async () => {
+		const h = harness({
+			folders: gmail({ sent: [], all: [] }),
+			connect: refusal("unreachable"),
+		});
+
+		const outcome = await h.service.sync(
+			row(null, new Date(Date.now() - 4 * MINUTE_MS)),
+		);
+
+		expect(outcome.status).toBe("rate-limited");
+		expect(h.failed).toEqual([]);
+		expect(h.retrying).toHaveLength(1);
+		expect(h.retrying[0]?.reason).toBeUndefined();
+		expect(h.retrying[0]?.retryAfterMs).toBeGreaterThanOrEqual(4 * MINUTE_MS);
+		expect(h.retrying[0]?.retryAfterMs).toBeLessThan(5 * MINUTE_MS);
+	});
+
+	it("marks a server unreachable past the grace period as failed and keeps retrying", async () => {
+		const h = harness({
+			folders: gmail({ sent: [], all: [] }),
+			connect: refusal("unreachable"),
+		});
+		const longAgo = new Date(
+			Date.now() - IMAP.auth.permanentAfterMs - MINUTE_MS,
+		);
+
+		const outcome = await h.service.sync(row(null, longAgo));
+
+		expect(outcome.status).toBe("failed");
+		expect(h.failed).toEqual([
+			{
+				reason: "unreachable failure",
+				retryAfterMs: IMAP.auth.backoffCapMs,
+			},
+		]);
+	});
+
+	it("keeps the position and retries when the connection drops mid-sync", async () => {
+		const dropped = Object.assign(new Error("Connection not available"), {
+			code: "NoConnection",
+		});
+		const h = harness({
+			folders: gmail({
+				sent: [message(1, "rep@example.com", "ada@acme.com")],
+				all: [message(10, "ada@acme.com", "rep@example.com")],
+			}),
+			fetchFails: dropped,
 		});
 
 		const outcome = await h.service.sync(row());
 
-		expect(outcome.status).toBe("failed");
-		expect(h.failed).toEqual(["unreachable failure"]);
+		expect(outcome.status).toBe("rate-limited");
+		expect(h.failed).toEqual([]);
+		expect(h.reconnect).toEqual([]);
+		expect(h.retrying).toHaveLength(1);
+		expect(h.closed()).toBe(1);
+	});
+
+	it("syncs again on the next run after a temporary failure", async () => {
+		const folders = gmail({
+			sent: [],
+			all: [message(10, "ada@acme.com", "rep@example.com")],
+		});
+		const first = harness({ folders, connect: refusal("unreachable") });
+		expect((await first.service.sync(row())).status).toBe("rate-limited");
+
+		const second = harness({ folders });
+		const outcome = await second.service.sync(row());
+
+		expect(outcome.status).toBe("synced");
+		expect(outcome.messagesWritten).toBe(1);
+	});
+
+	it("does not run a manual sync beside a sync that holds the mailbox", async () => {
+		const h = harness({
+			folders: gmail({
+				sent: [],
+				all: [message(10, "ada@acme.com", "rep@example.com")],
+			}),
+			claimed: false,
+		});
+
+		const outcome = await h.service.runManual("user-1", "imap:acc-1");
+
+		expect(outcome?.status).toBe("skipped");
+		expect(h.opened).toEqual([]);
+		expect(h.stored).toEqual([]);
+	});
+
+	it("runs a manual sync once it holds the mailbox", async () => {
+		const h = harness({
+			folders: gmail({
+				sent: [],
+				all: [message(10, "ada@acme.com", "rep@example.com")],
+			}),
+		});
+
+		const outcome = await h.service.runManual("user-1", "imap:acc-1");
+
+		expect(outcome?.status).toBe("synced");
+		expect(outcome?.messagesWritten).toBe(1);
+	});
+});
+
+describe("classifyConnectError", () => {
+	const loginError = (fields: {
+		code?: string;
+		serverResponseCode?: string;
+		responseStatus?: string;
+	}) =>
+		imapServerError.parse(
+			Object.assign(new Error("Command failed"), {
+				authenticationFailed: true,
+				...fields,
+			}),
+		);
+
+	it("reads a definitive code as a refused sign-in", () => {
+		const failure = classifyConnectError(
+			loginError({
+				serverResponseCode: "AUTHENTICATIONFAILED",
+				responseStatus: "NO",
+			}),
+		);
+
+		expect(failure.outcome).toBe("auth");
+		expect(failure.responseCode).toBe("AUTHENTICATIONFAILED");
+	});
+
+	it("reads a refusal without a code as a refused sign-in", () => {
+		expect(
+			classifyConnectError(loginError({ responseStatus: "NO" })).outcome,
+		).toBe("auth");
+	});
+
+	it("reads a temporary code during login as temporary", () => {
+		const failure = classifyConnectError(
+			loginError({ serverResponseCode: "UNAVAILABLE", responseStatus: "NO" }),
+		);
+
+		expect(failure.outcome).toBe("refused");
+		expect(failure.responseCode).toBe("UNAVAILABLE");
+	});
+
+	it("reads a connection lost during login as unreachable, not as a refusal", () => {
+		for (const code of IMAP.connect.goneCodes) {
+			expect(classifyConnectError(loginError({ code })).outcome).toBe(
+				"unreachable",
+			);
+		}
+	});
+
+	it("reads network and timeout codes as unreachable", () => {
+		for (const code of ["ECONNRESET", "ETIMEDOUT", "GREETING_TIMEOUT"]) {
+			expect(
+				classifyConnectError(
+					imapServerError.parse(Object.assign(new Error("boom"), { code })),
+				).outcome,
+			).toBe("unreachable");
+		}
+	});
+
+	it("reads anything else as a failed connection", () => {
+		expect(
+			classifyConnectError(
+				imapServerError.parse(new Error("certificate expired")),
+			).outcome,
+		).toBe("failed");
+		expect(imapServerError.parse("not an error object").code).toBe("");
 	});
 });

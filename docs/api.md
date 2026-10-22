@@ -540,6 +540,11 @@ the largest attachment upload the conversation contracts accept.
   to one `IncomingMessage` and hand it over; matching, threading, counting and
   stamping happen once. A second copy of that is how a rule like *reply before you
   create a company* comes to be true in one inbox and not the other.
+- **Two syncs that store one message at once never fail.** A P2002 on a new
+  message means another sync committed it first, so `storedElsewhere` answers
+  "already stored" when any row holds that `rfcMessageId`. A pending thread has no
+  activity, so the winner's activity is checked only on the repair path. Without
+  that, a manual sync beside the tick failed the whole mailbox.
 - **A thread is keyed by RFC message id, not by the provider's thread id.** Root comes
   from `References` → `In-Reply-To` → own `Message-ID`, so a rep on Gmail and a rep on
   Outlook land on the same `EmailThread` for the same conversation. Graph only returns
@@ -641,6 +646,21 @@ the largest attachment upload the conversation contracts accept.
   therefore holds the forward messages a cursor reads again and the failures of
   the running backfill. Outlook saves the list before it returns on a failed
   page fetch.
+- **An IMAP sign-in that fails is retried, not locked.** imapflow flags every
+  error during LOGIN as an authentication failure, a dropped connection too, so
+  `classifyConnectError` (`imap/imap.client.ts`) reads `code` first: a lost
+  connection (`IMAP.connect.goneCodes`) or a network or timeout code is
+  `unreachable`. A refusal with a code in `IMAP.auth.definitiveCodes`, or with no
+  code, is `auth`; any other code, such as `UNAVAILABLE`, is `refused`. Every
+  failure, and a connection lost in the middle of a sync, keeps the cursor and
+  waits the time since the last good sync, between `IMAP.auth.backoffBaseMs` and
+  `backoffCapMs`. A refusal shows its reason meanwhile; a lost connection shows
+  nothing. Only `auth` that outlasts `IMAP.auth.permanentAfterMs` since the last
+  good sync or the last account change becomes `NEEDS_RECONNECT`. An unreachable
+  server past that point turns `FAILED` and is still retried. The log carries the
+  outcome and the response code, never an address. **Check now holds the
+  mailbox**: `claimManual` takes the tick's lease, so a manual sync never runs
+  beside the tick, and it reads for `IMAP.manual.budgetMs`, inside the lease.
 - **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
   `mailbox/backfill-cursor.ts`: the phase, the opaque page token or
   `@odata.nextLink`, the `before` anchor, the `floor` date, and how far back it

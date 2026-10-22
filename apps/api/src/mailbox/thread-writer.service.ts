@@ -241,7 +241,9 @@ export class ThreadWriterService {
 				return { ...projected, links };
 			});
 		} catch (error) {
-			if (await this.storedElsewhere(error, parsed.rfcMessageId)) return false;
+			if (await this.storedElsewhere(error, parsed.rfcMessageId, repair)) {
+				return false;
+			}
 			throw error;
 		}
 
@@ -476,6 +478,7 @@ export class ThreadWriterService {
 	private async storedElsewhere(
 		cause: unknown,
 		rfcMessageId: string,
+		repair: boolean,
 	): Promise<boolean> {
 		const duplicate =
 			cause instanceof PrismaNamespace.PrismaClientKnownRequestError &&
@@ -483,7 +486,9 @@ export class ThreadWriterService {
 		if (!duplicate) return false;
 
 		const winner = await this.db.emailMessage.findFirst({
-			where: { rfcMessageId, thread: { activity: { isNot: null } } },
+			where: repair
+				? { rfcMessageId, thread: { activity: { isNot: null } } }
+				: { rfcMessageId },
 			select: { id: true },
 		});
 

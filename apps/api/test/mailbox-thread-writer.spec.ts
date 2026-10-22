@@ -19,6 +19,8 @@ const mailbox = `rep-${suffix}@example.test`;
 const person = `buyer@${domain}`;
 const rootId = `<root-${suffix}@mail.test>`;
 const movedRoot = `outlook-conversation:${suffix}`;
+const pendingRoot = `<pending-root-${suffix}@example.com>`;
+const stranger = `buyer@pending-${suffix}.example.com`;
 
 const agent = {
 	contactCreated: async () => true,
@@ -55,7 +57,7 @@ function message(id: string, sentAt: Date, root = rootId): IncomingMessage {
 
 async function clean() {
 	await db.emailThread.deleteMany({
-		where: { rootMessageId: { in: [rootId, movedRoot] } },
+		where: { rootMessageId: { in: [rootId, movedRoot, pendingRoot] } },
 	});
 	await db.contact.deleteMany({ where: { email: person } });
 	await db.company.deleteMany({ where: { domain } });
@@ -175,6 +177,57 @@ describe("storing a synced email", () => {
 
 		expect(thread?.messageCount).toBe(2);
 		expect(thread?.activity).not.toBeNull();
+	});
+
+	it("lets one of two concurrent syncs win on a pending thread without failing the other", async () => {
+		const relevant = await db.mailboxSync.create({
+			data: {
+				userId,
+				source: "outlook",
+				autoCreate: false,
+				createFrom: "relevant",
+			},
+		});
+		const parsed: IncomingMessage = {
+			...message(
+				`<pending-${suffix}@example.com>`,
+				new Date("2026-01-04T10:00:00Z"),
+				pendingRoot,
+			),
+			from: { email: stranger, name: "New Buyer" },
+			recipients: [{ email: mailbox, name: "Test Rep", kind: "to" }],
+		};
+		const context = await threads.context();
+
+		const results = await Promise.all([
+			threads.store(
+				relevant,
+				{ origin: "outlook", lane: "forward" },
+				parsed,
+				context,
+			),
+			threads.store(
+				relevant,
+				{ origin: "outlook", lane: "forward" },
+				parsed,
+				context,
+			),
+		]);
+
+		expect(results.filter(Boolean)).toHaveLength(1);
+		expect(
+			await db.emailMessage.count({
+				where: { rfcMessageId: parsed.rfcMessageId },
+			}),
+		).toBe(1);
+
+		const thread = await db.emailThread.findUnique({
+			where: { rootMessageId: pendingRoot },
+			select: { messageCount: true, activity: { select: { id: true } } },
+		});
+
+		expect(thread?.messageCount).toBe(1);
+		expect(thread?.activity).toBeNull();
 	});
 
 	it("repairs the thread the message is already on when the root id has moved", async () => {

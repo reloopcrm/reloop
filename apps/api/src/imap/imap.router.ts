@@ -82,7 +82,7 @@ export class ImapRouter {
 		meta: restMeta("POST", "/imap/accounts/{id}/sync", ["IMAP"]),
 	})
 	async syncNow(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
-		await this.sync.runOne(ctx.user.id, imapSourceFor(id));
+		await this.sync.runManual(ctx.user.id, imapSourceFor(id));
 		return this.connection.status(ctx.user.id);
 	}
 

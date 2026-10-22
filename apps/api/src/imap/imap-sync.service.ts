@@ -26,9 +26,13 @@ import { FailureLedger } from "../mailbox/message-failures";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { ThreadWriterService } from "../mailbox/thread-writer.service";
 import {
+	classifyConnectError,
+	connectionLost,
 	ImapClientFactory,
+	type ImapConnectFailure,
 	type ImapFolder,
 	type ImapSession,
+	imapServerError,
 } from "./imap.client";
 import { IMAP } from "./imap.config";
 import { ImapCredentialService } from "./imap-credentials";
@@ -46,7 +50,7 @@ import { parseImapMessage } from "./imap-message";
 export type ImapSyncOutcome = {
 	source: ImapSyncSource;
 	userId: string;
-	status: "synced" | "skipped" | "reconnect" | "failed";
+	status: "synced" | "skipped" | "reconnect" | "rate-limited" | "failed";
 	messagesWritten?: number;
 	reason?: string;
 };
@@ -85,6 +89,35 @@ export class ImapSyncService {
 		if (!row) return null;
 
 		return this.sync(row, deadlineAt);
+	}
+
+	async runManual(
+		userId: string,
+		source: ImapSyncSource,
+	): Promise<ImapSyncOutcome | null> {
+		const found = await this.state.get(userId, source);
+		if (!found) return null;
+
+		if (!(await this.state.claimManual(found.id, new Date()))) {
+			return {
+				source,
+				userId,
+				status: "skipped",
+				reason: "A sync of this mailbox is already running.",
+			};
+		}
+
+		const row = (await this.state.get(userId, source)) ?? found;
+
+		try {
+			return await this.sync(row, Date.now() + IMAP.manual.budgetMs);
+		} catch (error) {
+			await this.state.markFailed(
+				row.id,
+				error instanceof Error ? error.message : String(error),
+			);
+			throw error;
+		}
 	}
 
 	async sync(
@@ -135,24 +168,8 @@ export class ImapSyncService {
 			password: this.credentials.open(account.secret),
 		});
 
-		if (connected.outcome === "auth") {
-			await this.state.markNeedsReconnect(row.id, connected.reason);
-			return {
-				source,
-				userId: row.userId,
-				status: "reconnect",
-				reason: connected.reason,
-			};
-		}
-
 		if (connected.outcome !== "ok") {
-			await this.state.markFailed(row.id, connected.reason);
-			return {
-				source,
-				userId: row.userId,
-				status: "failed",
-				reason: connected.reason,
-			};
+			return this.retryLater(row, account, connected);
 		}
 
 		const session = connected.session;
@@ -189,6 +206,12 @@ export class ImapSyncService {
 			const reason = error instanceof Error ? error.message : String(error);
 
 			await this.saveCursor(row, cursor);
+
+			const failure = imapServerError.parse(error);
+			if (connectionLost(failure)) {
+				return this.retryLater(row, account, classifyConnectError(failure));
+			}
+
 			await this.state.markFailed(row.id, reason);
 
 			this.logger.error(
@@ -204,6 +227,68 @@ export class ImapSyncService {
 		} finally {
 			await session.close();
 		}
+	}
+
+	private async retryLater(
+		row: MailboxSync,
+		account: ImapAccount,
+		failure: ImapConnectFailure,
+	): Promise<ImapSyncOutcome> {
+		const source = row.source as ImapSyncSource;
+		const failingForMs = Date.now() - failingSince(row, account);
+		const retryAfterMs = Math.min(
+			IMAP.auth.backoffCapMs,
+			Math.max(IMAP.auth.backoffBaseMs, failingForMs),
+		);
+		const lasting = failingForMs > IMAP.auth.permanentAfterMs;
+
+		this.logger.warn({
+			message: "IMAP sync could not reach the mailbox. It retries later",
+			mailboxId: row.id,
+			accountId: account.id,
+			outcome: failure.outcome,
+			responseCode: failure.responseCode,
+			failingForMs,
+			retryAfterMs,
+		});
+
+		if (failure.outcome === "auth" && lasting) {
+			await this.state.markNeedsReconnect(row.id, failure.reason);
+			return {
+				source,
+				userId: row.userId,
+				status: "reconnect",
+				reason: failure.reason,
+			};
+		}
+
+		if (failure.outcome === "auth" || failure.outcome === "refused") {
+			await this.state.markRateLimited(row.id, retryAfterMs, failure.reason);
+			return {
+				source,
+				userId: row.userId,
+				status: "rate-limited",
+				reason: failure.reason,
+			};
+		}
+
+		if (failure.outcome === "failed" || lasting) {
+			await this.state.markFailed(row.id, failure.reason, retryAfterMs);
+			return {
+				source,
+				userId: row.userId,
+				status: "failed",
+				reason: failure.reason,
+			};
+		}
+
+		await this.state.markRateLimited(row.id, retryAfterMs);
+		return {
+			source,
+			userId: row.userId,
+			status: "rate-limited",
+			reason: failure.reason,
+		};
 	}
 
 	private async saveCursor(row: MailboxSync, cursor: ImapCursor) {
@@ -413,4 +498,12 @@ async function floorUidFor(
 	if (uids.length === 0) return newest + 1;
 
 	return Math.max(1, Math.min(...uids));
+}
+
+function failingSince(row: MailboxSync, account: ImapAccount): number {
+	return Math.max(
+		row.lastSyncedAt?.getTime() ?? 0,
+		row.createdAt.getTime(),
+		account.updatedAt.getTime(),
+	);
 }

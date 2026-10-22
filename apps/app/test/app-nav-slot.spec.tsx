@@ -64,7 +64,7 @@ describe("the public app nav slot", () => {
 	it("keeps slot order when two entries share an anchor", () => {
 		const items = withNavSlots(BASE, [
 			{ title: "A", href: "/a", icon: "email", after: "/" },
-			{ title: "B", href: "/b", icon: "user-multiple", after: "/a" },
+			{ title: "B", href: "/b", icon: "user-multiple", after: "/" },
 		]);
 
 		expect(items.map((item) => item.href).slice(0, 3)).toEqual([

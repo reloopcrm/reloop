@@ -106,6 +106,7 @@ export function withNavSlots(
 	nav: readonly AppNavSlot[],
 ): NavItem[] {
 	const items = [...base];
+	const placed = new Map<string, number>();
 
 	for (const slot of nav) {
 		const entry: NavItem = {
@@ -116,7 +117,9 @@ export function withNavSlots(
 			transition: "nav-lateral",
 		};
 		const at = items.findIndex((item) => item.href === slot.after);
-		items.splice(at === -1 ? items.length : at + 1, 0, entry);
+		const earlier = placed.get(slot.after) ?? 0;
+		placed.set(slot.after, earlier + 1);
+		items.splice(at === -1 ? items.length : at + 1 + earlier, 0, entry);
 	}
 
 	return items;

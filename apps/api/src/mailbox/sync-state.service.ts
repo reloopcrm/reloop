@@ -96,6 +96,26 @@ export class SyncStateService {
 		return count === 1;
 	}
 
+	async claimManual(id: string, now: Date): Promise<boolean> {
+		const { count } = await this.db.mailboxSync.updateMany({
+			where: {
+				id,
+				user: { removedAt: null },
+				OR: [
+					{ status: { not: GoogleSyncStatus.RUNNING } },
+					{ retryAfter: null },
+					{ retryAfter: { lte: now } },
+				],
+			},
+			data: {
+				status: GoogleSyncStatus.RUNNING,
+				retryAfter: new Date(now.getTime() + SYNC_LEASE.leaseMs),
+			},
+		});
+
+		return count === 1;
+	}
+
 	async release(id: string): Promise<void> {
 		await this.db.$transaction([
 			this.db.mailboxSync.updateMany({
@@ -255,23 +275,34 @@ export class SyncStateService {
 		});
 	}
 
-	async markRateLimited(id: string, retryAfterMs: number): Promise<void> {
-		await this.db.mailboxSync.update({
-			where: { id },
-			data: {
-				status: GoogleSyncStatus.IDLE,
-				retryAfter: new Date(Date.now() + retryAfterMs),
-			},
-		});
+	async markRateLimited(
+		id: string,
+		retryAfterMs: number,
+		reason?: string,
+	): Promise<void> {
+		const data: Prisma.MailboxSyncUpdateInput = {
+			status: GoogleSyncStatus.IDLE,
+			retryAfter: new Date(Date.now() + retryAfterMs),
+		};
+		if (reason !== undefined) data.lastError = reason;
+
+		await this.db.mailboxSync.update({ where: { id }, data });
 	}
 
-	async markFailed(id: string, reason: string): Promise<void> {
+	async markFailed(
+		id: string,
+		reason: string,
+		retryAfterMs?: number,
+	): Promise<void> {
 		await this.db.mailboxSync.update({
 			where: { id },
 			data: {
 				status: GoogleSyncStatus.FAILED,
 				lastError: reason,
-				retryAfter: null,
+				retryAfter:
+					retryAfterMs === undefined
+						? null
+						: new Date(Date.now() + retryAfterMs),
 			},
 		});
 	}

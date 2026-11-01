@@ -120,9 +120,9 @@ describe("the trust anchor pages", () => {
 		const source = await Bun.file(
 			`${root}components/docs/landing-shell.tsx`,
 		).text();
-		const footer = source.slice(source.indexOf("<footer"));
+		const footer = source.slice(source.indexOf("<SiteFooter"));
 
-		expect(footer).toContain("legalLinks.map");
+		expect(footer).toContain("legalLinks={legalLinks}");
 
 		const slotted = MARKETING_NAV.company.map((link) => link.path);
 

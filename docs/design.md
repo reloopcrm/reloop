@@ -9,95 +9,140 @@
   deviations.
 - If a component needs a new variant or style, implement it in /packages/ui so the
   entire application stays consistent.
-- The app and the public site share one look: the look of the approved app draft,
-  which follows the public site. Ink on paper, warm greys, one blue, one orange,
-  4px corners, Inter Tight with Newsreader for ledes and DM Mono for labels.
+- The app and the public site share one look, the Mailcheap look
+  (github.com/marclou/mailcheap, AGPL v3 like Reloop): untinted greys in oklch,
+  near-black on white, surfaces that sit on a soft shadow instead of a drawn
+  border, 10px corners, Geist for text, Geist Mono for labels, Newsreader for the
+  display headings of the public site.
 
 ## Colour
 
-The palette lives as raw tokens on `:root` and `.dark` in
-`packages/ui/src/styles/globals.css`, and every shadcn token maps onto it.
+The palette lives as raw tokens on `:root` (light, the default) and `.dark` in
+`packages/ui/src/styles/globals.css`, and every shadcn token maps onto it. Every
+grey is `oklch(L 0 0)`: no hue, on purpose.
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
-| `--ink` | `#111111` | `#f4f3ef` | Text, the primary fill, the active tab line |
-| `--ink-60` to `--ink-80` | ink at 60 to 80% | | Secondary and body text |
-| `--paper` | `#ffffff` | `#0c0c0d` | Canvas, cards, popovers |
-| `--off` | `#faf9f6` | `#141415` | Sidebar, muted fills, group rows, the open row |
-| `--tile` | `#f1eee9` | `#1c1c1e` | Chips, the active nav row, the active segment |
-| `--line` | `#dedbd6` | `#2a2a2d` | Every hairline and input edge |
-| `--line-strong` | `#d3cec6` | `#3b3b3f` | Outline buttons, dashed tiles |
-| `--blue` | `#0007cb` | `#5b6cff` | Links, customers, won, focus ring |
+| `--ink` | `oklch(0.145 0 0)` | `oklch(0.985 0 0)` | Text |
+| `--ink-30` to `--ink-80` | ink at 30 to 80% | | Underlines, secondary and body text |
+| `--paper` | `oklch(1 0 0)` | `oklch(0.145 0 0)` | Canvas |
+| `--off` | `oklch(0.985 0 0)` | `oklch(0.205 0 0)` | Sidebar; in dark also cards and popovers |
+| `--tile` | `oklch(0.97 0 0)` | `oklch(0.269 0 0)` | Muted and secondary fills, chips, the segmented control track |
+| `--line` | `oklch(0.922 0 0)` | white 10% | A hairline where one is still drawn: table rows, separators |
+| `--line-strong` | `oklch(0.87 0 0)` | white 18% | A stronger separator |
+| `--primary` | `oklch(0.205 0 0)` | `oklch(0.922 0 0)` | The one filled button, with `--primary-foreground` the inverse |
+| `--muted-foreground` | `oklch(0.556 0 0)` | `oklch(0.708 0 0)` | Secondary text, labels, placeholders |
+| `--ring` | `oklch(0.708 0 0)` | `oklch(0.556 0 0)` | Focus, as a 3px ring at 40% |
+| `--blue` | `#0007cb` | `#5b6cff` | Customers, won, a positive change |
 | `--orange` | `#ff5600` | `#ff7a33` | Win back, high potential |
-| `--active` | black 3% | white 4% | Hover of a row or a quiet control |
-| `--dot` | ink 22% | ink 22% | A faint status dot |
+| `--active` | black 4% | white 4% | Hover of a row or a quiet control |
+| `--dot` | ink 22% | ink 22% | A faint status dot, the dot grid behind a hero |
 
-**Ink is the one filled action.** `--primary` is ink with paper text: one primary
-button per view, beside an underlined text link. `--destructive` is the fill for
-the one thing you cannot undo, always behind a confirmation that names the count.
-Everything else is a quiet control: a hairline on paper.
+Cards are white on white in light (`--card` is `--paper`) and a step lighter than
+the canvas in dark (`--card` is `--off`). What separates a card from the canvas is
+its shadow, not its colour.
 
-**Blue and orange are signals, not decoration.** Blue marks a link, a customer, a
-won deal, a positive change and the focus ring. Orange marks Win back and high
-potential. A status is a 7px dot in front of a word (`Status` in
-`packages/ui/src/components/mark.tsx`): blue, ink, orange, the faint `--dot`, or a
-hollow ring for "no verdict". Never colour a whole row, a card edge or a button
-with them. `--success` and `--info` map to blue and `--warning` to orange, so old
-status code reads in the same two signals.
+**Near-black is the one filled action.** `--primary` is near-black with
+near-white text in light, and the inverse in dark: one primary button per view,
+beside an underlined text link. `--destructive` (`#b3261e`, `#eb5757` dark) is the
+fill for the one thing you cannot undo, always behind a confirmation that names the
+count. Everything else is a quiet control: a card-coloured chip on the surface
+shadow.
+
+**Blue and orange are signals, not decoration.** Blue marks a customer, a won
+deal and a positive change. Orange marks Win back and high potential. A status is
+a 7px dot in front of a word (`Status` in `packages/ui/src/components/mark.tsx`):
+blue, ink, orange, the faint `--dot`, or a hollow ring for "no verdict". Never
+colour a whole row, a card edge or a button with them. `--success` and `--info`
+map to blue and `--warning` to orange. A link is ink, underlined in `--ink-30`,
+and the underline turns to ink on hover.
 
 Dark follows the device (`next-themes` with `system`), and the theme switch sits in
-the account row and the mobile top bar. Both themes are complete; neither is the
-default look.
+the account row, the mobile top bar, the site header and the sign-in header. Light
+holds the `:root` values and is what a visitor without a preference sees; dark is
+the `.dark` block and is complete.
+
+## Elevation
+
+A surface sits on `--surface-shadow`: a 1px ring at 6% black plus two soft layers
+(`0 1px 2px -1px` and `0 2px 4px` at 4 to 6%). In dark it is one ring at 8%
+white. The shadow replaces the drawn border: a card, a stat group, a chart frame,
+a board card, an input, a select trigger, an outline button, the active nav row
+and the active segment all carry `border-transparent shadow-surface`. Hover on a
+control raises it to `shadow-surface-hover` (8% ring). The primary button carries
+`shadow-button`, one 1px drop at 12%.
+
+The ladder above a surface is the shadow scale: `shadow-md` for a popover or a
+menu, `shadow-lg` for a dialog, `shadow-2xl` for a floating panel, `shadow-sheet`
+for the record sheet (surface plus `0 24px 64px -16px` at 30%). Every step starts
+with the surface ring, so a floating layer still has an edge. Nothing carries a
+gradient. A plain hairline (`border-border`) remains for a line inside a surface:
+table rows, a card footer, a separator, and the solid edge of an empty state.
+
+## Corners
+
+`--radius` is 0.625rem (10px). The scale in `@theme`:
+
+| Utility | Size | Use |
+| --- | --- | --- |
+| `rounded-xs`, `rounded-badge` | 4px | Checkbox, badge, the smallest chip |
+| `rounded-sm` | 6px | A segment, a menu row, a small inset well |
+| `rounded-md`, `rounded-lg` | 10px | Buttons, inputs, cards, popovers, dialogs, menus, nav rows |
+| `rounded-xl` | 14px | A code figure, a callout, a table frame on the site |
+| `rounded-2xl` | 18px | A browser frame around a screenshot |
+| `rounded-3xl` | 22px | A bento tile, the stats strip |
+| `rounded-4xl` | 32px | The large panel on the site |
+
+`rounded-full` is for true circles only: avatars of people, status dots, the
+switch, the segmented hero tabs on the site. Never a literal radius at the call
+site.
 
 ## Type
 
-Inter Tight for everything, Newsreader at weight 300 for a page's lede and an email
-draft's body, DM Mono for labels. The fonts load once in the root layout as
-`--font-site-sans`, `--font-site-serif` and `--font-site-mono`.
+Geist for everything, Geist Mono for labels, Newsreader (optical sizing on) for
+the display headings of the public site. The three fonts load once in the root
+layout as `--font-site-sans`, `--font-site-serif` and `--font-site-mono`
+(`apps/app/components/site/fonts.ts`), and `--font-sans`, `--font-serif` and
+`--font-mono` in `globals.css` read them. The app never uses the serif: a lede, a
+draft and a story are Geist at weight 400.
 
-- Weights stop at 500: 300, 400, 500. `font-semibold` and heavier resolve to 500.
-- Page title: 24px (`text-2xl`), weight 400, `tracking-tight`.
+- Weights: 300, 400, 500, 600. `font-bold` and heavier resolve to 600, so a
+  heavier utility gives 600 under a misleading name.
+- Page title (`PageShellTitle`): 24px (`text-2xl`), weight 600, `tracking-tight`
+  (-0.02em). A card title, a sheet title, a dashboard block title and the chat
+  home title follow with weight 600 and `tracking-tight`.
+- Page description: 15px (`text-md`), 24px leading, muted.
 - Section title: 16px, weight 500.
 - Body: 14px. Table cells and secondary lines: 13px (`text-2sm`).
-- Label: `MonoLabel`, 11px (`text-2xs`) DM Mono in capitals with
-  `tracking-label` (0.06em). Table headers, eyebrows, field group headings,
+- Label: `MonoLabel`, 11px (`text-2xs`) Geist Mono in capitals with
+  `tracking-label` (0.08em). Table headers, eyebrows, field group headings,
   counts in the sidebar and KPI captions use it.
-- Numbers that line up use `tabular-nums`; amounts on cards use DM Mono.
+- A KPI value is weight 600 at -0.03em. Numbers that line up use `tabular-nums`;
+  the timeline rows and the day strip are tabular throughout.
 
 No em dash or en dash in any visible text, in any language. A range reads "1 to
 25 of 312", an empty cell shows a faint middle dot.
-
-## Corners and surfaces
-
-`--radius` is 4px and `rounded-md` through `rounded-4xl` all return it. `rounded-sm`
-and `rounded-xs` are 2px, for chips, checkboxes and segments. `rounded-full` is
-for true circles only: avatars of people, status dots, the switch.
-
-Elevation comes from a hairline (`--line`), never from a drop shadow. The one
-exception is a layer that floats over content: menus, popovers, dialogs and the
-selection bar carry `--shadow-lg`. Nothing carries a gradient.
-
-Corner marks are the signature: 8px squares at the corners of one framed block
-per view, blue for the KPI strip and an email draft. Use them once per view.
 
 ## Controls
 
 | Control | Size | Look |
 | --- | --- | --- |
-| Button `default` | 32px, 12px inline padding, 14px text, weight 400 | Ink fill, paper text; hover 80% |
+| Button `default` | 32px, 12px inline padding, 14px text, weight 400 | `--primary` fill, `shadow-button`; hover 85% |
 | Button `sm` | 28px, 13px text | The toolbar chip |
-| Button `outline` | | `--line-strong` hairline on paper, hover `--active` |
+| Button `outline` | | Card fill on `shadow-surface`, hover `--active` and the hover ring |
 | Button `ghost` | | No edge until hover |
+| Button `nav` | 32px | The sidebar row; the active row is card fill on `shadow-surface` |
 | Button `link` | | Underlined, 3px offset, ink 80% to ink on hover |
 | Button `text` size | No height, no padding, 13px | A `link` that sits inside a sentence or a card footer |
 | Button `dashed` | | Dashed `--line-strong`, muted text; quick filters and "Add a deal" |
 | Icon button | 32px (`icon`), 28px (`icon-sm`) | |
-| Input, select trigger | 32px, 10px inline padding | `--line` edge on paper, the focus ring is blue |
-| Badge | 20px, 6px inline padding, 12px | `--tile` chip, 2px corners |
-| Segmented control | 2px padding, 24px segments, 13px | Active segment `--tile`, never a fill colour |
+| Input, select trigger, input group | 32px, 10px inline padding | Card fill on `shadow-surface`, no drawn edge; focus is a 3px ring at 40% |
+| Textarea | | Same fill and shadow with `rounded-lg`; the `draft` variant has no edge, Geist 400, 17px, a dashed outline while a mail draft is edited in place |
+| Badge | 20px, 6px inline padding, 12px | `--tile` chip, 4px corners |
+| Segmented control (`Tabs` default, `ToggleGroup`) | 2px padding, 24px segments, 13px | `--muted` track, no edge; the active segment is card fill on `shadow-surface` |
 | Line tabs | 40px, 14px | 1px ink line under the active tab |
-| Checkbox | 14px, 2px corners | Ink when checked |
-| Textarea `draft` | No edge, Newsreader 300, 17px | A dashed hairline while a mail draft is edited in place |
+| Checkbox | 14px, 4px corners | Ink when checked |
+| Table | | 36px mono header, rows split by `--line` hairlines, no vertical lines |
 
 A header, a card footer and a dialog pair one primary button with one underlined
 text link. A second filled button on a screen removes the meaning of the first.
@@ -142,48 +187,47 @@ component. A view never rebuilds them.
 ## Records
 
 A record opens in a sheet addressed by the URL (`?record=contact:<id>`), wide enough
-on desktop for two columns and a drawer on a phone. The header holds the avatar
-(round for a person, square for a company), the name at 22px, a muted line with
-title, company and place, and on the right a text link, at most one outline button
-and the one primary button. A row of chips states the standing, the potential and
-the facts the mail gave. Below, a 300px rail lists the fields in groups under mono
-headings, each field a muted label with a small icon and a one-line value; the
-main side has line tabs.
+on desktop for two columns and a drawer on a phone. The sheet has no drawn edge; it
+floats on `shadow-sheet`. The header holds the avatar (round for a person, square
+for a company), the name at 22px and weight 600, a muted line with title, company
+and place, and on the right a text link, at most one outline button and the one
+primary button. A row of chips states the standing, the potential and the facts
+the mail gave. Below, a 300px rail lists the fields in groups under mono headings,
+each field a muted label with a small icon and a one-line value; the main side has
+line tabs.
 
 ## The Win back person
 
 A person in Win back opens a page, not a sheet: `/<slug>/win-back/<contactId>`, so
 the back button returns to the list and a link names one person. The list's search,
 filters and sort travel in the person's URL, so the breadcrumb returns to the same
-list and "Continue with" follows its order. The page is
-"understand first": the gist in Newsreader, the progress steps, the timeline "Your
-time together", three numbered chapters with one quote, and a second tab with the
-person's mail where the passages the story builds on are marked. Every part links to
-its mail.
+list and "Continue with" follows its order. The page is "understand first": the
+gist at 19px, the progress steps, the timeline "Your time together", three numbered
+chapters with one quote, and a second tab with the person's mail where the passages
+the story builds on are marked. Every part links to its mail.
 
-The next step is one `DraftCard` with corner marks. From 1180px (`split:`) it is a
-sticky right column, `container-aside` wide (360px, 400px from 1400px), beside a
-story column of `container-story` (720px). Below 1180px it follows the story in one
-column and an `ActionBar` fixed to the bottom repeats the one action; toasts rise
-above it through `--toast-lift`. The parts live in
-`packages/ui/src/components/story.tsx`.
+The next step is one `DraftCard`. From 1180px (`split:`) it is a sticky right
+column, `container-aside` wide (360px, 400px from 1400px), beside a story column
+of `container-story` (720px). Below 1180px it follows the story in one column and
+an `ActionBar` fixed to the bottom repeats the one action; toasts rise above it
+through `--toast-lift`. The parts live in `packages/ui/src/components/story.tsx`.
 
 ## Shell
 
 The app shell is a labelled sidebar, `container-sidebar` (224px) on `--off` with a
 hairline on its right: the wordmark, the workspace name as a mono label with a blue
 square, then Overview, Win back (with the number of companies), Companies,
-Contacts, Deals and Chat as 32px rows with 4px corners. The active row fills with
-`--tile` and its label goes to weight 500. A hairline separates Settings (a gear),
-the enrichment queue and the account row with the theme switch. Icons come from
-`packages/ui/src/components/line-icons.tsx`. Below 1024px the sidebar is a sheet
-behind the menu button of a 48px top bar that holds the wordmark, the theme switch
-and the menu. Settings has its own second sidebar with the same rows under a mono
-"Settings" label.
+Contacts, Deals and Chat as 32px rows with 10px corners. The active row is a card
+on `shadow-surface` and its label goes to weight 500. A hairline separates
+Settings (a gear), the enrichment queue and the account row with the theme switch.
+Icons come from `packages/ui/src/components/line-icons.tsx`. Below 1024px the
+sidebar is a sheet behind the menu button of a 48px top bar that holds the
+wordmark, the theme switch and the menu. Settings has its own second sidebar with
+the same rows under a mono "Settings" label.
 
 A page head is an eyebrow (`PageShellEyebrow`: a square and a mono label, blue, or
-orange for Win back), the title, a serif lede, and on the right the text link and
-the primary button.
+orange for Win back), the title at weight 600, a 15px muted description, and on
+the right the text link and the primary button.
 
 ## Spacing
 
@@ -198,99 +242,52 @@ value, because it is data the table fits.
 
 ## Public site
 
-The public site is the `(landing)` route group: marketing pages, docs, sign-in,
-onboarding, grant-access, contact, privacy and imprint. Its design lives in a
-second token scope, `.site`, in `packages/ui/src/styles/site.css`: paper and ink
-greys, one blue for reading and one orange for win back, 4px corners, Inter Tight,
-Newsreader for ledes, DM Mono for labels. The same file holds the site's type
-scale, weights, spacing rhythm and hairlines as `--site-*` variables, light under
-`.site` and dark under `.dark .site`. Every selector in it is scoped to `.site`,
-because a stylesheet a route group loads stays loaded after client navigation into
-the app.
+The public site is the `(landing)` route group: docs, sign-in, onboarding,
+grant-access, contact, privacy and imprint, plus the 404 page outside the group.
+It is built from one component set, `apps/app/components/landing/mailcheap/`,
+and one stylesheet, `mailcheap.css`, which the shell (`shell.tsx`) and the auth
+frame (`auth.tsx`) import. Every rule in it is scoped to `.mc` and sits in
+`@layer components`, so a Tailwind utility on the same element still wins and the
+stylesheet stays harmless after client navigation into the app.
 
-`app/(landing)/layout.tsx` loads the stylesheet, nothing else. The three fonts
-load once in the root layout as `--font-site-*` variables, because the app uses
-them too. A page enters the scope only when its
-shell puts the `.site` class on its root: `LandingShell`, `AuthShell` (sign-in,
-onboarding, grant-access) and the 404 page, which lives outside the route group and
-loads the stylesheet itself. `AuthShell` sets one card on the paper: the
-`--tile` fill with ink corner marks, `--site-auth-width` wide, on a dot grid.
+The `.mc` block holds no colour of its own. Every `--mc-*` variable reads the
+shared token (`--mc-card` is `--card`, `--mc-shadow-border` is
+`--surface-shadow`, `--mc-font-display` is `--font-serif`), so the site follows
+the same theme switch as the app and the same light default.
 
-The shared components from `packages/ui` render inside `.site` with the app's
-tokens, which are the same palette. The site differs in size, not in colour: a
-component reaches the site's sizes through a `site:` class in `packages/ui`, never
-at the call site.
-`Button`, `Input`, `InputGroup`, `Textarea`, the `Select` trigger, `Label` and the
-`Field` texts, `Toggle` and `ToggleGroup`, `Badge`, `Alert`, `CardTitle` and
-`EmptyTitle` carry these classes: 4px corners, 40px buttons and fields, 16px
-field text, 14px labels and help text, and weights of 400 and 500. Inside `.site`
-the default `Badge` is the blue label: `--blue` fill, `--on-blue` text, DM Mono in
-capitals. `Switch` is a 36 by 20 box with an ink edge and a square knob, not a
-pill. The default `TabsList` is a row of bordered cells, 58px tall with 20px text,
-the active cell on `--off`; the `line` tabs keep their shape. `Table` holds a
-`--site-table-min` (560px) floor instead of a width per cell: it fits every
-desktop column and scrolls inside its own frame on a phone. A row header is
-`TableHead scope="row"`: body text in `--muted-foreground` (`--ink-60` inside
-`.site`), no capitals, top aligned on the site. A side column beside a picker or a
-form is `--site-aside` (400px) wide.
+The parts:
 
-A menu, a popover or a toast opened from a public page is portalled to `<body>`,
-outside the shell. Each site shell renders `SiteShellMarker`
-(`components/site/site-shell-marker.tsx`), which sets `data-site-shell` on
-`<body>` in a layout effect and removes it in the cleanup. The `site:` variant
-(`.site *, [data-site-shell] *`) and the token block (`body[data-site-shell]`)
-use that marker, so the portalled layers take the site tokens, 4px corners and
-Inter Tight. The marker follows visibility, not presence in the DOM: Next keeps a
-page the visitor left as a hidden subtree, and React runs the layout cleanup when
-it hides that subtree, before the next frame paints. A visible app page therefore
-never has the marker on `<body>`. A hidden site page can stay in the DOM with its
-`.site` class, but that class styles only its own hidden subtree.
+- `LandingShell` (`components/docs/landing-shell.tsx`) wraps a page in `.mc`:
+  the skip link, `SiteHeader` (wordmark, the header links from `MARKETING_NAV`,
+  Sign in, the Get started pill when a sign-up exists, the theme switch, the
+  `details` menu below 640px), `main#content`, and `SiteFooter` (wordmark and
+  tagline, the link groups, the AGPL line, the legal links and the language
+  switcher).
+- `Article` (`article.tsx`) is the frame of a docs page, a trust page and the
+  imprint: a sticky left rail of link groups and "On this page" from 768px, a
+  42rem column with a mono kicker, a Newsreader title, a lede and the body.
+  `ArticleSection` gives a section its anchor and `h2`. `Cards`, `Card`,
+  `Steps` and `Step` are its building blocks.
+- `DocsArticle` (`docs.tsx`) is `Article` with the docs rail and the previous
+  and next pager. `SiteMarkdown` (`markdown.tsx`) renders the parsed guide:
+  `h1` to `h4` with anchor ids, `CodeFigure` with the copy button, a callout
+  with a square mark, a table in a rounded frame, lists and paragraphs.
+- `PageHero`, `SectionHead`, `Section`, `Split`, `Tiles`, `TextTile`, `Faq`,
+  `Closing`, `CodeFigure`, `Note` and `Actions` (`parts.tsx`) are the marketing
+  blocks. `Actions` pairs one `mc-btn` with one underlined `mc-link`.
+- `AuthSplit` (`auth.tsx`) is the frame of sign-in, onboarding, grant-access and
+  consent through `AuthShell`: a 22rem form column with the wordmark, the theme
+  switch and the language switcher, and from 1024px an aside with a kicker, a
+  Newsreader headline, the tagline and a product shot in a `BrowserFrame`.
+  `AuthHeading` is the title and intro of the form.
+- `Shot` (`shot.tsx`) renders the light and the dark screenshot and shows the one
+  the theme asks for.
 
-The type scale is a set of `--site-text-*` sizes that step down with the
-viewport, composed with leading and tracking in `SITE_TYPE`
-(`components/site/typography.ts`). A page never writes a pixel size; it picks the
-role:
-
-| Role | `SITE_TYPE` | Desktop | 1340px and below | 900px and below | 480px and below |
-| --- | --- | --- | --- | --- | --- |
-| Hero and closing headline | `display1` | 80 | 80 | 40 | 36 |
-| Section headline | `display2` | 54 | 54 | 34 | 34 |
-| Headline beside a picture | `display3` | 44 | 40 | 34 | 34 |
-| Large measured number | `figure` | 64 | 64 | 48 | 48 |
-| Price | `amount` | 64 | 64 | 44 | 44 |
-| Word between two prices | `plus` | 32 | 32 | 40 | 40 |
-| Quote in a numbers card | `quote` | 28 | 28 | 24 | 24 |
-| Card title | `title24` | 24 | 24 | 22 | 22 |
-| Item title | `title20` | 20 | 20 | 20 | 20 |
-| Lede | `lede` | 16 serif | 16 | 16 | 16 |
-| Label | `mono` | 12 mono | 12 | 12 | 12 |
-
-The header banner carries `data-slot="site-banner"`. While it is on the page,
-`.site` sets `--site-banner-offset` to the banner height; once it is closed the
-offset is 0. A sticky element below the header adds the offset, never the banner
-height, so closing the banner leaves no gap.
-Fields meet WCAG AA on every site surface (paper, off, tile) in both themes: the
-field edge is `--field` (3:1 or more), placeholders use `--ink-60` (4.5:1 or
-more). `--destructive` differs per theme, in the app and inside `.site`:
-`#b3261e` in light, `#eb5757` in dark, because error text sits on the light tile
-and `#eb5757` reaches only 3:1 there.
-A product image may carry the one shadow token `--shadow`; nothing else in `.site`
-has a shadow. Marketing blocks live in `apps/app/components/site/` (public) or
-`components/landing/`. The app never renders inside `.site`.
-
-A product image shows invented sample data only, captured from a disposable
-database with the built-in sample data. Each file is listed in
-`public/site/shots/MANIFEST.md` with its source. A capture from a real workspace
-is never committed. A page shows one through `Shot` from
-`components/site/shot.tsx`, which takes a name from `SHOTS` in
-`components/site/site-config.ts` and renders the light and the dark file, so the
-image follows the theme button. A German reader gets the German set from
-`public/site/shots/de/`, every other reader the English set. Its alt text goes
-through `t()`.
-
-The theme default is chosen per route group in `apps/app/lib/theme-config.ts`.
-The app and the public site both follow the device. Each stores the person's
-choice under its own key, so a choice made on the site never changes the app.
-Sign-in, onboarding and grant-access are part of the site and follow its theme.
-Entering the app from them is either a full page load or a navigation that
-crosses the scope, and both paint the app in its own theme from the first frame.
+The site's own vocabulary, in `mailcheap.css`: `mc-h1` and `mc-display` are
+Newsreader at 420 to 520 with tight tracking; `mc-lede` is 18px muted; `mc-kicker`
+is the 11px mono label; `mc-btn` is a 36px near-black button at 10px corners with
+`mc-btn-lg` (40px), `mc-btn-sm` (28px), `mc-btn-ghost` and `mc-btn-outline`;
+`mc-card` and `mc-tile` are surfaces on the surface shadow; `mc-dots` is the dot
+grid that fades out behind a hero. The forms inside the auth frame use the shared
+`Button`, `Input` and `Field` from `packages/ui`, so a control looks the same on
+the site and in the app.

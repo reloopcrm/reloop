@@ -139,7 +139,7 @@ No em dash or en dash in any visible text, in any language. A range reads "1 to
 | Input, select trigger, input group | 32px, 10px inline padding | Card fill on `shadow-surface`, no drawn edge; focus is a 3px ring at 40% |
 | Textarea | | Same fill and shadow with `rounded-lg`; the `draft` variant has no edge, Geist 400, 17px, a dashed outline while a mail draft is edited in place |
 | Badge | 20px, 6px inline padding, 12px | `--tile` chip, 4px corners |
-| Segmented control (`Tabs` default, `ToggleGroup`) | 2px padding, 24px segments, 13px | `--muted` track, no edge; the active segment is card fill on `shadow-surface` |
+| Segmented control (`Tabs` default, `ToggleGroup`) | 2px padding, 24px segments, 13px | `--muted` track on `shadow-surface`; the active segment is card fill on `shadow-surface` |
 | Line tabs | 40px, 14px | 1px ink line under the active tab |
 | Checkbox | 14px, 4px corners | Ink when checked |
 | Table | | 36px mono header, rows split by `--line` hairlines, no vertical lines |

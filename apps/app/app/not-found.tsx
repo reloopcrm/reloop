@@ -1,4 +1,3 @@
-import "@crm/ui/site.css";
 import { Button } from "@crm/ui/components/button";
 import { cn } from "@crm/ui/lib/utils";
 import NextLink from "next/link";

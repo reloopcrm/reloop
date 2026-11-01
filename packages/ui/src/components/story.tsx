@@ -129,7 +129,7 @@ function StoryGist({ className, ...props }: React.ComponentProps<"p">) {
 		<p
 			data-slot="story-gist"
 			className={cn(
-				"max-w-165 text-pretty font-light font-serif text-[19px] text-foreground leading-[1.35] lg:text-[22px]",
+				"max-w-165 text-pretty font-normal text-[19px] text-foreground leading-[1.35] lg:text-[22px]",
 				className,
 			)}
 			{...props}
@@ -376,7 +376,7 @@ function StoryQuote({
 			)}
 			{...props}
 		>
-			<p className="font-light font-serif text-[17px] text-foreground leading-[1.4] lg:text-[19px]">
+			<p className="font-normal text-[17px] text-foreground leading-[1.4] lg:text-[19px]">
 				{children}
 			</p>
 			<cite className="mt-2 block not-italic">

@@ -38,7 +38,7 @@ function StatCard({
 			{label != null ? (
 				<MonoLabel className="text-pretty leading-relaxed">{label}</MonoLabel>
 			) : null}
-			<span className="row-start-2 mt-2.5 font-normal text-[2rem] leading-none tracking-tight tabular-nums">
+			<span className="row-start-2 mt-2.5 font-semibold text-[2rem] leading-none tracking-[-0.03em] tabular-nums">
 				{value}
 			</span>
 			{delta || description ? (

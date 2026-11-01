@@ -57,7 +57,7 @@ function DraftCardBody({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="draft-card-body"
 			className={cn(
-				"flex flex-col gap-2.5 wrap-break-word whitespace-pre-line font-light font-serif text-[17px] text-foreground leading-[1.45]",
+				"flex flex-col gap-2.5 wrap-break-word whitespace-pre-line font-normal text-[17px] text-foreground leading-[1.45]",
 				className,
 			)}
 			{...props}
@@ -93,7 +93,7 @@ function DraftCardPreview({ className, ...props }: React.ComponentProps<"div">) 
 		<div
 			data-slot="draft-card-preview"
 			className={cn(
-				"rounded-md border bg-background px-4 py-3.5 font-light font-serif text-base text-body-foreground leading-[1.45] [&_p]:line-clamp-3",
+				"rounded-md border bg-background px-4 py-3.5 font-normal text-base text-body-foreground leading-[1.45] [&_p]:line-clamp-3",
 				className,
 			)}
 			{...props}

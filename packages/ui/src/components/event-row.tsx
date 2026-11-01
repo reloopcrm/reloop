@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
 const COLUMNS =
-	"grid grid-cols-[var(--event-time)_0.75rem_minmax(0,1fr)_1rem] items-baseline gap-x-2.5";
+	"grid grid-cols-[var(--event-time)_0.75rem_minmax(0,1fr)_1rem] items-baseline gap-x-2.5 tabular-nums";
 
 const PANEL_INSET = "ms-[calc(var(--event-time)+1.375rem)] me-4 max-md:mx-0";
 
@@ -140,7 +140,7 @@ function EventDayStrip({
 		<h3
 			data-slot="event-day-strip"
 			data-tone={tone}
-			className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-popover pt-4 pb-1.5 font-mono font-normal text-2xs text-muted-foreground uppercase tracking-label"
+			className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-popover pt-4 pb-1.5 font-mono font-normal text-2xs text-muted-foreground uppercase tracking-label tabular-nums"
 		>
 			<span className="truncate">{label}</span>
 			{note ? (
@@ -267,7 +267,7 @@ function EventRow({
 			id={anchorId}
 			{...(defaultOpen ? { open: true } : {})}
 			className={cn(
-				"group/event scroll-mt-8 border-b text-2sm open:bg-muted",
+				"group/event scroll-mt-8 border-b text-2sm tabular-nums open:bg-muted",
 				className,
 			)}
 			onToggle={(event) => {

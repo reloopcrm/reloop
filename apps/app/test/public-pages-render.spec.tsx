@@ -147,8 +147,8 @@ if (process.env.PUBLIC_PAGES_RENDER) {
 
 	const font = () => ({ variable: "", className: "" });
 	mock.module("next/font/google", () => ({
-		DM_Mono: font,
-		Inter_Tight: font,
+		Geist: font,
+		Geist_Mono: font,
 		Newsreader: font,
 	}));
 

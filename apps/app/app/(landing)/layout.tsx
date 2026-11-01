@@ -1,4 +1,3 @@
-import "@crm/ui/site.css";
 
 export default function LandingLayout({
 	children,

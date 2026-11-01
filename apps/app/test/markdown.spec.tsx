@@ -1,10 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Markdown, outline, parseMarkdown } from "../components/docs/markdown";
+import { outline, parseMarkdown } from "../components/docs/markdown";
+import { SiteMarkdown } from "../components/landing/mailcheap/markdown";
+
+const LABELS = { terminal: "Terminal", copy: "Copy", copied: "Copied" };
 
 const render = (source: string) =>
-	renderToStaticMarkup(createElement(Markdown, { source }));
+	renderToStaticMarkup(
+		createElement(SiteMarkdown, {
+			blocks: parseMarkdown(source),
+			labels: LABELS,
+		}),
+	);
 
 describe("the docs Markdown renderer", () => {
 	it("gives headings anchor ids", () => {
@@ -62,9 +70,7 @@ describe("the docs Markdown renderer", () => {
 		]);
 		expect(
 			render("**`KEY` *and* the sync**").replace(/ class="[^"]*"/g, ""),
-		).toBe(
-			"<article><p><strong><code>KEY</code> <em>and</em> the sync</strong></p></article>",
-		);
+		).toBe("<p><b><code>KEY</code> <em>and</em> the sync</b></p>");
 	});
 
 	it("splits paragraphs, lists and inline code", () => {

@@ -1,9 +1,8 @@
-import { cn } from "@crm/ui/lib/utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LandingShell } from "@/components/docs/landing-shell";
-import { ProsePage } from "@/components/site/prose";
-import { SITE_TYPE } from "@/components/site/typography";
+import { Article } from "@/components/landing/mailcheap/article";
+import { articleGroups, siteLinks } from "@/components/landing/mailcheap/site";
 import { getT } from "@/lib/i18n/server";
 import { getImprint, IMPRINT_ROBOTS } from "@/lib/imprint";
 
@@ -23,51 +22,57 @@ export default async function ImprintPage() {
 	if (!imprint) notFound();
 
 	const t = await getT();
+	const links = siteLinks(t);
 
-	const rows = [
-		{ label: t("Name"), value: imprint.name },
-		{ label: t("Business"), value: imprint.business },
+	const fields = [
+		{ label: t("Name"), lines: [imprint.name] },
 		{
-			label: t("Address"),
-			value:
-				imprint.addressLines.length > 0
-					? imprint.addressLines.map((line) => (
-							<span key={line} className="block">
-								{line}
-							</span>
-						))
-					: null,
+			label: t("Business"),
+			lines: imprint.business ? [imprint.business] : [],
 		},
+		{ label: t("Address"), lines: imprint.addressLines },
 		{
 			label: t("Email"),
-			value: imprint.email ? (
-				<a href={`mailto:${imprint.email}`}>{imprint.email}</a>
-			) : null,
+			lines: imprint.email ? [imprint.email] : [],
+			href: imprint.email ? `mailto:${imprint.email}` : undefined,
 		},
-		{ label: t("Phone"), value: imprint.phone },
-		{ label: t("VAT ID"), value: imprint.vatId },
-	].filter((row) => row.value);
+		{ label: t("Phone"), lines: imprint.phone ? [imprint.phone] : [] },
+		{ label: t("VAT ID"), lines: imprint.vatId ? [imprint.vatId] : [] },
+	].filter((field) => field.lines.length > 0);
 
 	return (
 		<LandingShell>
-			<ProsePage
-				eyebrow={t("Legal")}
+			<Article
+				groups={articleGroups(t, links)}
+				current={links.imprint.href}
+				navLabel={t("Company")}
+				kicker={t("Legal")}
 				title={t("Imprint")}
-				lede={t(
-					"Legal information under Section 5 of the German Digital Services Act (DDG).",
-				)}
+				lede={
+					<p>
+						{t(
+							"Legal information under Section 5 of the German Digital Services Act (DDG).",
+						)}
+					</p>
+				}
 			>
-				<dl className="flex flex-col gap-6 border border-border p-6">
-					{rows.map((row) => (
-						<div key={row.label} className="flex flex-col gap-2">
-							<dt className={cn(SITE_TYPE.mono, "text-(--ink-60)")}>
-								{row.label}
-							</dt>
-							<dd className="text-foreground">{row.value}</dd>
-						</div>
-					))}
-				</dl>
-			</ProsePage>
+				<section className="mc-card mc-annex">
+					<dl className="mc-annex-fields">
+						{fields.map((field) => (
+							<div key={field.label} className="mc-annex-field">
+								<dt>{field.label}</dt>
+								<dd>
+									{field.lines.map((line) => (
+										<p key={line}>
+											{field.href ? <a href={field.href}>{line}</a> : line}
+										</p>
+									))}
+								</dd>
+							</div>
+						))}
+					</dl>
+				</section>
+			</Article>
 		</LandingShell>
 	);
 }

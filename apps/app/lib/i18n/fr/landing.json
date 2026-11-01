@@ -240,5 +240,13 @@
 	"Use any MCP client with Streamable HTTP. It signs in with OAuth and dynamic client registration, or it sends the header x-api-key.": "Utilise n'importe quel client MCP avec Streamable HTTP. Il se connecte par OAuth avec enregistrement dynamique du client, ou envoie l'en-tête x-api-key.",
 	"This command lists the tools with a key.": "Cette commande liste les outils avec une clé.",
 	"Your MCP address": "Ton adresse MCP",
-	"Open the settings": "Ouvrir les réglages"
+	"Open the settings": "Ouvrir les réglages",
+	"Bring your mailbox. Find the customers.": "Apportez votre boîte mail. Retrouvez les clients.",
+	"Footer": "Pied de page",
+	"Releases": "Versions",
+	"Reloop CRM. Free software under the GNU AGPL v3.": "Reloop CRM. Logiciel libre sous licence GNU AGPL v3.",
+	"Terminal": "Terminal",
+	"The open source CRM that reads your email history and tells you which past customers are worth winning back.": "Le CRM open source qui lit votre historique de mails et vous dit quels anciens clients méritent d'être reconquis.",
+	"The postal address is on the imprint page.": "L'adresse postale figure dans les mentions légales.",
+	"The postal address of the controller is on the imprint page.": "L'adresse postale du responsable figure dans les mentions légales."
 }

@@ -68,7 +68,7 @@ function inline(text: string): React.ReactNode[] {
 	return nodes;
 }
 
-export function DraftMarkdown({
+export function SiteMarkdown({
 	blocks,
 	labels,
 }: {
@@ -82,7 +82,13 @@ export function DraftMarkdown({
 
 				if (block.kind === "heading") {
 					const id = slugify(block.text);
-					if (block.level <= 2)
+					if (block.level === 1)
+						return (
+							<h1 key={key} id={id}>
+								{inline(block.text)}
+							</h1>
+						);
+					if (block.level === 2)
 						return (
 							<h2 key={key} id={id}>
 								{inline(block.text)}

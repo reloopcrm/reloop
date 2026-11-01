@@ -2,12 +2,15 @@ import { MenuIcon } from "@crm/ui/components/line-icons";
 import Wordmark from "@crm/ui/components/wordmark";
 import NextLink from "next/link";
 import type * as React from "react";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/site/theme-toggle";
+import "./mailcheap.css";
 
-export type DraftLink = { href: string; label: string; external?: boolean };
+export type SiteLink = { href: string; label: string; external?: boolean };
 
-export type FooterGroup = { title: string; links: readonly DraftLink[] };
+export type FooterGroup = { title: string; links: readonly SiteLink[] };
 
-function Anchor({ link, className }: { link: DraftLink; className?: string }) {
+function Anchor({ link, className }: { link: SiteLink; className?: string }) {
 	return (
 		<NextLink
 			href={link.href}
@@ -20,7 +23,7 @@ function Anchor({ link, className }: { link: DraftLink; className?: string }) {
 	);
 }
 
-function Home({ href, label }: { href: string; label: string }) {
+export function SiteHome({ href, label }: { href: string; label: string }) {
 	return (
 		<NextLink href={href} className="mc-wordmark" aria-label={label}>
 			<Wordmark aria-hidden="true" focusable="false" />
@@ -28,23 +31,23 @@ function Home({ href, label }: { href: string; label: string }) {
 	);
 }
 
-export function DraftHeader({
+export function SiteHeader({
 	home,
 	links,
 	start,
 	menu,
 	navLabel,
 }: {
-	home: DraftLink;
-	links: readonly DraftLink[];
-	start: DraftLink;
+	home: SiteLink;
+	links: readonly SiteLink[];
+	start?: SiteLink;
 	menu: string;
 	navLabel: string;
 }) {
 	return (
 		<header className="mc-header">
 			<div className="mc-container">
-				<Home href={home.href} label={home.label} />
+				<SiteHome href={home.href} label={home.label} />
 				<nav className="mc-nav" aria-label={navLabel}>
 					<span className="mc-nav-links">
 						{links.map((link) => (
@@ -55,7 +58,10 @@ export function DraftHeader({
 							/>
 						))}
 					</span>
-					<Anchor link={start} className="mc-btn mc-btn-sm ml-1.5" />
+					{start ? (
+						<Anchor link={start} className="mc-btn mc-btn-sm ml-1.5" />
+					) : null}
+					<ThemeToggle />
 					<details className="mc-menu">
 						<summary className="mc-menu-button" aria-label={menu}>
 							<MenuIcon aria-hidden="true" />
@@ -74,27 +80,29 @@ export function DraftHeader({
 	);
 }
 
-export function DraftFooter({
+export function SiteFooter({
 	home,
 	tagline,
 	note,
 	groups,
 	navLabel,
 	legal,
+	legalLinks,
 }: {
-	home: DraftLink;
+	home: SiteLink;
 	tagline: string;
 	note?: React.ReactNode;
 	groups: readonly FooterGroup[];
 	navLabel: string;
 	legal: string;
+	legalLinks: readonly SiteLink[];
 }) {
 	return (
 		<footer className="mc-footer">
 			<div className="mc-container">
 				<div className="mc-foot-grid">
 					<div className="mc-foot-brand">
-						<Home href={home.href} label={home.label} />
+						<SiteHome href={home.href} label={home.label} />
 						<p className="mc-tag">{tagline}</p>
 						{note ? <p className="mc-note">{note}</p> : null}
 					</div>
@@ -115,6 +123,16 @@ export function DraftFooter({
 				</div>
 				<div className="mc-foot-bottom">
 					<p>{legal}</p>
+					<ul className="mc-foot-legal">
+						{legalLinks.map((link) => (
+							<li key={link.href}>
+								<Anchor link={link} className="mc-foot-link" />
+							</li>
+						))}
+					</ul>
+					<div className="mc-foot-tools">
+						<LanguageSwitcher />
+					</div>
 				</div>
 			</div>
 		</footer>

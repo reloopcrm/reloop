@@ -218,11 +218,13 @@ if (process.env.PUBLIC_PAGES_RENDER) {
 	const LEGAL_PAGES = [
 		{
 			path: "/privacy",
-			expected: ["Max Mustermann", "Beispiel GmbH", "Musterstraße 1"],
+			expected: ["Max Mustermann", "Beispiel GmbH", "/imprint"],
+			hidden: ["Musterstraße 1", "12345 Musterstadt"],
 		},
 		{
 			path: "/contact",
-			expected: ["Beispiel GmbH", "Musterstraße 1", "12345 Musterstadt"],
+			expected: ["/imprint"],
+			hidden: ["Beispiel GmbH", "Musterstraße 1", "12345 Musterstadt"],
 		},
 	] as const;
 
@@ -237,7 +239,7 @@ if (process.env.PUBLIC_PAGES_RENDER) {
 			expect(html).not.toContain("{{");
 		});
 
-		it(`${page.path} shows the configured name, address and email`, async () => {
+		it(`${page.path} shows the configured email and points at the imprint for the address`, async () => {
 			clearImprintEnv();
 			process.env.RELOOP_IMPRINT_NAME = "Max Mustermann";
 			process.env.RELOOP_IMPRINT_BUSINESS = "Beispiel GmbH";
@@ -249,6 +251,7 @@ if (process.env.PUBLIC_PAGES_RENDER) {
 
 			expect(html).not.toContain("{{");
 			for (const text of page.expected) expect(html).toContain(text);
+			for (const text of page.hidden) expect(html).not.toContain(text);
 			expect(html).toContain("info@example.com");
 
 			clearImprintEnv();

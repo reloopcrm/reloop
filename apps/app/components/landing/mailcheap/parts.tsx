@@ -3,7 +3,7 @@ import NextLink from "next/link";
 import type * as React from "react";
 import { CopyButton } from "./copy-button";
 import { Arrow } from "./marks";
-import type { DraftLink } from "./shell";
+import type { SiteLink } from "./shell";
 
 function lines(title: string): React.ReactNode {
 	const parts = title.split("\n");
@@ -20,8 +20,8 @@ export function Actions({
 	secondary,
 	large = false,
 }: {
-	primary: DraftLink;
-	secondary?: DraftLink;
+	primary: SiteLink;
+	secondary?: SiteLink;
 	large?: boolean;
 }) {
 	return (
@@ -61,8 +61,8 @@ export function PageHero({
 	kicker?: React.ReactNode;
 	title: string;
 	lede: React.ReactNode;
-	primary?: DraftLink;
-	secondary?: DraftLink;
+	primary?: SiteLink;
+	secondary?: SiteLink;
 	note?: React.ReactNode;
 	children?: React.ReactNode;
 }) {
@@ -242,8 +242,8 @@ export function Closing({
 }: {
 	title: string;
 	lede?: React.ReactNode;
-	primary: DraftLink;
-	secondary?: DraftLink;
+	primary: SiteLink;
+	secondary?: SiteLink;
 	children?: React.ReactNode;
 }) {
 	return (

@@ -1,8 +1,8 @@
 import NextLink from "next/link";
 import type * as React from "react";
-import type { DraftLink } from "./shell";
+import type { SiteLink } from "./shell";
 
-export type ArticleNavGroup = { title: string; links: readonly DraftLink[] };
+export type ArticleNavGroup = { title: string; links: readonly SiteLink[] };
 
 export type TocEntry = { id: string; label: string };
 

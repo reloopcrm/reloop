@@ -1,20 +1,15 @@
-import Wordmark from "@crm/ui/components/wordmark";
-import NextLink from "next/link";
 import type * as React from "react";
-import { Arrow } from "./marks";
-import type { DraftLink } from "./shell";
-import "./entwurf-mailcheap.css";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/site/theme-toggle";
+import { SiteHome, type SiteLink } from "./shell";
+import "./mailcheap.css";
 
 export function AuthSplit({
 	home,
-	title,
-	intro,
 	aside,
 	children,
 }: {
-	home: DraftLink;
-	title: string;
-	intro: React.ReactNode;
+	home: SiteLink;
 	aside: {
 		kicker: string;
 		title: string;
@@ -27,21 +22,15 @@ export function AuthSplit({
 		<div className="mc mc-auth">
 			<div className="mc-auth-main">
 				<header className="mc-auth-head">
-					<NextLink
-						href={home.href}
-						className="mc-wordmark"
-						aria-label={home.label}
-					>
-						<Wordmark aria-hidden="true" focusable="false" />
-					</NextLink>
+					<SiteHome href={home.href} label={home.label} />
+					<ThemeToggle />
 				</header>
-				<main className="mc-auth-center">
-					<div className="mc-auth-form mc-enter">
-						<h1 className="mc-auth-title">{title}</h1>
-						<div className="mc-auth-intro">{intro}</div>
-						<div className="mc-auth-fields">{children}</div>
-					</div>
+				<main id="content" className="mc-auth-center">
+					<div className="mc-auth-form mc-enter">{children}</div>
 				</main>
+				<footer className="mc-auth-foot">
+					<LanguageSwitcher />
+				</footer>
 			</div>
 			<aside className="mc-auth-aside" aria-hidden="true">
 				<div className="mc-dots" />
@@ -56,39 +45,18 @@ export function AuthSplit({
 	);
 }
 
-export function Field({
-	id,
-	label,
-	type = "text",
-	autoComplete,
-	hint,
+export function AuthTitle({
+	title,
+	intro,
 }: {
-	id: string;
-	label: string;
-	type?: "text" | "email" | "password";
-	autoComplete?: string;
-	hint?: string;
+	title: React.ReactNode;
+	intro: React.ReactNode;
 }) {
 	return (
-		<div className="mc-field">
-			<label htmlFor={id}>{label}</label>
-			<input
-				id={id}
-				className="mc-input"
-				type={type}
-				autoComplete={autoComplete}
-			/>
-			{hint ? <span className="mc-field-hint">{hint}</span> : null}
+		<div>
+			<h1 className="mc-auth-title">{title}</h1>
+			<div className="mc-auth-intro">{intro}</div>
 		</div>
-	);
-}
-
-export function SubmitButton({ label }: { label: string }) {
-	return (
-		<button type="submit" className="mc-btn mc-btn-lg mc-btn-block">
-			{label}
-			<Arrow />
-		</button>
 	);
 }
 

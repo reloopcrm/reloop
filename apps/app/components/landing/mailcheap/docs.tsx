@@ -1,18 +1,17 @@
 import NextLink from "next/link";
 import type * as React from "react";
-import { DOCS } from "@/components/docs/docs-config";
+import { DOCS, docPath } from "@/components/docs/docs-config";
 import type { DocHeading } from "@/components/docs/markdown";
 import type { Translate } from "@/lib/i18n/locale";
 import { Article } from "./article";
-import { draftDocPath, draftPath } from "./config";
 import type { MarkdownLabels } from "./markdown";
-import type { DraftLink } from "./shell";
+import type { SiteLink } from "./shell";
 
-export function docsLinks(t: Translate): DraftLink[] {
+export function docsLinks(t: Translate): SiteLink[] {
 	return [
-		{ href: draftPath("docs"), label: t("Overview") },
+		{ href: DOCS.path, label: t("Overview") },
 		...DOCS.pages.map((page) => ({
-			href: draftDocPath(page.slug),
+			href: docPath(page.slug),
 			label: t(page.title),
 		})),
 	];
@@ -27,7 +26,7 @@ function Pager({
 	current,
 	t,
 }: {
-	items: readonly DraftLink[];
+	items: readonly SiteLink[];
 	current: string;
 	t: Translate;
 }) {

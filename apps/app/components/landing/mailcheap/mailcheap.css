@@ -115,6 +115,28 @@
 		padding-inline: 16px;
 	}
 
+	.mc-skip {
+		position: absolute;
+		left: 1rem;
+		top: 1rem;
+		z-index: 40;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--mc-r-lg);
+		background: var(--mc-card);
+		color: var(--mc-fg);
+		font-size: 14px;
+		font-weight: 500;
+		text-decoration: none;
+		box-shadow: var(--mc-shadow-float);
+		transform: translateY(-200%);
+		opacity: 0;
+	}
+
+	.mc-skip:focus-visible {
+		transform: none;
+		opacity: 1;
+	}
+
 	.mc-sr {
 		position: absolute;
 		width: 1px;

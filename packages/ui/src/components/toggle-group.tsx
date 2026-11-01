@@ -52,7 +52,7 @@ function ToggleGroup({
 				{ "--gap": Math.max(spacing, SEGMENT_GAP) } as React.CSSProperties
 			}
 			className={cn(
-				"group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] rounded-md border border-transparent bg-muted p-0.5 data-vertical:w-full data-vertical:flex-col data-vertical:items-stretch data-[wrap]:w-full data-[wrap]:flex-wrap",
+				"group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] rounded-md border border-transparent bg-muted p-0.5 shadow-surface data-vertical:w-full data-vertical:flex-col data-vertical:items-stretch data-[wrap]:w-full data-[wrap]:flex-wrap",
 				className,
 			)}
 			{...props}

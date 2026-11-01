@@ -107,6 +107,19 @@ function DashboardEmpty({ className, ...props }: React.ComponentProps<"div">) {
 	);
 }
 
+function DashboardPanel({ className, ...props }: React.ComponentProps<"div">) {
+	return (
+		<div
+			data-slot="dashboard-panel"
+			className={cn(
+				"flex flex-col rounded-lg border border-transparent bg-card px-5 py-4 shadow-surface",
+				className,
+			)}
+			{...props}
+		/>
+	);
+}
+
 function StackedBar({
 	segments,
 	className,
@@ -131,4 +144,11 @@ function StackedBar({
 	);
 }
 
-export { DashboardBlock, DashboardEmpty, DashboardRow, StackedBar, StatGroup };
+export {
+	DashboardBlock,
+	DashboardEmpty,
+	DashboardPanel,
+	DashboardRow,
+	StackedBar,
+	StatGroup,
+};

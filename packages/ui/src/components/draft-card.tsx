@@ -1,29 +1,16 @@
-import { Square } from "@crm/ui/components/mark";
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
-
-const CORNERS = [
-	"-top-px -left-px",
-	"-top-px -right-px",
-	"-bottom-px -left-px",
-	"-bottom-px -right-px",
-] as const;
 
 function DraftCard({ className, children, ...props }: React.ComponentProps<"article">) {
 	return (
 		<article
 			data-slot="draft-card"
 			className={cn(
-				"relative flex min-w-0 max-w-170 flex-col gap-3.5 border bg-muted p-4 sm:px-6 sm:py-5",
+				"relative flex min-w-0 max-w-170 flex-col gap-3.5 rounded-lg border border-transparent bg-card p-4 shadow-surface sm:px-6 sm:py-5",
 				className,
 			)}
 			{...props}
 		>
-			{CORNERS.map((corner) => (
-				<span key={corner} aria-hidden="true" className={cn("absolute flex", corner)}>
-					<Square tone="blue" />
-				</span>
-			))}
 			{children}
 		</article>
 	);

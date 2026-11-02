@@ -1,7 +1,7 @@
 import { AddIcon } from "@crm/ui/components/line-icons";
 import NextLink from "next/link";
 import type * as React from "react";
-import { CopyButton } from "./copy-button";
+import { CopyButton, type CopyLabels } from "./copy-button";
 import { Arrow } from "./marks";
 import type { SiteLink } from "./shell";
 
@@ -266,7 +266,7 @@ export function CodeFigure({
 }: {
 	code: string;
 	caption: string;
-	labels: { copy: string; copied: string };
+	labels: CopyLabels;
 }) {
 	return (
 		<figure className="mc-code">

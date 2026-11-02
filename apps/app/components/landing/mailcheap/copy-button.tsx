@@ -3,28 +3,37 @@
 import { useState } from "react";
 import { COPY_FEEDBACK_MS } from "@/components/site";
 
+export type CopyLabels = { copy: string; copied: string; failed: string };
+
+type CopyState = "idle" | "copied" | "failed";
+
 export function CopyButton({
 	text,
 	labels,
 }: {
 	text: string;
-	labels: { copy: string; copied: string };
+	labels: CopyLabels;
 }) {
-	const [copied, setCopied] = useState(false);
+	const [state, setState] = useState<CopyState>("idle");
 
 	async function copy() {
 		try {
 			await navigator.clipboard.writeText(text);
-			setCopied(true);
-			setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
+			setState("copied");
+			setTimeout(() => setState("idle"), COPY_FEEDBACK_MS);
 		} catch {
-			setCopied(false);
+			setState("failed");
 		}
 	}
 
 	return (
-		<button type="button" className="mc-copy" onClick={copy}>
-			{copied ? labels.copied : labels.copy}
-		</button>
+		<>
+			<span role="status" aria-live="polite" className="mc-copy-status">
+				{state === "failed" ? labels.failed : null}
+			</span>
+			<button type="button" className="mc-copy" onClick={copy}>
+				{state === "copied" ? labels.copied : labels.copy}
+			</button>
+		</>
 	);
 }

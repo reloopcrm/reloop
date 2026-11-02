@@ -1180,6 +1180,19 @@
 		color: var(--mc-muted-fg);
 	}
 
+	.mc-copy-status {
+		min-width: 0;
+		margin-left: auto;
+		text-align: right;
+		font-size: 11px;
+		font-family: var(--mc-font-sans);
+		color: var(--mc-muted-fg);
+	}
+
+	.mc-copy-status:empty {
+		display: none;
+	}
+
 	.mc-copy:hover {
 		background: var(--mc-muted);
 		color: var(--mc-fg);
@@ -2186,6 +2199,7 @@
 		margin-top: 3rem;
 	}
 
+	.mc-doc-body .mc-doc-section,
 	.mc-doc-body h2 {
 		scroll-margin-top: 5rem;
 		font-size: 1.25rem;

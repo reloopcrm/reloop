@@ -24,7 +24,11 @@ function commands() {
 
 export function AssistantSetup({ t }: { t: Translate }) {
 	const { address, claudeCode, claudeCodeKey, curl } = commands();
-	const copy = { copy: t("Copy"), copied: t("Copied") };
+	const copy = {
+		copy: t("Copy"),
+		copied: t("Copied"),
+		failed: t("Copying failed. Select the command and copy it by hand."),
+	};
 	const steps = (lines: readonly string[], first = 1) => (
 		<Steps>
 			{lines.map((line, index) => (

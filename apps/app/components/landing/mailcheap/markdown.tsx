@@ -6,6 +6,7 @@ export type MarkdownLabels = {
 	terminal: string;
 	copy: string;
 	copied: string;
+	failed: string;
 };
 
 const INLINE = /`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*|\*([^*]+)\*/g;
@@ -113,7 +114,11 @@ export function SiteMarkdown({
 							key={key}
 							code={block.text}
 							caption={labels.terminal}
-							labels={{ copy: labels.copy, copied: labels.copied }}
+							labels={{
+								copy: labels.copy,
+								copied: labels.copied,
+								failed: labels.failed,
+							}}
 						/>
 					);
 

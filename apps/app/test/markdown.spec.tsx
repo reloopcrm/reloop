@@ -4,7 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { outline, parseMarkdown } from "../components/docs/markdown";
 import { SiteMarkdown } from "../components/landing/mailcheap/markdown";
 
-const LABELS = { terminal: "Terminal", copy: "Copy", copied: "Copied" };
+const LABELS = {
+	terminal: "Terminal",
+	copy: "Copy",
+	copied: "Copied",
+	failed: "Copying failed.",
+};
 
 const render = (source: string) =>
 	renderToStaticMarkup(

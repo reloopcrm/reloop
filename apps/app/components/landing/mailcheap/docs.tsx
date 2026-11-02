@@ -18,7 +18,12 @@ export function docsLinks(t: Translate): SiteLink[] {
 }
 
 export function markdownLabels(t: Translate): MarkdownLabels {
-	return { terminal: t("Terminal"), copy: t("Copy"), copied: t("Copied") };
+	return {
+		terminal: t("Terminal"),
+		copy: t("Copy"),
+		copied: t("Copied"),
+		failed: t("Copying failed. Select the command and copy it by hand."),
+	};
 }
 
 function Pager({

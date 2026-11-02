@@ -4,6 +4,7 @@ import { Button } from "@crm/ui/components/button";
 import {
 	DashboardBlock,
 	DashboardEmpty,
+	DashboardPanel,
 	DashboardRow,
 	StackedBar,
 	StatGroup,
@@ -234,7 +235,7 @@ export function SalesDashboard({
 					description={t("Where the value sits right now")}
 				>
 					{stageSlices.length > 0 ? (
-						<div className="flex flex-col border px-5 py-4">
+						<DashboardPanel>
 							<StackedBar
 								className="mb-3.5"
 								segments={stageSlices.map((slice) => ({
@@ -262,7 +263,7 @@ export function SalesDashboard({
 									</li>
 								))}
 							</ul>
-						</div>
+						</DashboardPanel>
 					) : (
 						<DashboardEmpty>{t("Nothing open")}</DashboardEmpty>
 					)}

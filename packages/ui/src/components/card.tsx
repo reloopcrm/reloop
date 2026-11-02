@@ -29,7 +29,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="card-title"
 			className={cn(
-				"text-pretty text-md font-semibold site:font-(--site-weight-medium)",
+				"text-pretty text-md font-semibold tracking-tight",
 				className,
 			)}
 			{...props}
@@ -68,7 +68,7 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="card-content"
 			className={cn(
-				"flex flex-col gap-4 rounded-lg border bg-card p-5 md:p-6",
+				"flex flex-col gap-4 rounded-lg border border-transparent bg-card p-5 shadow-surface md:p-6",
 				className,
 			)}
 			{...props}
@@ -81,7 +81,7 @@ function CardPanel({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="card-panel"
 			className={cn(
-				"@container/panel flex flex-col overflow-hidden rounded-lg border bg-card",
+				"@container/panel flex flex-col overflow-hidden rounded-lg border border-transparent bg-card shadow-surface",
 				className,
 			)}
 			{...props}

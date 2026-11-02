@@ -59,6 +59,7 @@ export function CreateDealHere({ stage }: { stage: DealStage }) {
 	return (
 		<Button
 			variant="dashed"
+			align="start"
 			className="w-full"
 			onClick={() =>
 				setParams({

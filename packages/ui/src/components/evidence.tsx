@@ -6,7 +6,7 @@ function Evidence({ className, ...props }: React.ComponentProps<"blockquote">) {
 		<blockquote
 			data-slot="evidence"
 			className={cn(
-				"rounded-lg border bg-card px-4 py-3.5 text-body-foreground text-sm",
+				"rounded-lg border border-transparent bg-card px-4 py-3.5 text-body-foreground text-sm shadow-surface",
 				className,
 			)}
 			{...props}

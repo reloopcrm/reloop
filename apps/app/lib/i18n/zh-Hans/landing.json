@@ -240,5 +240,13 @@
 	"Use any MCP client with Streamable HTTP. It signs in with OAuth and dynamic client registration, or it sends the header x-api-key.": "使用任何支持 Streamable HTTP 的 MCP 客户端。它通过 OAuth 和动态客户端注册登录,或发送请求头 x-api-key。",
 	"This command lists the tools with a key.": "此命令用密钥列出工具。",
 	"Your MCP address": "你的 MCP 地址",
-	"Open the settings": "打开设置"
+	"Open the settings": "打开设置",
+	"Bring your mailbox. Find the customers.": "带上你的邮箱，找回客户。",
+	"Footer": "页脚",
+	"Releases": "版本发布",
+	"Reloop CRM. Free software under the GNU AGPL v3.": "Reloop CRM。基于 GNU AGPL v3 的自由软件。",
+	"Terminal": "终端",
+	"The open source CRM that reads your email history and tells you which past customers are worth winning back.": "读取你的邮件历史并告诉你哪些老客户值得挽回的开源 CRM。",
+	"The postal address is on the imprint page.": "邮政地址见法律声明页面。",
+	"The postal address of the controller is on the imprint page.": "数据控制者的邮政地址见法律声明页面。"
 }

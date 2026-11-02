@@ -11,15 +11,6 @@ const TONE_FILL = {
 	red: "bg-destructive",
 } as const satisfies Record<MarkTone, string>;
 
-function Corner({ className }: { className: string }) {
-	return (
-		<i
-			aria-hidden="true"
-			className={cn("pointer-events-none absolute size-2 bg-blue", className)}
-		/>
-	);
-}
-
 const STAT_COLUMNS = {
 	3: "md:grid-cols-3",
 	4: "md:grid-cols-4",
@@ -34,13 +25,12 @@ function StatGroup({
 	return (
 		<div
 			data-slot="stat-group"
-			className={cn("relative border", className)}
+			className={cn(
+				"relative rounded-lg border border-transparent bg-card shadow-surface",
+				className,
+			)}
 			{...props}
 		>
-			<Corner className="-top-px -left-px" />
-			<Corner className="-top-px -right-px" />
-			<Corner className="-bottom-px -left-px" />
-			<Corner className="-right-px -bottom-px" />
 			<div
 				className={cn(
 					"grid grid-cols-2",
@@ -88,7 +78,7 @@ function DashboardBlock({
 		>
 			<div className="mb-3.5 flex flex-wrap content-start items-end justify-between gap-x-4 gap-y-2">
 				<div className="flex min-w-0 flex-[1_1_16rem] flex-col gap-1">
-					<h2 className="font-normal text-base leading-snug tracking-tight">
+					<h2 className="font-semibold text-base leading-snug tracking-tight">
 						{title}
 					</h2>
 					{description ? (
@@ -109,7 +99,20 @@ function DashboardEmpty({ className, ...props }: React.ComponentProps<"div">) {
 		<div
 			data-slot="dashboard-empty"
 			className={cn(
-				"grid min-h-40 place-items-center border border-border-strong border-dashed px-4 text-center text-2sm text-muted-foreground",
+				"grid min-h-40 place-items-center rounded-lg border border-border px-4 text-center text-2sm text-muted-foreground",
+				className,
+			)}
+			{...props}
+		/>
+	);
+}
+
+function DashboardPanel({ className, ...props }: React.ComponentProps<"div">) {
+	return (
+		<div
+			data-slot="dashboard-panel"
+			className={cn(
+				"flex flex-col rounded-lg border border-transparent bg-card px-5 py-4 shadow-surface",
 				className,
 			)}
 			{...props}
@@ -141,4 +144,11 @@ function StackedBar({
 	);
 }
 
-export { DashboardBlock, DashboardEmpty, DashboardRow, StackedBar, StatGroup };
+export {
+	DashboardBlock,
+	DashboardEmpty,
+	DashboardPanel,
+	DashboardRow,
+	StackedBar,
+	StatGroup,
+};

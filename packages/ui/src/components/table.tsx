@@ -20,7 +20,7 @@ function Table({
 			<table
 				data-slot="table"
 				className={cn(
-					"w-full caption-bottom text-sm site:min-w-(--site-table-min)",
+					"w-full caption-bottom text-sm",
 					className,
 				)}
 				{...props}
@@ -68,7 +68,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 		<tr
 			data-slot="table-row"
 			className={cn(
-				"border-b transition-colors hover:bg-active data-[state=selected]:bg-active site:hover:bg-transparent",
+				"border-b transition-colors hover:bg-active data-[state=selected]:bg-active",
 				className,
 			)}
 			{...props}
@@ -88,7 +88,7 @@ function TableHead({
 				data-slot="table-head"
 				scope={scope}
 				className={cn(
-					"px-3 py-2 text-left align-middle font-normal whitespace-nowrap text-muted-foreground site:align-top",
+					"px-3 py-2 text-left align-middle font-normal whitespace-nowrap text-muted-foreground",
 					className,
 				)}
 				{...props}
@@ -100,7 +100,7 @@ function TableHead({
 			data-slot="table-head"
 			scope={scope}
 			className={cn(
-				"h-9 border-r px-3 text-left align-middle font-mono text-2xs font-normal uppercase tracking-label text-muted-foreground last:border-r-0 [&:has([role=checkbox])]:overflow-visible [&:has([role=checkbox])]:pr-0 site:h-auto site:border-r-0 site:py-3 site:font-(--site-weight-medium) site:text-(length:--site-text-label) site:tracking-(--site-tracking-label)",
+				"h-9 px-3 text-left align-middle font-mono text-2xs font-normal uppercase tracking-label text-muted-foreground [&:has([role=checkbox])]:overflow-visible [&:has([role=checkbox])]:pr-0",
 				control ? "overflow-visible" : "truncate",
 				className,
 			)}
@@ -114,7 +114,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 		<td
 			data-slot="table-cell"
 			className={cn(
-				"h-10 border-r px-3 py-2 align-middle text-2sm whitespace-nowrap text-body-foreground last:border-r-0 [&:has([role=checkbox])]:pr-0 site:h-auto site:border-r-0 site:px-4 site:py-3 site:align-top site:text-sm site:text-foreground site:[&_code]:whitespace-nowrap site:[&_code]:wrap-normal",
+				"h-10 px-3 py-2 align-middle text-2sm whitespace-nowrap text-body-foreground [&:has([role=checkbox])]:pr-0",
 				className,
 			)}
 			{...props}

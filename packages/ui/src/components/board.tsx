@@ -84,7 +84,7 @@ function BoardCard({
 			type="button"
 			data-slot="board-card"
 			className={cn(
-				"grid min-w-0 cursor-pointer gap-2 rounded-md border bg-card px-3 pt-3 pb-2.5 text-left outline-none transition-colors hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring",
+				"grid min-w-0 cursor-pointer gap-2 rounded-md border border-transparent bg-card px-3 pt-3 pb-2.5 text-left shadow-surface outline-none transition-shadow hover:shadow-surface-hover focus-visible:ring-2 focus-visible:ring-ring",
 				className,
 			)}
 			{...props}

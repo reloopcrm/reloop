@@ -53,12 +53,12 @@ export function AgentBuilderHome({ name }: { name: string }) {
 			className="relative flex min-h-0 flex-1 flex-col items-center justify-start overflow-y-auto px-4 pt-12 pb-20 sm:px-6 md:justify-center md:pb-28"
 		>
 			<div className="flex w-full max-w-160 flex-col items-center gap-3 pb-6 text-center">
-				<h1 className="text-balance text-2xl tracking-tight">
+				<h1 className="text-balance font-semibold text-2xl tracking-tight">
 					{t("What can I help with, {name}?", {
 						name: firstName(name) || t("there"),
 					})}
 				</h1>
-				<p className="max-w-105 text-balance font-light font-serif text-body-foreground text-md">
+				<p className="max-w-105 text-balance font-normal text-body-foreground text-md">
 					{t(
 						"Ask about your CRM, tag a record or integration, or describe an agent to build to automate a task.",
 					)}

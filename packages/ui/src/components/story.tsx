@@ -129,7 +129,7 @@ function StoryGist({ className, ...props }: React.ComponentProps<"p">) {
 		<p
 			data-slot="story-gist"
 			className={cn(
-				"max-w-165 text-pretty font-light font-serif text-[19px] text-foreground leading-[1.35] lg:text-[22px]",
+				"max-w-165 text-pretty font-normal text-[19px] text-foreground leading-[1.35] lg:text-[22px]",
 				className,
 			)}
 			{...props}
@@ -168,7 +168,10 @@ function StoryTrack({
 	return (
 		<div
 			data-slot="story-track"
-			className={cn("rounded-md border px-4 pt-3.5 pb-3", className)}
+			className={cn(
+				"rounded-lg border border-transparent bg-card px-4 pt-3.5 pb-3 shadow-surface",
+				className,
+			)}
 			{...props}
 		>
 			<div className="mb-3.5 flex flex-wrap justify-between gap-3">
@@ -334,7 +337,7 @@ function StoryFacts({ className, ...props }: React.ComponentProps<"dl">) {
 		<dl
 			data-slot="story-facts"
 			className={cn(
-				"mt-3.5 grid max-w-140 grid-cols-3 rounded-md border md:grid-cols-[repeat(auto-fit,minmax(120px,1fr))]",
+				"mt-3.5 grid max-w-140 grid-cols-3 rounded-lg border border-transparent bg-card shadow-surface md:grid-cols-[repeat(auto-fit,minmax(120px,1fr))]",
 				className,
 			)}
 			{...props}
@@ -376,7 +379,7 @@ function StoryQuote({
 			)}
 			{...props}
 		>
-			<p className="font-light font-serif text-[17px] text-foreground leading-[1.4] lg:text-[19px]">
+			<p className="font-normal text-[17px] text-foreground leading-[1.4] lg:text-[19px]">
 				{children}
 			</p>
 			<cite className="mt-2 block not-italic">

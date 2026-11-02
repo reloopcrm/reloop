@@ -6,3 +6,7 @@ the terms of the GNU Affero General Public License as published by the Free
 Software Foundation, version 3.
 
 The full license text is in LICENSE.
+
+The design of the public pages and the app skin follows Mailcheap
+(https://github.com/marclou/mailcheap), free software under the GNU Affero
+General Public License, version 3.

@@ -1,20 +1,23 @@
 import { cn } from "@crm/ui/lib/utils";
-import { DM_Mono, Inter_Tight, Newsreader } from "next/font/google";
+import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
-const siteSans = Inter_Tight({
+const siteSans = Geist({
 	variable: "--font-site-sans",
 	subsets: ["latin", "latin-ext"],
+	display: "swap",
 });
 
 const siteSerif = Newsreader({
 	variable: "--font-site-serif",
 	subsets: ["latin", "latin-ext"],
+	display: "swap",
+	axes: ["opsz"],
 });
 
-const siteMono = DM_Mono({
+const siteMono = Geist_Mono({
 	variable: "--font-site-mono",
 	subsets: ["latin", "latin-ext"],
-	weight: ["400", "500"],
+	display: "swap",
 });
 
 export const SITE_FONTS = cn(

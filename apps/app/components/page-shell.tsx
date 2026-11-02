@@ -92,7 +92,7 @@ function PageShellTitle({ className, ...props }: React.ComponentProps<"h1">) {
 		<h1
 			data-slot="page-shell-title"
 			className={cn(
-				"min-w-0 text-balance font-normal text-2xl leading-tight tracking-tight",
+				"min-w-0 text-balance font-semibold text-2xl leading-tight tracking-tight",
 				className,
 			)}
 			{...props}
@@ -108,7 +108,7 @@ function PageShellDescription({
 		<p
 			data-slot="page-shell-description"
 			className={cn(
-				"max-w-(--container-page) text-pretty font-light font-serif text-base text-muted-foreground leading-snug",
+				"max-w-(--container-page) text-pretty font-normal text-md text-muted-foreground leading-6",
 				className,
 			)}
 			{...props}

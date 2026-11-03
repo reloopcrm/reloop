@@ -39,7 +39,7 @@ const selectTriggerVariants = cva(
 				default:
 					"border border-transparent bg-card pr-2 pl-2.5 shadow-surface hover:shadow-surface-hover focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/25",
 				ghost:
-					"border border-transparent bg-transparent px-3 hover:border-input hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 data-[state=open]:border-input data-[state=open]:bg-muted/40 [&_svg]:opacity-0 hover:[&_svg]:opacity-100 focus-visible:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100",
+					"gap-1 border border-transparent bg-transparent px-3 hover:border-input hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 data-[state=open]:border-input data-[state=open]:bg-muted/40 [&_svg]:opacity-0 hover:[&_svg]:opacity-100 focus-visible:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100",
 			},
 			width: {
 				auto: "w-fit",

@@ -86,7 +86,9 @@ function Combobox({
 					{...props}
 				>
 					<span data-slot="select-value">
-						{selected?.label ?? placeholder ?? t("Select an option")}
+						<span className="truncate">
+							{selected?.label ?? placeholder ?? t("Select an option")}
+						</span>
 					</span>
 					<ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />
 				</button>

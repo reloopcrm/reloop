@@ -36,7 +36,7 @@ function SplitAside({ className, ...props }: React.ComponentProps<"aside">) {
 		<aside
 			data-slot="split-aside"
 			className={cn(
-				"min-w-0 max-w-(--container-story) scroll-mt-16 [grid-area:aside] split:sticky split:top-4 split:max-h-[calc(100dvh-2rem)] split:overflow-y-auto",
+				"min-w-0 max-w-(--container-story) scroll-mt-16 [grid-area:aside] split:sticky split:top-2 split:-m-2 split:max-h-[calc(100dvh-1rem)] split:overflow-y-auto split:p-2",
 				className,
 			)}
 			{...props}

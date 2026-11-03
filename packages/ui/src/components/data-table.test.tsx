@@ -83,6 +83,11 @@ describe("DataTable", () => {
 		expect(second).toContain("truncate");
 	});
 
+	it("never clips a text cell on desktop, so a filled row keeps its line", () => {
+		expect(text).toContain("lg:overflow-visible");
+		expect(second).toContain("lg:overflow-visible");
+	});
+
 	it("fixes the column widths so a long value never widens the table", () => {
 		expect(markup).toContain("table-fixed");
 		expect(markup).toContain("width:160px");

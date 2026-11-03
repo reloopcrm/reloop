@@ -172,6 +172,8 @@ const CARD_ROW =
 const CARD_CELL =
 	"max-lg:block max-lg:h-auto max-lg:min-w-0 max-lg:basis-[calc(50%-6px)] max-lg:border-0 max-lg:p-0 max-lg:text-left max-lg:whitespace-normal";
 
+const TEXT_CELL = "max-w-0 truncate max-lg:max-w-none lg:overflow-visible";
+
 const CARD_LABEL =
 	"max-lg:before:mb-0.5 max-lg:before:block max-lg:before:font-mono max-lg:before:text-[10px] max-lg:before:text-muted-foreground max-lg:before:uppercase max-lg:before:tracking-label max-lg:before:content-[attr(data-label)]";
 
@@ -706,7 +708,8 @@ export function DataTable<TRow, TSub = unknown>({
 						<TableCell
 							className={cn(
 								CARD_CELL,
-								"max-w-0 truncate max-lg:max-w-none max-lg:flex-1 max-lg:basis-[calc(100%-2rem)]",
+								TEXT_CELL,
+								"max-lg:flex-1 max-lg:basis-[calc(100%-2rem)]",
 								primary.cellClassName,
 							)}
 						>
@@ -735,7 +738,7 @@ export function DataTable<TRow, TSub = unknown>({
 								) : expandable ? (
 									<span aria-hidden className="size-4 shrink-0" />
 								) : null}
-								<span className="flex min-w-0 flex-1 items-center">
+								<span className="flex min-w-0 flex-1 items-center lg:overflow-x-clip">
 									{primary.cell(row)}
 								</span>
 							</span>
@@ -748,7 +751,7 @@ export function DataTable<TRow, TSub = unknown>({
 							className={cn(
 								CARD_CELL,
 								CARD_LABEL,
-								!column.control && "max-w-0 truncate max-lg:max-w-none",
+								!column.control && TEXT_CELL,
 								ALIGN_CLASS[column.align ?? "left"],
 								"max-lg:order-2",
 								column.cellClassName,
@@ -806,7 +809,7 @@ export function DataTable<TRow, TSub = unknown>({
 										className={cn(
 											CARD_CELL,
 											index > 0 && CARD_LABEL,
-											!column.control && "max-w-0 truncate max-lg:max-w-none",
+											!column.control && TEXT_CELL,
 											index === 0 &&
 												"pl-8 max-lg:basis-full max-lg:pl-0 [&>*]:max-w-full",
 											ALIGN_CLASS[column.align ?? "left"],

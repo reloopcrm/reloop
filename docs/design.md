@@ -57,10 +57,12 @@ colour a whole row, a card edge or a button with them. `--success` and `--info`
 map to blue and `--warning` to orange. A link is ink, underlined in `--ink-30`,
 and the underline turns to ink on hover.
 
-Dark follows the device (`next-themes` with `system`), and the theme switch sits in
-the account row, the mobile top bar, the site header and the sign-in header. Light
-holds the `:root` values and is what a visitor without a preference sees; dark is
-the `.dark` block and is complete.
+Dark follows the device (`next-themes` with `system`). Inside the app the theme
+switch sits in the account row and the mobile top bar. The public site and the
+sign-in frame have no switch: they always follow the device, and a choice stored by
+an older site switch is ignored (`THEME.retiredSiteKeys` in `lib/theme-config.ts`).
+Light holds the `:root` values and is what a visitor without a preference sees; dark
+is the `.dark` block and is complete.
 
 ## Elevation
 
@@ -253,16 +255,16 @@ stylesheet stays harmless after client navigation into the app.
 The `.mc` block holds no colour of its own. Every `--mc-*` variable reads the
 shared token (`--mc-card` is `--card`, `--mc-shadow-border` is
 `--surface-shadow`, `--mc-font-display` is `--font-serif`), so the site follows
-the same theme switch as the app and the same light default.
+the same tokens as the app and the same light default.
 
 The parts:
 
 - `LandingShell` (`components/docs/landing-shell.tsx`) wraps a page in `.mc`:
   the skip link, `SiteHeader` (wordmark, the header links from `MARKETING_NAV`,
-  Sign in, the Get started pill when a sign-up exists, the theme switch, the
-  `details` menu below 640px), `main#content`, and `SiteFooter` (wordmark and
-  tagline, the link groups, the AGPL line, the legal links and the language
-  switcher).
+  Sign in, the Get started pill when a sign-up exists, the `details` menu below
+  640px) on an opaque canvas background with a hairline below, `main#content`,
+  and `SiteFooter` (wordmark and tagline, the link groups, the AGPL line, the
+  legal links and the language switcher).
 - `Article` (`article.tsx`) is the frame of a docs page, a trust page and the
   imprint: a sticky left rail of link groups and "On this page" from 768px, a
   42rem column with a mono kicker, a Newsreader title, a lede and the body.
@@ -276,8 +278,8 @@ The parts:
   `Closing`, `CodeFigure`, `Note` and `Actions` (`parts.tsx`) are the marketing
   blocks. `Actions` pairs one `mc-btn` with one underlined `mc-link`.
 - `AuthSplit` (`auth.tsx`) is the frame of sign-in, onboarding, grant-access and
-  consent through `AuthShell`: a 22rem form column with the wordmark, the theme
-  switch and the language switcher, and from 1024px an aside with a kicker, a
+  consent through `AuthShell`: a 22rem form column with the wordmark and the
+  language switcher, and from 1024px an aside with a kicker, a
   Newsreader headline, the tagline and a product shot in a `BrowserFrame`.
   `AuthHeading` is the title and intro of the form.
 - `Shot` (`shot.tsx`) renders the light and the dark screenshot and shows the one

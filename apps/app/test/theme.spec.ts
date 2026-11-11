@@ -26,4 +26,9 @@ describe("themeForSegments", () => {
 	it("stores the site choice apart from the app choice", () => {
 		expect(THEME.site.storageKey).not.toBe(THEME.app.storageKey);
 	});
+
+	it("ignores a site choice the removed toggle stored", () => {
+		expect(THEME.retiredSiteKeys).not.toContain(THEME.site.storageKey);
+		expect(THEME.retiredSiteKeys).not.toContain(THEME.app.storageKey);
+	});
 });

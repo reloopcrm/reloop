@@ -3,7 +3,6 @@ import Wordmark from "@crm/ui/components/wordmark";
 import NextLink from "next/link";
 import type * as React from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { ThemeToggle } from "@/components/site/theme-toggle";
 import "./mailcheap.css";
 
 export type SiteLink = { href: string; label: string; external?: boolean };
@@ -61,7 +60,6 @@ export function SiteHeader({
 					{start ? (
 						<Anchor link={start} className="mc-btn mc-btn-sm ml-1.5" />
 					) : null}
-					<ThemeToggle />
 					<details className="mc-menu">
 						<summary className="mc-menu-button" aria-label={menu}>
 							<MenuIcon aria-hidden="true" />

@@ -11,7 +11,7 @@ import {
 	SettingsIcon,
 	WinBackIcon,
 } from "@crm/ui/components/line-icons";
-import { MonoLabel, Square } from "@crm/ui/components/mark";
+import { MonoLabel } from "@crm/ui/components/mark";
 import {
 	Sheet,
 	SheetContent,
@@ -203,7 +203,6 @@ function WorkspaceName() {
 
 	return (
 		<div className="flex min-w-0 items-center gap-2 px-2 pt-1.5 pb-3.5">
-			<Square tone="blue" />
 			<MonoLabel className="truncate">{name}</MonoLabel>
 		</div>
 	);

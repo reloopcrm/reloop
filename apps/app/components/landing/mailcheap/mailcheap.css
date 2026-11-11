@@ -367,7 +367,6 @@
 			color-mix(in oklab, var(--mc-border) 60%, transparent);
 		background: color-mix(in oklab, var(--mc-site) 80%, transparent);
 		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
 	}
 
 	.mc-header .mc-container {

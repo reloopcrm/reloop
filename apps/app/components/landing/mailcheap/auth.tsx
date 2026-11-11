@@ -1,6 +1,5 @@
 import type * as React from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { ThemeToggle } from "@/components/site/theme-toggle";
 import { SiteHome, type SiteLink } from "./shell";
 import "./mailcheap.css";
 
@@ -23,7 +22,6 @@ export function AuthSplit({
 			<div className="mc-auth-main">
 				<header className="mc-auth-head">
 					<SiteHome href={home.href} label={home.label} />
-					<ThemeToggle />
 				</header>
 				<main id="content" className="mc-auth-center">
 					<div className="mc-auth-form mc-enter">{children}</div>

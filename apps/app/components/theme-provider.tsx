@@ -1,10 +1,11 @@
 "use client";
 
+import { useMountEffect } from "@crm/ui/hooks/use-mount-effect";
 import { useSelectedLayoutSegments } from "next/navigation";
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import type * as React from "react";
 import { useLayoutEffect } from "react";
-import { themeForSegments } from "@/lib/theme-config";
+import { THEME, themeForSegments } from "@/lib/theme-config";
 
 const THEME_CLASSES = ["light", "dark"] as const;
 
@@ -18,6 +19,18 @@ function PaintedTheme() {
 		root.classList.add(resolvedTheme);
 		root.style.colorScheme = resolvedTheme;
 	}, [resolvedTheme]);
+
+	return null;
+}
+
+function ForgetSiteChoice() {
+	useMountEffect(() => {
+		try {
+			for (const key of THEME.retiredSiteKeys) localStorage.removeItem(key);
+		} catch {
+			return;
+		}
+	});
 
 	return null;
 }
@@ -39,6 +52,7 @@ export function ThemeProvider({
 			{...props}
 		>
 			<PaintedTheme />
+			{scope === THEME.site ? <ForgetSiteChoice /> : null}
 			{children}
 		</NextThemesProvider>
 	);

@@ -217,8 +217,8 @@ through `--toast-lift`. The parts live in `packages/ui/src/components/story.tsx`
 ## Shell
 
 The app shell is a labelled sidebar, `container-sidebar` (224px) on `--off` with a
-hairline on its right: the wordmark, the workspace name as a mono label with a blue
-square, then Overview, Win back (with the number of companies), Companies,
+hairline on its right: the wordmark, the workspace name as a mono label, then
+Overview, Win back (with the number of companies), Companies,
 Contacts, Deals and Chat as 32px rows with 10px corners. The active row is a card
 on `shadow-surface` and its label goes to weight 500. A hairline separates
 Settings (a gear), the enrichment queue and the account row with the theme switch.

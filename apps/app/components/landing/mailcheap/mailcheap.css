@@ -365,8 +365,7 @@
 		z-index: 30;
 		border-bottom: 1px solid
 			color-mix(in oklab, var(--mc-border) 60%, transparent);
-		background: color-mix(in oklab, var(--mc-site) 80%, transparent);
-		backdrop-filter: blur(12px);
+		background: var(--mc-site);
 	}
 
 	.mc-header .mc-container {
@@ -1878,6 +1877,12 @@
 	@media (min-width: 768px) {
 		.mc-foot-grid {
 			grid-template-columns: minmax(0, 1fr) auto;
+		}
+	}
+
+	@media (max-width: 1151px) {
+		.mc-shots {
+			max-width: none;
 		}
 	}
 

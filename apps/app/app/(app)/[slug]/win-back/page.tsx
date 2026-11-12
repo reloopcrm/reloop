@@ -48,7 +48,7 @@ export default async function WinBackPage({
 		<PageShell className="min-h-0">
 			<PageShellHeader>
 				<PageShellHeading>
-					<PageShellEyebrow tone="orange">{t("Win back")}</PageShellEyebrow>
+					<PageShellEyebrow>{t("Win back")}</PageShellEyebrow>
 					<PageShellTitle>
 						{t("Companies worth getting back to")}
 					</PageShellTitle>

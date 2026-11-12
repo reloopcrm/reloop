@@ -227,9 +227,9 @@ sidebar is a sheet behind the menu button of a 48px top bar that holds the
 wordmark, the theme switch and the menu. Settings has its own second sidebar with
 the same rows under a mono "Settings" label.
 
-A page head is an eyebrow (`PageShellEyebrow`: a square and a mono label, blue, or
-orange for Win back), the title at weight 600, a 15px muted description, and on
-the right the text link and the primary button.
+A page head is an eyebrow (`PageShellEyebrow`: a mono label, no square), the
+title at weight 600, a 15px muted description, and on the right the text link and
+the primary button.
 
 ## Spacing
 

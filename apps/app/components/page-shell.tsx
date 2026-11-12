@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader } from "@crm/ui/components/loader";
-import { type MarkTone, MonoLabel, Square } from "@crm/ui/components/mark";
+import { MonoLabel } from "@crm/ui/components/mark";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
@@ -69,19 +69,9 @@ function PageShellHeading({
 	);
 }
 
-function PageShellEyebrow({
-	tone = "blue",
-	children,
-}: {
-	tone?: MarkTone;
-	children: React.ReactNode;
-}) {
+function PageShellEyebrow({ children }: { children: React.ReactNode }) {
 	return (
-		<div
-			data-slot="page-shell-eyebrow"
-			className="flex items-center gap-2 pb-0.5"
-		>
-			<Square tone={tone} />
+		<div data-slot="page-shell-eyebrow" className="flex items-center pb-0.5">
 			<MonoLabel>{children}</MonoLabel>
 		</div>
 	);

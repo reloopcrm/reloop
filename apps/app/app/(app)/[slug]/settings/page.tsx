@@ -18,6 +18,7 @@ import { requireSession, workspaceRole } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AgentLanguage } from "./agent-language";
+import { Appearance } from "./appearance";
 import { ArchiveRetention } from "./archive-retention";
 import { DealStages } from "./deal-stages";
 import { Language } from "./language";
@@ -82,6 +83,7 @@ async function Settings() {
 			<div className="flex max-w-3xl flex-col gap-6">
 				<ProfileForm />
 				<Language />
+				<Appearance />
 				<WorkspaceForm />
 				<fieldset disabled={!canManage} className="contents">
 					<AgentLanguage />

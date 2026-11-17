@@ -1,7 +1,5 @@
 "use client";
 
-import Asleep from "@carbon/icons-react/es/Asleep";
-import Light from "@carbon/icons-react/es/Light";
 import Logout from "@carbon/icons-react/es/Logout";
 import UserAvatar from "@carbon/icons-react/es/UserAvatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@crm/ui/components/avatar";
@@ -13,7 +11,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
-import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/client";
 import { signOutAndRedirect } from "@/lib/sign-out";
@@ -29,8 +26,6 @@ export function UserMenu({
 	align?: "start" | "end";
 	children: React.ReactNode;
 }) {
-	const { resolvedTheme, setTheme } = useTheme();
-	const isDark = resolvedTheme === "dark";
 	const t = useT();
 
 	return (
@@ -41,16 +36,6 @@ export function UserMenu({
 					<UserAvatar />
 					<span className="min-w-0 truncate">{user.email}</span>
 				</DropdownMenuLabel>
-				<DropdownMenuSeparator />
-				<DropdownMenuItem
-					onSelect={(event) => {
-						event.preventDefault();
-						setTheme(isDark ? "light" : "dark");
-					}}
-				>
-					{isDark ? <Light /> : <Asleep />}
-					{isDark ? t("Light mode") : t("Dark mode")}
-				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					onClick={() => {

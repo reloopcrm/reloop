@@ -52,7 +52,6 @@ export function Appearance() {
 			<CardContent>
 				<ToggleGroup
 					type="single"
-					variant="quiet"
 					aria-label={t("Appearance")}
 					value={mounted && theme && isChoice(theme) ? theme : ""}
 					onValueChange={(value) => {

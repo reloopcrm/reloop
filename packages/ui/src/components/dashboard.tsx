@@ -36,7 +36,7 @@ function StatGroup({
 					"grid grid-cols-2",
 					STAT_COLUMNS[columns],
 					"[&>*:nth-child(2n)]:border-l [&>*:nth-child(n+3)]:border-t",
-					"md:[&>*]:border-t-0 md:[&>*]:border-l md:[&>*:first-child]:border-l-0",
+					"md:[&>*:nth-child(n+3)]:border-t-0 md:[&>*]:border-l md:[&>*:first-child]:border-l-0",
 				)}
 			>
 				{children}

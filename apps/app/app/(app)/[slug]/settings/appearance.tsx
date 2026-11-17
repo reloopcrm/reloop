@@ -35,11 +35,11 @@ export function Appearance() {
 	const mounted = useMounted();
 	const t = useT();
 
-	const labels: Record<Choice, string> = {
+	const labels = {
 		system: t("System"),
 		light: t("Light"),
 		dark: t("Dark"),
-	};
+	} satisfies Record<Choice, string>;
 
 	return (
 		<Card>

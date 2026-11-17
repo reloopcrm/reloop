@@ -5,7 +5,6 @@ import { MenuIcon } from "@crm/ui/components/line-icons";
 import Wordmark from "@crm/ui/components/wordmark";
 import Link from "next/link";
 import { useMobileNav } from "@/components/mobile-nav";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { useT } from "@/lib/i18n/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
@@ -26,7 +25,6 @@ export function AppHeader() {
 			>
 				<Wordmark className="h-4 w-auto" />
 			</Link>
-			<ThemeToggle />
 			<Button
 				variant="ghost"
 				size="icon"

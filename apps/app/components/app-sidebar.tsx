@@ -29,7 +29,6 @@ import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-si
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
 import { EnrichmentQueue } from "@/components/enrichment-queue";
 import { useMobileNav } from "@/components/mobile-nav";
-import { ThemeToggle } from "@/components/theme-toggle";
 import {
 	type AppUser,
 	UserAvatarImage,
@@ -239,7 +238,6 @@ function AccountRow({ user, plan }: { user: AppUser; plan?: string | null }) {
 					{plan ? <MonoLabel className="ml-auto">{t(plan)}</MonoLabel> : null}
 				</Button>
 			</UserMenu>
-			<ThemeToggle />
 		</div>
 	);
 }

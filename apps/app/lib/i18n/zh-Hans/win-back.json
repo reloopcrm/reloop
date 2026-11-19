@@ -441,5 +441,6 @@
 	"For each contact it returns the company, why they are worth winning back, the latest mails and the draft Reloop wrote. Then help me win each one back: tell me whom to write to first and what each mail should say.": "它会为每位联系人返回公司、值得赢回的原因、最近的邮件以及 Reloop 写好的草稿。然后帮我赢回每一位：告诉我先给谁写信，以及每封邮件该写什么。",
 	"If {tool} is not there, call {fallback} for each contactId.": "如果没有 {tool}，请对每个 contactId 调用 {fallback}。",
 	"The selection:": "选择内容：",
-	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "这个对话里没有 Reloop 连接？请在 Reloop 的 {path} 中设置。然后再把这段文字发给我。"
+	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "这个对话里没有 Reloop 连接？请在 Reloop 的 {path} 中设置。然后再把这段文字发给我。",
+	"{people} from {companies}": "来自{companies}的{people}"
 }

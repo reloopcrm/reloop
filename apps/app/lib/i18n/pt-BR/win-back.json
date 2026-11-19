@@ -441,5 +441,6 @@
 	"For each contact it returns the company, why they are worth winning back, the latest mails and the draft Reloop wrote. Then help me win each one back: tell me whom to write to first and what each mail should say.": "Para cada contato, ela retorna a empresa, por que vale a pena reconquistá-lo, os últimos e-mails e o rascunho que o Reloop escreveu. Depois me ajude a reconquistar cada um: diga para quem eu escrevo primeiro e o que cada e-mail deve dizer.",
 	"If {tool} is not there, call {fallback} for each contactId.": "Se {tool} não existir, chame {fallback} para cada contactId.",
 	"The selection:": "A seleção:",
-	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "Sem conexão com o Reloop neste chat? Configure no Reloop em {path}. Depois me envie este texto de novo."
+	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "Sem conexão com o Reloop neste chat? Configure no Reloop em {path}. Depois me envie este texto de novo.",
+	"{people} from {companies}": "{people} de {companies}"
 }

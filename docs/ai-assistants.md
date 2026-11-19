@@ -105,8 +105,9 @@ refresh or a summary refresh.
 
 ## Hand a Win back selection to the assistant
 
-On the Win back page, tick the companies you want to win back and select **Copy for AI**. Paste
-the text into the chat and send it as it is. The text names the tool and the contact ids, so the
+On the Win back page, tick the people you want to win back and select **Copy for AI**. Open a
+company to tick one person, or tick the company to take all its people. Paste the text into the
+chat and send it as it is. The text names the tool and the contact ids, so the
 assistant reads those people from Reloop by itself. It holds the company and person names, and
 no mail. A chat without the Reloop connection reads a sentence that says where to set it up.
 

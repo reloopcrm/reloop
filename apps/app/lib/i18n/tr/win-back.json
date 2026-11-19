@@ -441,5 +441,6 @@
 	"For each contact it returns the company, why they are worth winning back, the latest mails and the draft Reloop wrote. Then help me win each one back: tell me whom to write to first and what each mail should say.": "Her kişi için firmayı, neden geri kazanmaya değer olduğunu, son e-postaları ve Reloop'un yazdığı taslağı döndürür. Sonra her birini geri kazanmama yardım et: önce kime yazacağımı ve her e-postada ne yazması gerektiğini söyle.",
 	"If {tool} is not there, call {fallback} for each contactId.": "{tool} yoksa her contactId için {fallback} çağır.",
 	"The selection:": "Seçim:",
-	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "Bu sohbette Reloop bağlantısı yok mu? Reloop'ta {path} altında kur. Sonra bu metni bana tekrar gönder."
+	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "Bu sohbette Reloop bağlantısı yok mu? Reloop'ta {path} altında kur. Sonra bu metni bana tekrar gönder.",
+	"{people} from {companies}": "{companies} içinden {people}"
 }

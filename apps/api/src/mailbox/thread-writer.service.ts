@@ -26,7 +26,14 @@ import {
 	type MatchContext,
 } from "./mailbox-match.service";
 import { snippetOf } from "./message-text";
-import { isOwnAddress, type Participant, splitName } from "./participants";
+import {
+	externalParticipants,
+	isOwnAddress,
+	type Participant,
+	splitName,
+	workDomain,
+} from "./participants";
+import { outreachReply, type ReplySkip } from "./reply-adoption";
 import { recipientsOf } from "./thread-messages";
 import {
 	type LinkOutcome,
@@ -45,6 +52,27 @@ export type IncomingMessage = {
 	outlookMessageId?: string | null;
 	outlookWebLink?: string | null;
 	imapAccountId?: string | null;
+};
+
+export type ReplyAdoption =
+	| { status: "adopted"; created: boolean }
+	| { status: "skipped"; reason: ReplySkip }
+	| { status: "limited" };
+
+type Placement = { companyId: string | null; contactId: string | null };
+
+type PlacedThread = {
+	id: string;
+	subject: string | null;
+	snippet: string | null;
+	lastMessageAt: Date;
+};
+
+type PlacementTask = {
+	reason: string;
+	lane?: AgentTaskOrigin;
+	reread?: boolean;
+	at?: Date;
 };
 
 @Injectable()
@@ -118,12 +146,18 @@ export class ThreadWriterService {
 				outbound || (await this.hasOutboundInThread(parsed.rootId, context));
 
 			const auto = isAutoReply(parsed.subject, parsed.body);
+			const byPolicy =
+				row.autoCreate && (repliedTo || (row.createWithoutReply && !auto));
+			const answered =
+				!repliedTo &&
+				(row.autoCreate || relevantOnly) &&
+				answersOutreach(parsed, context);
+			const direct = answered && !byPolicy && options.lane === "forward";
 
 			const match = await this.match.resolve(
 				{
-					participants,
-					allowCreate:
-						row.autoCreate && (repliedTo || (row.createWithoutReply && !auto)),
+					participants: direct ? [parsed.from] : participants,
+					allowCreate: byPolicy || direct,
 					source: RecordSource.EMAIL,
 					ownerId: row.userId,
 					deferResearch: true,
@@ -137,7 +171,8 @@ export class ThreadWriterService {
 
 			if (!companyId && !contactId) {
 				const held = match.limited === true;
-				if (!held && (!relevantOnly || match.external.length === 0)) {
+				const waits = answered && match.external.length > 0;
+				if (!held && !waits && (!relevantOnly || match.external.length === 0)) {
 					return false;
 				}
 				pending = true;
@@ -367,38 +402,206 @@ export class ThreadWriterService {
 			return false;
 		}
 
-		const match2 = placed;
-		const last = thread.messages.at(-1);
+		await this.place(
+			{
+				id: threadId,
+				subject: thread.subject,
+				snippet: thread.messages.at(-1)?.snippet ?? null,
+				lastMessageAt: thread.lastMessageAt,
+			},
+			placed,
+			ownerId,
+			known,
+			startedAt,
+			{ reason: "Thread adopted into the CRM" },
+		);
 
+		return true;
+	}
+
+	async adoptReply(
+		threadId: string,
+		context: MatchContext,
+		owners: ReadonlySet<string>,
+	): Promise<ReplyAdoption> {
+		const thread = await this.db.emailThread.findUnique({
+			where: { id: threadId },
+			select: {
+				id: true,
+				rootMessageId: true,
+				subject: true,
+				contactId: true,
+				companyId: true,
+				lastMessageAt: true,
+				company: { select: { domain: true, archivedAt: true } },
+				messages: {
+					orderBy: { sentAt: "asc" },
+					select: {
+						rfcMessageId: true,
+						direction: true,
+						subject: true,
+						body: true,
+						fromEmail: true,
+						fromName: true,
+						recipients: true,
+						snippet: true,
+						syncedByUserId: true,
+						sentAt: true,
+					},
+				},
+			},
+		});
+		if (!thread || thread.contactId) {
+			return { status: "skipped", reason: "linked" };
+		}
+
+		const found = outreachReply(
+			{
+				rootMessageId: thread.rootMessageId,
+				messages: thread.messages.map((message) => ({
+					...message,
+					subject: message.subject ?? thread.subject,
+					recipients: recipientsOf(message.recipients).map(
+						(person) => person.email,
+					),
+				})),
+			},
+			context,
+		);
+		if (!found.reply) return { status: "skipped", reason: found.skip };
+
+		const reply = found.reply;
+		const ownerId = reply.syncedByUserId;
+		if (!ownerId || !owners.has(ownerId)) {
+			return { status: "skipped", reason: "policy-off" };
+		}
+
+		const sender: Participant = {
+			email: reply.fromEmail.trim().toLowerCase(),
+			name: reply.fromName,
+		};
+		if (externalParticipants([sender], context).length === 0) {
+			return { status: "skipped", reason: "sender-filtered" };
+		}
+
+		const startedAt = new Date();
+		const at = new Date(Math.min(reply.sentAt.getTime(), startedAt.getTime()));
+		const before = await this.db.contact.findUnique({
+			where: { email: sender.email },
+			select: { id: true },
+		});
+		const request = { source: RecordSource.EMAIL, ownerId };
+		let placed: Placement;
+
+		if (thread.companyId) {
+			if (thread.company?.archivedAt) {
+				return { status: "skipped", reason: "archived-company" };
+			}
+			if (
+				!thread.company?.domain ||
+				workDomain(sender.email) !== thread.company.domain
+			) {
+				return { status: "skipped", reason: "other-domain" };
+			}
+
+			const added = await this.match.addCompanyContact(
+				sender,
+				thread.companyId,
+				request,
+				at,
+			);
+			if (added.limited || !added.contactId) return { status: "limited" };
+
+			placed = { companyId: thread.companyId, contactId: added.contactId };
+		} else {
+			const match = await this.match.resolve(
+				{
+					...request,
+					participants: [sender],
+					allowCreate: true,
+					lastMailAt: at,
+				},
+				context,
+			);
+			if (match.limited) return { status: "limited" };
+
+			const contactId =
+				match.contactId ??
+				(await this.contactWithoutCompany(sender, ownerId, context));
+			if (!contactId) return { status: "limited" };
+
+			placed = { companyId: match.companyId, contactId };
+		}
+
+		if (
+			placed.contactId &&
+			!(await this.visible(placed.contactId, context, thread.lastMessageAt))
+		) {
+			return { status: "skipped", reason: "archived-contact" };
+		}
+
+		await this.place(
+			{
+				id: threadId,
+				subject: thread.subject,
+				snippet: thread.messages.at(-1)?.snippet ?? null,
+				lastMessageAt: thread.lastMessageAt,
+			},
+			placed,
+			ownerId,
+			context,
+			startedAt,
+			{
+				reason: "A reply to our own mail was filed",
+				lane: "backfill",
+				reread: true,
+				at,
+			},
+		);
+
+		return { status: "adopted", created: before === null };
+	}
+
+	private async place(
+		thread: PlacedThread,
+		placed: Placement,
+		ownerId: string,
+		context: MatchContext,
+		startedAt: Date,
+		task: PlacementTask,
+	): Promise<void> {
 		const occurredAt = await this.db.$transaction(async (tx) => {
 			await tx.emailThread.update({
-				where: { id: threadId },
-				data: { companyId: match2.companyId, contactId: match2.contactId },
+				where: { id: thread.id },
+				data: { companyId: placed.companyId, contactId: placed.contactId },
 			});
 
-			const projected = await this.project(tx, threadId, ownerId, {
+			const projected = await this.project(tx, thread.id, ownerId, {
 				subject: thread.subject ?? "(no subject)",
-				snippet: last?.snippet ?? null,
+				snippet: thread.snippet,
 				lastMessageAt: thread.lastMessageAt,
-				companyId: match2.companyId,
-				contactId: match2.contactId,
+				companyId: placed.companyId,
+				contactId: placed.contactId,
 				origin: "imap",
+				at: task.at,
 			});
-			const links = await this.participants.linkThread(threadId, known, tx);
+			if (placed.contactId) {
+				await tx.activity.updateMany({
+					where: { emailThreadId: thread.id, contactId: null },
+					data: { contactId: placed.contactId },
+				});
+			}
+			const links = await this.participants.linkThread(thread.id, context, tx);
 			return { ...projected, links };
 		});
 
-		await this.touch(
-			{ companyId: match2.companyId, contactId: match2.contactId },
-			occurredAt.at,
-			threadId,
-		);
+		await this.touch(placed, occurredAt.at, thread.id);
 		await this.participants.settle(occurredAt.links);
-		await this.linkNewContact(match2.contactId, startedAt, known);
+		await this.linkNewContact(placed.contactId, startedAt, context);
 
-		await this.agent.threadStored(threadId, "Thread adopted into the CRM");
-
-		return true;
+		await this.agent.threadStored(thread.id, task.reason, task.lane, {
+			reread: task.reread,
+		});
 	}
 
 	private async linkNewContact(
@@ -543,6 +746,7 @@ export class ThreadWriterService {
 			companyId: string | null;
 			contactId: string | null;
 			origin: SyncOrigin;
+			at?: Date;
 		},
 	): Promise<{ id: string; at: Date }> {
 		const activity = await tx.activity.upsert({
@@ -552,6 +756,7 @@ export class ThreadWriterService {
 				subject: summary.subject,
 				body: summary.snippet,
 				occurredAt: summary.lastMessageAt,
+				createdAt: summary.at,
 				companyId: summary.companyId,
 				contactId: summary.contactId,
 				createdById: userId,
@@ -567,6 +772,31 @@ export class ThreadWriterService {
 
 		return { id: emailThreadId, at: activity.createdAt };
 	}
+}
+
+function answersOutreach(
+	parsed: IncomingMessage,
+	context: MatchContext,
+): boolean {
+	const found = outreachReply(
+		{
+			rootMessageId: parsed.rootId,
+			messages: [
+				{
+					rfcMessageId: parsed.rfcMessageId,
+					direction: "INBOUND" as const,
+					fromEmail: parsed.from.email,
+					subject: parsed.subject,
+					body: parsed.body,
+					snippet: null,
+					recipients: parsed.recipients.map((person) => person.email),
+				},
+			],
+		},
+		context,
+	);
+
+	return found.reply !== null;
 }
 
 function hasRealExchange(

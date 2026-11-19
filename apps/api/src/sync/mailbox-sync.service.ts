@@ -15,6 +15,7 @@ import {
 	isMicrosoftSyncSource,
 } from "../mailbox/mailbox.constants";
 import { RealAnswerBackfillService } from "../mailbox/real-answer-backfill.service";
+import { ReplyAdoptionService } from "../mailbox/reply-adoption.service";
 import { SyncStateService } from "../mailbox/sync-state.service";
 import { ThreadAdoptionService } from "../mailbox/thread-adoption.service";
 import { ThreadContactsService } from "../mailbox/thread-contacts.service";
@@ -58,6 +59,7 @@ export class MailboxSyncService {
 		private readonly agent: AgentTriggerService,
 		private readonly direction: DirectionRepairService,
 		private readonly threadContacts: ThreadContactsService,
+		private readonly replies: ReplyAdoptionService,
 		private readonly realAnswers: RealAnswerBackfillService,
 		private readonly meetingPrep: MeetingPrepService,
 	) {}
@@ -189,6 +191,17 @@ export class MailboxSyncService {
 			} catch (error) {
 				this.logger.error(
 					{ message: "Adding senders of relevant threads failed" },
+					error instanceof Error ? error.stack : String(error),
+				);
+			}
+		}
+
+		if (!signal?.aborted && Date.now() < passDeadline) {
+			try {
+				await this.replies.adoptReplies(new Date(), passDeadline);
+			} catch (error) {
+				this.logger.error(
+					{ message: "Filing replies to our own mail failed" },
 					error instanceof Error ? error.stack : String(error),
 				);
 			}

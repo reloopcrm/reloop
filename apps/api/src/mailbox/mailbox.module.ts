@@ -6,6 +6,7 @@ import { MailboxApiClient } from "./mailbox-api.client";
 import { MailboxMatchService } from "./mailbox-match.service";
 import { MailboxTokenService } from "./mailbox-token.service";
 import { RealAnswerBackfillService } from "./real-answer-backfill.service";
+import { ReplyAdoptionService } from "./reply-adoption.service";
 import { SyncStateService } from "./sync-state.service";
 import { ThreadAdoptionService } from "./thread-adoption.service";
 import { ThreadContactsService } from "./thread-contacts.service";
@@ -23,6 +24,7 @@ import { ThreadWriterService } from "./thread-writer.service";
 		ThreadWriterService,
 		ThreadAdoptionService,
 		ThreadContactsService,
+		ReplyAdoptionService,
 		DirectionRepairService,
 		RealAnswerBackfillService,
 	],
@@ -35,6 +37,7 @@ import { ThreadWriterService } from "./thread-writer.service";
 		ThreadWriterService,
 		ThreadAdoptionService,
 		ThreadContactsService,
+		ReplyAdoptionService,
 		DirectionRepairService,
 		RealAnswerBackfillService,
 	],

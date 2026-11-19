@@ -194,8 +194,55 @@ export function isRealAnswer(message: AnswerCandidate): boolean {
 }
 
 export const REPLY_PREFIX =
-	/^\s*(re|aw|antw|antwoord|fwd|fw|wg|sv|vs)\s*(\[\d+\])?\s*:/i;
+	/^\s*(re|aw|antw|antwoord|fwd|fw|wg|sv|vs|odp|ynt|rif|tr|rv)\s*(\[\d+\])?\s*:/i;
 
 export function isReplySubject(subject: string | null): boolean {
 	return REPLY_PREFIX.test((subject ?? "").trim());
+}
+
+export const CONVERSATION_ROOT_PREFIX = "outlook-conversation:";
+
+export type StoredMail = AnswerCandidate & { rfcMessageId: string };
+
+export type MailThread<Mail extends StoredMail = StoredMail> = {
+	rootMessageId: string;
+	messages: readonly Mail[];
+};
+
+export type MissingMailSkip =
+	| "two-sided"
+	| "no-real-answer"
+	| "no-reply-subject"
+	| "no-reference";
+
+export type MissingMailReply<Mail extends StoredMail = StoredMail> =
+	| { reply: Mail; skip: null }
+	| { reply: null; skip: MissingMailSkip };
+
+function referencesMissingMail(thread: MailThread): boolean {
+	if (thread.rootMessageId.startsWith(CONVERSATION_ROOT_PREFIX)) return true;
+
+	return !thread.messages.some(
+		(message) => message.rfcMessageId === thread.rootMessageId,
+	);
+}
+
+export function replyToMissingMail<Mail extends StoredMail>(
+	thread: MailThread<Mail>,
+): MissingMailReply<Mail> {
+	if (thread.messages.some((message) => message.direction === "OUTBOUND")) {
+		return { reply: null, skip: "two-sided" };
+	}
+
+	const answers = thread.messages.filter(isRealAnswer);
+	if (answers.length === 0) return { reply: null, skip: "no-real-answer" };
+
+	const reply = answers.find((message) => isReplySubject(message.subject));
+	if (!reply) return { reply: null, skip: "no-reply-subject" };
+
+	if (!referencesMissingMail(thread)) {
+		return { reply: null, skip: "no-reference" };
+	}
+
+	return { reply, skip: null };
 }

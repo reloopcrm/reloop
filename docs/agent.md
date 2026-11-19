@@ -676,6 +676,19 @@ single noul: is this conversation about the workspace's business. `TYPESAFE` in
 - **A skip writes the verdict itself**: `relevant: false`, `outcome: "OTHER"`,
   `side: null`, an empty summary, empty arrays, and `modelId: "jev-latest"`. That model
   id is how every gate-skipped row is found again.
+- **A reply to our own mail never meets the gate.** A workspace that sends outreach
+  from another tool only syncs the answers, so the transcript holds one side. The
+  gate reads "please call me" with no offer beside it and clears it, and the
+  conversation ends as `IRRELEVANT`. `answersMissingMail` (`lib/insight.ts`) asks
+  `replyToMissingMail` from `@crm/db/message-text`, the same rule the API uses to
+  file the sender as a contact. For such a conversation `askGate` answers `read`
+  on both entries, `classifyThread` and the reduced read, so neither writes the
+  skip verdict. The big model gets `MISSING_MAIL_NOTE` as a system line, never
+  inside the untrusted text: our first mail is missing, the subject names it, and
+  a missing mail is no reason for "not relevant". The model still decides; nothing
+  forces `relevant`. A task with `reread: true` reads such a conversation again
+  even when the stored verdict says not relevant (`readPlan`), which is how the
+  API's paced pass corrects the verdicts written before this rule.
 - **A skipped conversation is not re-read** until new mail moves its `lastMessageAt`.
   The threshold is 0.2 for that reason: a wrong skip costs a summary nobody asked for,
   and 0.2 is a clear no rather than an uncertain one. The one exception is a task

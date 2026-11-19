@@ -6,6 +6,7 @@ import {
 	MEMORY,
 	THREAD_CLASSIFICATION,
 } from "@crm/db/insights";
+import { replyToMissingMail } from "@crm/db/message-text";
 import { threadsOfContact } from "@crm/db/thread-participants";
 import { TYPESAFE } from "@crm/db/typesafe";
 import type { SummaryLanguage } from "@crm/validation/agent-language";
@@ -223,12 +224,14 @@ const lenientMemorySchema = z.object({
 
 type ThreadRecord = {
 	id: string;
+	rootMessageId?: string;
 	subject: string | null;
 	contactId: string | null;
 	contact?: { email: string | null } | null;
 	lastMessageAt: Date;
 	messages: {
 		id?: string;
+		rfcMessageId?: string;
 		subject?: string | null;
 		summary?: string | null;
 		direction: string;
@@ -239,6 +242,36 @@ type ThreadRecord = {
 		snippet: string | null;
 	}[];
 };
+
+export const MISSING_MAIL_NOTE = [
+	"This conversation starts with a mail of ours that is not in the transcript, because we sent it from another system.",
+	"Every message below answers that mail, and the subject names what it was about.",
+	"Never report the conversation as not relevant only because our mail is missing or because only they write.",
+	"An answer that says no to our mail is DECLINED.",
+].join(" ");
+
+export function answersMissingMail(thread: ThreadRecord): boolean {
+	const rootMessageId = thread.rootMessageId;
+	if (!rootMessageId) return false;
+
+	const found = replyToMissingMail({
+		rootMessageId,
+		messages: thread.messages.map((message) => ({
+			rfcMessageId: message.rfcMessageId ?? "",
+			direction: message.direction === "OUTBOUND" ? "OUTBOUND" : "INBOUND",
+			fromEmail: message.fromEmail,
+			subject: message.subject ?? thread.subject,
+			body: message.body,
+			snippet: message.snippet,
+		})),
+	});
+
+	return found.reply !== null;
+}
+
+export function missingMailNote(thread: ThreadRecord): string | null {
+	return answersMissingMail(thread) ? MISSING_MAIL_NOTE : null;
+}
 
 function transcriptMessages(thread: ThreadRecord): ThreadRecord["messages"] {
 	return thread.messages.slice(-MEMORY.messagesPerThread);
@@ -387,6 +420,7 @@ async function askGate(
 	rules: WinBackRules,
 	ask: JevAsk,
 ): Promise<GateAnswer> {
+	if (answersMissingMail(thread)) return "read";
 	if (!rules.business.description.trim()) return "unavailable";
 
 	const key = await typesafeKey();
@@ -441,6 +475,7 @@ async function classifyWithModel(
 		[
 			"You read one email conversation from a company's mailbox and report facts about it.",
 			UNTRUSTED_RULE,
+			missingMailNote(thread) ?? "",
 			"Report only what the messages say. Never invent quantities, outcomes or intentions.",
 			"Quantities: convert loads to units only when the messages state the conversion; otherwise leave units null and fill loads.",
 			"DEAL_DONE means an order was confirmed, delivered or invoiced in this conversation.",
@@ -458,7 +493,9 @@ async function classifyWithModel(
 			"A message line never names its sender and never starts with WE or THEY. It starts with the verb.",
 			"A message line leaves out the greeting, the sign-off and the signature. Write a range with the word for to in that language, as in '800 to 1000', never with a dash.",
 			await businessPrompt(rules),
-		].join("\n"),
+		]
+			.filter(Boolean)
+			.join("\n"),
 		untrusted(
 			`Subject: ${thread.subject ?? "(no subject)"}\n\n${transcript(thread)}`,
 		),
@@ -629,9 +666,11 @@ export function readPlan(
 		declineKind?: string | null;
 	} | null,
 	lastMessageAt: Date,
+	answersMissing = false,
 ): ReadPlan {
 	if (!insight) return "classify";
 	if (reread && insight.relevant) return "keepRelevant";
+	if (reread && answersMissing) return "classify";
 	if (reread) {
 		return insight.declineKind === DECLINE_KIND.hard ? "classify" : "stored";
 	}
@@ -692,6 +731,7 @@ export async function runThreadInsight(
 		where: { id: threadId },
 		select: {
 			id: true,
+			rootMessageId: true,
 			subject: true,
 			contactId: true,
 			contact: { select: { email: true } },
@@ -709,6 +749,7 @@ export async function runThreadInsight(
 				orderBy: { sentAt: "asc" },
 				select: {
 					id: true,
+					rfcMessageId: true,
 					subject: true,
 					direction: true,
 					fromEmail: true,
@@ -725,7 +766,12 @@ export async function runThreadInsight(
 	if (thread.messages.length === 0) return say(COPY.threads.empty);
 
 	const rules = await readWinBackRules(db);
-	const plan = readPlan(reread, thread.insight, thread.lastMessageAt);
+	const plan = readPlan(
+		reread,
+		thread.insight,
+		thread.lastMessageAt,
+		answersMissingMail(thread),
+	);
 	if (plan === "keepRelevant" && gateOnly) throw NEEDS_FULL_READ;
 
 	let verdict: ThreadVerdict;

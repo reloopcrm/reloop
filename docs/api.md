@@ -729,12 +729,15 @@ the largest attachment upload the conversation contracts accept.
   `outlook-conversation:` root carries no headers, so there the subject decides
   alone. `outreachReply` (`mailbox/reply-adoption.ts`) adds the API's half: no
   sender of the thread is an own address, and the reply was written to an own
-  address. `store` counts such a mail as replied to for `replied` and for
-  `relevant`, never for a mailbox that creates nobody. It creates the contact at
-  once only on lane `forward`, and it matches on the sender alone, so a group in
-  copy never takes the thread. On lane `backfill` the thread is stored `PENDING`
-  and waits for the paced pass, so a history import cannot create thousands of
-  contacts in one tick. `externalParticipants` is still the gate: an own address,
+  address. **The rule holds only for `createFrom: "relevant"`.** That policy stores
+  every first mail of a stranger, so a stranger's follow-up to their own mail finds
+  its root in the thread and is refused (`no-reference`). `replied` stores no first
+  mail of a stranger, so there the same follow-up looks like a reply to a missing
+  mail of ours; `replied`, `everyone` and `nobody` therefore keep their old
+  behaviour. `store` creates the contact at once only on lane `forward`, and it
+  matches on the sender alone, so a group in copy never takes the thread. On lane
+  `backfill` the thread stays `PENDING` and waits for the paced pass, so a history
+  import cannot create thousands of contacts in one tick. `externalParticipants` is still the gate: an own address,
   a suppressed address, a machine address, a role address (`info@`, `sales@`) and
   a free-mail address never become a contact this way.
 - **Replies that are already stored are filed by a paced pass.**
@@ -755,14 +758,18 @@ the largest attachment upload the conversation contracts accept.
   `AppSetting.replyAdoptionCursor` holds `{ v, day, created, at, id, restUntil }`
   (`mailbox/reply-adoption-cursor.ts`). The pass reserves its room with a guarded
   `updateMany` on the old cursor value before it reads, so two overlapping ticks
-  never spend the same room, and it writes the real count afterwards. The cursor
+  never spend the same room, and it writes the real count afterwards, in a
+  `finally`, so a pass that throws gives the room back. The cursor
   only moves past a thread that was decided: the daily number, the tick number,
   the deadline and the contact limit all stop before the thread. After a whole
   pass the cursor returns to the newest thread and rests `REPLY_ADOPTION.restMs`.
   A thread that failed is logged with its id and tried again after the rest. One
   log line per pass carries the counts and the skip reasons, never an address.
-  **Only a creating mailbox adds anyone**, by the same `creatingOwners` rule as
-  below.
+  **Only a `relevant` mailbox adds anyone**: the reply's `syncedByUserId` must own
+  a non-calendar `MailboxSync` with `createFrom: "relevant"`
+  (`MailboxMatchService.relevantOwners`), and the user must not be removed.
+  `adoptRelevant` is a second, older way in: a pending reply that the agent reads
+  as `RELEVANT` and worth adopting is filed by it, outside the daily number.
 - **Every sender of a relevant thread from the company's domain becomes a contact.**
   A thread keeps the one contact it was filed under, so `store` and `adopt` alone
   never file a second person who writes into it. `ThreadContactsService` runs once

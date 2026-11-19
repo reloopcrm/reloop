@@ -148,11 +148,12 @@ export class ThreadWriterService {
 			const auto = isAutoReply(parsed.subject, parsed.body);
 			const byPolicy =
 				row.autoCreate && (repliedTo || (row.createWithoutReply && !auto));
-			const answered =
+			const direct =
+				relevantOnly &&
+				!byPolicy &&
 				!repliedTo &&
-				(row.autoCreate || relevantOnly) &&
+				options.lane === "forward" &&
 				answersOutreach(parsed, context);
-			const direct = answered && !byPolicy && options.lane === "forward";
 
 			const match = await this.match.resolve(
 				{
@@ -171,8 +172,7 @@ export class ThreadWriterService {
 
 			if (!companyId && !contactId) {
 				const held = match.limited === true;
-				const waits = answered && match.external.length > 0;
-				if (!held && !waits && (!relevantOnly || match.external.length === 0)) {
+				if (!held && (!relevantOnly || match.external.length === 0)) {
 					return false;
 				}
 				pending = true;

@@ -49,7 +49,7 @@ export class ReplyAdoptionService {
 		now: Date = new Date(),
 		deadlineAt: number = NO_DEADLINE,
 	): Promise<number> {
-		const owners = await this.match.creatingOwners();
+		const owners = await this.match.relevantOwners();
 		if (owners.size === 0) return 0;
 
 		const stored = await this.readStored();
@@ -68,70 +68,79 @@ export class ReplyAdoptionService {
 		});
 		if (!(await this.swap(stored, held))) return 0;
 
-		const rows = await this.waitingAfter(replyPositionOf(cursor));
-		const context = await this.threads.context();
-
+		let rows: WaitingReply[] = [];
 		let created = 0;
 		let adopted = 0;
 		let failed = 0;
 		let reached: WaitingReply | null = null;
 		let stopped: PassStop | null = null;
+		let finished = false;
 		const skipped: Partial<Record<ReplySkip, number>> = {};
 
-		for (const row of rows) {
-			if (pastDeadline(deadlineAt)) {
-				stopped = "deadline";
-				break;
-			}
-			if (created >= room) {
-				stopped = "creates";
-				break;
-			}
+		try {
+			rows = await this.waitingAfter(replyPositionOf(cursor));
+			const context = await this.threads.context();
 
-			try {
-				const outcome = await this.threads.adoptReply(row.id, context, owners);
-				if (outcome.status === "limited") {
-					stopped = "limit";
+			for (const row of rows) {
+				if (pastDeadline(deadlineAt)) {
+					stopped = "deadline";
 					break;
 				}
-				if (outcome.status === "adopted") {
-					adopted += 1;
-					if (outcome.created) created += 1;
-				} else {
-					skipped[outcome.reason] = (skipped[outcome.reason] ?? 0) + 1;
+				if (created >= room) {
+					stopped = "creates";
+					break;
 				}
-			} catch (error) {
-				failed += 1;
-				this.logger.error(
-					{
-						message:
-							"A reply to our own mail could not be filed. The pass moves on and tries it again after the rest",
-						threadId: row.id,
-					},
-					error instanceof Error ? error.stack : String(error),
-				);
+
+				try {
+					const outcome = await this.threads.adoptReply(
+						row.id,
+						context,
+						owners,
+					);
+					if (outcome.status === "limited") {
+						stopped = "limit";
+						break;
+					}
+					if (outcome.status === "adopted") {
+						adopted += 1;
+						if (outcome.created) created += 1;
+					} else {
+						skipped[outcome.reason] = (skipped[outcome.reason] ?? 0) + 1;
+					}
+				} catch (error) {
+					failed += 1;
+					this.logger.error(
+						{
+							message:
+								"A reply to our own mail could not be filed. The pass moves on and tries it again after the rest",
+							threadId: row.id,
+						},
+						error instanceof Error ? error.stack : String(error),
+					);
+				}
+
+				reached = row;
 			}
 
-			reached = row;
+			finished = stopped === null && rows.length < this.options.batch;
+		} finally {
+			const position = reached
+				? { at: reached.at, id: reached.id }
+				: replyPositionOf(cursor);
+
+			await this.swap(
+				held,
+				serialiseReplyAdoptionCursor({
+					...cursor,
+					created: cursor.created + created,
+					at: finished ? null : (position?.at ?? null),
+					id: finished ? null : (position?.id ?? null),
+					restUntil: finished
+						? new Date(now.getTime() + this.options.restMs).toISOString()
+						: null,
+				}),
+			);
 		}
-
-		const finished = stopped === null && rows.length < this.options.batch;
-		const position = reached
-			? { at: reached.at, id: reached.id }
-			: replyPositionOf(cursor);
-
-		await this.swap(
-			held,
-			serialiseReplyAdoptionCursor({
-				...cursor,
-				created: cursor.created + created,
-				at: finished ? null : (position?.at ?? null),
-				id: finished ? null : (position?.id ?? null),
-				restUntil: finished
-					? new Date(now.getTime() + this.options.restMs).toISOString()
-					: null,
-			}),
-		);
 
 		if (adopted > 0 || failed > 0 || Object.keys(skipped).length > 0) {
 			this.logger.log({

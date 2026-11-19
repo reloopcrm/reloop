@@ -240,15 +240,55 @@ describe("a reply to our own mail that the mailbox never held", () => {
 		expect(researched).toEqual([thread?.contactId ?? ""]);
 	});
 
-	it("becomes a contact under the replied policy", async () => {
+	it("reads the English reply prefix too", async () => {
 		const sender = `bernd@${domainOf("inks")}`;
 		const message = reply(sender, {
 			subject: "Re: Sell surplus Euro pallets at fair prices",
 		});
 
-		await store(replied, message);
+		await store(relevant, message);
 
 		expect((await threadOf(message))?.contact?.email).toBe(sender);
+	});
+
+	it("creates nobody under the replied policy, which keeps no first mail of a stranger", async () => {
+		const sender = `vera@${domainOf("vendor")}`;
+		const first = reply(sender, {
+			subject: "Mehr Umsatz mit unserer Software",
+		});
+		first.rootId = first.rfcMessageId;
+		const followUp = reply(sender, {
+			subject: "Re: Mehr Umsatz mit unserer Software",
+			rootId: first.rfcMessageId,
+			body: "Haben Sie meine letzte Mail gesehen?",
+		});
+
+		expect(await store(replied, first)).toBe(false);
+		expect(await store(replied, followUp)).toBe(false);
+
+		expect(await contactOf(sender)).toBeNull();
+		expect(await pass.adoptReplies(NOW)).toBe(0);
+		expect(await contactOf(sender)).toBeNull();
+	});
+
+	it("does not take a stranger's follow-up to their own mail for a reply to ours", async () => {
+		const sender = `willi@${domainOf("seller")}`;
+		const first = reply(sender, {
+			subject: "Mehr Umsatz mit unserer Software",
+		});
+		first.rootId = first.rfcMessageId;
+		const followUp = reply(sender, {
+			subject: "Re: Mehr Umsatz mit unserer Software",
+			rootId: first.rfcMessageId,
+			body: "Haben Sie meine letzte Mail gesehen?",
+		});
+
+		expect(await store(relevant, first)).toBe(true);
+		expect(await store(relevant, followUp)).toBe(true);
+		expect(await pass.adoptReplies(NOW)).toBe(0);
+
+		expect(await contactOf(sender)).toBeNull();
+		expect((await threadOf(first))?.contactId).toBeNull();
 	});
 
 	it("creates nobody when the mailbox creates nobody", async () => {
@@ -286,7 +326,7 @@ describe("a reply to our own mail that the mailbox never held", () => {
 
 		await store(relevant, message);
 		await store(
-			replied,
+			relevant,
 			reply(`frida@${domainOf("away")}`, {
 				body: "Danke. Ich bin derzeit im Urlaub und abwesend. In dringenden Fällen wenden Sie sich an die Zentrale.",
 			}),
@@ -360,7 +400,7 @@ describe("a reply to our own mail that the mailbox never held", () => {
 		const sender = `jonas@${domainOf("history")}`;
 		const message = reply(sender);
 
-		expect(await store(replied, message, "backfill")).toBe(true);
+		expect(await store(relevant, message, "backfill")).toBe(true);
 
 		const thread = await threadOf(message);
 		expect(thread?.classification).toBe(THREAD_CLASSIFICATION.pending);
@@ -525,6 +565,22 @@ describe("the paced pass over replies that are already stored", () => {
 		expect((await threadOf(message))?.contact?.email).toBe(sender);
 		expect((await cursor())?.created ?? 0).toBe(0);
 		expect(researched).toEqual([]);
+	});
+
+	it("frees the room it held when the pass fails before it reads", async () => {
+		await waiting(`xaver@${domainOf("leak")}`);
+		const broken = new ReplyAdoptionService(db, match, {
+			context: async () => {
+				throw new Error("the identity could not be read");
+			},
+		} as unknown as ThreadWriterService);
+
+		await expect(broken.adoptReplies(NOW)).rejects.toThrow(
+			"the identity could not be read",
+		);
+
+		expect((await cursor())?.created).toBe(0);
+		expect(await pass.adoptReplies(NOW)).toBe(1);
 	});
 
 	it("adds nobody for a mailbox that creates nobody", async () => {

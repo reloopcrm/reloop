@@ -153,6 +153,19 @@ export class MailboxMatchService {
 		return new Set(rows.map((row) => row.userId));
 	}
 
+	async relevantOwners(): Promise<Set<string>> {
+		const rows = await this.db.mailboxSync.findMany({
+			where: {
+				source: { not: "calendar" },
+				user: { removedAt: null },
+				createFrom: "relevant",
+			},
+			select: { userId: true },
+		});
+
+		return new Set(rows.map((row) => row.userId));
+	}
+
 	async suppressedDomains(): Promise<Set<string>> {
 		const rows = await this.db.suppressedDomain.findMany({
 			select: { domain: true },

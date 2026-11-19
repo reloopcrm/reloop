@@ -7,6 +7,7 @@ export const WIN_BACK_UI = {
 		sinceDate: { day: "numeric", month: "short", timeZone: "UTC" },
 	},
 	bulkVerdict: { maxContactsPerCall: 200 },
+	copyForAi: { copiedMs: 2_000 },
 	person: {
 		pollMs: 3_000,
 		highlightMs: 2_400,

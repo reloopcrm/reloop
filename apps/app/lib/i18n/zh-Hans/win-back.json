@@ -431,5 +431,15 @@
 	"Reloop cannot read your mail because no AI provider is connected.": "Reloop 无法读取你的邮件，因为没有连接 AI 服务商。",
 	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop 无法读取你的邮件，因为对话摘要已关闭。",
 	"Connect an AI provider": "连接 AI 服务商",
-	"Switch summaries on": "开启摘要"
+	"Switch summaries on": "开启摘要",
+	"Copy for AI": "复制给 AI",
+	"Could not copy. Allow the clipboard in your browser and try again.": "复制失败。请在浏览器中允许剪贴板，然后重试。",
+	"This is a selection from Reloop, my CRM: 1 contact I want to win back.": "这是来自我的 CRM Reloop 的一份选择：1 位我想赢回的联系人。",
+	"This is a selection from Reloop, my CRM: {count} contacts I want to win back.": "这是来自我的 CRM Reloop 的一份选择：{count} 位我想赢回的联系人。",
+	"Get their data through the Reloop connection (MCP). Call the tool {tool} with these contactIds:": "请通过 Reloop 连接（MCP）获取他们的数据。用这些 contactIds 调用工具 {tool}：",
+	"Get their data through the Reloop connection (MCP). Call the tool {tool} once for each of these lists of contactIds:": "请通过 Reloop 连接（MCP）获取他们的数据。对下面每一组 contactIds 各调用一次工具 {tool}：",
+	"For each contact it returns the company, why they are worth winning back, the latest mails and the draft Reloop wrote. Then help me win each one back: tell me whom to write to first and what each mail should say.": "它会为每位联系人返回公司、值得赢回的原因、最近的邮件以及 Reloop 写好的草稿。然后帮我赢回每一位：告诉我先给谁写信，以及每封邮件该写什么。",
+	"If {tool} is not there, call {fallback} for each contactId.": "如果没有 {tool}，请对每个 contactId 调用 {fallback}。",
+	"The selection:": "选择内容：",
+	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "这个对话里没有 Reloop 连接？请在 Reloop 的 {path} 中设置。然后再把这段文字发给我。"
 }

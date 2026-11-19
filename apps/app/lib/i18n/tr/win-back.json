@@ -431,5 +431,15 @@
 	"Reloop cannot read your mail because no AI provider is connected.": "Reloop e-postalarını okuyamıyor, çünkü bağlı bir yapay zeka sağlayıcısı yok.",
 	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop e-postalarını okuyamıyor, çünkü konuşma özetleri kapalı.",
 	"Connect an AI provider": "Yapay zeka sağlayıcısı bağla",
-	"Switch summaries on": "Özetleri aç"
+	"Switch summaries on": "Özetleri aç",
+	"Copy for AI": "Yapay zeka için kopyala",
+	"Could not copy. Allow the clipboard in your browser and try again.": "Kopyalanamadı. Tarayıcında panoya izin ver ve tekrar dene.",
+	"This is a selection from Reloop, my CRM: 1 contact I want to win back.": "Bu, CRM'im Reloop'tan bir seçim: geri kazanmak istediğim 1 kişi.",
+	"This is a selection from Reloop, my CRM: {count} contacts I want to win back.": "Bu, CRM'im Reloop'tan bir seçim: geri kazanmak istediğim {count} kişi.",
+	"Get their data through the Reloop connection (MCP). Call the tool {tool} with these contactIds:": "Verilerini Reloop bağlantısı (MCP) üzerinden al. Bunun için {tool} aracını şu contactIds ile çağır:",
+	"Get their data through the Reloop connection (MCP). Call the tool {tool} once for each of these lists of contactIds:": "Verilerini Reloop bağlantısı (MCP) üzerinden al. {tool} aracını bu contactIds listelerinin her biri için bir kez çağır:",
+	"For each contact it returns the company, why they are worth winning back, the latest mails and the draft Reloop wrote. Then help me win each one back: tell me whom to write to first and what each mail should say.": "Her kişi için firmayı, neden geri kazanmaya değer olduğunu, son e-postaları ve Reloop'un yazdığı taslağı döndürür. Sonra her birini geri kazanmama yardım et: önce kime yazacağımı ve her e-postada ne yazması gerektiğini söyle.",
+	"If {tool} is not there, call {fallback} for each contactId.": "{tool} yoksa her contactId için {fallback} çağır.",
+	"The selection:": "Seçim:",
+	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "Bu sohbette Reloop bağlantısı yok mu? Reloop'ta {path} altında kur. Sonra bu metni bana tekrar gönder."
 }

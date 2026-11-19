@@ -446,11 +446,22 @@ and nothing else. The user-facing steps live in `docs/ai-assistants.md`.
   navigation, and the hook turns the answer into a 302 to the same URL. A `fetch()` from the
   sign-in or consent page carries `sec-fetch-dest: empty` and keeps the JSON answer that the
   better-auth client follows itself.
-- **The tools reuse services.** `search`, `fetch`, `list_win_back_candidates`, `get_contact`,
-  `get_contact_mails`, `get_contact_draft` and `get_thread` call the services behind the search, the
-  Win back list and the person view. No tool has a write path. A tool that reads a person or a
+- **The tools reuse services.** `search`, `fetch`, `list_win_back_candidates`,
+  `get_win_back_selection`, `get_contact`, `get_contact_mails`, `get_contact_draft` and `get_thread`
+  call the services behind the search, the Win back list and the person view. No tool has a write path. A tool that reads a person or a
   thread queues the same `AgentTask` rows opening that page queues. The limits live in `MCP` in
   `src/mcp/mcp.config.ts`.
+- **A Win back selection is one call.** The Win back page copies a text for an AI chat: the
+  tool name, the contact ids and one line per person. It holds no mail, and no address unless a
+  contact has no name. The tool name and the id cap live in `@crm/validation/win-back-selection`,
+  because the app writes the text and the API reads the call. `get_win_back_selection` takes at
+  most `MCP.limits.selection.contacts` ids. The text splits a larger selection into lists of that
+  size, one call each. For each contact the tool returns what `get_contact`, `get_contact_mails`
+  and `get_contact_draft` return, with fewer deals and mails and shorter texts
+  (`MCP.limits.selection`). That keeps one answer small, because an MCP client cuts a long tool
+  result. The cap of 20 is an estimate, not a measurement. An unknown id is skipped and counted in
+  `skipped`, not an error. The contacts run `MCP.limits.selection.parallel` at a time. Each one queues the same
+  story and draft work as opening the person page, so one call queues work for up to 20 people.
 - **No intelligence runs there.** The endpoint returns stored data and writes an `AgentTask` row at
   most. It calls no model and scores nothing. The agent decides, as everywhere else in the API.
 - **The oauthProvider plugin owns the grants.** Access and refresh tokens are opaque and stored

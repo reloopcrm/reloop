@@ -1,3 +1,4 @@
+import { WIN_BACK_SELECTION } from "@crm/validation/win-back-selection";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
@@ -20,7 +21,10 @@ import {
 	type ThreadToolOutput,
 	threadToolInput,
 	threadToolOutput,
+	type WinBackSelectionToolOutput,
 	type WinBackToolOutput,
+	winBackSelectionToolInput,
+	winBackSelectionToolOutput,
 	winBackToolInput,
 	winBackToolOutput,
 } from "./mcp-tools.contracts";
@@ -32,6 +36,7 @@ export const MCP_TOOL_NAMES = [
 	"search",
 	"fetch",
 	"list_win_back_candidates",
+	WIN_BACK_SELECTION.tool,
 	"get_contact",
 	"get_contact_mails",
 	"get_contact_draft",
@@ -47,7 +52,8 @@ type McpToolOutput =
 	| ContactToolOutput
 	| ContactMailsToolOutput
 	| ContactDraftToolOutput
-	| ThreadToolOutput;
+	| ThreadToolOutput
+	| WinBackSelectionToolOutput;
 
 function toolError(message: string): CallToolResult {
 	return { isError: true, content: [{ type: "text", text: message }] };
@@ -103,6 +109,21 @@ export class McpServerFactory {
 			(input) =>
 				this.answer("list_win_back_candidates", caller, () =>
 					this.tools.winBack(caller, input),
+				),
+		);
+
+		server.registerTool(
+			WIN_BACK_SELECTION.tool,
+			{
+				title: "Get a win back selection",
+				description: `Use this first when the user pastes a selection from the Reloop Win back page with contactIds. Reads every listed contact in one call: the contact with company, owner and deals, why they are worth winning back (potential, quiet days, whether they wait on us, the story and its bring back points), the ${MCP.limits.selection.mails} newest emails in short, and the draft Reloop wrote. At most ${MCP.limits.selection.contacts} ids per call. Unknown ids are skipped and counted in "skipped". Nothing is sent or changed.`,
+				inputSchema: winBackSelectionToolInput,
+				outputSchema: winBackSelectionToolOutput,
+				annotations: READ_ONLY,
+			},
+			({ contactIds }) =>
+				this.answer(WIN_BACK_SELECTION.tool, caller, () =>
+					this.tools.winBackSelection(contactIds),
 				),
 		);
 

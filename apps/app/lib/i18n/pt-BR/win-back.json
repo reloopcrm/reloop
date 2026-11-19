@@ -431,5 +431,15 @@
 	"Reloop cannot read your mail because no AI provider is connected.": "O Reloop não consegue ler seus e-mails porque nenhum provedor de IA está conectado.",
 	"Reloop cannot read your mail because conversation summaries are switched off.": "O Reloop não consegue ler seus e-mails porque os resumos de conversas estão desativados.",
 	"Connect an AI provider": "Conectar um provedor de IA",
-	"Switch summaries on": "Ativar os resumos"
+	"Switch summaries on": "Ativar os resumos",
+	"Copy for AI": "Copiar para a IA",
+	"Could not copy. Allow the clipboard in your browser and try again.": "Não foi possível copiar. Permita a área de transferência no navegador e tente de novo.",
+	"This is a selection from Reloop, my CRM: 1 contact I want to win back.": "Esta é uma seleção do Reloop, meu CRM: 1 contato que quero reconquistar.",
+	"This is a selection from Reloop, my CRM: {count} contacts I want to win back.": "Esta é uma seleção do Reloop, meu CRM: {count} contatos que quero reconquistar.",
+	"Get their data through the Reloop connection (MCP). Call the tool {tool} with these contactIds:": "Busque os dados deles pela conexão do Reloop (MCP). Chame a ferramenta {tool} com estes contactIds:",
+	"Get their data through the Reloop connection (MCP). Call the tool {tool} once for each of these lists of contactIds:": "Busque os dados deles pela conexão do Reloop (MCP). Chame a ferramenta {tool} uma vez para cada uma destas listas de contactIds:",
+	"For each contact it returns the company, why they are worth winning back, the latest mails and the draft Reloop wrote. Then help me win each one back: tell me whom to write to first and what each mail should say.": "Para cada contato, ela retorna a empresa, por que vale a pena reconquistá-lo, os últimos e-mails e o rascunho que o Reloop escreveu. Depois me ajude a reconquistar cada um: diga para quem eu escrevo primeiro e o que cada e-mail deve dizer.",
+	"If {tool} is not there, call {fallback} for each contactId.": "Se {tool} não existir, chame {fallback} para cada contactId.",
+	"The selection:": "A seleção:",
+	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "Sem conexão com o Reloop neste chat? Configure no Reloop em {path}. Depois me envie este texto de novo."
 }

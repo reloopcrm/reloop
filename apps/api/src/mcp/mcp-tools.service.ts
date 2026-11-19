@@ -29,11 +29,29 @@ import {
 	parseRecordRef,
 	type SearchToolOutput,
 	type ThreadToolOutput,
+	type WinBackSelectionToolOutput,
 	type WinBackToolInput,
 	type WinBackToolOutput,
 } from "./mcp-tools.contracts";
 
 type WinBackPerson = Awaited<ReturnType<WinBackPersonService["person"]>>;
+type ContactRecord = Awaited<ReturnType<ContactsService["byId"]>>;
+type DraftState = Awaited<ReturnType<ContactsService["draft"]>>;
+type MailLimits = { mails: number; bodyChars: number };
+type SelectionEntry = WinBackSelectionToolOutput["contacts"][number];
+
+function chunksOf<T>(items: T[], size: number): T[][] {
+	const chunks: T[][] = [];
+	for (let start = 0; start < items.length; start += size) {
+		chunks.push(items.slice(start, start + size));
+	}
+	return chunks;
+}
+
+function selectionId(value: string): string {
+	const ref = parseRecordRef(value);
+	return ref?.kind === "contact" ? ref.id : value.trim();
+}
 
 function line(name: string, value: string | number | null | undefined) {
 	return value === null || value === undefined || value === ""
@@ -249,6 +267,75 @@ export class McpToolsService {
 		const contact = await this.contacts.byId(contactId);
 		const view = await this.personView(contactId);
 
+		return this.contactOf(contact, view);
+	}
+
+	async contactMails(contactId: string): Promise<ContactMailsToolOutput> {
+		const view = await this.personView(contactId);
+
+		return this.mailsOf(contactId, view, {
+			mails: MCP.limits.contact.mails,
+			bodyChars: MCP.limits.contact.bodyChars,
+		});
+	}
+
+	async contactDraft(contactId: string): Promise<ContactDraftToolOutput> {
+		const state = await this.contacts.draft(contactId);
+
+		return this.draftOf(state, MCP.limits.draft.bodyChars);
+	}
+
+	async winBackSelection(
+		contactIds: string[],
+	): Promise<WinBackSelectionToolOutput> {
+		const ids = [...new Set(contactIds.map(selectionId))].filter(Boolean);
+		const limits = MCP.limits.selection;
+		const contacts: SelectionEntry[] = [];
+
+		for (const chunk of chunksOf(ids, limits.parallel)) {
+			const entries = await Promise.all(
+				chunk.map((id) => this.selectionEntry(id)),
+			);
+			for (const entry of entries) if (entry) contacts.push(entry);
+		}
+
+		return {
+			requested: ids.length,
+			found: contacts.length,
+			skipped: ids.length - contacts.length,
+			contacts,
+		};
+	}
+
+	private async selectionEntry(
+		contactId: string,
+	): Promise<SelectionEntry | null> {
+		try {
+			const contact = await this.contacts.byId(contactId);
+			const limits = MCP.limits.selection;
+			const [view, draft] = await Promise.all([
+				this.personView(contact.id),
+				this.contacts.draft(contact.id),
+			]);
+
+			return {
+				contact: this.contactOf(contact, view),
+				mails: this.mailsOf(contact.id, view, {
+					mails: limits.mails,
+					bodyChars: limits.mailBodyChars,
+				}),
+				draft: this.draftOf(draft, limits.draftBodyChars),
+			};
+		} catch (error) {
+			if (error instanceof NotFoundException) return null;
+			throw error;
+		}
+	}
+
+	private contactOf(
+		contact: ContactRecord,
+		view: WinBackPerson | null,
+	): ContactToolOutput {
 		return {
 			id: contact.id,
 			name: personName(contact.firstName, contact.lastName, contact.email),
@@ -308,14 +395,17 @@ export class McpToolsService {
 		};
 	}
 
-	async contactMails(contactId: string): Promise<ContactMailsToolOutput> {
-		const view = await this.personView(contactId);
+	private mailsOf(
+		contactId: string,
+		view: WinBackPerson | null,
+		limits: MailLimits,
+	): ContactMailsToolOutput {
 		if (!view) return { contactId, mailCount: 0, mails: [] };
 
 		return {
 			contactId,
 			mailCount: view.mailCount,
-			mails: view.mails.slice(0, MCP.limits.contact.mails).map((mail) => ({
+			mails: view.mails.slice(0, limits.mails).map((mail) => ({
 				id: mail.id,
 				threadId: mail.threadId,
 				subject: label(mail.subject),
@@ -323,7 +413,7 @@ export class McpToolsService {
 				from: { name: label(mail.fromName), email: mail.fromEmail },
 				sentAt: mail.sentAt,
 				summary: summary(mail.summary),
-				body: clipOrNull(mail.body, MCP.limits.contact.bodyChars),
+				body: clipOrNull(mail.body, limits.bodyChars),
 				marks: mail.marks,
 				key: mail.key,
 				unanswered: mail.unanswered,
@@ -331,9 +421,10 @@ export class McpToolsService {
 		};
 	}
 
-	async contactDraft(contactId: string): Promise<ContactDraftToolOutput> {
-		const state = await this.contacts.draft(contactId);
-
+	private draftOf(
+		state: DraftState,
+		bodyChars: number,
+	): ContactDraftToolOutput {
 		return {
 			contactId: state.contactId,
 			queued: state.queued,
@@ -341,7 +432,7 @@ export class McpToolsService {
 			draft: state.draft
 				? {
 						subject: label(state.draft.subject) ?? "",
-						body: clip(state.draft.body, MCP.limits.draft.bodyChars),
+						body: clip(state.draft.body, bodyChars),
 						language: state.draft.language,
 						writtenAt: state.draft.writtenAt,
 						stale: state.draft.stale,

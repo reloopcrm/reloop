@@ -1,4 +1,5 @@
 import { MCP as MCP_AUTH, MCP_SCOPE } from "@crm/auth/mcp-config";
+import { WIN_BACK_SELECTION } from "@crm/validation/win-back-selection";
 import { REST_RATE_LIMIT } from "../http/http-config";
 
 export const MCP = {
@@ -65,6 +66,13 @@ export const MCP = {
 		contact: { mails: 20, bodyChars: 4_000, deals: 20, facts: 20 },
 		thread: { messages: 30, bodyChars: 4_000, recipients: 20 },
 		draft: { bodyChars: 8_000 },
+		selection: {
+			contacts: WIN_BACK_SELECTION.maxContacts,
+			parallel: 4,
+			mails: 3,
+			mailBodyChars: 500,
+			draftBodyChars: 2_000,
+		},
 		fetch: { textChars: 8_000 },
 		summary: { maxChars: 2_000 },
 		text: { maxChars: 200 },

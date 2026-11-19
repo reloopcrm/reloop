@@ -431,5 +431,15 @@
 	"Reloop cannot read your mail because no AI provider is connected.": "Reloop kann deine Mails nicht lesen, weil kein KI-Anbieter verbunden ist.",
 	"Reloop cannot read your mail because conversation summaries are switched off.": "Reloop kann deine Mails nicht lesen, weil die Zusammenfassungen von Unterhaltungen ausgeschaltet sind.",
 	"Connect an AI provider": "KI-Anbieter verbinden",
-	"Switch summaries on": "Zusammenfassungen einschalten"
+	"Switch summaries on": "Zusammenfassungen einschalten",
+	"Copy for AI": "Für KI kopieren",
+	"Could not copy. Allow the clipboard in your browser and try again.": "Kopieren hat nicht geklappt. Erlaube die Zwischenablage im Browser und versuche es nochmal.",
+	"This is a selection from Reloop, my CRM: 1 contact I want to win back.": "Das ist eine Auswahl aus Reloop, meinem CRM: 1 Kontakt, den ich zurückgewinnen will.",
+	"This is a selection from Reloop, my CRM: {count} contacts I want to win back.": "Das ist eine Auswahl aus Reloop, meinem CRM: {count} Kontakte, die ich zurückgewinnen will.",
+	"Get their data through the Reloop connection (MCP). Call the tool {tool} with these contactIds:": "Hol dir ihre Daten über die Reloop-Verbindung (MCP). Rufe dafür das Werkzeug {tool} mit diesen contactIds auf:",
+	"Get their data through the Reloop connection (MCP). Call the tool {tool} once for each of these lists of contactIds:": "Hol dir ihre Daten über die Reloop-Verbindung (MCP). Rufe das Werkzeug {tool} einmal für jede dieser Listen von contactIds auf:",
+	"For each contact it returns the company, why they are worth winning back, the latest mails and the draft Reloop wrote. Then help me win each one back: tell me whom to write to first and what each mail should say.": "Es liefert zu jedem Kontakt die Firma, den Grund zum Zurückgewinnen, die letzten Mails und den Entwurf von Reloop. Hilf mir dann, jeden zurückzugewinnen: Sag mir, wem ich zuerst schreibe und was in jeder Mail stehen soll.",
+	"If {tool} is not there, call {fallback} for each contactId.": "Wenn es {tool} nicht gibt, rufe für jede contactId {fallback} auf.",
+	"The selection:": "Die Auswahl:",
+	"No Reloop connection in this chat? Set it up in Reloop under {path}. Then send me this text again.": "Keine Reloop-Verbindung in diesem Chat? Richte sie in Reloop unter {path} ein. Schick mir danach diesen Text noch einmal."
 }

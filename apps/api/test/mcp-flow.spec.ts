@@ -13,6 +13,7 @@ import {
 } from "@crm/auth";
 import { db } from "@crm/db";
 import { cloud } from "@crm/db/cloud/scope";
+import { WIN_BACK_SELECTION } from "@crm/validation/win-back-selection";
 import request from "supertest";
 import { DispatchHeartbeatService } from "../src/agent/dispatch-heartbeat.service";
 import { BackfillService } from "../src/backfill/backfill.service";
@@ -64,6 +65,7 @@ type ToolArguments = {
 	contactId?: string;
 	threadId?: string;
 	pageSize?: number;
+	contactIds?: string[];
 };
 
 type RpcParams = {
@@ -320,7 +322,7 @@ describe("the MCP endpoint without a credential", () => {
 describe("the MCP endpoint with an API key", () => {
 	const headers = () => ({ [API_KEY_HEADER]: apiKey });
 
-	it("initializes and lists the seven read only tools", async () => {
+	it("initializes and lists the eight read only tools", async () => {
 		const init = await mcp(initialize, headers());
 		expect(init.status).toBe(200);
 		expect(init.body.result.serverInfo.name).toBe(MCP.server.name);
@@ -454,6 +456,68 @@ describe("the MCP endpoint with an API key", () => {
 		expect(result.structuredContent.pageSize).toBe(5);
 		expect(result.structuredContent.page).toBe(1);
 		expect(result.structuredContent.rows.length).toBeLessThanOrEqual(5);
+	});
+
+	it("reads a win back selection and skips an unknown id", async () => {
+		const response = await callTool(
+			WIN_BACK_SELECTION.tool,
+			{
+				contactIds: [contactId, `contact:${contactId}`, `missing-${RUN}`],
+			},
+			headers(),
+		);
+		const result = response.body.result;
+
+		expect(result.isError).toBeUndefined();
+		expect(result.structuredContent).toMatchObject({
+			requested: 2,
+			found: 1,
+			skipped: 1,
+		});
+		expect(result.structuredContent.contacts).toEqual([
+			{
+				contact: expect.objectContaining({
+					id: contactId,
+					name: `Preview Buyer ${RUN}`,
+					company: expect.objectContaining({ id: companyId }),
+				}),
+				mails: { contactId, mailCount: 0, mails: [] },
+				draft: expect.objectContaining({ contactId, draft: null }),
+			},
+		]);
+	});
+
+	it("answers an empty selection when every id is unknown", async () => {
+		const response = await callTool(
+			WIN_BACK_SELECTION.tool,
+			{ contactIds: [`missing-${RUN}`, `contact:gone-${RUN}`] },
+			headers(),
+		);
+		const result = response.body.result;
+
+		expect(result.isError).toBeUndefined();
+		expect(result.structuredContent).toEqual({
+			requested: 2,
+			found: 0,
+			skipped: 2,
+			contacts: [],
+		});
+	});
+
+	it("refuses a selection larger than the MCP limit", async () => {
+		const response = await callTool(
+			WIN_BACK_SELECTION.tool,
+			{
+				contactIds: Array.from(
+					{ length: MCP.limits.selection.contacts + 1 },
+					(_, index) => `id-${index}`,
+				),
+			},
+			headers(),
+		);
+
+		expect(response.body.result?.isError ?? response.body.error).toBeTruthy();
+		expect(MCP.limits.selection.contacts).toBe(WIN_BACK_SELECTION.maxContacts);
 	});
 
 	it("counts an API key on the MCP path in the shared REST window", async () => {

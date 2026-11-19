@@ -1,3 +1,7 @@
+import {
+	WIN_BACK_SELECTION,
+	winBackSelectionContactIds,
+} from "@crm/validation/win-back-selection";
 import { z } from "zod";
 import {
 	reactivationListInput,
@@ -62,6 +66,12 @@ export const contactToolInput = z.object({
 
 export const threadToolInput = z.object({
 	threadId: recordId.describe("The email thread id from get_contact_mails."),
+});
+
+export const winBackSelectionToolInput = z.object({
+	contactIds: winBackSelectionContactIds.describe(
+		`The contact ids from the text the user pasted from Reloop, at most ${WIN_BACK_SELECTION.maxContacts} per call, without the "contact:" prefix.`,
+	),
 });
 
 export type SearchToolInput = z.infer<typeof searchToolInput>;
@@ -255,6 +265,19 @@ export const threadToolOutput = z.object({
 	),
 });
 
+export const winBackSelectionToolOutput = z.object({
+	requested: z.number(),
+	found: z.number(),
+	skipped: z.number(),
+	contacts: z.array(
+		z.object({
+			contact: contactToolOutput,
+			mails: contactMailsToolOutput,
+			draft: contactDraftToolOutput,
+		}),
+	),
+});
+
 export type SearchToolOutput = z.infer<typeof searchToolOutput>;
 export type FetchToolOutput = z.infer<typeof fetchToolOutput>;
 export type WinBackToolOutput = z.infer<typeof winBackToolOutput>;
@@ -262,6 +285,9 @@ export type ContactToolOutput = z.infer<typeof contactToolOutput>;
 export type ContactMailsToolOutput = z.infer<typeof contactMailsToolOutput>;
 export type ContactDraftToolOutput = z.infer<typeof contactDraftToolOutput>;
 export type ThreadToolOutput = z.infer<typeof threadToolOutput>;
+export type WinBackSelectionToolOutput = z.infer<
+	typeof winBackSelectionToolOutput
+>;
 
 const recordRef = z
 	.string()

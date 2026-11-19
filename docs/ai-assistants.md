@@ -87,11 +87,13 @@ lives one hour. A refresh token lives thirty days.
 
 ## What the assistant can read
 
-There are seven tools. All of them only read.
+There are eight tools. All of them only read.
 
 - `search` finds contacts, companies and deals by a word.
 - `fetch` returns one record by the id that `search` returned.
 - `list_win_back_candidates` returns the Win back list in the order the page ranks it.
+- `get_win_back_selection` reads up to 20 contacts in one call: the record, why they are worth
+  winning back, the newest mails in short and the draft.
 - `get_contact` returns the record, its story and its facts.
 - `get_contact_mails` returns the mails the Win back person page shows: subject, direction,
   summary and excerpt. It never returns raw MIME.
@@ -100,6 +102,13 @@ There are seven tools. All of them only read.
 
 Reading a person or a thread queues the same agent work that opening that page queues: a story
 refresh or a summary refresh.
+
+## Hand a Win back selection to the assistant
+
+On the Win back page, tick the companies you want to win back and select **Copy for AI**. Paste
+the text into the chat and send it as it is. The text names the tool and the contact ids, so the
+assistant reads those people from Reloop by itself. It holds the company and person names, and
+no mail. A chat without the Reloop connection reads a sentence that says where to set it up.
 
 ## What the assistant cannot do
 

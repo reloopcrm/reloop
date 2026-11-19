@@ -1718,6 +1718,7 @@ model AppSetting {
   mailboxProfile        Json?
   threadContactsCursor  String?
   threadAdoptionCursor  String?
+  replyAdoptionCursor   String?
 
   trackingSiteId           String? @unique
   trackingCrossDomain      Boolean @default(true)

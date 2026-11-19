@@ -664,8 +664,9 @@ the largest attachment upload the conversation contracts accept.
 - **`MailboxSync.backfill` is the backward position**, one JSON blob parsed by
   `mailbox/backfill-cursor.ts`: the phase, the opaque page token or
   `@odata.nextLink`, the `before` anchor, the `floor` date, and how far back it
-  has read. **Sent mail is phase one**, because `ThreadWriterService.store` drops
-  an inbound reply whose thread has no outbound message yet. A null column
+  has read. **Sent mail is phase one**, because `ThreadWriterService.store` creates
+  nobody from an inbound mail whose thread has no outbound message yet, unless it
+  is a reply to mail the mailbox never held (see below). A null column
   means no backfill is planned yet, so an existing row starts one on its next
   tick. `MailboxSync.importSince` is what the person asked for; the plan clamps it
   through `clampImportSince`. Both directions share one budget per tick
@@ -718,6 +719,57 @@ the largest attachment upload the conversation contracts accept.
   applies the same rule with the thread's `lastMessageAt`: when the contact it lands on
   is archived and the rule says no, the thread stays `PENDING`. At the contact limit a
   revive leaves the contact archived and stores the mail.
+- **A reply to our own mail becomes a contact, even when our mail is not in the
+  mailbox.** A workspace that sends outreach from another tool only ever syncs the
+  answers. `replyToMissingMail` (`@crm/db/message-text`) is the rule, and the agent
+  reads the same function: the thread holds no `OUTBOUND` message, one message is
+  an `isRealAnswer` (not an automatic reply, not a bounce), its subject carries a
+  reply prefix (`REPLY_PREFIX`), and the thread root is a message id the thread
+  does not hold, so `References` or `In-Reply-To` named a mail we never stored. An
+  `outlook-conversation:` root carries no headers, so there the subject decides
+  alone. `outreachReply` (`mailbox/reply-adoption.ts`) adds the API's half: no
+  sender of the thread is an own address, and the reply was written to an own
+  address. **The rule holds only for `createFrom: "relevant"`.** That policy stores
+  every first mail of a stranger, so a stranger's follow-up to their own mail finds
+  its root in the thread and is refused (`no-reference`). `replied` stores no first
+  mail of a stranger, so there the same follow-up looks like a reply to a missing
+  mail of ours; `replied`, `everyone` and `nobody` therefore keep their old
+  behaviour. `store` creates the contact at once only on lane `forward`, and it
+  matches on the sender alone, so a group in copy never takes the thread. On lane
+  `backfill` the thread stays `PENDING` and waits for the paced pass, so a history
+  import cannot create thousands of contacts in one tick. `externalParticipants` is still the gate: an own address,
+  a suppressed address, a machine address, a role address (`info@`, `sales@`) and
+  a free-mail address never become a contact this way.
+- **Replies that are already stored are filed by a paced pass.**
+  `ReplyAdoptionService.adoptReplies` runs once per sync tick after
+  `ThreadContactsService`, with the same deadline. It reads threads without a
+  contact, newest first, `REPLY_ADOPTION.batch` a tick, and hands each to
+  `ThreadWriterService.adoptReply`. A thread without a company goes through
+  `MailboxMatchService.resolve` with the sender alone, so the company rules are the
+  ordinary ones. A thread already filed under a company gets its sender through
+  `addCompanyContact`, and only when the sender's domain is the company's. The
+  contact, the company and the `EMAIL` activity are dated at the reply, never at
+  the pass, so a reply of May reads as quiet since May. Every filed thread gets a
+  `thread-insight` task on the backfill lane with `reread: true`, and every new
+  contact gets the ordinary `contactCreated`. **The pass creates at most
+  `REPLY_ADOPTION.maxContactsPerDay` (500) contacts per UTC day and workspace**,
+  and `maxCreatesPerTick` (25) per tick; both are in `mailbox/mailbox.config.ts`.
+  A sender who already is a contact is linked and not counted.
+  `AppSetting.replyAdoptionCursor` holds `{ v, day, created, at, id, restUntil }`
+  (`mailbox/reply-adoption-cursor.ts`). The pass reserves its room with a guarded
+  `updateMany` on the old cursor value before it reads, so two overlapping ticks
+  never spend the same room, and it writes the real count afterwards, in a
+  `finally`, so a pass that throws gives the room back. The cursor
+  only moves past a thread that was decided: the daily number, the tick number,
+  the deadline and the contact limit all stop before the thread. After a whole
+  pass the cursor returns to the newest thread and rests `REPLY_ADOPTION.restMs`.
+  A thread that failed is logged with its id and tried again after the rest. One
+  log line per pass carries the counts and the skip reasons, never an address.
+  **Only a `relevant` mailbox adds anyone**: the reply's `syncedByUserId` must own
+  a non-calendar `MailboxSync` with `createFrom: "relevant"`
+  (`MailboxMatchService.relevantOwners`), and the user must not be removed.
+  `adoptRelevant` is a second, older way in: a pending reply that the agent reads
+  as `RELEVANT` and worth adopting is filed by it, outside the daily number.
 - **Every sender of a relevant thread from the company's domain becomes a contact.**
   A thread keeps the one contact it was filed under, so `store` and `adopt` alone
   never file a second person who writes into it. `ThreadContactsService` runs once

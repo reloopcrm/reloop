@@ -98,7 +98,7 @@ export class ThreadContactsService {
 
 		const policy: CreatePolicy = {
 			context: await this.threads.context(),
-			creatingOwners: await this.creatingOwners(),
+			creatingOwners: await this.match.creatingOwners(),
 		};
 		const scanned = await this.scan(rows, policy);
 		const known = await this.knownAddresses(scanned);
@@ -271,7 +271,7 @@ export class ThreadContactsService {
 	}
 
 	async preview(): Promise<ThreadContactsPreview> {
-		const creatingOwners = await this.creatingOwners();
+		const creatingOwners = await this.match.creatingOwners();
 		const policy: CreatePolicy = {
 			context: await this.threads.context(),
 			creatingOwners,
@@ -347,19 +347,6 @@ export class ThreadContactsService {
 		}
 
 		return preview;
-	}
-
-	private async creatingOwners(): Promise<Set<string>> {
-		const rows = await this.db.mailboxSync.findMany({
-			where: {
-				source: { not: "calendar" },
-				user: { removedAt: null },
-				OR: [{ autoCreate: true }, { createFrom: "relevant" }],
-			},
-			select: { userId: true },
-		});
-
-		return new Set(rows.map((row) => row.userId));
 	}
 
 	private async readCursor(): Promise<ThreadContactsCursor | null> {

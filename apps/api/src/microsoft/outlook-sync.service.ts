@@ -3,6 +3,7 @@ import {
 	GoogleSyncStatus,
 	type MailboxSyncModel as MailboxSync,
 } from "@crm/db";
+import { CONVERSATION_ROOT_PREFIX } from "@crm/db/message-text";
 import { planLimitsOf } from "@crm/db/plan-usage";
 import { clampImportSince } from "@crm/db/plans";
 import type { AgentTaskOrigin } from "@crm/validation/agent-task-payload";
@@ -54,8 +55,6 @@ import {
 } from "./graph.client";
 
 const EXCLUDED_FOLDERS = ["junkemail", "deleteditems"] as const;
-
-const CONVERSATION_ROOT_PREFIX = "outlook-conversation:";
 
 const SENT_FOLDER = "sentitems";
 

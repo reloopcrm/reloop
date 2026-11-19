@@ -67,6 +67,7 @@ export type MatchRequest = {
 	source: SyncRecordSource;
 	ownerId: string;
 	deferResearch?: boolean;
+	lastMailAt?: Date;
 };
 
 export type ContactRequest = Pick<MatchRequest, "source" | "ownerId">;
@@ -137,6 +138,32 @@ export class MailboxMatchService {
 		}
 
 		return { addresses, domains };
+	}
+
+	async creatingOwners(): Promise<Set<string>> {
+		const rows = await this.db.mailboxSync.findMany({
+			where: {
+				source: { not: "calendar" },
+				user: { removedAt: null },
+				OR: [{ autoCreate: true }, { createFrom: "relevant" }],
+			},
+			select: { userId: true },
+		});
+
+		return new Set(rows.map((row) => row.userId));
+	}
+
+	async relevantOwners(): Promise<Set<string>> {
+		const rows = await this.db.mailboxSync.findMany({
+			where: {
+				source: { not: "calendar" },
+				user: { removedAt: null },
+				createFrom: "relevant",
+			},
+			select: { userId: true },
+		});
+
+		return new Set(rows.map((row) => row.userId));
 	}
 
 	async suppressedDomains(): Promise<Set<string>> {
@@ -300,6 +327,7 @@ export class MailboxMatchService {
 					? "Created because you met someone at {domain}."
 					: "Created because you emailed someone at {domain}.",
 			meta: { source: request.source, domain },
+			at: request.lastMailAt,
 		});
 
 		this.logger.log({
@@ -411,6 +439,7 @@ export class MailboxMatchService {
 			person,
 			companyId,
 			request,
+			request.lastMailAt,
 		);
 		const wanted = research ? [research] : [];
 		if (!request.deferResearch) await this.queueResearch(wanted);

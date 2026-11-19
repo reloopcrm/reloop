@@ -16,6 +16,13 @@ export const THREAD_CONTACTS = {
 	previewBudgetMs: 30 * MINUTE_MS,
 } as const;
 
+export const REPLY_ADOPTION = {
+	batch: 100,
+	maxCreatesPerTick: 25,
+	maxContactsPerDay: 500,
+	restMs: 30 * MINUTE_MS,
+} as const;
+
 export const MESSAGE_FAILURES = {
 	maxAttempts: THREAD_CONTACTS.maxThreadAttempts,
 	maxIdLength: 256,

@@ -12,6 +12,7 @@ import type { ImapSyncService } from "../src/imap/imap-sync.service";
 import type { DirectionRepairService } from "../src/mailbox/direction-repair.service";
 import { SYNC_LEASE, SYNC_TICK } from "../src/mailbox/mailbox.config";
 import type { RealAnswerBackfillService } from "../src/mailbox/real-answer-backfill.service";
+import type { ReplyAdoptionService } from "../src/mailbox/reply-adoption.service";
 import type { SyncStateService } from "../src/mailbox/sync-state.service";
 import type { ThreadAdoptionService } from "../src/mailbox/thread-adoption.service";
 import type { ThreadContactsService } from "../src/mailbox/thread-contacts.service";
@@ -149,6 +150,7 @@ function build(
 		} as unknown as AgentTriggerService,
 		{ repair: async () => 0 } as unknown as DirectionRepairService,
 		{ addFromRelevantThreads } as unknown as ThreadContactsService,
+		{ adoptReplies: async () => 0 } as unknown as ReplyAdoptionService,
 		{
 			backfill: async () => {
 				asked.push("real-answers");

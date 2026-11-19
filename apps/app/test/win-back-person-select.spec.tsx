@@ -6,6 +6,7 @@ GlobalRegistrator.register({ url: "https://crm.test/" });
 	globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
+const nuqs = { ...(await import("nuqs")) };
 const parser = { withDefault: (value: string[]) => value };
 mock.module("nuqs", () => ({
 	parseAsArrayOf: () => parser,
@@ -75,6 +76,11 @@ const { pickableIds, pickedSummary, winBackPicked } = await import(
 const { useT } = await import("../lib/i18n/client");
 
 afterAll(() => {
+	mock.restore();
+	mock.module("nuqs", () => nuqs);
+	mock.module("sonner", () => sonner);
+	mock.module("../lib/trpc/cache", () => cache);
+	mock.module("../lib/trpc/client", () => client);
 	GlobalRegistrator.unregister();
 });
 

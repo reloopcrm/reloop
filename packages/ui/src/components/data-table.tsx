@@ -630,27 +630,48 @@ export function DataTable<TRow, TSub = unknown>({
 		}
 	};
 
-	const pick = (id: string, next: boolean, range: boolean) => {
+	const pickTargets = (): { id: string; sub: boolean }[] =>
+		deferredRows
+			.filter((row) => !(groups && closedGroups.has(groups.keyOf(row))))
+			.flatMap((row) => {
+				const id = getRowId(row);
+				const open =
+					pickBySub &&
+					expandable != null &&
+					expandable.isExpandable(row) &&
+					expanded.has(id);
+				const subs = open
+					? expandable
+							.getSubRows(row)
+							.map((sub) => ({
+								id: expandable.getSubRowId(sub, row),
+								sub: true,
+							}))
+					: [];
+				return [{ id, sub: false }, ...subs];
+			});
+
+	const setTarget = (target: { id: string; sub: boolean }, next: boolean) => {
+		if (target.sub) selection?.state.toggle(target.id, next);
+		else setRow(target.id, next);
+	};
+
+	const pick = (id: string, next: boolean, range: boolean, sub = false) => {
 		if (!selection) return;
+		const targets = pickTargets();
 		const anchor = lastPicked.current;
-		if (range && anchor && anchor !== id) {
-			const rowIds = deferredRows
-				.filter((row) => !(groups && closedGroups.has(groups.keyOf(row))))
-				.map((row) => getRowId(row));
-			const from = rowIds.indexOf(anchor);
-			const to = rowIds.indexOf(id);
-			if (from !== -1 && to !== -1) {
-				for (const rowId of rowIds.slice(
-					Math.min(from, to),
-					Math.max(from, to) + 1,
-				)) {
-					setRow(rowId, next);
-				}
-				lastPicked.current = id;
-				return;
+		const from = anchor ? targets.findIndex((one) => one.id === anchor) : -1;
+		const to = targets.findIndex((one) => one.id === id);
+		if (range && anchor !== id && from !== -1 && to !== -1) {
+			for (const target of targets.slice(
+				Math.min(from, to),
+				Math.max(from, to) + 1,
+			)) {
+				setTarget(target, next);
 			}
+		} else {
+			setTarget(targets[to] ?? { id, sub }, next);
 		}
-		setRow(id, next);
 		lastPicked.current = id;
 	};
 
@@ -844,7 +865,7 @@ export function DataTable<TRow, TSub = unknown>({
 											checked={subSelected}
 											onClick={(event) => {
 												event.preventDefault();
-												selection.state.toggle(subId, !subSelected);
+												pick(subId, !subSelected, event.shiftKey, true);
 											}}
 											aria-label={t("Select {name}", {
 												name: selection.subRows?.label(sub, row) ?? subId,
@@ -865,6 +886,7 @@ export function DataTable<TRow, TSub = unknown>({
 										className={cn(
 											CARD_CELL,
 											index > 0 && CARD_LABEL,
+											index > 0 && pickBySub && "max-lg:order-2",
 											!column.control && TEXT_CELL,
 											index === 0 &&
 												"pl-8 max-lg:basis-full max-lg:pl-0 [&>*]:max-w-full",

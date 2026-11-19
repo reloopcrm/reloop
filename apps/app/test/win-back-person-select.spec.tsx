@@ -114,6 +114,7 @@ const ROWS: Row[] = [
 		people: [
 			person("nico", "Nico", "Sample"),
 			person("wolfgang", "Wolfgang", "Example"),
+			person("hans", "Hans", "Sample"),
 		],
 	},
 	{
@@ -149,7 +150,10 @@ function Harness() {
 
 	return createElement(DataTable<Row, Person>, {
 		query,
-		columns: [{ id: "name", header: "Company", cell: (row: Row) => row.name }],
+		columns: [
+			{ id: "name", header: "Company", cell: (row: Row) => row.name },
+			{ id: "people", header: "People", cell: (row: Row) => row.people.length },
+		],
 		rows: ROWS,
 		total: ROWS.length,
 		getRowId: (row: Row) => row.key,
@@ -297,7 +301,7 @@ describe("picking people on the Win back page", () => {
 			"true",
 		);
 		expect(box("Select Nico Sample").getAttribute("aria-checked")).toBe("true");
-		expect(bar()).toContain("2 people from 1 company");
+		expect(bar()).toContain("3 people from 1 company");
 
 		await click(box("Select Example Anreu"));
 		expect(document.querySelector('[data-slot="selection-bar"]')).toBe(null);
@@ -319,8 +323,40 @@ describe("picking people on the Win back page", () => {
 		const unmount = await mount();
 		await click(box("Select every row on this page"));
 
-		expect(bar()).toContain("4 people from 2 companies");
-		expect(await copyText()).toContain('["nico","wolfgang","ute","jan"]');
+		expect(bar()).toContain("5 people from 2 companies");
+		expect(await copyText()).toContain(
+			'["nico","wolfgang","hans","ute","jan"]',
+		);
+		await unmount();
+	});
+
+	it("picks every person between two clicks with shift", async () => {
+		const unmount = await mount();
+		await click(box("Select Nico Sample"));
+		await act(async () => {
+			box("Select Hans Sample").dispatchEvent(
+				new MouseEvent("click", { bubbles: true, shiftKey: true }),
+			);
+		});
+
+		for (const name of ["Nico Sample", "Wolfgang Example", "Hans Sample"]) {
+			expect(box(`Select ${name}`).getAttribute("aria-checked")).toBe("true");
+		}
+		expect(await copyText()).toContain('["nico","wolfgang","hans"]');
+		await unmount();
+	});
+
+	it("keeps the person checkbox in the title line on a phone", async () => {
+		const unmount = await mount();
+		const row = box("Select Wolfgang Example").closest("tr");
+		const cells = [...(row?.querySelectorAll("td") ?? [])].map(
+			(cell) => cell.className,
+		);
+
+		expect(cells).toHaveLength(3);
+		expect(cells[0]).toContain("max-lg:order-1");
+		expect(cells[1]).not.toContain("max-lg:order-");
+		expect(cells[2]).toContain("max-lg:order-2");
 		await unmount();
 	});
 

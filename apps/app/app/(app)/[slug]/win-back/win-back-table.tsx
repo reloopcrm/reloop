@@ -39,11 +39,11 @@ import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { withListState } from "./[contactId]/person-view";
-import type { AiSelectionGroup } from "./win-back-ai-prompt";
 import { WinBackBulkVerdict } from "./win-back-bulk-verdict";
 import { WIN_BACK_UI } from "./win-back-config";
 import { WinBackCopyForAi } from "./win-back-copy-for-ai";
 import { readingHint, winBackEmptyText } from "./win-back-empty";
+import { pickableIds, pickedSummary, winBackPicked } from "./win-back-picked";
 import {
 	winBackInput,
 	winBackScopeParsers,
@@ -318,21 +318,8 @@ export function WinBackTable() {
 	const hint = readingHint(reading.data, t);
 
 	const rows = query.data?.rows ?? [];
-	const selection = useTableSelection(
-		useMemo(() => rows.map((row) => row.key), [rows]),
-	);
-	const selectedRows = rows.filter((row) => selection.has(row.key));
-	const selectedPeople = selectedRows.flatMap((row) =>
-		row.people.map((person) => person.id),
-	);
-	const selectedForAi: AiSelectionGroup[] = selectedRows.map((row) => ({
-		company: row.company?.name ?? null,
-		people: row.people.map((person) => ({
-			id: person.id,
-			name: contactName(person) || (person.email ?? ""),
-			title: person.title,
-		})),
-	}));
+	const selection = useTableSelection(useMemo(() => pickableIds(rows), [rows]));
+	const picked = winBackPicked(rows, selection.has);
 	const facetCounts = query.data?.facetCounts;
 	const people = query.data?.people ?? 0;
 	const shown = rows.reduce((sum, row) => sum + row.people.length, 0);
@@ -468,16 +455,18 @@ export function WinBackTable() {
 				}
 				selection={{
 					state: selection,
+					summary: pickedSummary(picked, t),
 					actions: (
 						<>
-							<WinBackCopyForAi groups={selectedForAi} />
+							<WinBackCopyForAi groups={picked.groups} />
 							<WinBackBulkVerdict
-								contactIds={selectedPeople}
+								contactIds={picked.contactIds}
 								onDone={selection.clear}
 							/>
 						</>
 					),
 					rowLabel: (row) => row.name,
+					subRows: { label: (person: Person) => contactName(person) },
 				}}
 				getRowId={(row) => row.key}
 				loading={query.isFetching}

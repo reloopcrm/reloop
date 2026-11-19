@@ -143,6 +143,49 @@ describe("DataTable", () => {
 		expect(picked).toContain("Clear selection");
 	});
 
+	it("marks a row as partly picked when only some of its sub rows are picked", () => {
+		const rows = [{ id: "acme", name: "Acme", people: ["p1", "p2"] }];
+		const render = (picked: string[]) =>
+			renderToStaticMarkup(
+				<DataTable
+					query={query}
+					columns={[{ id: "name", header: "Name", cell: (row) => row.name }]}
+					rows={rows}
+					total={1}
+					getRowId={(row) => row.id}
+					expandable={{
+						isExpandable: () => true,
+						getSubRows: (row) => row.people,
+						getSubRowId: (sub) => sub,
+						renderSubCell: (sub) => sub,
+					}}
+					selection={{
+						state: {
+							...noSelection,
+							ids: picked,
+							count: picked.length,
+							has: (id) => picked.includes(id),
+						},
+						actions: null,
+						summary: `${picked.length} people`,
+						rowLabel: (row) => row.name,
+						subRows: { label: (sub) => sub },
+					}}
+				/>,
+			);
+
+		const some = render(["p1"]);
+		expect(some).toMatch(/aria-checked="mixed"[^>]*aria-label="Select Acme"/);
+		expect(some).toContain("1 people");
+		expect(some).not.toContain("1 selected");
+
+		const all = render(["p1", "p2"]);
+		expect(all).toMatch(/aria-checked="true"[^>]*aria-label="Select Acme"/);
+
+		const none = render([]);
+		expect(none).toMatch(/aria-checked="false"[^>]*aria-label="Select Acme"/);
+	});
+
 	it("lets the select-all checkbox header overflow its cell", () => {
 		const selectionMarkup = renderToStaticMarkup(
 			<DataTable

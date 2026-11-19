@@ -125,10 +125,12 @@ export type DataTableExpandable<TRow, TSub> = {
 	label?: (row: TRow) => string;
 };
 
-export type DataTableSelection<TRow> = {
+export type DataTableSelection<TRow, TSub = unknown> = {
 	state: TableSelection;
 	actions: ReactNode;
 	rowLabel?: (row: TRow) => string;
+	subRows?: { label: (sub: TSub, row: TRow) => string };
+	summary?: string;
 };
 
 export type DataTableProps<TRow, TSub> = {
@@ -146,7 +148,7 @@ export type DataTableProps<TRow, TSub> = {
 	onRowClick?: (row: TRow) => void;
 	onRowHover?: (row: TRow) => void;
 	expandable?: DataTableExpandable<TRow, TSub>;
-	selection?: DataTableSelection<TRow>;
+	selection?: DataTableSelection<TRow, TSub>;
 	actions?: ReactNode;
 	leadingActions?: ReactNode;
 	search?: ReactNode;
@@ -443,11 +445,13 @@ function GoToPage({ go }: { go: () => void }) {
 
 function SelectionBar({
 	count,
+	summary,
 	actions,
 	onClear,
 	onHeight,
 }: {
 	count: number;
+	summary?: string;
 	actions: ReactNode;
 	onClear: () => void;
 	onHeight: (height: number) => void;
@@ -487,9 +491,10 @@ function SelectionBar({
 			className="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-md border border-border-strong bg-popover px-3 py-2 text-2sm shadow-lg max-lg:bottom-3 max-lg:w-[calc(100vw-2rem)] max-lg:justify-start"
 		>
 			<span className="tabular-nums">
-				{count === 1
-					? t("1 selected")
-					: t("{count} selected", { count: String(count) })}
+				{summary ??
+					(count === 1
+						? t("1 selected")
+						: t("{count} selected", { count: String(count) }))}
 			</span>
 			<span className="flex flex-wrap items-center gap-1.5">{actions}</span>
 			<Button
@@ -608,27 +613,65 @@ export function DataTable<TRow, TSub = unknown>({
 			return next.length > 0 ? next : null;
 		});
 
-	const pick = (id: string, next: boolean, range: boolean) => {
+	const pickBySub = selection?.subRows != null && expandable != null;
+	const leafIdsOf = (row: TRow): string[] => {
+		const id = getRowId(row);
+		if (!pickBySub || !expandable) return [id];
+		const subIds = expandable
+			.getSubRows(row)
+			.map((sub) => expandable.getSubRowId(sub, row));
+		return subIds.length > 0 ? subIds : [id];
+	};
+	const setRow = (rowId: string, next: boolean) => {
 		if (!selection) return;
-		const anchor = lastPicked.current;
-		if (range && anchor && anchor !== id) {
-			const rowIds = deferredRows
-				.filter((row) => !(groups && closedGroups.has(groups.keyOf(row))))
-				.map((row) => getRowId(row));
-			const from = rowIds.indexOf(anchor);
-			const to = rowIds.indexOf(id);
-			if (from !== -1 && to !== -1) {
-				for (const rowId of rowIds.slice(
-					Math.min(from, to),
-					Math.max(from, to) + 1,
-				)) {
-					selection.state.toggle(rowId, next);
-				}
-				lastPicked.current = id;
-				return;
-			}
+		const row = deferredRows.find((one) => getRowId(one) === rowId);
+		for (const leaf of row ? leafIdsOf(row) : [rowId]) {
+			selection.state.toggle(leaf, next);
 		}
-		selection.state.toggle(id, next);
+	};
+
+	const pickTargets = (): { id: string; sub: boolean }[] =>
+		deferredRows
+			.filter((row) => !(groups && closedGroups.has(groups.keyOf(row))))
+			.flatMap((row) => {
+				const id = getRowId(row);
+				const open =
+					pickBySub &&
+					expandable != null &&
+					expandable.isExpandable(row) &&
+					expanded.has(id);
+				const subs = open
+					? expandable
+							.getSubRows(row)
+							.map((sub) => ({
+								id: expandable.getSubRowId(sub, row),
+								sub: true,
+							}))
+					: [];
+				return [{ id, sub: false }, ...subs];
+			});
+
+	const setTarget = (target: { id: string; sub: boolean }, next: boolean) => {
+		if (target.sub) selection?.state.toggle(target.id, next);
+		else setRow(target.id, next);
+	};
+
+	const pick = (id: string, next: boolean, range: boolean, sub = false) => {
+		if (!selection) return;
+		const targets = pickTargets();
+		const anchor = lastPicked.current;
+		const from = anchor ? targets.findIndex((one) => one.id === anchor) : -1;
+		const to = targets.findIndex((one) => one.id === id);
+		if (range && anchor !== id && from !== -1 && to !== -1) {
+			for (const target of targets.slice(
+				Math.min(from, to),
+				Math.max(from, to) + 1,
+			)) {
+				setTarget(target, next);
+			}
+		} else {
+			setTarget(targets[to] ?? { id, sub }, next);
+		}
 		lastPicked.current = id;
 	};
 
@@ -644,7 +687,12 @@ export function DataTable<TRow, TSub = unknown>({
 		const id = getRowId(row);
 		const canExpand = expandable?.isExpandable(row) ?? false;
 		const isOpen = canExpand && expanded.has(id);
-		const isSelected = selection?.state.has(id) ?? false;
+		const leaves = leafIdsOf(row);
+		const pickedLeaves = selection
+			? leaves.filter((leaf) => selection.state.has(leaf)).length
+			: 0;
+		const isSelected = leaves.length > 0 && pickedLeaves === leaves.length;
+		const isPartial = pickedLeaves > 0 && !isSelected;
 		const clickable = canExpand || !!onRowClick;
 		const activate = () => {
 			if (canExpand) toggleExpanded(id);
@@ -687,7 +735,9 @@ export function DataTable<TRow, TSub = unknown>({
 							onClick={(event) => event.stopPropagation()}
 						>
 							<Checkbox
-								checked={isSelected}
+								checked={
+									isSelected ? true : isPartial ? "indeterminate" : false
+								}
 								onClick={(event) => {
 									event.preventDefault();
 									pick(id, !isSelected, event.shiftKey);
@@ -699,7 +749,7 @@ export function DataTable<TRow, TSub = unknown>({
 								}
 								className={cn(
 									"opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 max-lg:opacity-100",
-									(selecting || isSelected) && "opacity-100",
+									(selecting || isSelected || isPartial) && "opacity-100",
 								)}
 							/>
 						</TableCell>
@@ -769,9 +819,13 @@ export function DataTable<TRow, TSub = unknown>({
 					expandable?.getSubRows(row).map((sub) => {
 						const subClickable = !!expandable.onSubRowClick;
 						const openSub = () => expandable.onSubRowClick?.(sub, row);
+						const subId = expandable.getSubRowId(sub, row);
+						const subSelected =
+							pickBySub && (selection?.state.has(subId) ?? false);
 						return (
 							<TableRow
-								key={expandable.getSubRowId(sub, row)}
+								key={subId}
+								data-state={subSelected ? "selected" : undefined}
 								tabIndex={subClickable ? 0 : undefined}
 								onClick={
 									subClickable
@@ -792,16 +846,39 @@ export function DataTable<TRow, TSub = unknown>({
 										: undefined
 								}
 								className={cn(
-									"bg-muted text-body-foreground",
+									"group/row bg-muted text-body-foreground",
 									CARD_ROW,
 									"max-lg:pl-3",
 									subClickable &&
 										"cursor-pointer outline-none focus-visible:shadow-[inset_2px_0_0_var(--ring)]",
 								)}
 							>
-								{selection && (
+								{selection && pickBySub ? (
+									<TableCell
+										className={cn(
+											CARD_CELL,
+											"max-lg:order-1 max-lg:basis-5 max-lg:pt-0.5",
+										)}
+										onClick={(event) => event.stopPropagation()}
+									>
+										<Checkbox
+											checked={subSelected}
+											onClick={(event) => {
+												event.preventDefault();
+												pick(subId, !subSelected, event.shiftKey, true);
+											}}
+											aria-label={t("Select {name}", {
+												name: selection.subRows?.label(sub, row) ?? subId,
+											})}
+											className={cn(
+												"opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 max-lg:opacity-100",
+												(selecting || subSelected) && "opacity-100",
+											)}
+										/>
+									</TableCell>
+								) : selection ? (
 									<TableCell className={cn(CARD_CELL, "max-lg:hidden")} />
-								)}
+								) : null}
 								{visibleColumns.map((column, index) => (
 									<TableCell
 										key={column.id}
@@ -809,9 +886,13 @@ export function DataTable<TRow, TSub = unknown>({
 										className={cn(
 											CARD_CELL,
 											index > 0 && CARD_LABEL,
+											index > 0 && pickBySub && "max-lg:order-2",
 											!column.control && TEXT_CELL,
 											index === 0 &&
 												"pl-8 max-lg:basis-full max-lg:pl-0 [&>*]:max-w-full",
+											index === 0 &&
+												pickBySub &&
+												"max-lg:flex-1 max-lg:basis-[calc(100%-2rem)]",
 											ALIGN_CLASS[column.align ?? "left"],
 											column.cellClassName,
 										)}
@@ -1118,6 +1199,7 @@ export function DataTable<TRow, TSub = unknown>({
 			{selecting && selection ? (
 				<SelectionBar
 					count={selection.state.count}
+					summary={selection.summary}
 					actions={selection.actions}
 					onClear={selection.state.clear}
 					onHeight={setBarHeight}

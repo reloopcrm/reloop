@@ -451,7 +451,10 @@ and nothing else. The user-facing steps live in `docs/ai-assistants.md`.
   call the services behind the search, the Win back list and the person view. No tool has a write path. A tool that reads a person or a
   thread queues the same `AgentTask` rows opening that page queues. The limits live in `MCP` in
   `src/mcp/mcp.config.ts`.
-- **A Win back selection is one call.** The Win back page copies a text for an AI chat: the
+- **A Win back selection is one call.** The Win back page picks people, not companies: each
+  person row of an open company has its own checkbox, and the company checkbox takes all its
+  people, open or closed (`selection.subRows` on the shared `DataTable`). Every action of the
+  selection bar works on the picked people only. The page copies a text for an AI chat: the
   tool name, the contact ids and one line per person. It holds no mail, and no address unless a
   contact has no name. The tool name and the id cap live in `@crm/validation/win-back-selection`,
   because the app writes the text and the API reads the call. `get_win_back_selection` takes at

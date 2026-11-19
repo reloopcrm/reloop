@@ -37,7 +37,8 @@ import {
 type WinBackPerson = Awaited<ReturnType<WinBackPersonService["person"]>>;
 type ContactRecord = Awaited<ReturnType<ContactsService["byId"]>>;
 type DraftState = Awaited<ReturnType<ContactsService["draft"]>>;
-type MailLimits = { mails: number; bodyChars: number };
+type MailLimits = { mails: number; bodyChars: number; textChars: number };
+type ContactLimits = { deals: number; textChars: number };
 type SelectionEntry = WinBackSelectionToolOutput["contacts"][number];
 
 function chunksOf<T>(items: T[], size: number): T[][] {
@@ -267,7 +268,10 @@ export class McpToolsService {
 		const contact = await this.contacts.byId(contactId);
 		const view = await this.personView(contactId);
 
-		return this.contactOf(contact, view);
+		return this.contactOf(contact, view, {
+			deals: MCP.limits.contact.deals,
+			textChars: MCP.limits.summary.maxChars,
+		});
 	}
 
 	async contactMails(contactId: string): Promise<ContactMailsToolOutput> {
@@ -276,6 +280,7 @@ export class McpToolsService {
 		return this.mailsOf(contactId, view, {
 			mails: MCP.limits.contact.mails,
 			bodyChars: MCP.limits.contact.bodyChars,
+			textChars: MCP.limits.summary.maxChars,
 		});
 	}
 
@@ -319,10 +324,14 @@ export class McpToolsService {
 			]);
 
 			return {
-				contact: this.contactOf(contact, view),
+				contact: this.contactOf(contact, view, {
+					deals: limits.deals,
+					textChars: limits.textChars,
+				}),
 				mails: this.mailsOf(contact.id, view, {
 					mails: limits.mails,
 					bodyChars: limits.mailBodyChars,
+					textChars: limits.textChars,
 				}),
 				draft: this.draftOf(draft, limits.draftBodyChars),
 			};
@@ -335,7 +344,11 @@ export class McpToolsService {
 	private contactOf(
 		contact: ContactRecord,
 		view: WinBackPerson | null,
+		limits: ContactLimits,
 	): ContactToolOutput {
+		const text = (value: string | null | undefined) =>
+			clipOrNull(value?.trim(), limits.textChars);
+
 		return {
 			id: contact.id,
 			name: personName(contact.firstName, contact.lastName, contact.email),
@@ -355,7 +368,7 @@ export class McpToolsService {
 			owner: contact.owner
 				? { name: label(contact.owner.name), email: contact.owner.email }
 				: null,
-			deals: contact.deals.slice(0, MCP.limits.contact.deals).map((deal) => ({
+			deals: contact.deals.slice(0, limits.deals).map((deal) => ({
 				id: deal.id,
 				name: personName(deal.name, null),
 				stage: deal.stage,
@@ -365,7 +378,7 @@ export class McpToolsService {
 				expectedCloseDate: deal.expectedCloseDate,
 				url: recordUrl("deal", deal.id),
 			})),
-			brief: summary(contact.brief?.narrative),
+			brief: text(contact.brief?.narrative),
 			winBack: view
 				? {
 						potential: view.potential,
@@ -373,15 +386,17 @@ export class McpToolsService {
 						waitingOnUs: view.waitingOnUs,
 						firstContactAt: view.firstContactAt,
 						lastContactAt: view.lastContactAt,
-						brief: summary(view.brief),
+						brief: text(view.brief),
 						story: view.story
 							? {
-									gist: view.story.gist,
-									together: view.story.together?.text ?? null,
-									stopped: view.story.stopped?.text ?? null,
-									stoppedQuote: view.story.stopped?.quote?.text ?? null,
-									bringBack: view.story.bringBack?.text ?? null,
-									bringBackPoints: view.story.bringBack?.points ?? [],
+									gist: text(view.story.gist) ?? "",
+									together: text(view.story.together?.text),
+									stopped: text(view.story.stopped?.text),
+									stoppedQuote: text(view.story.stopped?.quote?.text),
+									bringBack: text(view.story.bringBack?.text),
+									bringBackPoints: (view.story.bringBack?.points ?? []).map(
+										(point) => clip(point, limits.textChars),
+									),
 								}
 							: null,
 						facts: {
@@ -412,7 +427,7 @@ export class McpToolsService {
 				direction: mail.direction,
 				from: { name: label(mail.fromName), email: mail.fromEmail },
 				sentAt: mail.sentAt,
-				summary: summary(mail.summary),
+				summary: clipOrNull(mail.summary?.trim(), limits.textChars),
 				body: clipOrNull(mail.body, limits.bodyChars),
 				marks: mail.marks,
 				key: mail.key,

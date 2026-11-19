@@ -31,6 +31,9 @@ const companyId = `mcp-company-${RUN}`;
 const contactId = `mcp-contact-${RUN}`;
 const dealId = `mcp-deal-${RUN}`;
 const threadId = `mcp-thread-${RUN}`;
+const mailContactId = `mcp-mail-contact-${RUN}`;
+const mailThreadId = `mcp-mail-thread-${RUN}`;
+const LONG_BODY = "Palettenanfrage ".repeat(120);
 const companyName = `Preview Pallets ${RUN}`;
 const redirectUri = "https://client.example/callback";
 const MCP_ACCEPT = "application/json, text/event-stream";
@@ -219,6 +222,61 @@ beforeAll(async () => {
 		},
 	});
 
+	await db.contact.create({
+		data: {
+			id: mailContactId,
+			firstName: "Mail",
+			lastName: `Reader ${RUN}`,
+			email: `mail-reader-${RUN}@mcp-${RUN}.example`,
+			companyId,
+			ownerId: userId,
+		},
+	});
+	const mailDays = [1, 2, 3, 4].map(
+		(day) => new Date(`2025-11-0${day}T10:00:00.000Z`),
+	);
+	await db.emailThread.create({
+		data: {
+			id: mailThreadId,
+			rootMessageId: `<mail-root-${RUN}@example.com>`,
+			subject: "Pallets again",
+			contactId: mailContactId,
+			companyId,
+			firstMessageAt: mailDays[0] ?? sentAt,
+			lastMessageAt: mailDays[3] ?? sentAt,
+			messageCount: mailDays.length,
+			messages: {
+				create: mailDays.map((day, index) => ({
+					rfcMessageId: `<mail-${index}-${RUN}@example.com>`,
+					direction: "INBOUND" as const,
+					fromEmail: `mail-reader-${RUN}@mcp-${RUN}.example`,
+					recipients: [{ email, name: null, kind: "to" }],
+					subject: "Pallets again",
+					body: LONG_BODY,
+					summary: LONG_BODY,
+					sentAt: day,
+				})),
+			},
+			insight: {
+				create: {
+					relevant: true,
+					outcome: "OPEN_INQUIRY_THEIRS",
+					unansweredByUs: true,
+					summary: "Asks for pallets again.",
+					modelId: "test",
+					lastMessageAt: mailDays[3] ?? sentAt,
+				},
+			},
+		},
+	});
+	await db.emailDraft.create({
+		data: {
+			contactId: mailContactId,
+			subject: "Pallets for the new season",
+			body: LONG_BODY.repeat(2),
+		},
+	});
+
 	apiKey = (
 		await auth.api.createApiKey({
 			body: { name: "mcp flow", userId, expiresIn: null },
@@ -245,16 +303,25 @@ afterAll(async () => {
 		where: {
 			OR: [
 				{ contactId },
+				{ contactId: mailContactId },
 				{ companyId },
 				{ dealId },
 				{ payload: { path: ["threadId"], equals: threadId } },
 			],
 		},
 	});
-	await db.emailMessage.deleteMany({ where: { threadId } });
-	await db.emailThread.deleteMany({ where: { id: threadId } });
+	await db.emailMessage.deleteMany({
+		where: { threadId: { in: [threadId, mailThreadId] } },
+	});
+	await db.threadInsight.deleteMany({ where: { threadId: mailThreadId } });
+	await db.emailThread.deleteMany({
+		where: { id: { in: [threadId, mailThreadId] } },
+	});
+	await db.emailDraft.deleteMany({ where: { contactId: mailContactId } });
 	await db.deal.deleteMany({ where: { id: dealId } });
-	await db.contact.deleteMany({ where: { id: contactId } });
+	await db.contact.deleteMany({
+		where: { id: { in: [contactId, mailContactId] } },
+	});
 	await db.company.deleteMany({ where: { id: companyId } });
 	if (clientId) await db.oauthClient.deleteMany({ where: { clientId } });
 	await db.apikey.deleteMany({ where: { referenceId: userId } });
@@ -485,6 +552,29 @@ describe("the MCP endpoint with an API key", () => {
 				draft: expect.objectContaining({ contactId, draft: null }),
 			},
 		]);
+	});
+
+	it("reads the newest mails and the draft of a selected person in short", async () => {
+		const response = await callTool(
+			WIN_BACK_SELECTION.tool,
+			{ contactIds: [mailContactId] },
+			headers(),
+		);
+		const result = response.body.result;
+		const [entry] = result.structuredContent.contacts;
+		const limits = MCP.limits.selection;
+
+		expect(result.isError).toBeUndefined();
+		expect(entry.contact.id).toBe(mailContactId);
+		expect(entry.contact.winBack).not.toBeNull();
+		expect(entry.mails.mailCount).toBe(4);
+		expect(entry.mails.mails).toHaveLength(limits.mails);
+		for (const mail of entry.mails.mails) {
+			expect(mail.body.length).toBeLessThanOrEqual(limits.mailBodyChars);
+			expect(mail.summary.length).toBeLessThanOrEqual(limits.textChars);
+		}
+		expect(entry.draft.draft.subject).toBe("Pallets for the new season");
+		expect(entry.draft.draft.body.length).toBe(limits.draftBodyChars);
 	});
 
 	it("answers an empty selection when every id is unknown", async () => {

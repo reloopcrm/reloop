@@ -69,8 +69,10 @@ export const MCP = {
 		selection: {
 			contacts: WIN_BACK_SELECTION.maxContacts,
 			parallel: 4,
+			deals: 5,
 			mails: 3,
 			mailBodyChars: 500,
+			textChars: 600,
 			draftBodyChars: 2_000,
 		},
 		fetch: { textChars: 8_000 },

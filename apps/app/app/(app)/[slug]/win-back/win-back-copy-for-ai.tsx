@@ -30,7 +30,7 @@ export function WinBackCopyForAi({ groups }: { groups: AiSelectionGroup[] }) {
 			variant="outline"
 			size="sm"
 			onClick={() => void copy()}
-			disabled={groups.length === 0}
+			disabled={groups.every((group) => group.people.length === 0)}
 		>
 			{copied ? (
 				<Checkmark data-icon="inline-start" />

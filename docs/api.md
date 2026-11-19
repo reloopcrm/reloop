@@ -457,9 +457,10 @@ and nothing else. The user-facing steps live in `docs/ai-assistants.md`.
   because the app writes the text and the API reads the call. `get_win_back_selection` takes at
   most `MCP.limits.selection.contacts` ids. The text splits a larger selection into lists of that
   size, one call each. For each contact the tool returns what `get_contact`, `get_contact_mails`
-  and `get_contact_draft` return, with fewer mails and shorter bodies, so the answer fits the
-  tool output limit of an MCP client. An unknown id is skipped and counted in `skipped`, not an
-  error. The contacts run `MCP.limits.selection.parallel` at a time. Each one queues the same
+  and `get_contact_draft` return, with fewer deals and mails and shorter texts
+  (`MCP.limits.selection`). That keeps one answer small, because an MCP client cuts a long tool
+  result. The cap of 20 is an estimate, not a measurement. An unknown id is skipped and counted in
+  `skipped`, not an error. The contacts run `MCP.limits.selection.parallel` at a time. Each one queues the same
   story and draft work as opening the person page, so one call queues work for up to 20 people.
 - **No intelligence runs there.** The endpoint returns stored data and writes an `AgentTask` row at
   most. It calls no model and scores nothing. The agent decides, as everywhere else in the API.

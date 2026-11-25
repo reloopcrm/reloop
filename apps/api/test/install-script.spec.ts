@@ -30,6 +30,15 @@ case "$*" in
 esac
 `;
 
+const FAKE_DOCKER_NEEDS_SUDO = `#!/bin/sh
+printf '%s\\n' "$*" >> "$FAKE_LOG"
+if [ "$FAKE_VIA_SUDO" != "1" ]; then exit 1; fi
+${FAKE_DOCKER.split("\n").slice(2).join("\n")}`;
+
+const FAKE_SUDO = `#!/bin/sh
+FAKE_VIA_SUDO=1 exec "$@"
+`;
+
 const FAKE_CURL = `#!/bin/sh
 printf '{"tag_name":"v9.9.9","name":"9.9.9"}\\n'
 `;
@@ -161,4 +170,31 @@ describe("which images install.sh pins", () => {
 			rmSync(at, { recursive: true, force: true });
 		}
 	});
+});
+
+const canTestSudo = process.platform === "linux" && process.getuid?.() !== 0;
+
+describe("install.sh for a user who is not in the docker group", () => {
+	it.skipIf(!canTestSudo)(
+		"runs every docker call through sudo and says so",
+		() => {
+			const at = scratch();
+
+			try {
+				writeFileSync(join(at, "bin/docker"), FAKE_DOCKER_NEEDS_SUDO);
+				chmodSync(join(at, "bin/docker"), 0o755);
+				writeFileSync(join(at, "bin/sudo"), FAKE_SUDO);
+				chmodSync(join(at, "bin/sudo"), 0o755);
+
+				const result = run(0, {}, at);
+
+				expect(result.code).toBe(0);
+				expect(result.out).toContain("Running docker through sudo");
+				expect(result.out).toContain("Reloop CRM is running");
+				expect(existsSync(join(at, "owner"))).toBe(true);
+			} finally {
+				rmSync(at, { recursive: true, force: true });
+			}
+		},
+	);
 });

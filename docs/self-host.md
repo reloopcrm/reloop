@@ -4,7 +4,7 @@ Reloop CRM runs on your own server with Docker. One command installs it.
 
 ## Requirements
 
-- A Linux server. The installer sets Docker up for you when it is missing, using Docker's own install script, and starts it.
+- A Linux server, and either root or a user with sudo. The installer sets Docker up for you when it is missing, using Docker's own install script, and starts it.
 - On macOS the installer starts OrbStack or Docker Desktop, and installs OrbStack through Homebrew when neither is there.
 - 8 GB of RAM recommended. The agent alone uses 3.6 to 3.9 GB while it reads a busy mailbox, and Postgres, the API and the app need room beside it. 4 GB is too little for the whole stack.
 - 20 GB of free disk space for the images, the database and backups.
@@ -20,11 +20,13 @@ Reloop CRM runs on your own server with Docker. One command installs it.
 curl -fsSL https://reloopcrm.com/install.sh | sh
 ```
 
-The script installs into `~/reloop/deploy`. Set `RELOOP_DIR` to choose another folder.
+Run it as root, or as a user with sudo. A user who is not in the `docker` group needs no preparation: the script runs `docker` through sudo and says so. A user without root and without sudo gets an error that names the fix.
+
+The script installs into `~/reloop/deploy` of the user who runs it. Run with `sudo sh`, the home is the home of root, so the files land in `/root/reloop/deploy`. Set `RELOOP_DIR` to choose another folder.
 
 ### What install.sh asks
 
-1. **Domain.** A name like `crm.example.com`, or Enter for `localhost`. With `localhost` the app opens at `http://localhost:3000`. Sign-in works there because the session cookie drops the `__Secure-` prefix on plain http. A real domain gets HTTPS and the secure cookie.
+1. **Domain.** A name like `crm.example.com`, or Enter for `localhost`. With `localhost` the app opens at `http://localhost:3000`. Sign-in works there because the session cookie drops the `__Secure-` prefix on plain http. A real domain gets HTTPS and the secure cookie. `localhost` binds to 127.0.0.1, so the app is reachable on that machine only. On a remote server, give a domain, or open an SSH tunnel with `ssh -L 3000:localhost:3000 user@server` and browse `http://localhost:3000`.
 2. **Existing reverse proxy.** Asked only for a domain. Answer "no" and the bundled Caddy gets a certificate and serves HTTPS on ports 80 and 443.
 3. **Owner email.** The first account. It is the only address in `ALLOWED_SIGN_IN`.
 4. **Owner password.** 12 to 128 characters. You type it twice. It is never written to disk.

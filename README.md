@@ -48,13 +48,13 @@ Reloop CRM connects to your mailbox, reads every conversation and remembers what
 
 ## Self-host
 
-You need a Linux server with Docker.
+You need a Linux server. Run the command as root, or as a user with sudo. Docker is installed for you when it is missing.
 
 ```bash
 curl -fsSL https://reloopcrm.com/install.sh | sh
 ```
 
-The script asks for your domain, your email and a password, then starts everything. The full guide is in [`docs/self-host.md`](./docs/self-host.md).
+The script asks for your domain, your email and a password, then starts everything. Without sudo it installs into `~/reloop/deploy`. With `sudo` it installs into the home of root. With `localhost` as the domain the app is reachable on that machine only, so a remote server needs a real domain. The full guide is in [`docs/self-host.md`](./docs/self-host.md).
 
 A hosted version runs at [reloopcrm.com](https://reloopcrm.com).
 

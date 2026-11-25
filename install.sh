@@ -19,10 +19,34 @@ sudo_if_needed() {
 	fi
 }
 
+DOCKER="docker"
+
+docker_ready() {
+	command -v docker > /dev/null 2>&1 || return 1
+	if docker info > /dev/null 2>&1; then
+		DOCKER="docker"
+		return 0
+	fi
+	[ "$(uname -s)" = "Linux" ] || return 1
+	[ "$(id -u)" != "0" ] || return 1
+	command -v sudo > /dev/null 2>&1 || return 1
+	if sudo docker info > /dev/null 2>&1; then
+		DOCKER="sudo docker"
+		return 0
+	fi
+	return 1
+}
+
+require_root_or_sudo() {
+	[ "$(id -u)" = "0" ] && return 0
+	command -v sudo > /dev/null 2>&1 && return 0
+	fail "This installer needs root or sudo to set up and reach Docker. Run it as root, or install sudo (as root: apt-get install sudo, then usermod -aG sudo $(id -un)), then run it again."
+}
+
 wait_for_docker() {
 	i=0
 	while [ "$i" -lt 60 ]; do
-		docker info > /dev/null 2>&1 && return 0
+		docker_ready && return 0
 		i=$((i + 1))
 		sleep 2
 	done
@@ -54,15 +78,22 @@ start_docker_mac() {
 	fi
 }
 
+announce_sudo_docker() {
+	[ "$DOCKER" = "sudo docker" ] || return 0
+	say "Your user cannot reach the Docker socket. Running docker through sudo for this install."
+}
+
 ensure_docker() {
-	if command -v docker > /dev/null 2>&1 && docker info > /dev/null 2>&1; then
+	if docker_ready; then
+		announce_sudo_docker
 		return 0
 	fi
 
 	case "$(uname -s)" in
 		Linux)
+			require_root_or_sudo
 			command -v docker > /dev/null 2>&1 || install_docker_linux
-			docker info > /dev/null 2>&1 || sudo_if_needed systemctl start docker > /dev/null 2>&1 || true
+			docker_ready || sudo_if_needed systemctl start docker > /dev/null 2>&1 || true
 			;;
 		Darwin) start_docker_mac ;;
 		*) fail "This installer supports Linux servers and macOS. Install Docker yourself and run it again." ;;
@@ -70,6 +101,7 @@ ensure_docker() {
 
 	say "Waiting for Docker to start."
 	wait_for_docker || fail "Docker still does not answer. Start it and run this script again."
+	announce_sudo_docker
 }
 
 ask_owner_email() {
@@ -142,15 +174,15 @@ pin_version() {
 }
 
 owner_state() {
-	docker compose exec -T api bun apps/api/scripts/create-owner.ts --exists < /dev/null
+	$DOCKER compose exec -T api bun apps/api/scripts/create-owner.ts --exists < /dev/null
 }
 
 create_owner() {
-	printf '%s' "$PASSWORD" | docker compose exec -T api bun apps/api/scripts/create-owner.ts "$EMAIL"
+	printf '%s' "$PASSWORD" | $DOCKER compose exec -T api bun apps/api/scripts/create-owner.ts "$EMAIL"
 }
 
 ensure_docker
-docker compose version > /dev/null 2>&1 || fail "Docker Compose v2 is missing. Install the docker-compose-plugin package."
+$DOCKER compose version > /dev/null 2>&1 || fail "Docker Compose v2 is missing. Install the docker-compose-plugin package."
 command -v openssl > /dev/null 2>&1 || fail "openssl is not installed."
 
 if [ -f ./install.sh ] && [ -f ./deploy/docker-compose.yml ]; then
@@ -175,7 +207,7 @@ PASSWORD=""
 if [ -f "$ENV_FILE" ]; then
 	say "Found $ENV_FILE. Existing secrets and settings stay as they are."
 else
-	if docker volume inspect reloop_postgres-data > /dev/null 2>&1; then
+	if $DOCKER volume inspect reloop_postgres-data > /dev/null 2>&1; then
 		fail "A Reloop database volume exists on this machine, but $ENV_FILE is missing. Run this script in the folder of that installation, or restore $ENV_FILE from your backup. A new password cannot open the existing database."
 	fi
 
@@ -232,8 +264,8 @@ EOF
 fi
 
 say "Pulling images. This takes a few minutes the first time."
-docker compose pull --ignore-pull-failures
-docker compose up -d --wait || fail "The stack did not start. Fix the error above and run this script again. It keeps $ENV_FILE and creates the owner account then."
+$DOCKER compose pull --ignore-pull-failures
+$DOCKER compose up -d --wait || fail "The stack did not start. Fix the error above and run this script again. It keeps $ENV_FILE and creates the owner account then."
 
 OWNER_STATE="$(owner_state 2>&1 || true)"
 case "$OWNER_STATE" in
@@ -248,14 +280,14 @@ case "$OWNER_STATE" in
 		[ -n "$PASSWORD" ] || ask_owner_password
 		if ! create_owner; then
 			say "The owner account was not created. Run this command in $DIR to try again:"
-			say "  printf '%s' 'your password' | docker compose exec -T api bun apps/api/scripts/create-owner.ts $EMAIL"
+			say "  printf '%s' 'your password' | $DOCKER compose exec -T api bun apps/api/scripts/create-owner.ts $EMAIL"
 			exit 1
 		fi
 		;;
 	*)
 		say "Could not check whether an owner account exists: $OWNER_STATE"
 		say "Run this script again once the api container answers, or create the owner in $DIR with:"
-		say "  printf '%s' 'your password' | docker compose exec -T api bun apps/api/scripts/create-owner.ts you@example.com"
+		say "  printf '%s' 'your password' | $DOCKER compose exec -T api bun apps/api/scripts/create-owner.ts you@example.com"
 		exit 1
 		;;
 esac
@@ -273,4 +305,12 @@ case "$APP_URL_VALUE" in
 		fi
 		;;
 esac
-say "Settings live in $ENV_FILE. Keep a copy of that file with your backups."
+case "$APP_URL_VALUE" in
+	http://localhost*)
+		say "Localhost is reachable on this machine only. A remote server needs a domain, or an SSH tunnel: ssh -L 3000:localhost:3000 user@server"
+		;;
+esac
+say "Files live in $DIR. Settings live in $ENV_FILE. Keep a copy of that file with your backups."
+if [ "$DOCKER" = "sudo docker" ]; then
+	say "Run docker commands in $DIR with sudo, or run: sudo usermod -aG docker $(id -un) and log in again."
+fi

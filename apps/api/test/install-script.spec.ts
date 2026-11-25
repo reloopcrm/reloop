@@ -173,9 +173,7 @@ describe("which images install.sh pins", () => {
 });
 
 const canTestSudo =
-	process.platform === "linux" &&
-	typeof process.getuid === "function" &&
-	process.getuid() !== 0;
+	process.platform === "linux" && process.getuid?.() !== 0;
 
 describe("install.sh for a user who is not in the docker group", () => {
 	it.skipIf(!canTestSudo)(
